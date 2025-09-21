@@ -11,7 +11,7 @@ Global tech stack defaults for Agent OS projects, overridable in project-specifi
 - JavaScript Framework: React 19.1.0+
 - Build Tool: Metro bundler (React Native)
 - Import Strategy: ES6 modules with React Native resolution
-- Package Manager: npm or bun
+- Package Manager: bun
 - Node Version: 18+ LTS
 - Styling: React Native StyleSheet with expo-system-ui
 - UI Components: React Native core components + Expo UI elements
@@ -29,5 +29,7 @@ Global tech stack defaults for Agent OS projects, overridable in project-specifi
 - CI/CD Triggers: Push to main/develop branches, pull requests
 - Build & Deploy: GitHub Actions + EAS Build and Submit
 - Expo Updates: EAS Update for over-the-air updates
-- Testing: Jest with @testing-library/react-native (run in GitHub Actions)
+- Testing: Bun test with @testing-library/react-native (run in GitHub Actions)
+- Code Quality: Biome.js for formatting and core linting, ESLint with eslint-config-expo for React Native rules
+- Conflict Prevention: eslint-config-biome to prevent rule conflicts between Biome and ESLint
 - Development: Expo development build workflow

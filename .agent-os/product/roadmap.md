@@ -18,7 +18,7 @@ The following foundation has been established:
 
 ### Features
 
-- [ ] **Development Tooling Setup** - Configure Biome.js, Husky, lint-staged, and basic test framework `M`
+- [x] **Development Tooling Setup** - Configure Biome.js, Husky, lint-staged, and basic test framework `M`
 - [ ] **Authentication Integration** - Connect with existing VerseMate user authentication system `L`
 - [ ] **Basic Bible Reader** - Create mobile-optimized reading interface for Genesis and Matthew `L`
 - [ ] **API Connection** - Establish communication with VerseMate backend for user data and content `M`
