@@ -1,50 +1,120 @@
-# Welcome to your Expo app 👋
+# VerseMate Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+VerseMate Mobile is a React Native application for Bible reading with AI-powered explanations. This app helps users study the Bible with summaries, line-by-line explanations, and detailed analysis.
 
-## Get started
+## Development Setup
 
-1. Install dependencies
+### Prerequisites
+
+- [Bun](https://bun.sh/) - Fast JavaScript runtime and package manager
+- [Node.js](https://nodejs.org/) (LTS version)
+- [Expo CLI](https://docs.expo.dev/get-started/installation/)
+- iOS Simulator (macOS) or Android Studio (for Android development)
+
+### Installation
+
+1. Install dependencies with Bun:
 
    ```bash
-   npm install
+   bun install
    ```
 
-2. Start the app
+2. Start the development server:
 
    ```bash
-   npx expo start
+   bun start
+   # or
+   bun run start
    ```
 
-In the output, you'll find options to open the app in a
+### Platform-Specific Development
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+The development server provides options to run on different platforms:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- **iOS Simulator**: `bun run ios`
+- **Android Emulator**: `bun run android`
+- **Web Browser**: `bun run web`
+- **Expo Go**: Scan QR code with Expo Go app
 
-## Get a fresh project
+You can start developing by editing files in the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-When you're ready, run:
+## Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `bun start` | Start the Expo development server |
+| `bun run ios` | Start on iOS simulator |
+| `bun run android` | Start on Android emulator |
+| `bun run web` | Start on web browser |
+| `bun run format` | Format code with Biome.js |
+| `bun run lint` | Run linting (Biome + ESLint) |
+| `bun run lint:fix` | Fix linting issues automatically |
+| `bun run type-check` | Run TypeScript type checking |
+| `bun run test` | Run tests with Bun |
+
+## Development Workflow
+
+### Code Quality
+
+This project uses a comprehensive code quality setup:
+
+- **Biome.js**: Fast formatting and core linting
+- **ESLint**: React Native specific rules and platform support
+- **TypeScript**: Static type checking
+- **Husky**: Git hooks for pre-commit/pre-push validation
+- **lint-staged**: Run linters on staged files only
+
+### Pre-commit Hooks
+
+The project automatically runs the following checks before commits:
+
+1. **Biome.js**: Formats and checks code style
+2. **ESLint**: Validates React Native best practices
+
+### Pre-push Hooks
+
+Before pushing to remote:
+
+1. **TypeScript**: Validates all type definitions
+
+### Testing
+
+Tests are run with Bun's built-in test runner:
 
 ```bash
-npm run reset-project
+bun test
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Test files should be placed in:
+- `__tests__/` directory
+- Files ending with `.test.ts` or `.test.tsx`
 
-## Learn more
+## Troubleshooting
 
-To learn more about developing your project with Expo, look at the following resources:
+### Common Issues
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+1. **Dependency conflicts**: Clear cache with `bun install --force`
+2. **TypeScript errors**: Run `bun run type-check` to see detailed errors
+3. **Linting issues**: Run `bun run lint:fix` to auto-fix issues
+4. **Git hooks failing**: Check pre-commit output and fix linting/formatting
 
-## Join the community
+### Emergency Skip
 
-Join our community of developers creating universal apps.
+To skip git hooks in emergencies:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+git commit --no-verify -m "emergency commit"
+git push --no-verify
+```
+
+**Note**: Only use `--no-verify` for critical fixes and ensure issues are resolved in follow-up commits.
+
+## Contributing
+
+1. Create a feature branch: `git checkout -b feature/your-feature`
+2. Make changes and ensure all quality checks pass
+3. Commit changes (pre-commit hooks will run automatically)
+4. Push branch (pre-push hooks will run TypeScript check)
+5. Create pull request
+
+The CI pipeline will run all quality checks on pull requests.
