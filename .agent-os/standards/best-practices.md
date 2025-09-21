@@ -59,6 +59,13 @@ When adding third-party dependencies:
   - Number of stars/downloads
   - Clear documentation
   - React Native version compatibility
+
+### Code Quality Tools
+- **Biome.js**: Use for fast formatting, import organization, and core linting
+- **ESLint**: Use with eslint-config-expo for React Native/platform-specific rules
+- **Conflict Prevention**: Always use eslint-config-biome to prevent rule conflicts
+- **Execution Order**: Run Biome first (fast), then ESLint (specific rules)
+- **Configuration**: Use flat config format (eslint.config.js) for modern ESLint setup
 </conditional-block>
 
 ## React Native Best Practices
