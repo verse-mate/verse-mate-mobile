@@ -22,4 +22,3 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
-console.log('test');
