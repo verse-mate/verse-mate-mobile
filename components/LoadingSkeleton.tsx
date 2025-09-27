@@ -1,12 +1,5 @@
-import React from 'react';
+import type React from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
 
 interface LoadingSkeletonProps {
   testID?: string;
@@ -18,7 +11,7 @@ interface LoadingSkeletonProps {
 }
 
 /**
- * Basic loading skeleton component with shimmer animation
+ * Basic loading skeleton component
  */
 export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
   testID,
@@ -28,33 +21,15 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
   style,
   animated = true,
 }) => {
-  const shimmerAnimation = useSharedValue(0);
-
-  React.useEffect(() => {
-    if (animated) {
-      shimmerAnimation.value = withRepeat(withTiming(1, { duration: 1000 }), -1, true);
-    }
-  }, [animated, shimmerAnimation]);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    if (!animated) return {};
-    const opacity = interpolate(shimmerAnimation.value, [0, 1], [0.3, 0.7]);
-
-    return {
-      opacity,
-    };
-  });
-
   return (
-    <Animated.View
+    <View
       style={[
         styles.skeleton,
         {
-          width,
+          width: width as any,
           height,
           borderRadius,
         },
-        animatedStyle,
         style,
       ]}
       testID={testID || 'loading-skeleton'}
