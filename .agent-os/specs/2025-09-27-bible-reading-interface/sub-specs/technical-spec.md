@@ -28,7 +28,8 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 - **GestureNavigation**: Swipe gesture handler component working alongside floating controls
 
 ### Navigation Implementation
-- **Expo Router**: File-based routing with dynamic segments for `/bible/[bookId]/[chapter]` structure (testament excluded from URL)
+- **Expo Router**: File-based routing with dynamic segments for `/bible/[bookId]/[chapter]` structure
+  - Testament excluded from URL path for clean structure (testament derived from bookId: 1-39=OT, 40-66=NT)
 - **Cross-Book Navigation**: Logic to handle book transitions using sequential book IDs (Genesis=1 → Exodus=2, Malachi=39 → Matthew=40, etc.)
 - **Book Order Mapping**: Sequential 1-66 book ID system from webapp's `testaments.ts` structure
 - **Navigation Utilities**: Create `getNextBook()`, `getPreviousBook()`, `getLastChapterOfBook()` functions
@@ -118,6 +119,17 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 - **Memory Management**: Proper cleanup of gesture handlers, animation listeners, and search indices
 - **App Performance**: Efficient component rendering and state management for smooth Bible reading experience
 - **Floating Control Optimization**: Efficient rendering of persistent floating navigation elements
+
+### Testing Strategy
+- **Unit Testing**: Bun test + React Native Testing Library (already configured in project)
+  - Test runner: `bun test` command configured in package.json
+  - Testing Library: `@testing-library/react-native` v13.3.3 (already installed)
+  - Custom matchers: `@testing-library/jest-dom` v6.8.0 (already installed)
+- **Integration Testing**: Detox for end-to-end mobile app testing (to be added if needed)
+- **Component Testing**: Storybook for component isolation and visual testing (to be added if needed)
+- **API Testing**: MSW (Mock Service Worker) for API mocking and testing (to be added if needed)
+- **Code Quality**: Biome.js + ESLint already configured with pre-commit hooks
+- **Type Checking**: TypeScript with `bun tsc --noEmit` in existing CI pipeline
 
 ## External Dependencies
 
