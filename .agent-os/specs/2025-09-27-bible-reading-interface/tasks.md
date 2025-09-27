@@ -14,14 +14,14 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
 **Dependencies:** None (foundational task)
 
 **Checklist:**
-- [ ] 1.1 Write comprehensive test suites for BibleReader navigation and data fetching
-- [ ] 1.2 Create BibleReader screen component with React Navigation integration
-- [ ] 1.3 Implement VerseMate API service layer for Bible data fetching
-- [ ] 1.4 Set up reading position persistence with AsyncStorage
-- [ ] 1.5 Create book ID mapping utility for cross-reference navigation
-- [ ] 1.6 Implement error handling and retry logic for API failures
-- [ ] 1.7 Add loading states and skeleton components for data fetching
-- [ ] 1.8 Verify navigation flow and data persistence functionality
+- [x] 1.1 Write comprehensive test suites for BibleReader navigation and data fetching
+- [x] 1.2 Create BibleReader screen component with React Navigation integration
+- [x] 1.3 Implement VerseMate API service layer for Bible data fetching
+- [x] 1.4 Set up reading position persistence with AsyncStorage
+- [x] 1.5 Create book ID mapping utility for cross-reference navigation
+- [x] 1.6 Implement error handling and retry logic for API failures
+- [x] 1.7 Add loading states and skeleton components for data fetching
+- [x] 1.8 Verify navigation flow and data persistence functionality
 
 ### 2. Testament Toggle & Book Selection Components
 
