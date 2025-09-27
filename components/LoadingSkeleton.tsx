@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 interface LoadingSkeletonProps {
+  testID?: string;
   width?: number | string;
   height?: number;
   borderRadius?: number;
@@ -20,6 +21,7 @@ interface LoadingSkeletonProps {
  * Basic loading skeleton component with shimmer animation
  */
 export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
+  testID,
   width = '100%',
   height = 20,
   borderRadius = 4,
@@ -54,7 +56,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
         animated && animatedStyle,
         style,
       ]}
-      testID="loading-skeleton"
+      testID={testID || 'loading-skeleton'}
       accessible={false}
     />
   );

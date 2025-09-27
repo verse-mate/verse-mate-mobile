@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
 import Animated, {
+  useAnimatedGestureHandler as any,
   runOnJS,
-  useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -147,7 +147,6 @@ export default function BibleReader() {
     if (hideNavTimeoutRef.current) {
       clearTimeout(hideNavTimeoutRef.current);
     }
-
     setShowFloatingNav(true);
 
     hideNavTimeoutRef.current = setTimeout(() => {
@@ -165,7 +164,7 @@ export default function BibleReader() {
       resetHideNavTimer();
 
       // Debounced position saving
-      clearTimeout(hideNavTimeoutRef.current);
+      if (hideNavTimeoutRef.current) clearTimeout(hideNavTimeoutRef.current);
       hideNavTimeoutRef.current = setTimeout(() => {
         if (chapterData) {
           const position: ReadingPosition = {
@@ -224,7 +223,7 @@ export default function BibleReader() {
   }, [chapterData, currentBookId, currentChapter, bookMappingService, navigateToChapter]);
 
   // Gesture handler for swipe navigation
-  const gestureHandler = useAnimatedGestureHandler({
+  const gestureHandler = (useAnimatedGestureHandler as any)({
     onStart: () => {
       gestureActive.value = true;
     },

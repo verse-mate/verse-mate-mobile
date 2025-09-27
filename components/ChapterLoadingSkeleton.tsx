@@ -62,7 +62,7 @@ export const ChapterLoadingSkeleton: React.FC<ChapterLoadingSkeletonProps> = ({
                     width={`${Math.floor(Math.random() * 40) + 30}%`}
                     height={18}
                     borderRadius={4}
-                    style={[styles.verseTextSkeleton, { marginTop: 4 }]}
+                    style={{ ...styles.verseTextSkeleton, marginTop: 4 }}
                   />
                 )}
               </View>
