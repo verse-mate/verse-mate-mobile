@@ -11,9 +11,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
+// import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
 import Animated, {
-  useAnimatedGestureHandler as any,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -222,34 +221,8 @@ export default function BibleReader() {
     }
   }, [chapterData, currentBookId, currentChapter, bookMappingService, navigateToChapter]);
 
-  // Gesture handler for swipe navigation
-  const gestureHandler = (useAnimatedGestureHandler as any)({
-    onStart: () => {
-      gestureActive.value = true;
-    },
-    onActive: (event) => {
-      translateX.value = event.translationX;
-    },
-    onEnd: (event) => {
-      gestureActive.value = false;
-
-      const threshold = screenWidth * 0.3;
-      const velocity = event.velocityX;
-
-      if (Math.abs(event.translationX) > threshold || Math.abs(velocity) > 1000) {
-        if (event.translationX > 0) {
-          // Swipe right - previous chapter
-          runOnJS(navigatePrevious)();
-        } else {
-          // Swipe left - next chapter
-          runOnJS(navigateNext)();
-        }
-      }
-
-      translateX.value = withSpring(0);
-    },
-  });
-
+  // Gesture handler disabled for compatibility
+  const gestureHandler = null;
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateX: translateX.value }],
@@ -302,8 +275,8 @@ export default function BibleReader() {
     <NetworkErrorBoundary>
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />
-        <GestureHandlerRootView style={styles.flex}>
-          <PanGestureHandler onGestureEvent={gestureHandler}>
+        <View style={styles.flex}>
+          <View>
             <Animated.View style={[styles.flex, animatedStyle]}>
               <ScrollView
                 ref={scrollViewRef}
@@ -350,7 +323,7 @@ export default function BibleReader() {
                 <View style={styles.bottomSpacing} />
               </ScrollView>
             </Animated.View>
-          </PanGestureHandler>
+          </View>
 
           {/* Floating Navigation */}
           {showFloatingNav && (
@@ -368,7 +341,7 @@ export default function BibleReader() {
               currentChapter={currentChapter}
             />
           )}
-        </GestureHandlerRootView>
+        </View>
       </SafeAreaView>
     </NetworkErrorBoundary>
   );

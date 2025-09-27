@@ -37,6 +37,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
   }, [animated, shimmerAnimation]);
 
   const animatedStyle = useAnimatedStyle(() => {
+    if (!animated) return {};
     const opacity = interpolate(shimmerAnimation.value, [0, 1], [0.3, 0.7]);
 
     return {
@@ -53,7 +54,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
           height,
           borderRadius,
         },
-        animated && animatedStyle,
+        animatedStyle,
         style,
       ]}
       testID={testID || 'loading-skeleton'}
