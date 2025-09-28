@@ -30,14 +30,14 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
 **Dependencies:** Task 1 (navigation and data layer)
 
 **Checklist:**
-- [ ] 2.1 Write unit tests for TestamentToggle, BookAccordion, and GlobalSearch components
-- [ ] 2.2 Create TestamentToggle component with filter-based Old/New Testament switching
-- [ ] 2.3 Implement hierarchical BookAccordion with recent books prioritization
-- [ ] 2.4 Add GlobalSearch component with debounced input and cross-testament search
-- [ ] 2.5 Create ChapterGrid component with 5-column layout for chapter selection
-- [ ] 2.6 Implement deep linking support for `/bible/[bookId]/[chapter]` structure
-- [ ] 2.7 Add loading states and error handling for book/search data
-- [ ] 2.8 Verify testament filtering, book selection, and search workflows
+- [x] 2.1 Write unit tests for TestamentToggle, BookAccordion, and GlobalSearch components
+- [x] 2.2 Create TestamentToggle component with filter-based Old/New Testament switching
+- [x] 2.3 Implement hierarchical BookAccordion with recent books prioritization
+- [x] 2.4 Add GlobalSearch component with debounced input and cross-testament search
+- [x] 2.5 Create ChapterGrid component with 5-column layout for chapter selection
+- [x] 2.6 Implement deep linking support for `/bible/[bookId]/[chapter]` structure
+- [x] 2.7 Add loading states and error handling for book/search data
+- [x] 2.8 Verify testament filtering, book selection, and search workflows
 
 ### 3. Chapter Reader & Content Display
 

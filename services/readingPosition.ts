@@ -67,8 +67,12 @@ export class ReadingPositionService {
       // Clean up old positions if we have too many
       await this.cleanupOldPositions();
     } catch (error) {
+      // Check if it's a validation error - those should be thrown
+      if (error instanceof Error && error.message.includes('Invalid position data')) {
+        throw error;
+      }
       console.error('Error saving reading position:', error);
-      // Don't throw error to avoid disrupting user experience
+      // Don't throw storage errors to avoid disrupting user experience
     }
   }
 
@@ -104,7 +108,20 @@ export class ReadingPositionService {
 
       return position;
     } catch (error) {
-      console.error('Error getting reading position:', error);
+      // Check if it's a validation error - those should be thrown
+      if (
+        error instanceof Error &&
+        (error.message.includes('Invalid book ID') ||
+          error.message.includes('Invalid chapter number'))
+      ) {
+        throw error;
+      }
+
+      if (error instanceof SyntaxError) {
+        console.error('Error parsing reading position:', error);
+      } else {
+        console.error('Error getting reading position:', error);
+      }
       return null;
     }
   }

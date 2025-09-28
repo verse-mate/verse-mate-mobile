@@ -3,10 +3,16 @@ import { ReadingPositionService } from '@/services/readingPosition';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+  __esModule: true,
+  default: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn(),
+    getAllKeys: jest.fn(),
+    multiGet: jest.fn(),
+    multiRemove: jest.fn(),
+  },
 }));
 
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
@@ -16,6 +22,14 @@ describe('ReadingPositionService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset all mocks to default return values
+    mockAsyncStorage.getItem.mockResolvedValue(null);
+    mockAsyncStorage.setItem.mockResolvedValue();
+    mockAsyncStorage.removeItem.mockResolvedValue();
+    mockAsyncStorage.clear.mockResolvedValue();
+    mockAsyncStorage.getAllKeys.mockResolvedValue([]);
+    mockAsyncStorage.multiGet.mockResolvedValue([]);
+    mockAsyncStorage.multiRemove.mockResolvedValue();
     service = new ReadingPositionService();
   });
 
