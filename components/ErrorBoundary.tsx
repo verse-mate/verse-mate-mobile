@@ -1,5 +1,4 @@
-import type React from 'react';
-import { Component, type ReactNode } from 'react';
+import React, { Component, type ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface ErrorBoundaryProps {

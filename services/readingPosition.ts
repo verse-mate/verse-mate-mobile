@@ -19,6 +19,11 @@ export interface ReadingPosition {
 export class ReadingPositionService {
   private readonly keyPrefix = 'reading_position';
   private readonly maxPositions = 100; // Limit stored positions to prevent excessive storage usage
+  private readonly storage: typeof AsyncStorage;
+
+  constructor(storage = AsyncStorage) {
+    this.storage = storage;
+  }
 
   /**
    * Generate storage key for a book and chapter
@@ -53,7 +58,7 @@ export class ReadingPositionService {
    */
   public async savePosition(position: ReadingPosition): Promise<void> {
     try {
-      // Validate position data
+      // Validate position data - validation errors should be thrown to caller
       this.validatePosition(position);
 
       const key = this.getStorageKey(position.bookId, position.chapter);
@@ -62,13 +67,17 @@ export class ReadingPositionService {
         timestamp: Date.now(), // Always use current timestamp
       };
 
-      await AsyncStorage.setItem(key, JSON.stringify(positionData));
+      await this.storage.setItem(key, JSON.stringify(positionData));
 
       // Clean up old positions if we have too many
       await this.cleanupOldPositions();
     } catch (error) {
+      // Check if it's a validation error - those should be thrown
+      if (error instanceof Error && error.message.includes('Invalid position data')) {
+        throw error;
+      }
       console.error('Error saving reading position:', error);
-      // Don't throw error to avoid disrupting user experience
+      // Don't throw storage errors to avoid disrupting user experience
     }
   }
 
@@ -87,7 +96,7 @@ export class ReadingPositionService {
       }
 
       const key = this.getStorageKey(bookId, chapter);
-      const storedData = await AsyncStorage.getItem(key);
+      const storedData = await this.storage.getItem(key);
 
       if (!storedData) {
         return null;
@@ -98,13 +107,25 @@ export class ReadingPositionService {
       // Validate stored data
       if (!this.isValidStoredPosition(position)) {
         console.warn('Invalid stored position data, removing:', position);
-        await AsyncStorage.removeItem(key);
+        await this.storage.removeItem(key);
         return null;
       }
 
       return position;
     } catch (error) {
-      console.error('Error getting reading position:', error);
+      // Check if it's a validation error - those should be thrown
+      if (
+        error instanceof Error &&
+        (error.message.includes('Invalid book ID') ||
+          error.message.includes('Invalid chapter number'))
+      ) {
+        throw error;
+      }
+      if (error instanceof SyntaxError) {
+        console.error('Error parsing reading position:', error);
+      } else {
+        console.error('Error getting reading position:', error);
+      }
       return null;
     }
   }
@@ -115,7 +136,7 @@ export class ReadingPositionService {
   public async removePosition(bookId: number, chapter: number): Promise<void> {
     try {
       const key = this.getStorageKey(bookId, chapter);
-      await AsyncStorage.removeItem(key);
+      await this.storage.removeItem(key);
     } catch (error) {
       console.error('Error removing reading position:', error);
     }
@@ -126,14 +147,14 @@ export class ReadingPositionService {
    */
   public async getAllPositions(): Promise<ReadingPosition[]> {
     try {
-      const keys = await AsyncStorage.getAllKeys();
+      const keys = await this.storage.getAllKeys();
       const positionKeys = keys.filter((key) => key.startsWith(this.keyPrefix));
 
       if (positionKeys.length === 0) {
         return [];
       }
 
-      const results = await AsyncStorage.multiGet(positionKeys);
+      const results = await this.storage.multiGet(positionKeys);
       const positions: ReadingPosition[] = [];
 
       for (const [key, value] of results) {
@@ -144,11 +165,11 @@ export class ReadingPositionService {
               positions.push(position);
             } else {
               // Remove invalid position data
-              await AsyncStorage.removeItem(key);
+              await this.storage.removeItem(key);
             }
           } catch (_parseError) {
             console.warn('Failed to parse position data for key:', key);
-            await AsyncStorage.removeItem(key);
+            await this.storage.removeItem(key);
           }
         }
       }
@@ -254,11 +275,11 @@ export class ReadingPositionService {
    */
   public async clearAllPositions(): Promise<void> {
     try {
-      const keys = await AsyncStorage.getAllKeys();
+      const keys = await this.storage.getAllKeys();
       const positionKeys = keys.filter((key) => key.startsWith(this.keyPrefix));
 
       if (positionKeys.length > 0) {
-        await AsyncStorage.multiRemove(positionKeys);
+        await this.storage.multiRemove(positionKeys);
       }
     } catch (error) {
       console.error('Error clearing reading positions:', error);

@@ -43,7 +43,7 @@ describe('Error Handling Components', () => {
       );
 
       expect(screen.getByText('Something went wrong')).toBeTruthy();
-      expect(screen.getByText('Try again')).toBeTruthy();
+      expect(screen.getByLabelText('Retry action')).toBeTruthy();
       expect(screen.queryByTestId('working-component')).toBeNull();
     });
 
@@ -56,7 +56,7 @@ describe('Error Handling Components', () => {
 
       expect(screen.getByText('Something went wrong')).toBeTruthy();
 
-      fireEvent.press(screen.getByText('Try again'));
+      fireEvent.press(screen.getByLabelText('Retry action'));
 
       // Re-render with working component
       rerender(
@@ -124,8 +124,8 @@ describe('Error Handling Components', () => {
         />
       );
 
-      expect(screen.getByText('Failed to load data')).toBeTruthy();
-      expect(screen.getByText('Retry')).toBeTruthy();
+      expect(screen.getByLabelText('Error message')).toBeTruthy();
+      expect(screen.getByLabelText('Retry button')).toBeTruthy();
     });
 
     it('should call onRetry when retry button is pressed', () => {
@@ -296,9 +296,9 @@ describe('Error Handling Components', () => {
         </NetworkErrorBoundary>
       );
 
-      expect(screen.getByText('Try again')).toBeTruthy();
+      expect(screen.getByLabelText('Retry action')).toBeTruthy();
 
-      fireEvent.press(screen.getByText('Try again'));
+      fireEvent.press(screen.getByLabelText('Retry action'));
 
       // Re-render with working component
       rerender(
@@ -322,10 +322,10 @@ describe('Error Handling Components', () => {
       );
 
       // First retry
-      fireEvent.press(screen.getByText('Try again'));
+      fireEvent.press(screen.getByLabelText('Retry action'));
 
       // Should still show retry option
-      expect(screen.getByText('Try again')).toBeTruthy();
+      expect(screen.getByLabelText('Retry action')).toBeTruthy();
     });
 
     it('should show offline message when device is offline', () => {
@@ -370,7 +370,7 @@ describe('Error Handling Components', () => {
 
       expect(screen.getByText('Something went wrong')).toBeTruthy();
 
-      fireEvent.press(screen.getByText('Try again'));
+      fireEvent.press(screen.getByLabelText('Retry action'));
 
       rerender(
         <ErrorBoundary>
@@ -405,7 +405,7 @@ describe('Error Handling Components', () => {
         </ErrorBoundary>
       );
 
-      fireEvent.press(screen.getByText('Try again'));
+      fireEvent.press(screen.getByLabelText('Retry action'));
 
       rerender(
         <ErrorBoundary>

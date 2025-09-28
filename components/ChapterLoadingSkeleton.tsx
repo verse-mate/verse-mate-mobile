@@ -22,7 +22,12 @@ export const ChapterLoadingSkeleton: React.FC<ChapterLoadingSkeletonProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content} testID="chapter-loading-skeleton">
+      <View
+        style={styles.content}
+        testID="chapter-loading-skeleton"
+        accessible={true}
+        accessibilityLabel="Loading chapter content"
+      >
         {/* Chapter Title Skeleton */}
         <View style={styles.headerContainer}>
           <LoadingSkeleton
@@ -32,6 +37,7 @@ export const ChapterLoadingSkeleton: React.FC<ChapterLoadingSkeletonProps> = ({
             style={styles.titleSkeleton}
             testID="chapter-header-skeleton"
           />
+          <View accessible={true} accessibilityLabel="Loading chapter title" />
         </View>
 
         {/* Verse Skeletons */}

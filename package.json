@@ -12,7 +12,10 @@
     "lint": "biome check . && eslint .",
     "lint:fix": "biome check --write . && eslint --fix .",
     "type-check": "tsc --noEmit",
-    "test": "jest",
+    "test": "npm run test:jest && npm run test:bun",
+    "test:jest": "jest __tests__/components/ __tests__/screens/",
+    "test:bun": "bun test __tests__/services/ __tests__/utils/",
+    "test:all": "npm run test",
     "prepare": "husky"
   },
   "dependencies": {

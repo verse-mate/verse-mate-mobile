@@ -15,7 +15,12 @@ export const BookListLoadingSkeleton: React.FC<BookListLoadingSkeletonProps> = (
   showSearch = true,
 }) => {
   return (
-    <View style={styles.container} testID="book-list-loading-skeleton">
+    <View
+      style={styles.container}
+      testID="book-list-loading-skeleton"
+      accessible={true}
+      accessibilityLabel="Loading book list"
+    >
       {/* Search Bar Skeleton */}
       {showSearch && (
         <View style={styles.searchContainer}>
@@ -25,6 +30,7 @@ export const BookListLoadingSkeleton: React.FC<BookListLoadingSkeletonProps> = (
             borderRadius={22}
             testID="search-bar-skeleton"
           />
+          <View accessible={true} accessibilityLabel="Loading search bar" />
         </View>
       )}
 
@@ -38,6 +44,7 @@ export const BookListLoadingSkeleton: React.FC<BookListLoadingSkeletonProps> = (
             style={styles.sectionHeader}
             testID="old-testament-header-skeleton"
           />
+          <View accessible={true} accessibilityLabel="Loading Old Testament books" />
 
           <View style={styles.booksGrid}>
             {Array.from({ length: Math.ceil(bookCount * 0.6) }, (_, index) => (
@@ -72,6 +79,7 @@ export const BookListLoadingSkeleton: React.FC<BookListLoadingSkeletonProps> = (
             style={styles.sectionHeader}
             testID="new-testament-header-skeleton"
           />
+          <View accessible={true} accessibilityLabel="Loading New Testament books" />
 
           <View style={styles.booksGrid}>
             {Array.from({ length: Math.ceil(bookCount * 0.4) }, (_, index) => {

@@ -119,6 +119,12 @@ export class ApiService {
       } catch (error) {
         lastError = error as Error;
 
+        // Don't retry on 4xx client errors (they won't succeed on retry)
+        const apiError = error as ApiError;
+        if (apiError.status && apiError.status >= 400 && apiError.status < 500) {
+          throw error;
+        }
+
         // Don't retry on the last attempt
         if (attempt < this.maxRetries) {
           // Exponential backoff

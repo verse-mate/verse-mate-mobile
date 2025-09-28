@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { BibleReader } from '@/app/bible/[bookId]/[chapter]';
+import BibleReader from '@/app/bible/[bookId]/[chapter]';
 import { ApiService } from '@/services/api';
 import { ReadingPositionService } from '@/services/readingPosition';
 import { BookMappingService } from '@/utils/bookMapping';
