@@ -37,7 +37,7 @@ export const ChapterLoadingSkeleton: React.FC<ChapterLoadingSkeletonProps> = ({
         {/* Verse Skeletons */}
         <View style={styles.versesContainer}>
           {Array.from({ length: verseCount }, (_, index) => (
-            <View key={index} style={styles.verseContainer}>
+            <View key={`verse-skeleton-${index}-${Math.random()}`} style={styles.verseContainer}>
               {/* Verse Number Skeleton */}
               <LoadingSkeleton
                 width={24}
@@ -62,7 +62,7 @@ export const ChapterLoadingSkeleton: React.FC<ChapterLoadingSkeletonProps> = ({
                     width={`${Math.floor(Math.random() * 40) + 30}%`}
                     height={18}
                     borderRadius={4}
-                    style={[styles.verseTextSkeleton, { marginTop: 4 }]}
+                    style={StyleSheet.flatten([styles.verseTextSkeleton, { marginTop: 4 }])}
                   />
                 )}
               </View>

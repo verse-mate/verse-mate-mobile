@@ -1,8 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   RefreshControl,
   SafeAreaView,
@@ -11,14 +10,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedGestureHandler,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+// import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
+// import Animated, {
+//   runOnJS,
+//   useAnimatedStyle,
+//   useSharedValue,
+//   withSpring,
+// } from 'react-native-reanimated';
 import { ChapterLoadingSkeleton } from '@/components/ChapterLoadingSkeleton';
 import { NetworkErrorBoundary } from '@/components/ErrorBoundary';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
@@ -68,12 +66,12 @@ export default function BibleReader() {
 
   // Refs
   const scrollViewRef = useRef<ScrollView>(null);
-  const hideNavTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hideNavTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastScrollPosition = useRef(0);
 
-  // Animation values
-  const translateX = useSharedValue(0);
-  const gestureActive = useSharedValue(false);
+  // Animation values (disabled for now)
+  // const translateX = useSharedValue(0);
+  // const gestureActive = useSharedValue(false);
 
   // Parse route parameters
   const currentBookId = parseInt(bookId || '1', 10);
@@ -157,7 +155,7 @@ export default function BibleReader() {
 
   // Handle scroll events
   const handleScroll = useCallback(
-    (event: any) => {
+    (event: { nativeEvent: { contentOffset: { y: number } } }) => {
       const { contentOffset } = event.nativeEvent;
       lastScrollPosition.current = contentOffset.y;
 
@@ -165,7 +163,7 @@ export default function BibleReader() {
       resetHideNavTimer();
 
       // Debounced position saving
-      clearTimeout(hideNavTimeoutRef.current);
+      if (hideNavTimeoutRef.current) clearTimeout(hideNavTimeoutRef.current);
       hideNavTimeoutRef.current = setTimeout(() => {
         if (chapterData) {
           const position: ReadingPosition = {
@@ -185,7 +183,7 @@ export default function BibleReader() {
   // Navigation functions
   const navigateToChapter = useCallback(
     (targetBookId: number, targetChapter: number) => {
-      router.push(`/bible/${targetBookId}/${targetChapter}`);
+      router.push(`/bible/${targetBookId}/${targetChapter}` as any);
     },
     [router]
   );
@@ -223,39 +221,15 @@ export default function BibleReader() {
     }
   }, [chapterData, currentBookId, currentChapter, bookMappingService, navigateToChapter]);
 
-  // Gesture handler for swipe navigation
-  const gestureHandler = useAnimatedGestureHandler({
-    onStart: () => {
-      gestureActive.value = true;
-    },
-    onActive: (event) => {
-      translateX.value = event.translationX;
-    },
-    onEnd: (event) => {
-      gestureActive.value = false;
+  // Swipe navigation handlers (simplified for now)
+  const onSwipeLeft = () => navigateNext();
+  const onSwipeRight = () => navigatePrevious();
 
-      const threshold = screenWidth * 0.3;
-      const velocity = event.velocityX;
-
-      if (Math.abs(event.translationX) > threshold || Math.abs(velocity) > 1000) {
-        if (event.translationX > 0) {
-          // Swipe right - previous chapter
-          runOnJS(navigatePrevious)();
-        } else {
-          // Swipe left - next chapter
-          runOnJS(navigateNext)();
-        }
-      }
-
-      translateX.value = withSpring(0);
-    },
-  });
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: translateX.value }],
-    };
-  });
+  // const animatedStyle = useAnimatedStyle(() => {
+  //   return {
+  //     transform: [{ translateX: translateX.value }],
+  //   };
+  // });
 
   // Pull to refresh
   const handleRefresh = useCallback(() => {
@@ -303,55 +277,51 @@ export default function BibleReader() {
     <NetworkErrorBoundary>
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />
-        <GestureHandlerRootView style={styles.flex}>
-          <PanGestureHandler onGestureEvent={gestureHandler}>
-            <Animated.View style={[styles.flex, animatedStyle]}>
-              <ScrollView
-                ref={scrollViewRef}
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
-                refreshControl={
-                  <RefreshControl
-                    refreshing={refreshing}
-                    onRefresh={handleRefresh}
-                    tintColor="#b09a6d"
-                  />
-                }
-                testID="chapter-scroll-view"
-                accessible={true}
-                accessibilityLabel="Bible chapter content"
-                onTouchStart={handleScreenPress}
-              >
-                {/* Chapter Header */}
-                <View style={styles.header}>
-                  <Text style={styles.chapterTitle}>
-                    {chapterData.bookName} {chapterData.chapter}
+        <View style={styles.flex}>
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor="#b09a6d"
+              />
+            }
+            testID="chapter-scroll-view"
+            accessible={true}
+            accessibilityLabel="Bible chapter content"
+            onTouchStart={handleScreenPress}
+          >
+            {/* Chapter Header */}
+            <View style={styles.header}>
+              <Text style={styles.chapterTitle}>
+                {chapterData.bookName} {chapterData.chapter}
+              </Text>
+            </View>
+
+            {/* Verses */}
+            <View style={styles.versesContainer}>
+              {chapterData.verses.map((verse) => (
+                <View key={verse.number} style={styles.verseContainer}>
+                  <Text
+                    style={styles.verse}
+                    accessible={true}
+                    accessibilityLabel={`Verse ${verse.number}`}
+                  >
+                    <Text style={styles.verseNumber}>{verse.number}</Text>
+                    <Text style={styles.verseText}>{verse.text}</Text>
                   </Text>
                 </View>
+              ))}
+            </View>
 
-                {/* Verses */}
-                <View style={styles.versesContainer}>
-                  {chapterData.verses.map((verse) => (
-                    <View key={verse.number} style={styles.verseContainer}>
-                      <Text
-                        style={styles.verse}
-                        accessible={true}
-                        accessibilityLabel={`Verse ${verse.number}`}
-                      >
-                        <Text style={styles.verseNumber}>{verse.number}</Text>
-                        <Text style={styles.verseText}>{verse.text}</Text>
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                {/* Bottom spacing for floating navigation */}
-                <View style={styles.bottomSpacing} />
-              </ScrollView>
-            </Animated.View>
-          </PanGestureHandler>
+            {/* Bottom spacing for floating navigation */}
+            <View style={styles.bottomSpacing} />
+          </ScrollView>
 
           {/* Floating Navigation */}
           {showFloatingNav && (
@@ -369,7 +339,7 @@ export default function BibleReader() {
               currentChapter={currentChapter}
             />
           )}
-        </GestureHandlerRootView>
+        </View>
       </SafeAreaView>
     </NetworkErrorBoundary>
   );

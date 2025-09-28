@@ -41,7 +41,10 @@ export const BookListLoadingSkeleton: React.FC<BookListLoadingSkeletonProps> = (
 
           <View style={styles.booksGrid}>
             {Array.from({ length: Math.ceil(bookCount * 0.6) }, (_, index) => (
-              <View key={`old-${index}`} style={styles.bookItemContainer}>
+              <View
+                key={`old-book-skeleton-${index}-${Math.random()}`}
+                style={styles.bookItemContainer}
+              >
                 <LoadingSkeleton
                   width="100%"
                   height={60}
@@ -74,7 +77,10 @@ export const BookListLoadingSkeleton: React.FC<BookListLoadingSkeletonProps> = (
             {Array.from({ length: Math.ceil(bookCount * 0.4) }, (_, index) => {
               const globalIndex = Math.ceil(bookCount * 0.6) + index;
               return (
-                <View key={`new-${index}`} style={styles.bookItemContainer}>
+                <View
+                  key={`new-book-skeleton-${globalIndex}-${Math.random()}`}
+                  style={styles.bookItemContainer}
+                >
                   <LoadingSkeleton
                     width="100%"
                     height={60}

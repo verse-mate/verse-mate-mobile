@@ -146,7 +146,7 @@ export class ReadingPositionService {
               // Remove invalid position data
               await AsyncStorage.removeItem(key);
             }
-          } catch (parseError) {
+          } catch (_parseError) {
             console.warn('Failed to parse position data for key:', key);
             await AsyncStorage.removeItem(key);
           }
@@ -362,19 +362,25 @@ export class ReadingPositionService {
   /**
    * Validate stored position data structure
    */
-  private isValidStoredPosition(position: any): position is ReadingPosition {
+  private isValidStoredPosition(position: unknown): position is ReadingPosition {
     return (
-      position &&
-      typeof position.bookId === 'number' &&
-      typeof position.chapter === 'number' &&
-      typeof position.verse === 'number' &&
-      typeof position.scrollPosition === 'number' &&
-      typeof position.timestamp === 'number' &&
-      position.bookId >= 1 &&
-      position.bookId <= 66 &&
-      position.chapter >= 1 &&
-      position.verse >= 1 &&
-      position.scrollPosition >= 0
+      position !== null &&
+      typeof position === 'object' &&
+      'bookId' in position &&
+      'chapter' in position &&
+      'verse' in position &&
+      'scrollPosition' in position &&
+      'timestamp' in position &&
+      typeof (position as any).bookId === 'number' &&
+      typeof (position as any).chapter === 'number' &&
+      typeof (position as any).verse === 'number' &&
+      typeof (position as any).scrollPosition === 'number' &&
+      typeof (position as any).timestamp === 'number' &&
+      (position as any).bookId >= 1 &&
+      (position as any).bookId <= 66 &&
+      (position as any).chapter >= 1 &&
+      (position as any).verse >= 1 &&
+      (position as any).scrollPosition >= 0
     );
   }
 

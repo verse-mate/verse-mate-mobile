@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, type ViewStyle } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -14,6 +14,7 @@ interface LoadingSkeletonProps {
   borderRadius?: number;
   style?: ViewStyle;
   animated?: boolean;
+  testID?: string;
 }
 
 /**
@@ -25,6 +26,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
   borderRadius = 4,
   style,
   animated = true,
+  testID,
 }) => {
   const shimmerAnimation = useSharedValue(0);
 
@@ -47,14 +49,14 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
       style={[
         styles.skeleton,
         {
-          width,
+          width: width as any,
           height,
           borderRadius,
         },
-        animated && animatedStyle,
+        animated ? animatedStyle : {},
         style,
       ]}
-      testID="loading-skeleton"
+      testID={testID || 'loading-skeleton'}
       accessible={false}
     />
   );

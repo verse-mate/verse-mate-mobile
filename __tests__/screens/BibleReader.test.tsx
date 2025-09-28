@@ -4,6 +4,7 @@ import { BibleReader } from '@/app/bible/[bookId]/[chapter]';
 import { ApiService } from '@/services/api';
 import { ReadingPositionService } from '@/services/readingPosition';
 import { BookMappingService } from '@/utils/bookMapping';
+import * as ExpoRouter from 'expo-router';
 
 // Mock the services
 jest.mock('@/services/api');
@@ -51,7 +52,7 @@ describe('BibleReader Screen', () => {
 
     it('should navigate to next chapter when swipe right gesture is detected', async () => {
       const mockRouter = { push: jest.fn() };
-      jest.spyOn(require('expo-router') as any, 'useRouter').mockReturnValue(mockRouter);
+      jest.spyOn(ExpoRouter, 'useRouter').mockReturnValue(mockRouter);
 
       mockApiService.prototype.getChapter.mockResolvedValue({
         bookId: 1,
@@ -74,8 +75,8 @@ describe('BibleReader Screen', () => {
 
     it('should navigate to previous chapter when swipe left gesture is detected', async () => {
       const mockRouter = { push: jest.fn() };
-      jest.spyOn(require('expo-router') as any, 'useRouter').mockReturnValue(mockRouter);
-      jest.spyOn(require('expo-router') as any, 'useLocalSearchParams').mockReturnValue({ bookId: '1', chapter: '2' });
+      jest.spyOn(ExpoRouter, 'useRouter').mockReturnValue(mockRouter);
+      jest.spyOn(ExpoRouter, 'useLocalSearchParams').mockReturnValue({ bookId: '1', chapter: '2' });
 
       mockApiService.prototype.getChapter.mockResolvedValue({
         bookId: 1,
@@ -98,8 +99,8 @@ describe('BibleReader Screen', () => {
 
     it('should handle cross-book navigation correctly', async () => {
       const mockRouter = { push: jest.fn() };
-      jest.spyOn(require('expo-router') as any, 'useRouter').mockReturnValue(mockRouter);
-      jest.spyOn(require('expo-router') as any, 'useLocalSearchParams').mockReturnValue({ bookId: '39', chapter: '4' }); // Malachi 4
+      jest.spyOn(ExpoRouter, 'useRouter').mockReturnValue(mockRouter);
+      jest.spyOn(ExpoRouter, 'useLocalSearchParams').mockReturnValue({ bookId: '39', chapter: '4' }); // Malachi 4
 
       mockApiService.prototype.getChapter.mockResolvedValue({
         bookId: 39,

@@ -57,7 +57,7 @@ interface CacheEntry<T> {
  */
 export class ApiService {
   private baseUrl: string;
-  private cache: Map<string, CacheEntry<any>> = new Map();
+  private cache: Map<string, CacheEntry<unknown>> = new Map();
   private readonly maxRetries: number = 3;
   private readonly retryDelay: number = 1000; // Base delay in milliseconds
   private readonly defaultCacheTtl: number = 5 * 60 * 1000; // 5 minutes
@@ -154,7 +154,7 @@ export class ApiService {
       return null;
     }
 
-    return entry.data;
+    return entry.data as T;
   }
 
   /**
@@ -171,8 +171,8 @@ export class ApiService {
 
     // Prevent memory leaks by limiting cache size
     if (this.cache.size > 100) {
-      const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
+      const firstKey = this.cache.keys().next().value as string;
+      if (firstKey) this.cache.delete(firstKey);
     }
   }
 
@@ -295,7 +295,7 @@ export class ApiService {
     try {
       await this.request('/health', {}, 0); // No caching for health checks
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
