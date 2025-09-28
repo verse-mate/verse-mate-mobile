@@ -67,7 +67,7 @@ export default function BibleReader() {
 
   // Refs
   const scrollViewRef = useRef<ScrollView>(null);
-  const hideNavTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hideNavTimeoutRef = useRef<number | null>(null);
   const lastScrollPosition = useRef(0);
 
   // Animation values
