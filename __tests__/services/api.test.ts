@@ -9,7 +9,13 @@ describe('ApiService', () => {
 
   beforeEach(() => {
     mockFetch.mockClear();
-    apiService = new ApiService('https://api.verse-mate.apegro.dev');
+    // Use fast retry settings for tests
+    apiService = new ApiService('https://api.verse-mate.apegro.dev', {
+      maxRetries: 1,
+      retryDelay: 10
+    });
+    // Clear any existing cache between tests
+    apiService.clearCache();
   });
 
   describe('getTestaments', () => {
@@ -182,6 +188,18 @@ describe('ApiService', () => {
   });
 
   describe('Retry Logic', () => {
+    let retryApiService: ApiService;
+
+    beforeEach(() => {
+      mockFetch.mockClear();
+      // Use different retry settings for retry tests
+      retryApiService = new ApiService('https://api.verse-mate.apegro.dev', {
+        maxRetries: 3,
+        retryDelay: 1 // Very fast for tests
+      });
+      retryApiService.clearCache();
+    });
+
     it('should retry failed requests up to 3 times', async () => {
       // Mock three failed attempts followed by success
       mockFetch
@@ -193,7 +211,7 @@ describe('ApiService', () => {
           json: jest.fn().mockResolvedValue([]),
         });
 
-      const result = await apiService.getTestaments();
+      const result = await retryApiService.getTestaments();
 
       expect(result).toEqual([]);
       expect(mockFetch).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
@@ -202,7 +220,7 @@ describe('ApiService', () => {
     it('should fail after maximum retry attempts', async () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
 
-      await expect(apiService.getTestaments()).rejects.toThrow('Network error');
+      await expect(retryApiService.getTestaments()).rejects.toThrow('Network error');
       expect(mockFetch).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
     });
   });

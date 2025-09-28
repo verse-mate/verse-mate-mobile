@@ -58,13 +58,15 @@ interface CacheEntry<T> {
 export class ApiService {
   private baseUrl: string;
   private cache: Map<string, CacheEntry<any>> = new Map();
-  private readonly maxRetries: number = 3;
-  private readonly retryDelay: number = 1000; // Base delay in milliseconds
+  private readonly maxRetries: number;
+  private readonly retryDelay: number; // Base delay in milliseconds
   private readonly defaultCacheTtl: number = 5 * 60 * 1000; // 5 minutes
   private readonly longCacheTtl: number = 60 * 60 * 1000; // 1 hour for static data
 
-  constructor(baseUrl: string) {
+  constructor(baseUrl: string, options: { maxRetries?: number; retryDelay?: number } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    this.maxRetries = options.maxRetries ?? 3;
+    this.retryDelay = options.retryDelay ?? 1000;
   }
 
   /**
