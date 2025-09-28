@@ -13,6 +13,7 @@
     "lint:fix": "biome check --write . && eslint --fix .",
     "type-check": "tsc --noEmit",
     "test": "jest",
+    "test:bun": "bun run jest",
     "prepare": "husky"
   },
   "dependencies": {

@@ -1,0 +1,8 @@
+[test]
+# Exclude React Native files with Flow syntax from Bun test runner
+exclude = [
+  "node_modules/**/*"
+]
+
+# Configure preload to handle React Native setup for Bun
+preload = ["./test-setup-bun.ts"]
