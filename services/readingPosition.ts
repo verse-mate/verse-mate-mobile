@@ -363,24 +363,28 @@ export class ReadingPositionService {
    * Validate stored position data structure
    */
   private isValidStoredPosition(position: unknown): position is ReadingPosition {
+    if (position === null || typeof position !== 'object') {
+      return false;
+    }
+
+    const obj = position as Record<string, unknown>;
+
     return (
-      position !== null &&
-      typeof position === 'object' &&
-      'bookId' in position &&
-      'chapter' in position &&
-      'verse' in position &&
-      'scrollPosition' in position &&
-      'timestamp' in position &&
-      typeof (position as any).bookId === 'number' &&
-      typeof (position as any).chapter === 'number' &&
-      typeof (position as any).verse === 'number' &&
-      typeof (position as any).scrollPosition === 'number' &&
-      typeof (position as any).timestamp === 'number' &&
-      (position as any).bookId >= 1 &&
-      (position as any).bookId <= 66 &&
-      (position as any).chapter >= 1 &&
-      (position as any).verse >= 1 &&
-      (position as any).scrollPosition >= 0
+      'bookId' in obj &&
+      'chapter' in obj &&
+      'verse' in obj &&
+      'scrollPosition' in obj &&
+      'timestamp' in obj &&
+      typeof obj.bookId === 'number' &&
+      typeof obj.chapter === 'number' &&
+      typeof obj.verse === 'number' &&
+      typeof obj.scrollPosition === 'number' &&
+      typeof obj.timestamp === 'number' &&
+      obj.bookId >= 1 &&
+      obj.bookId <= 66 &&
+      obj.chapter >= 1 &&
+      obj.verse >= 1 &&
+      obj.scrollPosition >= 0
     );
   }
 

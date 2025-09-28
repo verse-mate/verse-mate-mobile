@@ -1,15 +1,7 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Dimensions,
-  RefreshControl,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 // import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
 // import Animated, {
 //   runOnJS,
@@ -46,7 +38,7 @@ interface ReadingPosition {
   timestamp: number;
 }
 
-const { width: screenWidth } = Dimensions.get('window');
+// const { width: screenWidth } = Dimensions.get('window'); // Unused for now
 
 export default function BibleReader() {
   const { bookId, chapter } = useLocalSearchParams<{ bookId: string; chapter: string }>();
@@ -183,7 +175,7 @@ export default function BibleReader() {
   // Navigation functions
   const navigateToChapter = useCallback(
     (targetBookId: number, targetChapter: number) => {
-      router.push(`/bible/${targetBookId}/${targetChapter}` as any);
+      router.push(`/bible/${targetBookId}/${targetChapter}` as Href);
     },
     [router]
   );
@@ -221,9 +213,9 @@ export default function BibleReader() {
     }
   }, [chapterData, currentBookId, currentChapter, bookMappingService, navigateToChapter]);
 
-  // Swipe navigation handlers (simplified for now)
-  const onSwipeLeft = () => navigateNext();
-  const onSwipeRight = () => navigatePrevious();
+  // Swipe navigation handlers (simplified for now - unused until gesture system is re-implemented)
+  // const onSwipeLeft = () => navigateNext();
+  // const onSwipeRight = () => navigatePrevious();
 
   // const animatedStyle = useAnimatedStyle(() => {
   //   return {

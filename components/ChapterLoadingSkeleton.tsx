@@ -16,7 +16,7 @@ export const ChapterLoadingSkeleton: React.FC<ChapterLoadingSkeletonProps> = ({
   const verseWidths = React.useMemo(() => {
     return Array.from({ length: verseCount }, () => {
       // Random width between 60% and 95% of container
-      return `${Math.floor(Math.random() * 35) + 60}%`;
+      return `${Math.floor(Math.random() * 35) + 60}%` as const;
     });
   }, [verseCount]);
 

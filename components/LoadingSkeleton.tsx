@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, type ViewStyle } from 'react-native';
+import { type DimensionValue, StyleSheet, type ViewStyle } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 interface LoadingSkeletonProps {
-  width?: number | string;
+  width?: DimensionValue;
   height?: number;
   borderRadius?: number;
   style?: ViewStyle;
@@ -49,7 +49,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
       style={[
         styles.skeleton,
         {
-          width: width as any,
+          width,
           height,
           borderRadius,
         },
