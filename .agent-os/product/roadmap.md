@@ -20,10 +20,10 @@ The following foundation has been established:
 
 - [x] **Development Tooling Setup** - Configure Biome.js, Husky, lint-staged, and basic test framework `M`
 - [ ] **Authentication Integration** - Connect with existing VerseMate user authentication system `L`
-- [ ] **Basic Bible Reader** - Create mobile-optimized reading interface for Genesis and Matthew `L`
-- [ ] **API Connection** - Establish communication with VerseMate backend for user data and content `M`
-- [ ] **Navigation Structure** - Implement Expo Router navigation between chapters and books `S`
-- [ ] **Basic UI Components** - Create reusable components for text display, buttons, and layouts `M`
+- [x] **Basic Bible Reader** - Create mobile-optimized reading interface for Genesis and Matthew `L`
+- [x] **API Connection** - Establish communication with VerseMate backend for user data and content `M`
+- [x] **Navigation Structure** - Implement Expo Router navigation between chapters and books `S`
+- [x] **Basic UI Components** - Create reusable components for text display, buttons, and layouts `M`
 
 ### Dependencies
 
