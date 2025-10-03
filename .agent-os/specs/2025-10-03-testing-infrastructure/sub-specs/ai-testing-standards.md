@@ -643,3 +643,228 @@ export const createMockUser = (overrides?: Partial<User>): User => ({ ... });
 6. **Handler Reusability**: Share MSW handlers across tests, override when needed
 7. **Clear Naming**: Use descriptive names like `mockAuthenticatedUser`, not `user1`
 8. **Documentation**: Comment complex mock scenarios and edge cases
+
+---
+
+## Storybook Visual Testing
+
+### Overview
+
+Storybook is used for component-driven development and visual regression testing. Stories showcase component variations and states, enabling visual review and automated snapshot comparison via Chromatic.
+
+### Story File Structure
+
+**Location:** Co-located with components (e.g., `components/Button.stories.tsx`)
+
+**Naming Convention:** `[ComponentName].stories.tsx`
+
+### Story Generation Prompt
+
+```
+Generate Storybook stories for the [ComponentName] component located at [file-path].
+
+Requirements:
+1. Create stories for all component variants and states
+2. Use descriptive story names that explain the use case
+3. Include interactive controls for key props
+4. Add JSDoc comments explaining when to use each variant
+5. Cover edge cases (long text, empty states, etc.)
+6. Use realistic VerseMate app data
+7. Follow CSF 3.0 format with TypeScript
+
+Example structure:
+- Default: Standard component state
+- [Variant]s: All component variants (e.g., Primary, Secondary, Outline)
+- [State]s: Different states (e.g., Disabled, Loading, Error)
+- Edge Cases: Long text, empty content, etc.
+```
+
+### Story Pattern
+
+```typescript
+import type { Meta, StoryObj } from '@storybook/react-native';
+import { Button } from './Button';
+
+/**
+ * Button Stories
+ *
+ * Primary button component used for main actions throughout VerseMate.
+ * Use primary variant for main CTAs like "Read Verse" or "Get Explanation".
+ */
+const meta = {
+  title: 'Components/Button',
+  component: Button,
+  argTypes: {
+    onPress: { action: 'pressed' },
+    variant: {
+      control: { type: 'select' },
+      options: ['primary', 'secondary', 'outline'],
+      description: 'Visual style variant',
+    },
+    disabled: {
+      control: { type: 'boolean' },
+      description: 'Disabled state',
+    },
+  },
+  args: {
+    // Default args applied to all stories
+    title: 'Read Verse',
+    disabled: false,
+    variant: 'primary',
+  },
+} satisfies Meta<typeof Button>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+/**
+ * Primary variant
+ *
+ * Use for primary actions like "Read Verse", "Get Explanation"
+ */
+export const Primary: Story = {
+  args: {
+    title: 'Read Verse',
+    variant: 'primary',
+  },
+};
+
+/**
+ * Disabled state
+ *
+ * Shows how button appears when action is unavailable
+ */
+export const Disabled: Story = {
+  args: {
+    title: 'Read Verse',
+    variant: 'primary',
+    disabled: true,
+  },
+};
+
+/**
+ * Long text handling
+ *
+ * Demonstrates button with longer text content
+ */
+export const LongText: Story = {
+  args: {
+    title: 'Request AI Explanation in Multiple Languages',
+    variant: 'primary',
+  },
+};
+```
+
+### Story Organization
+
+**Title Convention:**
+- Format: `Category/ComponentName`
+- Categories: `Components`, `Screens`, `Layouts`, `Primitives`
+- Examples:
+  - `Components/Button`
+  - `Components/VerseCard`
+  - `Screens/BibleReader`
+  - `Layouts/TabLayout`
+
+### Story Naming Best Practices
+
+1. **Descriptive Names**: Use names that explain the use case
+   - ✅ `PrimaryActionButton`
+   - ✅ `HighlightedVerse`
+   - ❌ `Story1`
+   - ❌ `Example`
+
+2. **State-Based Names**: For different states
+   - `Default`, `Loading`, `Error`, `Empty`, `Disabled`
+
+3. **Variant-Based Names**: For visual variants
+   - `Primary`, `Secondary`, `Outline`
+
+4. **Edge Case Names**: For edge cases
+   - `LongText`, `EmptyContent`, `MaximumItems`
+
+### Controls Configuration
+
+Use controls to make stories interactive:
+
+```typescript
+argTypes: {
+  // Actions
+  onPress: { action: 'pressed' },
+  onChange: { action: 'changed' },
+
+  // Select controls
+  variant: {
+    control: { type: 'select' },
+    options: ['primary', 'secondary', 'outline'],
+  },
+
+  // Boolean controls
+  disabled: { control: { type: 'boolean' } },
+  isLoading: { control: { type: 'boolean' } },
+
+  // Text controls
+  title: { control: { type: 'text' } },
+
+  // Number controls
+  maxLength: { control: { type: 'number', min: 0, max: 1000 } },
+},
+```
+
+### Running Storybook
+
+**Local Development (On-Device):**
+```bash
+# Generate story index
+npm run storybook:generate
+
+# Then import and render Storybook in your app
+import StorybookUI from './.rnstorybook/Storybook';
+
+// Use StorybookUI as your root component during development
+export default StorybookUI;
+```
+
+**Chromatic Integration:**
+```bash
+# Publish stories for visual regression
+npm run chromatic
+
+# Auto-accept all changes (use with caution)
+npm run chromatic -- --auto-accept-changes
+```
+
+See `.rnstorybook/CHROMATIC_SETUP.md` for Chromatic configuration details.
+
+### Visual Regression Testing Workflow
+
+1. **Create/Update Stories**: Add or modify component stories
+2. **Generate Stories**: Run `npm run storybook:generate`
+3. **Local Review**: Check stories in app during development
+4. **Publish to Chromatic**: Run `npm run chromatic` before PR
+5. **Review Changes**: Approve or reject visual changes in Chromatic UI
+6. **Merge**: Once approved, merge PR with new visual baseline
+
+### AI Story Generation Guidelines
+
+When AI generates stories:
+1. Analyze component props and variants
+2. Create at least 3-5 stories covering main use cases
+3. Include one story for disabled/error state
+4. Include one story for edge case (long text, empty, etc.)
+5. Use realistic VerseMate data (Bible verses, user names, etc.)
+6. Add descriptive JSDoc comments explaining each story's purpose
+7. Configure interactive controls for key props
+8. Follow the naming conventions and organization patterns above
+
+### Storybook Best Practices
+
+1. **One Component Per Story File**: Don't combine multiple components
+2. **Exhaustive Coverage**: Cover all variants and states
+3. **Realistic Data**: Use production-like data, not "Lorem ipsum"
+4. **Self-Documenting**: Stories should explain component usage
+5. **Interactive**: Enable controls for props that change behavior/appearance
+6. **Accessibility**: Test with accessibility tools in Storybook
+7. **Performance**: Keep stories lightweight, avoid heavy computations
+8. **Maintenance**: Update stories when component API changes

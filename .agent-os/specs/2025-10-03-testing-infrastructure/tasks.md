@@ -7,33 +7,33 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
 
 ## Tasks
 
-- [ ] 1. Setup Jest and React Native Testing Library Foundation
-  - [ ] 1.1 Install Jest dependencies (jest, @testing-library/react-native, @testing-library/jest-native, react-test-renderer)
-  - [ ] 1.2 Create jest.config.js with React Native preset and coverage thresholds (60% min, 80% target)
-  - [ ] 1.3 Update test-setup.ts with React Native Testing Library configuration
-  - [ ] 1.4 Create example component test demonstrating best practices
-  - [ ] 1.5 Create example accessibility test with jest-native matchers
-  - [ ] 1.6 Update package.json scripts for Jest testing
-  - [ ] 1.7 Verify Jest runs successfully with example tests
+- [x] 1. Setup Jest and React Native Testing Library Foundation
+  - [x] 1.1 Install Jest dependencies (jest, @testing-library/react-native, @testing-library/jest-native, react-test-renderer)
+  - [x] 1.2 Create jest.config.js with React Native preset and coverage thresholds (60% min, 80% target)
+  - [x] 1.3 Update test-setup.ts with React Native Testing Library configuration
+  - [x] 1.4 Create example component test demonstrating best practices
+  - [x] 1.5 Create example accessibility test with jest-native matchers
+  - [x] 1.6 Update package.json scripts for Jest testing
+  - [x] 1.7 Verify Jest runs successfully with example tests
 
-- [ ] 2. Setup Storybook and Chromatic for Visual Testing
-  - [ ] 2.1 Install Storybook dependencies (@storybook/react-native, @storybook/addon-ondevice-*)
-  - [ ] 2.2 Initialize Storybook configuration for React Native
-  - [ ] 2.3 Create example component stories following naming conventions
-  - [ ] 2.4 Install and configure Chromatic CLI
-  - [ ] 2.5 Create .storybook/main.js with story paths and addons
-  - [ ] 2.6 Run Storybook locally and verify component rendering
-  - [ ] 2.7 Publish initial Chromatic baseline
-  - [ ] 2.8 Document Storybook usage in ai-testing-standards.md
+- [x] 2. Setup Storybook and Chromatic for Visual Testing
+  - [x] 2.1 Install Storybook dependencies (@storybook/react-native, @storybook/addon-ondevice-*)
+  - [x] 2.2 Initialize Storybook configuration for React Native
+  - [x] 2.3 Create example component stories following naming conventions
+  - [x] 2.4 Install and configure Chromatic CLI
+  - [x] 2.5 Create .storybook/main.js with story paths and addons
+  - [x] 2.6 Run Storybook locally and verify component rendering
+  - [x] 2.7 Publish initial Chromatic baseline
+  - [x] 2.8 Document Storybook usage in ai-testing-standards.md
 
-- [ ] 3. Setup MSW for API Mocking
-  - [ ] 3.1 Install MSW dependencies (msw)
-  - [ ] 3.2 Create mock data factories for Bible verses and AI responses
-  - [ ] 3.3 Create MSW handlers for VerseMate API endpoints
-  - [ ] 3.4 Configure MSW in test-setup.ts for Jest integration
-  - [ ] 3.5 Create example test using MSW mocks
-  - [ ] 3.6 Document mock data patterns in ai-testing-standards.md
-  - [ ] 3.7 Verify MSW intercepts API calls in tests
+- [x] 3. Setup MSW for API Mocking
+  - [x] 3.1 Install MSW dependencies (msw)
+  - [x] 3.2 Create mock data factories for Bible verses and AI responses
+  - [x] 3.3 Create MSW handlers for VerseMate API endpoints
+  - [x] 3.4 Configure MSW in test-setup.ts for Jest integration
+  - [x] 3.5 Create example test using MSW mocks
+  - [x] 3.6 Document mock data patterns in ai-testing-standards.md
+  - [x] 3.7 Verify MSW intercepts API calls in tests
 
 - [ ] 4. Setup Maestro for E2E Testing
   - [ ] 4.1 Install Maestro CLI globally (via curl or brew)
