@@ -44,21 +44,21 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
   - [x] 4.6 Document Maestro flow conventions in ai-testing-standards.md
   - [x] 4.7 Verify Maestro flows run successfully on iOS/Android simulator
 
-- [ ] 5. Setup CI/CD GitHub Actions Integration
-  - [ ] 5.1 Create .github/workflows/test.yml workflow file
-  - [ ] 5.2 Configure workflow to run Jest tests on PR
-  - [ ] 5.3 Configure workflow to run Chromatic visual regression on PR
-  - [ ] 5.4 Configure workflow to block merge on test failure (main branch only)
-  - [ ] 5.5 Add coverage reporting to PR comments
-  - [ ] 5.6 Test workflow by creating sample PR
-  - [ ] 5.7 Verify all gates work correctly (tests, visual regression, coverage)
+- [x] 5. Setup CI/CD GitHub Actions Integration
+  - [x] 5.1 Create .github/workflows/test.yml workflow file
+  - [x] 5.2 Configure workflow to run Jest tests on PR
+  - [x] 5.3 Configure workflow to run Chromatic visual regression on PR
+  - [x] 5.4 Configure workflow to block merge on test failure (main branch only)
+  - [x] 5.5 Add coverage reporting to PR comments
+  - [x] 5.6 Test workflow by creating sample PR
+  - [x] 5.7 Verify all gates work correctly (tests, visual regression, coverage)
 
-- [ ] 6. Create AI Testing Standards Documentation
-  - [ ] 6.1 Document component test generation prompts with examples
-  - [ ] 6.2 Document screen test generation prompts with examples
-  - [ ] 6.3 Document hook test generation prompts with examples
-  - [ ] 6.4 Document utility test generation prompts with examples
-  - [ ] 6.5 Create test file naming convention standards
-  - [ ] 6.6 Create mock data management guidelines
-  - [ ] 6.7 Create self-documenting test structure examples
-  - [ ] 6.8 Add AI testing standards to .agent-os/standards/ directory
+- [x] 6. Create AI Testing Standards Documentation
+  - [x] 6.1 Document component test generation prompts with examples
+  - [x] 6.2 Document screen test generation prompts with examples
+  - [x] 6.3 Document hook test generation prompts with examples
+  - [x] 6.4 Document utility test generation prompts with examples
+  - [x] 6.5 Create test file naming convention standards
+  - [x] 6.6 Create mock data management guidelines
+  - [x] 6.7 Create self-documenting test structure examples
+  - [x] 6.8 Add AI testing standards to .agent-os/standards/ directory
