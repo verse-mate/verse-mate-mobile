@@ -646,6 +646,436 @@ export const createMockUser = (overrides?: Partial<User>): User => ({ ... });
 
 ---
 
+## MSW (Mock Service Worker) Integration
+
+### Overview
+
+MSW intercepts network requests at the network level, providing realistic API mocking for tests. This enables testing components and screens with realistic async behavior without hitting real APIs.
+
+### MSW Setup Pattern
+
+**Location:** `__tests__/mocks/`
+
+**Directory Structure:**
+```
+__tests__/
+├── mocks/
+│   ├── data/
+│   │   ├── verses.ts          # Verse mock data factories
+│   │   ├── aiResponses.ts     # AI response mock data
+│   │   ├── users.ts           # User mock data
+│   │   └── index.ts           # Re-export all data
+│   ├── handlers/
+│   │   ├── verses.ts          # Verse API handlers
+│   │   ├── ai.ts              # AI API handlers
+│   │   ├── auth.ts            # Auth API handlers
+│   │   └── index.ts           # Combine all handlers
+│   └── server.ts              # MSW server setup
+└── utils/
+    └── mockHelpers.test.ts
+```
+
+### Mock Data Factory Pattern
+
+**VerseMate Example (`__tests__/mocks/data/verses.ts`):**
+```typescript
+import type { Verse } from '@/types/verse';
+
+/**
+ * Creates a mock Bible verse with optional overrides
+ * @param overrides - Partial verse properties to override defaults
+ * @returns Complete mock verse object
+ */
+export const createMockVerse = (overrides?: Partial<Verse>): Verse => ({
+  id: 'verse-1',
+  book: 'John',
+  chapter: 3,
+  verse: 16,
+  text: 'For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.',
+  translation: 'NIV',
+  createdAt: new Date('2025-01-01').toISOString(),
+  ...overrides,
+});
+
+/**
+ * Predefined fixture: John 3:16
+ * Most commonly used verse in tests
+ */
+export const mockJohn316 = createMockVerse();
+
+/**
+ * Predefined fixture: Psalm 23:1
+ * Used for testing different book/chapter combinations
+ */
+export const mockPsalm231 = createMockVerse({
+  id: 'verse-2',
+  book: 'Psalms',
+  chapter: 23,
+  verse: 1,
+  text: 'The Lord is my shepherd, I lack nothing.',
+});
+
+/**
+ * Predefined fixture: Long verse text
+ * Tests UI handling of lengthy content
+ */
+export const mockLongVerse = createMockVerse({
+  id: 'verse-long',
+  book: 'Revelation',
+  chapter: 21,
+  verse: 2,
+  text: 'I saw the Holy City, the new Jerusalem, coming down out of heaven from God, prepared as a bride beautifully dressed for her husband. And I heard a loud voice from the throne saying, "Look! God\'s dwelling place is now among the people, and he will dwell with them."',
+});
+
+/**
+ * Creates a list of mock verses for pagination tests
+ * @param count - Number of verses to generate
+ * @returns Array of mock verses
+ */
+export const createMockVerseList = (count: number): Verse[] => {
+  return Array.from({ length: count }, (_, index) =>
+    createMockVerse({
+      id: `verse-${index + 1}`,
+      verse: index + 1,
+    })
+  );
+};
+```
+
+### MSW Handler Pattern
+
+**API Handler Structure (`__tests__/mocks/handlers/verses.ts`):**
+```typescript
+import { http, HttpResponse } from 'msw';
+import { mockJohn316, mockPsalm231, createMockVerseList } from '../data/verses';
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+
+export const verseHandlers = [
+  // IMPORTANT: Specific routes MUST come before parameterized routes
+  // /api/verses/daily must be listed BEFORE /api/verses/:id
+  http.get(`${API_BASE_URL}/api/verses/daily`, () => {
+    return HttpResponse.json({
+      verse: mockJohn316,
+      date: new Date().toISOString().split('T')[0],
+    });
+  }),
+
+  // Parameterized route - comes AFTER specific routes
+  http.get(`${API_BASE_URL}/api/verses/:id`, ({ params }) => {
+    const { id } = params;
+
+    if (id === 'verse-1') {
+      return HttpResponse.json({ verse: mockJohn316 });
+    }
+    if (id === 'verse-2') {
+      return HttpResponse.json({ verse: mockPsalm231 });
+    }
+
+    return new HttpResponse(null, { status: 404 });
+  }),
+
+  // Search endpoint with query params
+  http.get(`${API_BASE_URL}/api/verses/search`, ({ request }) => {
+    const url = new URL(request.url);
+    const query = url.searchParams.get('q');
+    const limit = Number(url.searchParams.get('limit')) || 10;
+
+    if (!query) {
+      return HttpResponse.json(
+        { error: 'Query parameter required' },
+        { status: 400 }
+      );
+    }
+
+    return HttpResponse.json({
+      results: createMockVerseList(limit),
+      total: 100,
+      query,
+    });
+  }),
+
+  // POST request with body validation
+  http.post(`${API_BASE_URL}/api/verses/save`, async ({ request }) => {
+    const body = await request.json() as { verseId: string; userId: string };
+
+    if (!body.verseId || !body.userId) {
+      return HttpResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    return HttpResponse.json({
+      success: true,
+      savedVerse: { id: body.verseId, userId: body.userId },
+    });
+  }),
+
+  // Error simulation endpoint
+  http.get(`${API_BASE_URL}/api/verses/error`, () => {
+    return HttpResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }),
+];
+```
+
+### MSW Server Setup
+
+**Server Configuration (`__tests__/mocks/server.ts`):**
+```typescript
+import { setupServer } from 'msw/node';
+import { handlers } from './handlers';
+
+/**
+ * MSW server for Node.js (Jest) tests
+ * Intercepts all HTTP requests during test execution
+ */
+export const server = setupServer(...handlers);
+```
+
+**Handler Index (`__tests__/mocks/handlers/index.ts`):**
+```typescript
+import { verseHandlers } from './verses';
+import { aiHandlers } from './ai';
+import { authHandlers } from './auth';
+
+/**
+ * Combined MSW handlers for all API endpoints
+ * Order matters: specific routes before parameterized routes
+ */
+export const handlers = [
+  ...verseHandlers,
+  ...aiHandlers,
+  ...authHandlers,
+];
+```
+
+### Test Setup Integration
+
+**Jest Setup (`test-setup.ts`):**
+```typescript
+import '@testing-library/jest-native/extend-expect';
+import { server } from './__tests__/mocks/server';
+
+// Mock fetch for global use
+global.fetch = fetch;
+
+// Suppress React Native console warnings during tests
+beforeAll(() => {
+  // Start MSW server
+  server.listen({ onUnhandledRequest: 'error' });
+
+  // Suppress console noise (optional)
+  const originalError = console.error;
+  console.error = (...args: any[]) => {
+    if (
+      typeof args[0] === 'string' &&
+      args[0].includes('Warning: ReactDOM.render')
+    ) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+});
+
+// Reset handlers after each test to prevent test pollution
+afterEach(() => {
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
+});
+```
+
+### Using MSW in Tests
+
+**Basic Test Example:**
+```typescript
+import { render, waitFor, screen } from '@testing-library/react-native';
+import { VerseScreen } from './VerseScreen';
+
+describe('VerseScreen', () => {
+  it('should fetch and display daily verse', async () => {
+    render(<VerseScreen />);
+
+    // MSW intercepts the fetch request automatically
+    await waitFor(() => {
+      expect(screen.getByText('John 3:16')).toBeTruthy();
+      expect(screen.getByText(/For God so loved the world/)).toBeTruthy();
+    });
+  });
+});
+```
+
+**Override Handler in Specific Test:**
+```typescript
+import { render, waitFor, screen } from '@testing-library/react-native';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/__tests__/mocks/server';
+import { VerseScreen } from './VerseScreen';
+
+describe('VerseScreen Error Handling', () => {
+  it('should display error message when API fails', async () => {
+    // Override handler for this test only
+    server.use(
+      http.get('https://api.verse-mate.apegro.dev/api/verses/daily', () => {
+        return HttpResponse.json(
+          { error: 'Service unavailable' },
+          { status: 503 }
+        );
+      })
+    );
+
+    render(<VerseScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Service unavailable')).toBeTruthy();
+    });
+  });
+});
+```
+
+### MSW Handler Route Ordering
+
+**CRITICAL RULE:** Specific routes MUST come before parameterized routes.
+
+**❌ WRONG ORDER:**
+```typescript
+export const handlers = [
+  http.get('/api/verses/:id', ({ params }) => { ... }),  // This catches ALL /api/verses/* requests
+  http.get('/api/verses/daily', () => { ... }),          // Never reached!
+];
+```
+
+**✅ CORRECT ORDER:**
+```typescript
+export const handlers = [
+  http.get('/api/verses/daily', () => { ... }),          // Specific route first
+  http.get('/api/verses/:id', ({ params }) => { ... }),  // Parameterized route after
+];
+```
+
+### Common MSW Patterns
+
+**Query Parameters:**
+```typescript
+http.get('/api/verses/search', ({ request }) => {
+  const url = new URL(request.url);
+  const query = url.searchParams.get('q');
+  const page = Number(url.searchParams.get('page')) || 1;
+
+  return HttpResponse.json({ results: [...], page });
+});
+```
+
+**Request Body Validation:**
+```typescript
+http.post('/api/verses/save', async ({ request }) => {
+  const body = await request.json() as { verseId: string };
+
+  if (!body.verseId) {
+    return HttpResponse.json(
+      { error: 'Missing verseId' },
+      { status: 400 }
+    );
+  }
+
+  return HttpResponse.json({ success: true });
+});
+```
+
+**Delayed Response (Simulate Network Latency):**
+```typescript
+http.get('/api/verses/:id', async ({ params }) => {
+  await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+
+  return HttpResponse.json({ verse: mockJohn316 });
+});
+```
+
+**Authentication Headers:**
+```typescript
+http.get('/api/verses/saved', ({ request }) => {
+  const authHeader = request.headers.get('Authorization');
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return HttpResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  return HttpResponse.json({ verses: [...] });
+});
+```
+
+### MSW Testing Best Practices
+
+1. **Centralize Mock Data**: Use factory functions in `__tests__/mocks/data/`
+2. **Realistic Responses**: Mirror production API responses exactly
+3. **Error Scenarios**: Create handlers for 4xx and 5xx errors
+4. **Reset Handlers**: Always call `server.resetHandlers()` in `afterEach`
+5. **Route Ordering**: Specific routes before parameterized routes
+6. **Type Safety**: Type request bodies and responses
+7. **Environment Variables**: Use `process.env.EXPO_PUBLIC_API_URL` for base URL
+8. **Consistent Data**: Use predefined fixtures for common scenarios
+9. **Handler Overrides**: Use `server.use()` for test-specific overrides
+10. **Unhandled Requests**: Configure `onUnhandledRequest: 'error'` to catch missing handlers
+
+### AI Prompt for MSW Handler Generation
+
+```
+Generate MSW handlers for the [API endpoint group] located at [file-path].
+
+Requirements:
+1. Create handlers for all CRUD operations (GET, POST, PUT, DELETE)
+2. Use mock data factories from __tests__/mocks/data/
+3. Handle query parameters and request bodies
+4. Include error scenarios (400, 401, 404, 500)
+5. Validate request payloads
+6. Return realistic response shapes matching production API
+7. Order specific routes before parameterized routes
+8. Add JSDoc comments explaining each handler's purpose
+9. Use environment variable for API base URL
+10. Follow the patterns in @__tests__/mocks/handlers/verses.ts
+
+Example response format:
+- Success: { data: {...}, meta?: {...} }
+- Error: { error: string, details?: {...} }
+```
+
+### MSW Debugging Tips
+
+**Check if MSW is intercepting requests:**
+```typescript
+beforeAll(() => {
+  server.listen({
+    onUnhandledRequest: 'warn' // Log unhandled requests instead of erroring
+  });
+});
+```
+
+**Log all intercepted requests:**
+```typescript
+server.events.on('request:start', ({ request }) => {
+  console.log('MSW intercepted:', request.method, request.url);
+});
+```
+
+**Verify handler is called:**
+```typescript
+http.get('/api/verses/:id', ({ params }) => {
+  console.log('Handler called with params:', params);
+  return HttpResponse.json({ verse: mockJohn316 });
+});
+```
+
+---
+
 ## Storybook Visual Testing
 
 ### Overview
@@ -868,3 +1298,392 @@ When AI generates stories:
 6. **Accessibility**: Test with accessibility tools in Storybook
 7. **Performance**: Keep stories lightweight, avoid heavy computations
 8. **Maintenance**: Update stories when component API changes
+
+---
+
+## Maestro E2E Testing
+
+### Overview
+
+Maestro is a mobile UI testing framework that allows writing end-to-end tests in simple YAML format. It tests complete user flows across iOS and Android simulators/devices, ensuring critical paths work correctly from the user's perspective.
+
+### Flow File Structure
+
+**Location:** `.maestro/` at project root
+
+**Naming Convention:** `[feature-name]-flow.yaml`
+
+**Examples:**
+- `bible-reading-flow.yaml` - Core Bible reading journey
+- `ai-explanation-flow.yaml` - AI explanation feature
+- `verse-search-flow.yaml` - Search functionality
+- `memorization-flow.yaml` - Verse memorization feature
+
+### Flow File Pattern
+
+**YAML Structure:**
+```yaml
+---
+appId: com.versemate.mobile
+name: Flow Name
+description: Brief description of what this flow tests
+tags:
+  - critical  # or feature-specific tags
+  - feature-name
+
+---
+
+# Flow Title
+#
+# This flow tests: [description]
+#
+# User Journey:
+# 1. Step one
+# 2. Step two
+# 3. Step three
+
+- launchApp:
+    appId: com.versemate.mobile
+    clearState: true
+
+# Step 1: Description
+- assertVisible: "Screen Title"
+
+# Step 2: Description
+- tapOn:
+    id: "element-id"
+
+# Step 3: Description
+- assertVisible:
+    id: "result-element"
+```
+
+### Maestro Flow Generation Prompt
+
+```
+Generate a Maestro E2E test flow for [feature name] in VerseMate mobile app.
+
+Requirements:
+1. Use YAML format with proper frontmatter (appId, name, description, tags)
+2. Include detailed comments explaining the user journey
+3. Test the complete critical path from start to finish
+4. Use testID attributes for element selection when possible
+5. Include accessibility assertions (traits, labels)
+6. Add appropriate timeouts for async operations (API calls, animations)
+7. Test both success and error states when applicable
+8. Use realistic user actions (tap, scroll, swipe, input)
+9. Verify visual feedback and state changes
+10. Follow the patterns in @.maestro/bible-reading-flow.yaml
+
+User Journey to test:
+[Describe the step-by-step user flow]
+
+Expected elements (with testIDs):
+[List key UI elements and their testID values]
+```
+
+### Common Maestro Commands
+
+**Launch App:**
+```yaml
+- launchApp:
+    appId: com.versemate.mobile
+    clearState: true  # Resets app state
+```
+
+**Assert Element Visible:**
+```yaml
+# By testID
+- assertVisible:
+    id: "verse-card"
+
+# By text (supports regex)
+- assertVisible:
+    text: ".*John.*"
+
+# By accessibility traits
+- assertVisible:
+    traits: ["button", "text"]
+    id: "submit-button"
+
+# With timeout for async elements
+- assertVisible:
+    id: "loading-spinner"
+    timeout: 5000  # milliseconds
+```
+
+**Tap Element:**
+```yaml
+# By testID
+- tapOn:
+    id: "daily-verse-card"
+
+# By text
+- tapOn:
+    text: "Get Explanation"
+
+# Optional tap (won't fail if element doesn't exist)
+- tapOn:
+    id: "optional-button"
+    optional: true
+```
+
+**Scroll Actions:**
+```yaml
+# Scroll until element is visible
+- scrollUntilVisible:
+    element:
+      id: "target-element"
+    direction: DOWN  # or UP, LEFT, RIGHT
+
+# Simple scroll
+- scroll:
+    direction: DOWN
+
+# Swipe gesture
+- swipe:
+    direction: UP
+    duration: 500  # milliseconds
+```
+
+**Text Input:**
+```yaml
+- tapOn:
+    id: "search-input"
+
+- inputText: "John 3:16"
+
+# Or combined
+- inputText:
+    id: "search-input"
+    text: "Psalm 23"
+```
+
+**Wait Commands:**
+```yaml
+# Wait for element
+- assertVisible:
+    id: "result"
+    timeout: 10000
+
+# Manual delay
+- runScript:
+    script: sleep 2
+```
+
+**Navigation:**
+```yaml
+# Go back
+- back
+
+# Press hardware button
+- pressKey: "Home"
+```
+
+**Conditional Logic:**
+```yaml
+# Optional actions (won't fail test)
+- tapOn:
+    id: "optional-element"
+    optional: true
+
+# Assert not visible
+- assertNotVisible:
+    id: "error-message"
+```
+
+### VerseMate Flow Conventions
+
+#### Element Identification
+
+**Priority Order:**
+1. **testID** (most reliable): `id: "verse-card"`
+2. **Accessibility Label**: `text: "Daily Verse"`
+3. **Text Content** (last resort): `text: "John 3:16"`
+
+**Naming Convention for testIDs:**
+- Use kebab-case: `daily-verse-card`, `ai-explanation-button`
+- Be descriptive: `verse-reference` not `ref`
+- Include context: `home-screen-title` not just `title`
+
+#### Flow Organization
+
+**Critical Flows (must always pass):**
+- `bible-reading-flow.yaml` - Reading verses
+- `ai-explanation-flow.yaml` - Getting AI explanations
+- `verse-search-flow.yaml` - Searching verses (when implemented)
+
+**Feature Flows:**
+- `memorization-flow.yaml` - Memorization features
+- `settings-flow.yaml` - App settings
+- `offline-flow.yaml` - Offline functionality
+
+#### Tagging Strategy
+
+```yaml
+tags:
+  - critical  # Must pass for PR merge
+  - bible     # Feature category
+  - reading   # Sub-feature
+```
+
+**Tag Categories:**
+- **Criticality**: `critical`, `important`, `optional`
+- **Feature**: `bible`, `ai`, `memorization`, `search`, `settings`
+- **Platform**: `ios-only`, `android-only` (if platform-specific)
+
+### Running Maestro Tests
+
+**Local Execution:**
+```bash
+# Run all flows
+npm run maestro:test
+
+# Run specific flow
+maestro test .maestro/bible-reading-flow.yaml
+
+# Run on specific device (iOS)
+npm run maestro:test:ios
+
+# Run on specific device (Android)
+npm run maestro:test:android
+
+# Run with Maestro Studio (interactive mode)
+npm run maestro:studio
+```
+
+**Device Selection:**
+```bash
+# iOS Simulators
+maestro test flow.yaml --device "iPhone 15"
+maestro test flow.yaml --device "iPhone 15 Pro Max"
+maestro test flow.yaml --device "iPad Pro"
+
+# Android Emulators
+maestro test flow.yaml --device emulator-5554
+maestro test flow.yaml --device "Pixel 7"
+```
+
+### Maestro Best Practices
+
+1. **Clear State**: Always use `clearState: true` to ensure consistent test runs
+2. **Meaningful Waits**: Use `assertVisible` with timeout instead of arbitrary `sleep`
+3. **Descriptive Comments**: Document each step of the user journey
+4. **Accessibility**: Use accessibility traits to verify screen reader compatibility
+5. **Error States**: Test error scenarios, not just happy paths
+6. **Optional Elements**: Use `optional: true` for non-critical elements to avoid flaky tests
+7. **Realistic Data**: Use production-like data (real Bible verses, not "Test Verse")
+8. **Atomic Flows**: Each flow should test one complete user journey
+9. **Idempotent**: Flows should be repeatable and not depend on previous runs
+10. **Fast Feedback**: Keep flows focused and under 2 minutes when possible
+
+### Accessibility Testing with Maestro
+
+**Verify Accessibility Traits:**
+```yaml
+- assertVisible:
+    id: "verse-card"
+    traits: ["text"]  # Text content
+
+- assertVisible:
+    id: "read-button"
+    traits: ["button"]  # Interactive button
+
+- assertVisible:
+    id: "verse-heading"
+    traits: ["header"]  # Heading/title
+```
+
+**Common Traits:**
+- `button` - Interactive buttons
+- `text` - Text content
+- `header` - Headings/titles
+- `link` - Links
+- `image` - Images
+- `search` - Search fields
+- `adjustable` - Adjustable controls (sliders, pickers)
+
+**Verify Accessibility Labels:**
+```yaml
+# Check that important elements have labels
+- assertVisible:
+    id: "share-button"
+    text: "Share Verse"  # Accessibility label
+```
+
+### Debugging Maestro Flows
+
+**View App Hierarchy:**
+```bash
+maestro hierarchy
+```
+
+**Run Flow with Verbose Output:**
+```bash
+maestro test flow.yaml --debug-output
+```
+
+**Interactive Testing (Maestro Studio):**
+```bash
+maestro studio
+# Then select your flow and run interactively
+```
+
+**Common Issues:**
+
+1. **Element Not Found**
+   - Check testID spelling
+   - Verify element is actually rendered
+   - Add timeout for async elements
+   - Use `maestro hierarchy` to inspect
+
+2. **Timing Issues**
+   - Use `assertVisible` with timeout instead of `sleep`
+   - Increase timeout for slow network operations
+   - Check for loading states before asserting content
+
+3. **Flaky Tests**
+   - Always use `clearState: true`
+   - Avoid hardcoded delays
+   - Use `optional: true` for non-critical elements
+   - Test on slower devices/simulators
+
+### AI Flow Generation Guidelines
+
+When AI generates Maestro flows:
+1. Analyze the user journey and break it into discrete steps
+2. Identify all UI elements and their testIDs (create testIDs if missing)
+3. Add descriptive comments for each step explaining the user's intent
+4. Include accessibility assertions for interactive elements
+5. Test both success and error scenarios
+6. Use realistic VerseMate data (actual Bible verses, realistic user input)
+7. Add appropriate timeouts for API calls and animations
+8. Follow the flow patterns in `.maestro/` directory
+9. Tag flows appropriately (critical, feature-specific)
+10. Keep flows focused and atomic (one user journey per flow)
+
+### Maestro + Jest Integration
+
+Maestro tests complement Jest unit/integration tests:
+
+- **Jest**: Test individual components, hooks, utilities
+- **Maestro**: Test complete user flows end-to-end
+
+**Coverage Overlap:**
+- Both should test accessibility (Jest via jest-native, Maestro via traits)
+- Both should test error states (Jest via error props, Maestro via error UI)
+- Maestro provides final validation that everything works together
+
+### CI/CD Integration (Future)
+
+While Maestro is currently local-only, future CI/CD integration will:
+1. Run Maestro flows on every PR
+2. Block merge if critical flows fail
+3. Generate flow execution recordings
+4. Report test results to PR comments
+
+**Preparation:**
+- Tag critical flows with `critical` tag
+- Keep critical flows fast (< 2 min each)
+- Ensure flows are deterministic and not flaky
+- Document any device-specific requirements

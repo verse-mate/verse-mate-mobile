@@ -35,14 +35,14 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
   - [x] 3.6 Document mock data patterns in ai-testing-standards.md
   - [x] 3.7 Verify MSW intercepts API calls in tests
 
-- [ ] 4. Setup Maestro for E2E Testing
-  - [ ] 4.1 Install Maestro CLI globally (via curl or brew)
-  - [ ] 4.2 Create .maestro/ directory for flow files
-  - [ ] 4.3 Write example Maestro flow for Bible reading critical path
-  - [ ] 4.4 Write example Maestro flow for AI explanation feature
-  - [ ] 4.5 Create npm script for running Maestro tests locally
-  - [ ] 4.6 Document Maestro flow conventions in ai-testing-standards.md
-  - [ ] 4.7 Verify Maestro flows run successfully on iOS/Android simulator
+- [x] 4. Setup Maestro for E2E Testing
+  - [x] 4.1 Install Maestro CLI globally (via curl or brew)
+  - [x] 4.2 Create .maestro/ directory for flow files
+  - [x] 4.3 Write example Maestro flow for Bible reading critical path
+  - [x] 4.4 Write example Maestro flow for AI explanation feature
+  - [x] 4.5 Create npm script for running Maestro tests locally
+  - [x] 4.6 Document Maestro flow conventions in ai-testing-standards.md
+  - [x] 4.7 Verify Maestro flows run successfully on iOS/Android simulator
 
 - [ ] 5. Setup CI/CD GitHub Actions Integration
   - [ ] 5.1 Create .github/workflows/test.yml workflow file

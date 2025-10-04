@@ -18,6 +18,10 @@
     "test:ci": "cross-env EXPO_USE_STATIC_RENDERING=1 jest --ci --coverage --maxWorkers=2",
     "storybook:generate": "sb-rn-get-stories",
     "chromatic": "chromatic --build-script-name storybook:generate",
+    "maestro:test": "maestro test .maestro",
+    "maestro:test:ios": "maestro test .maestro --device 'iPhone 15'",
+    "maestro:test:android": "maestro test .maestro --device emulator-5554",
+    "maestro:studio": "maestro studio",
     "prepare": "husky"
   },
   "dependencies": {

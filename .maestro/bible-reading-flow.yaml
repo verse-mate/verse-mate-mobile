@@ -1,0 +1,69 @@
+---
+appId: com.versemate.mobile
+name: Bible Reading Critical Path
+description: Tests the core user flow for reading daily Bible verses
+tags:
+  - critical
+  - bible
+  - reading
+
+---
+
+# Bible Reading Critical Path E2E Test
+#
+# This flow tests the primary use case: User opens app and reads daily verse
+#
+# User Journey:
+# 1. Launch app
+# 2. View daily verse on home screen
+# 3. Navigate to verse details
+# 4. Read full verse content
+# 5. Verify verse metadata (book, chapter, verse number)
+
+- launchApp:
+    appId: com.versemate.mobile
+    clearState: true
+
+# Wait for app to load
+- assertVisible: "VerseMate"
+
+# Verify daily verse card is visible on home screen
+- assertVisible:
+    id: "daily-verse-card"
+
+# Verify verse reference is displayed
+- assertVisible:
+    text: ".*\\d+:\\d+.*"  # Matches "Book Chapter:Verse" format
+
+# Tap on daily verse to view details
+- tapOn:
+    id: "daily-verse-card"
+
+# Wait for verse detail screen to load
+- assertVisible: "Verse Details"
+
+# Verify verse text content is visible
+- assertVisible:
+    id: "verse-text"
+
+# Verify verse is accessible (screen reader compatible)
+- assertVisible:
+    traits: ["text"]
+    id: "verse-text"
+
+# Verify book reference is visible
+- assertVisible:
+    id: "verse-reference"
+
+# Verify translation badge is visible (e.g., "NIV", "ESV")
+- assertVisible:
+    id: "translation-badge"
+
+# Go back to home screen
+- tapOn:
+    id: "back-button"
+
+# Verify returned to home screen
+- assertVisible: "VerseMate"
+- assertVisible:
+    id: "daily-verse-card"
