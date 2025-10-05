@@ -156,10 +156,12 @@ describe('Verse API', () => {
         })
       );
 
-      // Act & Assert
-      await expect(
-        fetch(`${API_BASE_URL}/api/verses/john-3-16`)
-      ).rejects.toThrow();
+      // Act
+      const response = await fetch(`${API_BASE_URL}/api/verses/john-3-16`);
+
+      // Assert - Network errors return type 'error' and status 0
+      expect(response.type).toBe('error');
+      expect(response.status).toBe(0);
     });
 
     it('should handle 500 server errors', async () => {

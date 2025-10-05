@@ -1,8 +1,13 @@
 import '@testing-library/jest-native/extend-expect';
+import { FormData, fetch, Headers, Request, Response } from 'undici';
 import { server } from './__tests__/mocks/server';
 
-// Mock fetch for global use
-global.fetch = fetch;
+// Polyfill fetch for Node.js environment (required for MSW v2)
+global.fetch = fetch as any;
+global.FormData = FormData as any;
+global.Headers = Headers as any;
+global.Request = Request as any;
+global.Response = Response as any;
 
 // Mock import.meta for Expo winter runtime
 if (typeof (global as any).import === 'undefined') {

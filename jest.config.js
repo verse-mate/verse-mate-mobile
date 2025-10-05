@@ -22,6 +22,9 @@ module.exports = {
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|msw|@mswjs/.*|@bundled-es-modules/.*|until-async))',
   ],
 
+  // Ignore flow type files
+  modulePathIgnorePatterns: ['<rootDir>/node_modules/.*\\.flow$'],
+
   // Setup files
   setupFiles: [
     '<rootDir>/jest-env-setup.js',
