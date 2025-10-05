@@ -9,31 +9,27 @@ global.Headers = Headers as any;
 global.Request = Request as any;
 global.Response = Response as any;
 
-// Mock import.meta for Expo winter runtime
-if (typeof (global as any).import === 'undefined') {
-  (global as any).import = {
-    meta: {
-      url: '',
-      resolve: (specifier: string) => specifier,
-    },
-  };
-}
+// Polyfill import.meta for Expo winter runtime without overwriting existing globals
+const g: any = global as any;
+g.import = g.import ?? {};
+g.import.meta = g.import.meta ?? {};
+g.import.meta.url = g.import.meta.url ?? '';
+g.import.meta.resolve = g.import.meta.resolve ?? ((specifier: string) => specifier);
 
 // Store original console methods to restore after tests
 let originalError: typeof console.error;
 let originalWarn: typeof console.warn;
 
-// Suppress React Native console warnings during tests
 beforeAll(() => {
   // Start MSW server
   server.listen({ onUnhandledRequest: 'error' });
 
-  // Suppress console noise
+  // Store original console methods
   originalError = console.error;
   originalWarn = console.warn;
 
-  console.error = (...args: any[]) => {
-    // Suppress known React Native errors
+  // Create filtered console methods
+  const filteredError = (...args: any[]) => {
     if (
       typeof args[0] === 'string' &&
       (args[0].includes('Warning: ReactDOM.render') ||
@@ -41,25 +37,28 @@ beforeAll(() => {
     ) {
       return;
     }
-    originalError.call(console, ...args);
+    originalError(...args);
   };
 
-  console.warn = (...args: any[]) => {
-    // Suppress known React Native warnings
+  const filteredWarn = (...args: any[]) => {
     if (typeof args[0] === 'string' && args[0].includes('Animated: `useNativeDriver`')) {
       return;
     }
-    originalWarn.call(console, ...args);
+    originalWarn(...args);
   };
+
+  console.error = filteredError as typeof console.error;
+  console.warn = filteredWarn as typeof console.warn;
 });
 
-// Reset handlers after each test to prevent test pollution
 afterEach(() => {
   server.resetHandlers();
+  // Restore console methods after each test in case tests modify them
+  console.error = originalError;
+  console.warn = originalWarn;
 });
 
 afterAll(() => {
-  // Restore original console methods
   console.error = originalError;
   console.warn = originalWarn;
   server.close();
