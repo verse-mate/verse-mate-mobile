@@ -19,14 +19,18 @@ if (typeof (global as any).import === 'undefined') {
   };
 }
 
+// Store original console methods to restore after tests
+let originalError: typeof console.error;
+let originalWarn: typeof console.warn;
+
 // Suppress React Native console warnings during tests
 beforeAll(() => {
   // Start MSW server
   server.listen({ onUnhandledRequest: 'error' });
 
   // Suppress console noise
-  const originalError = console.error;
-  const originalWarn = console.warn;
+  originalError = console.error;
+  originalWarn = console.warn;
 
   console.error = (...args: any[]) => {
     // Suppress known React Native errors
@@ -55,5 +59,8 @@ afterEach(() => {
 });
 
 afterAll(() => {
+  // Restore original console methods
+  console.error = originalError;
+  console.warn = originalWarn;
   server.close();
 });

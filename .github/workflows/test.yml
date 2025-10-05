@@ -62,7 +62,7 @@ jobs:
         continue-on-error: true
 
       - name: Comment PR with coverage
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && hashFiles('coverage/lcov.info') != ''
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
           lcov-file: ./coverage/lcov.info
@@ -72,16 +72,7 @@ jobs:
 
       - name: Check coverage thresholds
         run: |
-          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.statements.pct')
-          echo "Current coverage: $COVERAGE%"
-          if (( $(echo "$COVERAGE < 60" | bc -l) )); then
-            echo "❌ Coverage is below 60% threshold: $COVERAGE%"
-            echo "::warning::Coverage ($COVERAGE%) is below minimum threshold (60%)"
-            # Don't fail yet - we're in infrastructure setup phase
-            exit 0
-          else
-            echo "✅ Coverage meets minimum threshold: $COVERAGE%"
-          fi
+          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('coverage/coverage-summary.json','utf8'));const pct=Number(s.total?.statements?.pct||0);console.log(\`Current coverage: \${pct}%\`);if(pct<60){console.log('::warning::Coverage ('+pct+'%) is below minimum threshold (60%)');process.exit(0)}else{console.log('✅ Coverage meets minimum threshold: '+pct+'%')}"
         continue-on-error: true
 
   chromatic-visual-tests:
