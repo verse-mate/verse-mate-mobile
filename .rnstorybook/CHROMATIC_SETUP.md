@@ -26,7 +26,7 @@ Chromatic is configured but requires a project token to publish visual snapshots
 
 4. **Publish Baseline**:
    ```bash
-   npm run chromatic
+   npm run chromatic:deploy
    ```
 
 ## CI/CD Integration
@@ -38,9 +38,9 @@ Add the token as a GitHub secret:
 
 ## Usage
 
-- **Publish snapshots**: `npm run chromatic`
-- **Auto-accept changes**: `npm run chromatic -- --auto-accept-changes`
-- **Exit with zero on changes**: `npm run chromatic -- --exit-zero-on-changes`
+- **Publish snapshots**: `npm run chromatic:deploy`
+- **Auto-accept changes**: `npm run chromatic:deploy -- --auto-accept-changes`
+- **Exit with zero on changes**: `npm run chromatic:deploy -- --exit-zero-on-changes`
 
 ## Notes
 

@@ -17,7 +17,7 @@
     "test:coverage": "cross-env EXPO_USE_STATIC_RENDERING=1 jest --coverage",
     "test:ci": "cross-env EXPO_USE_STATIC_RENDERING=1 jest --ci --coverage --maxWorkers=2",
     "storybook:generate": "sb-rn-get-stories",
-    "chromatic": "chromatic --build-script-name storybook:generate",
+    "chromatic:deploy": "chromatic --build-script-name storybook:generate",
     "maestro:test": "maestro test .maestro",
     "maestro:test:ios": "maestro test .maestro --device 'iPhone 15'",
     "maestro:test:android": "maestro test .maestro --device emulator-5554",
@@ -26,6 +26,8 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-community/datetimepicker": "8.4.4",
+    "@react-native-community/slider": "5.0.1",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",

@@ -87,7 +87,7 @@ Once the first PR runs successfully, GitHub will show the available status check
    - Posts coverage comment on PR
    - **Warning if below 60%** (currently non-blocking during setup)
 
-5. **Chromatic Visual Tests** (`npm run chromatic`)
+5. **Chromatic Visual Tests** (`npm run chromatic:deploy`)
    - Uploads Storybook to Chromatic
    - Compares visual snapshots
    - **Currently non-blocking** (can be made blocking later)

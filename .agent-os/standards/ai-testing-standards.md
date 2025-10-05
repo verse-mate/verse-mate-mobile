@@ -1259,10 +1259,10 @@ export default StorybookUI;
 **Chromatic Integration:**
 ```bash
 # Publish stories for visual regression
-npm run chromatic
+npm run chromatic:deploy
 
 # Auto-accept all changes (use with caution)
-npm run chromatic -- --auto-accept-changes
+npm run chromatic:deploy -- --auto-accept-changes
 ```
 
 See `.rnstorybook/CHROMATIC_SETUP.md` for Chromatic configuration details.
@@ -1272,7 +1272,7 @@ See `.rnstorybook/CHROMATIC_SETUP.md` for Chromatic configuration details.
 1. **Create/Update Stories**: Add or modify component stories
 2. **Generate Stories**: Run `npm run storybook:generate`
 3. **Local Review**: Check stories in app during development
-4. **Publish to Chromatic**: Run `npm run chromatic` before PR
+4. **Publish to Chromatic**: Run `npm run chromatic:deploy` before PR
 5. **Review Changes**: Approve or reject visual changes in Chromatic UI
 6. **Merge**: Once approved, merge PR with new visual baseline
 
