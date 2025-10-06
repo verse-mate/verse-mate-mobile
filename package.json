@@ -22,6 +22,7 @@
     "maestro:test:ios": "maestro test .maestro --device 'iPhone 15'",
     "maestro:test:android": "maestro test .maestro --device emulator-5554",
     "maestro:studio": "maestro studio",
+    "capture:page": "bun run scripts/visual-reference/capture-page.ts",
     "prepare": "husky"
   },
   "dependencies": {

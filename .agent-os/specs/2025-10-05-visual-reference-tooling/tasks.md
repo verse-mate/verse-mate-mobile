@@ -37,20 +37,20 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
 - [x] 2.7. Create `scripts/capture/utils/generate-reference.ts` to output metadata as JSON and formatted markdown
 - [x] 2.8. Verify screenshot quality, metadata accuracy, and markdown formatting with manual spot-checks
 
-### 3. Single Page Capture System and NPM Scripts
+### 3. Single Page Capture System and NPM Scripts ✅
 
 **Goal**: Enable automated capture of individual pages with complete metadata and multi-viewport screenshots
 
 **Completion Criteria**: `npm run capture:page` successfully captures any web app page with screenshots and metadata
 
-- 3.1. Write error handling tests for network failures, timeouts, and missing elements
-- 3.2. Create `scripts/capture/capture-page.ts` that accepts URL and name parameters
-- 3.3. Implement parallel viewport screenshot capture for performance optimization
-- 3.4. Integrate metadata extraction and reference markdown generation into page capture workflow
-- 3.5. Set up storage organization with `screenshots/`, `metadata/`, and `reference.md` structure
-- 3.6. Add NPM script `capture:page` with CLI argument parsing (--url, --name)
-- 3.7. Create `capture:responsive` script for multi-viewport automation of single pages
-- 3.8. Verify page capture works on Bible reader page (https://app.versemate.org/bible/1/1) and generates complete artifacts
+- [x] 3.1. Write error handling tests for network failures, timeouts, and missing elements
+- [x] 3.2. Create `scripts/capture/capture-page.ts` that accepts URL and name parameters
+- [x] 3.3. Implement parallel viewport screenshot capture for performance optimization
+- [x] 3.4. Integrate metadata extraction and reference markdown generation into page capture workflow
+- [x] 3.5. Set up storage organization with `screenshots/`, `metadata/`, and `reference.md` structure
+- [x] 3.6. Add NPM script `capture:page` with CLI argument parsing (--url, --name)
+- [x] 3.7. Create `capture:responsive` script for multi-viewport automation of single pages
+- [x] 3.8. Verify page capture works on Bible reader page (https://app.versemate.org/bible/1/1) and generates complete artifacts
 
 ### 4. Journey Recording System and Interactive Command
 
