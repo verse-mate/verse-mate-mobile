@@ -41,7 +41,7 @@ jobs:
         run: bun eslint .
 
       - name: Run tests
-        run: bun test
+        run: npm test
 
   lint-staged-test:
     name: Test Lint-staged
