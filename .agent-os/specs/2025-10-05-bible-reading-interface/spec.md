@@ -1,7 +1,7 @@
 # Spec Requirements Document
 
 > Spec: Bible Reading Interface
-> Created: 2025-09-27
+> Created: 2025-10-05
 > Status: Planning
 
 ## Overview
@@ -58,5 +58,4 @@ The interface supports left/right swipe gestures for chapter navigation, floatin
 
 ## Spec Documentation
 
-- Tasks: @.agent-os/specs/2025-09-27-bible-reading-interface/tasks.md
-- Technical Specification: @.agent-os/specs/2025-09-27-bible-reading-interface/sub-specs/technical-spec.md
+- Technical Specification: @.agent-os/specs/2025-10-05-bible-reading-interface/sub-specs/technical-spec.md
