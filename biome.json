@@ -9,6 +9,8 @@
       "utils/**/*.{js,jsx,ts,tsx}",
       "services/**/*.{js,jsx,ts,tsx}",
       "types/**/*.{js,jsx,ts,tsx}",
+      "scripts/**/*.{js,jsx,ts,tsx}",
+      ".agent-os/references/**/*.{js,jsx,ts,tsx}",
       "*.{js,jsx,ts,tsx}"
     ]
   },

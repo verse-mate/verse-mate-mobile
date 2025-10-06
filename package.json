@@ -22,6 +22,8 @@
     "maestro:test:ios": "maestro test .maestro --device 'iPhone 15'",
     "maestro:test:android": "maestro test .maestro --device emulator-5554",
     "maestro:studio": "maestro studio",
+    "capture:page": "bun run scripts/visual-reference/capture-page.ts",
+    "capture:journey": "bun run scripts/visual-reference/capture-journey-replay.ts",
     "prepare": "husky"
   },
   "dependencies": {
@@ -55,6 +57,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
+    "@playwright/test": "^1.55.1",
     "@storybook/addon-ondevice-actions": "^9.1.4",
     "@storybook/addon-ondevice-backgrounds": "^9.1.4",
     "@storybook/addon-ondevice-controls": "^9.1.4",

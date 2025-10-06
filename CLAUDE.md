@@ -34,6 +34,47 @@ VerseMate Mobile is a React Native application built with Expo Router for Bible 
 - `bun run storybook:generate` - Generate Storybook stories
 - `bun run chromatic:deploy` - Deploy Storybook to Chromatic
 
+### Visual Reference Tooling (Playwright)
+
+**Purpose**: This tooling enables AI to "see" the VerseMate web application by capturing on-demand screenshots and metadata from https://app.versemate.org. This helps maintain visual consistency and understand web app functionality when developing the mobile version.
+
+**Capture Commands**:
+- `npm run capture:page -- --url=/ --name=home-page` - Capture single page with metadata
+- `npm run capture:journey -- --journey=homepage-exploration` - Replay and capture user journey
+- `npx playwright test scripts/visual-reference/` - Run all visual reference tests (105 tests)
+
+**Testing Commands**:
+- `npx playwright test` - Run Playwright verification tests
+- `npx playwright test --headed` - Run tests in headed mode (visible browser)
+- `npx playwright test --project=desktop` - Run tests for specific viewport
+
+**What Gets Captured**:
+- Multi-viewport screenshots (desktop 1920x1080, tablet 768x1024, mobile 375x667)
+- HTML structure (recursive tree traversal)
+- Computed CSS styles (typography, colors, spacing, layout)
+- Design tokens (CSS custom properties)
+- Generated reference markdown with visual documentation
+
+**File Structure**:
+- `scripts/visual-reference/` - Core capture utilities and test files
+- `scripts/visual-reference/types/index.ts` - TypeScript type definitions
+- `.agent-os/references/examples/` - Captured page examples (gitignored except examples)
+- `.agent-os/references/journeys/` - Journey definition files (TypeScript)
+- `playwright.config.ts` - Playwright configuration
+
+**Journey System**:
+- Define user flows as TypeScript files in `.agent-os/references/journeys/`
+- Journey format: TypeScript objects with steps (navigate, click, type, scroll)
+- Automated replay captures screenshots at each step
+- See `.agent-os/commands/capture-journey.md` for journey creation guide
+
+**Use Cases**:
+1. Capture web app pages before implementing mobile equivalent
+2. Compare web vs mobile design consistency
+3. Extract design tokens and styling information
+4. Document user flows for mobile implementation
+5. Provide visual context to AI during development
+
 ## Architecture
 
 ### Routing Structure
