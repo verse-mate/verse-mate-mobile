@@ -23,6 +23,7 @@
     "maestro:test:android": "maestro test .maestro --device emulator-5554",
     "maestro:studio": "maestro studio",
     "capture:page": "bun run scripts/visual-reference/capture-page.ts",
+    "capture:journey": "bun run scripts/visual-reference/capture-journey-replay.ts",
     "prepare": "husky"
   },
   "dependencies": {

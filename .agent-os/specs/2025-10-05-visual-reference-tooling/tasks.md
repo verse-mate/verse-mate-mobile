@@ -67,17 +67,17 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
 - [x] 4.7. Update `@.agent-os/commands/capture-journey.md` with manual journey creation guide
 - [x] 4.8. Verify journey generation tests pass (8/8 passing)
 
-### 5. Journey Replay, Example Captures, and Documentation
+### 5. Journey Replay, Example Captures, and Documentation ✅
 
 **Goal**: Complete automation system with journey replay, example captures, and storage organization
 
 **Completion Criteria**: Journey replay works, Bible reader example exists, documentation complete, storage properly configured
 
-- 5.1. Write replay validation tests to ensure saved journeys execute correctly
-- 5.2. Create `scripts/capture/capture-journey-replay.ts` that imports and executes journey definition files
-- 5.3. Add NPM script `capture:journey` for replaying journeys (--journey parameter)
-- 5.4. Set up `.agent-os/references/` directory structure with `examples/` and `journeys/` subdirectories
-- 5.5. Configure gitignore to exclude all references except curated examples and journey definitions
-- 5.6. Capture Bible reader page example at https://app.versemate.org/bible/1/1 and save to `.agent-os/references/examples/bible-reader/`
-- 5.7. Create basic user journey example (Bible navigation to Genesis 1) and save to `.agent-os/references/journeys/bible-reading-flow/`
-- 5.8. Verify all NPM scripts work, examples are complete, journey replay functions, and all tests pass
+- [x] 5.1. Write replay validation tests to ensure saved journeys execute correctly (8 tests, 24 total across 3 viewports)
+- [x] 5.2. Create `scripts/visual-reference/capture-journey-replay.ts` that imports and executes journey definition files
+- [x] 5.3. Add NPM script `capture:journey` for replaying journeys (--journey parameter)
+- [x] 5.4. Set up `.agent-os/references/` directory structure with `examples/` and `journeys/` subdirectories
+- [x] 5.5. Configure gitignore to exclude all references except curated examples and journey definitions (already configured)
+- [x] 5.6. Capture Bible reader page example at https://app.versemate.org/bible/1/1 and save to `.agent-os/references/examples/bible-reader/`
+- [x] 5.7. Create basic user journey example (Bible navigation to Genesis 1) and save to `.agent-os/references/journeys/bible-reading-flow/`
+- [x] 5.8. Verify all NPM scripts work, examples are complete, journey replay functions, and all tests pass (105/105 passing)

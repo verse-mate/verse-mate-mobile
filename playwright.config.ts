@@ -46,7 +46,7 @@ export default defineConfig({
     navigationTimeout: 30000,
   },
 
-  // Configure projects for different viewports
+  // Configure projects for different viewports (all using Chromium)
   projects: [
     {
       name: 'desktop',
@@ -58,15 +58,18 @@ export default defineConfig({
     {
       name: 'tablet',
       use: {
-        ...devices['iPad Pro'],
+        ...devices['Desktop Chrome'],
         viewport: { width: 768, height: 1024 },
+        isMobile: false,
       },
     },
     {
       name: 'mobile',
       use: {
-        ...devices['iPhone SE'],
+        ...devices['Desktop Chrome'],
         viewport: { width: 375, height: 667 },
+        isMobile: true,
+        hasTouch: true,
       },
     },
   ],
