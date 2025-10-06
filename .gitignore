@@ -45,17 +45,7 @@ playwright-report/
 playwright/.cache/
 
 # Visual Reference Captures
-# Keep journey definitions (.ts files) but ignore all generated content
 .agent-os/references/*
-!.agent-os/references/examples/
-!.agent-os/references/journeys/
-!.agent-os/references/**/*.ts
-.agent-os/references/**/screenshots/
-.agent-os/references/**/metadata/
-.agent-os/references/**/*.png
-.agent-os/references/**/*.jpg
-.agent-os/references/**/*.json
-.agent-os/references/**/*.md
 
 app-example
 
