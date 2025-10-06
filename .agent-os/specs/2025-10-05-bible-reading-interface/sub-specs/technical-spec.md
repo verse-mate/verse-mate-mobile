@@ -212,7 +212,11 @@ Use `npm run capture:page` to extract actual typography and color values from co
   - **CRITICAL for Task 2.1**: Use Swagger spec to generate accurate mock responses
   - Ensures mock data matches real API response schemas exactly
   - Provides request/response validation rules for comprehensive test coverage
-  - Consider using `@hey-api/openapi-ts` or similar to generate TypeScript types from Swagger
+  - **Recommended Code Generation**:
+    - `@7nohe/openapi-react-query-codegen` - Generates React Query hooks directly from Swagger
+    - Automatically creates `useQuery`, `useMutation`, `useInfiniteQuery` hooks with TypeScript types
+    - Eliminates manual hook creation and ensures type-safe API calls
+    - Alternative: `@hey-api/openapi-ts` for types only (manual hook creation required)
 - **Setup**: Global MSW server in `test-setup.ts` (started in `beforeAll`, reset in `afterEach`, closed in `afterAll`)
 - **Handlers**: Organized in `__tests__/mocks/handlers/` (by domain: verses, explanations, etc.)
 - **Mock Data**: Centralized in `__tests__/mocks/data/` for reusable test fixtures
