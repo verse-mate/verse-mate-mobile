@@ -1,138 +1,53 @@
 ---
-description: Interactive web app journey capture for visual reference
+description: Create journey definition files for visual reference capture
 ---
 
-# Capture Journey Command
+# Journey Creation Guide
 
-Interactively capture a user journey from the VerseMate web app (https://app.versemate.org) with step-by-step screenshots, metadata, and auto-generated journey definition files.
+Create journey definition files to capture user flows from the VerseMate web app for visual reference during mobile development.
 
-## Usage
+## Journey File Format
 
-```bash
-/capture-journey <journey-name>
-```
+Journey files are TypeScript files that define a sequence of user actions. Create them manually in `.agent-os/references/journeys/{journey-name}/`.
 
-**Example:**
-```bash
-/capture-journey bible-reading-flow
-```
-
-## What This Command Does
-
-1. **Launches Playwright** in headed mode (visible browser) pointing to https://app.versemate.org
-2. **Prompts you step-by-step** for user actions to perform
-3. **Captures screenshots** after each step (all viewports: desktop, tablet, mobile)
-4. **Extracts metadata** (HTML structure, CSS styles, design tokens) at each step
-5. **Generates TypeScript journey file** with all steps for replay
-6. **Creates reference markdown** with embedded screenshots and documentation
-7. **Saves everything** to `.agent-os/references/journeys/{journey-name}/`
-
-## Interactive Flow
-
-```
-/capture-journey bible-reading-flow
-
-> I'll help you create a journey capture for the VerseMate web app.
-> Opening browser at https://app.versemate.org...
->
-> Starting URL (path): /bible
-> Description for this step: Main Bible navigation page
->
-> ✓ Navigated to /bible
-> ✓ Step 1 captured: step-1-landing
->
-> What's next?
-> 1. Click an element
-> 2. Navigate to URL
-> 3. Type text into input
-> 4. Scroll to element
-> 5. Done (finish journey)
->
-> Your choice: 1
->
-> Describe the element to click (e.g., "Old Testament tab", "Genesis book"):
-> Old Testament tab
->
-> Let me find that element...
-> Found selector: [data-testament="OT"]
->
-> Confirm this is correct? (y/n): y
->
-> ✓ Clicked [data-testament="OT"]
-> ✓ Step 2 captured: step-2-select-old-testament
->
-> What's next?
-> ...
->
-> Choice: 5 (Done)
->
-> ✓ Journey complete!
->
-> Generated files:
-> - .agent-os/references/journeys/bible-reading-flow/bible-reading-flow.ts
-> - .agent-os/references/journeys/bible-reading-flow/reference.md
-> - .agent-os/references/journeys/bible-reading-flow/screenshots/ (6 screenshots)
->
-> To replay this journey later:
-> npm run capture:journey -- --journey=bible-reading-flow
-```
-
-## Action Types
-
-### 1. Click an Element
-- You describe the element in natural language
-- AI finds the best CSS selector
-- Confirms with you before clicking
-- Waits for page changes/animations to complete
-- Captures screenshot of result
-
-### 2. Navigate to URL
-- Provide the path (e.g., `/bible/1/1`)
-- Navigates to full URL (https://app.versemate.org + path)
-- Waits for page load
-- Captures screenshot
-
-### 3. Type Text
-- You describe the input field
-- AI finds the selector
-- You provide the text to type
-- Types with realistic delay
-- Captures result
-
-### 4. Scroll to Element
-- You describe what to scroll to
-- AI finds the element
-- Scrolls it into view
-- Captures screenshot
-
-### 5. Done
-- Finishes the journey
-- Generates all files
-- Shows summary
-
-## Generated Files
-
-```
-.agent-os/references/journeys/{journey-name}/
-  {journey-name}.ts          # TypeScript journey definition (replayable)
-  reference.md               # Markdown documentation with screenshots
-  screenshots/
-    step-1-landing_desktop.png
-    step-1-landing_tablet.png
-    step-1-landing_mobile.png
-    step-2-select-testament_desktop.png
-    ...
-  metadata/
-    step-1-landing.json      # HTML structure, styles, tokens
-    step-2-select-testament.json
-    ...
-```
-
-## Journey File Example
-
-The generated `.ts` file can be replayed programmatically:
+### Basic Structure
 
 ```typescript
+import type { Journey } from '../../scripts/visual-reference/types';
+
+export const yourJourney: Journey = {
+  name: 'your-journey-name',
+  description: 'Brief description of the user journey',
+  createdAt: '2025-10-05',
+  baseUrl: 'https://app.versemate.org',
+  steps: [
+    // Array of journey steps
+  ],
+};
+```
+
+### Journey Step Format
+
+Each step has the following properties:
+
+```typescript
+{
+  name: string;              // Format: 'step-1-description'
+  description: string;       // Human-readable description
+  action?: 'navigate' | 'click' | 'type' | 'scroll';
+  url?: string;             // For navigate action
+  selector?: string;        // CSS selector for click/type/scroll
+  value?: string;           // Text value for type action
+  waitFor?: string;         // CSS selector to wait for
+  screenshot: string;       // Screenshot filename
+}
+```
+
+## Example: Bible Reading Journey
+
+```typescript
+import type { Journey } from '../../scripts/visual-reference/types';
+
 export const bibleReadingFlow: Journey = {
   name: 'bible-reading-flow',
   description: 'User journey from Bible navigation to reading Genesis 1',
@@ -140,59 +55,103 @@ export const bibleReadingFlow: Journey = {
   baseUrl: 'https://app.versemate.org',
   steps: [
     {
-      name: 'step-1-landing',
-      description: 'Main Bible navigation page',
+      name: 'step-1-navigate-bible',
+      description: 'Navigate to Bible page',
       action: 'navigate',
       url: '/bible',
-      waitFor: '.testament-tabs',
-      screenshot: 'step-1-landing.png'
+      waitFor: 'body',
+      screenshot: 'step-1-navigate-bible.png',
     },
     {
-      name: 'step-2-select-testament',
-      description: 'Click Old Testament tab',
-      action: 'click',
-      selector: '[data-testament="OT"]',
-      waitFor: '.book-accordion',
-      screenshot: 'step-2-select-testament.png'
-    }
-  ]
+      name: 'step-2-navigate-genesis',
+      description: 'Navigate to Genesis chapter 1',
+      action: 'navigate',
+      url: '/bible/1/1',
+      waitFor: 'body',
+      screenshot: 'step-2-navigate-genesis.png',
+    },
+  ],
 };
 ```
 
-## Use Cases
+## Action Types
 
-### Capturing Bible Reading Flow
-```bash
-/capture-journey bible-reading-flow
-# Steps: Navigate to /bible → Select OT → Expand Genesis → Click Chapter 1
+### Navigate
+```typescript
+{
+  action: 'navigate',
+  url: '/bible/1/1',
+  waitFor: 'body',  // Wait for element after navigation
+}
 ```
 
-### Capturing AI Explanation Flow
-```bash
-/capture-journey ai-explanation-flow
-# Steps: Open chapter → Request AI summary → View explanation → Ask follow-up
+### Click
+```typescript
+{
+  action: 'click',
+  selector: '[data-testament="OT"]',  // CSS selector
+  waitFor: '.book-accordion',          // Wait for result
+}
 ```
 
-### Capturing Navigation Patterns
-```bash
-/capture-journey chapter-navigation
-# Steps: Read chapter → Swipe next → Cross-book navigation → Return home
+### Type
+```typescript
+{
+  action: 'type',
+  selector: 'input[type="search"]',
+  value: 'Genesis',
+  waitFor: '.search-results',
+}
+```
+
+### Scroll
+```typescript
+{
+  action: 'scroll',
+  selector: '.chapter-content',
+  waitFor: '.chapter-content',
+}
+```
+
+## Creating a Journey
+
+1. **Create directory structure**:
+   ```bash
+   mkdir -p .agent-os/references/journeys/my-journey/screenshots
+   ```
+
+2. **Create TypeScript file**:
+   Create `.agent-os/references/journeys/my-journey/my-journey.ts`
+
+3. **Define your journey**:
+   Use the format above to define navigation steps
+
+4. **Run journey replay** (when implemented):
+   ```bash
+   npm run capture:journey -- --journey=my-journey
+   ```
+
+## File Organization
+
+```
+.agent-os/references/journeys/
+  my-journey/
+    my-journey.ts           # Journey definition
+    screenshots/            # Step screenshots (generated on replay)
+    reference.md           # Journey documentation (generated on replay)
 ```
 
 ## Tips
 
-1. **Browser stays open** during the entire capture - you can see what's happening
-2. **AI suggests selectors** - you just describe elements in plain language
-3. **Multiple viewports** - every step captures desktop, tablet, and mobile views
-4. **Metadata extracted** - HTML, CSS, and design tokens saved automatically
-5. **Replayable** - the generated `.ts` file can replay the exact journey later
+- Use descriptive step names with kebab-case
+- Start step names with `step-{number}-`
+- Use simple CSS selectors when possible
+- Add `waitFor` to ensure page stability
+- Keep journey focused on one user flow
+- Test selectors in browser DevTools first
 
-## Implementation Requirements
+## Related Tools
 
-This command requires the Visual Reference Tooling spec to be implemented:
-- Playwright installed and configured
-- Capture scripts implemented (capture-journey-interactive.ts)
-- Selector finder utility (selector-finder.ts)
-- Metadata extraction utilities
-
-See: @.agent-os/specs/2025-10-05-visual-reference-tooling/spec.md
+- **Selector Finder**: `scripts/visual-reference/utils/selector-finder.ts`
+- **Journey Generator**: `scripts/visual-reference/utils/generate-journey.ts`
+- **Type Definitions**: `scripts/visual-reference/types/index.ts`

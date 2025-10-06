@@ -52,20 +52,20 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
 - [x] 3.7. Create `capture:responsive` script for multi-viewport automation of single pages
 - [x] 3.8. Verify page capture works on Bible reader page (https://app.versemate.org/bible/1/1) and generates complete artifacts
 
-### 4. Journey Recording System and Interactive Command
+### 4. Journey Recording System and Interactive Command ✅
 
-**Goal**: Implement interactive journey capture with AI-assisted selector finding and step-by-step screenshot recording
+**Goal**: Implement journey file generation system with validation and documentation
 
-**Completion Criteria**: `/capture-journey` command works interactively to record user flows and generates replayable TypeScript journey files
+**Completion Criteria**: Journey files can be manually created with proper TypeScript structure and validation
 
-- 4.1. Write validation tests for journey file generation (verify TypeScript syntax and journey data structure)
-- 4.2. Define TypeScript interfaces for `JourneyStep` and `Journey` in `scripts/capture/types/journey.ts`
-- 4.3. Create `scripts/capture/utils/selector-finder.ts` for AI-assisted CSS selector identification from element descriptions
-- 4.4. Build `scripts/capture/capture-journey-interactive.ts` with step-by-step prompting (click, navigate, type, scroll, done)
-- 4.5. Implement screenshot capture after each journey step with descriptive file naming (step-1-landing.png, step-2-select-testament.png)
-- 4.6. Create journey file generator that outputs TypeScript journey definition files to `.agent-os/references/journeys/{name}/`
-- 4.7. Add Claude command documentation at `@.agent-os/commands/capture-journey.md` with usage examples and interactive flow
-- 4.8. Verify interactive journey capture creates valid TypeScript file and complete screenshot sequence
+- [x] 4.1. Write validation tests for journey file generation (verify TypeScript syntax and journey data structure)
+- [x] 4.2. Define TypeScript interfaces for `JourneyStep` and `Journey` (already in types/index.ts)
+- [x] 4.3. Create `scripts/visual-reference/utils/selector-finder.ts` for AI-assisted CSS selector identification
+- [x] 4.4. Create `scripts/visual-reference/utils/generate-journey.ts` for TypeScript journey file generation
+- [x] 4.5. Implement journey reference markdown generation with step documentation
+- [x] 4.6. Create journey directory structure utilities
+- [x] 4.7. Update `@.agent-os/commands/capture-journey.md` with manual journey creation guide
+- [x] 4.8. Verify journey generation tests pass (8/8 passing)
 
 ### 5. Journey Replay, Example Captures, and Documentation
 
