@@ -112,16 +112,22 @@ Use `npm run capture:page` to extract actual typography and color values from co
 
 ### API Integration
 - **Base URL**: https://api.verse-mate.apegro.dev
-- **Core Endpoints**:
+- **OpenAPI/Swagger Spec**: https://api.verse-mate.apegro.dev/swagger/json
+  - **CRITICAL**: Use Swagger spec for accurate API mocking in tests
+  - Provides complete endpoint definitions, request/response schemas, and validation rules
+  - Essential for generating TypeScript types and MSW handlers
+  - Should be consulted during Task 2.1 (Write MSW handlers)
+- **Core Endpoints** (VALIDATE against Swagger spec):
   - `/bible/testaments` - Get testament and book structure
   - `/bible/books` - Get all Bible books with metadata
   - `/bible/book/{bookId}/{chapterNumber}` - Get chapter content with verses and subtitles
   - `/bible/book/chapter/save-last-read` - Save user's reading position
 - **Authentication**: User ID (UUID) required for personalized features (authentication flow out of scope - will be handled separately)
-- **Version Support**: NASB1995 Bible version with `versionKey` parameter
-- **Data Models**: Chapter object contains `chapterNumber`, `subtitles[]`, and `verses[]` arrays
-- **Verse Structure**: Each verse has `verseNumber` and `text` properties
-- **Subtitle Structure**: Contains `subtitle`, `start_verse`, and `end_verse` for section organization
+- **Version Support**: NASB1995 Bible version with `versionKey` parameter - **VALIDATE in Swagger**
+- **Data Models** (VALIDATE against Swagger schemas):
+  - Chapter object contains `chapterNumber`, `subtitles[]`, and `verses[]` arrays
+  - Verse Structure: Each verse has `verseNumber` and `text` properties
+  - Subtitle Structure: Contains `subtitle`, `start_verse`, and `end_verse` for section organization
 - **Error Handling**: Network retry logic and offline graceful degradation
 - **Background Sync**: Automatic content updates when connectivity restored
 
@@ -202,15 +208,23 @@ Use `npm run capture:page` to extract actual typography and color values from co
 
 #### API Mocking (MSW v2)
 - **Mock Service Worker**: MSW v2 with Node.js adapter for API testing
+- **Swagger/OpenAPI Integration**: https://api.verse-mate.apegro.dev/swagger/json
+  - **CRITICAL for Task 2.1**: Use Swagger spec to generate accurate mock responses
+  - Ensures mock data matches real API response schemas exactly
+  - Provides request/response validation rules for comprehensive test coverage
+  - Consider using `@hey-api/openapi-ts` or similar to generate TypeScript types from Swagger
 - **Setup**: Global MSW server in `test-setup.ts` (started in `beforeAll`, reset in `afterEach`, closed in `afterAll`)
 - **Handlers**: Organized in `__tests__/mocks/handlers/` (by domain: verses, explanations, etc.)
 - **Mock Data**: Centralized in `__tests__/mocks/data/` for reusable test fixtures
+  - Mock data structure must match Swagger schemas
+  - Include realistic data for testaments, books, chapters, verses, subtitles
 - **Fetch Polyfill**: Uses `undici` for Node.js fetch API compatibility
-- **API Endpoints to Mock**:
+- **API Endpoints to Mock** (validate complete list in Swagger):
   - `GET /bible/testaments` - Testament and book structure
   - `GET /bible/books` - All Bible books with metadata
   - `GET /bible/book/:bookId/:chapterNumber` - Chapter content with verses and subtitles
   - `POST /bible/book/chapter/save-last-read` - Save reading position
+  - Additional endpoints discovered in Swagger spec
 
 #### E2E Testing (Maestro)
 - **Test Flows**: YAML-based test flows in `.maestro/` directory
