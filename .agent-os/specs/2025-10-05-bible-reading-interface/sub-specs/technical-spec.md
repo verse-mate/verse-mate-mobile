@@ -1,9 +1,10 @@
 # Technical Specification
 
-This is the technical specification for the spec detailed in @.agent-os/specs/2025-09-27-bible-reading-interface/spec.md
+This is the technical specification for the spec detailed in @.agent-os/specs/2025-10-05-bible-reading-interface/spec.md
 
-> Created: 2025-09-27
-> Version: 1.0.0
+> Created: 2025-10-05
+> Updated: 2025-10-05
+> Version: 1.1.0
 
 ## Technical Requirements
 
@@ -121,26 +122,76 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 - **Floating Control Optimization**: Efficient rendering of persistent floating navigation elements
 
 ### Testing Strategy
-- **Unit Testing**: Bun test + React Native Testing Library (already configured in project)
-  - Test runner: `bun test` command configured in package.json
-  - Testing Library: `@testing-library/react-native` v13.3.3 (already installed)
-  - Custom matchers: `@testing-library/jest-dom` v6.8.0 (already installed)
-- **Integration Testing**: Detox for end-to-end mobile app testing (to be added if needed)
-- **Component Testing**: Storybook for component isolation and visual testing (to be added if needed)
-- **API Testing**: MSW (Mock Service Worker) for API mocking and testing (to be added if needed)
-- **Code Quality**: Biome.js + ESLint already configured with pre-commit hooks
-- **Type Checking**: TypeScript with `bun tsc --noEmit` in existing CI pipeline
+
+#### Unit & Integration Testing (Jest + React Native Testing Library)
+- **Test Runner**: Jest with `jest-expo` preset (use `npm test`, NOT `bun test`)
+  - Command: `npm run test` for single run
+  - Watch mode: `npm run test:watch`
+  - Coverage: `npm run test:coverage`
+  - CI mode: `npm run test:ci`
+- **Testing Library**: `@testing-library/react-native` v13.3.3 with `@testing-library/jest-native` matchers
+- **Test Location**: `__tests__/**/*.test.{ts,tsx}` or co-located `*.test.{ts,tsx}`
+- **Environment**: Node environment with Expo static rendering (`EXPO_USE_STATIC_RENDERING=1`)
+
+#### API Mocking (MSW v2)
+- **Mock Service Worker**: MSW v2 with Node.js adapter for API testing
+- **Setup**: Global MSW server in `test-setup.ts` (started in `beforeAll`, reset in `afterEach`, closed in `afterAll`)
+- **Handlers**: Organized in `__tests__/mocks/handlers/` (by domain: verses, explanations, etc.)
+- **Mock Data**: Centralized in `__tests__/mocks/data/` for reusable test fixtures
+- **Fetch Polyfill**: Uses `undici` for Node.js fetch API compatibility
+
+#### E2E Testing (Maestro)
+- **Test Flows**: YAML-based test flows in `.maestro/` directory
+- **Commands**:
+  - `bun run maestro:test` - Run all E2E tests
+  - `bun run maestro:test:ios` - iOS-specific tests (iPhone 15)
+  - `bun run maestro:test:android` - Android-specific tests
+  - `bun run maestro:studio` - Interactive test development
+- **Use Cases**: User journey testing, gesture interactions, navigation flows
+
+#### Component Documentation (Storybook)
+- **Storybook**: React Native Storybook v9.1.4 with on-device addons
+- **Stories**: Co-located with components (e.g., `Button.stories.tsx`)
+- **Commands**:
+  - `bun run storybook:generate` - Generate stories
+  - `bun run chromatic:deploy` - Deploy to Chromatic for visual regression
+- **Addons**: Actions, Backgrounds, Controls, Notes (all on-device)
+
+#### Code Quality & Type Safety
+- **Linting**: Biome.js + ESLint (dual setup) with pre-commit hooks via `lint-staged`
+- **Type Checking**: TypeScript strict mode with pre-push hook (`bun tsc --noEmit`)
+- **Pre-commit**: Runs Biome format/check + ESLint fix on staged files
+- **Pre-push**: Runs full TypeScript type check before push
+
+#### Testing Best Practices for This Spec
+1. **Component Tests**: Test all navigation components (TestamentTabs, BookAccordion, ChapterReader) with RNTL
+2. **Gesture Tests**: Mock gesture handlers and test swipe navigation logic
+3. **API Integration Tests**: Use MSW handlers for Bible API endpoints (`/bible/testaments`, `/bible/book/{bookId}/{chapterNumber}`)
+4. **Navigation Tests**: Test Expo Router navigation between screens
+5. **State Management Tests**: Test AsyncStorage persistence and React Query caching
+6. **E2E Flows**: Create Maestro flows for:
+   - Complete user journey: Testament selection → Book selection → Chapter reading
+   - Swipe navigation between chapters
+   - Cross-book navigation (last chapter → next book's first chapter)
+   - Global search functionality
+7. **Accessibility Tests**: Use `@testing-library/jest-native` a11y matchers for screen reader support
 
 ## External Dependencies
 
+### Already Installed
 **React Native Gesture Handler 2.28.0** - Advanced gesture recognition for swipe navigation
 - Justification: Provides precise gesture detection required for chapter navigation with momentum and velocity calculation
+- Status: ✅ Already installed in package.json
 
 **React Native Reanimated 4.1.0** - High-performance animations for page transitions
 - Justification: Essential for smooth chapter transitions and auto-hide control animations without bridge communication
+- Status: ✅ Already installed in package.json
 
+### Needs Installation
 **@react-native-async-storage/async-storage** - Local storage for reading position and preferences
 - Justification: Required for offline reading position persistence and user preference storage
+- Installation: `bun add @react-native-async-storage/async-storage`
 
-**React Query (TanStack Query)** - Server state management and caching
+**@tanstack/react-query** - Server state management and caching
 - Justification: Optimizes API calls with intelligent caching and background updates for Bible content
+- Installation: `bun add @tanstack/react-query`
