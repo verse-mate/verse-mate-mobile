@@ -22,20 +22,20 @@ These are the tasks to be completed for the spec detailed in @.agent-os/specs/20
 - [x] 1.7. Document Playwright setup in project README or tooling documentation
 - [x] 1.8. Verify Playwright successfully captures screenshot of VerseMate homepage
 
-### 2. Core Capture Utilities and Metadata Extraction
+### 2. Core Capture Utilities and Metadata Extraction ✅
 
 **Goal**: Build foundational screenshot capture system with metadata extraction capabilities
 
 **Completion Criteria**: Can capture multi-viewport screenshots and extract HTML/CSS metadata from any URL
 
-- 2.1. Write manual validation tests for metadata extraction accuracy (verify extracted styles match browser DevTools)
-- 2.2. Create `scripts/capture/utils/screenshot-capture.ts` with viewport configuration (desktop 1920x1080, tablet 768x1024, mobile 375x667)
-- 2.3. Implement full-page screenshot capture function with PNG quality settings and file naming convention
-- 2.4. Create `scripts/capture/utils/extract-metadata.ts` with HTML structure extraction using recursive tree traversal
-- 2.5. Implement CSS style extraction using `window.getComputedStyle()` for typography, colors, spacing, and layout
-- 2.6. Build design token extraction for CSS custom properties (colors, fonts, spacing, borders, shadows)
-- 2.7. Create `scripts/capture/utils/generate-reference.ts` to output metadata as JSON and formatted markdown
-- 2.8. Verify screenshot quality, metadata accuracy, and markdown formatting with manual spot-checks
+- [x] 2.1. Write manual validation tests for metadata extraction accuracy (verify extracted styles match browser DevTools)
+- [x] 2.2. Create `scripts/capture/utils/screenshot-capture.ts` with viewport configuration (desktop 1920x1080, tablet 768x1024, mobile 375x667)
+- [x] 2.3. Implement full-page screenshot capture function with PNG quality settings and file naming convention
+- [x] 2.4. Create `scripts/capture/utils/extract-metadata.ts` with HTML structure extraction using recursive tree traversal
+- [x] 2.5. Implement CSS style extraction using `window.getComputedStyle()` for typography, colors, spacing, and layout
+- [x] 2.6. Build design token extraction for CSS custom properties (colors, fonts, spacing, borders, shadows)
+- [x] 2.7. Create `scripts/capture/utils/generate-reference.ts` to output metadata as JSON and formatted markdown
+- [x] 2.8. Verify screenshot quality, metadata accuracy, and markdown formatting with manual spot-checks
 
 ### 3. Single Page Capture System and NPM Scripts
 
