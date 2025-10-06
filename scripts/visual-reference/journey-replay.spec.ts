@@ -220,7 +220,9 @@ test.describe('Journey Replay System', () => {
 
     // Should timeout but not crash
     try {
-      await page.waitForSelector(step.waitFor!, { timeout: 2000 });
+      if (step.waitFor) {
+        await page.waitForSelector(step.waitFor, { timeout: 2000 });
+      }
     } catch (error) {
       // Expected timeout
       expect(error).toBeTruthy();

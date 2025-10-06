@@ -65,7 +65,7 @@ test.describe('Error Handling', () => {
     expect(page.url()).toContain('versemate.org');
   });
 
-  test('should validate URL before navigation', async ({ page }) => {
+  test('should validate URL before navigation', async () => {
     const baseUrl = 'https://app.versemate.org';
     const validPaths = ['/bible', '/bible/1/1', '/'];
     const invalidPaths = ['', '   '];

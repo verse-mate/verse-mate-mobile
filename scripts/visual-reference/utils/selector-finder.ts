@@ -80,7 +80,7 @@ async function findByText(page: Page, baseSelector: string, text: string): Promi
 
   for (let i = 0; i < elements.length; i++) {
     const elementText = await elements[i].textContent();
-    if (elementText && elementText.toLowerCase().includes(text.toLowerCase())) {
+    if (elementText?.toLowerCase().includes(text.toLowerCase())) {
       // Build more specific selector
       const nth = i === 0 ? '' : `.nth(${i})`;
       return `${baseSelector}${nth}`;

@@ -259,9 +259,9 @@ export function rgbToHex(rgb: string): string {
   const match = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
   if (!match) return rgb;
 
-  const r = Number.parseInt(match[1]).toString(16).padStart(2, '0');
-  const g = Number.parseInt(match[2]).toString(16).padStart(2, '0');
-  const b = Number.parseInt(match[3]).toString(16).padStart(2, '0');
+  const r = Number.parseInt(match[1], 10).toString(16).padStart(2, '0');
+  const g = Number.parseInt(match[2], 10).toString(16).padStart(2, '0');
+  const b = Number.parseInt(match[3], 10).toString(16).padStart(2, '0');
 
   return `#${r}${g}${b}`;
 }

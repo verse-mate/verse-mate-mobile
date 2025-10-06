@@ -6,7 +6,7 @@ import { chromium } from '@playwright/test';
 import type { Journey, JourneyStep } from './types';
 import { extractPageMetadata } from './utils/extract-metadata';
 import { generateJourneyReference } from './utils/generate-journey';
-import { generateReferenceMarkdown, saveMetadataJSON } from './utils/generate-reference';
+import { saveMetadataJSON } from './utils/generate-reference';
 import { captureAllViewports } from './utils/screenshot-capture';
 
 /**
@@ -102,7 +102,7 @@ async function executeStep(page: Page, step: JourneyStep, baseUrl: string): Prom
       try {
         await page.waitForSelector(step.waitFor, { timeout: 10000 });
         console.log(`    ✓ Waited for ${step.waitFor}`);
-      } catch (error) {
+      } catch (_error) {
         console.log(`    ⚠ Timeout waiting for ${step.waitFor}`);
       }
     }
