@@ -201,7 +201,7 @@ export async function extractDesignTokens(page: Page): Promise<DesignToken[]> {
     return tokens;
   });
 
-  return tokens;
+  return tokens as DesignToken[];
 }
 
 /**

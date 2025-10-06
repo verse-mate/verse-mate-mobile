@@ -148,7 +148,7 @@ test.describe('Journey Replay System', () => {
     };
 
     // Should not throw, just skip the click
-    const elementCount = await page.locator(step.selector).count();
+    const elementCount = await page.locator(step.selector ?? '').count();
     expect(elementCount).toBe(0);
 
     // Should still capture screenshot

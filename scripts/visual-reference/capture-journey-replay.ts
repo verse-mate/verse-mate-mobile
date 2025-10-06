@@ -165,7 +165,8 @@ async function replayJourney(journey: Journey, outputDir: string): Promise<void>
       // Extract metadata for first and last steps
       if (i === 0 || i === journey.steps.length - 1) {
         console.log(`  Extracting metadata...`);
-        const metadata = await extractPageMetadata(page);
+        const currentUrl = page.url();
+        const metadata = await extractPageMetadata(page, currentUrl);
         const metadataDir = path.join(outputDir, 'metadata', step.name);
         fs.mkdirSync(metadataDir, { recursive: true });
         saveMetadataJSON(metadata, metadataDir);
