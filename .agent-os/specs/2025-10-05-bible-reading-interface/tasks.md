@@ -28,13 +28,14 @@ This tasks list follows a discovery-first approach. Phase 1 (Discovery) must be 
 ### Phase 2: Implementation (After Discovery Complete)
 
 - [ ] 2. API Integration and Data Layer
-  - [ ] 2.1 Write MSW handlers for Bible API endpoints (/bible/testaments, /bible/books, /bible/book/:bookId/:chapter)
-  - [ ] 2.2 Create mock data fixtures based on API response structure
-  - [ ] 2.3 Implement React Query hooks for testament/book data fetching
-  - [ ] 2.4 Implement React Query hooks for chapter content fetching
-  - [ ] 2.5 Add AsyncStorage persistence for reading position
-  - [ ] 2.6 Write tests for API integration layer
-  - [ ] 2.7 Verify all API integration tests pass
+  - [ ] 2.1 Review Swagger spec (https://api.verse-mate.apegro.dev/swagger/json) and write MSW handlers for Bible API endpoints
+  - [ ] 2.2 Create mock data fixtures matching Swagger response schemas exactly
+  - [ ] 2.3 (Optional) Generate TypeScript types from Swagger using @hey-api/openapi-ts or similar
+  - [ ] 2.4 Implement React Query hooks for testament/book data fetching
+  - [ ] 2.5 Implement React Query hooks for chapter content fetching
+  - [ ] 2.6 Add AsyncStorage persistence for reading position
+  - [ ] 2.7 Write tests for API integration layer
+  - [ ] 2.8 Verify all API integration tests pass
 
 - [ ] 3. Navigation Components (Based on Discovered Patterns)
   - [ ] 3.1 Write tests for navigation components
