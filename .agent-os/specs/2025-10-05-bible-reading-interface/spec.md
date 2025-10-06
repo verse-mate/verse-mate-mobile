@@ -56,29 +56,48 @@ The interface supports left/right swipe gestures for chapter navigation, floatin
 2. Chapter text displays with proper verse formatting and readable typography on all mobile screen sizes
 3. Swipe navigation between chapters works smoothly with visual feedback and maintains reading position
 
-## Visual Reference Tooling
+## Implementation Approach: Learn First, Plan Second
 
-The Visual Reference Tooling system (implemented October 2025) provides AI-powered screenshot capture and metadata extraction from the VerseMate web app to ensure design consistency during mobile implementation.
+**IMPORTANT**: Before implementing any features, use the Visual Reference Tooling to discover how the web app actually works. This spec contains assumptions that must be validated against the real implementation.
 
-### Available Commands
-- `npm run capture:page -- --url=/bible --name=bible-page` - Capture single page with visual references
-- `npm run capture:journey -- --journey=bible-reading-flow` - Capture complete user journeys
-- `npx playwright test scripts/visual-reference/` - Validate capture tooling (105 tests)
+### Discovery Phase (Required Before Implementation)
 
-### How to Use During Implementation
-1. **Before implementing any screen**: Capture the corresponding web app page to understand exact design specifications
-2. **For complex flows**: Create journey files in `.agent-os/references/journeys/` to document user interactions
-3. **For design consistency**: Review captured metadata to extract exact colors, typography, and spacing values
+1. **Capture Key User Journeys**:
+   - Create journey files to explore how users actually navigate the Bible reader
+   - Document the real interaction patterns, not assumed ones
+   - Example: `npm run capture:journey -- --journey=bible-reading-exploration`
 
-### Captured Data Format
-Each capture includes:
-- Multi-viewport screenshots (desktop, tablet, mobile)
-- HTML structure (recursive component tree)
-- Computed CSS styles (all typography, colors, spacing, layout properties)
-- Design tokens (CSS custom properties, if available)
-- Generated markdown reference with visual documentation
+2. **Extract Real Design System**:
+   - Capture pages to extract actual colors, typography, spacing
+   - Validate assumptions in this spec against real web app implementation
+   - Document any differences between spec assumptions and reality
 
-See `.agent-os/commands/capture-journey.md` for detailed journey creation guide.
+3. **Understand Navigation Patterns**:
+   - Learn how the web app handles testament/book/chapter navigation
+   - Discover actual UI patterns (tabs? dropdowns? accordions?)
+   - Document cross-book navigation behavior (if it exists)
+
+4. **Plan Mobile Adaptation**:
+   - After learning web app patterns, plan mobile-specific enhancements
+   - Decide what to keep, what to adapt, what to add for mobile UX
+   - Document decisions and reasoning in journey files or spec updates
+
+### Visual Reference Tooling Commands
+
+- `npm run capture:page -- --url=/bible --name=bible-page` - Capture single page
+- `npm run capture:journey -- --journey=bible-reading-flow` - Capture user journey
+- `npx playwright test scripts/visual-reference/` - Validate tooling (105 tests)
+
+### What Gets Captured
+
+Each capture provides:
+- Multi-viewport screenshots (desktop 1920x1080, tablet 768x1024, mobile 375x667)
+- HTML structure (recursive component tree, max depth 5)
+- Computed CSS styles (typography, colors, spacing, layout)
+- Design tokens (CSS custom properties, if any)
+- Generated markdown reference
+
+See `.agent-os/commands/capture-journey.md` for journey creation guide.
 
 ## Spec Documentation
 
