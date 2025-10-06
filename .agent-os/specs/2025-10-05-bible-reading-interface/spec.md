@@ -56,6 +56,30 @@ The interface supports left/right swipe gestures for chapter navigation, floatin
 2. Chapter text displays with proper verse formatting and readable typography on all mobile screen sizes
 3. Swipe navigation between chapters works smoothly with visual feedback and maintains reading position
 
+## Visual Reference Tooling
+
+The Visual Reference Tooling system (implemented October 2025) provides AI-powered screenshot capture and metadata extraction from the VerseMate web app to ensure design consistency during mobile implementation.
+
+### Available Commands
+- `npm run capture:page -- --url=/bible --name=bible-page` - Capture single page with visual references
+- `npm run capture:journey -- --journey=bible-reading-flow` - Capture complete user journeys
+- `npx playwright test scripts/visual-reference/` - Validate capture tooling (105 tests)
+
+### How to Use During Implementation
+1. **Before implementing any screen**: Capture the corresponding web app page to understand exact design specifications
+2. **For complex flows**: Create journey files in `.agent-os/references/journeys/` to document user interactions
+3. **For design consistency**: Review captured metadata to extract exact colors, typography, and spacing values
+
+### Captured Data Format
+Each capture includes:
+- Multi-viewport screenshots (desktop, tablet, mobile)
+- HTML structure (recursive component tree)
+- Computed CSS styles (all typography, colors, spacing, layout properties)
+- Design tokens (CSS custom properties, if available)
+- Generated markdown reference with visual documentation
+
+See `.agent-os/commands/capture-journey.md` for detailed journey creation guide.
+
 ## Spec Documentation
 
 - Technical Specification: @.agent-os/specs/2025-10-05-bible-reading-interface/sub-specs/technical-spec.md

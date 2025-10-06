@@ -123,11 +123,40 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 
 ### Testing Strategy
 
+#### Visual Reference Tooling (Playwright)
+- **Purpose**: Capture web app visual references for design consistency during mobile implementation
+- **Web App URL**: https://app.versemate.org
+- **Commands**:
+  - `npm run capture:page -- --url=/bible --name=bible-page` - Capture single page with metadata
+  - `npm run capture:journey -- --journey=bible-reading-flow` - Replay and capture user journey
+  - `npx playwright test scripts/visual-reference/` - Run all 105 Playwright tests
+- **Captured Data**:
+  - Multi-viewport screenshots (desktop 1920x1080, tablet 768x1024, mobile 375x667)
+  - HTML structure (recursive tree traversal, max depth 5)
+  - Computed CSS styles (typography, colors, spacing, layout)
+  - Design tokens (CSS custom properties from `:root`)
+- **Journey System**:
+  - Define user flows as TypeScript files in `.agent-os/references/journeys/`
+  - Journey format: steps with actions (navigate, click, type, scroll)
+  - Automated replay captures screenshots at each step
+  - See `.agent-os/commands/capture-journey.md` for journey creation guide
+- **Use Cases**:
+  1. Capture web app Bible reader before implementing mobile equivalent
+  2. Compare web vs mobile design consistency
+  3. Extract exact color values, typography, and spacing
+  4. Document user flows for mobile implementation
+  5. Provide visual context during development
+- **Key Findings**:
+  - Web app uses direct URL navigation (e.g., `/bible`, `/login`)
+  - Color system: #b09a6d (--dust), #f6f3ec (--fantasy), #212531 (--night)
+  - Typography: MerriweatherItalic (titles), Roboto Serif (body)
+  - Web app may not use CSS custom properties (check computed styles instead)
+
 #### Unit & Integration Testing (Jest + React Native Testing Library)
 - **Test Runner**: Jest with `jest-expo` preset (use `npm test`, NOT `bun test`)
   - Command: `npm run test` for single run
   - Watch mode: `npm run test:watch`
-  - Coverage: `npm run test:coverage`
+  - Coverage: `npm run test:coverage` (48 tests currently passing)
   - CI mode: `npm run test:ci`
 - **Testing Library**: `@testing-library/react-native` v13.3.3 with `@testing-library/jest-native` matchers
 - **Test Location**: `__tests__/**/*.test.{ts,tsx}` or co-located `*.test.{ts,tsx}`
@@ -139,6 +168,11 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 - **Handlers**: Organized in `__tests__/mocks/handlers/` (by domain: verses, explanations, etc.)
 - **Mock Data**: Centralized in `__tests__/mocks/data/` for reusable test fixtures
 - **Fetch Polyfill**: Uses `undici` for Node.js fetch API compatibility
+- **API Endpoints to Mock**:
+  - `GET /bible/testaments` - Testament and book structure
+  - `GET /bible/books` - All Bible books with metadata
+  - `GET /bible/book/:bookId/:chapterNumber` - Chapter content with verses and subtitles
+  - `POST /bible/book/chapter/save-last-read` - Save reading position
 
 #### E2E Testing (Maestro)
 - **Test Flows**: YAML-based test flows in `.maestro/` directory
@@ -148,6 +182,11 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
   - `bun run maestro:test:android` - Android-specific tests
   - `bun run maestro:studio` - Interactive test development
 - **Use Cases**: User journey testing, gesture interactions, navigation flows
+- **Key Flows to Test**:
+  - Login flow (navigate to /login, enter credentials, submit)
+  - Bible reading flow (testament selection → book selection → chapter reading)
+  - Cross-book navigation with swipe gestures
+  - Global search functionality
 
 #### Component Documentation (Storybook)
 - **Storybook**: React Native Storybook v9.1.4 with on-device addons
@@ -159,22 +198,32 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 
 #### Code Quality & Type Safety
 - **Linting**: Biome.js + ESLint (dual setup) with pre-commit hooks via `lint-staged`
+  - Biome: Primary formatter and core linting (fast, 100-line width, 2 spaces)
+  - ESLint: React hooks rules, platform-specific file handling
+  - CI Command: `bun biome check --diagnostic-level=error` (11 warnings acceptable)
 - **Type Checking**: TypeScript strict mode with pre-push hook (`bun tsc --noEmit`)
-- **Pre-commit**: Runs Biome format/check + ESLint fix on staged files
+- **Pre-commit**: Runs Biome format/check + ESLint fix on staged files via `lint-staged`
 - **Pre-push**: Runs full TypeScript type check before push
+- **Quality Gates**: All checks must pass before PR merge (TypeScript, Biome, ESLint, Jest, Playwright)
 
 #### Testing Best Practices for This Spec
-1. **Component Tests**: Test all navigation components (TestamentTabs, BookAccordion, ChapterReader) with RNTL
-2. **Gesture Tests**: Mock gesture handlers and test swipe navigation logic
-3. **API Integration Tests**: Use MSW handlers for Bible API endpoints (`/bible/testaments`, `/bible/book/{bookId}/{chapterNumber}`)
-4. **Navigation Tests**: Test Expo Router navigation between screens
-5. **State Management Tests**: Test AsyncStorage persistence and React Query caching
-6. **E2E Flows**: Create Maestro flows for:
+1. **Visual Reference First**: Before implementing any UI component:
+   - Capture web app page using `npm run capture:page`
+   - Review screenshots across all viewports
+   - Extract exact color values and typography from metadata
+   - Document any differences between web and mobile requirements
+2. **Component Tests**: Test all navigation components (TestamentTabs, BookAccordion, ChapterReader) with RNTL
+3. **Gesture Tests**: Mock gesture handlers and test swipe navigation logic
+4. **API Integration Tests**: Use MSW handlers for all Bible API endpoints
+5. **Navigation Tests**: Test Expo Router navigation between screens
+6. **State Management Tests**: Test AsyncStorage persistence and React Query caching
+7. **E2E Flows**: Create Maestro flows for:
    - Complete user journey: Testament selection → Book selection → Chapter reading
    - Swipe navigation between chapters
    - Cross-book navigation (last chapter → next book's first chapter)
    - Global search functionality
-7. **Accessibility Tests**: Use `@testing-library/jest-native` a11y matchers for screen reader support
+8. **Accessibility Tests**: Use `@testing-library/jest-native` a11y matchers for screen reader support
+9. **Journey Documentation**: Create journey files in `.agent-os/references/journeys/` for complex user flows
 
 ## External Dependencies
 

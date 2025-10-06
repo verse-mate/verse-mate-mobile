@@ -10,3 +10,4 @@ Implement a comprehensive Bible reading interface for the VerseMate mobile app t
 - **Testament Filter with Global Search**: Toggle-based testament filtering combined with universal chapter search across all books
 - **Mobile-First Design**: React Native implementation with webapp design system consistency (MerriweatherItalic, Roboto Serif, #b09a6d accent)
 - **Smart Loading & Error Handling**: Skeleton screens for loading states and retry functionality for network failures
+- **Visual Reference Tooling**: AI-powered screenshot capture from web app (https://app.versemate.org) to ensure design consistency during implementation
