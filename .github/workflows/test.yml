@@ -1,0 +1,143 @@
+name: Test Suite
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  jest-tests:
+    name: Jest Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for Chromatic
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run type checking
+        run: npm run type-check
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run Jest tests
+        run: npm run test:ci
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+        continue-on-error: true
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request' && hashFiles('coverage/lcov.info') != ''
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          lcov-file: ./coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        continue-on-error: true
+
+      - name: Check coverage thresholds
+        run: |
+          node -e "const fs=require('fs');const s=JSON.parse(fs.readFileSync('coverage/coverage-summary.json','utf8'));const pct=Number(s.total?.statements?.pct||0);console.log(\`Current coverage: \${pct}%\`);if(pct<60){console.log('::warning::Coverage ('+pct+'%) is below minimum threshold (60%)');process.exit(0)}else{console.log('✅ Coverage meets minimum threshold: '+pct+'%')}"
+        continue-on-error: true
+
+  chromatic-visual-tests:
+    name: Chromatic Visual Regression
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for Chromatic
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate Storybook stories
+        run: npm run storybook:generate
+
+      - name: Run Chromatic
+        uses: chromaui/action@latest
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          buildScriptName: storybook:generate
+          exitZeroOnChanges: true  # Don't fail on visual changes
+          exitOnceUploaded: true
+          autoAcceptChanges: develop  # Auto-accept on develop branch
+        continue-on-error: true
+
+  test-results:
+    name: Test Results Summary
+    runs-on: ubuntu-latest
+    needs: [jest-tests, chromatic-visual-tests]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          echo "Jest Tests: ${{ needs.jest-tests.result }}"
+          echo "Chromatic: ${{ needs.chromatic-visual-tests.result }}"
+
+          if [ "${{ needs.jest-tests.result }}" == "failure" ]; then
+            echo "❌ Jest tests failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.chromatic-visual-tests.result }}" == "failure" ]; then
+            echo "⚠️  Chromatic visual tests failed (non-blocking for now)"
+          fi
+
+          echo "✅ All required tests passed"
