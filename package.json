@@ -55,6 +55,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
+    "@playwright/test": "^1.55.1",
     "@storybook/addon-ondevice-actions": "^9.1.4",
     "@storybook/addon-ondevice-backgrounds": "^9.1.4",
     "@storybook/addon-ondevice-controls": "^9.1.4",

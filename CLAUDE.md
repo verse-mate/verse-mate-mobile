@@ -34,6 +34,15 @@ VerseMate Mobile is a React Native application built with Expo Router for Bible 
 - `bun run storybook:generate` - Generate Storybook stories
 - `bun run chromatic:deploy` - Deploy Storybook to Chromatic
 
+### Visual Reference Tooling (Playwright)
+- `npx playwright test` - Run Playwright verification tests
+- `npx playwright test --headed` - Run tests in headed mode (visible browser)
+- `npx playwright test --project=desktop` - Run tests for specific viewport
+- **Purpose**: Capture screenshots and metadata from VerseMate web app (https://app.versemate.org) for mobile development reference
+- **Configuration**: `playwright.config.ts` with 3 viewports (desktop 1920x1080, tablet 768x1024, mobile 375x667)
+- **Scripts Location**: `scripts/visual-reference/`
+- **Types**: `scripts/visual-reference/types/index.ts`
+
 ## Architecture
 
 ### Routing Structure

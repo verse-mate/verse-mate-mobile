@@ -39,6 +39,16 @@ yarn-error.*
 # testing
 coverage/
 
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Visual Reference Captures (exclude from git except examples and journeys)
+.agent-os/references/*
+!.agent-os/references/examples/
+!.agent-os/references/journeys/
+
 app-example
 
 # generated native folders
