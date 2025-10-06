@@ -9,24 +9,29 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 ## Technical Requirements
 
 ### Core Components Architecture
-- **BibleNavigator**: Root component managing testament/book/chapter selection state
-- **TestamentTabs**: Tab-based interface with Old/New Testament switching (Radix UI pattern)
-- **BookAccordion**: Expandable accordion for hierarchical book organization within testaments
-- **FilterInput**: Debounced search input with auto-focus (placeholder: "Filter Books...")
-- **VerseGrid**: 5-column grid layout for chapter selection with active state highlighting
-- **GlobalSearch**: Universal search component for finding chapters across all testaments and books
-- **ChapterReader**: Main reading interface with inline verse formatting, subtitle integration, and full chapter display
-- **MainText Components**:
+
+**⚠️ ASSUMPTIONS BELOW - VALIDATE WITH VISUAL REFERENCE TOOLING FIRST**
+
+These component names and patterns are architectural assumptions based on typical Bible app patterns. Before implementing, capture the web app to discover the actual component structure and interaction patterns.
+
+- **BibleNavigator**: Root component managing testament/book/chapter selection state - **VALIDATE navigation pattern**
+- **TestamentTabs**: Tab-based interface with Old/New Testament switching (Radix UI pattern) - **VALIDATE: tabs vs dropdown vs other**
+- **BookAccordion**: Expandable accordion for hierarchical book organization within testaments - **VALIDATE: accordion vs list vs search-first**
+- **FilterInput**: Debounced search input with auto-focus (placeholder: "Filter Books...") - **VALIDATE existence and behavior**
+- **VerseGrid**: 5-column grid layout for chapter selection with active state highlighting - **VALIDATE layout pattern**
+- **GlobalSearch**: Universal search component for finding chapters across all testaments and books - **VALIDATE existence**
+- **ChapterReader**: Main reading interface with inline verse formatting, subtitle integration, and full chapter display - **VALIDATE display pattern**
+- **MainText Components**: - **VALIDATE component structure**
   - MainText.Root - Container for entire chapter content
   - MainText.Content - Main content wrapper
   - MainText.Text - Individual text rendering with highlighting support
   - MainText.VerseNumber - Verse number display component
-- **FloatingNavigation**: Persistent floating arrow buttons (40px circular, auto-hide after 3s) with cross-book navigation logic
-- **SkeletonLoader**: Loading placeholder components for chapters and book lists
-- **ErrorState**: Error message display with retry button for network/API failures
-- **ProgressBar**: Reading progress indicator with value display
-- **ReadingPreferences**: Settings component for font size, theme, and display customization
-- **GestureNavigation**: Swipe gesture handler component working alongside floating controls
+- **FloatingNavigation**: Persistent floating arrow buttons (40px circular, auto-hide after 3s) with cross-book navigation logic - **VALIDATE existence and behavior**
+- **SkeletonLoader**: Loading placeholder components for chapters and book lists - **VALIDATE loading pattern**
+- **ErrorState**: Error message display with retry button for network/API failures - **VALIDATE error pattern**
+- **ProgressBar**: Reading progress indicator with value display - **VALIDATE existence**
+- **ReadingPreferences**: Settings component for font size, theme, and display customization - **VALIDATE preferences pattern**
+- **GestureNavigation**: Swipe gesture handler component working alongside floating controls - **VALIDATE: mobile enhancement or web feature?**
 
 ### Navigation Implementation
 - **Expo Router**: File-based routing with dynamic segments for `/bible/[bookId]/[chapter]` structure
@@ -81,23 +86,29 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
   ```
 
 ### Typography and Layout
-- **Font System**:
+
+**⚠️ ASSUMPTIONS BELOW - EXTRACT REAL VALUES WITH VISUAL REFERENCE TOOLING**
+
+Use `npm run capture:page` to extract actual typography and color values from computed styles. The values below are educated guesses that need validation.
+
+- **Font System** (ASSUMED - VALIDATE):
   - Titles: MerriweatherItalic, 32px, 700 weight, 44px line height
   - Subtitles: MerriweatherItalic, 22px, 700 weight, 28px line height
   - Body Text: Roboto Serif, 18px, 300 weight, 32px line height
   - Verse Numbers: 12px superscript with 2px margin
-- **Color System**:
+- **Color System** (ASSUMED - VALIDATE):
   - Primary Accent: #b09a6d (--dust)
   - Background: #f6f3ec (--fantasy)
   - Text: #212531 (--night)
   - Muted Text: #818990 (--oslo-gray)
   - Borders: #d5d8e1 (--border)
-- **Responsive Layout**: SafeAreaView integration with proper insets for all device sizes and floating control positioning
-- **Inline Verse Formatting**: Text parsing for verse numbers with inline superscript styling (no separate elements)
-- **Subtitle Integration**: Dynamic content sectioning based on API subtitle data with verse ranges
-- **Theme System**: Light/dark theme support with user preference persistence matching webapp patterns
-- **Complete Chapter Layout**: Full chapter content display without pagination or infinite scroll
-- **Mobile Layout**: Bottom tab navigation with 56px height, content height calc(100vh - 104px)
+- **Layout Patterns** (VALIDATE):
+  - SafeAreaView integration with proper insets for all device sizes
+  - Inline verse formatting vs separate verse number elements - **VALIDATE**
+  - Subtitle integration pattern - **VALIDATE**
+  - Complete chapter display vs pagination - **VALIDATE**
+  - Bottom tab navigation height and spacing - **VALIDATE**
+- **Theme System**: Light/dark theme support - **VALIDATE existence and implementation**
 
 ### API Integration
 - **Base URL**: https://api.verse-mate.apegro.dev
@@ -121,14 +132,43 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
 - **App Performance**: Efficient component rendering and state management for smooth Bible reading experience
 - **Floating Control Optimization**: Efficient rendering of persistent floating navigation elements
 
-### Testing Strategy
+### Implementation Strategy: Discovery-Driven Development
 
-#### Visual Reference Tooling (Playwright)
-- **Purpose**: Capture web app visual references for design consistency during mobile implementation
+**CRITICAL**: This technical spec contains architectural assumptions that MUST be validated through Visual Reference Tooling before implementation. Many details listed below are educated guesses that need verification against the actual web app.
+
+#### Phase 1: Web App Discovery (Visual Reference Tooling)
+
+**Required Before Any Code**:
+1. **Capture Bible Reading Journeys**:
+   - Create journey for testament selection → book selection → chapter reading
+   - Create journey for chapter-to-chapter navigation
+   - Create journey for search/filter functionality
+   - Document actual user interaction patterns
+
+2. **Extract Real Design System**:
+   - Capture `/bible` page to extract navigation UI patterns
+   - Capture chapter pages to extract typography and layout
+   - Extract actual color values, font sizes, spacing from computed styles
+   - Validate assumptions in "Typography and Layout" section
+
+3. **Validate Technical Assumptions**:
+   - Does testament navigation use tabs? Dropdown? Other pattern?
+   - How does book selection actually work? Accordion? List? Search-first?
+   - Does cross-book navigation exist? How is it implemented?
+   - What loading states are shown? Skeleton screens? Spinners?
+   - How are errors handled? Modal? Inline? Toast?
+
+4. **Document Findings**:
+   - Update this spec with real patterns discovered
+   - Note differences between assumptions and reality
+   - Plan mobile-specific adaptations based on web app patterns
+
+**Visual Reference Tooling Setup**:
+- **Purpose**: Discover real web app patterns before making implementation decisions
 - **Web App URL**: https://app.versemate.org
 - **Commands**:
-  - `npm run capture:page -- --url=/bible --name=bible-page` - Capture single page with metadata
-  - `npm run capture:journey -- --journey=bible-reading-flow` - Replay and capture user journey
+  - `npm run capture:page -- --url=/bible --name=bible-page` - Capture single page
+  - `npm run capture:journey -- --journey=bible-reading-flow` - Capture user journey
   - `npx playwright test scripts/visual-reference/` - Run all 105 Playwright tests
 - **Captured Data**:
   - Multi-viewport screenshots (desktop 1920x1080, tablet 768x1024, mobile 375x667)
@@ -140,17 +180,15 @@ This is the technical specification for the spec detailed in @.agent-os/specs/20
   - Journey format: steps with actions (navigate, click, type, scroll)
   - Automated replay captures screenshots at each step
   - See `.agent-os/commands/capture-journey.md` for journey creation guide
-- **Use Cases**:
-  1. Capture web app Bible reader before implementing mobile equivalent
-  2. Compare web vs mobile design consistency
-  3. Extract exact color values, typography, and spacing
-  4. Document user flows for mobile implementation
-  5. Provide visual context during development
-- **Key Findings**:
-  - Web app uses direct URL navigation (e.g., `/bible`, `/login`)
-  - Color system: #b09a6d (--dust), #f6f3ec (--fantasy), #212531 (--night)
-  - Typography: MerriweatherItalic (titles), Roboto Serif (body)
-  - Web app may not use CSS custom properties (check computed styles instead)
+
+**Known Web App Patterns** (from login journey exploration):
+- Direct URL navigation (e.g., `/login`, `/bible`)
+- Standard form inputs with `type="email"`, `type="password"`, `type="submit"`
+- Likely color system: #b09a6d (--dust), #f6f3ec (--fantasy), #212531 (--night) - **VALIDATE**
+- Likely typography: MerriweatherItalic (titles), Roboto Serif (body) - **VALIDATE**
+- May not use CSS custom properties (check computed styles instead)
+
+#### Phase 2: Testing Strategy
 
 #### Unit & Integration Testing (Jest + React Native Testing Library)
 - **Test Runner**: Jest with `jest-expo` preset (use `npm test`, NOT `bun test`)
