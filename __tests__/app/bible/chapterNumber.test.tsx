@@ -5,11 +5,23 @@
  * Tests core functionality: rendering, loading states, reading position persistence.
  */
 
+import React from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
-import { useBibleChapter, useSaveLastRead } from '@/src/api/bible';
-import { useActiveTab } from '@/hooks/bible';
+import {
+  useBibleChapter,
+  useSaveLastRead,
+  useBibleTestaments,
+  useBibleSummary,
+  useBibleByLine,
+  useBibleDetailed,
+  usePrefetchNextChapter,
+  usePrefetchPreviousChapter,
+} from "@/src/api/generated";
+import { useActiveTab, useBookProgress, useRecentBooks } from '@/hooks/bible';
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -20,13 +32,26 @@ jest.mock('expo-router', () => ({
   },
 }));
 
-jest.mock('@/src/api/bible', () => ({
+jest.mock('@/src/api/generated', () => ({
   useBibleChapter: jest.fn(),
   useSaveLastRead: jest.fn(),
+  useBibleTestaments: jest.fn(),
+  useBibleSummary: jest.fn(),
+  useBibleByLine: jest.fn(),
+  useBibleDetailed: jest.fn(),
+  usePrefetchNextChapter: jest.fn(),
+  usePrefetchPreviousChapter: jest.fn(),
 }));
 
 jest.mock('@/hooks/bible', () => ({
   useActiveTab: jest.fn(),
+  useBookProgress: jest.fn(),
+  useRecentBooks: jest.fn(),
+}));
+
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()), // Return unsubscribe function
+  fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
 }));
 
 // Mock chapter data
@@ -49,6 +74,47 @@ const mockChapterData = {
   ],
 };
 
+// Mock book metadata
+const mockBooksMetadata = [
+  {
+    id: 1,
+    name: 'Genesis',
+    testament: 'OT' as const,
+    chapterCount: 50,
+    verseCount: 1533,
+  },
+  {
+    id: 2,
+    name: 'Exodus',
+    testament: 'OT' as const,
+    chapterCount: 40,
+    verseCount: 1213,
+  },
+];
+
+// Helper to render with SafeAreaProvider and QueryClientProvider
+function renderWithSafeArea(component: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider initialMetrics={{
+        frame: { x: 0, y: 0, width: 390, height: 844 },
+        insets: { top: 47, left: 0, right: 0, bottom: 34 },
+      }}>
+        {children}
+      </SafeAreaProvider>
+    </QueryClientProvider>
+  );
+
+  return render(component, { wrapper: Wrapper });
+}
+
 describe('ChapterScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -69,6 +135,54 @@ describe('ChapterScreen', () => {
     (useSaveLastRead as jest.Mock).mockReturnValue({
       mutate: jest.fn(),
     });
+
+    (useBibleTestaments as jest.Mock).mockReturnValue({
+      data: mockBooksMetadata,
+      isLoading: false,
+      error: null,
+    });
+
+    (useBookProgress as jest.Mock).mockReturnValue({
+      progress: {
+        percentage: 2,
+        currentChapter: 1,
+        totalChapters: 50,
+      },
+      isCalculating: false,
+    });
+
+    (useRecentBooks as jest.Mock).mockReturnValue({
+      recentBooks: [],
+      addRecentBook: jest.fn(),
+      isLoading: false,
+    });
+
+    (useBibleSummary as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    });
+
+    (useBibleByLine as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    });
+
+    (useBibleDetailed as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    });
+
+    (usePrefetchNextChapter as jest.Mock).mockReturnValue(jest.fn());
+    (usePrefetchPreviousChapter as jest.Mock).mockReturnValue(jest.fn());
+
+    (useBibleChapter as jest.Mock).mockReturnValue({
+      data: mockChapterData,
+      isLoading: false,
+      error: null,
+    });
   });
 
   /**
@@ -81,7 +195,7 @@ describe('ChapterScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = render(<ChapterScreen />);
+    const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
 
     await waitFor(() => {
       expect(getByTestId('chapter-header')).toBeTruthy();
@@ -99,7 +213,7 @@ describe('ChapterScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = render(<ChapterScreen />);
+    const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
 
     expect(getByTestId('skeleton-loader')).toBeTruthy();
   });
@@ -114,7 +228,7 @@ describe('ChapterScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = render(<ChapterScreen />);
+    const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
 
     await waitFor(() => {
       // Scroll view should be visible
@@ -139,7 +253,7 @@ describe('ChapterScreen', () => {
       error: null,
     });
 
-    render(<ChapterScreen />);
+    renderWithSafeArea(<ChapterScreen />);
 
     // Verify save position was called with correct data
     expect(mockMutate).toHaveBeenCalledWith({
@@ -164,7 +278,7 @@ describe('ChapterScreen', () => {
       error: new Error('Book not found'),
     });
 
-    render(<ChapterScreen />);
+    renderWithSafeArea(<ChapterScreen />);
 
     // Should redirect to Genesis 1
     expect(router.replace).toHaveBeenCalled();
@@ -180,7 +294,7 @@ describe('ChapterScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = render(<ChapterScreen />);
+    const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
 
     await waitFor(() => {
       const header = getByTestId('chapter-header');

@@ -40,7 +40,7 @@ import {
   springConfig,
 } from '@/constants/bible-design-tokens';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
-import { useBibleTestaments } from '@/src/api/bible/hooks';
+import { useBibleTestaments } from '@/src/api/generated';
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId } from '@/types/bible';
 
@@ -71,7 +71,7 @@ export function BibleNavigationModal({
   const [selectedTestament, setSelectedTestament] = useState<Testament>(
     getTestamentFromBookId(currentBookId)
   );
-  const [selectedBookId, setSelectedBookId] = useState<number | null>(currentBookId);
+  const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [filterText, setFilterText] = useState('');
 
   // Fetch books and recent books
@@ -86,7 +86,7 @@ export function BibleNavigationModal({
   useEffect(() => {
     if (visible) {
       setSelectedTestament(getTestamentFromBookId(currentBookId));
-      setSelectedBookId(currentBookId);
+      setSelectedBookId(null); // Start with book list, not chapter grid
       setFilterText('');
       translateY.value = 0;
       backdropOpacity.value = withTiming(1, { duration: 300 });

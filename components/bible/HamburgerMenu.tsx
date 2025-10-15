@@ -22,6 +22,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 
 interface HamburgerMenuProps {
@@ -46,6 +47,8 @@ const menuItems: MenuItem[] = [
 ];
 
 export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
+  const insets = useSafeAreaInsets();
+
   /**
    * Handle menu item tap
    * Shows "Coming soon" alert for all items
@@ -79,7 +82,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
           testID="hamburger-menu"
         >
           {/* Header with close button */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
             <Text style={styles.headerTitle}>Menu</Text>
             <Pressable
               onPress={onClose}
@@ -135,11 +138,12 @@ const styles = StyleSheet.create({
     elevation: 8, // Android shadow
   },
   header: {
-    height: 56,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray200,
   },

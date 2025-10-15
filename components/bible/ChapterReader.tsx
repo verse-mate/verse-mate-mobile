@@ -40,7 +40,7 @@ interface ChapterReaderProps {
  * Renders the chapter content in the selected reading mode.
  * Shows Bible text for all tabs, plus explanation content when provided.
  */
-export function ChapterReader({ chapter, activeTab, explanation }: ChapterReaderProps) {
+export function ChapterReader({ chapter, explanation }: ChapterReaderProps) {
   return (
     <View style={styles.container}>
       {/* Chapter Title */}
@@ -49,11 +49,11 @@ export function ChapterReader({ chapter, activeTab, explanation }: ChapterReader
       </Text>
 
       {/* Render each section */}
-      {chapter.sections.map((section, sectionIndex) => (
+      {chapter.sections.map((section) => (
         <View
-          key={`section-${sectionIndex}`}
+          key={`section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`}
           style={styles.section}
-          testID={`chapter-section-${sectionIndex}`}
+          testID={`chapter-section-${section.startVerse}`}
         >
           {/* Section Subtitle (if present) */}
           {section.subtitle && (

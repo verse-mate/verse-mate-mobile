@@ -3,13 +3,19 @@ import { FormData, fetch, Headers, Request, Response } from 'undici';
 import { server } from './__tests__/mocks/server';
 
 // Polyfill fetch for Node.js environment (required for MSW v2)
+// biome-ignore lint/suspicious/noExplicitAny: Required for polyfilling global fetch types
 global.fetch = fetch as any;
+// biome-ignore lint/suspicious/noExplicitAny: Required for polyfilling global FormData types
 global.FormData = FormData as any;
+// biome-ignore lint/suspicious/noExplicitAny: Required for polyfilling global Headers types
 global.Headers = Headers as any;
+// biome-ignore lint/suspicious/noExplicitAny: Required for polyfilling global Request types
 global.Request = Request as any;
+// biome-ignore lint/suspicious/noExplicitAny: Required for polyfilling global Response types
 global.Response = Response as any;
 
 // Polyfill import.meta for Expo winter runtime without overwriting existing globals
+// biome-ignore lint/suspicious/noExplicitAny: Required for accessing global import.meta
 const g: any = global as any;
 g.import = g.import ?? {};
 g.import.meta = g.import.meta ?? {};
@@ -29,6 +35,7 @@ beforeAll(() => {
   originalWarn = console.warn;
 
   // Create filtered console methods
+  // biome-ignore lint/suspicious/noExplicitAny: Console methods accept any arguments
   const filteredError = (...args: any[]) => {
     if (
       typeof args[0] === 'string' &&
@@ -40,6 +47,7 @@ beforeAll(() => {
     originalError(...args);
   };
 
+  // biome-ignore lint/suspicious/noExplicitAny: Console methods accept any arguments
   const filteredWarn = (...args: any[]) => {
     if (typeof args[0] === 'string' && args[0].includes('Animated: `useNativeDriver`')) {
       return;

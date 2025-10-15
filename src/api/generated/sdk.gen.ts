@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteAdminBatchByBatchJobIdData, DeleteAdminBatchByBatchJobIdResponses, DeleteAdminExplanationByIdData, DeleteAdminExplanationByIdResponses, DeleteAdminExplanationsBulkData, DeleteAdminExplanationsBulkResponses, DeleteAdminExplanationsInactiveData, DeleteAdminExplanationsInactiveResponses, DeleteAdminPromptsSystemByIdData, DeleteAdminPromptsSystemByIdResponses, DeleteAdminPromptsUserByIdData, DeleteAdminPromptsUserByIdResponses, DeleteBibleBookBookmarkRemoveData, DeleteBibleBookBookmarkRemoveResponses, DeleteBibleBookDeleteChatByConversationIdData, DeleteBibleBookDeleteChatByConversationIdResponses, DeleteBibleHighlightByHighlightIdData, DeleteBibleHighlightByHighlightIdResponses, GetAdminBatchByBatchJobIdData, GetAdminBatchByBatchJobIdResponses, GetAdminBatchChildrenByParentIdData, GetAdminBatchChildrenByParentIdResponses, GetAdminBatchHistoryData, GetAdminBatchHistoryResponses, GetAdminBatchSummaryByParentIdData, GetAdminBatchSummaryByParentIdResponses, GetAdminCommentaryGradesData, GetAdminCommentaryGradesResponses, GetAdminExplanationByIdHistoryData, GetAdminExplanationByIdHistoryResponses, GetAdminExplanationRegenerateByRegenerationIdComparisonData, GetAdminExplanationRegenerateByRegenerationIdComparisonResponses, GetAdminExplanationsData, GetAdminExplanationsLanguagesData, GetAdminExplanationsLanguagesResponses, GetAdminExplanationsResponses, GetAdminPromptsExplanationExistingData, GetAdminPromptsExplanationExistingResponses, GetAdminPromptsExplanationTypesData, GetAdminPromptsExplanationTypesResponses, GetAdminPromptsSystemData, GetAdminPromptsSystemResponses, GetAdminPromptsUserData, GetAdminPromptsUserResponses, GetAdminStatsData, GetAdminStatsResponses, GetAdminUsersData, GetAdminUsersResponses, GetAuthResetPasswordVerifyData, GetAuthResetPasswordVerifyResponses, GetAuthSessionData, GetAuthSessionResponses, GetAuthUserData, GetAuthUserResponses, GetBibleBookBookmarksByUserIdData, GetBibleBookBookmarksByUserIdResponses, GetBibleBookByBookIdByChapterNumberData, GetBibleBookByBookIdByChapterNumberResponses, GetBibleBookExplanationByBookIdByChapterNumberData, GetBibleBookExplanationByBookIdByChapterNumberResponses, GetBibleBooksData, GetBibleBooksResponses, GetBibleChapterIdByBookIdByChapterNumberData, GetBibleChapterIdByBookIdByChapterNumberResponses, GetBibleHighlightsByUserIdByBookIdByChapterNumberData, GetBibleHighlightsByUserIdByBookIdByChapterNumberResponses, GetBibleHighlightsByUserIdData, GetBibleHighlightsByUserIdResponses, GetBibleLanguagesData, GetBibleLanguagesResponses, GetBibleTestamentsData, GetBibleTestamentsResponses, GetUserData, GetUserMeData, GetUserMeResponses, GetUserResponses, PatchAdminUserByIdAdminStatusData, PatchAdminUserByIdAdminStatusResponses, PatchUserPreferencesData, PatchUserPreferencesResponses, PostAdminBatchesMonitorAllData, PostAdminBatchesMonitorAllResponses, PostAdminBatchExplanationsData, PostAdminBatchExplanationsResponses, PostAdminBatchRephraseData, PostAdminBatchRephraseResponses, PostAdminBatchTranslateData, PostAdminBatchTranslateResponses, PostAdminCommentaryGradeData, PostAdminCommentaryGradeResponses, PostAdminExplanationRegenerateByRegenerationIdChooseData, PostAdminExplanationRegenerateByRegenerationIdChooseResponses, PostAdminExplanationRegenerateByRegenerationIdGenerateData, PostAdminExplanationRegenerateByRegenerationIdGenerateResponses, PostAdminExplanationRegenerateData, PostAdminExplanationRegenerateResponses, PostAdminExplanationsRefreshLanguageStatsData, PostAdminExplanationsRefreshLanguageStatsResponses, PostAdminExplanationsSetActiveAsDefaultData, PostAdminExplanationsSetActiveAsDefaultResponses, PostAdminExplanationsSetDefaultsActiveData, PostAdminExplanationsSetDefaultsActiveResponses, PostAdminExplanationsSetSpecificVersionActiveData, PostAdminExplanationsSetSpecificVersionActiveResponses, PostAdminMonitorBibleBatchByParentIdData, PostAdminMonitorBibleBatchByParentIdResponses, PostAdminPromptsPlaygroundData, PostAdminPromptsPlaygroundResponses, PostAdminPromptsRestoreDefaultsData, PostAdminPromptsRestoreDefaultsResponses, PostAdminPromptsSystemData, PostAdminPromptsSystemResponses, PostAdminPromptsUserData, PostAdminPromptsUserResponses, PostAuthChangePasswordData, PostAuthChangePasswordResponses, PostAuthForgotPasswordData, PostAuthForgotPasswordResponses, PostAuthLoginData, PostAuthLoginResponses, PostAuthLogoutAllData, PostAuthLogoutAllResponses, PostAuthLogoutData, PostAuthLogoutResponses, PostAuthResetPasswordData, PostAuthResetPasswordResponses, PostAuthSendEmailVerificationData, PostAuthSendEmailVerificationResponses, PostAuthSignupData, PostAuthSignupResponses, PostAuthVerifyEmailData, PostAuthVerifyEmailResponses, PostBibleBookAskVerseMateSaveAiMessageData, PostBibleBookAskVerseMateSaveAiMessageResponses, PostBibleBookAskVerseMateSaveUserMessageData, PostBibleBookAskVerseMateSaveUserMessageResponses, PostBibleBookBookmarkAddData, PostBibleBookBookmarkAddResponses, PostBibleBookBookmarkRemoveData, PostBibleBookBookmarkRemoveResponses, PostBibleBookChapterLastReadData, PostBibleBookChapterLastReadResponses, PostBibleBookChapterSaveLastReadData, PostBibleBookChapterSaveLastReadResponses, PostBibleBookConversationExistsData, PostBibleBookConversationExistsResponses, PostBibleBookConversationsHistoryData, PostBibleBookConversationsHistoryResponses, PostBibleBookExplanationRatingsData, PostBibleBookExplanationRatingsResponses, PostBibleBookExplanationSaveRatingData, PostBibleBookExplanationSaveRatingResponses, PostBibleBookMessagesHistoryData, PostBibleBookMessagesHistoryResponses, PostBibleBookNewConversationData, PostBibleBookNewConversationResponses, PostBibleHighlightAddData, PostBibleHighlightAddResponses, PostUserUpdateData, PostUserUpdateResponses, PutAdminPromptsSystemByIdData, PutAdminPromptsSystemByIdResponses, PutAdminPromptsSystemByIdStatusData, PutAdminPromptsSystemByIdStatusResponses, PutAdminPromptsUserByIdData, PutAdminPromptsUserByIdResponses, PutAdminPromptsUserByIdStatusData, PutAdminPromptsUserByIdStatusResponses, PutAuthProfileData, PutAuthProfileResponses, PutBibleBookExplanationUpdateRatingData, PutBibleBookExplanationUpdateRatingResponses, PutBibleHighlightByHighlightIdData, PutBibleHighlightByHighlightIdResponses } from './types.gen';
+import type { DeleteAdminBatchByBatchJobIdData, DeleteAdminBatchByBatchJobIdErrors, DeleteAdminBatchByBatchJobIdResponses, DeleteAdminExplanationByIdData, DeleteAdminExplanationByIdErrors, DeleteAdminExplanationByIdResponses, DeleteAdminExplanationsBulkData, DeleteAdminExplanationsBulkErrors, DeleteAdminExplanationsBulkResponses, DeleteAdminExplanationsInactiveData, DeleteAdminExplanationsInactiveErrors, DeleteAdminExplanationsInactiveResponses, DeleteAdminPromptsSystemByIdData, DeleteAdminPromptsSystemByIdErrors, DeleteAdminPromptsSystemByIdResponses, DeleteAdminPromptsUserByIdData, DeleteAdminPromptsUserByIdErrors, DeleteAdminPromptsUserByIdResponses, DeleteAdminTopicsByIdData, DeleteBibleBookBookmarkRemoveData, DeleteBibleBookBookmarkRemoveErrors, DeleteBibleBookBookmarkRemoveResponses, DeleteBibleBookDeleteChatByConversationIdData, DeleteBibleBookDeleteChatByConversationIdErrors, DeleteBibleBookDeleteChatByConversationIdResponses, DeleteBibleBookNoteRemoveData, DeleteBibleBookNoteRemoveErrors, DeleteBibleBookNoteRemoveResponses, DeleteBibleHighlightByHighlightIdData, DeleteBibleHighlightByHighlightIdErrors, DeleteBibleHighlightByHighlightIdResponses, GetAdminBatchByBatchJobIdData, GetAdminBatchByBatchJobIdErrors, GetAdminBatchByBatchJobIdResponses, GetAdminBatchChildrenByParentIdData, GetAdminBatchChildrenByParentIdErrors, GetAdminBatchChildrenByParentIdResponses, GetAdminBatchHistoryData, GetAdminBatchHistoryErrors, GetAdminBatchHistoryResponses, GetAdminBatchSummaryByParentIdData, GetAdminBatchSummaryByParentIdErrors, GetAdminBatchSummaryByParentIdResponses, GetAdminCommentaryGradesData, GetAdminCommentaryGradesErrors, GetAdminCommentaryGradesResponses, GetAdminExplanationByIdHistoryData, GetAdminExplanationByIdHistoryErrors, GetAdminExplanationByIdHistoryResponses, GetAdminExplanationRegenerateByRegenerationIdComparisonData, GetAdminExplanationRegenerateByRegenerationIdComparisonErrors, GetAdminExplanationRegenerateByRegenerationIdComparisonResponses, GetAdminExplanationsData, GetAdminExplanationsErrors, GetAdminExplanationsLanguagesData, GetAdminExplanationsLanguagesErrors, GetAdminExplanationsLanguagesResponses, GetAdminExplanationsResponses, GetAdminPromptsExplanationExistingData, GetAdminPromptsExplanationExistingErrors, GetAdminPromptsExplanationExistingResponses, GetAdminPromptsExplanationTypesData, GetAdminPromptsExplanationTypesErrors, GetAdminPromptsExplanationTypesResponses, GetAdminPromptsSystemData, GetAdminPromptsSystemErrors, GetAdminPromptsSystemResponses, GetAdminPromptsUserData, GetAdminPromptsUserErrors, GetAdminPromptsUserResponses, GetAdminStatsData, GetAdminStatsErrors, GetAdminStatsResponses, GetAdminTopicsData, GetAdminUsersData, GetAdminUsersErrors, GetAdminUsersResponses, GetAuthResetPasswordVerifyData, GetAuthResetPasswordVerifyErrors, GetAuthResetPasswordVerifyResponses, GetAuthSessionData, GetAuthSessionErrors, GetAuthSessionResponses, GetAuthUserData, GetAuthUserErrors, GetAuthUserResponses, GetBibleBookBookmarksByUserIdData, GetBibleBookBookmarksByUserIdErrors, GetBibleBookBookmarksByUserIdResponses, GetBibleBookByBookIdByChapterNumberData, GetBibleBookByBookIdByChapterNumberErrors, GetBibleBookByBookIdByChapterNumberResponses, GetBibleBookExplanationByBookIdByChapterNumberData, GetBibleBookExplanationByBookIdByChapterNumberErrors, GetBibleBookExplanationByBookIdByChapterNumberResponses, GetBibleBookNotesByUserIdData, GetBibleBookNotesByUserIdErrors, GetBibleBookNotesByUserIdResponses, GetBibleBooksData, GetBibleBooksErrors, GetBibleBooksResponses, GetBibleChapterIdByBookIdByChapterNumberData, GetBibleChapterIdByBookIdByChapterNumberErrors, GetBibleChapterIdByBookIdByChapterNumberResponses, GetBibleHighlightsByUserIdByBookIdByChapterNumberData, GetBibleHighlightsByUserIdByBookIdByChapterNumberErrors, GetBibleHighlightsByUserIdByBookIdByChapterNumberResponses, GetBibleHighlightsByUserIdData, GetBibleHighlightsByUserIdErrors, GetBibleHighlightsByUserIdResponses, GetBibleLanguagesData, GetBibleLanguagesErrors, GetBibleLanguagesResponses, GetBibleTestamentsData, GetBibleTestamentsErrors, GetBibleTestamentsResponses, GetTopicsByIdData, GetTopicsByIdExplanationData, GetTopicsByIdExplanationResponses, GetTopicsByIdReferencesData, GetTopicsByIdReferencesResponses, GetTopicsByIdResponses, GetTopicsCategoriesData, GetTopicsCategoriesResponses, GetTopicsSearchData, GetTopicsSearchResponses, GetUserData, GetUserErrors, GetUserMeData, GetUserMeErrors, GetUserMeResponses, GetUserResponses, PatchAdminUserByIdAdminStatusData, PatchAdminUserByIdAdminStatusErrors, PatchAdminUserByIdAdminStatusResponses, PatchUserPreferencesData, PatchUserPreferencesErrors, PatchUserPreferencesResponses, PostAdminBatchesMonitorAllData, PostAdminBatchesMonitorAllErrors, PostAdminBatchesMonitorAllResponses, PostAdminBatchExplanationsData, PostAdminBatchExplanationsErrors, PostAdminBatchExplanationsResponses, PostAdminBatchRephraseData, PostAdminBatchRephraseErrors, PostAdminBatchRephraseResponses, PostAdminBatchTopicDiscoveryData, PostAdminBatchTopicExplanationsData, PostAdminBatchTopicReferencesData, PostAdminBatchTranslateData, PostAdminBatchTranslateErrors, PostAdminBatchTranslateResponses, PostAdminCommentaryGradeData, PostAdminCommentaryGradeErrors, PostAdminCommentaryGradeResponses, PostAdminExplanationRegenerateByRegenerationIdChooseData, PostAdminExplanationRegenerateByRegenerationIdChooseErrors, PostAdminExplanationRegenerateByRegenerationIdChooseResponses, PostAdminExplanationRegenerateByRegenerationIdGenerateData, PostAdminExplanationRegenerateByRegenerationIdGenerateErrors, PostAdminExplanationRegenerateByRegenerationIdGenerateResponses, PostAdminExplanationRegenerateData, PostAdminExplanationRegenerateErrors, PostAdminExplanationRegenerateResponses, PostAdminExplanationsRefreshLanguageStatsData, PostAdminExplanationsRefreshLanguageStatsErrors, PostAdminExplanationsRefreshLanguageStatsResponses, PostAdminExplanationsSetActiveAsDefaultData, PostAdminExplanationsSetActiveAsDefaultErrors, PostAdminExplanationsSetActiveAsDefaultResponses, PostAdminExplanationsSetDefaultsActiveData, PostAdminExplanationsSetDefaultsActiveErrors, PostAdminExplanationsSetDefaultsActiveResponses, PostAdminExplanationsSetSpecificVersionActiveData, PostAdminExplanationsSetSpecificVersionActiveErrors, PostAdminExplanationsSetSpecificVersionActiveResponses, PostAdminMonitorBibleBatchByParentIdData, PostAdminMonitorBibleBatchByParentIdErrors, PostAdminMonitorBibleBatchByParentIdResponses, PostAdminPromptsPlaygroundData, PostAdminPromptsPlaygroundErrors, PostAdminPromptsPlaygroundResponses, PostAdminPromptsRestoreDefaultsData, PostAdminPromptsRestoreDefaultsErrors, PostAdminPromptsRestoreDefaultsResponses, PostAdminPromptsSystemData, PostAdminPromptsSystemErrors, PostAdminPromptsSystemResponses, PostAdminPromptsUserData, PostAdminPromptsUserErrors, PostAdminPromptsUserResponses, PostAdminTopicsData, PostAdminTopicsSortChronologicallyData, PostAuthChangePasswordData, PostAuthChangePasswordErrors, PostAuthChangePasswordResponses, PostAuthForgotPasswordData, PostAuthForgotPasswordErrors, PostAuthForgotPasswordResponses, PostAuthLoginData, PostAuthLoginErrors, PostAuthLoginResponses, PostAuthLogoutAllData, PostAuthLogoutAllErrors, PostAuthLogoutAllResponses, PostAuthLogoutData, PostAuthLogoutErrors, PostAuthLogoutResponses, PostAuthResetPasswordData, PostAuthResetPasswordErrors, PostAuthResetPasswordResponses, PostAuthSendEmailVerificationData, PostAuthSendEmailVerificationErrors, PostAuthSendEmailVerificationResponses, PostAuthSignupData, PostAuthSignupErrors, PostAuthSignupResponses, PostAuthVerifyEmailData, PostAuthVerifyEmailErrors, PostAuthVerifyEmailResponses, PostBibleBookAskVerseMateSaveAiMessageData, PostBibleBookAskVerseMateSaveAiMessageErrors, PostBibleBookAskVerseMateSaveAiMessageResponses, PostBibleBookAskVerseMateSaveUserMessageData, PostBibleBookAskVerseMateSaveUserMessageErrors, PostBibleBookAskVerseMateSaveUserMessageResponses, PostBibleBookBookmarkAddData, PostBibleBookBookmarkAddErrors, PostBibleBookBookmarkAddResponses, PostBibleBookBookmarkRemoveData, PostBibleBookBookmarkRemoveErrors, PostBibleBookBookmarkRemoveResponses, PostBibleBookChapterLastReadData, PostBibleBookChapterLastReadErrors, PostBibleBookChapterLastReadResponses, PostBibleBookChapterSaveLastReadData, PostBibleBookChapterSaveLastReadErrors, PostBibleBookChapterSaveLastReadResponses, PostBibleBookConversationExistsData, PostBibleBookConversationExistsErrors, PostBibleBookConversationExistsResponses, PostBibleBookConversationsHistoryData, PostBibleBookConversationsHistoryErrors, PostBibleBookConversationsHistoryResponses, PostBibleBookExplanationRatingsData, PostBibleBookExplanationRatingsErrors, PostBibleBookExplanationRatingsResponses, PostBibleBookExplanationSaveRatingData, PostBibleBookExplanationSaveRatingErrors, PostBibleBookExplanationSaveRatingResponses, PostBibleBookMessagesHistoryData, PostBibleBookMessagesHistoryErrors, PostBibleBookMessagesHistoryResponses, PostBibleBookNewConversationData, PostBibleBookNewConversationErrors, PostBibleBookNewConversationResponses, PostBibleBookNoteAddData, PostBibleBookNoteAddErrors, PostBibleBookNoteAddResponses, PostBibleHighlightAddData, PostBibleHighlightAddErrors, PostBibleHighlightAddResponses, PostTopicsParseReferencesData, PostTopicsParseReferencesResponses, PostUserUpdateData, PostUserUpdateErrors, PostUserUpdateResponses, PutAdminPromptsSystemByIdData, PutAdminPromptsSystemByIdErrors, PutAdminPromptsSystemByIdResponses, PutAdminPromptsSystemByIdStatusData, PutAdminPromptsSystemByIdStatusErrors, PutAdminPromptsSystemByIdStatusResponses, PutAdminPromptsUserByIdData, PutAdminPromptsUserByIdErrors, PutAdminPromptsUserByIdResponses, PutAdminPromptsUserByIdStatusData, PutAdminPromptsUserByIdStatusErrors, PutAdminPromptsUserByIdStatusResponses, PutAdminTopicsByIdData, PutAuthProfileData, PutAuthProfileErrors, PutAuthProfileResponses, PutBibleBookExplanationUpdateRatingData, PutBibleBookExplanationUpdateRatingErrors, PutBibleBookExplanationUpdateRatingResponses, PutBibleBookNoteUpdateData, PutBibleBookNoteUpdateErrors, PutBibleBookNoteUpdateResponses, PutBibleHighlightByHighlightIdData, PutBibleHighlightByHighlightIdErrors, PutBibleHighlightByHighlightIdResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -19,14 +19,14 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 export const getAuthUser = <ThrowOnError extends boolean = false>(options?: Options<GetAuthUserData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAuthUserResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAuthUserResponses, GetAuthUserErrors, ThrowOnError>({
         url: '/auth/user',
         ...options
     });
 };
 
 export const postAuthChangePassword = <ThrowOnError extends boolean = false>(options: Options<PostAuthChangePasswordData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAuthChangePasswordResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAuthChangePasswordResponses, PostAuthChangePasswordErrors, ThrowOnError>({
         url: '/auth/change-password',
         ...options,
         headers: {
@@ -37,28 +37,28 @@ export const postAuthChangePassword = <ThrowOnError extends boolean = false>(opt
 };
 
 export const postAuthLogout = <ThrowOnError extends boolean = false>(options?: Options<PostAuthLogoutData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostAuthLogoutResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<PostAuthLogoutResponses, PostAuthLogoutErrors, ThrowOnError>({
         url: '/auth/logout',
         ...options
     });
 };
 
 export const postAuthLogoutAll = <ThrowOnError extends boolean = false>(options?: Options<PostAuthLogoutAllData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostAuthLogoutAllResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<PostAuthLogoutAllResponses, PostAuthLogoutAllErrors, ThrowOnError>({
         url: '/auth/logout-all',
         ...options
     });
 };
 
 export const postAuthSendEmailVerification = <ThrowOnError extends boolean = false>(options?: Options<PostAuthSendEmailVerificationData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostAuthSendEmailVerificationResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<PostAuthSendEmailVerificationResponses, PostAuthSendEmailVerificationErrors, ThrowOnError>({
         url: '/auth/send-email-verification',
         ...options
     });
 };
 
 export const postAuthVerifyEmail = <ThrowOnError extends boolean = false>(options: Options<PostAuthVerifyEmailData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAuthVerifyEmailResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAuthVerifyEmailResponses, PostAuthVerifyEmailErrors, ThrowOnError>({
         url: '/auth/verify-email',
         ...options,
         headers: {
@@ -69,14 +69,14 @@ export const postAuthVerifyEmail = <ThrowOnError extends boolean = false>(option
 };
 
 export const getAuthSession = <ThrowOnError extends boolean = false>(options?: Options<GetAuthSessionData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAuthSessionResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAuthSessionResponses, GetAuthSessionErrors, ThrowOnError>({
         url: '/auth/session',
         ...options
     });
 };
 
 export const putAuthProfile = <ThrowOnError extends boolean = false>(options: Options<PutAuthProfileData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutAuthProfileResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).put<PutAuthProfileResponses, PutAuthProfileErrors, ThrowOnError>({
         url: '/auth/profile',
         ...options,
         headers: {
@@ -87,7 +87,7 @@ export const putAuthProfile = <ThrowOnError extends boolean = false>(options: Op
 };
 
 export const postAuthSignup = <ThrowOnError extends boolean = false>(options: Options<PostAuthSignupData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAuthSignupResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAuthSignupResponses, PostAuthSignupErrors, ThrowOnError>({
         url: '/auth/signup',
         ...options,
         headers: {
@@ -98,7 +98,7 @@ export const postAuthSignup = <ThrowOnError extends boolean = false>(options: Op
 };
 
 export const postAuthLogin = <ThrowOnError extends boolean = false>(options: Options<PostAuthLoginData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAuthLoginResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAuthLoginResponses, PostAuthLoginErrors, ThrowOnError>({
         url: '/auth/login',
         ...options,
         headers: {
@@ -109,7 +109,7 @@ export const postAuthLogin = <ThrowOnError extends boolean = false>(options: Opt
 };
 
 export const postAuthForgotPassword = <ThrowOnError extends boolean = false>(options: Options<PostAuthForgotPasswordData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAuthForgotPasswordResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAuthForgotPasswordResponses, PostAuthForgotPasswordErrors, ThrowOnError>({
         url: '/auth/forgot-password',
         ...options,
         headers: {
@@ -120,7 +120,7 @@ export const postAuthForgotPassword = <ThrowOnError extends boolean = false>(opt
 };
 
 export const postAuthResetPassword = <ThrowOnError extends boolean = false>(options: Options<PostAuthResetPasswordData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAuthResetPasswordResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAuthResetPasswordResponses, PostAuthResetPasswordErrors, ThrowOnError>({
         url: '/auth/reset-password',
         ...options,
         headers: {
@@ -131,28 +131,36 @@ export const postAuthResetPassword = <ThrowOnError extends boolean = false>(opti
 };
 
 export const getAuthResetPasswordVerify = <ThrowOnError extends boolean = false>(options: Options<GetAuthResetPasswordVerifyData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetAuthResetPasswordVerifyResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetAuthResetPasswordVerifyResponses, GetAuthResetPasswordVerifyErrors, ThrowOnError>({
         url: '/auth/reset-password-verify',
         ...options
     });
 };
 
+/**
+ * Get all users
+ * Retrieve a list of all registered users
+ */
 export const getUser = <ThrowOnError extends boolean = false>(options?: Options<GetUserData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetUserResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetUserResponses, GetUserErrors, ThrowOnError>({
         url: '/user',
         ...options
     });
 };
 
 export const getUserMe = <ThrowOnError extends boolean = false>(options?: Options<GetUserMeData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetUserMeResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetUserMeResponses, GetUserMeErrors, ThrowOnError>({
         url: '/user/me',
         ...options
     });
 };
 
+/**
+ * Update current user
+ * Update the authenticated user's profile information
+ */
 export const postUserUpdate = <ThrowOnError extends boolean = false>(options: Options<PostUserUpdateData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostUserUpdateResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostUserUpdateResponses, PostUserUpdateErrors, ThrowOnError>({
         url: '/user/update',
         ...options,
         headers: {
@@ -163,49 +171,49 @@ export const postUserUpdate = <ThrowOnError extends boolean = false>(options: Op
 };
 
 export const getBibleBooks = <ThrowOnError extends boolean = false>(options?: Options<GetBibleBooksData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetBibleBooksResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetBibleBooksResponses, GetBibleBooksErrors, ThrowOnError>({
         url: '/bible/books',
         ...options
     });
 };
 
 export const getBibleLanguages = <ThrowOnError extends boolean = false>(options?: Options<GetBibleLanguagesData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetBibleLanguagesResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetBibleLanguagesResponses, GetBibleLanguagesErrors, ThrowOnError>({
         url: '/bible/languages',
         ...options
     });
 };
 
 export const getBibleBookByBookIdByChapterNumber = <ThrowOnError extends boolean = false>(options: Options<GetBibleBookByBookIdByChapterNumberData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetBibleBookByBookIdByChapterNumberResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetBibleBookByBookIdByChapterNumberResponses, GetBibleBookByBookIdByChapterNumberErrors, ThrowOnError>({
         url: '/bible/book/{bookId}/{chapterNumber}',
         ...options
     });
 };
 
 export const getBibleBookExplanationByBookIdByChapterNumber = <ThrowOnError extends boolean = false>(options: Options<GetBibleBookExplanationByBookIdByChapterNumberData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetBibleBookExplanationByBookIdByChapterNumberResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetBibleBookExplanationByBookIdByChapterNumberResponses, GetBibleBookExplanationByBookIdByChapterNumberErrors, ThrowOnError>({
         url: '/bible/book/explanation/{bookId}/{chapterNumber}',
         ...options
     });
 };
 
 export const getBibleTestaments = <ThrowOnError extends boolean = false>(options?: Options<GetBibleTestamentsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetBibleTestamentsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetBibleTestamentsResponses, GetBibleTestamentsErrors, ThrowOnError>({
         url: '/bible/testaments',
         ...options
     });
 };
 
 export const getBibleChapterIdByBookIdByChapterNumber = <ThrowOnError extends boolean = false>(options: Options<GetBibleChapterIdByBookIdByChapterNumberData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetBibleChapterIdByBookIdByChapterNumberResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetBibleChapterIdByBookIdByChapterNumberResponses, GetBibleChapterIdByBookIdByChapterNumberErrors, ThrowOnError>({
         url: '/bible/chapter-id/{bookId}/{chapterNumber}',
         ...options
     });
 };
 
 export const postBibleBookConversationsHistory = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookConversationsHistoryData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookConversationsHistoryResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookConversationsHistoryResponses, PostBibleBookConversationsHistoryErrors, ThrowOnError>({
         url: '/bible/book/conversations-history',
         ...options,
         headers: {
@@ -216,7 +224,7 @@ export const postBibleBookConversationsHistory = <ThrowOnError extends boolean =
 };
 
 export const postBibleBookMessagesHistory = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookMessagesHistoryData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookMessagesHistoryResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookMessagesHistoryResponses, PostBibleBookMessagesHistoryErrors, ThrowOnError>({
         url: '/bible/book/messages-history',
         ...options,
         headers: {
@@ -227,7 +235,7 @@ export const postBibleBookMessagesHistory = <ThrowOnError extends boolean = fals
 };
 
 export const postBibleBookConversationExists = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookConversationExistsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookConversationExistsResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookConversationExistsResponses, PostBibleBookConversationExistsErrors, ThrowOnError>({
         url: '/bible/book/conversation-exists',
         ...options,
         headers: {
@@ -238,7 +246,7 @@ export const postBibleBookConversationExists = <ThrowOnError extends boolean = f
 };
 
 export const postBibleBookNewConversation = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookNewConversationData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookNewConversationResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookNewConversationResponses, PostBibleBookNewConversationErrors, ThrowOnError>({
         url: '/bible/book/new-conversation',
         ...options,
         headers: {
@@ -249,7 +257,7 @@ export const postBibleBookNewConversation = <ThrowOnError extends boolean = fals
 };
 
 export const postBibleBookExplanationSaveRating = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookExplanationSaveRatingData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookExplanationSaveRatingResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookExplanationSaveRatingResponses, PostBibleBookExplanationSaveRatingErrors, ThrowOnError>({
         url: '/bible/book/explanation/save-rating',
         ...options,
         headers: {
@@ -260,7 +268,7 @@ export const postBibleBookExplanationSaveRating = <ThrowOnError extends boolean 
 };
 
 export const putBibleBookExplanationUpdateRating = <ThrowOnError extends boolean = false>(options: Options<PutBibleBookExplanationUpdateRatingData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutBibleBookExplanationUpdateRatingResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).put<PutBibleBookExplanationUpdateRatingResponses, PutBibleBookExplanationUpdateRatingErrors, ThrowOnError>({
         url: '/bible/book/explanation/update-rating',
         ...options,
         headers: {
@@ -271,7 +279,7 @@ export const putBibleBookExplanationUpdateRating = <ThrowOnError extends boolean
 };
 
 export const postBibleBookExplanationRatings = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookExplanationRatingsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookExplanationRatingsResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookExplanationRatingsResponses, PostBibleBookExplanationRatingsErrors, ThrowOnError>({
         url: '/bible/book/explanation/ratings',
         ...options,
         headers: {
@@ -282,7 +290,7 @@ export const postBibleBookExplanationRatings = <ThrowOnError extends boolean = f
 };
 
 export const postBibleBookChapterSaveLastRead = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookChapterSaveLastReadData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookChapterSaveLastReadResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookChapterSaveLastReadResponses, PostBibleBookChapterSaveLastReadErrors, ThrowOnError>({
         url: '/bible/book/chapter/save-last-read',
         ...options,
         headers: {
@@ -293,7 +301,7 @@ export const postBibleBookChapterSaveLastRead = <ThrowOnError extends boolean = 
 };
 
 export const postBibleBookChapterLastRead = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookChapterLastReadData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookChapterLastReadResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookChapterLastReadResponses, PostBibleBookChapterLastReadErrors, ThrowOnError>({
         url: '/bible/book/chapter/last-read',
         ...options,
         headers: {
@@ -304,7 +312,7 @@ export const postBibleBookChapterLastRead = <ThrowOnError extends boolean = fals
 };
 
 export const postBibleBookAskVerseMateSaveUserMessage = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookAskVerseMateSaveUserMessageData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookAskVerseMateSaveUserMessageResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookAskVerseMateSaveUserMessageResponses, PostBibleBookAskVerseMateSaveUserMessageErrors, ThrowOnError>({
         url: '/bible/book/ask-verse-mate/save-user-message',
         ...options,
         headers: {
@@ -315,7 +323,7 @@ export const postBibleBookAskVerseMateSaveUserMessage = <ThrowOnError extends bo
 };
 
 export const postBibleBookAskVerseMateSaveAiMessage = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookAskVerseMateSaveAiMessageData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookAskVerseMateSaveAiMessageResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookAskVerseMateSaveAiMessageResponses, PostBibleBookAskVerseMateSaveAiMessageErrors, ThrowOnError>({
         url: '/bible/book/ask-verse-mate/save-ai-message',
         ...options,
         headers: {
@@ -326,21 +334,57 @@ export const postBibleBookAskVerseMateSaveAiMessage = <ThrowOnError extends bool
 };
 
 export const deleteBibleBookDeleteChatByConversationId = <ThrowOnError extends boolean = false>(options: Options<DeleteBibleBookDeleteChatByConversationIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteBibleBookDeleteChatByConversationIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).delete<DeleteBibleBookDeleteChatByConversationIdResponses, DeleteBibleBookDeleteChatByConversationIdErrors, ThrowOnError>({
         url: '/bible/book/delete-chat/{conversation_id}',
         ...options
     });
 };
 
 export const getBibleBookBookmarksByUserId = <ThrowOnError extends boolean = false>(options: Options<GetBibleBookBookmarksByUserIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetBibleBookBookmarksByUserIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetBibleBookBookmarksByUserIdResponses, GetBibleBookBookmarksByUserIdErrors, ThrowOnError>({
         url: '/bible/book/bookmarks/{user_id}',
         ...options
     });
 };
 
+export const getBibleBookNotesByUserId = <ThrowOnError extends boolean = false>(options: Options<GetBibleBookNotesByUserIdData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetBibleBookNotesByUserIdResponses, GetBibleBookNotesByUserIdErrors, ThrowOnError>({
+        url: '/bible/book/notes/{user_id}',
+        ...options
+    });
+};
+
+export const postBibleBookNoteAdd = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookNoteAddData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostBibleBookNoteAddResponses, PostBibleBookNoteAddErrors, ThrowOnError>({
+        url: '/bible/book/note/add',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+export const putBibleBookNoteUpdate = <ThrowOnError extends boolean = false>(options: Options<PutBibleBookNoteUpdateData, ThrowOnError>) => {
+    return (options.client ?? client).put<PutBibleBookNoteUpdateResponses, PutBibleBookNoteUpdateErrors, ThrowOnError>({
+        url: '/bible/book/note/update',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+export const deleteBibleBookNoteRemove = <ThrowOnError extends boolean = false>(options: Options<DeleteBibleBookNoteRemoveData, ThrowOnError>) => {
+    return (options.client ?? client).delete<DeleteBibleBookNoteRemoveResponses, DeleteBibleBookNoteRemoveErrors, ThrowOnError>({
+        url: '/bible/book/note/remove',
+        ...options
+    });
+};
+
 export const postBibleBookBookmarkAdd = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookBookmarkAddData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookBookmarkAddResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookBookmarkAddResponses, PostBibleBookBookmarkAddErrors, ThrowOnError>({
         url: '/bible/book/bookmark/add',
         ...options,
         headers: {
@@ -351,14 +395,14 @@ export const postBibleBookBookmarkAdd = <ThrowOnError extends boolean = false>(o
 };
 
 export const deleteBibleBookBookmarkRemove = <ThrowOnError extends boolean = false>(options: Options<DeleteBibleBookBookmarkRemoveData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteBibleBookBookmarkRemoveResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).delete<DeleteBibleBookBookmarkRemoveResponses, DeleteBibleBookBookmarkRemoveErrors, ThrowOnError>({
         url: '/bible/book/bookmark/remove',
         ...options
     });
 };
 
 export const postBibleBookBookmarkRemove = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookBookmarkRemoveData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleBookBookmarkRemoveResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleBookBookmarkRemoveResponses, PostBibleBookBookmarkRemoveErrors, ThrowOnError>({
         url: '/bible/book/bookmark/remove',
         ...options,
         headers: {
@@ -369,21 +413,21 @@ export const postBibleBookBookmarkRemove = <ThrowOnError extends boolean = false
 };
 
 export const getBibleHighlightsByUserId = <ThrowOnError extends boolean = false>(options: Options<GetBibleHighlightsByUserIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetBibleHighlightsByUserIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetBibleHighlightsByUserIdResponses, GetBibleHighlightsByUserIdErrors, ThrowOnError>({
         url: '/bible/highlights/{user_id}',
         ...options
     });
 };
 
 export const getBibleHighlightsByUserIdByBookIdByChapterNumber = <ThrowOnError extends boolean = false>(options: Options<GetBibleHighlightsByUserIdByBookIdByChapterNumberData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetBibleHighlightsByUserIdByBookIdByChapterNumberResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetBibleHighlightsByUserIdByBookIdByChapterNumberResponses, GetBibleHighlightsByUserIdByBookIdByChapterNumberErrors, ThrowOnError>({
         url: '/bible/highlights/{user_id}/{book_id}/{chapter_number}',
         ...options
     });
 };
 
 export const postBibleHighlightAdd = <ThrowOnError extends boolean = false>(options: Options<PostBibleHighlightAddData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostBibleHighlightAddResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostBibleHighlightAddResponses, PostBibleHighlightAddErrors, ThrowOnError>({
         url: '/bible/highlight/add',
         ...options,
         headers: {
@@ -394,14 +438,14 @@ export const postBibleHighlightAdd = <ThrowOnError extends boolean = false>(opti
 };
 
 export const deleteBibleHighlightByHighlightId = <ThrowOnError extends boolean = false>(options: Options<DeleteBibleHighlightByHighlightIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteBibleHighlightByHighlightIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).delete<DeleteBibleHighlightByHighlightIdResponses, DeleteBibleHighlightByHighlightIdErrors, ThrowOnError>({
         url: '/bible/highlight/{highlight_id}',
         ...options
     });
 };
 
 export const putBibleHighlightByHighlightId = <ThrowOnError extends boolean = false>(options: Options<PutBibleHighlightByHighlightIdData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutBibleHighlightByHighlightIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).put<PutBibleHighlightByHighlightIdResponses, PutBibleHighlightByHighlightIdErrors, ThrowOnError>({
         url: '/bible/highlight/{highlight_id}',
         ...options,
         headers: {
@@ -411,8 +455,54 @@ export const putBibleHighlightByHighlightId = <ThrowOnError extends boolean = fa
     });
 };
 
+export const getTopicsCategories = <ThrowOnError extends boolean = false>(options?: Options<GetTopicsCategoriesData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetTopicsCategoriesResponses, unknown, ThrowOnError>({
+        url: '/topics/categories',
+        ...options
+    });
+};
+
+export const getTopicsSearch = <ThrowOnError extends boolean = false>(options: Options<GetTopicsSearchData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetTopicsSearchResponses, unknown, ThrowOnError>({
+        url: '/topics/search',
+        ...options
+    });
+};
+
+export const getTopicsById = <ThrowOnError extends boolean = false>(options: Options<GetTopicsByIdData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetTopicsByIdResponses, unknown, ThrowOnError>({
+        url: '/topics/{id}',
+        ...options
+    });
+};
+
+export const getTopicsByIdReferences = <ThrowOnError extends boolean = false>(options: Options<GetTopicsByIdReferencesData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetTopicsByIdReferencesResponses, unknown, ThrowOnError>({
+        url: '/topics/{id}/references',
+        ...options
+    });
+};
+
+export const getTopicsByIdExplanation = <ThrowOnError extends boolean = false>(options: Options<GetTopicsByIdExplanationData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetTopicsByIdExplanationResponses, unknown, ThrowOnError>({
+        url: '/topics/{id}/explanation',
+        ...options
+    });
+};
+
+export const postTopicsParseReferences = <ThrowOnError extends boolean = false>(options: Options<PostTopicsParseReferencesData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostTopicsParseReferencesResponses, unknown, ThrowOnError>({
+        url: '/topics/parse-references',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
 export const patchUserPreferences = <ThrowOnError extends boolean = false>(options: Options<PatchUserPreferencesData, ThrowOnError>) => {
-    return (options.client ?? client).patch<PatchUserPreferencesResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).patch<PatchUserPreferencesResponses, PatchUserPreferencesErrors, ThrowOnError>({
         url: '/user/preferences',
         ...options,
         headers: {
@@ -423,28 +513,28 @@ export const patchUserPreferences = <ThrowOnError extends boolean = false>(optio
 };
 
 export const getAdminExplanationsLanguages = <ThrowOnError extends boolean = false>(options?: Options<GetAdminExplanationsLanguagesData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAdminExplanationsLanguagesResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAdminExplanationsLanguagesResponses, GetAdminExplanationsLanguagesErrors, ThrowOnError>({
         url: '/admin/explanations/languages',
         ...options
     });
 };
 
 export const postAdminExplanationsRefreshLanguageStats = <ThrowOnError extends boolean = false>(options?: Options<PostAdminExplanationsRefreshLanguageStatsData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostAdminExplanationsRefreshLanguageStatsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<PostAdminExplanationsRefreshLanguageStatsResponses, PostAdminExplanationsRefreshLanguageStatsErrors, ThrowOnError>({
         url: '/admin/explanations/refresh-language-stats',
         ...options
     });
 };
 
 export const getAdminUsers = <ThrowOnError extends boolean = false>(options?: Options<GetAdminUsersData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAdminUsersResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAdminUsersResponses, GetAdminUsersErrors, ThrowOnError>({
         url: '/admin/users',
         ...options
     });
 };
 
 export const patchAdminUserByIdAdminStatus = <ThrowOnError extends boolean = false>(options: Options<PatchAdminUserByIdAdminStatusData, ThrowOnError>) => {
-    return (options.client ?? client).patch<PatchAdminUserByIdAdminStatusResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).patch<PatchAdminUserByIdAdminStatusResponses, PatchAdminUserByIdAdminStatusErrors, ThrowOnError>({
         url: '/admin/user/{id}/admin-status',
         ...options,
         headers: {
@@ -455,7 +545,7 @@ export const patchAdminUserByIdAdminStatus = <ThrowOnError extends boolean = fal
 };
 
 export const postAdminBatchExplanations = <ThrowOnError extends boolean = false>(options: Options<PostAdminBatchExplanationsData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminBatchExplanationsResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminBatchExplanationsResponses, PostAdminBatchExplanationsErrors, ThrowOnError>({
         url: '/admin/batch-explanations',
         ...options,
         headers: {
@@ -465,8 +555,30 @@ export const postAdminBatchExplanations = <ThrowOnError extends boolean = false>
     });
 };
 
+export const postAdminBatchTopicReferences = <ThrowOnError extends boolean = false>(options: Options<PostAdminBatchTopicReferencesData, ThrowOnError>) => {
+    return (options.client ?? client).post<unknown, unknown, ThrowOnError>({
+        url: '/admin/batch-topic-references',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+export const postAdminBatchTopicDiscovery = <ThrowOnError extends boolean = false>(options: Options<PostAdminBatchTopicDiscoveryData, ThrowOnError>) => {
+    return (options.client ?? client).post<unknown, unknown, ThrowOnError>({
+        url: '/admin/batch-topic-discovery',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
 export const postAdminBatchRephrase = <ThrowOnError extends boolean = false>(options: Options<PostAdminBatchRephraseData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminBatchRephraseResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminBatchRephraseResponses, PostAdminBatchRephraseErrors, ThrowOnError>({
         url: '/admin/batch-rephrase',
         ...options,
         headers: {
@@ -476,8 +588,19 @@ export const postAdminBatchRephrase = <ThrowOnError extends boolean = false>(opt
     });
 };
 
+export const postAdminBatchTopicExplanations = <ThrowOnError extends boolean = false>(options: Options<PostAdminBatchTopicExplanationsData, ThrowOnError>) => {
+    return (options.client ?? client).post<unknown, unknown, ThrowOnError>({
+        url: '/admin/batch-topic-explanations',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
 export const postAdminBatchTranslate = <ThrowOnError extends boolean = false>(options: Options<PostAdminBatchTranslateData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminBatchTranslateResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminBatchTranslateResponses, PostAdminBatchTranslateErrors, ThrowOnError>({
         url: '/admin/batch-translate',
         ...options,
         headers: {
@@ -488,63 +611,63 @@ export const postAdminBatchTranslate = <ThrowOnError extends boolean = false>(op
 };
 
 export const deleteAdminBatchByBatchJobId = <ThrowOnError extends boolean = false>(options: Options<DeleteAdminBatchByBatchJobIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteAdminBatchByBatchJobIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).delete<DeleteAdminBatchByBatchJobIdResponses, DeleteAdminBatchByBatchJobIdErrors, ThrowOnError>({
         url: '/admin/batch/{batchJobId}',
         ...options
     });
 };
 
 export const getAdminBatchByBatchJobId = <ThrowOnError extends boolean = false>(options: Options<GetAdminBatchByBatchJobIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetAdminBatchByBatchJobIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetAdminBatchByBatchJobIdResponses, GetAdminBatchByBatchJobIdErrors, ThrowOnError>({
         url: '/admin/batch/{batchJobId}',
         ...options
     });
 };
 
 export const getAdminBatchHistory = <ThrowOnError extends boolean = false>(options?: Options<GetAdminBatchHistoryData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAdminBatchHistoryResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAdminBatchHistoryResponses, GetAdminBatchHistoryErrors, ThrowOnError>({
         url: '/admin/batch-history',
         ...options
     });
 };
 
 export const getAdminBatchChildrenByParentId = <ThrowOnError extends boolean = false>(options: Options<GetAdminBatchChildrenByParentIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetAdminBatchChildrenByParentIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetAdminBatchChildrenByParentIdResponses, GetAdminBatchChildrenByParentIdErrors, ThrowOnError>({
         url: '/admin/batch-children/{parentId}',
         ...options
     });
 };
 
 export const postAdminMonitorBibleBatchByParentId = <ThrowOnError extends boolean = false>(options: Options<PostAdminMonitorBibleBatchByParentIdData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminMonitorBibleBatchByParentIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminMonitorBibleBatchByParentIdResponses, PostAdminMonitorBibleBatchByParentIdErrors, ThrowOnError>({
         url: '/admin/monitor-bible-batch/{parentId}',
         ...options
     });
 };
 
 export const postAdminBatchesMonitorAll = <ThrowOnError extends boolean = false>(options?: Options<PostAdminBatchesMonitorAllData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostAdminBatchesMonitorAllResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<PostAdminBatchesMonitorAllResponses, PostAdminBatchesMonitorAllErrors, ThrowOnError>({
         url: '/admin/batches/monitor-all',
         ...options
     });
 };
 
 export const getAdminBatchSummaryByParentId = <ThrowOnError extends boolean = false>(options: Options<GetAdminBatchSummaryByParentIdData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetAdminBatchSummaryByParentIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetAdminBatchSummaryByParentIdResponses, GetAdminBatchSummaryByParentIdErrors, ThrowOnError>({
         url: '/admin/batch-summary/{parentId}',
         ...options
     });
 };
 
 export const deleteAdminExplanationById = <ThrowOnError extends boolean = false>(options: Options<DeleteAdminExplanationByIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteAdminExplanationByIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).delete<DeleteAdminExplanationByIdResponses, DeleteAdminExplanationByIdErrors, ThrowOnError>({
         url: '/admin/explanation/{id}',
         ...options
     });
 };
 
 export const postAdminExplanationRegenerate = <ThrowOnError extends boolean = false>(options: Options<PostAdminExplanationRegenerateData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminExplanationRegenerateResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminExplanationRegenerateResponses, PostAdminExplanationRegenerateErrors, ThrowOnError>({
         url: '/admin/explanation/regenerate',
         ...options,
         headers: {
@@ -555,7 +678,7 @@ export const postAdminExplanationRegenerate = <ThrowOnError extends boolean = fa
 };
 
 export const postAdminExplanationRegenerateByRegenerationIdGenerate = <ThrowOnError extends boolean = false>(options: Options<PostAdminExplanationRegenerateByRegenerationIdGenerateData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminExplanationRegenerateByRegenerationIdGenerateResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminExplanationRegenerateByRegenerationIdGenerateResponses, PostAdminExplanationRegenerateByRegenerationIdGenerateErrors, ThrowOnError>({
         url: '/admin/explanation/regenerate/{regenerationId}/generate',
         ...options,
         headers: {
@@ -566,14 +689,14 @@ export const postAdminExplanationRegenerateByRegenerationIdGenerate = <ThrowOnEr
 };
 
 export const getAdminExplanationRegenerateByRegenerationIdComparison = <ThrowOnError extends boolean = false>(options: Options<GetAdminExplanationRegenerateByRegenerationIdComparisonData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetAdminExplanationRegenerateByRegenerationIdComparisonResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetAdminExplanationRegenerateByRegenerationIdComparisonResponses, GetAdminExplanationRegenerateByRegenerationIdComparisonErrors, ThrowOnError>({
         url: '/admin/explanation/regenerate/{regenerationId}/comparison',
         ...options
     });
 };
 
 export const postAdminExplanationRegenerateByRegenerationIdChoose = <ThrowOnError extends boolean = false>(options: Options<PostAdminExplanationRegenerateByRegenerationIdChooseData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminExplanationRegenerateByRegenerationIdChooseResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminExplanationRegenerateByRegenerationIdChooseResponses, PostAdminExplanationRegenerateByRegenerationIdChooseErrors, ThrowOnError>({
         url: '/admin/explanation/regenerate/{regenerationId}/choose',
         ...options,
         headers: {
@@ -584,7 +707,7 @@ export const postAdminExplanationRegenerateByRegenerationIdChoose = <ThrowOnErro
 };
 
 export const deleteAdminExplanationsBulk = <ThrowOnError extends boolean = false>(options: Options<DeleteAdminExplanationsBulkData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteAdminExplanationsBulkResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).delete<DeleteAdminExplanationsBulkResponses, DeleteAdminExplanationsBulkErrors, ThrowOnError>({
         url: '/admin/explanations/bulk',
         ...options,
         headers: {
@@ -595,7 +718,7 @@ export const deleteAdminExplanationsBulk = <ThrowOnError extends boolean = false
 };
 
 export const postAdminExplanationsSetActiveAsDefault = <ThrowOnError extends boolean = false>(options: Options<PostAdminExplanationsSetActiveAsDefaultData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminExplanationsSetActiveAsDefaultResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminExplanationsSetActiveAsDefaultResponses, PostAdminExplanationsSetActiveAsDefaultErrors, ThrowOnError>({
         url: '/admin/explanations/set-active-as-default',
         ...options,
         headers: {
@@ -606,7 +729,7 @@ export const postAdminExplanationsSetActiveAsDefault = <ThrowOnError extends boo
 };
 
 export const postAdminExplanationsSetDefaultsActive = <ThrowOnError extends boolean = false>(options: Options<PostAdminExplanationsSetDefaultsActiveData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminExplanationsSetDefaultsActiveResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminExplanationsSetDefaultsActiveResponses, PostAdminExplanationsSetDefaultsActiveErrors, ThrowOnError>({
         url: '/admin/explanations/set-defaults-active',
         ...options,
         headers: {
@@ -617,7 +740,7 @@ export const postAdminExplanationsSetDefaultsActive = <ThrowOnError extends bool
 };
 
 export const postAdminExplanationsSetSpecificVersionActive = <ThrowOnError extends boolean = false>(options: Options<PostAdminExplanationsSetSpecificVersionActiveData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminExplanationsSetSpecificVersionActiveResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminExplanationsSetSpecificVersionActiveResponses, PostAdminExplanationsSetSpecificVersionActiveErrors, ThrowOnError>({
         url: '/admin/explanations/set-specific-version-active',
         ...options,
         headers: {
@@ -628,7 +751,7 @@ export const postAdminExplanationsSetSpecificVersionActive = <ThrowOnError exten
 };
 
 export const deleteAdminExplanationsInactive = <ThrowOnError extends boolean = false>(options: Options<DeleteAdminExplanationsInactiveData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteAdminExplanationsInactiveResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).delete<DeleteAdminExplanationsInactiveResponses, DeleteAdminExplanationsInactiveErrors, ThrowOnError>({
         url: '/admin/explanations/inactive',
         ...options,
         headers: {
@@ -639,35 +762,35 @@ export const deleteAdminExplanationsInactive = <ThrowOnError extends boolean = f
 };
 
 export const getAdminExplanationByIdHistory = <ThrowOnError extends boolean = false>(options: Options<GetAdminExplanationByIdHistoryData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetAdminExplanationByIdHistoryResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetAdminExplanationByIdHistoryResponses, GetAdminExplanationByIdHistoryErrors, ThrowOnError>({
         url: '/admin/explanation/{id}/history',
         ...options
     });
 };
 
 export const getAdminExplanations = <ThrowOnError extends boolean = false>(options: Options<GetAdminExplanationsData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetAdminExplanationsResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetAdminExplanationsResponses, GetAdminExplanationsErrors, ThrowOnError>({
         url: '/admin/explanations',
         ...options
     });
 };
 
 export const getAdminStats = <ThrowOnError extends boolean = false>(options?: Options<GetAdminStatsData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAdminStatsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAdminStatsResponses, GetAdminStatsErrors, ThrowOnError>({
         url: '/admin/stats',
         ...options
     });
 };
 
 export const getAdminPromptsSystem = <ThrowOnError extends boolean = false>(options?: Options<GetAdminPromptsSystemData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAdminPromptsSystemResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAdminPromptsSystemResponses, GetAdminPromptsSystemErrors, ThrowOnError>({
         url: '/admin/prompts/system',
         ...options
     });
 };
 
 export const postAdminPromptsSystem = <ThrowOnError extends boolean = false>(options: Options<PostAdminPromptsSystemData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminPromptsSystemResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminPromptsSystemResponses, PostAdminPromptsSystemErrors, ThrowOnError>({
         url: '/admin/prompts/system',
         ...options,
         headers: {
@@ -678,14 +801,14 @@ export const postAdminPromptsSystem = <ThrowOnError extends boolean = false>(opt
 };
 
 export const getAdminPromptsUser = <ThrowOnError extends boolean = false>(options?: Options<GetAdminPromptsUserData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAdminPromptsUserResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAdminPromptsUserResponses, GetAdminPromptsUserErrors, ThrowOnError>({
         url: '/admin/prompts/user',
         ...options
     });
 };
 
 export const postAdminPromptsUser = <ThrowOnError extends boolean = false>(options: Options<PostAdminPromptsUserData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminPromptsUserResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminPromptsUserResponses, PostAdminPromptsUserErrors, ThrowOnError>({
         url: '/admin/prompts/user',
         ...options,
         headers: {
@@ -696,21 +819,21 @@ export const postAdminPromptsUser = <ThrowOnError extends boolean = false>(optio
 };
 
 export const getAdminPromptsExplanationTypes = <ThrowOnError extends boolean = false>(options?: Options<GetAdminPromptsExplanationTypesData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAdminPromptsExplanationTypesResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAdminPromptsExplanationTypesResponses, GetAdminPromptsExplanationTypesErrors, ThrowOnError>({
         url: '/admin/prompts/explanation-types',
         ...options
     });
 };
 
 export const deleteAdminPromptsSystemById = <ThrowOnError extends boolean = false>(options: Options<DeleteAdminPromptsSystemByIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteAdminPromptsSystemByIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).delete<DeleteAdminPromptsSystemByIdResponses, DeleteAdminPromptsSystemByIdErrors, ThrowOnError>({
         url: '/admin/prompts/system/{id}',
         ...options
     });
 };
 
 export const putAdminPromptsSystemById = <ThrowOnError extends boolean = false>(options: Options<PutAdminPromptsSystemByIdData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutAdminPromptsSystemByIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).put<PutAdminPromptsSystemByIdResponses, PutAdminPromptsSystemByIdErrors, ThrowOnError>({
         url: '/admin/prompts/system/{id}',
         ...options,
         headers: {
@@ -721,14 +844,14 @@ export const putAdminPromptsSystemById = <ThrowOnError extends boolean = false>(
 };
 
 export const deleteAdminPromptsUserById = <ThrowOnError extends boolean = false>(options: Options<DeleteAdminPromptsUserByIdData, ThrowOnError>) => {
-    return (options.client ?? client).delete<DeleteAdminPromptsUserByIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).delete<DeleteAdminPromptsUserByIdResponses, DeleteAdminPromptsUserByIdErrors, ThrowOnError>({
         url: '/admin/prompts/user/{id}',
         ...options
     });
 };
 
 export const putAdminPromptsUserById = <ThrowOnError extends boolean = false>(options: Options<PutAdminPromptsUserByIdData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutAdminPromptsUserByIdResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).put<PutAdminPromptsUserByIdResponses, PutAdminPromptsUserByIdErrors, ThrowOnError>({
         url: '/admin/prompts/user/{id}',
         ...options,
         headers: {
@@ -739,7 +862,7 @@ export const putAdminPromptsUserById = <ThrowOnError extends boolean = false>(op
 };
 
 export const putAdminPromptsSystemByIdStatus = <ThrowOnError extends boolean = false>(options: Options<PutAdminPromptsSystemByIdStatusData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutAdminPromptsSystemByIdStatusResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).put<PutAdminPromptsSystemByIdStatusResponses, PutAdminPromptsSystemByIdStatusErrors, ThrowOnError>({
         url: '/admin/prompts/system/{id}/status',
         ...options,
         headers: {
@@ -750,7 +873,7 @@ export const putAdminPromptsSystemByIdStatus = <ThrowOnError extends boolean = f
 };
 
 export const putAdminPromptsUserByIdStatus = <ThrowOnError extends boolean = false>(options: Options<PutAdminPromptsUserByIdStatusData, ThrowOnError>) => {
-    return (options.client ?? client).put<PutAdminPromptsUserByIdStatusResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).put<PutAdminPromptsUserByIdStatusResponses, PutAdminPromptsUserByIdStatusErrors, ThrowOnError>({
         url: '/admin/prompts/user/{id}/status',
         ...options,
         headers: {
@@ -761,14 +884,14 @@ export const putAdminPromptsUserByIdStatus = <ThrowOnError extends boolean = fal
 };
 
 export const postAdminPromptsRestoreDefaults = <ThrowOnError extends boolean = false>(options?: Options<PostAdminPromptsRestoreDefaultsData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostAdminPromptsRestoreDefaultsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<PostAdminPromptsRestoreDefaultsResponses, PostAdminPromptsRestoreDefaultsErrors, ThrowOnError>({
         url: '/admin/prompts/restore-defaults',
         ...options
     });
 };
 
 export const postAdminPromptsPlayground = <ThrowOnError extends boolean = false>(options: Options<PostAdminPromptsPlaygroundData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminPromptsPlaygroundResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminPromptsPlaygroundResponses, PostAdminPromptsPlaygroundErrors, ThrowOnError>({
         url: '/admin/prompts/playground',
         ...options,
         headers: {
@@ -779,21 +902,68 @@ export const postAdminPromptsPlayground = <ThrowOnError extends boolean = false>
 };
 
 export const getAdminPromptsExplanationExisting = <ThrowOnError extends boolean = false>(options: Options<GetAdminPromptsExplanationExistingData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetAdminPromptsExplanationExistingResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).get<GetAdminPromptsExplanationExistingResponses, GetAdminPromptsExplanationExistingErrors, ThrowOnError>({
         url: '/admin/prompts/explanation/existing',
         ...options
     });
 };
 
+export const getAdminTopics = <ThrowOnError extends boolean = false>(options?: Options<GetAdminTopicsData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, unknown, ThrowOnError>({
+        url: '/admin/topics/',
+        ...options
+    });
+};
+
+export const postAdminTopics = <ThrowOnError extends boolean = false>(options: Options<PostAdminTopicsData, ThrowOnError>) => {
+    return (options.client ?? client).post<unknown, unknown, ThrowOnError>({
+        url: '/admin/topics/',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+export const deleteAdminTopicsById = <ThrowOnError extends boolean = false>(options: Options<DeleteAdminTopicsByIdData, ThrowOnError>) => {
+    return (options.client ?? client).delete<unknown, unknown, ThrowOnError>({
+        url: '/admin/topics/{id}',
+        ...options
+    });
+};
+
+export const putAdminTopicsById = <ThrowOnError extends boolean = false>(options: Options<PutAdminTopicsByIdData, ThrowOnError>) => {
+    return (options.client ?? client).put<unknown, unknown, ThrowOnError>({
+        url: '/admin/topics/{id}',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+export const postAdminTopicsSortChronologically = <ThrowOnError extends boolean = false>(options: Options<PostAdminTopicsSortChronologicallyData, ThrowOnError>) => {
+    return (options.client ?? client).post<unknown, unknown, ThrowOnError>({
+        url: '/admin/topics/sort-chronologically',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
 export const getAdminCommentaryGrades = <ThrowOnError extends boolean = false>(options?: Options<GetAdminCommentaryGradesData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetAdminCommentaryGradesResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<GetAdminCommentaryGradesResponses, GetAdminCommentaryGradesErrors, ThrowOnError>({
         url: '/admin/commentary/grades',
         ...options
     });
 };
 
 export const postAdminCommentaryGrade = <ThrowOnError extends boolean = false>(options: Options<PostAdminCommentaryGradeData, ThrowOnError>) => {
-    return (options.client ?? client).post<PostAdminCommentaryGradeResponses, unknown, ThrowOnError>({
+    return (options.client ?? client).post<PostAdminCommentaryGradeResponses, PostAdminCommentaryGradeErrors, ThrowOnError>({
         url: '/admin/commentary/grade',
         ...options,
         headers: {

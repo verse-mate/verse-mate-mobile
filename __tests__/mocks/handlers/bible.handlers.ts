@@ -15,10 +15,10 @@ import type {
   SaveLastReadRequest,
   GetLastReadRequest,
   GetLastReadResponse,
-} from '../../../src/api/bible/types';
+} from '../../../src/api/generated';
 
-// API Base URL
-const BIBLE_API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+// API Base URL - matches the generated SDK default
+const BIBLE_API_BASE_URL = 'http://localhost:4000';
 
 /**
  * GET /bible/testaments
@@ -27,10 +27,17 @@ const BIBLE_API_BASE_URL = 'https://api.verse-mate.apegro.dev';
 export const getBibleTestamentsHandler = http.get(
   `${BIBLE_API_BASE_URL}/bible/testaments`,
   () => {
+    // Transform BookMetadata back to API format
+    const testaments = mockTestamentBooks.map(book => ({
+      b: book.id,
+      n: book.name,
+      t: book.testament,
+      g: book.genre,
+      c: book.chapterCount,
+    }));
+
     const response: GetBibleTestamentsResponse = {
-      testaments: {
-        keys: mockTestamentBooks,
-      },
+      testaments,
     };
 
     return HttpResponse.json(response);
@@ -58,7 +65,7 @@ export const getBibleChapterHandler = http.get(
     }
 
     // Generic response for other chapters
-    const book = mockTestamentBooks.find((b) => b.b === bookIdNum);
+    const book = mockTestamentBooks.find((b) => b.id === bookIdNum);
 
     if (!book) {
       return HttpResponse.json(
@@ -67,7 +74,7 @@ export const getBibleChapterHandler = http.get(
       );
     }
 
-    if (chapterNum < 1 || chapterNum > book.c) {
+    if (chapterNum < 1 || chapterNum > book.chapterCount) {
       return HttpResponse.json(
         { error: 'Chapter not found' },
         { status: 404 }
@@ -76,26 +83,26 @@ export const getBibleChapterHandler = http.get(
 
     const response: GetBibleChapterResponse = {
       book: {
-        bookId: book.b,
-        name: book.n,
-        testament: book.t,
+        bookId: book.id,
+        name: book.name,
+        testament: book.testament,
         genre: {
-          g: book.g,
-          n: book.g === 1 ? 'Law' : book.g === 5 ? 'Gospels' : 'Unknown',
+          g: book.genre,
+          n: book.genre === 1 ? 'Law' : book.genre === 5 ? 'Gospels' : 'Unknown',
         },
         chapters: [
           {
             chapterNumber: chapterNum,
             subtitles: [
               {
-                subtitle: `${book.n} ${chapterNum} Content`,
+                subtitle: `${book.name} ${chapterNum} Content`,
                 start_verse: 1,
                 end_verse: 10,
               },
             ],
             verses: Array.from({ length: 10 }, (_, i) => ({
               verseNumber: i + 1,
-              text: `This is verse ${i + 1} of ${book.n} chapter ${chapterNum}.`,
+              text: `This is verse ${i + 1} of ${book.name} chapter ${chapterNum}.`,
             })),
           },
         ],
@@ -126,7 +133,7 @@ export const getBibleExplanationHandler = http.get(
     }
 
     // Generic explanation for other chapters
-    const book = mockTestamentBooks.find((b) => b.b === bookIdNum);
+    const book = mockTestamentBooks.find((b) => b.id === bookIdNum);
 
     if (!book) {
       return HttpResponse.json(
@@ -140,7 +147,7 @@ export const getBibleExplanationHandler = http.get(
         book_id: bookIdNum,
         chapter_number: chapterNum,
         type: explanationType,
-        explanation: `# ${explanationType} of ${book.n} ${chapterNum}\n\nThis is a mock ${explanationType} explanation for testing purposes.`,
+        explanation: `# ${explanationType} of ${book.name} ${chapterNum}\n\nThis is a mock ${explanationType} explanation for testing purposes.`,
         explanation_id: Math.floor(Math.random() * 100000),
         language_code: 'en-US',
       },
@@ -176,7 +183,7 @@ export const saveLastReadHandler = http.post(
  * POST /bible/book/chapter/last-read
  * Gets user's last read position
  */
-let mockLastReadPosition: GetLastReadResponse | null = null;
+let mockLastReadPosition: { book_id: number; chapter_number: number } | null = null;
 
 export const getLastReadHandler = http.post(
   `${BIBLE_API_BASE_URL}/bible/book/chapter/last-read`,
@@ -191,9 +198,15 @@ export const getLastReadHandler = http.post(
     }
 
     // Return mock last read position or default to Genesis 1
-    const response: GetLastReadResponse = mockLastReadPosition || {
-      book_id: 1,
-      chapter_number: 1,
+    const response: GetLastReadResponse = {
+      result: mockLastReadPosition || {
+        book_id: 1,
+        chapter_number: 1,
+        bookName: 'Genesis',
+        chapterNumber: 1,
+        testament: 'OT',
+        explanation: [],
+      }
     };
 
     return HttpResponse.json(response);
