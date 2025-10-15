@@ -47,9 +47,7 @@ tags:
     id: "verse-text"
 
 # Verify verse is accessible (screen reader compatible)
-- assertVisible:
-    traits: ["text"]
-    id: "verse-text"
+# Note: Accessibility traits checking removed - not supported in Maestro 2.0
 
 # Verify book reference is visible
 - assertVisible:

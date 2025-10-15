@@ -9,10 +9,12 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.versemate.mobile",
       "supportsTablet": true,
       "associatedDomains": ["applinks:app.versemate.org"]
     },
     "android": {
+      "package": "com.versemate.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

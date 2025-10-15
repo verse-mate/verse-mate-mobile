@@ -56,7 +56,6 @@ tags:
 # Verify explanation contains text
 - assertVisible:
     id: "ai-explanation-content"
-    traits: ["text"]
 
 # Verify explanation is at least 50 characters (meaningful content)
 - runScript:
@@ -102,7 +101,6 @@ tags:
 # Verify accessibility for explanation
 - assertVisible:
     id: "ai-explanation-content"
-    traits: ["text"]
 
 # Go back to verify explanation persists
 - swipe:
