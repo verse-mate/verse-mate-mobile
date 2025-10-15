@@ -4,7 +4,7 @@
  * Simplified list of all 66 Bible books for testing
  */
 
-import type { TestamentBook } from '../../../src/api/bible/types';
+import type { TestamentBook } from '../../../src/api/generated';
 
 /**
  * All 66 Bible books with metadata
@@ -12,86 +12,86 @@ import type { TestamentBook } from '../../../src/api/bible/types';
  */
 export const mockTestamentBooks: TestamentBook[] = [
   // Old Testament (1-39)
-  { b: 1, c: 50, n: 'Genesis', t: 'OT', g: 1 },
-  { b: 2, c: 40, n: 'Exodus', t: 'OT', g: 1 },
-  { b: 3, c: 27, n: 'Leviticus', t: 'OT', g: 1 },
-  { b: 4, c: 36, n: 'Numbers', t: 'OT', g: 1 },
-  { b: 5, c: 34, n: 'Deuteronomy', t: 'OT', g: 1 },
-  { b: 6, c: 24, n: 'Joshua', t: 'OT', g: 2 },
-  { b: 7, c: 21, n: 'Judges', t: 'OT', g: 2 },
-  { b: 8, c: 4, n: 'Ruth', t: 'OT', g: 2 },
-  { b: 9, c: 31, n: '1 Samuel', t: 'OT', g: 2 },
-  { b: 10, c: 24, n: '2 Samuel', t: 'OT', g: 2 },
-  { b: 11, c: 22, n: '1 Kings', t: 'OT', g: 2 },
-  { b: 12, c: 25, n: '2 Kings', t: 'OT', g: 2 },
-  { b: 13, c: 29, n: '1 Chronicles', t: 'OT', g: 2 },
-  { b: 14, c: 36, n: '2 Chronicles', t: 'OT', g: 2 },
-  { b: 15, c: 10, n: 'Ezra', t: 'OT', g: 2 },
-  { b: 16, c: 13, n: 'Nehemiah', t: 'OT', g: 2 },
-  { b: 17, c: 10, n: 'Esther', t: 'OT', g: 2 },
-  { b: 18, c: 42, n: 'Job', t: 'OT', g: 3 },
-  { b: 19, c: 150, n: 'Psalms', t: 'OT', g: 3 },
-  { b: 20, c: 31, n: 'Proverbs', t: 'OT', g: 3 },
-  { b: 21, c: 12, n: 'Ecclesiastes', t: 'OT', g: 3 },
-  { b: 22, c: 8, n: 'Song of Solomon', t: 'OT', g: 3 },
-  { b: 23, c: 66, n: 'Isaiah', t: 'OT', g: 4 },
-  { b: 24, c: 52, n: 'Jeremiah', t: 'OT', g: 4 },
-  { b: 25, c: 5, n: 'Lamentations', t: 'OT', g: 4 },
-  { b: 26, c: 48, n: 'Ezekiel', t: 'OT', g: 4 },
-  { b: 27, c: 12, n: 'Daniel', t: 'OT', g: 4 },
-  { b: 28, c: 14, n: 'Hosea', t: 'OT', g: 4 },
-  { b: 29, c: 3, n: 'Joel', t: 'OT', g: 4 },
-  { b: 30, c: 9, n: 'Amos', t: 'OT', g: 4 },
-  { b: 31, c: 1, n: 'Obadiah', t: 'OT', g: 4 },
-  { b: 32, c: 4, n: 'Jonah', t: 'OT', g: 4 },
-  { b: 33, c: 7, n: 'Micah', t: 'OT', g: 4 },
-  { b: 34, c: 3, n: 'Nahum', t: 'OT', g: 4 },
-  { b: 35, c: 3, n: 'Habakkuk', t: 'OT', g: 4 },
-  { b: 36, c: 3, n: 'Zephaniah', t: 'OT', g: 4 },
-  { b: 37, c: 2, n: 'Haggai', t: 'OT', g: 4 },
-  { b: 38, c: 14, n: 'Zechariah', t: 'OT', g: 4 },
-  { b: 39, c: 4, n: 'Malachi', t: 'OT', g: 4 },
+  { id: 1, chapterCount: 50, name: 'Genesis', testament: 'OT', genre: 1 },
+  { id: 2, chapterCount: 40, name: 'Exodus', testament: 'OT', genre: 1 },
+  { id: 3, chapterCount: 27, name: 'Leviticus', testament: 'OT', genre: 1 },
+  { id: 4, chapterCount: 36, name: 'Numbers', testament: 'OT', genre: 1 },
+  { id: 5, chapterCount: 34, name: 'Deuteronomy', testament: 'OT', genre: 1 },
+  { id: 6, chapterCount: 24, name: 'Joshua', testament: 'OT', genre: 2 },
+  { id: 7, chapterCount: 21, name: 'Judges', testament: 'OT', genre: 2 },
+  { id: 8, chapterCount: 4, name: 'Ruth', testament: 'OT', genre: 2 },
+  { id: 9, chapterCount: 31, name: '1 Samuel', testament: 'OT', genre: 2 },
+  { id: 10, chapterCount: 24, name: '2 Samuel', testament: 'OT', genre: 2 },
+  { id: 11, chapterCount: 22, name: '1 Kings', testament: 'OT', genre: 2 },
+  { id: 12, chapterCount: 25, name: '2 Kings', testament: 'OT', genre: 2 },
+  { id: 13, chapterCount: 29, name: '1 Chronicles', testament: 'OT', genre: 2 },
+  { id: 14, chapterCount: 36, name: '2 Chronicles', testament: 'OT', genre: 2 },
+  { id: 15, chapterCount: 10, name: 'Ezra', testament: 'OT', genre: 2 },
+  { id: 16, chapterCount: 13, name: 'Nehemiah', testament: 'OT', genre: 2 },
+  { id: 17, chapterCount: 10, name: 'Esther', testament: 'OT', genre: 2 },
+  { id: 18, chapterCount: 42, name: 'Job', testament: 'OT', genre: 3 },
+  { id: 19, chapterCount: 150, name: 'Psalms', testament: 'OT', genre: 3 },
+  { id: 20, chapterCount: 31, name: 'Proverbs', testament: 'OT', genre: 3 },
+  { id: 21, chapterCount: 12, name: 'Ecclesiastes', testament: 'OT', genre: 3 },
+  { id: 22, chapterCount: 8, name: 'Song of Solomon', testament: 'OT', genre: 3 },
+  { id: 23, chapterCount: 66, name: 'Isaiah', testament: 'OT', genre: 4 },
+  { id: 24, chapterCount: 52, name: 'Jeremiah', testament: 'OT', genre: 4 },
+  { id: 25, chapterCount: 5, name: 'Lamentations', testament: 'OT', genre: 4 },
+  { id: 26, chapterCount: 48, name: 'Ezekiel', testament: 'OT', genre: 4 },
+  { id: 27, chapterCount: 12, name: 'Daniel', testament: 'OT', genre: 4 },
+  { id: 28, chapterCount: 14, name: 'Hosea', testament: 'OT', genre: 4 },
+  { id: 29, chapterCount: 3, name: 'Joel', testament: 'OT', genre: 4 },
+  { id: 30, chapterCount: 9, name: 'Amos', testament: 'OT', genre: 4 },
+  { id: 31, chapterCount: 1, name: 'Obadiah', testament: 'OT', genre: 4 },
+  { id: 32, chapterCount: 4, name: 'Jonah', testament: 'OT', genre: 4 },
+  { id: 33, chapterCount: 7, name: 'Micah', testament: 'OT', genre: 4 },
+  { id: 34, chapterCount: 3, name: 'Nahum', testament: 'OT', genre: 4 },
+  { id: 35, chapterCount: 3, name: 'Habakkuk', testament: 'OT', genre: 4 },
+  { id: 36, chapterCount: 3, name: 'Zephaniah', testament: 'OT', genre: 4 },
+  { id: 37, chapterCount: 2, name: 'Haggai', testament: 'OT', genre: 4 },
+  { id: 38, chapterCount: 14, name: 'Zechariah', testament: 'OT', genre: 4 },
+  { id: 39, chapterCount: 4, name: 'Malachi', testament: 'OT', genre: 4 },
 
   // New Testament (40-66)
-  { b: 40, c: 28, n: 'Matthew', t: 'NT', g: 5 },
-  { b: 41, c: 16, n: 'Mark', t: 'NT', g: 5 },
-  { b: 42, c: 24, n: 'Luke', t: 'NT', g: 5 },
-  { b: 43, c: 21, n: 'John', t: 'NT', g: 5 },
-  { b: 44, c: 28, n: 'Acts', t: 'NT', g: 6 },
-  { b: 45, c: 16, n: 'Romans', t: 'NT', g: 7 },
-  { b: 46, c: 16, n: '1 Corinthians', t: 'NT', g: 7 },
-  { b: 47, c: 13, n: '2 Corinthians', t: 'NT', g: 7 },
-  { b: 48, c: 6, n: 'Galatians', t: 'NT', g: 7 },
-  { b: 49, c: 6, n: 'Ephesians', t: 'NT', g: 7 },
-  { b: 50, c: 4, n: 'Philippians', t: 'NT', g: 7 },
-  { b: 51, c: 4, n: 'Colossians', t: 'NT', g: 7 },
-  { b: 52, c: 5, n: '1 Thessalonians', t: 'NT', g: 7 },
-  { b: 53, c: 3, n: '2 Thessalonians', t: 'NT', g: 7 },
-  { b: 54, c: 6, n: '1 Timothy', t: 'NT', g: 7 },
-  { b: 55, c: 4, n: '2 Timothy', t: 'NT', g: 7 },
-  { b: 56, c: 3, n: 'Titus', t: 'NT', g: 7 },
-  { b: 57, c: 1, n: 'Philemon', t: 'NT', g: 7 },
-  { b: 58, c: 13, n: 'Hebrews', t: 'NT', g: 7 },
-  { b: 59, c: 5, n: 'James', t: 'NT', g: 7 },
-  { b: 60, c: 5, n: '1 Peter', t: 'NT', g: 7 },
-  { b: 61, c: 3, n: '2 Peter', t: 'NT', g: 7 },
-  { b: 62, c: 5, n: '1 John', t: 'NT', g: 7 },
-  { b: 63, c: 1, n: '2 John', t: 'NT', g: 7 },
-  { b: 64, c: 1, n: '3 John', t: 'NT', g: 7 },
-  { b: 65, c: 1, n: 'Jude', t: 'NT', g: 7 },
-  { b: 66, c: 22, n: 'Revelation', t: 'NT', g: 8 },
+  { id: 40, chapterCount: 28, name: 'Matthew', testament: 'NT', genre: 5 },
+  { id: 41, chapterCount: 16, name: 'Mark', testament: 'NT', genre: 5 },
+  { id: 42, chapterCount: 24, name: 'Luke', testament: 'NT', genre: 5 },
+  { id: 43, chapterCount: 21, name: 'John', testament: 'NT', genre: 5 },
+  { id: 44, chapterCount: 28, name: 'Acts', testament: 'NT', genre: 6 },
+  { id: 45, chapterCount: 16, name: 'Romans', testament: 'NT', genre: 7 },
+  { id: 46, chapterCount: 16, name: '1 Corinthians', testament: 'NT', genre: 7 },
+  { id: 47, chapterCount: 13, name: '2 Corinthians', testament: 'NT', genre: 7 },
+  { id: 48, chapterCount: 6, name: 'Galatians', testament: 'NT', genre: 7 },
+  { id: 49, chapterCount: 6, name: 'Ephesians', testament: 'NT', genre: 7 },
+  { id: 50, chapterCount: 4, name: 'Philippians', testament: 'NT', genre: 7 },
+  { id: 51, chapterCount: 4, name: 'Colossians', testament: 'NT', genre: 7 },
+  { id: 52, chapterCount: 5, name: '1 Thessalonians', testament: 'NT', genre: 7 },
+  { id: 53, chapterCount: 3, name: '2 Thessalonians', testament: 'NT', genre: 7 },
+  { id: 54, chapterCount: 6, name: '1 Timothy', testament: 'NT', genre: 7 },
+  { id: 55, chapterCount: 4, name: '2 Timothy', testament: 'NT', genre: 7 },
+  { id: 56, chapterCount: 3, name: 'Titus', testament: 'NT', genre: 7 },
+  { id: 57, chapterCount: 1, name: 'Philemon', testament: 'NT', genre: 7 },
+  { id: 58, chapterCount: 13, name: 'Hebrews', testament: 'NT', genre: 7 },
+  { id: 59, chapterCount: 5, name: 'James', testament: 'NT', genre: 7 },
+  { id: 60, chapterCount: 5, name: '1 Peter', testament: 'NT', genre: 7 },
+  { id: 61, chapterCount: 3, name: '2 Peter', testament: 'NT', genre: 7 },
+  { id: 62, chapterCount: 5, name: '1 John', testament: 'NT', genre: 7 },
+  { id: 63, chapterCount: 1, name: '2 John', testament: 'NT', genre: 7 },
+  { id: 64, chapterCount: 1, name: '3 John', testament: 'NT', genre: 7 },
+  { id: 65, chapterCount: 1, name: 'Jude', testament: 'NT', genre: 7 },
+  { id: 66, chapterCount: 22, name: 'Revelation', testament: 'NT', genre: 8 },
 ];
 
 /**
  * Get mock book by ID
  */
 export function getMockBook(bookId: number): TestamentBook | undefined {
-  return mockTestamentBooks.find((b) => b.b === bookId);
+  return mockTestamentBooks.find((b) => b.id === bookId);
 }
 
 /**
  * Get mock books by testament
  */
 export function getMockBooksByTestament(testament: 'OT' | 'NT'): TestamentBook[] {
-  return mockTestamentBooks.filter((b) => b.t === testament);
+  return mockTestamentBooks.filter((b) => b.testament === testament);
 }

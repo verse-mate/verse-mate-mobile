@@ -7,7 +7,7 @@
  * @placeholder - Implementation will be added in Task Group 9
  */
 
-import type { ReadingPosition } from '@/src/api/bible/types';
+import type { ReadingPosition } from '@/src/api/generated';
 import type { LoadingState } from '@/types/bible';
 
 export interface UseLastReadResult extends LoadingState {

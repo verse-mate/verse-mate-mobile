@@ -13,11 +13,11 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
-import { useBibleTestaments } from '@/src/api/bible/hooks';
+import { useBibleTestaments } from '@/src/api/generated';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 
 // Mock dependencies
-jest.mock('@/src/api/bible/hooks');
+jest.mock('@/src/api/generated');
 jest.mock('@/hooks/bible/use-recent-books');
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
@@ -90,7 +90,7 @@ describe('BibleNavigationModal', () => {
     });
   });
 
-  it('should render modal with testament tabs when visible', () => {
+  it('should render modal with testament tabs and book list when visible', () => {
     render(
       <BibleNavigationModal
         visible={true}
@@ -102,11 +102,16 @@ describe('BibleNavigationModal', () => {
     );
 
     // Modal should render testament tabs
-    expect(screen.getByText('Old Testament')).toBeTruthy();
+    const oldTestamentTabs = screen.getAllByText('Old Testament');
+    expect(oldTestamentTabs.length).toBeGreaterThan(0);
     expect(screen.getAllByText('New Testament').length).toBeGreaterThan(0);
+
+    // Should show book list by default (not chapter grid)
+    expect(screen.getByText('Genesis')).toBeTruthy();
+    expect(screen.getByText('Exodus')).toBeTruthy();
   });
 
-  it('should display chapter grid for selected book', async () => {
+  it('should display chapter grid when book is selected', async () => {
     render(
       <BibleNavigationModal
         visible={true}
@@ -116,6 +121,13 @@ describe('BibleNavigationModal', () => {
         onSelectChapter={mockOnSelectChapter}
       />
     );
+
+    // Initially shows book list
+    expect(screen.getByText('Genesis')).toBeTruthy();
+
+    // Select Genesis book
+    const genesisButton = screen.getByLabelText('Genesis, 50 chapters');
+    fireEvent.press(genesisButton);
 
     // Chapter grid should display for Genesis (50 chapters)
     await waitFor(() => {
@@ -135,6 +147,10 @@ describe('BibleNavigationModal', () => {
         onSelectChapter={mockOnSelectChapter}
       />
     );
+
+    // Select Genesis book to show chapter grid
+    const genesisButton = screen.getByLabelText('Genesis, 50 chapters');
+    fireEvent.press(genesisButton);
 
     // Wait for chapter grid to render
     await waitFor(() => {

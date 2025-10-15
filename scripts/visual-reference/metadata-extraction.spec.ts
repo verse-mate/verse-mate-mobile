@@ -14,6 +14,7 @@ test.describe('Metadata Extraction Validation', () => {
 
     // Extract body element structure
     const bodyStructure = await page.locator('body').evaluate((el) => {
+      // biome-ignore lint/suspicious/noExplicitAny: Recursive structure extraction requires flexible return type
       function extractStructure(element: Element): any {
         return {
           tag: element.tagName.toLowerCase(),
@@ -125,6 +126,7 @@ test.describe('Metadata Extraction Validation', () => {
 
     if (exists) {
       const structure = await mainContent.evaluate((el) => {
+        // biome-ignore lint/suspicious/noExplicitAny: Recursive structure extraction requires flexible return type
         function extractDeep(element: Element, depth = 0, maxDepth = 3): any {
           if (depth > maxDepth) return null;
 

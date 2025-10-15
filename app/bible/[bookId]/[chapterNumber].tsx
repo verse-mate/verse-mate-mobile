@@ -24,6 +24,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
@@ -42,7 +44,7 @@ import {
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
   useSaveLastRead,
-} from '@/src/api/bible';
+} from '@/src/api/generated';
 
 /**
  * Chapter Screen Component
@@ -68,6 +70,9 @@ export default function ChapterScreen() {
 
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
+
+  // Navigation modal state (Task 7.9)
+  const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
 
   // Hamburger menu state (Task 8.5)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -118,7 +123,7 @@ export default function ChapterScreen() {
   const { progress } = useBookProgress(validBookId, validChapter, totalChapters);
 
   // Fetch chapter data
-  const { data: chapter, isLoading, error } = useBibleChapter(validBookId, validChapter);
+  const { data: chapter, isLoading } = useBibleChapter(validBookId, validChapter);
 
   // Fetch explanations for each tab
   // Active tab loads immediately, inactive tabs load in background
@@ -302,7 +307,7 @@ export default function ChapterScreen() {
         bookName={chapter.bookName}
         chapterNumber={chapter.chapterNumber}
         onNavigationPress={() => {
-          // TODO: Open navigation modal (Task Group 7)
+          setIsNavigationModalOpen(true); // Task 7.9
         }}
         onReadModePress={() => {
           // Placeholder for read mode toggle
@@ -349,7 +354,11 @@ export default function ChapterScreen() {
               <ChapterReader
                 chapter={chapter}
                 activeTab={activeTab}
-                explanation={activeContent.data}
+                explanation={
+                  activeTab !== 'byline' && activeContent.data && 'content' in activeContent.data
+                    ? activeContent.data
+                    : undefined
+                }
               />
             </Animated.View>
           )}
@@ -366,6 +375,17 @@ export default function ChapterScreen() {
 
       {/* Progress Bar (Task 8.4) */}
       <ProgressBar percentage={progress.percentage} />
+
+      {/* Navigation Modal (Task 7.9) */}
+      <BibleNavigationModal
+        visible={isNavigationModalOpen}
+        onClose={() => setIsNavigationModalOpen(false)}
+        currentBookId={validBookId}
+        currentChapter={validChapter}
+        onSelectChapter={(bookId, chapter) => {
+          router.push(`/bible/${bookId}/${chapter}` as never);
+        }}
+      />
 
       {/* Hamburger Menu (Task 8.5) */}
       <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
@@ -399,8 +419,10 @@ function ChapterHeader({
   onReadModePress,
   onMenuPress,
 }: ChapterHeaderProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.header} testID="chapter-header">
+    <View style={[styles.header, { paddingTop: insets.top }]} testID="chapter-header">
       {/* Title */}
       <Text style={styles.headerTitle}>
         {bookName} {chapterNumber}
@@ -451,12 +473,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   header: {
-    height: headerSpecs.height,
+    minHeight: headerSpecs.height,
     backgroundColor: headerSpecs.backgroundColor,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: headerSpecs.padding,
+    paddingBottom: spacing.sm,
   },
   headerTitle: {
     fontSize: headerSpecs.titleFontSize,

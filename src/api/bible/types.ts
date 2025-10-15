@@ -1,393 +1,206 @@
 /**
- * Bible API TypeScript Types
+ * Bible API Types
  *
- * Generated from actual API responses
- * Base URL: https://api.verse-mate.apegro.dev
- * Date: 2025-10-06
+ * Type definitions for the Bible API responses, with transformations
+ * from the generated SDK types to the expected UI types.
  */
 
-// ============================================================================
-// Core Domain Types
-// ============================================================================
+// Re-export generated types
+export type {
+	GetBibleTestamentsResponse,
+	GetBibleBooksResponse,
+	GetBibleBookByBookIdByChapterNumberResponse,
+	GetBibleBookExplanationByBookIdByChapterNumberResponse,
+	PostBibleBookChapterLastReadResponse,
+} from '../generated/types.gen';
 
-/**
- * Genre classification for Bible books
- * Genres: 1=Law, 2=History, 3=Wisdom, 4=Prophets, 5=Gospels, 6=Acts, 7=Epistles, 8=Apocalyptic
- */
-export interface BibleGenre {
-  g: number;      // Genre ID
-  n: string;      // Genre name
-}
-
-/**
- * Verse with number and text
- */
-export interface Verse {
-  verseNumber: number;
-  text: string;
-}
-
-/**
- * Verse ID variant (used in /bible/books response)
- */
-export interface VerseWithId {
-  verseId: number;
-  text: string;
-}
-
-/**
- * Subtitle section header with verse range
- */
-export interface Subtitle {
-  subtitle: string;
-  start_verse: number;
-  end_verse: number;
-}
-
-/**
- * Chapter with verses and subtitles
- */
-export interface Chapter {
-  chapterNumber: number;
-  subtitles: Subtitle[];
-  verses: Verse[];
-}
-
-/**
- * Chapter variant with ID (used in /bible/books response)
- */
-export interface ChapterWithId {
-  chapterId: number;
-  subtitles: Subtitle[];
-  verses: VerseWithId[];
-}
-
-/**
- * Bible book metadata
- */
-export interface BibleBook {
-  bookId: number;
-  name: string;
-  testament: 'OT' | 'NT';
-  genre: BibleGenre;
-  chapters: Chapter[] | ChapterWithId[];
-}
-
-/**
- * Simplified book info (from /bible/testaments)
- *
- * Field mappings:
- * - b: book ID
- * - c: chapter count
- * - n: book name
- * - t: testament (OT/NT)
- * - g: genre ID
- */
-export interface TestamentBook {
-  b: number;      // bookId
-  c: number;      // chapter count
-  n: string;      // name
-  t: 'OT' | 'NT'; // testament
-  g: number;      // genre ID
-}
-
-// ============================================================================
-// API Response Types
-// ============================================================================
-
-/**
- * GET /bible/books
- *
- * Returns all 66 Bible books with ALL chapters and verses.
- * WARNING: This response is VERY large (~10MB+).
- * Use /bible/book/{bookId}/{chapterNumber} for single chapters instead.
- */
-export interface GetBibleBooksResponse {
-  books: BibleBook[];
-}
-
-/**
- * GET /bible/testaments
- *
- * Returns all 66 books with metadata but no verse content.
- * Lighter weight than /bible/books.
- */
-export interface GetBibleTestamentsResponse {
-  testaments: {
-    keys: TestamentBook[];
-  };
-}
-
-/**
- * GET /bible/book/{bookId}/{chapterNumber}
- *
- * Returns a single chapter with verses and subtitles.
- */
-export interface GetBibleChapterResponse {
-  book: {
-    bookId: number;
-    name: string;
-    testament: 'OT' | 'NT';
-    genre: BibleGenre;
-    chapters: [Chapter]; // Always array with single chapter
-  };
-}
-
-/**
- * GET /bible/book/explanation/{bookId}/{chapterNumber}
- *
- * Returns AI-generated explanation for a chapter.
- *
- * Query Parameters:
- * - versionKey?: string (Bible version, e.g., "NASB", "NIV")
- * - explanationType?: string (e.g., "summary", "byline", "detailed")
- */
-export interface GetBibleExplanationResponse {
-  explanation: {
-    book_id: number;
-    chapter_number: number;
-    type: string;                    // "summary", "byline", "detailed"
-    explanation: string;              // Markdown-formatted explanation
-    explanation_id: number;
-    language_code: string;            // e.g., "en-US"
-  };
-}
-
-/**
- * POST /bible/book/chapter/save-last-read
- *
- * Saves user's last read position.
- */
-export interface SaveLastReadRequest {
-  user_id: string;        // UUID
-  book_id: number;
-  chapter_number: number;
-}
-
-/**
- * POST /bible/book/chapter/last-read
- *
- * Gets user's last read position.
- */
-export interface GetLastReadRequest {
-  user_id: string;        // UUID
-}
-
-export interface GetLastReadResponse {
-  book_id: number;
-  chapter_number: number;
-}
-
-// ============================================================================
-// Normalized/Transformed Types (for Frontend Use)
-// ============================================================================
-
-/**
- * Normalized book metadata (without chapter content)
- * Used for book selection lists and navigation
- */
-export interface BookMetadata {
-  id: number;
-  name: string;
-  testament: 'OT' | 'NT';
-  chapterCount: number;
-  genre: {
-    id: number;
-    name: string;
-  };
-}
-
-/**
- * Normalized chapter content
- * Used for displaying Bible text
- */
-export interface ChapterContent {
-  bookId: number;
-  bookName: string;
-  chapterNumber: number;
-  testament: 'OT' | 'NT';
-  title: string;            // e.g., "Genesis 1"
-  sections: ChapterSection[];
-}
-
-/**
- * Chapter section with subtitle and verses
- */
-export interface ChapterSection {
-  subtitle?: string;
-  startVerse: number;
-  endVerse: number;
-  verses: Verse[];
-}
-
-/**
- * Normalized explanation content
- */
-export interface ExplanationContent {
-  bookId: number;
-  chapterNumber: number;
-  type: 'summary' | 'byline' | 'detailed';
-  content: string;          // Markdown-formatted
-  explanationId: number;
-  languageCode: string;
-}
-
-// ============================================================================
-// Helper/Utility Types
-// ============================================================================
-
-/**
- * Reading position tracking
- */
-export interface ReadingPosition {
-  bookId: number;
-  chapterNumber: number;
-  timestamp: number;        // Unix timestamp
-}
-
-/**
- * Reading progress for a book
- */
-export interface BookProgress {
-  bookId: number;
-  chaptersRead: number[];   // Array of chapter numbers read
-  lastChapterRead: number;
-  totalChapters: number;
-  percentage: number;       // 0-100
-}
-
-/**
- * Content tab type
- */
-export type ContentTabType = 'summary' | 'byline' | 'detailed';
-
-/**
- * Testament type
- */
+// Testament type
 export type Testament = 'OT' | 'NT';
 
-/**
- * Bible version key
- */
-export type BibleVersion = 'NASB' | 'NIV' | 'ESV' | 'KJV' | string;
-
-// ============================================================================
-// Type Guards
-// ============================================================================
-
-export function isOldTestament(bookId: number): boolean {
-  return bookId >= 1 && bookId <= 39;
+// Book metadata with friendly property names
+export interface BookMetadata {
+	/** Book ID (1-66) */
+	id: number;
+	/** Book name (e.g., "Genesis", "Matthew") */
+	name: string;
+	/** Testament (Old Testament or New Testament) */
+	testament: Testament;
+	/** Genre/category number */
+	genre: number;
+	/** Number of chapters in the book */
+	chapterCount: number;
 }
 
-export function isNewTestament(bookId: number): boolean {
-  return bookId >= 40 && bookId <= 66;
+// Reading position
+export interface ReadingPosition {
+	book_id: number;
+	chapter_number: number;
 }
 
-export function getTestament(bookId: number): Testament {
-  return isOldTestament(bookId) ? 'OT' : 'NT';
+// Chapter section
+export interface ChapterSection {
+	subtitle?: string | null;
+	startVerse?: number; // For UI display
+	endVerse?: number; // For UI display
+	verses: Verse[];
+}
+
+// Verse
+export interface Verse {
+	number: number;
+	text: string;
+	verseNumber: number; // API uses verseNumber, map to number (both required for compatibility)
+}
+
+// Explanation content
+export interface ExplanationContent {
+	/** Book ID (1-66) */
+	bookId: number;
+	/** Chapter number */
+	chapterNumber: number;
+	/** Explanation type (summary, detailed, etc.) */
+	type: string;
+	/** Explanation content */
+	content: string;
+	/** Language code (e.g., "en-US") */
+	languageCode: string;
+}
+
+// Bible book (full details)
+export interface BibleBook {
+	bookName: string;
+	chapterNumber: number;
+	sections: ChapterSection[];
+}
+
+// Chapter content
+export interface ChapterContent extends BibleBook {
+	/** Book ID (1-66) */
+	bookId: number;
+	/** Testament (Old Testament or New Testament) */
+	testament: string;
+	/** Title for display (e.g., "Genesis 1") */
+	title: string;
+}
+
+// Subtitle
+export interface Subtitle {
+	text: string;
+	verseNumber: number;
 }
 
 /**
- * Genre ID to name mapping
+ * Transform API testament response to BookMetadata array
  */
-export const GENRE_NAMES: Record<number, string> = {
-  1: 'Law',
-  2: 'History',
-  3: 'Wisdom',
-  4: 'Prophets',
-  5: 'Gospels',
-  6: 'Acts',
-  7: 'Epistles',
-  8: 'Apocalyptic',
-};
-
-/**
- * Get genre name from ID
- */
-export function getGenreName(genreId: number): string {
-  return GENRE_NAMES[genreId] || 'Unknown';
-}
-
-// ============================================================================
-// Data Transformers
-// ============================================================================
-
-/**
- * Transform TestamentBook to BookMetadata
- */
-export function transformTestamentBook(book: TestamentBook): BookMetadata {
-  return {
-    id: book.b,
-    name: book.n,
-    testament: book.t,
-    chapterCount: book.c,
-    genre: {
-      id: book.g,
-      name: getGenreName(book.g),
-    },
-  };
+export function transformTestamentsToBooks(
+	testaments: { b: number; n: string; t: Testament; g: number; c: number }[]
+): BookMetadata[] {
+	return testaments.map((book) => ({
+		id: book.b,
+		name: book.n,
+		testament: book.t,
+		genre: book.g,
+		chapterCount: book.c,
+	}));
 }
 
 /**
  * Transform API chapter response to ChapterContent
  */
-export function transformChapterResponse(response: GetBibleChapterResponse): ChapterContent {
-  const { book } = response;
-  const chapter = book.chapters[0]; // Always single chapter
+export function transformChapterResponse(apiResponse: {
+	book?: {
+		bookId: number;
+		name: string;
+		testament: string;
+		genre: { g: number; n: string | unknown };
+		chapters: {
+			chapterNumber: number;
+			subtitles: {
+				subtitle: string;
+				start_verse: number;
+				end_verse: number;
+			}[];
+			verses: {
+				verseNumber: number;
+				text: string;
+			}[];
+		}[];
+	};
+	message?: string;
+}): ChapterContent | null {
+	if (!apiResponse.book || !apiResponse.book.chapters || apiResponse.book.chapters.length === 0) {
+		return null;
+	}
 
-  // Group verses by subtitle sections
-  const sections: ChapterSection[] = [];
+	const book = apiResponse.book;
+	const chapter = book.chapters[0];
 
-  if (chapter.subtitles.length === 0) {
-    // No subtitles - all verses in one section
-    sections.push({
-      startVerse: 1,
-      endVerse: chapter.verses.length,
-      verses: chapter.verses,
-    });
-  } else {
-    // Group verses by subtitle
-    chapter.subtitles.forEach((subtitle, index) => {
-      const startVerse = subtitle.start_verse;
-      const endVerse = subtitle.end_verse;
+	// Group verses by subtitle
+	const sections: ChapterSection[] = [];
 
-      const sectionVerses = chapter.verses.filter(
-        v => v.verseNumber >= startVerse && v.verseNumber <= endVerse
-      );
+	if (chapter.subtitles && chapter.subtitles.length > 0) {
+		for (const subtitle of chapter.subtitles) {
+			const sectionVerses = chapter.verses
+				.filter(v => v.verseNumber >= subtitle.start_verse && v.verseNumber <= subtitle.end_verse)
+				.map(v => ({
+					number: v.verseNumber,
+					text: v.text,
+					verseNumber: v.verseNumber,
+				}));
 
-      sections.push({
-        subtitle: subtitle.subtitle,
-        startVerse,
-        endVerse,
-        verses: sectionVerses,
-      });
-    });
-  }
+			sections.push({
+				subtitle: subtitle.subtitle,
+				startVerse: subtitle.start_verse,
+				endVerse: subtitle.end_verse,
+				verses: sectionVerses,
+			});
+		}
+	} else {
+		// No subtitles, create single section
+		sections.push({
+			subtitle: null,
+			verses: chapter.verses.map(v => ({
+				number: v.verseNumber,
+				text: v.text,
+				verseNumber: v.verseNumber,
+			})),
+		});
+	}
 
-  return {
-    bookId: book.bookId,
-    bookName: book.name,
-    chapterNumber: chapter.chapterNumber,
-    testament: book.testament,
-    title: `${book.name} ${chapter.chapterNumber}`,
-    sections,
-  };
+	return {
+		bookId: book.bookId,
+		bookName: book.name,
+		chapterNumber: chapter.chapterNumber,
+		testament: book.testament,
+		title: `${book.name} ${chapter.chapterNumber}`,
+		sections,
+	};
 }
 
 /**
- * Transform explanation response to ExplanationContent
+ * Transform API explanation response
  */
-export function transformExplanationResponse(
-  response: GetBibleExplanationResponse
-): ExplanationContent {
-  const { explanation } = response;
+export function transformExplanationResponse(apiResponse: {
+	explanation?: {
+		book_id: number;
+		chapter_number: number;
+		type: string;
+		explanation: string | unknown;
+		explanation_id: number;
+		language_code: string;
+	};
+}): ExplanationContent | null {
+	if (!apiResponse.explanation) {
+		return null;
+	}
 
-  return {
-    bookId: explanation.book_id,
-    chapterNumber: explanation.chapter_number,
-    type: explanation.type as ContentTabType,
-    content: explanation.explanation,
-    explanationId: explanation.explanation_id,
-    languageCode: explanation.language_code,
-  };
+	return {
+		bookId: apiResponse.explanation.book_id,
+		chapterNumber: apiResponse.explanation.chapter_number,
+		type: apiResponse.explanation.type,
+		content: typeof apiResponse.explanation.explanation === 'string'
+			? apiResponse.explanation.explanation
+			: '',
+		languageCode: apiResponse.explanation.language_code,
+	};
 }

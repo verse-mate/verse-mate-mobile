@@ -14,16 +14,16 @@ const mockChapter: ChapterContent = {
   bookId: 1,
   bookName: 'Genesis',
   chapterNumber: 1,
-  title: 'Genesis 1',
   testament: 'OT',
+  title: 'Genesis 1',
   sections: [
     {
       subtitle: 'The Creation',
       startVerse: 1,
       endVerse: 2,
       verses: [
-        { verseNumber: 1, text: 'In the beginning God created the heavens and the earth.' },
-        { verseNumber: 2, text: 'The earth was formless and void.' },
+        { number: 1, verseNumber: 1, text: 'In the beginning God created the heavens and the earth.' },
+        { number: 2, verseNumber: 2, text: 'The earth was formless and void.' },
       ],
     },
     {
@@ -31,9 +31,9 @@ const mockChapter: ChapterContent = {
       startVerse: 3,
       endVerse: 5,
       verses: [
-        { verseNumber: 3, text: 'Then God said, "Let there be light"; and there was light.' },
-        { verseNumber: 4, text: 'God saw that the light was good.' },
-        { verseNumber: 5, text: 'God called the light day, and the darkness He called night.' },
+        { number: 3, verseNumber: 3, text: 'Then God said, "Let there be light"; and there was light.' },
+        { number: 4, verseNumber: 4, text: 'God saw that the light was good.' },
+        { number: 5, verseNumber: 5, text: 'God called the light day, and the darkness He called night.' },
       ],
     },
   ],
