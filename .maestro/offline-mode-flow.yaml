@@ -1,0 +1,94 @@
+---
+appId: com.versemate.mobile
+name: Offline Mode Flow
+description: Tests offline functionality and error handling
+tags:
+  - offline
+  - error-handling
+  - resilience
+
+---
+
+# Offline Mode E2E Test
+#
+# This flow tests offline functionality:
+# - Read cached content offline
+# - Display offline indicator
+# - Show error when navigating to uncached content
+# - Handle network reconnection
+#
+# User Journey:
+# 1. Launch app online and load Genesis 1
+# 2. Enable airplane mode (offline)
+# 3. Verify offline indicator appears
+# 4. Read cached content (should work)
+# 5. Try to navigate to uncached chapter (should fail gracefully)
+# 6. Disable airplane mode (online)
+# 7. Verify navigation works again
+
+- launchApp:
+    appId: com.versemate.mobile
+    clearState: true
+
+# Wait for app to load online
+- assertVisible: "Genesis 1"
+
+# Verify content loaded
+- assertVisible:
+    text: "The Creation"
+
+# Enable airplane mode to go offline
+- runScript: |
+    adb shell cmd connectivity airplane-mode enable
+
+# Wait for offline detection
+- wait: 2000
+
+# Verify offline indicator appears in header
+- assertVisible:
+    id: "offline-indicator"
+
+# Verify can still read cached content
+- assertVisible:
+    text: "The Creation"
+
+# Switch tabs - should work with cached content
+- tapOn:
+    id: "tab-byline"
+
+# Verify tab content cached and visible
+- assertVisible:
+    text: "Verse-by-Verse"
+
+# Try to navigate to next chapter (may not be cached)
+- tapOn:
+    id: "next-chapter-button"
+
+# Should show error toast about offline
+- assertVisible:
+    text: ".*offline.*"
+
+# Or should stay on current chapter if navigation blocked
+- assertVisible: "Genesis 1"
+
+# Disable airplane mode to go online
+- runScript: |
+    adb shell cmd connectivity airplane-mode disable
+
+# Wait for connection to restore
+- wait: 3000
+
+# Offline indicator should disappear
+- assertNotVisible:
+    id: "offline-indicator"
+
+# Now navigation should work
+- tapOn:
+    id: "next-chapter-button"
+
+# Verify Genesis 2 loads
+- assertVisible: "Genesis 2"
+
+# Verify content loaded from network
+- assertVisible:
+    text: "The Garden of Eden"

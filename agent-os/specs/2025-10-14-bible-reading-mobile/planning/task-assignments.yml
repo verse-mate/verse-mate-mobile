@@ -1,0 +1,30 @@
+task_assignments:
+  - task_group: "Task Group 1: Foundation - Design System & Core Utilities"
+    assigned_subagent: "ui-designer"
+
+  - task_group: "Task Group 2: Core Hook - Active Tab Persistence"
+    assigned_subagent: "api-engineer"
+
+  - task_group: "Task Group 3: Skeleton Loader Component"
+    assigned_subagent: "ui-designer"
+
+  - task_group: "Task Group 4: Chapter Reading Screen (Core Functionality)"
+    assigned_subagent: "ui-designer"
+
+  - task_group: "Task Group 5: Content Tabs (Reading Modes)"
+    assigned_subagent: "ui-designer"
+
+  - task_group: "Task Group 6: Chapter Navigation (Buttons & Gestures)"
+    assigned_subagent: "ui-designer"
+
+  - task_group: "Task Group 7: Navigation Modal (Book/Chapter Selection)"
+    assigned_subagent: "ui-designer"
+
+  - task_group: "Task Group 8: Progress Bar & Supporting Features"
+    assigned_subagent: "ui-designer"
+
+  - task_group: "Task Group 9: Deep Linking & App Launch"
+    assigned_subagent: "api-engineer"
+
+  - task_group: "Task Group 10: Integration Testing & Polish"
+    assigned_subagent: "testing-engineer"

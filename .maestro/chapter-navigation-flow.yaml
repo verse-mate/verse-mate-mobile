@@ -1,0 +1,90 @@
+---
+appId: com.versemate.mobile
+name: Chapter Navigation Flow
+description: Tests chapter navigation using buttons and swipe gestures
+tags:
+  - critical
+  - navigation
+  - bible
+
+---
+
+# Chapter Navigation E2E Test
+#
+# This flow tests chapter navigation functionality:
+# - Next/Previous chapter buttons
+# - Swipe gestures for navigation
+# - Progress bar updates
+#
+# User Journey:
+# 1. Launch app to Genesis 1
+# 2. Verify content loads
+# 3. Tap next chapter button → Genesis 2
+# 4. Swipe left → Genesis 3
+# 5. Verify progress bar updates
+
+- launchApp:
+    appId: com.versemate.mobile
+    clearState: true
+
+# Wait for app to load
+- assertVisible: "Genesis 1"
+
+# Verify chapter content is visible
+- assertVisible:
+    text: "The Creation"
+
+# Verify progress bar shows 2% (1/50)
+- assertVisible:
+    text: "2%"
+
+# Test next chapter button
+- tapOn:
+    id: "next-chapter-button"
+
+# Wait for Genesis 2 to load
+- assertVisible: "Genesis 2"
+
+# Verify new content loaded
+- assertVisible:
+    text: "The Garden of Eden"
+
+# Verify progress updated to 4% (2/50)
+- assertVisible:
+    text: "4%"
+
+# Test swipe gesture - swipe left for next chapter
+- swipe:
+    direction: LEFT
+    duration: 300
+
+# Wait for Genesis 3 to load
+- assertVisible: "Genesis 3"
+
+# Verify progress updated to 6% (3/50)
+- assertVisible:
+    text: "6%"
+
+# Test previous chapter button
+- tapOn:
+    id: "previous-chapter-button"
+
+# Should go back to Genesis 2
+- assertVisible: "Genesis 2"
+
+# Test swipe right for previous chapter
+- swipe:
+    direction: RIGHT
+    duration: 300
+
+# Should go back to Genesis 1
+- assertVisible: "Genesis 1"
+
+# Verify at chapter 1, previous button should be hidden
+- assertNotVisible:
+    id: "previous-chapter-button"
+
+# Verify floating action buttons are accessible
+- assertVisible:
+    id: "next-chapter-button"
+    traits: ["button"]
