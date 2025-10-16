@@ -10,15 +10,14 @@
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { router, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useLastRead } from '@/src/api/generated';
 
 // Keep the splash screen visible while we fetch last read position
 SplashScreen.preventAutoHideAsync();
@@ -29,15 +28,13 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes default stale time
       gcTime: 1000 * 60 * 30, // 30 minutes garbage collection
-      retry: 3,
+      retry: 0, // Disable retries until API is configured
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
   },
 });
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+// Removed anchor setting - no tabs directory exists
 
 /**
  * Root Layout Component
@@ -50,17 +47,27 @@ export const unstable_settings = {
  */
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [_appIsReady, setAppIsReady] = useState(false);
+
+  // Hide splash screen once the layout is ready
+  useEffect(() => {
+    async function hideSplash() {
+      try {
+        await SplashScreen.hideAsync();
+      } catch (err) {
+        console.error('Error hiding splash screen:', err);
+      }
+    }
+    hideSplash();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <AppLaunchNavigator onReady={() => setAppIsReady(true)} />
           <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="bible/[bookId]/[chapterNumber]" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />
         </ThemeProvider>
@@ -69,72 +76,4 @@ export default function RootLayout() {
   );
 }
 
-/**
- * App Launch Navigator
- *
- * Fetches user's last read position and navigates to it on app launch.
- * Falls back to Genesis 1 if no position found or error occurs.
- *
- * @see Task Group 9.5 - Implement app launch logic
- * @see Spec lines 542-550, 733-742 (Reading position)
- */
-function AppLaunchNavigator({ onReady }: { onReady: () => void }) {
-  const [hasNavigated, setHasNavigated] = useState(false);
-
-  // Fetch last read position for guest user
-  // TODO: Replace 'guest' with actual user ID when auth is added
-  const { data: lastRead, isLoading } = useLastRead('guest');
-
-  useEffect(() => {
-    async function navigateToLastRead() {
-      // Don't navigate if already done
-      if (hasNavigated) {
-        return;
-      }
-
-      // Wait for loading to complete
-      if (isLoading) {
-        return;
-      }
-
-      try {
-        // Maximum wait time: 2 seconds
-        const timeoutId = setTimeout(() => {
-          if (!hasNavigated) {
-            // Timeout reached, navigate to Genesis 1
-            router.replace('/bible/1/1' as never);
-            setHasNavigated(true);
-            SplashScreen.hideAsync();
-            onReady();
-          }
-        }, 2000);
-
-        if (lastRead?.book_id && lastRead?.chapter_number) {
-          // Navigate to last read position
-          clearTimeout(timeoutId);
-          router.replace(`/bible/${lastRead.book_id}/${lastRead.chapter_number}` as never);
-        } else {
-          // No last read position found, navigate to Genesis 1
-          clearTimeout(timeoutId);
-          router.replace('/bible/1/1' as never);
-        }
-
-        setHasNavigated(true);
-        await SplashScreen.hideAsync();
-        onReady();
-      } catch (err) {
-        // Error occurred, navigate to Genesis 1 as fallback
-        console.error('Error navigating to last read:', err);
-        router.replace('/bible/1/1' as never);
-        setHasNavigated(true);
-        await SplashScreen.hideAsync();
-        onReady();
-      }
-    }
-
-    navigateToLastRead();
-  }, [lastRead, isLoading, hasNavigated, onReady]);
-
-  // Return null - this is just a navigation handler
-  return null;
-}
+// AppLaunchNavigator removed - navigation logic moved to RootLayout useEffect

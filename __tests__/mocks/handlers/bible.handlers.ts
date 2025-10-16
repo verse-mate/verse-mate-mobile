@@ -18,7 +18,7 @@ import type {
 } from '../../../src/api/generated';
 
 // API Base URL - matches the generated SDK default
-const BIBLE_API_BASE_URL = 'http://localhost:4000';
+const BIBLE_API_BASE_URL = 'https://api.verse-mate.apegro.dev';
 
 /**
  * GET /bible/testaments
