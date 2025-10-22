@@ -4,11 +4,12 @@
  * Example tests demonstrating MSW usage for AI explanation endpoints
  */
 
-import { server } from '../mocks/server';
-import { http, HttpResponse } from 'msw';
+import { HttpResponse, http } from 'msw';
 import { mockJohn316Explanation } from '../mocks/data/explanations';
+import { server } from '../mocks/server';
 
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+// Match the MSW handler configuration and generated client baseUrl
+const API_BASE_URL = 'http://localhost:4000';
 
 describe('AI Explanation API', () => {
   describe('POST /api/explanations', () => {
@@ -65,9 +66,7 @@ describe('AI Explanation API', () => {
   describe('GET /api/explanations/:id', () => {
     it('should fetch an existing explanation by ID', async () => {
       // Act
-      const response = await fetch(
-        `${API_BASE_URL}/api/explanations/john-3-16-explanation`
-      );
+      const response = await fetch(`${API_BASE_URL}/api/explanations/john-3-16-explanation`);
       const data = await response.json();
 
       // Assert
@@ -79,9 +78,7 @@ describe('AI Explanation API', () => {
 
     it('should return 404 for non-existent explanation', async () => {
       // Act
-      const response = await fetch(
-        `${API_BASE_URL}/api/explanations/non-existent`
-      );
+      const response = await fetch(`${API_BASE_URL}/api/explanations/non-existent`);
       const data = await response.json();
 
       // Assert
