@@ -7,25 +7,25 @@
  * Task Group 10: Integration Testing & Polish
  */
 
-import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
+import { useActiveTab, useBookProgress } from '@/hooks/bible';
+import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
+import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import {
-  useBibleChapter,
-  useBibleSummary,
-  useSaveLastRead,
-  useBibleTestaments,
   useBibleByLine,
+  useBibleChapter,
   useBibleDetailed,
+  useBibleSummary,
+  useBibleTestaments,
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
-} from "@/src/api/generated";
-import { useActiveTab, useBookProgress } from '@/hooks/bible';
-import { useRecentBooks } from '@/hooks/bible/use-recent-books';
-import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
+  useSaveLastRead,
+} from '@/src/api/generated';
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -91,9 +91,7 @@ const mockGenesisChapter2 = {
       subtitle: 'The Garden of Eden',
       startVerse: 1,
       endVerse: 3,
-      verses: [
-        { verseNumber: 1, text: 'Thus the heavens and the earth were completed.' },
-      ],
+      verses: [{ verseNumber: 1, text: 'Thus the heavens and the earth were completed.' }],
     },
   ],
 };
@@ -110,9 +108,7 @@ const mockMatthewChapter5 = {
       subtitle: 'The Beatitudes',
       startVerse: 1,
       endVerse: 12,
-      verses: [
-        { verseNumber: 1, text: 'When Jesus saw the crowds, He went up on the mountain.' },
-      ],
+      verses: [{ verseNumber: 1, text: 'When Jesus saw the crowds, He went up on the mountain.' }],
     },
   ],
 };
@@ -138,7 +134,11 @@ const mockByLineData = {
       startVerse: 1,
       endVerse: 2,
       verses: [
-        { verseNumber: 1, number: 1, text: 'In the beginning God created the heavens and the earth.' },
+        {
+          verseNumber: 1,
+          number: 1,
+          text: 'In the beginning God created the heavens and the earth.',
+        },
         { verseNumber: 2, number: 2, text: 'The earth was formless and void.' },
       ],
     },
@@ -156,10 +156,12 @@ function renderWithSafeArea(component: React.ReactElement) {
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider initialMetrics={{
-        frame: { x: 0, y: 0, width: 390, height: 844 },
-        insets: { top: 47, left: 0, right: 0, bottom: 34 },
-      }}>
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 47, left: 0, right: 0, bottom: 34 },
+        }}
+      >
         {children}
       </SafeAreaProvider>
     </QueryClientProvider>
@@ -280,7 +282,7 @@ describe('Bible Reading Interface - Integration Tests', () => {
     });
 
     // 3. Switch to By Line tab
-    const tabsContainer = getByTestId('chapter-content-tabs');
+    const _tabsContainer = getByTestId('chapter-content-tabs');
     const byLineTab = screen.getByText('By Line');
     fireEvent.press(byLineTab);
 

@@ -7,7 +7,7 @@
  * @see Task Group 5.1 - Write 3-5 focused tests for ChapterContentTabs
  */
 
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import type { ContentTabType } from '@/types/bible';
 

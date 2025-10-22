@@ -5,23 +5,23 @@
  * Tests core functionality: rendering, loading states, reading position persistence.
  */
 
-import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useLocalSearchParams, router } from 'expo-router';
+import { render, screen, waitFor, within } from '@testing-library/react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
+import { useActiveTab, useBookProgress, useRecentBooks } from '@/hooks/bible';
 import {
-  useBibleChapter,
-  useSaveLastRead,
-  useBibleTestaments,
-  useBibleSummary,
   useBibleByLine,
+  useBibleChapter,
   useBibleDetailed,
+  useBibleSummary,
+  useBibleTestaments,
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
-} from "@/src/api/generated";
-import { useActiveTab, useBookProgress, useRecentBooks } from '@/hooks/bible';
+  useSaveLastRead,
+} from '@/src/api/generated';
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -103,10 +103,12 @@ function renderWithSafeArea(component: React.ReactElement) {
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider initialMetrics={{
-        frame: { x: 0, y: 0, width: 390, height: 844 },
-        insets: { top: 47, left: 0, right: 0, bottom: 34 },
-      }}>
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 47, left: 0, right: 0, bottom: 34 },
+        }}
+      >
         {children}
       </SafeAreaProvider>
     </QueryClientProvider>

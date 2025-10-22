@@ -4,9 +4,7 @@
  * Example tests demonstrating MSW usage for AI explanation endpoints
  */
 
-import { HttpResponse, http } from 'msw';
 import { mockJohn316Explanation } from '../mocks/data/explanations';
-import { server } from '../mocks/server';
 
 // Match the MSW handler configuration and generated client baseUrl
 const API_BASE_URL = 'http://localhost:4000';

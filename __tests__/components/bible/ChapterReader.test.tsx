@@ -22,7 +22,11 @@ const mockChapter: ChapterContent = {
       startVerse: 1,
       endVerse: 2,
       verses: [
-        { number: 1, verseNumber: 1, text: 'In the beginning God created the heavens and the earth.' },
+        {
+          number: 1,
+          verseNumber: 1,
+          text: 'In the beginning God created the heavens and the earth.',
+        },
         { number: 2, verseNumber: 2, text: 'The earth was formless and void.' },
       ],
     },
@@ -31,9 +35,17 @@ const mockChapter: ChapterContent = {
       startVerse: 3,
       endVerse: 5,
       verses: [
-        { number: 3, verseNumber: 3, text: 'Then God said, "Let there be light"; and there was light.' },
+        {
+          number: 3,
+          verseNumber: 3,
+          text: 'Then God said, "Let there be light"; and there was light.',
+        },
         { number: 4, verseNumber: 4, text: 'God saw that the light was good.' },
-        { number: 5, verseNumber: 5, text: 'God called the light day, and the darkness He called night.' },
+        {
+          number: 5,
+          verseNumber: 5,
+          text: 'God called the light day, and the darkness He called night.',
+        },
       ],
     },
   ],
@@ -43,7 +55,8 @@ const mockExplanation = {
   bookId: 1,
   chapterNumber: 1,
   type: 'summary' as const,
-  content: '## Summary\n\nThis chapter describes the creation of the world.\n\n**Key Points:**\n- God created everything\n- It was very good',
+  content:
+    '## Summary\n\nThis chapter describes the creation of the world.\n\n**Key Points:**\n- God created everything\n- It was very good',
   explanationId: 1,
   languageCode: 'en-US',
 };
@@ -95,11 +108,7 @@ describe('ChapterReader', () => {
    */
   it('renders explanation content in markdown format', () => {
     render(
-      <ChapterReader
-        chapter={mockChapter}
-        activeTab="summary"
-        explanation={mockExplanation}
-      />
+      <ChapterReader chapter={mockChapter} activeTab="summary" explanation={mockExplanation} />
     );
 
     // Markdown should render the heading and content
@@ -111,9 +120,7 @@ describe('ChapterReader', () => {
    * Test 6: Renders multiple sections correctly
    */
   it('renders all sections in order', () => {
-    const { getAllByTestId } = render(
-      <ChapterReader chapter={mockChapter} activeTab="summary" />
-    );
+    const { getAllByTestId } = render(<ChapterReader chapter={mockChapter} activeTab="summary" />);
 
     const sections = getAllByTestId(/chapter-section-/);
     expect(sections).toHaveLength(2);

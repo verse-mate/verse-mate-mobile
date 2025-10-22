@@ -28,9 +28,7 @@ export interface ExplanationRequest {
 /**
  * Create a mock AI explanation
  */
-export const createMockExplanation = (
-  overrides?: Partial<Explanation>
-): Explanation => ({
+export const createMockExplanation = (overrides?: Partial<Explanation>): Explanation => ({
   id: 'explanation-1',
   verseId: 'verse-1',
   content:
@@ -61,7 +59,7 @@ export const createMockExplanationWithTranslations = (
     {
       language: 'fr',
       content:
-        'Ce verset est souvent appelé "l\'Évangile en bref" car il résume le message central du christianisme : l\'amour de Dieu pour l\'humanité et le don du salut par Jésus-Christ.',
+        "Ce verset est souvent appelé \"l'Évangile en bref\" car il résume le message central du christianisme : l'amour de Dieu pour l'humanité et le don du salut par Jésus-Christ.",
     },
   ],
   ...overrides,

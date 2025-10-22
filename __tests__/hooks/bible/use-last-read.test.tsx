@@ -6,11 +6,14 @@
  * @see Task Group 9.4 - Test useLastRead hook
  */
 
-import { renderHook, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { useLastRead } from '@/src/api/generated';
-import { setMockLastReadPosition, clearMockLastReadPosition } from '../../mocks/handlers/bible.handlers';
+import {
+  clearMockLastReadPosition,
+  setMockLastReadPosition,
+} from '../../mocks/handlers/bible.handlers';
 
 describe('useLastRead', () => {
   let queryClient: QueryClient;

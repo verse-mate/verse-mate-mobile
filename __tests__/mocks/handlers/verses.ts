@@ -61,7 +61,7 @@ export const verseHandlers = [
       ...verse,
       id: `${book.toLowerCase()}-${chapter}-${index + 1}`,
       book,
-      chapter: Number.parseInt(chapter),
+      chapter: Number.parseInt(chapter, 10),
       verse: index + 1,
     }));
 

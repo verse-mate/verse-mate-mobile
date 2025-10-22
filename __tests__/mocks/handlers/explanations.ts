@@ -87,7 +87,7 @@ export const explanationHandlers = [
 
   // POST /api/explanations/:id/translate - Translate an explanation
   http.post(`${API_BASE_URL}/api/explanations/:id/translate`, async ({ params, request }) => {
-    const { id } = params;
+    const { id: _id } = params;
     const body = (await request.json()) as { language: string };
 
     if (!body.language) {
