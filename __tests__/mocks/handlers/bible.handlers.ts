@@ -4,45 +4,43 @@
  * Mock handlers for all Bible-related endpoints
  */
 
-import { http, HttpResponse } from 'msw';
+import { HttpResponse, http } from 'msw';
+import type {
+  GetBibleChapterResponse,
+  GetBibleExplanationResponse,
+  GetBibleTestamentsResponse,
+  GetLastReadRequest,
+  GetLastReadResponse,
+  SaveLastReadRequest,
+} from '../../../src/api/generated';
 import { mockTestamentBooks } from '../data/bible-books.data';
 import { mockGenesis1Response, mockGenesis1Summary } from '../data/genesis-1.data';
 import { mockMatthew5Response } from '../data/matthew-5.data';
-import type {
-  GetBibleTestamentsResponse,
-  GetBibleChapterResponse,
-  GetBibleExplanationResponse,
-  SaveLastReadRequest,
-  GetLastReadRequest,
-  GetLastReadResponse,
-} from '../../../src/api/generated';
 
 // API Base URL - matches the generated SDK default
-const BIBLE_API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+// Use localhost for tests since the generated client.gen.ts uses http://localhost:4000
+const BIBLE_API_BASE_URL = 'http://localhost:4000';
 
 /**
  * GET /bible/testaments
  * Returns all 66 Bible books with metadata
  */
-export const getBibleTestamentsHandler = http.get(
-  `${BIBLE_API_BASE_URL}/bible/testaments`,
-  () => {
-    // Transform BookMetadata back to API format
-    const testaments = mockTestamentBooks.map(book => ({
-      b: book.id,
-      n: book.name,
-      t: book.testament,
-      g: book.genre,
-      c: book.chapterCount,
-    }));
+export const getBibleTestamentsHandler = http.get(`${BIBLE_API_BASE_URL}/bible/testaments`, () => {
+  // Transform BookMetadata back to API format
+  const testaments = mockTestamentBooks.map((book) => ({
+    b: book.id,
+    n: book.name,
+    t: book.testament,
+    g: book.genre,
+    c: book.chapterCount,
+  }));
 
-    const response: GetBibleTestamentsResponse = {
-      testaments,
-    };
+  const response: GetBibleTestamentsResponse = {
+    testaments,
+  };
 
-    return HttpResponse.json(response);
-  }
-);
+  return HttpResponse.json(response);
+});
 
 /**
  * GET /bible/book/:bookId/:chapterNumber
@@ -68,17 +66,11 @@ export const getBibleChapterHandler = http.get(
     const book = mockTestamentBooks.find((b) => b.id === bookIdNum);
 
     if (!book) {
-      return HttpResponse.json(
-        { error: 'Book not found' },
-        { status: 404 }
-      );
+      return HttpResponse.json({ error: 'Book not found' }, { status: 404 });
     }
 
     if (chapterNum < 1 || chapterNum > book.chapterCount) {
-      return HttpResponse.json(
-        { error: 'Chapter not found' },
-        { status: 404 }
-      );
+      return HttpResponse.json({ error: 'Chapter not found' }, { status: 404 });
     }
 
     const response: GetBibleChapterResponse = {
@@ -136,10 +128,7 @@ export const getBibleExplanationHandler = http.get(
     const book = mockTestamentBooks.find((b) => b.id === bookIdNum);
 
     if (!book) {
-      return HttpResponse.json(
-        { error: 'Book not found' },
-        { status: 404 }
-      );
+      return HttpResponse.json({ error: 'Book not found' }, { status: 404 });
     }
 
     const response: GetBibleExplanationResponse = {
@@ -168,10 +157,7 @@ export const saveLastReadHandler = http.post(
 
     // Validate request
     if (!body.user_id || !body.book_id || !body.chapter_number) {
-      return HttpResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return HttpResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     // Success response (API returns empty 200)
@@ -191,10 +177,7 @@ export const getLastReadHandler = http.post(
     const body = (await request.json()) as GetLastReadRequest;
 
     if (!body.user_id) {
-      return HttpResponse.json(
-        { error: 'Missing user_id' },
-        { status: 400 }
-      );
+      return HttpResponse.json({ error: 'Missing user_id' }, { status: 400 });
     }
 
     // Return mock last read position or default to Genesis 1
@@ -206,7 +189,7 @@ export const getLastReadHandler = http.post(
         chapterNumber: 1,
         testament: 'OT',
         explanation: [],
-      }
+      },
     };
 
     return HttpResponse.json(response);
