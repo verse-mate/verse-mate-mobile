@@ -1,7 +1,7 @@
 ---
 appId: com.versemate.mobile
 name: Bible Reading Critical Path
-description: Tests the core user flow for reading daily Bible verses
+description: Tests the core user flow for reading Bible chapters
 tags:
   - critical
   - bible
@@ -11,57 +11,47 @@ tags:
 
 # Bible Reading Critical Path E2E Test
 #
-# This flow tests the primary use case: User opens app and reads daily verse
+# This flow tests the primary use case: User opens app and reads Genesis 1
 #
 # User Journey:
-# 1. Launch app
-# 2. View daily verse on home screen
-# 3. Navigate to verse details
-# 4. Read full verse content
-# 5. Verify verse metadata (book, chapter, verse number)
+# 1. Launch app (redirects to Genesis 1)
+# 2. Verify Genesis 1 chapter loads
+# 3. Verify content and tabs are visible
+# 4. Verify verses are readable
 
 - launchApp:
     appId: com.versemate.mobile
     clearState: true
 
-# Wait for app to load
-- assertVisible: "VerseMate"
+# App redirects to Genesis 1
+- assertVisible: "Genesis 1"
 
-# Verify daily verse card is visible on home screen
+# Verify section heading is visible
+- assertVisible: "The Creation"
+
+# Verify tabs are visible using testIDs
 - assertVisible:
-    id: "daily-verse-card"
-
-# Verify verse reference is displayed
+    id: "tab-summary"
 - assertVisible:
-    text: ".*\\d+:\\d+.*"  # Matches "Book Chapter:Verse" format
+    id: "tab-byline"
+- assertVisible:
+    id: "tab-detailed"
 
-# Tap on daily verse to view details
+# Verify first verse is visible
+- assertVisible:
+    text: ".*In the beginning God created.*"
+
+# Test tab switching - tap "By Line"
 - tapOn:
-    id: "daily-verse-card"
+    id: "tab-byline"
 
-# Wait for verse detail screen to load
-- assertVisible: "Verse Details"
+# Verify tab switched (content should still be visible)
+- assertVisible: "Genesis 1"
 
-# Verify verse text content is visible
-- assertVisible:
-    id: "verse-text"
-
-# Verify verse is accessible (screen reader compatible)
-# Note: Accessibility traits checking removed - not supported in Maestro 2.0
-
-# Verify book reference is visible
-- assertVisible:
-    id: "verse-reference"
-
-# Verify translation badge is visible (e.g., "NIV", "ESV")
-- assertVisible:
-    id: "translation-badge"
-
-# Go back to home screen
+# Switch back to Summary
 - tapOn:
-    id: "back-button"
+    id: "tab-summary"
 
-# Verify returned to home screen
-- assertVisible: "VerseMate"
-- assertVisible:
-    id: "daily-verse-card"
+# Verify still on Genesis 1
+- assertVisible: "Genesis 1"
+- assertVisible: "The Creation"

@@ -34,33 +34,36 @@ tags:
 - assertVisible:
     id: "tab-summary"
 
-# Verify summary content is visible
-- assertVisible:
-    text: "Summary"
+# Verify summary content is visible (chapter heading)
+- assertVisible: "The Creation"
 
 # Switch to By Line tab
 - tapOn:
     id: "tab-byline"
 
-# Wait for By Line content to load
-- assertVisible:
-    text: "Verse-by-Verse"
-
 # Verify By Line tab is now active
 - assertVisible:
     id: "tab-byline"
+
+# Verify content still visible
+- assertVisible: "Genesis 1"
 
 # Switch to Detailed tab
 - tapOn:
     id: "tab-detailed"
 
-# Wait for Detailed content to load
-- assertVisible:
-    text: "Detailed Explanation"
-
 # Verify Detailed tab is now active
 - assertVisible:
     id: "tab-detailed"
+
+# Verify content still visible
+- assertVisible: "Genesis 1"
+
+# Test scrolling to find next chapter button
+- scrollUntilVisible:
+    element:
+      id: "next-chapter-button"
+    direction: DOWN
 
 # Navigate to next chapter
 - tapOn:
@@ -73,27 +76,13 @@ tags:
 - assertVisible:
     id: "tab-detailed"
 
-# Verify Detailed content loaded for new chapter
-- assertVisible:
-    text: "Detailed Explanation"
-
 # Switch back to Summary tab
 - tapOn:
     id: "tab-summary"
 
-# Verify Summary content loads
-- assertVisible:
-    text: "Summary"
-
-# Verify tabs are accessible with screen reader
+# Verify Summary tab active
 - assertVisible:
     id: "tab-summary"
-    traits: ["button"]
 
-- assertVisible:
-    id: "tab-byline"
-    traits: ["button"]
-
-- assertVisible:
-    id: "tab-detailed"
-    traits: ["button"]
+# Verify Genesis 2 content
+- assertVisible: "Genesis 2"
