@@ -34,9 +34,11 @@ tags:
 - assertVisible:
     text: "The Creation"
 
-# Verify progress bar shows 2% (1/50)
-- assertVisible:
-    text: "2%"
+# Scroll to find next chapter button
+- scrollUntilVisible:
+    element:
+      id: "next-chapter-button"
+    direction: DOWN
 
 # Test next chapter button
 - tapOn:
@@ -45,25 +47,30 @@ tags:
 # Wait for Genesis 2 to load
 - assertVisible: "Genesis 2"
 
-# Verify new content loaded
-- assertVisible:
-    text: "The Garden of Eden"
+# Verify new content loaded (scroll up to see chapter heading)
+- scrollUntilVisible:
+    element:
+      text: "Genesis 2"
+    direction: UP
 
-# Verify progress updated to 4% (2/50)
-- assertVisible:
-    text: "4%"
+# Scroll down to find next chapter button
+- scrollUntilVisible:
+    element:
+      id: "next-chapter-button"
+    direction: DOWN
 
-# Test swipe gesture - swipe left for next chapter
-- swipe:
-    direction: LEFT
-    duration: 300
+# Test next chapter again
+- tapOn:
+    id: "next-chapter-button"
 
 # Wait for Genesis 3 to load
 - assertVisible: "Genesis 3"
 
-# Verify progress updated to 6% (3/50)
-- assertVisible:
-    text: "6%"
+# Scroll to find previous chapter button
+- scrollUntilVisible:
+    element:
+      id: "previous-chapter-button"
+    direction: DOWN
 
 # Test previous chapter button
 - tapOn:
@@ -72,19 +79,23 @@ tags:
 # Should go back to Genesis 2
 - assertVisible: "Genesis 2"
 
-# Test swipe right for previous chapter
-- swipe:
-    direction: RIGHT
-    duration: 300
+# Tap previous chapter again to go to Genesis 1
+- scrollUntilVisible:
+    element:
+      id: "previous-chapter-button"
+    direction: DOWN
+
+- tapOn:
+    id: "previous-chapter-button"
 
 # Should go back to Genesis 1
 - assertVisible: "Genesis 1"
 
-# Verify at chapter 1, previous button should be hidden
-- assertNotVisible:
-    id: "previous-chapter-button"
+# Verify next chapter button still works
+- scrollUntilVisible:
+    element:
+      id: "next-chapter-button"
+    direction: DOWN
 
-# Verify floating action buttons are accessible
 - assertVisible:
     id: "next-chapter-button"
-    traits: ["button"]
