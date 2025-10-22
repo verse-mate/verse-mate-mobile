@@ -11,10 +11,10 @@
  * @see component: /components/bible/BibleNavigationModal.tsx
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
-import { useBibleTestaments } from '@/src/api/generated';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
+import { useBibleTestaments } from '@/src/api/generated';
 
 // Mock dependencies
 jest.mock('@/src/api/generated');

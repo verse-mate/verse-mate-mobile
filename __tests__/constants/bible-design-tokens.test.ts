@@ -12,12 +12,12 @@
 
 import {
   colors,
-  spacing,
   fontSizes,
-  typography,
   getColor,
-  getSpacing,
   getFontSize,
+  getSpacing,
+  spacing,
+  typography,
 } from '@/constants/bible-design-tokens';
 
 describe('Design Tokens', () => {
@@ -36,9 +36,9 @@ describe('Design Tokens', () => {
       const b = Number.parseInt(hex.substring(4, 6), 16) / 255;
 
       // Apply gamma correction
-      const rLinear = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
-      const gLinear = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
-      const bLinear = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+      const rLinear = r <= 0.03928 ? r / 12.92 : ((r + 0.055) / 1.055) ** 2.4;
+      const gLinear = g <= 0.03928 ? g / 12.92 : ((g + 0.055) / 1.055) ** 2.4;
+      const bLinear = b <= 0.03928 ? b / 12.92 : ((b + 0.055) / 1.055) ** 2.4;
 
       // Calculate relative luminance
       return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;

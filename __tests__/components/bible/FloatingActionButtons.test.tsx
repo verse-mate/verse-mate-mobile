@@ -7,7 +7,7 @@
  * @see Task 6.1 - Write 3-5 focused tests for FloatingActionButtons
  */
 
-import { render, fireEvent } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 
 describe('FloatingActionButtons', () => {

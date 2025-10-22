@@ -89,7 +89,7 @@ describe('Deep Linking', () => {
     it('should handle negative bookId by redirecting to Genesis 1', () => {
       // Negative bookId
       const invalidBookId = -1;
-      const chapter = 1;
+      const _chapter = 1;
 
       // Validation should clamp to minimum of 1
       const validBookId = Math.max(1, invalidBookId);

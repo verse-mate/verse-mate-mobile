@@ -4,19 +4,22 @@
  * Tests for React Query hooks with MSW mocking
  */
 
-import { renderHook, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import {
-  useBibleTestaments,
+  bibleKeys,
   useBibleChapter,
   useBibleExplanation,
   useBibleSummary,
-  useSaveLastRead,
+  useBibleTestaments,
   useLastRead,
-  bibleKeys,
+  useSaveLastRead,
 } from '../../src/api/generated';
-import { setMockLastReadPosition, clearMockLastReadPosition } from '../mocks/handlers/bible.handlers';
+import {
+  clearMockLastReadPosition,
+  setMockLastReadPosition,
+} from '../mocks/handlers/bible.handlers';
 
 // Create a new QueryClient for each test
 function createTestQueryClient() {
@@ -285,7 +288,12 @@ describe('Bible API Hooks', () => {
     it('should generate correct query keys', () => {
       expect(bibleKeys.testaments()).toBeDefined();
       expect(bibleKeys.chapter({ path: { bookId: '1', chapterNumber: '1' } })).toBeDefined();
-      expect(bibleKeys.explanation({ path: { bookId: '1', chapterNumber: '1' }, query: { explanationType: 'summary' } })).toBeDefined();
+      expect(
+        bibleKeys.explanation({
+          path: { bookId: '1', chapterNumber: '1' },
+          query: { explanationType: 'summary' },
+        })
+      ).toBeDefined();
     });
   });
 });
