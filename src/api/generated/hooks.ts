@@ -268,15 +268,16 @@ export const useBibleByLine = (
 	options?: { enabled?: boolean }
 ) => {
 	const query = useQuery({
-		...getBibleBookByBookIdByChapterNumberOptions({
+		...getBibleBookExplanationByBookIdByChapterNumberOptions({
 			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
+			query: { explanationType: 'byline' },
 		}),
 		enabled: options?.enabled,
 	});
 
 	return {
 		...query,
-		data: query.data && 'book' in query.data ? transformChapterResponse(query.data as any) : null,
+		data: query.data && 'explanation' in query.data ? transformExplanationResponse(query.data as any) : null,
 	};
 };
 
