@@ -27,15 +27,23 @@ tags:
     appId: com.versemate.mobile
     clearState: true
 
-# Wait for app to load
+# Wait for app to load (in Bible view by default)
 - assertVisible: "Genesis 1"
 
-# Verify Summary tab is active by default
+# Tabs should NOT be visible in Bible view
+- assertNotVisible:
+    id: "chapter-content-tabs"
+
+# Switch to Explanations view to access tabs
+- tapOn:
+    id: "explanations-view-icon"
+
+# Now tabs should be visible, Summary tab active by default
 - assertVisible:
     id: "tab-summary"
 
-# Verify summary content is visible (chapter heading)
-- assertVisible: "The Creation"
+# Verify content
+- assertVisible: "Genesis 1"
 
 # Switch to By Line tab
 - tapOn:
