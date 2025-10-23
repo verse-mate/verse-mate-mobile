@@ -11,47 +11,47 @@ tags:
 
 # Bible Reading Critical Path E2E Test
 #
-# This flow tests the primary use case: User opens app and reads Genesis 1
+# This flow tests the primary use case: User opens app and reads Genesis 1 in Bible view
 #
 # User Journey:
-# 1. Launch app (redirects to Genesis 1)
+# 1. Launch app (redirects to Genesis 1 in Bible view)
 # 2. Verify Genesis 1 chapter loads
-# 3. Verify content and tabs are visible
-# 4. Verify verses are readable
+# 3. Verify Bible verses are visible (no tabs in Bible view)
+# 4. Verify view switcher icons work
 
 - launchApp:
     appId: com.versemate.mobile
     clearState: true
 
-# App redirects to Genesis 1
+# App redirects to Genesis 1 in Bible view (default)
 - assertVisible: "Genesis 1"
 
 # Verify section heading is visible
 - assertVisible: "The Creation"
 
-# Verify tabs are visible using testIDs
+# Verify Bible view icon is active (testID)
 - assertVisible:
-    id: "tab-summary"
-- assertVisible:
-    id: "tab-byline"
-- assertVisible:
-    id: "tab-detailed"
+    id: "bible-view-icon"
 
-# Verify first verse is visible
+# Verify Explanations view icon is present
+- assertVisible:
+    id: "explanations-view-icon"
+
+# Verify first verse is visible in Bible view
 - assertVisible:
     text: ".*In the beginning God created.*"
 
-# Test tab switching - tap "By Line"
-- tapOn:
-    id: "tab-byline"
+# Tabs should NOT be visible in Bible view
+- assertNotVisible:
+    id: "chapter-content-tabs"
 
-# Verify tab switched (content should still be visible)
-- assertVisible: "Genesis 1"
-
-# Switch back to Summary
+# Switch to Explanations view
 - tapOn:
+    id: "explanations-view-icon"
+
+# Tabs should now be visible in Explanations view
+- assertVisible:
     id: "tab-summary"
 
 # Verify still on Genesis 1
 - assertVisible: "Genesis 1"
-- assertVisible: "The Creation"
