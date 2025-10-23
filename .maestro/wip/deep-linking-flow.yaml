@@ -30,9 +30,6 @@ tags:
     url: "versemate://bible/40/5"
     clearState: true
 
-# Wait for app to load
-- wait: 2000
-
 # Verify Matthew 5 loaded from deep link
 - assertVisible: "Matthew 5"
 
@@ -50,9 +47,6 @@ tags:
     url: "versemate://bible/999/1"
     clearState: true
 
-# Wait for redirect
-- wait: 2000
-
 # Should redirect to Genesis 1
 - assertVisible: "Genesis 1"
 
@@ -66,9 +60,6 @@ tags:
     url: "versemate://bible/1/999"
     clearState: true
 
-# Wait for redirect
-- wait: 2000
-
 # Should redirect to Genesis 1 (first chapter)
 - assertVisible: "Genesis 1"
 
@@ -77,9 +68,6 @@ tags:
     appId: com.versemate.mobile
     url: "versemate://bible/43/3"
     clearState: true
-
-# Wait for app to load
-- wait: 2000
 
 # Verify John 3 loaded
 - assertVisible: "John 3"
@@ -101,9 +89,6 @@ tags:
 - launchApp:
     appId: com.versemate.mobile
     url: "versemate://bible/1/2"
-
-# Wait for load
-- wait: 2000
 
 # Verify Genesis 2 loaded
 - assertVisible: "Genesis 2"

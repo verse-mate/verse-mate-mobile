@@ -41,9 +41,6 @@ tags:
 - runScript: |
     adb shell cmd connectivity airplane-mode enable
 
-# Wait for offline detection
-- wait: 2000
-
 # Verify offline indicator appears in header
 - assertVisible:
     id: "offline-indicator"
@@ -74,9 +71,6 @@ tags:
 # Disable airplane mode to go online
 - runScript: |
     adb shell cmd connectivity airplane-mode disable
-
-# Wait for connection to restore
-- wait: 3000
 
 # Offline indicator should disappear
 - assertNotVisible:
