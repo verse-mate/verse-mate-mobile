@@ -1,0 +1,98 @@
+---
+appId: com.versemate.mobile
+name: Deep Linking Flow
+description: Tests deep link navigation to specific chapters
+tags:
+  - critical
+  - deep-linking
+  - navigation
+
+---
+
+# Deep Linking E2E Test
+#
+# This flow tests deep link handling:
+# - Open app via deep link to specific chapter
+# - Verify correct chapter loads
+# - Test invalid deep links redirect correctly
+#
+# User Journey:
+# 1. Open deep link to Matthew 5
+# 2. Verify Matthew 5 loads correctly
+# 3. Open invalid deep link (book 999)
+# 4. Verify redirects to Genesis 1
+# 5. Open deep link with invalid chapter
+# 6. Verify redirects to first chapter of book
+
+# Test 1: Valid deep link to Matthew 5
+- launchApp:
+    appId: com.versemate.mobile
+    url: "versemate://bible/40/5"
+    clearState: true
+
+# Verify Matthew 5 loaded from deep link
+- assertVisible: "Matthew 5"
+
+# Verify content loaded
+- assertVisible:
+    text: "The Beatitudes"
+
+# Verify reading position saved
+- assertVisible:
+    id: "progress-bar"
+
+# Test 2: Invalid book ID (999)
+- launchApp:
+    appId: com.versemate.mobile
+    url: "versemate://bible/999/1"
+    clearState: true
+
+# Should redirect to Genesis 1
+- assertVisible: "Genesis 1"
+
+# Verify content loaded
+- assertVisible:
+    text: "The Creation"
+
+# Test 3: Invalid chapter number (999)
+- launchApp:
+    appId: com.versemate.mobile
+    url: "versemate://bible/1/999"
+    clearState: true
+
+# Should redirect to Genesis 1 (first chapter)
+- assertVisible: "Genesis 1"
+
+# Test 4: Valid deep link to John 3
+- launchApp:
+    appId: com.versemate.mobile
+    url: "versemate://bible/43/3"
+    clearState: true
+
+# Verify John 3 loaded
+- assertVisible: "John 3"
+
+# Verify famous verse visible
+- assertVisible:
+    text: ".*God so loved the world.*"
+
+# Test 5: Deep link preserves tab preference
+# First set tab to "By Line"
+- tapOn:
+    id: "tab-byline"
+
+# Verify tab active
+- assertVisible:
+    id: "tab-byline"
+
+# Open new deep link
+- launchApp:
+    appId: com.versemate.mobile
+    url: "versemate://bible/1/2"
+
+# Verify Genesis 2 loaded
+- assertVisible: "Genesis 2"
+
+# Verify "By Line" tab still active (tab persistence)
+- assertVisible:
+    id: "tab-byline"

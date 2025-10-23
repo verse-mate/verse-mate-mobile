@@ -1,6 +1,6 @@
-import React from 'react';
 import { render, screen } from '@testing-library/react-native';
-import { View, Text, StyleSheet } from 'react-native';
+import type React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 /**
  * Example VerseCard Component

@@ -45,7 +45,8 @@ export const createMockVerseWithExplanation = (
   ...createMockVerse(),
   explanation: {
     id: 'explanation-1',
-    content: 'This verse is often called the "Gospel in a nutshell" as it summarizes the core message of Christianity: God\'s love for humanity and the gift of salvation through Jesus Christ.',
+    content:
+      'This verse is often called the "Gospel in a nutshell" as it summarizes the core message of Christianity: God\'s love for humanity and the gift of salvation through Jesus Christ.',
     language: 'en',
     generatedAt: new Date('2025-10-03T12:00:00Z'),
   },

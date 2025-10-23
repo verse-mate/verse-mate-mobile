@@ -1,6 +1,6 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
-import { Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import type React from 'react';
+import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 /**
  * Example Button Component
