@@ -243,8 +243,8 @@ describe('Bible Reading Interface - Integration Tests', () => {
     (usePrefetchNextChapter as jest.Mock).mockReturnValue(jest.fn());
     (usePrefetchPreviousChapter as jest.Mock).mockReturnValue(jest.fn());
 
-    (router as any).push = jest.fn();
-    (router as any).replace = jest.fn();
+    router.push = jest.fn() as typeof router.push;
+    router.replace = jest.fn() as typeof router.replace;
   });
 
   /**
