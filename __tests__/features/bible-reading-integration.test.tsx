@@ -281,8 +281,15 @@ describe('Bible Reading Interface - Integration Tests', () => {
       chapter_number: 1,
     });
 
-    // 3. Switch to By Line tab
-    const _tabsContainer = getByTestId('chapter-content-tabs');
+    // 3. Switch to Explanations view (tabs are only visible in Explanations view)
+    const explanationsIcon = getByTestId('explanations-view-icon');
+    fireEvent.press(explanationsIcon);
+
+    await waitFor(() => {
+      expect(getByTestId('chapter-content-tabs')).toBeTruthy();
+    });
+
+    // 4. Switch to By Line tab
     const byLineTab = screen.getByText('By Line');
     fireEvent.press(byLineTab);
 
@@ -503,6 +510,14 @@ describe('Bible Reading Interface - Integration Tests', () => {
 
     await waitFor(() => {
       expect(getByTestId('chapter-header')).toBeTruthy();
+    });
+
+    // Switch to Explanations view to see tabs
+    const explanationsIcon = getByTestId('explanations-view-icon');
+    fireEvent.press(explanationsIcon);
+
+    await waitFor(() => {
+      expect(screen.getByText('By Line')).toBeTruthy();
     });
 
     // Navigate to next chapter
