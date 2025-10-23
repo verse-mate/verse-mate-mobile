@@ -1,0 +1,28 @@
+---
+appId: com.versemate.mobile
+name: By Line Screenshot Test
+description: Captures screenshot of By Line tab to verify content
+
+---
+
+- launchApp:
+    appId: com.versemate.mobile
+    clearState: true
+
+- assertVisible: "Genesis 1"
+
+# Switch to Explanations view
+- tapOn:
+    id: "explanations-view-icon"
+
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# Switch to By Line tab
+- tapOn:
+    id: "tab-byline"
+
+- waitForAnimationToEnd
+
+# Take screenshot to see what's visible
+- takeScreenshot: byline-tab-content
