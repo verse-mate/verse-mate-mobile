@@ -256,7 +256,6 @@ export default function ChapterScreen() {
     () =>
       Gesture.Pan()
         .activeOffsetX([-30, 30]) // Threshold to prevent accidental triggers during scroll
-        .failOffsetY([-10, 10]) // Fail if vertical movement exceeds 10px (prioritize scroll)
         .onEnd((event) => {
           // Only navigate if it's a clear horizontal swipe (low vertical velocity)
           const isHorizontalSwipe = Math.abs(event.velocityX) > Math.abs(event.velocityY);
