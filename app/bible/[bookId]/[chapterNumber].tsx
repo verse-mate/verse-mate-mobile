@@ -47,6 +47,11 @@ import {
 } from '@/src/api/generated';
 
 /**
+ * View mode type for Bible reading interface
+ */
+type ViewMode = 'bible' | 'explanations';
+
+/**
  * Chapter Screen Component
  *
  * Handles:
@@ -61,6 +66,7 @@ import {
  * - Progress bar display (Task 8.4)
  * - Hamburger menu (Task 8.5)
  * - Offline indicator (Task 8.6)
+ * - View mode switching (Bible vs Explanations)
  */
 export default function ChapterScreen() {
   // Extract and validate route params
@@ -70,6 +76,9 @@ export default function ChapterScreen() {
 
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
+
+  // View mode state (Bible reading vs Explanations view)
+  const [activeView, setActiveView] = useState<ViewMode>('bible');
 
   // Navigation modal state (Task 7.9)
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
@@ -181,6 +190,14 @@ export default function ChapterScreen() {
   }, [chapter, isLoading, prefetchNext, prefetchPrevious]);
 
   /**
+   * Handle view mode change with haptic feedback
+   */
+  const handleViewChange = (view: ViewMode) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveView(view);
+  };
+
+  /**
    * Navigate to previous chapter (Task 6.4)
    *
    * Handles:
@@ -253,8 +270,9 @@ export default function ChapterScreen() {
         <ChapterHeader
           bookName="Loading..."
           chapterNumber={validChapter}
+          activeView={activeView}
           onNavigationPress={() => {}}
-          onReadModePress={() => {}}
+          onViewChange={handleViewChange}
           onMenuPress={() => {}}
         />
         <SkeletonLoader />
@@ -269,8 +287,9 @@ export default function ChapterScreen() {
         <ChapterHeader
           bookName="Error"
           chapterNumber={validChapter}
+          activeView={activeView}
           onNavigationPress={() => {}}
-          onReadModePress={() => {}}
+          onViewChange={handleViewChange}
           onMenuPress={() => {}}
         />
         <View style={styles.errorContainer}>
@@ -306,19 +325,20 @@ export default function ChapterScreen() {
       <ChapterHeader
         bookName={chapter.bookName}
         chapterNumber={chapter.chapterNumber}
+        activeView={activeView}
         onNavigationPress={() => {
           setIsNavigationModalOpen(true); // Task 7.9
         }}
-        onReadModePress={() => {
-          // Placeholder for read mode toggle
-        }}
+        onViewChange={handleViewChange}
         onMenuPress={() => {
           setIsMenuOpen(true); // Task 8.5
         }}
       />
 
-      {/* Content Tabs (Task 5.3) */}
-      <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
+      {activeView === 'explanations' && (
+        <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      )}
 
       {/* Scrollable Content with Swipe Gesture (Task 6.3) */}
       <GestureDetector gesture={swipeGesture}>
@@ -354,8 +374,12 @@ export default function ChapterScreen() {
               <ChapterReader
                 chapter={chapter}
                 activeTab={activeTab}
+                explanationsOnly={activeView === 'explanations'}
                 explanation={
-                  activeTab !== 'byline' && activeContent.data && 'content' in activeContent.data
+                  activeView === 'explanations' &&
+                  activeTab !== 'byline' &&
+                  activeContent.data &&
+                  'content' in activeContent.data
                     ? activeContent.data
                     : undefined
                 }
@@ -397,9 +421,10 @@ export default function ChapterScreen() {
  * Chapter Header Component
  *
  * Fixed header with book/chapter title and action icons
- * - Navigation icon (opens book/chapter selector)
+ * - Chapter text (clickable to open chapter selector)
+ * - Bible view icon (shows Bible reading mode)
+ * - Explanations view icon (shows AI explanations mode)
  * - Offline indicator (shows when offline) - Task 8.6
- * - Read mode icon (placeholder)
  * - Hamburger menu icon (opens menu)
  *
  * @see Spec lines 226-237 (Header specs)
@@ -407,51 +432,77 @@ export default function ChapterScreen() {
 interface ChapterHeaderProps {
   bookName: string;
   chapterNumber: number;
+  activeView: ViewMode;
   onNavigationPress: () => void;
-  onReadModePress: () => void;
+  onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
 }
 
 function ChapterHeader({
   bookName,
   chapterNumber,
+  activeView,
   onNavigationPress,
-  onReadModePress,
+  onViewChange,
   onMenuPress,
 }: ChapterHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.header, { paddingTop: insets.top }]} testID="chapter-header">
-      {/* Title */}
-      <Text style={styles.headerTitle}>
-        {bookName} {chapterNumber}
-      </Text>
+      {/* Chapter Title Button (clickable to open navigation) */}
+      <Pressable
+        onPress={onNavigationPress}
+        style={styles.chapterButton}
+        accessibilityLabel={`Select chapter, currently ${bookName} ${chapterNumber}`}
+        accessibilityRole="button"
+        accessibilityHint="Opens chapter selection menu"
+        testID="chapter-selector-button"
+      >
+        <View style={styles.chapterButtonContent}>
+          <Text style={styles.headerTitle}>
+            {bookName} {chapterNumber}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={colors.white} />
+        </View>
+      </Pressable>
 
       {/* Action Icons */}
       <View style={styles.headerActions}>
-        {/* Navigation Icon */}
+        {/* Bible View Icon */}
         <Pressable
-          onPress={onNavigationPress}
+          onPress={() => onViewChange('bible')}
           style={styles.iconButton}
-          accessibilityLabel="Open navigation"
+          accessibilityLabel="Bible reading view"
           accessibilityRole="button"
+          accessibilityState={{ selected: activeView === 'bible' }}
+          testID="bible-view-icon"
         >
-          <Ionicons name="book-outline" size={headerSpecs.iconSize} color={colors.white} />
+          <Ionicons
+            name="book-outline"
+            size={headerSpecs.iconSize}
+            color={activeView === 'bible' ? colors.gold : colors.white}
+          />
+        </Pressable>
+
+        {/* Explanations View Icon */}
+        <Pressable
+          onPress={() => onViewChange('explanations')}
+          style={styles.iconButton}
+          accessibilityLabel="Explanations view"
+          accessibilityRole="button"
+          accessibilityState={{ selected: activeView === 'explanations' }}
+          testID="explanations-view-icon"
+        >
+          <Ionicons
+            name="reader-outline"
+            size={headerSpecs.iconSize}
+            color={activeView === 'explanations' ? colors.gold : colors.white}
+          />
         </Pressable>
 
         {/* Offline Indicator (Task 8.6) */}
         <OfflineIndicator />
-
-        {/* Read Mode Icon (Placeholder) */}
-        <Pressable
-          onPress={onReadModePress}
-          style={styles.iconButton}
-          accessibilityLabel="Change read mode"
-          accessibilityRole="button"
-        >
-          <Ionicons name="moon-outline" size={headerSpecs.iconSize} color={colors.white} />
-        </Pressable>
 
         {/* Hamburger Menu Icon (Task 8.5) */}
         <Pressable
@@ -480,6 +531,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: headerSpecs.padding,
     paddingBottom: spacing.sm,
+  },
+  chapterButton: {
+    padding: spacing.xs,
+  },
+  chapterButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   headerTitle: {
     fontSize: headerSpecs.titleFontSize,

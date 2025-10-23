@@ -32,15 +32,22 @@ interface ChapterReaderProps {
   activeTab: ContentTabType;
   /** Optional explanation content (summary/byline/detailed) */
   explanation?: ExplanationContent;
+  /** Show only explanations, hide Bible verses (for Explanations view) */
+  explanationsOnly?: boolean;
 }
 
 /**
  * ChapterReader Component
  *
  * Renders the chapter content in the selected reading mode.
- * Shows Bible text for all tabs, plus explanation content when provided.
+ * - When explanationsOnly is false: Shows Bible text
+ * - When explanationsOnly is true: Shows only explanation content
  */
-export function ChapterReader({ chapter, explanation }: ChapterReaderProps) {
+export function ChapterReader({
+  chapter,
+  explanation,
+  explanationsOnly = false,
+}: ChapterReaderProps) {
   return (
     <View style={styles.container}>
       {/* Chapter Title */}
@@ -48,46 +55,50 @@ export function ChapterReader({ chapter, explanation }: ChapterReaderProps) {
         {chapter.title}
       </Text>
 
-      {/* Render each section */}
-      {chapter.sections.map((section) => (
-        <View
-          key={`section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`}
-          style={styles.section}
-          testID={`chapter-section-${section.startVerse}`}
-        >
-          {/* Section Subtitle (if present) */}
-          {section.subtitle && (
-            <Text style={styles.sectionSubtitle} accessibilityRole="header">
-              {section.subtitle}
-            </Text>
-          )}
-
-          {/* Verse Range Caption */}
-          <Text
-            style={styles.verseRange}
-            accessibilityLabel={`Verses ${section.startVerse}-${section.endVerse}`}
+      {/* Render Bible verses (only in Bible view) */}
+      {!explanationsOnly &&
+        chapter.sections.map((section) => (
+          <View
+            key={`section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`}
+            style={styles.section}
+            testID={`chapter-section-${section.startVerse}`}
           >
-            {section.startVerse}-{section.endVerse}
-          </Text>
+            {/* Section Subtitle (if present) */}
+            {section.subtitle && (
+              <Text style={styles.sectionSubtitle} accessibilityRole="header">
+                {section.subtitle}
+              </Text>
+            )}
 
-          {/* Verses */}
-          <View style={styles.versesContainer}>
-            {section.verses.map((verse) => (
-              <View key={verse.verseNumber} style={styles.verseRow}>
-                {/* Superscript Verse Number */}
-                <Text style={styles.verseNumber} accessibilityLabel={`Verse ${verse.verseNumber}`}>
-                  {verse.verseNumber}
-                </Text>
+            {/* Verse Range Caption */}
+            <Text
+              style={styles.verseRange}
+              accessibilityLabel={`Verses ${section.startVerse}-${section.endVerse}`}
+            >
+              {section.startVerse}-{section.endVerse}
+            </Text>
 
-                {/* Verse Text */}
-                <Text style={styles.verseText}>{verse.text}</Text>
-              </View>
-            ))}
+            {/* Verses */}
+            <View style={styles.versesContainer}>
+              {section.verses.map((verse) => (
+                <View key={verse.verseNumber} style={styles.verseRow}>
+                  {/* Superscript Verse Number */}
+                  <Text
+                    style={styles.verseNumber}
+                    accessibilityLabel={`Verse ${verse.verseNumber}`}
+                  >
+                    {verse.verseNumber}
+                  </Text>
+
+                  {/* Verse Text */}
+                  <Text style={styles.verseText}>{verse.text}</Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
 
-      {/* Explanation Content (Markdown) */}
+      {/* Explanation Content (Markdown) - shown in Explanations view */}
       {explanation && (
         <View style={styles.explanationContainer}>
           <Markdown style={markdownStyles}>{explanation.content}</Markdown>
