@@ -6,7 +6,7 @@
  */
 
 import { router } from 'expo-router';
-import React, { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 interface Props {
@@ -79,10 +79,7 @@ export class AppErrorBoundary extends Component<Props, State> {
             </Text>
 
             <View style={styles.buttonContainer}>
-              <Pressable
-                style={[styles.button, styles.primaryButton]}
-                onPress={this.handleReset}
-              >
+              <Pressable style={[styles.button, styles.primaryButton]} onPress={this.handleReset}>
                 <Text style={styles.buttonText}>Try Again</Text>
               </Pressable>
 
@@ -97,13 +94,9 @@ export class AppErrorBoundary extends Component<Props, State> {
             {__DEV__ && this.state.errorInfo && (
               <ScrollView style={styles.debugContainer}>
                 <Text style={styles.debugTitle}>Error Stack (Development Only):</Text>
-                <Text style={styles.debugText}>
-                  {this.state.error?.stack}
-                </Text>
+                <Text style={styles.debugText}>{this.state.error?.stack}</Text>
                 <Text style={styles.debugTitle}>Component Stack:</Text>
-                <Text style={styles.debugText}>
-                  {this.state.errorInfo.componentStack}
-                </Text>
+                <Text style={styles.debugText}>{this.state.errorInfo.componentStack}</Text>
               </ScrollView>
             )}
           </View>

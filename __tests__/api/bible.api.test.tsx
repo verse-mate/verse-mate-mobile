@@ -209,7 +209,7 @@ describe('Bible API Hooks', () => {
     });
 
     it('should not fetch when type is empty', () => {
-      const { result } = renderHook(() => useBibleExplanation(1, 1, '' as any), {
+      const { result } = renderHook(() => useBibleExplanation(1, 1, ''), {
         wrapper: createWrapper(),
       });
 
