@@ -141,7 +141,7 @@ export default function ChapterScreen() {
     isLoading: isSummaryLoading,
     error: summaryError,
   } = useBibleSummary(validBookId, validChapter, undefined, {
-    enabled: activeTab === 'summary', // Only load when active
+    enabled: activeView === 'explanations' && activeTab === 'summary', // Only load in Explanations view
   });
 
   const {
@@ -149,7 +149,7 @@ export default function ChapterScreen() {
     isLoading: isByLineLoading,
     error: byLineError,
   } = useBibleByLine(validBookId, validChapter, undefined, {
-    enabled: activeTab === 'byline', // Only load when active
+    enabled: activeView === 'explanations' && activeTab === 'byline', // Only load in Explanations view
   });
 
   const {
@@ -157,7 +157,7 @@ export default function ChapterScreen() {
     isLoading: isDetailedLoading,
     error: detailedError,
   } = useBibleDetailed(validBookId, validChapter, undefined, {
-    enabled: activeTab === 'detailed', // Only load when active
+    enabled: activeView === 'explanations' && activeTab === 'detailed', // Only load in Explanations view
   });
 
   // Save reading position mutation
