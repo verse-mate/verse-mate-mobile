@@ -377,7 +377,6 @@ export default function ChapterScreen() {
                 explanationsOnly={activeView === 'explanations'}
                 explanation={
                   activeView === 'explanations' &&
-                  activeTab !== 'byline' &&
                   activeContent.data &&
                   'content' in activeContent.data
                     ? activeContent.data
