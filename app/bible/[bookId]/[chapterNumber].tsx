@@ -20,7 +20,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -122,6 +122,7 @@ export default function ChapterScreen() {
       // Chapter exceeds book's chapter count, redirect to first chapter
       router.replace(`/bible/${bookId}/1` as never);
     }
+    // Note: router is stable and doesn't need to be in dependencies
   }, [bookId, chapterNumber, bookMetadata]);
 
   // Use validated params for API calls
@@ -205,7 +206,7 @@ export default function ChapterScreen() {
    * - Cross-book navigation (TODO: implement in future)
    * - Boundary checking (don't go before Genesis 1)
    */
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (validChapter > 1) {
       // Navigate to previous chapter in same book
       router.push(`/bible/${validBookId}/${validChapter - 1}` as never);
@@ -217,7 +218,8 @@ export default function ChapterScreen() {
       // Already at Genesis 1, show error haptic
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  };
+    // Note: router is stable and doesn't need to be in dependencies
+  }, [validBookId, validChapter]);
 
   /**
    * Navigate to next chapter (Task 6.4)
@@ -227,7 +229,7 @@ export default function ChapterScreen() {
    * - Cross-book navigation (TODO: implement in future)
    * - Boundary checking (don't go past Revelation 22)
    */
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (validChapter < totalChapters) {
       // Navigate to next chapter in same book
       router.push(`/bible/${validBookId}/${validChapter + 1}` as never);
@@ -239,7 +241,8 @@ export default function ChapterScreen() {
       // Already at Revelation 22, show error haptic
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  };
+    // Note: router is stable and doesn't need to be in dependencies
+  }, [validBookId, validChapter, totalChapters]);
 
   /**
    * Swipe Gesture for Chapter Navigation (Task 6.3)
@@ -249,19 +252,27 @@ export default function ChapterScreen() {
    *
    * @see Spec lines 823-847 (Swipe gesture implementation)
    */
-  const swipeGesture = Gesture.Pan()
-    .activeOffsetX([-30, 30]) // Threshold to prevent accidental triggers during scroll
-    .onEnd((event) => {
-      if (event.translationX < -100) {
-        // Swipe left = next chapter
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        handleNext();
-      } else if (event.translationX > 100) {
-        // Swipe right = previous chapter
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        handlePrevious();
-      }
-    });
+  const swipeGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-30, 30]) // Threshold to prevent accidental triggers during scroll
+        .failOffsetY([-10, 10]) // Fail if vertical movement exceeds 10px (prioritize scroll)
+        .onEnd((event) => {
+          // Only navigate if it's a clear horizontal swipe (low vertical velocity)
+          const isHorizontalSwipe = Math.abs(event.velocityX) > Math.abs(event.velocityY);
+
+          if (isHorizontalSwipe && event.translationX < -100) {
+            // Swipe left = next chapter
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            handleNext();
+          } else if (isHorizontalSwipe && event.translationX > 100) {
+            // Swipe right = previous chapter
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            handlePrevious();
+          }
+        }),
+    [handleNext, handlePrevious]
+  );
 
   // Show skeleton loader while loading
   if (isLoading) {
