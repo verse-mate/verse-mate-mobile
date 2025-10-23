@@ -4,17 +4,18 @@
  * Mock API handlers for AI explanation-related endpoints
  */
 
-import { http, HttpResponse, delay } from 'msw';
+import { delay, HttpResponse, http } from 'msw';
 import {
   createMockExplanation,
   createMockExplanationWithTranslations,
+  mockGenesis11Explanation,
   mockJohn316Explanation,
   mockPsalm23Explanation,
-  mockGenesis11Explanation,
 } from '../data/explanations';
 
-// Base API URL (should match your production API)
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+// Base API URL - matches the generated SDK default
+// Use localhost for tests since the generated client.gen.ts uses http://localhost:4000
+const API_BASE_URL = 'http://localhost:4000';
 
 export const explanationHandlers = [
   // POST /api/explanations - Generate AI explanation for a verse
@@ -26,10 +27,7 @@ export const explanationHandlers = [
     };
 
     if (!body.verseId) {
-      return HttpResponse.json(
-        { error: 'Verse ID is required' },
-        { status: 400 }
-      );
+      return HttpResponse.json({ error: 'Verse ID is required' }, { status: 400 });
     }
 
     // Simulate AI generation delay
@@ -84,66 +82,51 @@ export const explanationHandlers = [
       return HttpResponse.json(mockGenesis11Explanation);
     }
 
-    return HttpResponse.json(
-      { error: 'Explanation not found' },
-      { status: 404 }
-    );
+    return HttpResponse.json({ error: 'Explanation not found' }, { status: 404 });
   }),
 
   // POST /api/explanations/:id/translate - Translate an explanation
-  http.post(
-    `${API_BASE_URL}/api/explanations/:id/translate`,
-    async ({ params, request }) => {
-      const { id } = params;
-      const body = (await request.json()) as { language: string };
+  http.post(`${API_BASE_URL}/api/explanations/:id/translate`, async ({ params, request }) => {
+    const { id: _id } = params;
+    const body = (await request.json()) as { language: string };
 
-      if (!body.language) {
-        return HttpResponse.json(
-          { error: 'Target language is required' },
-          { status: 400 }
-        );
-      }
-
-      // Simulate translation delay
-      await delay(300);
-
-      const translations: Record<string, string> = {
-        es: 'Este versículo resume el mensaje central del cristianismo sobre el amor de Dios.',
-        pt: 'Este versículo resume a mensagem central do cristianismo sobre o amor de Deus.',
-        fr: "Ce verset résume le message central du christianisme sur l'amour de Dieu.",
-      };
-
-      return HttpResponse.json({
-        translation: {
-          language: body.language,
-          content: translations[body.language] || 'Translation not available',
-        },
-      });
+    if (!body.language) {
+      return HttpResponse.json({ error: 'Target language is required' }, { status: 400 });
     }
-  ),
+
+    // Simulate translation delay
+    await delay(300);
+
+    const translations: Record<string, string> = {
+      es: 'Este versículo resume el mensaje central del cristianismo sobre el amor de Dios.',
+      pt: 'Este versículo resume a mensagem central do cristianismo sobre o amor de Deus.',
+      fr: "Ce verset résume le message central du christianisme sur l'amour de Dieu.",
+    };
+
+    return HttpResponse.json({
+      translation: {
+        language: body.language,
+        content: translations[body.language] || 'Translation not available',
+      },
+    });
+  }),
 
   // POST /api/explanations/:id/feedback - Submit feedback on explanation
-  http.post(
-    `${API_BASE_URL}/api/explanations/:id/feedback`,
-    async ({ params, request }) => {
-      const { id } = params;
-      const body = (await request.json()) as {
-        rating: number;
-        comment?: string;
-      };
+  http.post(`${API_BASE_URL}/api/explanations/:id/feedback`, async ({ params, request }) => {
+    const { id } = params;
+    const body = (await request.json()) as {
+      rating: number;
+      comment?: string;
+    };
 
-      if (body.rating < 1 || body.rating > 5) {
-        return HttpResponse.json(
-          { error: 'Rating must be between 1 and 5' },
-          { status: 400 }
-        );
-      }
-
-      return HttpResponse.json({
-        success: true,
-        message: 'Feedback received',
-        explanationId: id,
-      });
+    if (body.rating < 1 || body.rating > 5) {
+      return HttpResponse.json({ error: 'Rating must be between 1 and 5' }, { status: 400 });
     }
-  ),
+
+    return HttpResponse.json({
+      success: true,
+      message: 'Feedback received',
+      explanationId: id,
+    });
+  }),
 ];

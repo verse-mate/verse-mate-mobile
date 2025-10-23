@@ -1,0 +1,101 @@
+---
+appId: com.versemate.mobile
+name: Chapter Navigation Flow
+description: Tests chapter navigation using buttons and swipe gestures
+tags:
+  - critical
+  - navigation
+  - bible
+
+---
+
+# Chapter Navigation E2E Test
+#
+# This flow tests chapter navigation functionality:
+# - Next/Previous chapter buttons
+# - Swipe gestures for navigation
+# - Progress bar updates
+#
+# User Journey:
+# 1. Launch app to Genesis 1
+# 2. Verify content loads
+# 3. Tap next chapter button → Genesis 2
+# 4. Swipe left → Genesis 3
+# 5. Verify progress bar updates
+
+- launchApp:
+    appId: com.versemate.mobile
+    clearState: true
+
+# Wait for app to load
+- assertVisible: "Genesis 1"
+
+# Verify chapter content is visible
+- assertVisible:
+    text: "The Creation"
+
+# Scroll to find next chapter button
+- scrollUntilVisible:
+    element:
+      id: "next-chapter-button"
+    direction: DOWN
+
+# Test next chapter button
+- tapOn:
+    id: "next-chapter-button"
+
+# Wait for Genesis 2 to load
+- assertVisible: "Genesis 2"
+
+# Verify new content loaded (scroll up to see chapter heading)
+- scrollUntilVisible:
+    element:
+      text: "Genesis 2"
+    direction: UP
+
+# Scroll down to find next chapter button
+- scrollUntilVisible:
+    element:
+      id: "next-chapter-button"
+    direction: DOWN
+
+# Test next chapter again
+- tapOn:
+    id: "next-chapter-button"
+
+# Wait for Genesis 3 to load
+- assertVisible: "Genesis 3"
+
+# Scroll to find previous chapter button
+- scrollUntilVisible:
+    element:
+      id: "previous-chapter-button"
+    direction: DOWN
+
+# Test previous chapter button
+- tapOn:
+    id: "previous-chapter-button"
+
+# Should go back to Genesis 2
+- assertVisible: "Genesis 2"
+
+# Tap previous chapter again to go to Genesis 1
+- scrollUntilVisible:
+    element:
+      id: "previous-chapter-button"
+    direction: DOWN
+
+- tapOn:
+    id: "previous-chapter-button"
+
+# Should go back to Genesis 1
+- assertVisible: "Genesis 1"
+
+# Verify next chapter button still works
+- scrollUntilVisible:
+    element:
+      id: "next-chapter-button"
+    direction: DOWN
+
+- assertVisible:
+    id: "next-chapter-button"

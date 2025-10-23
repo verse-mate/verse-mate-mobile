@@ -4,17 +4,18 @@
  * Mock API handlers for Bible verse-related endpoints
  */
 
-import { http, HttpResponse } from 'msw';
+import { HttpResponse, http } from 'msw';
 import {
   createMockVerse,
   createMockVerseList,
+  mockGenesis11,
   mockJohn316,
   mockPsalm23,
-  mockGenesis11,
 } from '../data/verses';
 
-// Base API URL (should match your production API)
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+// Base API URL - matches the generated SDK default
+// Use localhost for tests since the generated client.gen.ts uses http://localhost:4000
+const API_BASE_URL = 'http://localhost:4000';
 
 export const verseHandlers = [
   // GET /api/verses/daily - Get verse of the day
@@ -52,10 +53,7 @@ export const verseHandlers = [
     const chapter = url.searchParams.get('chapter');
 
     if (!book || !chapter) {
-      return HttpResponse.json(
-        { error: 'Book and chapter are required' },
-        { status: 400 }
-      );
+      return HttpResponse.json({ error: 'Book and chapter are required' }, { status: 400 });
     }
 
     // Return a list of verses for the requested chapter
@@ -63,7 +61,7 @@ export const verseHandlers = [
       ...verse,
       id: `${book.toLowerCase()}-${chapter}-${index + 1}`,
       book,
-      chapter: Number.parseInt(chapter),
+      chapter: Number.parseInt(chapter, 10),
       verse: index + 1,
     }));
 
@@ -75,10 +73,7 @@ export const verseHandlers = [
     const body = (await request.json()) as { query: string; translation?: string };
 
     if (!body.query) {
-      return HttpResponse.json(
-        { error: 'Search query is required' },
-        { status: 400 }
-      );
+      return HttpResponse.json({ error: 'Search query is required' }, { status: 400 });
     }
 
     // Return mock search results

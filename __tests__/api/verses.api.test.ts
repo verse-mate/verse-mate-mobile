@@ -4,11 +4,12 @@
  * Example tests demonstrating MSW usage for API mocking
  */
 
-import { server } from '../mocks/server';
-import { http, HttpResponse } from 'msw';
+import { HttpResponse, http } from 'msw';
 import { mockJohn316, mockPsalm23 } from '../mocks/data/verses';
+import { server } from '../mocks/server';
 
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+// Match the MSW handler configuration and generated client baseUrl
+const API_BASE_URL = 'http://localhost:4000';
 
 describe('Verse API', () => {
   describe('GET /api/verses/:id', () => {
@@ -42,9 +43,7 @@ describe('Verse API', () => {
   describe('GET /api/verses', () => {
     it('should fetch verses by book and chapter', async () => {
       // Act
-      const response = await fetch(
-        `${API_BASE_URL}/api/verses?book=John&chapter=3`
-      );
+      const response = await fetch(`${API_BASE_URL}/api/verses?book=John&chapter=3`);
       const data = await response.json();
 
       // Assert
@@ -168,10 +167,7 @@ describe('Verse API', () => {
       // Arrange - Simulate server error
       server.use(
         http.get(`${API_BASE_URL}/api/verses/:id`, () => {
-          return HttpResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
-          );
+          return HttpResponse.json({ error: 'Internal server error' }, { status: 500 });
         })
       );
 

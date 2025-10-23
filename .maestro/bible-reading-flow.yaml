@@ -1,7 +1,7 @@
 ---
 appId: com.versemate.mobile
 name: Bible Reading Critical Path
-description: Tests the core user flow for reading daily Bible verses
+description: Tests the core user flow for reading Bible chapters
 tags:
   - critical
   - bible
@@ -11,59 +11,47 @@ tags:
 
 # Bible Reading Critical Path E2E Test
 #
-# This flow tests the primary use case: User opens app and reads daily verse
+# This flow tests the primary use case: User opens app and reads Genesis 1 in Bible view
 #
 # User Journey:
-# 1. Launch app
-# 2. View daily verse on home screen
-# 3. Navigate to verse details
-# 4. Read full verse content
-# 5. Verify verse metadata (book, chapter, verse number)
+# 1. Launch app (redirects to Genesis 1 in Bible view)
+# 2. Verify Genesis 1 chapter loads
+# 3. Verify Bible verses are visible (no tabs in Bible view)
+# 4. Verify view switcher icons work
 
 - launchApp:
     appId: com.versemate.mobile
     clearState: true
 
-# Wait for app to load
-- assertVisible: "VerseMate"
+# App redirects to Genesis 1 in Bible view (default)
+- assertVisible: "Genesis 1"
 
-# Verify daily verse card is visible on home screen
+# Verify section heading is visible
+- assertVisible: "The Creation"
+
+# Verify Bible view icon is active (testID)
 - assertVisible:
-    id: "daily-verse-card"
+    id: "bible-view-icon"
 
-# Verify verse reference is displayed
+# Verify Explanations view icon is present
 - assertVisible:
-    text: ".*\\d+:\\d+.*"  # Matches "Book Chapter:Verse" format
+    id: "explanations-view-icon"
 
-# Tap on daily verse to view details
+# Verify first verse is visible in Bible view
+- assertVisible:
+    text: ".*In the beginning God created.*"
+
+# Tabs should NOT be visible in Bible view
+- assertNotVisible:
+    id: "chapter-content-tabs"
+
+# Switch to Explanations view
 - tapOn:
-    id: "daily-verse-card"
+    id: "explanations-view-icon"
 
-# Wait for verse detail screen to load
-- assertVisible: "Verse Details"
-
-# Verify verse text content is visible
+# Tabs should now be visible in Explanations view
 - assertVisible:
-    id: "verse-text"
+    id: "tab-summary"
 
-# Verify verse is accessible (screen reader compatible)
-- assertVisible:
-    traits: ["text"]
-    id: "verse-text"
-
-# Verify book reference is visible
-- assertVisible:
-    id: "verse-reference"
-
-# Verify translation badge is visible (e.g., "NIV", "ESV")
-- assertVisible:
-    id: "translation-badge"
-
-# Go back to home screen
-- tapOn:
-    id: "back-button"
-
-# Verify returned to home screen
-- assertVisible: "VerseMate"
-- assertVisible:
-    id: "daily-verse-card"
+# Verify still on Genesis 1
+- assertVisible: "Genesis 1"

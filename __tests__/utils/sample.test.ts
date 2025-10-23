@@ -1,9 +1,9 @@
 // Sample utility functions for testing
-export const formatVerseReference = (book: string, chapter: number, verse: number): string => {
+const formatVerseReference = (book: string, chapter: number, verse: number): string => {
   return `${book} ${chapter}:${verse}`;
 };
 
-export const isValidChapter = (chapter: number): boolean => {
+const isValidChapter = (chapter: number): boolean => {
   return chapter > 0 && chapter <= 150; // Assuming max 150 chapters
 };
 
