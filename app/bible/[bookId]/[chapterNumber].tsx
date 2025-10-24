@@ -11,35 +11,30 @@
  * @see Spec lines 517-607 (ChapterScreen implementation)
  * @see Task Group 5.3 - Integrate tabs with chapter screen
  * @see Task Group 5.4 - Implement tab content loading
- * @see Task Group 6.3 - Implement swipe gesture for chapter navigation
- * @see Task Group 6.4 - Integrate navigation with chapter screen
+ * @see Task Group 4 - Integration with ChapterPagerView (native page-based swipe navigation)
  * @see Task Group 8.4 - Integrate ProgressBar with chapter screen
  * @see Task Group 9.3 - Add deep link validation in chapter screen
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
-import { ChapterReader } from '@/components/bible/ChapterReader';
+import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { animations, colors, headerSpecs, spacing } from '@/constants/bible-design-tokens';
-import { useActiveTab, useBookProgress } from '@/hooks/bible';
+import { colors, headerSpecs, spacing } from '@/constants/bible-design-tokens';
+import { useActiveTab, useActiveView, useBookProgress } from '@/hooks/bible';
+import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import {
-  useBibleByLine,
   useBibleChapter,
-  useBibleDetailed,
-  useBibleSummary,
   useBibleTestaments,
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
@@ -62,7 +57,7 @@ type ViewMode = 'bible' | 'explanations';
  * - Tab content loading with crossfade transitions
  * - Background prefetching for inactive tabs
  * - Chapter navigation via floating buttons (Task 6.4)
- * - Chapter navigation via swipe gestures (Task 6.3)
+ * - Chapter navigation via native page-based swipe (Task Group 4)
  * - Progress bar display (Task 8.4)
  * - Hamburger menu (Task 8.5)
  * - Offline indicator (Task 8.6)
@@ -74,11 +69,14 @@ export default function ChapterScreen() {
   const bookId = Number(params.bookId);
   const chapterNumber = Number(params.chapterNumber);
 
+  // Get navigation object for updating URL params without animation
+  const navigation = useNavigation();
+
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
 
-  // View mode state (Bible reading vs Explanations view)
-  const [activeView, setActiveView] = useState<ViewMode>('bible');
+  // Get active view from persistence (Bible reading vs Explanations view)
+  const { activeView, setActiveView } = useActiveView();
 
   // Navigation modal state (Task 7.9)
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
@@ -132,34 +130,8 @@ export default function ChapterScreen() {
   // Calculate progress percentage (Task 8.4)
   const { progress } = useBookProgress(validBookId, validChapter, totalChapters);
 
-  // Fetch chapter data
+  // Fetch chapter data for loading state check
   const { data: chapter, isLoading } = useBibleChapter(validBookId, validChapter);
-
-  // Fetch explanations for each tab
-  // Active tab loads immediately, inactive tabs load in background
-  const {
-    data: summaryData,
-    isLoading: isSummaryLoading,
-    error: summaryError,
-  } = useBibleSummary(validBookId, validChapter, undefined, {
-    enabled: activeView === 'explanations' && activeTab === 'summary', // Only load in Explanations view
-  });
-
-  const {
-    data: byLineData,
-    isLoading: isByLineLoading,
-    error: byLineError,
-  } = useBibleByLine(validBookId, validChapter, undefined, {
-    enabled: activeView === 'explanations' && activeTab === 'byline', // Only load in Explanations view
-  });
-
-  const {
-    data: detailedData,
-    isLoading: isDetailedLoading,
-    error: detailedError,
-  } = useBibleDetailed(validBookId, validChapter, undefined, {
-    enabled: activeView === 'explanations' && activeTab === 'detailed', // Only load in Explanations view
-  });
 
   // Save reading position mutation
   const { mutate: saveLastRead } = useSaveLastRead();
@@ -167,6 +139,13 @@ export default function ChapterScreen() {
   // Prefetch next/previous chapters in background (Task 5.5, 6.5)
   const prefetchNext = usePrefetchNextChapter(validBookId, validChapter, totalChapters);
   const prefetchPrevious = usePrefetchPreviousChapter(validBookId, validChapter);
+
+  // Get navigation metadata using hook (Task 4.5)
+  const { nextChapter, prevChapter, canGoNext, canGoPrevious } = useChapterNavigation(
+    validBookId,
+    validChapter,
+    booksMetadata
+  );
 
   // Save reading position on mount
   useEffect(() => {
@@ -177,10 +156,10 @@ export default function ChapterScreen() {
     });
   }, [validBookId, validChapter, saveLastRead]);
 
-  // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5)
+  // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5, 4.6)
   useEffect(() => {
     if (chapter && !isLoading) {
-      // Delay prefetch to avoid blocking main content
+      // Delay prefetch to avoid blocking main content (Task 4.6: 1 second delay)
       const timeoutId = setTimeout(() => {
         prefetchNext();
         prefetchPrevious();
@@ -199,79 +178,78 @@ export default function ChapterScreen() {
   };
 
   /**
-   * Navigate to previous chapter (Task 6.4)
+   * Handle page change from ChapterPagerView (Task 4.4)
+   *
+   * Updates:
+   * - URL with setParams() (no animation, just updates URL)
+   * - Save last read position
+   * - Trigger prefetch after 1s delay
+   * - Haptic feedback (medium impact)
+   */
+  const handlePageChange = useCallback(
+    (newBookId: number, newChapterNumber: number) => {
+      // Use router.replace for swipe navigation
+      // Note: Animation comes from URL change, not router.replace itself
+      router.replace(`/bible/${newBookId}/${newChapterNumber}` as never);
+
+      // Save reading position
+      saveLastRead({
+        user_id: 'guest',
+        book_id: newBookId,
+        chapter_number: newChapterNumber,
+      });
+
+      // Haptic feedback for page change
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // Prefetch adjacent chapters after 1 second delay (Task 4.6)
+      setTimeout(() => {
+        prefetchNext();
+        prefetchPrevious();
+      }, 1000);
+    },
+    [saveLastRead, prefetchNext, prefetchPrevious]
+  );
+
+  /**
+   * Navigate to previous chapter (Task 4.5 - updated to use useChapterNavigation)
    *
    * Handles:
    * - Same book navigation
-   * - Cross-book navigation (TODO: implement in future)
+   * - Cross-book navigation (seamless with useChapterNavigation hook)
    * - Boundary checking (don't go before Genesis 1)
    */
   const handlePrevious = useCallback(() => {
-    if (validChapter > 1) {
-      // Navigate to previous chapter in same book
-      router.push(`/bible/${validBookId}/${validChapter - 1}` as never);
-    } else if (validBookId > 1) {
-      // TODO: Cross-book navigation - navigate to last chapter of previous book
-      // For now, show error haptic
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    if (canGoPrevious && prevChapter) {
+      // Haptic feedback for button press
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.replace(`/bible/${prevChapter.bookId}/${prevChapter.chapterNumber}` as never);
     } else {
       // Already at Genesis 1, show error haptic
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
     // Note: router is stable and doesn't need to be in dependencies
-  }, [validBookId, validChapter]);
+  }, [canGoPrevious, prevChapter]);
 
   /**
-   * Navigate to next chapter (Task 6.4)
+   * Navigate to next chapter (Task 4.5 - updated to use useChapterNavigation)
    *
    * Handles:
    * - Same book navigation
-   * - Cross-book navigation (TODO: implement in future)
+   * - Cross-book navigation (seamless with useChapterNavigation hook)
    * - Boundary checking (don't go past Revelation 22)
    */
   const handleNext = useCallback(() => {
-    if (validChapter < totalChapters) {
-      // Navigate to next chapter in same book
-      router.push(`/bible/${validBookId}/${validChapter + 1}` as never);
-    } else if (validBookId < 66) {
-      // TODO: Cross-book navigation - navigate to first chapter of next book
-      // For now, show error haptic
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    if (canGoNext && nextChapter) {
+      // Haptic feedback for button press
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.replace(`/bible/${nextChapter.bookId}/${nextChapter.chapterNumber}` as never);
     } else {
       // Already at Revelation 22, show error haptic
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
     // Note: router is stable and doesn't need to be in dependencies
-  }, [validBookId, validChapter, totalChapters]);
-
-  /**
-   * Swipe Gesture for Chapter Navigation (Task 6.3)
-   *
-   * Swipe left → next chapter
-   * Swipe right → previous chapter
-   *
-   * @see Spec lines 823-847 (Swipe gesture implementation)
-   */
-  const swipeGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetX([-30, 30]) // Threshold to prevent accidental triggers during scroll
-        .onEnd((event) => {
-          // Only navigate if it's a clear horizontal swipe (low vertical velocity)
-          const isHorizontalSwipe = Math.abs(event.velocityX) > Math.abs(event.velocityY);
-
-          if (isHorizontalSwipe && event.translationX < -100) {
-            // Swipe left = next chapter
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            handleNext();
-          } else if (isHorizontalSwipe && event.translationX > 100) {
-            // Swipe right = previous chapter
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            handlePrevious();
-          }
-        }),
-    [handleNext, handlePrevious]
-  );
+  }, [canGoNext, nextChapter]);
 
   // Show skeleton loader while loading
   if (isLoading) {
@@ -309,26 +287,6 @@ export default function ChapterScreen() {
     );
   }
 
-  // Get active explanation content based on selected tab
-  const getActiveContent = () => {
-    switch (activeTab) {
-      case 'summary':
-        return { data: summaryData, isLoading: isSummaryLoading, error: summaryError };
-      case 'byline':
-        return { data: byLineData, isLoading: isByLineLoading, error: byLineError };
-      case 'detailed':
-        return { data: detailedData, isLoading: isDetailedLoading, error: detailedError };
-      default:
-        return { data: undefined, isLoading: false, error: null };
-    }
-  };
-
-  const activeContent = getActiveContent();
-
-  // Determine if navigation buttons should be shown (Task 6.4)
-  const showPrevious = validChapter > 1 || validBookId > 1;
-  const showNext = validChapter < totalChapters || validBookId < 66;
-
   return (
     <View style={styles.container}>
       {/* Fixed Header (Task 8.6 - includes OfflineIndicator) */}
@@ -350,60 +308,21 @@ export default function ChapterScreen() {
         <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
       )}
 
-      {/* Scrollable Content with Swipe Gesture (Task 6.3) */}
-      <GestureDetector gesture={swipeGesture}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          testID="chapter-scroll-view"
-        >
-          {activeContent.isLoading ? (
-            // Show skeleton loader for tab content (Task 5.4)
-            <Animated.View
-              entering={FadeIn.duration(animations.tabSwitch.duration)}
-              exiting={FadeOut.duration(animations.tabSwitch.duration)}
-            >
-              <SkeletonLoader />
-            </Animated.View>
-          ) : activeContent.error ? (
-            // Show error state for tab content
-            <Animated.View
-              entering={FadeIn.duration(animations.tabSwitch.duration)}
-              exiting={FadeOut.duration(animations.tabSwitch.duration)}
-              style={styles.errorContainer}
-            >
-              <Text style={styles.errorText}>Failed to load {activeTab} explanation</Text>
-            </Animated.View>
-          ) : (
-            // Show chapter content with explanation (crossfade transition)
-            <Animated.View
-              key={activeTab} // Key ensures re-render on tab change
-              entering={FadeIn.duration(animations.tabSwitch.duration)}
-              exiting={FadeOut.duration(animations.tabSwitch.duration)}
-            >
-              <ChapterReader
-                chapter={chapter}
-                activeTab={activeTab}
-                explanationsOnly={activeView === 'explanations'}
-                explanation={
-                  activeView === 'explanations' &&
-                  activeContent.data &&
-                  'content' in activeContent.data
-                    ? activeContent.data
-                    : undefined
-                }
-              />
-            </Animated.View>
-          )}
-        </ScrollView>
-      </GestureDetector>
+      {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
+      <ChapterPagerView
+        initialBookId={validBookId}
+        initialChapter={validChapter}
+        activeTab={activeTab}
+        activeView={activeView}
+        onPageChange={handlePageChange}
+      />
 
-      {/* Floating Action Buttons (Task 6.2, 6.4) */}
+      {/* Floating Action Buttons (Task 6.2, 6.4, 4.5) */}
       <FloatingActionButtons
         onPrevious={handlePrevious}
         onNext={handleNext}
-        showPrevious={showPrevious}
-        showNext={showNext}
+        showPrevious={canGoPrevious}
+        showNext={canGoNext}
       />
 
       {/* Progress Bar (Task 8.4) */}
@@ -416,7 +335,7 @@ export default function ChapterScreen() {
         currentBookId={validBookId}
         currentChapter={validChapter}
         onSelectChapter={(bookId, chapter) => {
-          router.push(`/bible/${bookId}/${chapter}` as never);
+          router.replace(`/bible/${bookId}/${chapter}` as never);
         }}
       />
 
@@ -563,15 +482,6 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
-    // Add bottom padding to account for floating action buttons AND progress bar
-    paddingBottom: 130, // FAB height + bottom offset + progress bar + extra spacing
   },
   errorContainer: {
     flex: 1,
