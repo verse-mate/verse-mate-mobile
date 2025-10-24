@@ -37,6 +37,13 @@ export type {
 export type ContentTabType = 'summary' | 'byline' | 'detailed';
 
 /**
+ * View mode type for chapter screen
+ * - bible: Plain Bible text reading mode
+ * - explanations: AI-powered explanations with tabs (Summary/By Line/Detailed)
+ */
+export type ViewModeType = 'bible' | 'explanations';
+
+/**
  * Navigation state for the Bible navigation modal
  * Tracks the user's current selection in the testament/book/chapter picker
  */
@@ -132,6 +139,8 @@ export interface ModalControlProps {
 export const STORAGE_KEYS = {
   /** Active reading tab preference */
   ACTIVE_TAB: '@verse-mate/active-tab',
+  /** Active view mode preference (bible or explanations) */
+  ACTIVE_VIEW: '@verse-mate/active-view',
   /** Recent books list (JSON array of RecentBook) */
   RECENT_BOOKS: '@verse-mate/recent-books',
   /** Last read position (JSON object of ReadingPosition) */
@@ -180,6 +189,13 @@ export function isContentTabType(value: unknown): value is ContentTabType {
 }
 
 /**
+ * Type guard to check if a value is a valid ViewModeType
+ */
+export function isViewModeType(value: unknown): value is ViewModeType {
+  return typeof value === 'string' && (value === 'bible' || value === 'explanations');
+}
+
+/**
  * Type guard to check if a value is a valid Testament
  */
 export function isTestament(value: unknown): value is Testament {
@@ -205,6 +221,36 @@ export function isValidChapterNumber(chapterNumber: number): boolean {
  */
 export function getTestamentFromBookId(bookId: number): Testament {
   return bookId <= OLD_TESTAMENT_MAX_BOOK_ID ? 'OT' : 'NT';
+}
+
+// ============================================================================
+// Navigation Types (for page-based swipe navigation)
+// ============================================================================
+
+/**
+ * Chapter location reference (bookId + chapterNumber)
+ * Used for navigation calculations in page-based swipe navigation
+ */
+export interface ChapterLocation {
+  /** Book ID (1-66) */
+  bookId: number;
+  /** Chapter number (1-based) */
+  chapterNumber: number;
+}
+
+/**
+ * Navigation metadata for current chapter
+ * Contains references to next/previous chapters and navigation availability flags
+ */
+export interface ChapterNavigation {
+  /** Next chapter reference, or null if at Bible end (Revelation 22) */
+  nextChapter: ChapterLocation | null;
+  /** Previous chapter reference, or null if at Bible start (Genesis 1) */
+  prevChapter: ChapterLocation | null;
+  /** Whether next navigation is available */
+  canGoNext: boolean;
+  /** Whether previous navigation is available */
+  canGoPrevious: boolean;
 }
 
 // ============================================================================
@@ -251,6 +297,14 @@ export interface UseRecentBooksResult extends LoadingState {
 export interface UseActiveTabResult extends LoadingState {
   activeTab: ContentTabType;
   setActiveTab: (tab: ContentTabType) => Promise<void>;
+}
+
+/**
+ * Combined hook return type for active view mode
+ */
+export interface UseActiveViewResult extends LoadingState {
+  activeView: ViewModeType;
+  setActiveView: (view: ViewModeType) => Promise<void>;
 }
 
 /**

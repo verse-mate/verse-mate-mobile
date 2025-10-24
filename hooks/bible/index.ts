@@ -7,6 +7,8 @@
 
 // Active tab persistence hook
 export { useActiveTab } from './use-active-tab';
+// Active view mode persistence hook
+export { useActiveView } from './use-active-view';
 // Book progress calculation hook
 export { useBookProgress } from './use-book-progress';
 // Last read position hook (wraps API hook)

@@ -264,6 +264,7 @@ export function BibleNavigationModal({
         accessibilityRole="button"
         accessibilityLabel={`${book.name}, ${book.chapterCount} chapters`}
         accessibilityState={{ selected: isSelected }}
+        testID={`book-item-${book.name.toLowerCase().replace(/\s+/g, '-')}`}
       >
         <Text style={[styles.bookItemText, isSelected && styles.bookItemTextSelected]}>
           {book.name}
@@ -320,7 +321,10 @@ export function BibleNavigationModal({
     const chapters = Array.from({ length: chapterCount }, (_, i) => i + 1);
 
     return (
-      <View style={styles.chapterGridContainer}>
+      <ScrollView
+        style={styles.chapterGridContainer}
+        contentContainerStyle={styles.chapterGridContent}
+      >
         <View style={styles.chapterGrid}>
           {chapters.map((chapter) => {
             const isCurrent = selectedBookId === currentBookId && chapter === currentChapter;
@@ -333,6 +337,7 @@ export function BibleNavigationModal({
                 accessibilityRole="button"
                 accessibilityLabel={`Chapter ${chapter}`}
                 accessibilityState={{ selected: isCurrent }}
+                testID={`chapter-${chapter}`}
               >
                 <Text
                   style={[styles.chapterButtonText, isCurrent && styles.chapterButtonTextCurrent]}
@@ -343,7 +348,7 @@ export function BibleNavigationModal({
             );
           })}
         </View>
-      </View>
+      </ScrollView>
     );
   };
 
@@ -353,7 +358,10 @@ export function BibleNavigationModal({
         <Pressable style={styles.backdropTouchable} onPress={onClose} />
 
         <GestureDetector gesture={panGesture}>
-          <Animated.View style={[styles.container, animatedModalStyle]}>
+          <Animated.View
+            style={[styles.container, animatedModalStyle]}
+            testID="bible-navigation-modal"
+          >
             {/* Swipe handle */}
             <View style={styles.handle} />
 
@@ -507,6 +515,8 @@ const styles = StyleSheet.create({
   },
   chapterGridContainer: {
     flex: 1,
+  },
+  chapterGridContent: {
     padding: spacing.xl,
   },
   chapterGrid: {
