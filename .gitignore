@@ -65,3 +65,8 @@ PR.md
 # Local workflow testing scripts
 test-workflow.sh
 test-json-extraction.sh
+
+# Private keys and credentials
+/private
+build_status.json
+build_output.json

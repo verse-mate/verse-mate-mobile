@@ -52,24 +52,7 @@ jobs:
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-        run: |
-          # Capture build output and extract build ID
-          eas build --platform ios --profile preview --non-interactive --no-wait --json > build_output.json 2>&1
-
-          # Extract JSON array from output (eas build --json includes human-readable output before JSON)
-          BUILD_ID=$(grep -A 100 '^\[' build_output.json | jq -r '.[0].id')
-
-          if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
-            echo "Error: Failed to extract build ID"
-            cat build_output.json
-            exit 1
-          fi
-
-          echo "iOS Build ID: $BUILD_ID"
-          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+        run: bash .deployment/build-preview.sh
 
       - name: Build Android Preview
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
@@ -82,42 +65,7 @@ jobs:
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          BUILD_ID="${{ steps.ios_build.outputs.build_id }}"
-
-          if [ -z "$BUILD_ID" ]; then
-            echo "Error: Build ID not found from previous step"
-            exit 1
-          fi
-
-          echo "Tracking iOS build: $BUILD_ID"
-          echo "Waiting for build to complete before submitting to TestFlight..."
-
-          # Wait for build to finish (max 45 minutes)
-          for i in {1..90}; do
-            sleep 30
-            eas build:view $BUILD_ID --json > build_status.json
-            STATUS=$(cat build_status.json | jq -r '.status')
-            echo "Build status: $STATUS (check $i/90)"
-
-            if [ "$STATUS" = "FINISHED" ] || [ "$STATUS" = "finished" ]; then
-              echo "Build completed successfully!"
-              eas submit --platform ios --id $BUILD_ID --non-interactive
-              exit 0
-            elif [ "$STATUS" = "ERRORED" ] || [ "$STATUS" = "errored" ] || [ "$STATUS" = "CANCELED" ] || [ "$STATUS" = "canceled" ]; then
-              echo "Build failed with status: $STATUS"
-              exit 1
-            fi
-          done
-
-          echo "Build timeout after 45 minutes - please check EAS dashboard"
-          exit 1
+        run: bash .deployment/submit-testflight.sh "${{ steps.ios_build.outputs.build_id }}"
 
       - name: Android Build Info
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
