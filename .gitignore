@@ -61,3 +61,7 @@ app-example
 
 # PR descriptions
 PR.md
+
+# Local workflow testing scripts
+test-workflow.sh
+test-json-extraction.sh
