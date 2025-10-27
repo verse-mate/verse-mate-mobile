@@ -13,6 +13,7 @@
       "bundleIdentifier": "org.versemate.mobile",
       "supportsTablet": true,
       "associatedDomains": [
+        "applinks:app.versemate.org",
         "applinks:app.versemate.org"
       ],
       "infoPlist": {
@@ -30,6 +31,21 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.versemate.org",
+              "pathPrefix": "/bible"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
         {
           "action": "VIEW",
           "autoVerify": true,
@@ -75,6 +91,12 @@
       "eas": {
         "projectId": "3178e762-1329-4504-9541-0f6a489a760b"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3178e762-1329-4504-9541-0f6a489a760b"
     }
   }
 }
