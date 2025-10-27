@@ -13,7 +13,6 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react-native';
-import React from 'react';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
 import { getAbsolutePageIndex, getChapterFromPageIndex } from '@/utils/bible/chapter-index-utils';
 import { mockTestamentBooks } from '../mocks/data/bible-books.data';
@@ -67,7 +66,7 @@ jest.mock('react-native-pager-view', () => {
   const React = require('react');
   const { View } = require('react-native');
 
-  return React.forwardRef(({ children, onPageSelected, initialPage }: any, ref: any) => {
+  const MockPagerView = React.forwardRef(({ children }: any, ref: any) => {
     // Expose setPageWithoutAnimation method for tests
     React.useImperativeHandle(ref, () => ({
       setPageWithoutAnimation: jest.fn(),
@@ -75,6 +74,10 @@ jest.mock('react-native-pager-view', () => {
 
     return <View testID="pager-view">{children}</View>;
   });
+
+  MockPagerView.displayName = 'PagerView';
+
+  return MockPagerView;
 });
 
 describe('Cross-Book Navigation', () => {

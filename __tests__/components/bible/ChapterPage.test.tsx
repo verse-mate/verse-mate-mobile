@@ -14,7 +14,6 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react-native';
-import React from 'react';
 import { ChapterPage } from '@/components/bible/ChapterPage';
 import {
   useBibleByLine,
@@ -108,6 +107,7 @@ describe('ChapterPage', () => {
     mockUseBibleChapter.mockReturnValue({
       data: null,
       isLoading: true,
+      isPlaceholderData: false,
       error: null,
       isError: false,
       isSuccess: false,
@@ -121,6 +121,7 @@ describe('ChapterPage', () => {
     mockUseBibleChapter.mockReturnValue({
       data: null,
       isLoading: true,
+      isPlaceholderData: false,
       error: null,
       isError: false,
       isSuccess: false,
@@ -134,6 +135,7 @@ describe('ChapterPage', () => {
     mockUseBibleChapter.mockReturnValue({
       data: null,
       isLoading: false,
+      isPlaceholderData: false,
       error: null,
       isError: false,
       isSuccess: true,
@@ -164,6 +166,7 @@ describe('ChapterPage', () => {
     mockUseBibleChapter.mockReturnValue({
       data: mockChapter,
       isLoading: false,
+      isPlaceholderData: false,
       error: null,
       isError: false,
       isSuccess: true,
@@ -181,6 +184,7 @@ describe('ChapterPage', () => {
     mockUseBibleChapter.mockReturnValue({
       data: null,
       isLoading: true,
+      isPlaceholderData: false,
       error: null,
       isError: false,
       isSuccess: false,
@@ -188,13 +192,14 @@ describe('ChapterPage', () => {
 
     renderChapterPage(2, 10);
 
-    expect(mockUseBibleChapter).toHaveBeenCalledWith(2, 10);
+    expect(mockUseBibleChapter).toHaveBeenCalledWith(2, 10, undefined);
   });
 
   it('should update when props change (window shift)', () => {
     mockUseBibleChapter.mockReturnValue({
       data: null,
       isLoading: true,
+      isPlaceholderData: false,
       error: null,
       isError: false,
       isSuccess: false,
@@ -210,7 +215,7 @@ describe('ChapterPage', () => {
     );
 
     // Should have been called with new chapter number
-    expect(mockUseBibleChapter).toHaveBeenLastCalledWith(1, 2);
+    expect(mockUseBibleChapter).toHaveBeenLastCalledWith(1, 2, undefined);
   });
 
   it('should pass activeTab and activeView to ChapterReader', async () => {
@@ -224,6 +229,25 @@ describe('ChapterPage', () => {
     mockUseBibleChapter.mockReturnValue({
       data: mockChapter,
       isLoading: false,
+      isPlaceholderData: false,
+      error: null,
+      isError: false,
+      isSuccess: true,
+    } as any);
+
+    // Provide mock data for detailed tab to prevent skeleton from showing
+    const mockDetailedExplanation = {
+      bookId: 1,
+      chapterNumber: 1,
+      type: 'detailed',
+      content: 'Detailed explanation content',
+      languageCode: 'en-US',
+    };
+
+    mockUseBibleDetailed.mockReturnValue({
+      data: mockDetailedExplanation,
+      isLoading: false,
+      isFetching: false,
       error: null,
       isError: false,
       isSuccess: true,

@@ -1,0 +1,130 @@
+---
+appId: com.versemate.mobile
+name: Skeleton Flash Test - Explanations View
+description: Tests that skeleton doesn't flash when swiping in Explanations view with cached data
+tags:
+  - skeleton
+  - explanations
+  - visual
+  - regression
+
+---
+
+# Skeleton Flash Test - Explanations View
+#
+# This flow tests that skeleton loading doesn't flash unnecessarily
+# when swiping between chapters in Explanations view when data is cached.
+#
+# User Journey:
+# 1. Launch app to Genesis 1
+# 2. Switch to Explanations view
+# 3. Wait for explanation to load (ensure it's cached)
+# 4. Swipe to Genesis 2 (trigger cache + new fetch)
+# 5. Verify no skeleton flash during transition
+# 6. Verify explanation content appears smoothly
+#
+# Expected Behavior:
+# - Should show old chapter content (Genesis 1) during swipe
+# - Should smoothly transition to new chapter content (Genesis 2)
+# - Should NOT show skeleton loader between transitions
+# - Header should update to "Genesis 2" at same time as content updates
+
+- launchApp:
+    appId: com.versemate.mobile
+    clearState: true
+
+# Wait for Genesis 1 to load in Bible view
+- assertVisible: "Genesis 1"
+
+# Verify Genesis 1 content is loaded
+- assertVisible:
+    text: "The Creation"
+
+# Switch to Explanations view by tapping the explanations icon
+- tapOn:
+    id: "explanations-view-icon"
+
+# Wait for explanations to load
+- waitForAnimationToEnd
+
+# Verify we're in Explanations view (tabs should be visible)
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# Wait a moment to ensure explanation is cached
+- waitForAnimationToEnd
+
+# Take screenshot before swipe (Genesis 1 explanation)
+- takeScreenshot: before-swipe-genesis-1
+
+# Swipe left to go to Genesis 2
+# This is the critical moment - we should NOT see skeleton flash
+- swipe:
+    direction: LEFT
+    duration: 500
+
+# Wait for animation to complete
+- waitForAnimationToEnd
+
+# Take screenshot after swipe (Genesis 2 explanation)
+- takeScreenshot: after-swipe-genesis-2
+
+# Verify header updated to Genesis 2
+- assertVisible: "Genesis 2"
+
+# Verify we're still in Explanations view (tabs visible)
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# CRITICAL: Verify skeleton loader is NOT visible
+# If skeleton is visible, it means the flash happened
+- assertNotVisible:
+    id: "skeleton-loader"
+
+# Swipe left again to Genesis 3 (test consecutive swipes)
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Take screenshot after second swipe
+- takeScreenshot: after-swipe-genesis-3
+
+# Verify header updated to Genesis 3
+- assertVisible: "Genesis 3"
+
+# CRITICAL: Again verify skeleton is not visible
+- assertNotVisible:
+    id: "skeleton-loader"
+
+# Swipe right back to Genesis 2 (test reverse direction)
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Take screenshot after reverse swipe
+- takeScreenshot: after-swipe-back-genesis-2
+
+# Verify header updated back to Genesis 2
+- assertVisible: "Genesis 2"
+
+# CRITICAL: Skeleton should not be visible
+- assertNotVisible:
+    id: "skeleton-loader"
+
+# Switch back to Bible view to verify view switching works
+- tapOn:
+    id: "bible-view-icon"
+
+- waitForAnimationToEnd
+
+# Tabs should not be visible in Bible view
+- assertNotVisible:
+    id: "chapter-content-tabs"
+
+# Verify Bible content is visible (not skeleton)
+- assertNotVisible:
+    id: "skeleton-loader"

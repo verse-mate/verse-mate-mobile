@@ -55,6 +55,18 @@ module.exports = defineConfig([
     },
   },
 
+  // Test files configuration
+  {
+    files: [
+      '__tests__/**/*.{ts,tsx,js,jsx}',
+      '**/*.test.{ts,tsx,js,jsx}',
+      '**/*.spec.{ts,tsx,js,jsx}',
+    ],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+
   // Ignore files
   {
     ignores: ['dist/*', 'node_modules/**', '.expo/**', 'ios/**', 'android/**', 'build/**'],

@@ -6,8 +6,9 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
+import * as Haptics from 'expo-haptics';
+import { useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
@@ -25,6 +26,7 @@ import {
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
+  useNavigation: jest.fn(() => ({})),
   useLocalSearchParams: jest.fn(),
   router: {
     push: jest.fn(),
@@ -43,11 +45,18 @@ jest.mock('@/src/api/generated', () => ({
   usePrefetchPreviousChapter: jest.fn(),
 }));
 
-jest.mock('@/hooks/bible', () => ({
-  useActiveTab: jest.fn(),
-  useBookProgress: jest.fn(),
-  useRecentBooks: jest.fn(),
-}));
+jest.mock('@/hooks/bible', () => {
+  const React = require('react');
+  return {
+    useActiveTab: jest.fn(),
+    useBookProgress: jest.fn(),
+    useRecentBooks: jest.fn(),
+    useActiveView: jest.fn(() => {
+      const [activeView, setActiveView] = React.useState('bible');
+      return { activeView, setActiveView };
+    }),
+  };
+});
 
 jest.mock('@react-native-community/netinfo', () => ({
   addEventListener: jest.fn(() => jest.fn()), // Return unsubscribe function
@@ -69,6 +78,35 @@ jest.mock('expo-haptics', () => ({
     Error: 'error',
   },
 }));
+
+// Mock ChapterPagerView to track ref usage
+let mockSetPage: jest.Mock;
+
+jest.mock('@/components/bible/ChapterPagerView', () => {
+  const React = require('react');
+
+  const MockChapterPagerView = React.forwardRef((_props: any, ref: any) => {
+    const { View, Text } = require('react-native');
+
+    mockSetPage = jest.fn();
+
+    React.useImperativeHandle(ref, () => ({
+      setPage: mockSetPage,
+    }));
+
+    return (
+      <View testID="chapter-pager-view">
+        <Text>Mock ChapterPagerView</Text>
+      </View>
+    );
+  });
+
+  MockChapterPagerView.displayName = 'ChapterPagerView';
+
+  return {
+    ChapterPagerView: MockChapterPagerView,
+  };
+});
 
 // Mock chapter data
 const mockChapterData = {
@@ -152,6 +190,7 @@ describe('ChapterScreen - PagerView Integration', () => {
     mockSaveLastRead = jest.fn();
     mockPrefetchNext = jest.fn();
     mockPrefetchPrevious = jest.fn();
+    mockSetPage = jest.fn();
 
     // Default mock implementations
     (useLocalSearchParams as jest.Mock).mockReturnValue({
@@ -330,7 +369,7 @@ describe('ChapterScreen - PagerView Integration', () => {
     const { getByTestId, queryByTestId } = renderWithSafeArea(<ChapterScreen />);
 
     // Tabs should NOT be visible in Bible view initially
-    expect(queryByTestId('chapter-tabs-container')).toBeNull();
+    expect(queryByTestId('chapter-content-tabs')).toBeNull();
 
     // Switch to explanations view
     await waitFor(() => {
@@ -340,7 +379,7 @@ describe('ChapterScreen - PagerView Integration', () => {
 
     // Tabs should be visible in explanations view
     await waitFor(() => {
-      const tabsContainer = getByTestId('chapter-tabs-container');
+      const tabsContainer = getByTestId('chapter-content-tabs');
       expect(tabsContainer).toBeTruthy();
     });
   });
@@ -352,7 +391,7 @@ describe('ChapterScreen - PagerView Integration', () => {
     const { getByTestId, queryByTestId } = renderWithSafeArea(<ChapterScreen />);
 
     // Initially in Bible view, tabs should NOT be visible
-    expect(queryByTestId('chapter-tabs-container')).toBeNull();
+    expect(queryByTestId('chapter-content-tabs')).toBeNull();
 
     const bibleIcon = getByTestId('bible-view-icon');
     const explanationsIcon = getByTestId('explanations-view-icon');
@@ -362,7 +401,7 @@ describe('ChapterScreen - PagerView Integration', () => {
 
     // Tabs should appear
     await waitFor(() => {
-      expect(getByTestId('chapter-tabs-container')).toBeTruthy();
+      expect(getByTestId('chapter-content-tabs')).toBeTruthy();
     });
 
     // Switch back to Bible view
@@ -370,7 +409,131 @@ describe('ChapterScreen - PagerView Integration', () => {
 
     // Tabs should not be visible
     await waitFor(() => {
-      expect(queryByTestId('chapter-tabs-container')).toBeNull();
+      expect(queryByTestId('chapter-content-tabs')).toBeNull();
+    });
+  });
+
+  describe('Button Navigation via PagerView ref', () => {
+    /**
+     * Test 9: Next button calls pagerRef.setPage(3) instead of router.replace
+     */
+    it('calls pagerRef.setPage with CENTER_INDEX + 1 when next button is pressed', async () => {
+      // Genesis 1 can navigate to next chapter
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        bookId: '1',
+        chapterNumber: '1',
+      });
+
+      const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
+
+      await waitFor(() => {
+        const nextButton = getByTestId('next-chapter-button');
+        fireEvent.press(nextButton);
+      });
+
+      // Should call setPage with CENTER_INDEX + 1 (2 + 1 = 3)
+      expect(mockSetPage).toHaveBeenCalledWith(3);
+    });
+
+    /**
+     * Test 10: Previous button calls pagerRef.setPage(1) instead of router.replace
+     */
+    it('calls pagerRef.setPage with CENTER_INDEX - 1 when previous button is pressed', async () => {
+      // Genesis 2 can navigate to previous chapter
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        bookId: '1',
+        chapterNumber: '2',
+      });
+
+      (useBibleChapter as jest.Mock).mockReturnValue({
+        data: { ...mockChapterData, chapterNumber: 2 },
+        isLoading: false,
+        error: null,
+      });
+
+      const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
+
+      await waitFor(() => {
+        const prevButton = getByTestId('previous-chapter-button');
+        fireEvent.press(prevButton);
+      });
+
+      // Should call setPage with CENTER_INDEX - 1 (2 - 1 = 1)
+      expect(mockSetPage).toHaveBeenCalledWith(1);
+    });
+
+    /**
+     * Test 11: Button handlers respect boundary flags (canGoNext)
+     */
+    it('triggers error haptic when trying to navigate past Revelation 22', async () => {
+      // Revelation 22 - cannot go to next chapter
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        bookId: '66',
+        chapterNumber: '22',
+      });
+
+      (useBibleChapter as jest.Mock).mockReturnValue({
+        data: { ...mockChapterData, bookId: 66, chapterNumber: 22, bookName: 'Revelation' },
+        isLoading: false,
+        error: null,
+      });
+
+      const { queryByTestId } = renderWithSafeArea(<ChapterScreen />);
+
+      await waitFor(() => {
+        // Next button should NOT be visible at Revelation 22
+        expect(queryByTestId('next-chapter-button')).toBeNull();
+      });
+
+      // setPage should NOT have been called
+      expect(mockSetPage).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Test 12: Haptic feedback fires on valid navigation
+     */
+    it('triggers medium impact haptic on valid next button press', async () => {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        bookId: '1',
+        chapterNumber: '5',
+      });
+
+      (useBibleChapter as jest.Mock).mockReturnValue({
+        data: { ...mockChapterData, chapterNumber: 5 },
+        isLoading: false,
+        error: null,
+      });
+
+      const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
+
+      await waitFor(() => {
+        const nextButton = getByTestId('next-chapter-button');
+        fireEvent.press(nextButton);
+      });
+
+      // Should trigger medium impact haptic
+      expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
+    });
+
+    /**
+     * Test 13: Null safety with optional chaining
+     */
+    it('handles ref being null gracefully', async () => {
+      // Mock setPage to be undefined to simulate null ref
+      mockSetPage = undefined as any;
+
+      (useLocalSearchParams as jest.Mock).mockReturnValue({
+        bookId: '1',
+        chapterNumber: '5',
+      });
+
+      const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
+
+      // Should not crash when pressing button with null ref
+      await waitFor(() => {
+        const nextButton = getByTestId('next-chapter-button');
+        expect(() => fireEvent.press(nextButton)).not.toThrow();
+      });
     });
   });
 });
