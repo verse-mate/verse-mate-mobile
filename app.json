@@ -14,7 +14,10 @@
       "supportsTablet": true,
       "associatedDomains": [
         "applinks:app.versemate.org"
-      ]
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "org.versemate.mobile",
