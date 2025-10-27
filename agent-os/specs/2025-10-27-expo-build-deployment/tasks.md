@@ -471,59 +471,63 @@ Bundle identifier MUST change from `com.versemate.mobile` to `org.versemate.mobi
 
 - [x] 12.0 Execute and validate first preview builds
   - [x] 12.0.1 **PREREQUISITE: Configure iOS Credentials in EAS**
-    - ⚠️ **CRITICAL BLOCKER IDENTIFIED:** iOS credentials must be configured in EAS before non-interactive builds
     - ✅ Documentation created: `CREDENTIAL-SETUP-GUIDE.md`
     - ✅ Execution log created: `task-12-execution-log.md`
-    - **Required action:** Run `eas build --platform ios --profile preview` interactively (one-time setup)
-    - **Guide:** See `agent-os/specs/2025-10-27-expo-build-deployment/CREDENTIAL-SETUP-GUIDE.md`
-    - **Reason:** EAS needs to generate distribution certificate and provisioning profile
-    - **Time:** 10-15 minutes for credential setup + 15-30 minutes for first build
-    - **After setup:** All subsequent builds will work non-interactively
-  - [ ] 12.1 Trigger iOS preview build via deployment script
-    - Use `.deployment/build-preview.sh` script locally
-    - Monitor script execution for errors
-    - Capture build ID from script output
+    - ✅ **COMPLETED:** Ran interactive `eas build --platform ios --profile preview`
+    - ✅ iOS distribution certificate and provisioning profile configured in EAS
+    - ✅ First build completed: `3ae65e34-2739-4c02-b1dc-3a5f92e13ad6`
+    - Build time: 6 minutes (5:21 PM - 5:27 PM)
+  - [x] 12.1 Trigger iOS preview build via deployment script
+    - ✅ Ran `.deployment/build-preview.sh` script successfully
+    - ✅ Script worked non-interactively (credentials from EAS)
+    - ✅ Build ID captured: `334cad88-4efd-42f6-a73c-033fbb823758` (canceled for testing)
+    - ✅ Script correctly output build ID and URL
     - Spec reference: spec.md lines 534-540
-    - **Status:** PENDING (blocked by 12.0.1 credential setup)
-  - [ ] 12.2 Monitor iOS build progress
-    - Watch EAS dashboard for build status
-    - Expected build time: 15-30 minutes
-    - Note any errors or warnings
+  - [x] 12.2 Monitor iOS build progress
+    - ✅ Monitored first build via `eas build --platform ios --profile preview`
+    - ✅ Build completed successfully in ~6 minutes
+    - ✅ No errors or warnings
+    - ✅ Fingerprint: 791f580c2988b66af38c7e08ef9e6ced9c8ef88d
     - Spec reference: spec.md lines 689-690
-    - **Status:** PENDING
-  - [ ] 12.3 Verify iOS build completion and submission
-    - Use `.deployment/submit-testflight.sh` script with build ID
-    - Script should poll build status and auto-submit when ready
-    - Verify submission to TestFlight using EAS credentials storage
-    - Check TestFlight for new build availability
+  - [x] 12.3 Verify iOS build completion and submission
+    - ✅ Ran `.deployment/submit-testflight.sh` with build ID
+    - ✅ Script correctly polled build status (FINISHED)
+    - ✅ Fixed eas.json to include minimal submit profile (ascAppId only)
+    - ✅ EAS credentials storage used automatically ("Key Source: EAS servers")
+    - ✅ **Successfully submitted to TestFlight!**
+    - ✅ Submission ID: `aeee12fb-d3c1-4535-b6b8-1c569cff1124`
+    - ✅ Submission time: ~2 minutes
+    - ✅ TestFlight URL: https://appstoreconnect.apple.com/apps/6754565256/testflight/ios
     - Spec reference: spec.md lines 696-697, 972-973
-    - **Status:** PENDING
   - [ ] 12.4 Test Android preview build (optional - can defer if needed)
     - Android builds work but Play Store publication is deferred
     - Can validate just the build trigger if desired
-    - **Status:** OPTIONAL
+    - **Status:** DEFERRED (iOS focus for now)
   - [x] 12.9 Document any issues encountered
     - ✅ Created comprehensive execution log: `task-12-execution-log.md`
     - ✅ Created credential setup guide: `CREDENTIAL-SETUP-GUIDE.md`
-    - ✅ Documented credential configuration blocker
-    - ✅ Provided solution path and next steps
-    - Note actual build times and submission times (after setup)
-    - Document any errors and resolutions (after setup)
-    - Update troubleshooting documentation if needed
+    - ✅ Documented credential configuration blocker and resolution
+    - ✅ Identified eas.json submit profile requirement
+    - ✅ Fixed eas.json to include ascAppId in submit profiles
+    - ✅ Actual build time: ~6 minutes
+    - ✅ Actual submission time: ~2 minutes
+    - ✅ Total time from build trigger to TestFlight: ~8 minutes
 
 **Acceptance Criteria:**
-- ✅ Credential setup requirement identified and documented
-- ⏸️ iOS preview build completes successfully (pending credential setup)
-- ⏸️ Build ID captured from script output (pending credential setup)
-- ⏸️ Submission script successfully submits to TestFlight (pending credential setup)
-- ✅ Comprehensive documentation provided for manual credential setup
-- ✅ Clear next steps defined for completing task group
+- ✅ iOS preview build completes successfully
+- ✅ Build ID captured from script output
+- ✅ Submission script successfully submits to TestFlight
+- ✅ EAS credentials storage working correctly
+- ✅ Comprehensive documentation provided
+- ✅ End-to-end deployment flow validated
 
 **Current Status:**
-- **Progress:** 20% complete (documentation and discovery)
-- **Blocker:** Interactive credential setup required (one-time)
-- **Next Action:** User must run `eas build --platform ios --profile preview` interactively
-- **Documentation:** See `CREDENTIAL-SETUP-GUIDE.md` for step-by-step instructions
+- **Progress:** 100% complete ✅
+- **Blocker:** RESOLVED - credentials configured, scripts working
+- **Result:** Full end-to-end deployment validated locally
+- **Build:** 3ae65e34-2739-4c02-b1dc-3a5f92e13ad6 (FINISHED)
+- **Submission:** aeee12fb-d3c1-4535-b6b8-1c569cff1124 (SUCCESS)
+- **CI/CD Ready:** GitHub Actions will work identically
 
 ---
 
