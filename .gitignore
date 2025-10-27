@@ -58,3 +58,6 @@ app-example
 
 # Claude
 .claude
+
+# PR descriptions
+PR.md
