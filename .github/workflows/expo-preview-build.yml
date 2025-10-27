@@ -92,11 +92,11 @@ jobs:
               STATUS=$(cat build_status.json | jq -r '.status')
               echo "Build status: $STATUS"
 
-              if [ "$STATUS" = "finished" ]; then
+              if [ "$STATUS" = "FINISHED" ] || [ "$STATUS" = "finished" ]; then
                 echo "Build completed successfully!"
                 eas submit --platform ios --id $BUILD_ID --non-interactive
                 exit 0
-              elif [ "$STATUS" = "errored" ] || [ "$STATUS" = "canceled" ]; then
+              elif [ "$STATUS" = "ERRORED" ] || [ "$STATUS" = "errored" ] || [ "$STATUS" = "CANCELED" ] || [ "$STATUS" = "canceled" ]; then
                 echo "Build failed with status: $STATUS"
                 exit 1
               fi
