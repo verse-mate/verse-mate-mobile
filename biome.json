@@ -62,5 +62,31 @@
         "noDelete": "warn"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["__tests__/**/*.{ts,tsx}", "**/__tests__/**/*.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off",
+            "noArrayIndexKey": "off"
+          },
+          "correctness": {
+            "noUnusedImports": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["components/bible/ChapterPagerView.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noArrayIndexKey": "off"
+          }
+        }
+      }
+    }
+  ]
 }

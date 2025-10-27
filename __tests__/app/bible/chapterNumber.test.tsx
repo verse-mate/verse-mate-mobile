@@ -11,7 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
-import { useActiveTab, useBookProgress, useRecentBooks } from '@/hooks/bible';
+import { useActiveTab, useActiveView, useBookProgress, useRecentBooks } from '@/hooks/bible';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -43,11 +43,18 @@ jest.mock('@/src/api/generated', () => ({
   usePrefetchPreviousChapter: jest.fn(),
 }));
 
-jest.mock('@/hooks/bible', () => ({
-  useActiveTab: jest.fn(),
-  useBookProgress: jest.fn(),
-  useRecentBooks: jest.fn(),
-}));
+jest.mock('@/hooks/bible', () => {
+  const React = require('react');
+  return {
+    useActiveTab: jest.fn(),
+    useActiveView: jest.fn(() => {
+      const [activeView, setActiveView] = React.useState('bible');
+      return { activeView, setActiveView, isLoading: false, error: null };
+    }),
+    useBookProgress: jest.fn(),
+    useRecentBooks: jest.fn(),
+  };
+});
 
 jest.mock('@react-native-community/netinfo', () => ({
   addEventListener: jest.fn(() => jest.fn()), // Return unsubscribe function
@@ -134,6 +141,8 @@ describe('ChapterScreen', () => {
       error: null,
     });
 
+    // useActiveView uses stateful mock defined in jest.mock above
+
     (useSaveLastRead as jest.Mock).mockReturnValue({
       mutate: jest.fn(),
     });
@@ -201,7 +210,7 @@ describe('ChapterScreen', () => {
 
     await waitFor(() => {
       expect(getByTestId('chapter-header')).toBeTruthy();
-      expect(screen.getByText('The Creation')).toBeTruthy();
+      expect(screen.getAllByText('The Creation')[0]).toBeTruthy();
     });
   });
 
@@ -230,13 +239,14 @@ describe('ChapterScreen', () => {
       error: null,
     });
 
-    const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
+    renderWithSafeArea(<ChapterScreen />);
 
     await waitFor(() => {
-      // Scroll view should be visible
-      expect(getByTestId('chapter-scroll-view')).toBeTruthy();
+      // Scroll view should be visible (using dynamic testID from ChapterPage)
+      // Use getAllByTestId because PagerView renders multiple pages
+      expect(screen.getAllByTestId('chapter-page-scroll-1-1')[0]).toBeTruthy();
       // Section subtitle should be visible
-      expect(screen.getByText('The Creation')).toBeTruthy();
+      expect(screen.getAllByText('The Creation')[0]).toBeTruthy();
     });
   });
 
