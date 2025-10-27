@@ -70,7 +70,10 @@ export default function RootLayout() {
               <Stack.Screen name="index" options={{ headerShown: false }} />
               <Stack.Screen
                 name="bible/[bookId]/[chapterNumber]"
-                options={{ headerShown: false }}
+                options={{
+                  headerShown: false,
+                  animation: 'none', // Disable route animations - PagerView handles swipe animations
+                }}
               />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             </Stack>

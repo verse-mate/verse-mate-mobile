@@ -13,7 +13,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useActiveTab, useBookProgress, useRecentBooks } from '@/hooks/bible';
+import { useActiveTab, useActiveView, useBookProgress, useRecentBooks } from '@/hooks/bible';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -48,11 +48,18 @@ jest.mock('@/src/api/generated', () => ({
 }));
 
 // Mock custom hooks
-jest.mock('@/hooks/bible', () => ({
-  useActiveTab: jest.fn(),
-  useBookProgress: jest.fn(),
-  useRecentBooks: jest.fn(),
-}));
+jest.mock('@/hooks/bible', () => {
+  const React = require('react');
+  return {
+    useActiveTab: jest.fn(),
+    useActiveView: jest.fn(() => {
+      const [activeView, setActiveView] = React.useState('bible');
+      return { activeView, setActiveView, isLoading: false, error: null };
+    }),
+    useBookProgress: jest.fn(),
+    useRecentBooks: jest.fn(),
+  };
+});
 
 // Mock expo-haptics
 jest.mock('expo-haptics', () => ({
@@ -155,6 +162,8 @@ describe('ChapterScreen - View Mode State', () => {
       isLoading: false,
       error: null,
     });
+
+    // useActiveView uses stateful mock defined in jest.mock above
 
     (useSaveLastRead as jest.Mock).mockReturnValue({
       mutate: jest.fn(),
