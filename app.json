@@ -2,6 +2,7 @@
   "expo": {
     "name": "verse-mate-mobile",
     "slug": "verse-mate-mobile",
+    "owner": "versemate",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,12 +10,17 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "com.versemate.mobile",
+      "bundleIdentifier": "org.versemate.mobile",
       "supportsTablet": true,
-      "associatedDomains": ["applinks:app.versemate.org"]
+      "associatedDomains": [
+        "applinks:app.versemate.org"
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "package": "com.versemate.mobile",
+      "package": "org.versemate.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -34,7 +40,10 @@
               "pathPrefix": "/bible"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -60,6 +69,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3178e762-1329-4504-9541-0f6a489a760b"
+      }
     }
   }
 }
