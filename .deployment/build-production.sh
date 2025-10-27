@@ -1,10 +1,19 @@
 #!/bin/bash
 
-# Build script for iOS production builds
-# This script triggers an iOS production build on EAS and captures the build ID
+# Build script for production builds
+# This script triggers a production build on EAS and captures the build ID
 # Used by both CI/CD (GitHub Actions) and local development
 
 set -e
+
+# Get platform from argument (default: ios)
+PLATFORM="${1:-ios}"
+
+# Validate platform
+if [ "$PLATFORM" != "ios" ] && [ "$PLATFORM" != "android" ]; then
+  echo "Error: Invalid platform '$PLATFORM'. Must be 'ios' or 'android'"
+  exit 1
+fi
 
 # Check for EXPO_TOKEN
 if [ -z "$EXPO_TOKEN" ]; then
@@ -12,31 +21,30 @@ if [ -z "$EXPO_TOKEN" ]; then
   exit 1
 fi
 
-echo "Starting iOS production build..."
+echo "=========================================="
+echo "Triggering $PLATFORM Production Build"
+echo "=========================================="
 
 # Trigger production build and capture output
-BUILD_OUTPUT=$(eas build --platform ios --profile production --non-interactive --no-wait --json)
+eas build --platform "$PLATFORM" --profile production --non-interactive --no-wait --json > build_output.json 2>&1
 
-# Extract build ID from JSON output
-BUILD_ID=$(echo "$BUILD_OUTPUT" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+# Extract JSON array from output (same as preview script)
+BUILD_ID=$(grep -A 100 '^\[' build_output.json | jq -r '.[0].id')
 
-if [ -z "$BUILD_ID" ]; then
-  echo "Error: Failed to extract build ID from EAS output"
-  echo "Raw output: $BUILD_OUTPUT"
+if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
+  echo "❌ Error: Failed to extract build ID"
+  cat build_output.json
   exit 1
 fi
 
-echo "Build started successfully!"
-echo "Build ID: $BUILD_ID"
-echo "View build: https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds/$BUILD_ID"
+echo "✅ $PLATFORM Build ID: $BUILD_ID"
+echo "🔗 Build URL: https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds/$BUILD_ID"
 
 # Save build ID for later steps
-echo "$BUILD_ID" > .deployment/build_id_production.txt
+echo "$BUILD_ID" > ".deployment/build_id_production_$PLATFORM.txt"
 
 # Export for GitHub Actions
 if [ -n "$GITHUB_OUTPUT" ]; then
   echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
+  echo "build_url=https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds/$BUILD_ID" >> "$GITHUB_OUTPUT"
 fi
-
-# Output build ID to stdout for script consumers
-echo "$BUILD_ID"
