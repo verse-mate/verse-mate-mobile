@@ -58,7 +58,8 @@ jobs:
         run: |
           # Capture build output and extract build ID
           eas build --platform ios --profile preview --non-interactive --no-wait --json > build_output.json
-          BUILD_ID=$(cat build_output.json | jq -r '.id')
+          cat build_output.json
+          BUILD_ID=$(cat build_output.json | jq -r 'if type == "array" then .[0].id else .id end')
           echo "iOS Build ID: $BUILD_ID"
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
 
