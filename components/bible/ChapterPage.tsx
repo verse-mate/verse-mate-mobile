@@ -16,7 +16,7 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { animations, colors, spacing } from '@/constants/bible-design-tokens';
@@ -77,45 +77,67 @@ export const ChapterPage = React.memo(function ChapterPage({
   activeView,
 }: ChapterPageProps) {
   // Fetch chapter content
-  const { data: chapter, isLoading } = useBibleChapter(bookId, chapterNumber);
+  const { data: chapter } = useBibleChapter(bookId, chapterNumber, undefined);
 
   // Fetch explanations for each tab
-  // Active tab loads immediately, inactive tabs load in background
+  // Queries are ALWAYS enabled to maintain cache during route transitions
   const {
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
-  } = useBibleSummary(bookId, chapterNumber, undefined, {
-    enabled: activeView === 'explanations' && activeTab === 'summary', // Only load in Explanations view
-  });
+  } = useBibleSummary(bookId, chapterNumber, undefined);
 
   const {
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
-  } = useBibleByLine(bookId, chapterNumber, undefined, {
-    enabled: activeView === 'explanations' && activeTab === 'byline', // Only load in Explanations view
-  });
+  } = useBibleByLine(bookId, chapterNumber, undefined);
 
   const {
     data: detailedData,
     isLoading: isDetailedLoading,
     error: detailedError,
-  } = useBibleDetailed(bookId, chapterNumber, undefined, {
-    enabled: activeView === 'explanations' && activeTab === 'detailed', // Only load in Explanations view
-  });
+  } = useBibleDetailed(bookId, chapterNumber, undefined);
+
+  // Track previous props to detect changes immediately (before queries update)
+  // This prevents Bible content flash when swiping in Explanations view
+  // Also track activeView to detect if it's flickering between bible/explanations
+  const prevPropsRef = useRef({ bookId, chapterNumber, activeView });
+
+  const activeViewChanged = prevPropsRef.current.activeView !== activeView;
+
+  // Update ref after render to track for next change
+  useEffect(() => {
+    prevPropsRef.current = { bookId, chapterNumber, activeView };
+  }, [bookId, chapterNumber, activeView]);
 
   // Get active explanation content based on selected tab (memoized for performance)
   const activeContent = useMemo(() => {
     switch (activeTab) {
       case 'summary':
-        return { data: summaryData, isLoading: isSummaryLoading, error: summaryError };
+        return {
+          data: summaryData,
+          isLoading: isSummaryLoading,
+          error: summaryError,
+        };
       case 'byline':
-        return { data: byLineData, isLoading: isByLineLoading, error: byLineError };
+        return {
+          data: byLineData,
+          isLoading: isByLineLoading,
+          error: byLineError,
+        };
       case 'detailed':
-        return { data: detailedData, isLoading: isDetailedLoading, error: detailedError };
+        return {
+          data: detailedData,
+          isLoading: isDetailedLoading,
+          error: detailedError,
+        };
       default:
-        return { data: undefined, isLoading: false, error: null };
+        return {
+          data: undefined,
+          isLoading: false,
+          error: null,
+        };
     }
   }, [
     activeTab,
@@ -130,6 +152,31 @@ export const ChapterPage = React.memo(function ChapterPage({
     detailedError,
   ]);
 
+  // Check if we should show skeleton
+  // Show skeleton when:
+  // 1. Bible chapter is missing (null or undefined) AND:
+  //    - We're loading for the first time (no placeholder data)
+  //    - OR we're loading without placeholder data
+  // 2. In explanations view AND:
+  //    - View just changed (prevents Bible flash)
+  //    - Explanation is loading for first time (no data yet, not even placeholder)
+  //    - No explanation data at all
+  //    - AND we're not showing placeholder data for the explanation
+  // NOTE: We do NOT show skeleton when showing placeholder data (old chapter while fetching new)
+  // because that would defeat the purpose of placeholderData - smooth transitions!
+  // Calculate skeleton conditions
+  // SIMPLIFIED LOGIC: Only show skeleton when we truly have NO data to display
+  // If we have ANY data (even old/placeholder), show it instead of skeleton
+  const condition1_noChapter = !chapter;
+  const condition2_explanationsView = activeView === 'explanations';
+  const condition2_noExplanationData = !activeContent.data;
+  const condition2_viewChanged = activeViewChanged;
+
+  const shouldShowSkeleton =
+    condition1_noChapter ||
+    (condition2_explanationsView && condition2_viewChanged) ||
+    (condition2_explanationsView && condition2_noExplanationData);
+
   return (
     <ScrollView
       style={styles.container}
@@ -137,19 +184,11 @@ export const ChapterPage = React.memo(function ChapterPage({
       showsVerticalScrollIndicator={true}
       testID={`chapter-page-scroll-${bookId}-${chapterNumber}`}
     >
-      {isLoading || !chapter ? (
+      {shouldShowSkeleton ? (
         <SkeletonLoader />
       ) : activeView === 'explanations' ? (
         // Explanations view with tab content
-        activeContent.isLoading ? (
-          // Show skeleton loader for tab content
-          <Animated.View
-            entering={FadeIn.duration(animations.tabSwitch.duration)}
-            exiting={FadeOut.duration(animations.tabSwitch.duration)}
-          >
-            <SkeletonLoader />
-          </Animated.View>
-        ) : activeContent.error ? (
+        activeContent.error ? (
           // Show error state for tab content
           <Animated.View
             entering={FadeIn.duration(animations.tabSwitch.duration)}

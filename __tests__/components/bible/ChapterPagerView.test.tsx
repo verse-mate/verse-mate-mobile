@@ -14,41 +14,53 @@
  * - onPageSelected callback fires
  * - Re-centers after edge swipe
  * - Props update on window shift
+ * - Ref functionality and imperative API (setPage method)
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react-native';
-import React from 'react';
+import { render, screen } from '@testing-library/react-native';
+import React, { useRef } from 'react';
+import type { ChapterPagerViewRef } from '@/components/bible/ChapterPagerView';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
 import { useBibleTestaments } from '@/src/api/generated/hooks';
 import type { ContentTabType } from '@/types/bible';
 import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
 
+// Store mock setPage for testing
+let mockSetPage: jest.Mock;
+let mockSetPageWithoutAnimation: jest.Mock;
+
 // Mock react-native-pager-view
 jest.mock('react-native-pager-view', () => {
   const React = require('react');
-  const { View, Text } = require('react-native');
+  const { View } = require('react-native');
+
+  const MockPagerView = React.forwardRef(({ children, testID }: any, ref: any) => {
+    // Store ref methods for testing
+    mockSetPage = jest.fn();
+    mockSetPageWithoutAnimation = jest.fn();
+
+    React.useImperativeHandle(ref, () => ({
+      setPage: mockSetPage,
+      setPageWithoutAnimation: mockSetPageWithoutAnimation,
+    }));
+
+    return (
+      <View testID={testID || 'pager-view'}>
+        {React.Children.map(children, (child: any, index: number) => (
+          <View key={`page-${index}`} testID={`pager-page-${index}`}>
+            {child}
+          </View>
+        ))}
+      </View>
+    );
+  });
+
+  MockPagerView.displayName = 'PagerView';
 
   return {
     __esModule: true,
-    default: React.forwardRef(
-      ({ children, initialPage, onPageSelected, testID }: any, ref: any) => {
-        // Store ref methods for testing
-        React.useImperativeHandle(ref, () => ({
-          setPageWithoutAnimation: jest.fn(),
-        }));
-
-        return (
-          <View testID={testID || 'pager-view'}>
-            {React.Children.map(children, (child: any, index: number) => (
-              <View key={`page-${index}`} testID={`pager-page-${index}`}>
-                {child}
-              </View>
-            ))}
-          </View>
-        );
-      }
-    ),
+    default: MockPagerView,
   };
 });
 
@@ -224,5 +236,159 @@ describe('ChapterPagerView', () => {
     expect(screen.getByTestId('pager-page-2')).toBeTruthy();
     expect(screen.getByTestId('pager-page-3')).toBeTruthy();
     expect(screen.getByTestId('pager-page-4')).toBeTruthy();
+  });
+
+  describe('Ref Functionality', () => {
+    it('should expose setPage method via ref', () => {
+      const TestComponent = () => {
+        const pagerRef = useRef<ChapterPagerViewRef>(null);
+
+        return (
+          <QueryClientProvider client={queryClient}>
+            <ChapterPagerView
+              ref={pagerRef}
+              initialBookId={1}
+              initialChapter={1}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={jest.fn()}
+            />
+          </QueryClientProvider>
+        );
+      };
+
+      render(<TestComponent />);
+
+      // Mock setPage should be defined
+      expect(mockSetPage).toBeDefined();
+    });
+
+    it('should call native setPage when ref.setPage is invoked', () => {
+      const TestComponent = () => {
+        const pagerRef = useRef<ChapterPagerViewRef>(null);
+
+        React.useEffect(() => {
+          // Simulate button click after render
+          if (pagerRef.current) {
+            pagerRef.current.setPage(3);
+          }
+        }, []);
+
+        return (
+          <QueryClientProvider client={queryClient}>
+            <ChapterPagerView
+              ref={pagerRef}
+              initialBookId={1}
+              initialChapter={1}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={jest.fn()}
+            />
+          </QueryClientProvider>
+        );
+      };
+
+      render(<TestComponent />);
+
+      // Verify setPage was called with correct index
+      expect(mockSetPage).toHaveBeenCalledWith(3);
+    });
+
+    it('should handle undefined ref gracefully with optional chaining', () => {
+      const TestComponent = () => {
+        const pagerRef = useRef<ChapterPagerViewRef>(null);
+
+        React.useEffect(() => {
+          // Call setPage with optional chaining (shouldn't crash)
+          pagerRef.current?.setPage(1);
+        }, []);
+
+        return (
+          <QueryClientProvider client={queryClient}>
+            <ChapterPagerView
+              ref={pagerRef}
+              initialBookId={1}
+              initialChapter={1}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={jest.fn()}
+            />
+          </QueryClientProvider>
+        );
+      };
+
+      // Should not crash
+      expect(() => render(<TestComponent />)).not.toThrow();
+    });
+
+    it('should allow setPage calls with boundary values', () => {
+      const TestComponent = () => {
+        const pagerRef = useRef<ChapterPagerViewRef>(null);
+
+        React.useEffect(() => {
+          if (pagerRef.current) {
+            // Test boundary values
+            pagerRef.current.setPage(0); // First page
+            pagerRef.current.setPage(4); // Last page (WINDOW_SIZE - 1)
+            pagerRef.current.setPage(2); // Center index
+          }
+        }, []);
+
+        return (
+          <QueryClientProvider client={queryClient}>
+            <ChapterPagerView
+              ref={pagerRef}
+              initialBookId={1}
+              initialChapter={5}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={jest.fn()}
+            />
+          </QueryClientProvider>
+        );
+      };
+
+      render(<TestComponent />);
+
+      // Verify all boundary values were called
+      expect(mockSetPage).toHaveBeenCalledWith(0);
+      expect(mockSetPage).toHaveBeenCalledWith(4);
+      expect(mockSetPage).toHaveBeenCalledWith(2);
+    });
+
+    it('should support multiple setPage calls', () => {
+      const TestComponent = () => {
+        const pagerRef = useRef<ChapterPagerViewRef>(null);
+
+        React.useEffect(() => {
+          if (pagerRef.current) {
+            pagerRef.current.setPage(1);
+            pagerRef.current.setPage(3);
+            pagerRef.current.setPage(2);
+          }
+        }, []);
+
+        return (
+          <QueryClientProvider client={queryClient}>
+            <ChapterPagerView
+              ref={pagerRef}
+              initialBookId={1}
+              initialChapter={1}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={jest.fn()}
+            />
+          </QueryClientProvider>
+        );
+      };
+
+      render(<TestComponent />);
+
+      // Verify multiple calls
+      expect(mockSetPage).toHaveBeenCalledTimes(3);
+      expect(mockSetPage).toHaveBeenNthCalledWith(1, 1);
+      expect(mockSetPage).toHaveBeenNthCalledWith(2, 3);
+      expect(mockSetPage).toHaveBeenNthCalledWith(3, 2);
+    });
   });
 });

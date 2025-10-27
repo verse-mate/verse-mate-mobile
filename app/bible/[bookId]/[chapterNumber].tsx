@@ -18,12 +18,13 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
+import type { ChapterPagerViewRef } from '@/components/bible/ChapterPagerView';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
@@ -45,6 +46,11 @@ import {
  * View mode type for Bible reading interface
  */
 type ViewMode = 'bible' | 'explanations';
+
+/**
+ * Center index for 5-page window in ChapterPagerView
+ */
+const CENTER_INDEX = 2;
 
 /**
  * Chapter Screen Component
@@ -69,9 +75,6 @@ export default function ChapterScreen() {
   const bookId = Number(params.bookId);
   const chapterNumber = Number(params.chapterNumber);
 
-  // Get navigation object for updating URL params without animation
-  const navigation = useNavigation();
-
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
 
@@ -83,6 +86,9 @@ export default function ChapterScreen() {
 
   // Hamburger menu state (Task 8.5)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Ref to ChapterPagerView for programmatic navigation
+  const pagerRef = useRef<ChapterPagerViewRef>(null);
 
   // Fetch book metadata to get total chapters for validation
   const { data: booksMetadata } = useBibleTestaments();
@@ -212,43 +218,43 @@ export default function ChapterScreen() {
   );
 
   /**
-   * Navigate to previous chapter (Task 4.5 - updated to use useChapterNavigation)
+   * Navigate to previous chapter using PagerView ref
    *
    * Handles:
-   * - Same book navigation
-   * - Cross-book navigation (seamless with useChapterNavigation hook)
+   * - Triggers PagerView page change (horizontal slide animation)
    * - Boundary checking (don't go before Genesis 1)
+   * - Haptic feedback
    */
   const handlePrevious = useCallback(() => {
     if (canGoPrevious && prevChapter) {
       // Haptic feedback for button press
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      router.replace(`/bible/${prevChapter.bookId}/${prevChapter.chapterNumber}` as never);
+      // Trigger PagerView page change (swipe right to previous chapter)
+      pagerRef.current?.setPage(CENTER_INDEX - 1);
     } else {
       // Already at Genesis 1, show error haptic
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-    // Note: router is stable and doesn't need to be in dependencies
   }, [canGoPrevious, prevChapter]);
 
   /**
-   * Navigate to next chapter (Task 4.5 - updated to use useChapterNavigation)
+   * Navigate to next chapter using PagerView ref
    *
    * Handles:
-   * - Same book navigation
-   * - Cross-book navigation (seamless with useChapterNavigation hook)
+   * - Triggers PagerView page change (horizontal slide animation)
    * - Boundary checking (don't go past Revelation 22)
+   * - Haptic feedback
    */
   const handleNext = useCallback(() => {
     if (canGoNext && nextChapter) {
       // Haptic feedback for button press
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      router.replace(`/bible/${nextChapter.bookId}/${nextChapter.chapterNumber}` as never);
+      // Trigger PagerView page change (swipe left to next chapter)
+      pagerRef.current?.setPage(CENTER_INDEX + 1);
     } else {
       // Already at Revelation 22, show error haptic
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-    // Note: router is stable and doesn't need to be in dependencies
   }, [canGoNext, nextChapter]);
 
   // Show skeleton loader while loading
@@ -310,6 +316,7 @@ export default function ChapterScreen() {
 
       {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
       <ChapterPagerView
+        ref={pagerRef}
         initialBookId={validBookId}
         initialChapter={validChapter}
         activeTab={activeTab}
