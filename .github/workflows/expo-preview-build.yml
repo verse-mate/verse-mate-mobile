@@ -57,8 +57,17 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
           # Capture build output and extract build ID
-          eas build --platform ios --profile preview --non-interactive --no-wait --json > build_output.json
-          BUILD_ID=$(cat build_output.json | jq -r '.id')
+          eas build --platform ios --profile preview --non-interactive --no-wait --json > build_output.json 2>&1
+
+          # Extract JSON array from output (eas build --json includes human-readable output before JSON)
+          BUILD_ID=$(grep -A 100 '^\[' build_output.json | jq -r '.[0].id')
+
+          if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
+            echo "Error: Failed to extract build ID"
+            cat build_output.json
+            exit 1
+          fi
+
           echo "iOS Build ID: $BUILD_ID"
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
 
