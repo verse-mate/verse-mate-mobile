@@ -54,21 +54,18 @@ jobs:
         run: npm test
 
       - name: Build iOS Production
+        id: ios_build
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-        run: |
-          eas build --platform ios --profile production --non-interactive --no-wait
+        run: bash .deployment/build-production.sh ios
 
       - name: Build Android Production
+        id: android_build
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          eas build --platform android --profile production --non-interactive --no-wait
+        run: bash .deployment/build-production.sh android
 
       - name: Production Build Complete
         run: |
@@ -80,13 +77,23 @@ jobs:
           echo ""
           echo "📱 Monitor builds at: https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds"
           echo ""
+          if [ "${{ github.event.inputs.platform }}" == "all" ] || [ "${{ github.event.inputs.platform }}" == "ios" ]; then
+            echo "iOS Build ID: ${{ steps.ios_build.outputs.build_id }}"
+            echo "iOS Build URL: ${{ steps.ios_build.outputs.build_url }}"
+          fi
+          if [ "${{ github.event.inputs.platform }}" == "all" ] || [ "${{ github.event.inputs.platform }}" == "android" ]; then
+            echo "Android Build ID: ${{ steps.android_build.outputs.build_id }}"
+            echo "Android Build URL: ${{ steps.android_build.outputs.build_url }}"
+          fi
+          echo ""
           echo "To submit manually after builds complete:"
           echo ""
           echo "iOS (App Store):"
           echo "  eas submit --platform ios --latest"
+          echo "  OR: bash .deployment/submit-testflight.sh <build-id>"
           echo ""
           echo "Android (Manual download):"
-          echo "  - Download AAB from EAS dashboard"
-          echo "  - Play Store publication not configured (account inactive)"
+          echo "  bash .deployment/download-build.sh <build-id>"
+          echo "  Play Store publication not configured (account inactive)"
           echo ""
           echo "=========================================="
