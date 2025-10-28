@@ -70,3 +70,7 @@ test-json-extraction.sh
 /private
 build_status.json
 build_output.json
+
+# Deployment build artifacts
+.deployment/build_id.txt
+.deployment/build_id_production_*.txt
