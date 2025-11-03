@@ -45,6 +45,7 @@ jest.mock('@/src/api/generated', () => ({
   useBibleDetailed: jest.fn(),
   usePrefetchNextChapter: jest.fn(),
   usePrefetchPreviousChapter: jest.fn(),
+  useTopicsSearch: jest.fn(),
 }));
 
 // Mock custom hooks
@@ -212,6 +213,13 @@ describe('ChapterScreen - View Mode State', () => {
 
     (usePrefetchNextChapter as jest.Mock).mockReturnValue(jest.fn());
     (usePrefetchPreviousChapter as jest.Mock).mockReturnValue(jest.fn());
+
+    const { useTopicsSearch } = require('@/src/api/generated');
+    (useTopicsSearch as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    });
   });
 
   it('should default to bible view on mount', async () => {

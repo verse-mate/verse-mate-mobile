@@ -60,7 +60,7 @@ export default function TopicDetailScreen() {
 
   // Fetch topic data
   const { data: topicData, isLoading: isTopicLoading, error: topicError } = useTopicById(topicId);
-  const { data: references, isLoading: isReferencesLoading } = useTopicReferences(topicId);
+  const { data: references } = useTopicReferences(topicId);
   const { data: explanation, isLoading: isExplanationLoading } = useTopicExplanation(
     topicId,
     activeTab,

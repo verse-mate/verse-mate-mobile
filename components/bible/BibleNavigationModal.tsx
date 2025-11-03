@@ -40,10 +40,10 @@ import {
   springConfig,
 } from '@/constants/bible-design-tokens';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
-import { useBibleTestaments, useTopicsCategories, useTopicsSearch } from '@/src/api/generated';
+import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId } from '@/types/bible';
-import type { TopicCategory, TopicCategoryDisplay } from '@/types/topics';
+import type { TopicCategory } from '@/types/topics';
 
 interface BibleNavigationModalProps {
   /** Whether modal is visible */

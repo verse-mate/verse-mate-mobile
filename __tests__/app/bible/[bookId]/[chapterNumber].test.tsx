@@ -43,6 +43,7 @@ jest.mock('@/src/api/generated', () => ({
   useBibleDetailed: jest.fn(),
   usePrefetchNextChapter: jest.fn(),
   usePrefetchPreviousChapter: jest.fn(),
+  useTopicsSearch: jest.fn(),
 }));
 
 jest.mock('@/hooks/bible', () => {
@@ -253,6 +254,13 @@ describe('ChapterScreen - PagerView Integration', () => {
 
     (useBibleChapter as jest.Mock).mockReturnValue({
       data: mockChapterData,
+      isLoading: false,
+      error: null,
+    });
+
+    const { useTopicsSearch } = require('@/src/api/generated');
+    (useTopicsSearch as jest.Mock).mockReturnValue({
+      data: [],
       isLoading: false,
       error: null,
     });
