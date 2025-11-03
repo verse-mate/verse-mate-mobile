@@ -1,207 +1,91 @@
-# Maestro E2E Test Flows
+# Maestro E2E Testing
 
-This directory contains end-to-end test flows for the VerseMate mobile application using [Maestro](https://maestro.mobile.dev/).
+This directory contains end-to-end tests for VerseMate using [Maestro](https://maestro.mobile.dev/).
 
-## Prerequisites
+## Running Tests
 
-- Maestro CLI installed (v2.0.3+)
-  ```bash
-  curl -Ls "https://get.maestro.mobile.dev" | bash
-  ```
-
-- iOS Simulator or Android Emulator running
-- VerseMate app built and installed on the simulator/emulator
-
-## Available Flows
-
-### Critical Flows
-
-#### `bible-reading-flow.yaml`
-Tests the core Bible reading user journey:
-1. Launch app
-2. View daily verse on home screen
-3. Navigate to verse details
-4. Read full verse content
-5. Verify verse metadata
-
-**Tags**: `critical`, `bible`, `reading`
-
-#### `ai-explanation-flow.yaml`
-Tests the AI-powered verse explanation feature:
-1. Launch app and view a verse
-2. Request AI explanation
-3. Wait for AI response
-4. Read explanation
-5. Test translation (optional)
-
-**Tags**: `critical`, `ai`, `explanation`
-
-## Running Flows
-
-### Run All Flows
+### iOS (✅ Supported)
 ```bash
-npm run maestro:test
-```
+# Run all tests on iOS
+maestro test .maestro
 
-### Run Specific Flow
-```bash
-maestro test .maestro/bible-reading-flow.yaml
-```
+# Run specific test
+maestro test .maestro/swipe-navigation-basic.yaml
 
-### Run on Specific Device
-
-**iOS:**
-```bash
-npm run maestro:test:ios
-# or
-maestro test .maestro/bible-reading-flow.yaml --device "iPhone 15"
-```
-
-**Android:**
-```bash
-npm run maestro:test:android
-# or
-maestro test .maestro/bible-reading-flow.yaml --device emulator-5554
-```
-
-### Interactive Mode (Maestro Studio)
-```bash
-npm run maestro:studio
-```
-
-## Important Notes
-
-### Current Status
-
-⚠️ **Flows are ready but require app implementation to execute successfully.**
-
-These Maestro flows are written based on the planned VerseMate app architecture and UI design. They will work once the following components are implemented:
-
-**Required for `bible-reading-flow.yaml`:**
-- [ ] Home screen with daily verse card (testID: `daily-verse-card`)
-- [ ] Verse detail screen
-- [ ] Verse text display (testID: `verse-text`)
-- [ ] Verse reference (testID: `verse-reference`)
-- [ ] Translation badge (testID: `translation-badge`)
-- [ ] Back button navigation (testID: `back-button`)
-
-**Required for `ai-explanation-flow.yaml`:**
-- [ ] Verse detail screen
-- [ ] "Get AI Explanation" button (testID: `ai-explanation-button`)
-- [ ] Loading state for AI generation
-- [ ] AI explanation content display (testID: `ai-explanation-content`)
-- [ ] Translation language selector (testID: `translation-language-select`) - optional
-- [ ] Share button (testID: `share-explanation-button`) - optional
-
-### Running Tests Before Implementation
-
-To validate flow syntax without a running app, you can:
-
-1. **Check YAML syntax:**
-   ```bash
-   # Use any YAML validator
-   yamllint .maestro/bible-reading-flow.yaml
-   ```
-
-2. **Review flow structure:**
-   Open the flow files in your editor and verify the logic matches the intended user journey.
-
-3. **Use Maestro Studio:**
-   ```bash
-   maestro studio
-   ```
-   This will help you design and refine flows interactively once the app is ready.
-
-## Element Identification Strategy
-
-All flows use `testID` attributes for reliable element selection. When implementing components, ensure you add `testID` props:
-
-```tsx
-// Example: Button component
-<TouchableOpacity testID="ai-explanation-button">
-  <Text>Get AI Explanation</Text>
-</TouchableOpacity>
-
-// Example: View component
-<View testID="daily-verse-card">
-  <Text testID="verse-reference">John 3:16</Text>
-  <Text testID="verse-text">For God so loved the world...</Text>
-</View>
-```
-
-## Flow Conventions
-
-- **Naming**: `[feature-name]-flow.yaml`
-- **testID naming**: `kebab-case` (e.g., `daily-verse-card`, `ai-explanation-button`)
-- **Tags**: Use `critical` for must-pass flows, feature tags for organization
-- **Comments**: Every step should have a descriptive comment explaining user intent
-- **State**: Always use `clearState: true` in `launchApp` for consistency
-
-## Accessibility Testing
-
-All flows include accessibility assertions using `traits`:
-- `button` - Interactive buttons
-- `text` - Text content
-- `header` - Headings/titles
-
-Example:
-```yaml
-- assertVisible:
-    id: "verse-text"
-    traits: ["text"]
-```
-
-## Debugging Tips
-
-### Element Not Found
-```bash
-# View app hierarchy to find correct element IDs
-maestro hierarchy
-```
-
-### Flow Execution Issues
-```bash
-# Run with debug output
-maestro test flow.yaml --debug-output ./debug
-```
-
-### Interactive Development
-```bash
-# Use Maestro Studio to test interactions
+# Run in Maestro Studio for interactive debugging
 maestro studio
 ```
 
-## Future Enhancements
+### Android (⚠️ Limited Support)
 
-Once the app is implemented and flows are passing:
+**Current Limitation**: Maestro does not currently support Android API 35. If you're using an Android emulator with API 35, Maestro tests will fail with a gRPC connection error.
 
-1. **Add More Flows:**
-   - Verse search
-   - Memorization features
-   - Settings configuration
-   - Offline mode
+**Error you might see**:
+```
+io.grpc.StatusRuntimeException: UNAVAILABLE: io exception
+Caused by: Connection refused: localhost/[0:0:0:0:0:0:0:1]:7001
+```
 
-2. **CI/CD Integration:**
-   - Run flows on every PR
-   - Block merge if critical flows fail
-   - Generate execution recordings
+**Root Cause**: Maestro's gRPC server component doesn't install/run on Android API 35 (Android 16 Developer Preview).
 
-3. **Performance Testing:**
-   - Measure load times
-   - Test with slow network conditions
+**Workarounds**:
 
-## Documentation
+1. **Use iOS for E2E testing** (recommended for now)
+   - All Maestro tests work perfectly on iOS
+   - iOS Simulator is the primary platform for E2E testing
 
-For more details on writing Maestro flows, see:
-- **AI Testing Standards**: `@.agent-os/specs/2025-10-03-testing-infrastructure/sub-specs/ai-testing-standards.md`
-- **Official Docs**: https://maestro.mobile.dev/
+2. **Create Android emulator with API 34 or lower**
+   ```bash
+   # List available system images
+   $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list | grep system-images
 
-## Contributing
+   # Install API 34 system image
+   $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "system-images;android-34;google_apis;arm64-v8a"
 
-When adding new flows:
-1. Follow the naming convention: `[feature-name]-flow.yaml`
-2. Add descriptive comments for each step
-3. Tag appropriately (`critical`, feature tags)
-4. Use `testID` for element selection
-5. Include accessibility assertions
-6. Test on both iOS and Android when possible
+   # Create new AVD with API 34
+   avdmanager create avd -n Pixel_API_34 -k "system-images;android-34;google_apis;arm64-v8a" -d pixel_6
+
+   # Run tests on API 34 emulator
+   maestro test .maestro
+   ```
+
+3. **Wait for Maestro to add API 35 support**
+   - Track progress on [Maestro GitHub](https://github.com/mobile-dev-inc/maestro)
+   - API 35 (Android 16) is still in Developer Preview
+
+## Test Files
+
+- `bible-reading-flow.yaml` - Critical path for Bible reading
+- `chapter-navigation-flow.yaml` - Chapter navigation tests
+- `swipe-navigation-*.yaml` - Comprehensive swipe gesture tests
+- `skeleton-flash-*.yaml` - Loading skeleton tests
+- `by-line-*.yaml` - Line-by-line content tests
+- `wip/` - Work-in-progress tests not yet enabled
+
+## Troubleshooting
+
+### Maestro Version
+Ensure you have the latest version:
+```bash
+maestro --version  # Should be 2.0.8 or higher
+curl -Ls "https://get.maestro.mobile.dev" | bash  # Upgrade if needed
+```
+
+### Android Connectivity Issues
+1. Check Android emulator is running: `adb devices`
+2. Check Android API level: `adb shell getprop ro.build.version.sdk`
+3. If API 35, see workarounds above
+
+### Test Syntax Errors
+- Maestro 2.x uses simplified scroll syntax: use `scroll` or `scrollUp` instead of `scroll: { direction: DOWN }`
+- Always check [Maestro documentation](https://maestro.mobile.dev/api-reference/commands) for latest syntax
+
+## CI/CD Integration
+
+For continuous integration, use iOS as the primary E2E testing platform until Android API 35 support is added to Maestro.
+
+## Recent Changes
+
+- **2025-11-03**: Fixed scroll command syntax for Maestro 2.x compatibility
+- **2025-11-03**: Documented Android API 35 limitation
+- **2025-11-03**: Upgraded Maestro to 2.0.8

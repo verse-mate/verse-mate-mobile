@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Navigation Modal Flow
 description: Tests book and chapter selection through navigation modal
 tags:
@@ -28,8 +28,7 @@ tags:
 # 7. Verify Matthew 5 loads
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for app to load
 - assertVisible: "Genesis 1"

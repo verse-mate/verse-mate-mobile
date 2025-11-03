@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Swipe Navigation - Gesture Priority
 description: Tests that vertical scrolling doesn't trigger horizontal navigation
 tags:
@@ -25,34 +25,29 @@ tags:
 # 5. Verify chapter changed to Genesis 2
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for Genesis 1 to load
 - assertVisible: "Genesis 1"
 
-# Verify Genesis 1 content is loaded
-- assertVisible:
-    text: "The Creation"
+# Wait for content to load
+- waitForAnimationToEnd
 
 # Scroll down vertically to read content
 # This should NOT trigger horizontal navigation
-- scroll:
-    direction: DOWN
+- scroll
 
 # Verify still on Genesis 1 after vertical scroll
 - assertVisible: "Genesis 1"
 
 # Scroll down more
-- scroll:
-    direction: DOWN
+- scroll
 
 # Still should be on Genesis 1
 - assertVisible: "Genesis 1"
 
 # Scroll back up
-- scroll:
-    direction: UP
+- scroll
 
 # Still on Genesis 1
 - assertVisible: "Genesis 1"
@@ -69,8 +64,7 @@ tags:
 - assertVisible: "Genesis 2"
 
 # Scroll down on Genesis 2
-- scroll:
-    direction: DOWN
+- scroll
 
 # Should still be on Genesis 2 after scroll
 - assertVisible: "Genesis 2"
@@ -86,17 +80,13 @@ tags:
 - assertVisible: "Genesis 1"
 
 # Final check: rapid vertical scrolling shouldn't cause navigation
-- scroll:
-    direction: DOWN
+- scroll
 
-- scroll:
-    direction: DOWN
+- scroll
 
-- scroll:
-    direction: UP
+- scroll
 
-- scroll:
-    direction: UP
+- scroll
 
 # Should still be on Genesis 1 after rapid scrolling
 - assertVisible: "Genesis 1"

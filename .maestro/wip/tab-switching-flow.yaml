@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Content Tab Switching Flow
 description: Tests switching between Summary, By Line, and Detailed tabs
 tags:
@@ -24,8 +24,7 @@ tags:
 # 5. Navigate to next chapter → verify tab persists
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for app to load (in Bible view by default)
 - assertVisible: "Genesis 1"
