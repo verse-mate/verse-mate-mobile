@@ -1,0 +1,11 @@
+# Ignore web repo submodule
+.agent-os/web-repo/
+
+# Ignore build outputs
+dist/
+.expo/
+node_modules/
+
+# Ignore generated files
+*.gen.ts
+*.gen.js
