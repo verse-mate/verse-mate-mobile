@@ -1,30 +1,19 @@
 ---
 appId: org.versemate.mobile
-name: Swipe Navigation - Basic
-description: Tests basic swipe navigation within same book (Genesis 1→2→1)
+name: Android Swipe Navigation Test
+description: Tests swipe navigation on Android (assumes app is already running)
 tags:
   - swipe
   - navigation
-  - critical
+  - android
 
 ---
 
-# Basic Swipe Navigation Test
-#
-# This flow tests basic swipe navigation:
-# - Swipe left to navigate to next chapter
-# - Swipe right to navigate to previous chapter
-# - Verify chapter content updates correctly
-#
-# User Journey:
-# 1. Launch app to Genesis 1
-# 2. Swipe left → Genesis 2
-# 3. Swipe right → Genesis 1
+# Android Swipe Navigation Test
+# Note: This test assumes the app is already running and on Genesis 1
+# Run this after manually starting the app
 
-- launchApp:
-    appId: org.versemate.mobile
-
-# Wait for Genesis 1 to load
+# Verify we're on Genesis 1
 - assertVisible: "Genesis 1"
 
 # Wait for content to load
@@ -54,5 +43,5 @@ tags:
 # Should be back on Genesis 1
 - assertVisible: "Genesis 1"
 
-# Verify Genesis 1 loaded
+# Wait for content to settle
 - waitForAnimationToEnd

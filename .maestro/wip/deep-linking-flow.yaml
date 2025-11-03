@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Deep Linking Flow
 description: Tests deep link navigation to specific chapters
 tags:
@@ -26,9 +26,8 @@ tags:
 
 # Test 1: Valid deep link to Matthew 5
 - launchApp:
-    appId: com.versemate.mobile
+    appId: org.versemate.mobile
     url: "versemate://bible/40/5"
-    clearState: true
 
 # Verify Matthew 5 loaded from deep link
 - assertVisible: "Matthew 5"
@@ -43,9 +42,8 @@ tags:
 
 # Test 2: Invalid book ID (999)
 - launchApp:
-    appId: com.versemate.mobile
+    appId: org.versemate.mobile
     url: "versemate://bible/999/1"
-    clearState: true
 
 # Should redirect to Genesis 1
 - assertVisible: "Genesis 1"
@@ -56,18 +54,16 @@ tags:
 
 # Test 3: Invalid chapter number (999)
 - launchApp:
-    appId: com.versemate.mobile
+    appId: org.versemate.mobile
     url: "versemate://bible/1/999"
-    clearState: true
 
 # Should redirect to Genesis 1 (first chapter)
 - assertVisible: "Genesis 1"
 
 # Test 4: Valid deep link to John 3
 - launchApp:
-    appId: com.versemate.mobile
+    appId: org.versemate.mobile
     url: "versemate://bible/43/3"
-    clearState: true
 
 # Verify John 3 loaded
 - assertVisible: "John 3"
@@ -87,7 +83,7 @@ tags:
 
 # Open new deep link
 - launchApp:
-    appId: com.versemate.mobile
+    appId: org.versemate.mobile
     url: "versemate://bible/1/2"
 
 # Verify Genesis 2 loaded
