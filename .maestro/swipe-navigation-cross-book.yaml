@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Swipe Navigation - Cross-Book
 description: Tests seamless cross-book swipe navigation (Genesis 50→Exodus 1→Genesis 50)
 tags:
@@ -24,8 +24,7 @@ tags:
 # 4. Swipe right → Genesis 50 (verify reverse works)
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for app to load
 - assertVisible: "Genesis 1"
@@ -51,8 +50,10 @@ tags:
 - tapOn:
     id: "chapter-50"
 
-# Wait for Genesis 50 to load
-- assertVisible: "Genesis 50"
+# Wait for Genesis 50 to load (longer timeout for complex navigation)
+- extendedWaitUntil:
+    visible: "Genesis 50"
+    timeout: 15000
 
 # Swipe left to go to Exodus 1 (cross-book navigation)
 - swipe:

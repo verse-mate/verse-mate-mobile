@@ -1,13 +1,12 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: By Line Screenshot Test
 description: Captures screenshot of By Line tab to verify content
 
 ---
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 - assertVisible: "Genesis 1"
 

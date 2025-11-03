@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Offline Mode Flow
 description: Tests offline functionality and error handling
 tags:
@@ -27,8 +27,7 @@ tags:
 # 7. Verify navigation works again
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for app to load online
 - assertVisible: "Genesis 1"

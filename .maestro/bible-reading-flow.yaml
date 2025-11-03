@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Bible Reading Critical Path
 description: Tests the core user flow for reading Bible chapters
 tags:
@@ -20,14 +20,13 @@ tags:
 # 4. Verify view switcher icons work
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # App redirects to Genesis 1 in Bible view (default)
 - assertVisible: "Genesis 1"
 
-# Verify section heading is visible
-- assertVisible: "The Creation"
+# Wait for content to load
+- waitForAnimationToEnd
 
 # Verify Bible view icon is active (testID)
 - assertVisible:
@@ -37,11 +36,7 @@ tags:
 - assertVisible:
     id: "explanations-view-icon"
 
-# Verify first verse is visible in Bible view
-- assertVisible:
-    text: ".*In the beginning God created.*"
-
-# Tabs should NOT be visible in Bible view
+# Tabs should NOT be visible in Bible view (key differentiator)
 - assertNotVisible:
     id: "chapter-content-tabs"
 

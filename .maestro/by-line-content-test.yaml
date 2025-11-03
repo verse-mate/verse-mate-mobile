@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: By Line Content Test
 description: Tests that By Line tab shows explanation content
 tags:
@@ -12,8 +12,7 @@ tags:
 # Verifies that By Line explanations load and display correctly
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for app to load with Genesis 1
 - assertVisible: "Genesis 1"

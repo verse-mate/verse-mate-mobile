@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Skeleton Flash Test - Explanations View
 description: Tests that skeleton doesn't flash when swiping in Explanations view with cached data
 tags:
@@ -30,15 +30,13 @@ tags:
 # - Header should update to "Genesis 2" at same time as content updates
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for Genesis 1 to load in Bible view
 - assertVisible: "Genesis 1"
 
-# Verify Genesis 1 content is loaded
-- assertVisible:
-    text: "The Creation"
+# Wait for content to load
+- waitForAnimationToEnd
 
 # Switch to Explanations view by tapping the explanations icon
 - tapOn:

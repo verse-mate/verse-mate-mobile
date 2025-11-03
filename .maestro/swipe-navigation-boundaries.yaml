@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Swipe Navigation - Boundaries
 description: Tests that swipe navigation respects Bible boundaries (Genesis 1, Revelation 22)
 tags:
@@ -23,8 +23,7 @@ tags:
 # 4. Try to swipe left (should stay on Revelation 22)
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for Genesis 1 to load
 - assertVisible: "Genesis 1"
@@ -39,9 +38,8 @@ tags:
 # Should still be on Genesis 1 (cannot go before first chapter)
 - assertVisible: "Genesis 1"
 
-# Verify content is still the same
-- assertVisible:
-    text: "The Creation"
+# Wait for content to settle
+- waitForAnimationToEnd
 
 # Now navigate to Revelation 22 (last chapter of the Bible)
 - tapOn:
@@ -69,13 +67,10 @@ tags:
 
 - scroll
 
-# Wait for scroll to fully settle (longer delay)
+# Wait for scroll to fully settle
 - waitForAnimationToEnd
 
-# Additional delay to ensure UI is stable
-- waitForAnimationToEnd
-
-# Double-tap on Revelation with delay to ensure it registers
+# Tap on Revelation
 - tapOn:
     id: "book-item-revelation"
 

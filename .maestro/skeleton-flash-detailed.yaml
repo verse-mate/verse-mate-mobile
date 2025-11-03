@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Skeleton Flash Detailed Test
 description: Captures multiple screenshots during swipe to detect brief skeleton flash
 tags:
@@ -15,8 +15,7 @@ tags:
 # to detect brief skeleton flashes that might occur between animations.
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for Genesis 1 to load
 - assertVisible: "Genesis 1"

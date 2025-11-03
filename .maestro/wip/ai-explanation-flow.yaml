@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: AI Explanation Feature
 description: Tests the AI-powered verse explanation feature
 tags:
@@ -21,8 +21,7 @@ tags:
 # 5. (Optional) Translate explanation to another language
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for app to load
 - assertVisible: "VerseMate"

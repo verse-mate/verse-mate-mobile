@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Bible View Switcher
 description: Tests view switching between Bible and Explanations
 tags:
@@ -19,8 +19,7 @@ tags:
 # 5. Visual states (icon colors, tab visibility)
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 - assertVisible: "Genesis 1"
 
