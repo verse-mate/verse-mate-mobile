@@ -1,5 +1,5 @@
 ---
-appId: com.versemate.mobile
+appId: org.versemate.mobile
 name: Swipe Navigation - Tab Persistence
 description: Tests that active tab persists when swiping between chapters
 tags:
@@ -26,8 +26,7 @@ tags:
 # 5. Verify Summary tab still selected
 
 - launchApp:
-    appId: com.versemate.mobile
-    clearState: true
+    appId: org.versemate.mobile
 
 # Wait for Genesis 1 to load
 - assertVisible: "Genesis 1"
