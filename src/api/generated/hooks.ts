@@ -28,6 +28,11 @@ import type {
 	DeleteBibleHighlightByHighlightIdData,
 	GetBibleHighlightsByUserIdData,
 	GetBibleHighlightsByUserIdByBookIdByChapterNumberData,
+	GetTopicsCategoriesData,
+	GetTopicsSearchData,
+	GetTopicsByIdData,
+	GetTopicsByIdReferencesData,
+	GetTopicsByIdExplanationData,
 } from './types.gen';
 import type { Options } from './sdk.gen';
 
@@ -51,6 +56,11 @@ import {
 	deleteBibleHighlightByHighlightIdMutation,
 	getBibleHighlightsByUserIdOptions,
 	getBibleHighlightsByUserIdByBookIdByChapterNumberOptions,
+	getTopicsCategoriesOptions,
+	getTopicsSearchOptions,
+	getTopicsByIdOptions,
+	getTopicsByIdReferencesOptions,
+	getTopicsByIdExplanationOptions,
 } from './@tanstack/react-query.gen';
 
 // Note: Options type is already exported from sdk.gen via index.ts
@@ -353,5 +363,108 @@ export const usePrefetchPreviousChapter = (bookId: number, currentChapter: numbe
 				})
 			);
 		}
+	};
+};
+
+// ============================================================================
+// TOPICS HOOKS
+// ============================================================================
+
+/**
+ * Fetch all available topic categories
+ * Returns: { categories: string[] }
+ */
+export const useTopicsCategories = (options?: Options<GetTopicsCategoriesData>) => {
+	const query = useQuery(getTopicsCategoriesOptions(options));
+
+	return {
+		...query,
+		data: query.data && 'categories' in query.data ? query.data.categories : [],
+	};
+};
+
+/**
+ * Search/fetch topics by category
+ * @param category - Category to filter by (e.g., "EVENT", "PROPHECY", "PARABLE")
+ */
+export const useTopicsSearch = (category: string) => {
+	const query = useQuery({
+		...getTopicsSearchOptions({
+			query: {
+				category,
+			},
+		}),
+		enabled: Boolean(category), // Only fetch when category is provided
+	});
+
+	return {
+		...query,
+		data: query.data && 'topics' in query.data ? query.data.topics : [],
+	};
+};
+
+/**
+ * Fetch topic details by ID
+ * @param topicId - Topic UUID
+ */
+export const useTopicById = (topicId: string) => {
+	const query = useQuery({
+		...getTopicsByIdOptions({
+			path: { id: topicId },
+		}),
+		enabled: Boolean(topicId), // Only fetch when topicId is provided
+	});
+
+	return {
+		...query,
+		data: query.data && 'topic' in query.data ? query.data : null,
+	};
+};
+
+/**
+ * Fetch topic Bible references (with parsed verses)
+ * @param topicId - Topic UUID
+ * @param version - Optional Bible version key
+ */
+export const useTopicReferences = (topicId: string, version?: string) => {
+	const query = useQuery({
+		...getTopicsByIdReferencesOptions({
+			path: { id: topicId },
+			query: version ? { version } : undefined,
+		}),
+		enabled: Boolean(topicId), // Only fetch when topicId is provided
+	});
+
+	return {
+		...query,
+		data: query.data && 'references' in query.data ? query.data.references : null,
+	};
+};
+
+/**
+ * Fetch topic explanation
+ * @param topicId - Topic UUID
+ * @param type - Explanation type ("summary", "byline", "detailed")
+ * @param lang - Language code (e.g., "en-US")
+ */
+export const useTopicExplanation = (
+	topicId: string,
+	type?: 'summary' | 'byline' | 'detailed',
+	lang?: string,
+) => {
+	const query = useQuery({
+		...getTopicsByIdExplanationOptions({
+			path: { id: topicId },
+			query: {
+				...(type && { type }),
+				...(lang && { lang }),
+			},
+		}),
+		enabled: Boolean(topicId), // Only fetch when topicId is provided
+	});
+
+	return {
+		...query,
+		data: query.data && 'explanation' in query.data ? query.data.explanation : null,
 	};
 };
