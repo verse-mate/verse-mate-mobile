@@ -93,10 +93,7 @@ export function BibleNavigationModal({
   // Fetch topics data - only when modal is visible and Topics tab is selected
   const shouldFetchTopics = visible && selectedTab === 'TOPICS';
   const { data: topicsData = [], isLoading: isTopicsLoading } = useTopicsSearch(
-    shouldFetchTopics ? selectedTopicCategory : '',
-    {
-      enabled: shouldFetchTopics,
-    }
+    shouldFetchTopics ? selectedTopicCategory : ''
   );
 
   // Animation values for swipe-to-dismiss
