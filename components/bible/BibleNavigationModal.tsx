@@ -90,9 +90,13 @@ export function BibleNavigationModal({
   const { data: allBooks = [], isLoading: isBooksLoading } = useBibleTestaments();
   const { recentBooks } = useRecentBooks();
 
-  // Fetch topics data
+  // Fetch topics data - only when modal is visible and Topics tab is selected
+  const shouldFetchTopics = visible && selectedTab === 'TOPICS';
   const { data: topicsData = [], isLoading: isTopicsLoading } = useTopicsSearch(
-    selectedTab === 'TOPICS' ? selectedTopicCategory : ''
+    shouldFetchTopics ? selectedTopicCategory : '',
+    {
+      enabled: shouldFetchTopics,
+    }
   );
 
   // Animation values for swipe-to-dismiss

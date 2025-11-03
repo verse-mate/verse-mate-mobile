@@ -179,7 +179,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
 
   describe('Category Switching', () => {
     it('should switch to prophecy topics when Prophecies tab is pressed', async () => {
-      (useTopicsSearch as jest.Mock).mockImplementation((category: string) => {
+      (useTopicsSearch as jest.Mock).mockImplementation((category: string, _options?: any) => {
         if (category === 'PROPHECY') {
           return { data: mockProphecyTopics, isLoading: false, error: null };
         }
@@ -216,12 +216,12 @@ describe('BibleNavigationModal - Topics Tab', () => {
       );
 
       await waitFor(() => {
-        expect(useTopicsSearch).toHaveBeenCalledWith('PROPHECY');
+        expect(useTopicsSearch).toHaveBeenCalledWith('PROPHECY', { enabled: true });
       });
     });
 
     it('should switch to parable topics when Parables tab is pressed', async () => {
-      (useTopicsSearch as jest.Mock).mockImplementation((category: string) => {
+      (useTopicsSearch as jest.Mock).mockImplementation((category: string, _options?: any) => {
         if (category === 'PARABLE') {
           return { data: mockParableTopics, isLoading: false, error: null };
         }
@@ -258,7 +258,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
       );
 
       await waitFor(() => {
-        expect(useTopicsSearch).toHaveBeenCalledWith('PARABLE');
+        expect(useTopicsSearch).toHaveBeenCalledWith('PARABLE', { enabled: true });
       });
     });
   });
