@@ -50,6 +50,9 @@ playwright/.cache/
 # Visual Reference Captures
 .agent-os/references/*
 
+# Web repo submodule
+.agent-os/web-repo/*
+
 app-example
 
 # generated native folders
