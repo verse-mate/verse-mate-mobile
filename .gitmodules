@@ -1,0 +1,3 @@
+[submodule ".agent-os/web-repo"]
+	path = .agent-os/web-repo
+	url = https://github.com/verse-mate/verse-mate.git

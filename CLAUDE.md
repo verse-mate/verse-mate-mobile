@@ -75,6 +75,30 @@ VerseMate Mobile is a React Native application built with Expo Router for Bible 
 4. Document user flows for mobile implementation
 5. Provide visual context to AI during development
 
+### Web Repository Reference
+
+**Purpose**: The main VerseMate web application repository is available as a git submodule for AI reference when implementing mobile features. This allows accurate translation of web features to React Native.
+
+**Location**: `.agent-os/web-repo/` (gitignored, not committed to mobile repo)
+
+**Setup for new developers**:
+```bash
+git submodule update --init
+```
+
+**Update to latest web code**:
+```bash
+git submodule update --remote
+```
+
+**Current web repo version**: The submodule tracks the main branch of [verse-mate/verse-mate](https://github.com/verse-mate/verse-mate)
+
+**Usage**:
+- AI can directly read web implementation code when implementing mobile features
+- Reference web components, hooks, services, and business logic
+- Ensure feature parity between web and mobile versions
+- Web repo is read-only reference - no modifications needed
+
 ## Architecture
 
 ### Routing Structure
