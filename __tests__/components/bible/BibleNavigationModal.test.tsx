@@ -14,7 +14,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
-import { useBibleTestaments } from '@/src/api/generated';
+import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
 
 // Mock dependencies
 jest.mock('@/src/api/generated');
@@ -76,6 +76,13 @@ describe('BibleNavigationModal', () => {
     // Mock useBibleTestaments hook
     (useBibleTestaments as jest.Mock).mockReturnValue({
       data: mockBooks,
+      isLoading: false,
+      error: null,
+    });
+
+    // Mock useTopicsSearch hook
+    (useTopicsSearch as jest.Mock).mockReturnValue({
+      data: [],
       isLoading: false,
       error: null,
     });
