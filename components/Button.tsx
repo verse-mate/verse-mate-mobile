@@ -9,7 +9,8 @@ export interface ButtonProps {
   title: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'auth';
+  fullWidth?: boolean;
   testID?: string;
 }
 
@@ -18,11 +19,17 @@ export const Button: React.FC<ButtonProps> = ({
   onPress,
   disabled = false,
   variant = 'primary',
+  fullWidth = false,
   testID,
 }) => {
   return (
     <TouchableOpacity
-      style={[styles.button, styles[variant], disabled && styles.buttonDisabled]}
+      style={[
+        styles.button,
+        styles[variant],
+        disabled && styles.buttonDisabled,
+        fullWidth && styles.fullWidth,
+      ]}
       onPress={onPress}
       disabled={disabled}
       testID={testID}
@@ -58,6 +65,13 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#007AFF',
   },
+  auth: {
+    backgroundColor: '#B4956B', // Tan/gold brand color
+    borderRadius: 8,
+  },
+  fullWidth: {
+    width: '100%',
+  },
   buttonDisabled: {
     backgroundColor: '#D1D5DB',
     borderColor: '#D1D5DB',
@@ -74,6 +88,9 @@ const styles = StyleSheet.create({
   },
   outlineText: {
     color: '#007AFF',
+  },
+  authText: {
+    color: '#FFFFFF', // White text for auth variant
   },
   textDisabled: {
     color: '#9CA3AF',
