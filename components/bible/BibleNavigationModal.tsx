@@ -94,12 +94,41 @@ function BibleNavigationModalComponent({
 
   // Fetch topics data - only when modal is visible and Topics tab is selected
   const shouldFetchTopics = visible && selectedTab === 'TOPICS';
-  const { data: topicsData = [], isLoading: isTopicsLoading } = useTopicsSearch(
-    shouldFetchTopics ? selectedTopicCategory : '',
+  const hasSearchText = topicFilterText.trim().length > 0;
+
+  // When searching, fetch all categories; otherwise fetch only selected category
+  const { data: eventTopics = [], isLoading: isEventsLoading } = useTopicsSearch('EVENT', {
+    enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'EVENT'),
+  });
+  const { data: prophecyTopics = [], isLoading: isPropheciesLoading } = useTopicsSearch(
+    'PROPHECY',
     {
-      enabled: shouldFetchTopics,
+      enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'PROPHECY'),
     }
   );
+  const { data: parableTopics = [], isLoading: isParablesLoading } = useTopicsSearch('PARABLE', {
+    enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'PARABLE'),
+  });
+
+  // Combine loading states
+  const isTopicsLoading = isEventsLoading || isPropheciesLoading || isParablesLoading;
+
+  // Get current category topics or all topics when searching
+  const currentTopics = useMemo(() => {
+    if (hasSearchText) {
+      // When searching, combine all categories
+      return [
+        ...(eventTopics as TopicListItem[]),
+        ...(prophecyTopics as TopicListItem[]),
+        ...(parableTopics as TopicListItem[]),
+      ];
+    }
+    // No search - return only selected category
+    if (selectedTopicCategory === 'EVENT') return eventTopics as TopicListItem[];
+    if (selectedTopicCategory === 'PROPHECY') return prophecyTopics as TopicListItem[];
+    if (selectedTopicCategory === 'PARABLE') return parableTopics as TopicListItem[];
+    return [];
+  }, [eventTopics, prophecyTopics, parableTopics, selectedTopicCategory, hasSearchText]);
 
   // Animation values for swipe-to-dismiss
   const translateY = useSharedValue(0);
@@ -133,16 +162,51 @@ function BibleNavigationModalComponent({
     return testamentBooks.filter((book) => book.name.toLowerCase().includes(searchLower));
   }, [allBooks, selectedTestament, filterText]);
 
-  // Filter topics by search text
+  // Filter topics by search text with smart sorting
   const filteredTopics = useMemo(() => {
-    const topics = topicsData as TopicListItem[];
-    if (!topicFilterText.trim()) {
-      return topics;
+    const searchLower = topicFilterText.trim().toLowerCase();
+
+    // If no search text, return all topics from current category
+    if (!searchLower) {
+      return currentTopics;
     }
 
-    const searchLower = topicFilterText.toLowerCase();
-    return topics.filter((topic) => topic.name.toLowerCase().includes(searchLower));
-  }, [topicsData, topicFilterText]);
+    // Filter topics that match search term
+    const matches = currentTopics.filter(
+      (topic) =>
+        topic.name.toLowerCase().includes(searchLower) ||
+        (typeof topic.description === 'string' &&
+          topic.description.toLowerCase().includes(searchLower))
+    );
+
+    // Sort matches by relevance:
+    // 1. Exact match on name (highest priority)
+    // 2. Starts with search term in name (prefix match)
+    // 3. Contains search term in name
+    // 4. Contains search term in description (lowest priority)
+    return matches.sort((a, b) => {
+      const aNameLower = a.name.toLowerCase();
+      const bNameLower = b.name.toLowerCase();
+
+      // Exact match on name
+      const aExact = aNameLower === searchLower ? 1 : 0;
+      const bExact = bNameLower === searchLower ? 1 : 0;
+      if (aExact !== bExact) return bExact - aExact;
+
+      // Starts with search term (prefix match)
+      const aStartsWith = aNameLower.startsWith(searchLower) ? 1 : 0;
+      const bStartsWith = bNameLower.startsWith(searchLower) ? 1 : 0;
+      if (aStartsWith !== bStartsWith) return bStartsWith - aStartsWith;
+
+      // Contains in name
+      const aInName = aNameLower.includes(searchLower) ? 1 : 0;
+      const bInName = bNameLower.includes(searchLower) ? 1 : 0;
+      if (aInName !== bInName) return bInName - aInName;
+
+      // Both match in description or alphabetical fallback
+      return aNameLower.localeCompare(bNameLower);
+    });
+  }, [currentTopics, topicFilterText]);
 
   // Recent books for current testament
   const recentBooksForTestament = useMemo(() => {
@@ -525,11 +589,13 @@ function BibleNavigationModalComponent({
                 accessibilityState={{ selected: isCurrent }}
                 testID={`chapter-${chapter}`}
               >
-                <Text
-                  style={[styles.chapterButtonText, isCurrent && styles.chapterButtonTextCurrent]}
-                >
-                  {chapter}
-                </Text>
+                <View style={{ position: 'absolute' }}>
+                  <Text
+                    style={[styles.chapterButtonText, isCurrent && styles.chapterButtonTextCurrent]}
+                  >
+                    {chapter}
+                  </Text>
+                </View>
               </Pressable>
             );
           })}
@@ -732,6 +798,7 @@ const styles = StyleSheet.create({
     borderColor: colors.gray200,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: spacing.sm,
   },
   chapterButtonCurrent: {
     backgroundColor: colors.gold,
@@ -741,6 +808,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.body,
     fontWeight: fontWeights.medium,
     color: colors.black,
+    textAlign: 'center',
   },
   chapterButtonTextCurrent: {
     color: colors.gray900,
