@@ -36,6 +36,18 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(),
 }));
 
+// Mock AuthContext
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(() => ({
+    isAuthenticated: false,
+    user: null,
+    isLoading: false,
+    login: jest.fn(),
+    logout: jest.fn(),
+    signup: jest.fn(),
+  })),
+}));
+
 jest.mock('@/src/api/generated', () => ({
   useBibleChapter: jest.fn(),
   useBibleSummary: jest.fn(),

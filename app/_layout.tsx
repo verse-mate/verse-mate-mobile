@@ -18,7 +18,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+import { AuthProvider } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 
 // Keep the splash screen visible while we fetch last read position
 SplashScreen.preventAutoHideAsync();
@@ -35,6 +37,10 @@ const queryClient = new QueryClient({
   },
 });
 
+// Set up client interceptors for authentication
+// Must be called before any API requests
+setupClientInterceptors();
+
 // Removed anchor setting - no tabs directory exists
 
 /**
@@ -43,6 +49,7 @@ const queryClient = new QueryClient({
  * Handles:
  * - Theme provider setup
  * - React Query provider setup
+ * - Authentication provider setup
  * - App launch navigation to last read position
  * - Splash screen management
  */
@@ -64,28 +71,38 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <AppErrorBoundary>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack>
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="bible/[bookId]/[chapterNumber]"
-                options={{
-                  headerShown: false,
-                  animation: 'none', // Disable route animations - PagerView handles swipe animations
-                }}
-              />
-              <Stack.Screen
-                name="topics/[topicId]"
-                options={{
-                  headerShown: false,
-                  animation: 'none',
-                }}
-              />
-            </Stack>
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </AppErrorBoundary>
+        <AuthProvider>
+          <AppErrorBoundary>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <Stack>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="bible/[bookId]/[chapterNumber]"
+                  options={{
+                    headerShown: false,
+                    animation: 'none', // Disable route animations - PagerView handles swipe animations
+                  }}
+                />
+                <Stack.Screen
+                  name="topics/[topicId]"
+                  options={{
+                    headerShown: false,
+                    animation: 'none',
+                  }}
+                />
+                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+                <Stack.Screen
+                  name="auth"
+                  options={{
+                    presentation: 'modal',
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </AppErrorBoundary>
+        </AuthProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

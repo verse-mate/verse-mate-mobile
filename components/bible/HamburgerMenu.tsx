@@ -11,6 +11,7 @@
  * - Close button (X) in header
  * - Tap backdrop or X to close
  * - Each item shows "This feature is coming soon!" alert
+ * - Temporary: Login/Signup buttons for auth testing
  *
  * @see Spec lines 52-55, 476-500 (Hamburger menu)
  * @see Task Group 8.5
@@ -20,10 +21,12 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HamburgerMenuProps {
   /** Whether menu is visible */
@@ -36,9 +39,15 @@ interface MenuItem {
   id: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
+  action?: 'auth' | 'logout';
 }
 
-const menuItems: MenuItem[] = [
+const authMenuItems: MenuItem[] = [
+  { id: 'login', label: 'Login', icon: 'log-in-outline', action: 'auth' },
+  { id: 'signup', label: 'Sign Up', icon: 'person-add-outline', action: 'auth' },
+];
+
+const regularMenuItems: MenuItem[] = [
   { id: 'bookmarks', label: 'Bookmarks', icon: 'bookmark-outline' },
   { id: 'favorites', label: 'Favorites', icon: 'heart-outline' },
   { id: 'notes', label: 'Notes', icon: 'document-text-outline' },
@@ -46,15 +55,36 @@ const menuItems: MenuItem[] = [
   { id: 'settings', label: 'Settings', icon: 'settings-outline' },
 ];
 
+const logoutMenuItem: MenuItem = {
+  id: 'logout',
+  label: 'Logout',
+  icon: 'log-out-outline',
+  action: 'logout',
+};
+
 export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const insets = useSafeAreaInsets();
+  const { user, isAuthenticated, logout } = useAuth();
 
   /**
    * Handle menu item tap
-   * Shows "Coming soon" alert for all items
+   * Routes to auth screens or shows "Coming soon" alert
    */
-  const handleItemPress = (label: string) => {
-    Alert.alert('Coming Soon', `${label} feature is coming soon!`);
+  const handleItemPress = async (item: MenuItem) => {
+    if (item.action === 'auth') {
+      onClose();
+      if (item.id === 'login') {
+        router.push('/auth/login');
+      } else if (item.id === 'signup') {
+        router.push('/auth/signup');
+      }
+    } else if (item.action === 'logout') {
+      await logout();
+      Alert.alert('Logged Out', 'You have been logged out successfully.');
+      onClose();
+    } else {
+      Alert.alert('Coming Soon', `${item.label} feature is coming soon!`);
+    }
   };
 
   return (
@@ -95,13 +125,49 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
             </Pressable>
           </View>
 
-          {/* Menu items */}
+          {/* User Info Section (if authenticated) */}
+          {isAuthenticated && user && (
+            <View style={styles.userSection}>
+              <View style={styles.userInfo}>
+                <Ionicons name="person-circle-outline" size={48} color={colors.gray700} />
+                <View style={styles.userDetails}>
+                  <Text style={styles.userName}>
+                    {user.firstName} {user.lastName}
+                  </Text>
+                  <Text style={styles.userEmail}>{user.email}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Auth buttons (if not authenticated) */}
+          {!isAuthenticated && (
+            <View style={styles.authSection}>
+              <Text style={styles.authSectionTitle}>Account</Text>
+              {authMenuItems.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                  onPress={() => handleItemPress(item)}
+                  accessibilityLabel={item.label}
+                  accessibilityRole="button"
+                  testID={`menu-item-${item.id}`}
+                >
+                  <Ionicons name={item.icon} size={24} color={colors.gray700} />
+                  <Text style={styles.menuItemText}>{item.label}</Text>
+                </Pressable>
+              ))}
+              <View style={styles.divider} />
+            </View>
+          )}
+
+          {/* Regular menu items */}
           <View style={styles.menuItems}>
-            {menuItems.map((item) => (
+            {regularMenuItems.map((item) => (
               <Pressable
                 key={item.id}
                 style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                onPress={() => handleItemPress(item.label)}
+                onPress={() => handleItemPress(item)}
                 accessibilityLabel={item.label}
                 accessibilityRole="button"
                 testID={`menu-item-${item.id}`}
@@ -111,6 +177,25 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
               </Pressable>
             ))}
           </View>
+
+          {/* Logout button (if authenticated) */}
+          {isAuthenticated && (
+            <View style={styles.logoutSection}>
+              <View style={styles.divider} />
+              <Pressable
+                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                onPress={() => handleItemPress(logoutMenuItem)}
+                accessibilityLabel={logoutMenuItem.label}
+                accessibilityRole="button"
+                testID={`menu-item-${logoutMenuItem.id}`}
+              >
+                <Ionicons name={logoutMenuItem.icon} size={24} color={colors.error} />
+                <Text style={[styles.menuItemText, { color: colors.error }]}>
+                  {logoutMenuItem.label}
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </Animated.View>
       </Animated.View>
     </Modal>
@@ -157,6 +242,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  userSection: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  userDetails: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: fontSizes.body,
+    fontWeight: fontWeights.semibold,
+    color: colors.gray900,
+    marginBottom: spacing.xs / 2,
+  },
+  userEmail: {
+    fontSize: fontSizes.caption,
+    color: colors.gray500,
+  },
+  authSection: {
+    paddingTop: spacing.lg,
+  },
+  authSectionTitle: {
+    fontSize: fontSizes.caption,
+    fontWeight: fontWeights.semibold,
+    color: colors.gray500,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.gray200,
+    marginVertical: spacing.lg,
+  },
   menuItems: {
     paddingTop: spacing.lg,
   },
@@ -174,5 +300,8 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.body,
     fontWeight: fontWeights.regular,
     color: colors.gray900,
+  },
+  logoutSection: {
+    marginTop: spacing.lg,
   },
 });

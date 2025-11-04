@@ -16,6 +16,7 @@
     "test:watch": "cross-env EXPO_USE_STATIC_RENDERING=1 jest --watch",
     "test:coverage": "cross-env EXPO_USE_STATIC_RENDERING=1 jest --coverage",
     "test:ci": "cross-env EXPO_USE_STATIC_RENDERING=1 jest --ci --coverage --maxWorkers=2",
+    "test:slow": "cross-env EXPO_USE_STATIC_RENDERING=1 RUN_SLOW_TESTS=1 NODE_OPTIONS=--max-old-space-size=8192 jest --testPathPattern=\\.slow\\. --no-coverage",
     "storybook:generate": "sb-rn-get-stories",
     "chromatic:deploy": "chromatic --build-script-name storybook:generate",
     "maestro:test": "maestro test .maestro",
@@ -53,6 +54,7 @@
     "expo-system-ui": "~6.0.7",
     "expo-updates": "~29.0.12",
     "expo-web-browser": "~15.0.8",
+    "jwt-decode": "^4.0.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.4",
@@ -104,7 +106,7 @@
   "bun": {
     "test": {
       "preload": "./test-setup.ts",
-      "timeout": 10000
+      "timeout": 1e4
     }
   },
   "private": true
