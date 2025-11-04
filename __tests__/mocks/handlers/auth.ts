@@ -19,8 +19,8 @@ import type {
   PostAuthSignupResponse,
 } from '../../../src/api/generated';
 
-// API Base URL - matches the generated SDK default (localhost:4000 in development)
-const API_BASE_URL = 'http://localhost:4000';
+// API Base URL - matches the generated SDK default
+const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
 
 // Mock user data for testing
 const mockUsers = new Map<

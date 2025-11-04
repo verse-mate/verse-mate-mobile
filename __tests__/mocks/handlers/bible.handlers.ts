@@ -18,7 +18,7 @@ import { mockGenesis1Response, mockGenesis1Summary } from '../data/genesis-1.dat
 import { mockMatthew5Response } from '../data/matthew-5.data';
 
 // API Base URL - matches the generated client default
-const BIBLE_API_BASE_URL = 'http://localhost:4000';
+const BIBLE_API_BASE_URL = 'https://api.verse-mate.apegro.dev';
 
 /**
  * GET /bible/testaments
