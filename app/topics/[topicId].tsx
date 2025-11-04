@@ -27,6 +27,7 @@ import {
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
+import { useAuth } from '@/contexts/AuthContext';
 import { useActiveTab } from '@/hooks/bible';
 import {
   useTopicById,
@@ -52,6 +53,10 @@ export default function TopicDetailScreen() {
   const topicId = params.topicId;
   const category = (params.category as TopicCategory) || 'EVENT';
 
+  // Get user's preferred language from auth context
+  const { user } = useAuth();
+  const preferredLanguage = (user?.preferred_language as string) || 'en-US';
+
   // Get active tab from persistence (reuse Bible tab hook)
   const { activeTab, setActiveTab } = useActiveTab();
 
@@ -64,7 +69,7 @@ export default function TopicDetailScreen() {
   const { data: explanation, isLoading: isExplanationLoading } = useTopicExplanation(
     topicId,
     activeTab,
-    'en-US'
+    preferredLanguage
   );
 
   // Fetch all topics in the category for navigation
