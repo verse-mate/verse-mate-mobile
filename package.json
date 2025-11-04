@@ -16,6 +16,7 @@
     "test:watch": "cross-env EXPO_USE_STATIC_RENDERING=1 jest --watch",
     "test:coverage": "cross-env EXPO_USE_STATIC_RENDERING=1 jest --coverage",
     "test:ci": "cross-env EXPO_USE_STATIC_RENDERING=1 jest --ci --coverage --maxWorkers=2",
+    "test:slow": "cross-env EXPO_USE_STATIC_RENDERING=1 RUN_SLOW_TESTS=1 NODE_OPTIONS=--max-old-space-size=8192 jest --testPathPattern=\\.slow\\. --no-coverage",
     "storybook:generate": "sb-rn-get-stories",
     "chromatic:deploy": "chromatic --build-script-name storybook:generate",
     "maestro:test": "maestro test .maestro",

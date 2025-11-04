@@ -1,5 +1,5 @@
 /**
- * Authentication Integration Tests
+ * Authentication Integration Tests (Slow Tests)
  *
  * End-to-end tests for critical authentication workflows:
  * - Full signup-to-session flow
@@ -9,11 +9,17 @@
  * - Proactive token refresh
  * - Session persistence across app restart
  *
- * Maximum 10 strategic integration tests for critical gaps.
+ * ⚠️  WARNING: Memory-intensive tests
  *
- * NOTE: These tests are currently skipped due to a known memory leak issue.
- * The proactive refresh timers accumulate in memory during test execution.
- * See follow-up-tasks.md for planned fix.
+ * These tests create real proactive refresh timers that accumulate in memory,
+ * causing heap exhaustion (>8GB) during extended test runs. They are skipped
+ * by default to prevent CI/local test failures.
+ *
+ * To run these tests:
+ *   RUN_SLOW_TESTS=1 NODE_OPTIONS="--max-old-space-size=8192" npm test -- --testPathPattern="auth-flows.slow"
+ *
+ * Known issue: Tests will eventually crash with OOM even with 8GB heap.
+ * See follow-up-tasks.md for detailed analysis and potential solutions.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -62,7 +68,10 @@ jest.mock('@/lib/auth/token-refresh', () => {
   };
 });
 
-describe.skip('Authentication Integration Tests', () => {
+// Skip these tests by default unless RUN_SLOW_TESTS is set
+const describeMethod = process.env.RUN_SLOW_TESTS === '1' ? describe : describe.skip;
+
+describeMethod('Authentication Integration Tests (Slow)', () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {

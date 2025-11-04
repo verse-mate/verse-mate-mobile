@@ -25,10 +25,13 @@ VerseMate Mobile is a React Native application built with Expo Router for Bible 
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Run tests with coverage report
 - `npm run test:ci` - Run tests in CI mode with coverage
+- `npm run test:slow` - Run slow/memory-intensive tests (skipped by default)
 - `maestro test .maestro` - Run E2E tests with Maestro
 - `maestro studio` - Open Maestro Studio for interactive E2E testing
 
 **Important**: Always use `npm` for test commands, not `bun`, due to Expo compatibility requirements with the jest-expo preset.
+
+**Slow Tests**: Tests in files matching `*.slow.test.{ts,tsx}` are skipped by default to prevent memory issues. They run only when `RUN_SLOW_TESTS=1` is set. Use `npm run test:slow` to run them with proper heap configuration. These tests may still cause OOM errors due to unresolved timer leak issues.
 
 ### API Code Generation
 
