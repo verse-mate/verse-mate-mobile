@@ -9,7 +9,7 @@ import { mockJohn316, mockPsalm23 } from '../mocks/data/verses';
 import { server } from '../mocks/server';
 
 // Match the MSW handler configuration and generated client baseUrl
-const API_BASE_URL = 'http://localhost:4000';
+const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
 
 describe('Verse API', () => {
   describe('GET /api/verses/:id', () => {
