@@ -14,8 +14,8 @@ import {
 } from '../data/explanations';
 
 // Base API URL - matches the generated SDK default
-// Use localhost for tests since the generated client.gen.ts uses http://localhost:4000
-const API_BASE_URL = 'http://localhost:4000';
+// API Base URL - matches the generated client default
+const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
 
 export const explanationHandlers = [
   // POST /api/explanations - Generate AI explanation for a verse
