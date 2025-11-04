@@ -14,19 +14,25 @@ import {
   setRefreshToken,
 } from '@/lib/auth/token-storage';
 
-// Mock expo-secure-store with in-memory storage
+// Mock AsyncStorage with in-memory storage
 const mockStorage = new Map<string, string>();
 
-jest.mock('expo-secure-store', () => ({
-  setItemAsync: jest.fn((key: string, value: string) => {
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  setItem: jest.fn((key: string, value: string) => {
     mockStorage.set(key, value);
     return Promise.resolve();
   }),
-  getItemAsync: jest.fn((key: string) => {
+  getItem: jest.fn((key: string) => {
     return Promise.resolve(mockStorage.get(key) || null);
   }),
-  deleteItemAsync: jest.fn((key: string) => {
+  removeItem: jest.fn((key: string) => {
     mockStorage.delete(key);
+    return Promise.resolve();
+  }),
+  multiRemove: jest.fn((keys: string[]) => {
+    for (const key of keys) {
+      mockStorage.delete(key);
+    }
     return Promise.resolve();
   }),
 }));
