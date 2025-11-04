@@ -75,7 +75,13 @@ export default function RootLayout() {
                   animation: 'none', // Disable route animations - PagerView handles swipe animations
                 }}
               />
-              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+              <Stack.Screen
+                name="topics/[topicId]"
+                options={{
+                  headerShown: false,
+                  animation: 'none',
+                }}
+              />
             </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>

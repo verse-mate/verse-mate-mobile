@@ -335,16 +335,18 @@ export default function ChapterScreen() {
       {/* Progress Bar (Task 8.4) */}
       <ProgressBar percentage={progress.percentage} />
 
-      {/* Navigation Modal (Task 7.9) */}
-      <BibleNavigationModal
-        visible={isNavigationModalOpen}
-        onClose={() => setIsNavigationModalOpen(false)}
-        currentBookId={validBookId}
-        currentChapter={validChapter}
-        onSelectChapter={(bookId, chapter) => {
-          router.replace(`/bible/${bookId}/${chapter}` as never);
-        }}
-      />
+      {/* Navigation Modal (Task 7.9) - Only render when needed to prevent Android flash */}
+      {isNavigationModalOpen && (
+        <BibleNavigationModal
+          visible={isNavigationModalOpen}
+          onClose={() => setIsNavigationModalOpen(false)}
+          currentBookId={validBookId}
+          currentChapter={validChapter}
+          onSelectChapter={(bookId, chapter) => {
+            router.replace(`/bible/${bookId}/${chapter}` as never);
+          }}
+        />
+      )}
 
       {/* Hamburger Menu (Task 8.5) */}
       <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
@@ -456,7 +458,7 @@ function ChapterHeader({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.gray50, // Match content background to prevent flash during route updates
   },
   header: {
     minHeight: headerSpecs.height,

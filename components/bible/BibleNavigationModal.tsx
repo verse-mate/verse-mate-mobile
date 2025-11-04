@@ -20,7 +20,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -43,7 +43,7 @@ import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId } from '@/types/bible';
-import type { TopicCategory } from '@/types/topics';
+import type { TopicCategory, TopicListItem } from '@/types/topics';
 
 interface BibleNavigationModalProps {
   /** Whether modal is visible */
@@ -63,7 +63,7 @@ interface BibleNavigationModalProps {
 /**
  * BibleNavigationModal - Bottom sheet for book/chapter selection
  */
-export function BibleNavigationModal({
+function BibleNavigationModalComponent({
   visible,
   currentBookId,
   currentChapter,
@@ -86,14 +86,19 @@ export function BibleNavigationModal({
   const [selectedTopicCategory, setSelectedTopicCategory] = useState<TopicCategory>('EVENT');
   const [topicFilterText, setTopicFilterText] = useState('');
 
-  // Fetch books and recent books
-  const { data: allBooks = [], isLoading: isBooksLoading } = useBibleTestaments();
+  // Fetch books and recent books - only when modal is visible
+  const { data: allBooks = [], isLoading: isBooksLoading } = useBibleTestaments(undefined, {
+    enabled: visible,
+  });
   const { recentBooks } = useRecentBooks();
 
   // Fetch topics data - only when modal is visible and Topics tab is selected
   const shouldFetchTopics = visible && selectedTab === 'TOPICS';
   const { data: topicsData = [], isLoading: isTopicsLoading } = useTopicsSearch(
-    shouldFetchTopics ? selectedTopicCategory : ''
+    shouldFetchTopics ? selectedTopicCategory : '',
+    {
+      enabled: shouldFetchTopics,
+    }
   );
 
   // Animation values for swipe-to-dismiss
@@ -130,12 +135,13 @@ export function BibleNavigationModal({
 
   // Filter topics by search text
   const filteredTopics = useMemo(() => {
+    const topics = topicsData as TopicListItem[];
     if (!topicFilterText.trim()) {
-      return topicsData;
+      return topics;
     }
 
     const searchLower = topicFilterText.toLowerCase();
-    return topicsData.filter((topic) => topic.name.toLowerCase().includes(searchLower));
+    return topics.filter((topic) => topic.name.toLowerCase().includes(searchLower));
   }, [topicsData, topicFilterText]);
 
   // Recent books for current testament
@@ -468,7 +474,7 @@ export function BibleNavigationModal({
 
     return (
       <ScrollView style={styles.bookList} contentContainerStyle={styles.bookListContent}>
-        {filteredTopics.map((topic) => (
+        {filteredTopics.map((topic: TopicListItem) => (
           <Pressable
             key={topic.topic_id}
             onPress={() => handleTopicSelect(topic.topic_id)}
@@ -569,6 +575,12 @@ export function BibleNavigationModal({
     </Modal>
   );
 }
+
+/**
+ * Memoized BibleNavigationModal to prevent unnecessary re-renders
+ * when parent component updates but modal is not visible
+ */
+export const BibleNavigationModal = memo(BibleNavigationModalComponent);
 
 const styles = StyleSheet.create({
   backdrop: {

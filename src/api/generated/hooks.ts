@@ -66,13 +66,19 @@ import {
 // Note: Options type is already exported from sdk.gen via index.ts
 
 // Bible Testaments
-export const useBibleTestaments = (options?: Options<GetBibleTestamentsData>) => {
-	const query = useQuery(getBibleTestamentsOptions(options));
+export const useBibleTestaments = (
+	options?: Options<GetBibleTestamentsData>,
+	queryOptions?: { enabled?: boolean },
+) => {
+	const query = useQuery({
+		...getBibleTestamentsOptions(options),
+		...(queryOptions as any),
+	});
 
 	// Transform the response to return the testaments array with friendly property names
 	return {
 		...query,
-		data: query.data?.testaments ? transformTestamentsToBooks(query.data.testaments) : [],
+		data: (query.data as any)?.testaments ? transformTestamentsToBooks((query.data as any).testaments) : [],
 	};
 };
 
@@ -386,8 +392,9 @@ export const useTopicsCategories = (options?: Options<GetTopicsCategoriesData>) 
 /**
  * Search/fetch topics by category
  * @param category - Category to filter by (e.g., "EVENT", "PROPHECY", "PARABLE")
+ * @param options - Additional query options (e.g., { enabled: false })
  */
-export const useTopicsSearch = (category: string) => {
+export const useTopicsSearch = (category: string, options?: { enabled?: boolean }) => {
 	const query = useQuery({
 		...getTopicsSearchOptions({
 			query: {
@@ -395,11 +402,12 @@ export const useTopicsSearch = (category: string) => {
 			},
 		}),
 		enabled: Boolean(category), // Only fetch when category is provided
+		...(options as any), // Allow overriding options like enabled
 	});
 
 	return {
 		...query,
-		data: query.data && 'topics' in query.data ? query.data.topics : [],
+		data: query.data && typeof query.data === 'object' && 'topics' in query.data ? query.data.topics : [],
 	};
 };
 
