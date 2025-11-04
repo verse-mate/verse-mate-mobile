@@ -10,13 +10,27 @@ interface ButtonProps {
   title: string;
   onPress: () => void;
   disabled?: boolean;
+  variant?: 'primary' | 'secondary' | 'outline' | 'auth';
+  fullWidth?: boolean;
   testID?: string;
 }
 
-const Button: React.FC<ButtonProps> = ({ title, onPress, disabled = false, testID }) => {
+const Button: React.FC<ButtonProps> = ({
+  title,
+  onPress,
+  disabled = false,
+  variant = 'primary',
+  fullWidth = false,
+  testID,
+}) => {
   return (
     <TouchableOpacity
-      style={[styles.button, disabled && styles.buttonDisabled]}
+      style={[
+        styles.button,
+        styles[variant],
+        disabled && styles.buttonDisabled,
+        fullWidth && styles.fullWidth,
+      ]}
       onPress={onPress}
       disabled={disabled}
       testID={testID}
@@ -25,27 +39,56 @@ const Button: React.FC<ButtonProps> = ({ title, onPress, disabled = false, testI
       accessibilityLabel={title}
       accessibilityState={{ disabled }}
     >
-      <Text style={[styles.text, disabled && styles.textDisabled]}>{title}</Text>
+      <Text style={[styles.text, styles[`${variant}Text`], disabled && styles.textDisabled]}>
+        {title}
+      </Text>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#007AFF',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  primary: {
+    backgroundColor: '#007AFF',
+  },
+  secondary: {
+    backgroundColor: '#6B7280',
+  },
+  outline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  auth: {
+    backgroundColor: '#B4956B',
+  },
+  fullWidth: {
+    width: '100%',
+  },
   buttonDisabled: {
     backgroundColor: '#D1D5DB',
   },
   text: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  primaryText: {
+    color: '#FFFFFF',
+  },
+  secondaryText: {
+    color: '#FFFFFF',
+  },
+  outlineText: {
+    color: '#007AFF',
+  },
+  authText: {
+    color: '#FFFFFF',
   },
   textDisabled: {
     color: '#9CA3AF',
@@ -150,5 +193,62 @@ describe('Button Component', () => {
       const button = screen.getByRole('button');
       expect(button).toHaveAccessibilityState({ disabled: true });
     });
+  });
+});
+
+/**
+ * Auth Variant Tests
+ * Tests for authentication-specific button styling
+ */
+describe('Button Component - Auth Variant', () => {
+  it('renders auth variant with correct styles', () => {
+    const { getByTestId } = render(
+      <Button title="Create account" onPress={() => {}} variant="auth" testID="auth-button" />
+    );
+
+    const button = getByTestId('auth-button');
+    expect(button).toBeTruthy();
+  });
+
+  it('renders full-width when fullWidth prop is true', () => {
+    const { getByTestId } = render(
+      <Button
+        title="Login"
+        onPress={() => {}}
+        variant="auth"
+        fullWidth={true}
+        testID="full-width-button"
+      />
+    );
+
+    const button = getByTestId('full-width-button');
+    expect(button).toBeTruthy();
+  });
+
+  it('calls onPress when pressed', () => {
+    const onPressMock = jest.fn();
+    const { getByTestId } = render(
+      <Button title="Submit" onPress={onPressMock} variant="auth" testID="submit-button" />
+    );
+
+    fireEvent.press(getByTestId('submit-button'));
+    expect(onPressMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables button when disabled prop is true', () => {
+    const onPressMock = jest.fn();
+    const { getByTestId } = render(
+      <Button
+        title="Disabled"
+        onPress={onPressMock}
+        variant="auth"
+        disabled={true}
+        testID="disabled-button"
+      />
+    );
+
+    const button = getByTestId('disabled-button');
+    fireEvent.press(button);
+    expect(onPressMock).not.toHaveBeenCalled();
   });
 });

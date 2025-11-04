@@ -7,7 +7,7 @@
 import { mockJohn316Explanation } from '../mocks/data/explanations';
 
 // Match the MSW handler configuration and generated client baseUrl
-const API_BASE_URL = 'http://localhost:4000';
+const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
 
 describe('AI Explanation API', () => {
   describe('POST /api/explanations', () => {
