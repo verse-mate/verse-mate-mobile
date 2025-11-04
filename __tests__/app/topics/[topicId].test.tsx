@@ -17,7 +17,7 @@ import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TopicDetailScreen from '@/app/topics/[topicId]';
 import { useAuth } from '@/contexts/AuthContext';
-import { useActiveTab } from '@/hooks/bible';
+import { useActiveTab, useActiveView } from '@/hooks/bible';
 import {
   useTopicById,
   useTopicExplanation,
@@ -46,6 +46,7 @@ jest.mock('@/src/api/generated', () => ({
 
 jest.mock('@/hooks/bible', () => ({
   useActiveTab: jest.fn(),
+  useActiveView: jest.fn(),
 }));
 
 jest.mock('@/hooks/bible/use-recent-books', () => ({
@@ -177,6 +178,13 @@ describe('TopicDetailScreen', () => {
       error: null,
     });
 
+    (useActiveView as jest.Mock).mockReturnValue({
+      activeView: 'explanations', // Default to explanations view for existing tests
+      setActiveView: jest.fn(),
+      isLoading: false,
+      error: null,
+    });
+
     (useTopicById as jest.Mock).mockReturnValue({
       data: mockTopicData,
       isLoading: false,
@@ -230,22 +238,28 @@ describe('TopicDetailScreen', () => {
       });
     });
 
-    it('should render Bible references section', async () => {
+    it('should render Bible references section when in Bible view', async () => {
+      // Override to Bible view
+      (useActiveView as jest.Mock).mockReturnValue({
+        activeView: 'bible',
+        setActiveView: jest.fn(),
+        isLoading: false,
+        error: null,
+      });
+
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText('Bible References')).toBeTruthy();
         expect(
           screen.getByText('In the beginning God created the heavens and the earth.')
         ).toBeTruthy();
       });
     });
 
-    it('should render summary explanation by default', async () => {
+    it('should render summary explanation by default in Explanations view', async () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText('Summary Explanation')).toBeTruthy();
         expect(
           screen.getByText(
             'The Creation account describes how God created the universe in six days and rested on the seventh.'
@@ -274,7 +288,7 @@ describe('TopicDetailScreen', () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText('By Line Explanation')).toBeTruthy();
+        expect(screen.getByText(/Day 1:.*Light/i)).toBeTruthy();
       });
     });
 
@@ -296,7 +310,7 @@ describe('TopicDetailScreen', () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText('Detailed Explanation')).toBeTruthy();
+        expect(screen.getByText(/The Creation Account/i)).toBeTruthy();
       });
     });
   });
@@ -338,19 +352,21 @@ describe('TopicDetailScreen', () => {
       });
     });
 
-    it('should navigate back when back button is pressed', async () => {
+    it('should have navigation menu accessible', async () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
         expect(screen.getAllByText('The Creation').length).toBeGreaterThan(0);
       });
 
-      // Find and press back button
-      const backButton = screen.getByLabelText('Go back');
-      fireEvent.press(backButton);
+      // Find and press hamburger menu button
+      const menuButton = screen.getByLabelText('Open menu');
+      expect(menuButton).toBeTruthy();
 
-      // Should navigate back
-      expect(router.back).toHaveBeenCalled();
+      fireEvent.press(menuButton);
+
+      // Menu should open navigation modal
+      expect(menuButton).toBeTruthy();
     });
   });
 

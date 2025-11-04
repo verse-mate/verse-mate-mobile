@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
+import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
+import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import {
   colors,
@@ -28,7 +30,7 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
-import { useActiveTab } from '@/hooks/bible';
+import { useActiveTab, useActiveView } from '@/hooks/bible';
 import {
   useTopicById,
   useTopicExplanation,
@@ -37,6 +39,11 @@ import {
 } from '@/src/api/generated';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
+
+/**
+ * View mode type for Topic reading interface
+ */
+type ViewMode = 'bible' | 'explanations';
 
 /**
  * Topic Detail Screen Component
@@ -60,8 +67,14 @@ export default function TopicDetailScreen() {
   // Get active tab from persistence (reuse Bible tab hook)
   const { activeTab, setActiveTab } = useActiveTab();
 
+  // Get active view from persistence (Bible references vs Explanations view)
+  const { activeView, setActiveView } = useActiveView();
+
   // Navigation modal state
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
+
+  // Hamburger menu state
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Fetch topic data
   const { data: topicData, isLoading: isTopicLoading, error: topicError } = useTopicById(topicId);
@@ -119,6 +132,15 @@ export default function TopicDetailScreen() {
     [setActiveTab]
   );
 
+  // Handle view mode change (Bible references vs Explanations)
+  const handleViewChange = useCallback(
+    (view: ViewMode) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setActiveView(view);
+    },
+    [setActiveView]
+  );
+
   // Handle previous topic navigation
   const handlePrevious = useCallback(() => {
     if (previousTopic) {
@@ -148,13 +170,14 @@ export default function TopicDetailScreen() {
   // Loading state
   if (isTopicLoading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Pressable onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color={colors.gold} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Loading...</Text>
-        </View>
+      <View style={styles.container}>
+        <TopicHeader
+          topicName="Loading..."
+          activeView={activeView}
+          onNavigationPress={() => {}}
+          onViewChange={handleViewChange}
+          onMenuPress={() => {}}
+        />
         <SkeletonLoader />
       </View>
     );
@@ -163,13 +186,14 @@ export default function TopicDetailScreen() {
   // Error state
   if (topicError || !topicData) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Pressable onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color={colors.gold} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Error</Text>
-        </View>
+      <View style={styles.container}>
+        <TopicHeader
+          topicName="Error"
+          activeView={activeView}
+          onNavigationPress={() => {}}
+          onViewChange={handleViewChange}
+          onMenuPress={() => {}}
+        />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Failed to load topic</Text>
           <Pressable onPress={handleBack} style={styles.errorButton}>
@@ -199,13 +223,14 @@ export default function TopicDetailScreen() {
 
   if (!topic) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Pressable onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color={colors.gold} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Error</Text>
-        </View>
+      <View style={styles.container}>
+        <TopicHeader
+          topicName="Error"
+          activeView={activeView}
+          onNavigationPress={() => {}}
+          onViewChange={handleViewChange}
+          onMenuPress={() => {}}
+        />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Topic data not available</Text>
           <Pressable onPress={handleBack} style={styles.errorButton}>
@@ -217,34 +242,20 @@ export default function TopicDetailScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <Pressable
-          onPress={handleBack}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.gold} />
-        </Pressable>
+      <TopicHeader
+        topicName={topic.name}
+        activeView={activeView}
+        onNavigationPress={() => setIsNavigationModalOpen(true)}
+        onViewChange={handleViewChange}
+        onMenuPress={() => setIsMenuOpen(true)}
+      />
 
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {topic.name}
-        </Text>
-
-        <Pressable
-          onPress={() => setIsNavigationModalOpen(true)}
-          style={styles.navButton}
-          accessibilityRole="button"
-          accessibilityLabel="Open navigation"
-        >
-          <Ionicons name="book-outline" size={24} color={colors.gold} />
-        </Pressable>
-      </View>
-
-      {/* Content Tabs */}
-      <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} />
+      {/* Content Tabs - Only visible in Explanations view */}
+      {activeView === 'explanations' && (
+        <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} />
+      )}
 
       {/* Scrollable Content */}
       <ScrollView
@@ -263,44 +274,41 @@ export default function TopicDetailScreen() {
         {/* Topic Description */}
         {topicDescription ? <Text style={styles.topicDescription}>{topicDescription}</Text> : null}
 
-        {/* Bible References */}
-        {references &&
-        typeof references === 'object' &&
-        'content' in references &&
-        typeof references.content === 'string' ? (
-          <View style={styles.referencesContainer}>
-            <Text style={styles.sectionTitle}>Bible References</Text>
-            <Markdown style={markdownStyles}>{references.content}</Markdown>
-          </View>
-        ) : null}
+        {/* Bible References View */}
+        {activeView === 'bible' &&
+          (references &&
+          typeof references === 'object' &&
+          'content' in references &&
+          typeof references.content === 'string' ? (
+            <View style={styles.referencesContainer}>
+              <Markdown style={markdownStyles}>{references.content}</Markdown>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No Bible references available for this topic.</Text>
+            </View>
+          ))}
 
-        {/* Explanation Content */}
-        {isExplanationLoading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading {activeTab} explanation...</Text>
-          </View>
-        ) : explanation &&
-          typeof explanation === 'object' &&
-          'explanation' in explanation &&
-          typeof explanation.explanation === 'string' ? (
-          <View style={styles.explanationContainer}>
-            <Text style={styles.sectionTitle}>
-              {activeTab === 'summary'
-                ? 'Summary'
-                : activeTab === 'byline'
-                  ? 'By Line'
-                  : 'Detailed'}{' '}
-              Explanation
-            </Text>
-            <Markdown style={markdownStyles}>{explanation.explanation}</Markdown>
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              No {activeTab} explanation available for this topic yet.
-            </Text>
-          </View>
-        )}
+        {/* Explanations View */}
+        {activeView === 'explanations' &&
+          (isExplanationLoading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Loading {activeTab} explanation...</Text>
+            </View>
+          ) : explanation &&
+            typeof explanation === 'object' &&
+            'explanation' in explanation &&
+            typeof explanation.explanation === 'string' ? (
+            <View style={styles.explanationContainer}>
+              <Markdown style={markdownStyles}>{explanation.explanation}</Markdown>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                No {activeTab} explanation available for this topic yet.
+              </Text>
+            </View>
+          ))}
       </ScrollView>
 
       {/* Floating Action Buttons for Topic Navigation */}
@@ -312,14 +320,118 @@ export default function TopicDetailScreen() {
       />
 
       {/* Navigation Modal */}
-      <BibleNavigationModal
-        visible={isNavigationModalOpen}
-        currentBookId={1} // Default to Genesis
-        currentChapter={1}
-        onClose={() => setIsNavigationModalOpen(false)}
-        onSelectChapter={handleSelectChapter}
-        onSelectTopic={handleSelectTopic}
-      />
+      {isNavigationModalOpen && (
+        <BibleNavigationModal
+          visible={isNavigationModalOpen}
+          currentBookId={1} // Default to Genesis
+          currentChapter={1}
+          onClose={() => setIsNavigationModalOpen(false)}
+          onSelectChapter={handleSelectChapter}
+          onSelectTopic={handleSelectTopic}
+        />
+      )}
+
+      {/* Hamburger Menu */}
+      <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+    </View>
+  );
+}
+
+/**
+ * Topic Header Component
+ *
+ * Fixed header with topic title and action icons
+ * - Topic text (clickable to open topic selector)
+ * - Bible view icon (shows Bible references mode)
+ * - Explanations view icon (shows AI explanations mode)
+ * - Offline indicator (shows when offline)
+ * - Hamburger menu icon (opens menu)
+ *
+ * Identical to ChapterHeader but for topics
+ */
+interface TopicHeaderProps {
+  topicName: string;
+  activeView: ViewMode;
+  onNavigationPress: () => void;
+  onViewChange: (view: ViewMode) => void;
+  onMenuPress: () => void;
+}
+
+function TopicHeader({
+  topicName,
+  activeView,
+  onNavigationPress,
+  onViewChange,
+  onMenuPress,
+}: TopicHeaderProps) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={[styles.header, { paddingTop: insets.top }]} testID="topic-header">
+      {/* Topic Title Button (clickable to open navigation) */}
+      <Pressable
+        onPress={onNavigationPress}
+        style={styles.topicButton}
+        accessibilityLabel={`Select topic, currently ${topicName}`}
+        accessibilityRole="button"
+        accessibilityHint="Opens topic navigation menu"
+        testID="topic-selector-button"
+      >
+        <View style={styles.topicButtonContent}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {topicName}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={colors.white} />
+        </View>
+      </Pressable>
+
+      {/* Action Icons */}
+      <View style={styles.headerActions}>
+        {/* Bible View Icon */}
+        <Pressable
+          onPress={() => onViewChange('bible')}
+          style={styles.iconButton}
+          accessibilityLabel="Bible references view"
+          accessibilityRole="button"
+          accessibilityState={{ selected: activeView === 'bible' }}
+          testID="bible-view-icon"
+        >
+          <Ionicons
+            name="book-outline"
+            size={headerSpecs.iconSize}
+            color={activeView === 'bible' ? colors.gold : colors.white}
+          />
+        </Pressable>
+
+        {/* Explanations View Icon */}
+        <Pressable
+          onPress={() => onViewChange('explanations')}
+          style={styles.iconButton}
+          accessibilityLabel="Explanations view"
+          accessibilityRole="button"
+          accessibilityState={{ selected: activeView === 'explanations' }}
+          testID="explanations-view-icon"
+        >
+          <Ionicons
+            name="reader-outline"
+            size={headerSpecs.iconSize}
+            color={activeView === 'explanations' ? colors.gold : colors.white}
+          />
+        </Pressable>
+
+        {/* Offline Indicator */}
+        <OfflineIndicator />
+
+        {/* Hamburger Menu Icon */}
+        <Pressable
+          onPress={onMenuPress}
+          style={styles.iconButton}
+          accessibilityLabel="Open menu"
+          accessibilityRole="button"
+        >
+          <Ionicons name="menu" size={headerSpecs.iconSize} color={colors.white} />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -327,37 +439,39 @@ export default function TopicDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.gray50, // Match content background to prevent flash during route updates
   },
   header: {
-    height: headerSpecs.height,
+    minHeight: headerSpecs.height,
+    backgroundColor: headerSpecs.backgroundColor,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-    backgroundColor: colors.white,
+    paddingHorizontal: headerSpecs.padding,
+    paddingBottom: spacing.sm,
   },
-  backButton: {
-    width: 40,
-    height: 40,
+  topicButton: {
+    padding: spacing.xs,
+  },
+  topicButtonContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.xs,
   },
   headerTitle: {
-    flex: 1,
-    fontSize: fontSizes.heading3,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    textAlign: 'center',
-    marginHorizontal: spacing.md,
+    fontSize: headerSpecs.titleFontSize,
+    fontWeight: headerSpecs.titleFontWeight,
+    color: headerSpecs.titleColor,
   },
-  navButton: {
-    width: 40,
-    height: 40,
+  headerActions: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.lg,
+  },
+  iconButton: {
+    padding: spacing.xs,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

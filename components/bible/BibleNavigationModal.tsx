@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray200,
-    gap: spacing.xxl,
+    justifyContent: 'space-between',
   },
   testamentTab: {
     paddingVertical: spacing.sm,
