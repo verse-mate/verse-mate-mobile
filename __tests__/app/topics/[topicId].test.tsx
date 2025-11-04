@@ -16,6 +16,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TopicDetailScreen from '@/app/topics/[topicId]';
+import { useAuth } from '@/contexts/AuthContext';
 import { useActiveTab } from '@/hooks/bible';
 import {
   useTopicById,
@@ -49,6 +50,10 @@ jest.mock('@/hooks/bible', () => ({
 
 jest.mock('@/hooks/bible/use-recent-books', () => ({
   useRecentBooks: jest.fn(),
+}));
+
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(),
 }));
 
 jest.mock('expo-haptics', () => ({
@@ -153,6 +158,16 @@ describe('TopicDetailScreen', () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       topicId: 'event-1',
       category: 'EVENT',
+    });
+
+    (useAuth as jest.Mock).mockReturnValue({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      login: jest.fn(),
+      signup: jest.fn(),
+      logout: jest.fn(),
+      restoreSession: jest.fn(),
     });
 
     (useActiveTab as jest.Mock).mockReturnValue({
@@ -500,6 +515,73 @@ describe('TopicDetailScreen', () => {
       // Next button should not be visible (uses "Next chapter" label from FloatingActionButtons)
       const nextButton = screen.queryByLabelText('Next chapter');
       expect(nextButton).toBeNull();
+    });
+  });
+
+  describe('Language Preference', () => {
+    it('should use default language (en-US) when user is not authenticated', () => {
+      (useAuth as jest.Mock).mockReturnValue({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        login: jest.fn(),
+        signup: jest.fn(),
+        logout: jest.fn(),
+        restoreSession: jest.fn(),
+      });
+
+      renderWithProviders(<TopicDetailScreen />);
+
+      // Verify useTopicExplanation was called with 'en-US' as the language
+      expect(useTopicExplanation).toHaveBeenCalledWith('event-1', 'summary', 'en-US');
+    });
+
+    it('should use user preferred language when authenticated', () => {
+      (useAuth as jest.Mock).mockReturnValue({
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          is_admin: false,
+          preferred_language: 'es-ES',
+        },
+        isAuthenticated: true,
+        isLoading: false,
+        login: jest.fn(),
+        signup: jest.fn(),
+        logout: jest.fn(),
+        restoreSession: jest.fn(),
+      });
+
+      renderWithProviders(<TopicDetailScreen />);
+
+      // Verify useTopicExplanation was called with user's preferred language
+      expect(useTopicExplanation).toHaveBeenCalledWith('event-1', 'summary', 'es-ES');
+    });
+
+    it('should fallback to en-US when preferred_language is null', () => {
+      (useAuth as jest.Mock).mockReturnValue({
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          is_admin: false,
+          preferred_language: null,
+        },
+        isAuthenticated: true,
+        isLoading: false,
+        login: jest.fn(),
+        signup: jest.fn(),
+        logout: jest.fn(),
+        restoreSession: jest.fn(),
+      });
+
+      renderWithProviders(<TopicDetailScreen />);
+
+      // Verify useTopicExplanation was called with fallback language
+      expect(useTopicExplanation).toHaveBeenCalledWith('event-1', 'summary', 'en-US');
     });
   });
 });
