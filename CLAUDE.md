@@ -30,6 +30,34 @@ VerseMate Mobile is a React Native application built with Expo Router for Bible 
 
 **Important**: Always use `npm` for test commands, not `bun`, due to Expo compatibility requirements with the jest-expo preset.
 
+### API Code Generation
+
+The project uses `@hey-api/openapi-ts` to generate TypeScript API client code from the OpenAPI schema.
+
+**Commands**:
+- `bun generate:api` - Generate API client from `openapi.json`
+- `curl https://api.verse-mate.apegro.dev/openapi/json -o openapi.json` - Download latest OpenAPI schema
+
+**When to Regenerate**:
+1. When backend API changes (new endpoints, modified request/response schemas)
+2. After downloading updated `openapi.json` from the backend
+3. When API types become out of sync with backend
+
+**Post-Regeneration Steps**:
+1. **Update MSW Mock Handlers**: After regenerating the API client, MSW mock handlers in `__tests__/mocks/handlers/` must be updated to match:
+   - New endpoint paths (e.g., `/bible/book/{bookId}/{chapterNumber}`)
+   - Updated request/response types from `src/api/generated/types.gen.ts`
+   - Query parameter formats
+   - Base URL (handlers must use `http://localhost:4000` to match `client.gen.ts`)
+2. **Run Tests**: Execute `npm test` to identify any handlers that need updates
+3. **Fix Handler Mismatches**: Look for MSW errors like "no matching request handler" and update handlers accordingly
+
+**Generated Files** (do not edit manually):
+- `src/api/generated/types.gen.ts` - TypeScript type definitions
+- `src/api/generated/client.gen.ts` - API client configuration
+- `src/api/generated/sdk.gen.ts` - API SDK methods
+- `src/api/generated/@tanstack/react-query.gen.ts` - React Query hooks
+
 ### Storybook
 - `bun run storybook:generate` - Generate Storybook stories
 - `bun run chromatic:deploy` - Deploy Storybook to Chromatic

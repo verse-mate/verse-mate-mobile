@@ -80,7 +80,9 @@ export type PostAuthChangePasswordResponses = {
 export type PostAuthChangePasswordResponse = PostAuthChangePasswordResponses[keyof PostAuthChangePasswordResponses];
 
 export type PostAuthLogoutData = {
-    body?: never;
+    body: {
+        refreshToken?: string;
+    };
     path?: never;
     query?: never;
     url: '/auth/logout';
@@ -216,6 +218,7 @@ export type PostAuthVerifyEmailResponses = {
      */
     200: {
         accessToken: string;
+        refreshToken?: string;
         verified: boolean;
     };
 };
@@ -347,6 +350,7 @@ export type PostAuthSignupResponses = {
      */
     200: {
         accessToken: string;
+        refreshToken?: string;
         verified: boolean;
     };
 };
@@ -388,11 +392,53 @@ export type PostAuthLoginResponses = {
      */
     200: {
         accessToken: string;
+        refreshToken?: string;
         verified: boolean;
     };
 };
 
 export type PostAuthLoginResponse = PostAuthLoginResponses[keyof PostAuthLoginResponses];
+
+export type PostAuthRefreshData = {
+    body: {
+        refreshToken: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/refresh';
+};
+
+export type PostAuthRefreshErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        message: string;
+        data: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        message: string;
+        data: unknown;
+    };
+};
+
+export type PostAuthRefreshError = PostAuthRefreshErrors[keyof PostAuthRefreshErrors];
+
+export type PostAuthRefreshResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        accessToken: string;
+        refreshToken?: string;
+        verified: boolean;
+    };
+};
+
+export type PostAuthRefreshResponse = PostAuthRefreshResponses[keyof PostAuthRefreshResponses];
 
 export type PostAuthForgotPasswordData = {
     body: {
@@ -643,6 +689,100 @@ export type PostUserUpdateResponses = {
 };
 
 export type PostUserUpdateResponse = PostUserUpdateResponses[keyof PostUserUpdateResponses];
+
+export type GetUserRecentlyViewedBooksData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/user/recently-viewed-books';
+};
+
+export type GetUserRecentlyViewedBooksErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        message: string;
+        data: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        message: string;
+        data: unknown;
+    };
+};
+
+export type GetUserRecentlyViewedBooksError = GetUserRecentlyViewedBooksErrors[keyof GetUserRecentlyViewedBooksErrors];
+
+export type GetUserRecentlyViewedBooksResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        /**
+         * Array of book IDs in order of most recently viewed
+         */
+        bookIds: string[];
+    };
+};
+
+export type GetUserRecentlyViewedBooksResponse = GetUserRecentlyViewedBooksResponses[keyof GetUserRecentlyViewedBooksResponses];
+
+export type PostUserRecentlyViewedBooksSyncData = {
+    body: {
+        /**
+         * Array of recently viewed books from localStorage
+         */
+        books: {
+            /**
+             * Book ID
+             */
+            bookId: string;
+            /**
+             * Unix timestamp (milliseconds) when the book was viewed
+             */
+            timestamp: number;
+        }[];
+    };
+    path?: never;
+    query?: never;
+    url: '/user/recently-viewed-books/sync';
+};
+
+export type PostUserRecentlyViewedBooksSyncErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        message: string;
+        data: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        message: string;
+        data: unknown;
+    };
+};
+
+export type PostUserRecentlyViewedBooksSyncError = PostUserRecentlyViewedBooksSyncErrors[keyof PostUserRecentlyViewedBooksSyncErrors];
+
+export type PostUserRecentlyViewedBooksSyncResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        /**
+         * Array of book IDs in order of most recently viewed
+         */
+        bookIds: string[];
+    };
+};
+
+export type PostUserRecentlyViewedBooksSyncResponse = PostUserRecentlyViewedBooksSyncResponses[keyof PostUserRecentlyViewedBooksSyncResponses];
 
 export type GetBibleBooksData = {
     body?: never;
@@ -2204,6 +2344,7 @@ export type GetTopicsSearchData = {
     path?: never;
     query: {
         category: string;
+        bible_version?: string;
     };
     url: '/topics/search';
 };
@@ -2218,6 +2359,7 @@ export type GetTopicsSearchResponses = {
             name: string;
             description: string | unknown;
             sort_order: number | unknown;
+            is_translated?: boolean;
         }[];
     };
 };
@@ -2229,7 +2371,9 @@ export type GetTopicsByIdData = {
     path: {
         id: string;
     };
-    query?: never;
+    query?: {
+        bible_version?: string;
+    };
     url: '/topics/{id}';
 };
 
@@ -2247,6 +2391,7 @@ export type GetTopicsByIdResponses = {
             is_active: boolean | unknown;
             created_at: unknown | string | number | unknown;
             updated_at: unknown | string | number | unknown;
+            is_translated?: boolean;
         } | unknown;
         references: {
             content: string;
@@ -3988,6 +4133,53 @@ export type PostAdminTopicsSortChronologicallyData = {
     path?: never;
     query?: never;
     url: '/admin/topics/sort-chronologically';
+};
+
+export type PostAdminTopicsTranslateNamesData = {
+    body: {
+        model: string;
+        source_language_code?: string;
+        target_language_code: string;
+        skip_existing?: boolean;
+        effort?: 'low' | 'medium' | 'high';
+        category?: string;
+        topic_id?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/topics/translate-names';
+};
+
+export type PostAdminTopicsTranslateExplanationsData = {
+    body: {
+        model: string;
+        source_language_code?: string;
+        target_language_code: string;
+        explanation_types?: string[];
+        skip_existing?: boolean;
+        effort?: 'low' | 'medium' | 'high';
+        category?: string;
+        topic_id?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/topics/translate-explanations';
+};
+
+export type PostAdminTopicsTranslateAllData = {
+    body: {
+        model: string;
+        source_language_code?: string;
+        target_language_code: string;
+        explanation_types?: string[];
+        skip_existing?: boolean;
+        effort?: 'low' | 'medium' | 'high';
+        category?: string;
+        topic_id?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/topics/translate-all';
 };
 
 export type GetAdminCommentaryGradesData = {
