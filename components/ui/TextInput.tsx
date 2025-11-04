@@ -26,6 +26,32 @@ export interface TextInputProps {
   testID?: string;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  autoComplete?:
+    | 'off'
+    | 'email'
+    | 'name'
+    | 'password'
+    | 'new-password'
+    | 'username'
+    | 'tel'
+    | 'street-address'
+    | 'postal-code'
+    | 'cc-number'
+    | 'cc-exp'
+    | 'cc-csc';
+  textContentType?:
+    | 'none'
+    | 'emailAddress'
+    | 'name'
+    | 'givenName'
+    | 'familyName'
+    | 'password'
+    | 'newPassword'
+    | 'telephoneNumber'
+    | 'streetAddressLine1'
+    | 'streetAddressLine2'
+    | 'postalCode'
+    | 'creditCardNumber';
 }
 
 export const TextInput: React.FC<TextInputProps> = ({
@@ -38,6 +64,8 @@ export const TextInput: React.FC<TextInputProps> = ({
   testID,
   autoCapitalize = 'none',
   keyboardType = 'default',
+  autoComplete,
+  textContentType,
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
@@ -58,6 +86,8 @@ export const TextInput: React.FC<TextInputProps> = ({
           testID={testID}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
           accessible={true}
           accessibilityLabel={label}
           accessibilityHint={error}

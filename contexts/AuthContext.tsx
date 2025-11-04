@@ -132,7 +132,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     if (error || !data) {
-      throw new Error('Login failed');
+      console.error('Login failed:', error?.message || error);
+      throw new Error(error?.message || 'Login failed');
     }
 
     // Store tokens
@@ -164,7 +165,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     if (error || !data) {
-      throw new Error('Signup failed');
+      console.error('Signup failed:', error?.message || error);
+      throw new Error(error?.message || 'Signup failed');
     }
 
     // Store tokens

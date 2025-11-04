@@ -31,19 +31,25 @@ import * as tokenStorage from '@/lib/auth/token-storage';
 import { client } from '@/src/api/generated/client.gen';
 import { resetAuthMocks, seedTestUser } from '../mocks/handlers/auth';
 
-// Mock SecureStore with in-memory storage
-const mockSecureStore = new Map<string, string>();
+// Mock AsyncStorage with in-memory storage
+const mockAsyncStorage = new Map<string, string>();
 
-jest.mock('expo-secure-store', () => ({
-  setItemAsync: jest.fn((key: string, value: string) => {
-    mockSecureStore.set(key, value);
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  setItem: jest.fn((key: string, value: string) => {
+    mockAsyncStorage.set(key, value);
     return Promise.resolve();
   }),
-  getItemAsync: jest.fn((key: string) => {
-    return Promise.resolve(mockSecureStore.get(key) || null);
+  getItem: jest.fn((key: string) => {
+    return Promise.resolve(mockAsyncStorage.get(key) || null);
   }),
-  deleteItemAsync: jest.fn((key: string) => {
-    mockSecureStore.delete(key);
+  removeItem: jest.fn((key: string) => {
+    mockAsyncStorage.delete(key);
+    return Promise.resolve();
+  }),
+  multiRemove: jest.fn((keys: string[]) => {
+    for (const key of keys) {
+      mockAsyncStorage.delete(key);
+    }
     return Promise.resolve();
   }),
 }));
@@ -84,7 +90,7 @@ describeMethod('Authentication Integration Tests (Slow)', () => {
     });
 
     // Clear mock storage and auth data
-    mockSecureStore.clear();
+    mockAsyncStorage.clear();
     resetAuthMocks();
     jest.clearAllMocks();
   });
@@ -127,7 +133,7 @@ describeMethod('Authentication Integration Tests (Slow)', () => {
     expect(result.current.user?.firstName).toBe('John');
     expect(result.current.user?.lastName).toBe('Doe');
 
-    // Verify tokens were stored in SecureStore
+    // Verify tokens were stored in AsyncStorage
     const accessToken = await tokenStorage.getAccessToken();
     const refreshToken = await tokenStorage.getRefreshToken();
     expect(accessToken).toBeTruthy();

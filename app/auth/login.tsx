@@ -99,9 +99,9 @@ export default function Login() {
     });
   };
 
-  // Handle navigation to signup
+  // Handle navigation to signup (replace instead of push to avoid modal stacking)
   const handleSignupPress = () => {
-    router.push('/auth/signup');
+    router.replace('/auth/signup');
   };
 
   // Handle continue without account
@@ -144,6 +144,8 @@ export default function Login() {
               secureTextEntry
               error={errors.password}
               testID="login-password"
+              autoComplete="off"
+              textContentType="none"
             />
 
             {/* Network Error Display */}
