@@ -16,6 +16,7 @@ import { useLogin } from '@/hooks/useLogin';
 jest.mock('expo-router', () => ({
   router: {
     push: jest.fn(),
+    replace: jest.fn(),
     dismiss: jest.fn(),
   },
 }));
@@ -71,7 +72,7 @@ describe('Login Screen', () => {
     const signupLink = screen.getByTestId('login-signup-link');
     fireEvent.press(signupLink);
 
-    expect(router.push).toHaveBeenCalledWith('/auth/signup');
+    expect(router.replace).toHaveBeenCalledWith('/auth/signup');
   });
 
   it('dismisses modal when continue without account is pressed', () => {
