@@ -154,13 +154,14 @@ export default function ChapterScreen() {
   );
 
   // Save reading position on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   useEffect(() => {
     saveLastRead({
       user_id: 'guest', // TODO: Replace with actual user ID when auth is added
       book_id: validBookId,
       chapter_number: validChapter,
     });
-  }, [validBookId, validChapter, saveLastRead]);
+  }, [validBookId, validChapter]);
 
   // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5, 4.6)
   useEffect(() => {
@@ -192,6 +193,7 @@ export default function ChapterScreen() {
    * - Trigger prefetch after 1s delay
    * - Haptic feedback (medium impact)
    */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   const handlePageChange = useCallback(
     (newBookId: number, newChapterNumber: number) => {
       // Use router.replace for swipe navigation
@@ -214,7 +216,7 @@ export default function ChapterScreen() {
         prefetchPrevious();
       }, 1000);
     },
-    [saveLastRead, prefetchNext, prefetchPrevious]
+    [prefetchNext, prefetchPrevious]
   );
 
   /**
@@ -344,6 +346,12 @@ export default function ChapterScreen() {
           currentChapter={validChapter}
           onSelectChapter={(bookId, chapter) => {
             router.replace(`/bible/${bookId}/${chapter}` as never);
+          }}
+          onSelectTopic={(topicId, category) => {
+            router.push({
+              pathname: '/topics/[topicId]',
+              params: { topicId, category },
+            });
           }}
         />
       )}
