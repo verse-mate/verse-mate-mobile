@@ -97,11 +97,34 @@ describe('BibleNavigationModal - Topics Tab', () => {
       error: null,
     });
 
-    // Mock useTopicsSearch hook - default to EVENT topics
-    (useTopicsSearch as jest.Mock).mockReturnValue({
-      data: mockEventTopics,
-      isLoading: false,
-      error: null,
+    // Mock useTopicsSearch hook - return different data based on category
+    (useTopicsSearch as jest.Mock).mockImplementation((category: string) => {
+      if (category === 'EVENT') {
+        return {
+          data: mockEventTopics,
+          isLoading: false,
+          error: null,
+        };
+      }
+      if (category === 'PROPHECY') {
+        return {
+          data: mockProphecyTopics,
+          isLoading: false,
+          error: null,
+        };
+      }
+      if (category === 'PARABLE') {
+        return {
+          data: mockParableTopics,
+          isLoading: false,
+          error: null,
+        };
+      }
+      return {
+        data: [],
+        isLoading: false,
+        error: null,
+      };
     });
 
     // Mock useRecentBooks hook
@@ -317,6 +340,51 @@ describe('BibleNavigationModal - Topics Tab', () => {
       // Only "The Flood" should be visible (in a real implementation)
       // Note: This test verifies the filter input works; actual filtering logic
       // is tested through the filteredTopics useMemo in the component
+    });
+
+    it('should search across all categories when filter text is present', async () => {
+      render(
+        <BibleNavigationModal
+          visible={true}
+          currentBookId={1}
+          currentChapter={1}
+          onClose={mockOnClose}
+          onSelectChapter={mockOnSelectChapter}
+          onSelectTopic={mockOnSelectTopic}
+        />
+      );
+
+      // Click Topics tab
+      fireEvent.press(screen.getByText('Topics'));
+
+      // Default to Events category - only event topics visible
+      await waitFor(() => {
+        expect(screen.getByText('The Creation')).toBeTruthy();
+        expect(screen.getByText('The Flood')).toBeTruthy();
+        expect(screen.queryByText('The Messiah')).toBeFalsy(); // Prophecy not visible
+        expect(screen.queryByText('The Good Samaritan')).toBeFalsy(); // Parable not visible
+      });
+
+      // Search for "Messiah" - should find it even though it's in PROPHECY category
+      const filterInput = screen.getByPlaceholderText('Filter topics...');
+      fireEvent.changeText(filterInput, 'Messiah');
+
+      // Should now show the prophecy topic
+      await waitFor(() => {
+        expect(screen.getByText('The Messiah')).toBeTruthy();
+        expect(screen.queryByText('The Creation')).toBeFalsy(); // Event not matching search
+      });
+
+      // Clear search and switch to Parables category
+      fireEvent.changeText(filterInput, '');
+      fireEvent.press(screen.getByText('Parables'));
+
+      // Only parable topics should be visible
+      await waitFor(() => {
+        expect(screen.getByText('The Good Samaritan')).toBeTruthy();
+        expect(screen.queryByText('The Creation')).toBeFalsy();
+        expect(screen.queryByText('The Messiah')).toBeFalsy();
+      });
     });
   });
 
