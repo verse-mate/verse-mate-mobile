@@ -216,7 +216,10 @@ describe('BibleNavigationModal - Topics Tab', () => {
       );
 
       await waitFor(() => {
-        expect(useTopicsSearch).toHaveBeenCalledWith('PROPHECY');
+        expect(useTopicsSearch).toHaveBeenCalledWith(
+          'PROPHECY',
+          expect.objectContaining({ enabled: true })
+        );
       });
     });
 
@@ -258,7 +261,10 @@ describe('BibleNavigationModal - Topics Tab', () => {
       );
 
       await waitFor(() => {
-        expect(useTopicsSearch).toHaveBeenCalledWith('PARABLE');
+        expect(useTopicsSearch).toHaveBeenCalledWith(
+          'PARABLE',
+          expect.objectContaining({ enabled: true })
+        );
       });
     });
   });
