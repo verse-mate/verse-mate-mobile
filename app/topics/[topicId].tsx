@@ -281,7 +281,12 @@ export default function TopicDetailScreen() {
           'content' in references &&
           typeof references.content === 'string' ? (
             <View style={styles.referencesContainer}>
-              <Markdown style={markdownStyles}>{references.content}</Markdown>
+              <Markdown style={markdownStyles}>
+                {references.content
+                  .replace(/\n\n/g, '___PARAGRAPH___')
+                  .replace(/\n/g, ' ')
+                  .replace(/___PARAGRAPH___/g, '\n\n')}
+              </Markdown>
             </View>
           ) : (
             <View style={styles.emptyContainer}>
@@ -603,7 +608,10 @@ const markdownStyles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   strong: {
+    fontSize: fontSizes.caption,
     fontWeight: fontWeights.bold,
+    color: colors.gray500,
+    marginRight: spacing.xs,
   },
   em: {
     fontStyle: 'italic',
