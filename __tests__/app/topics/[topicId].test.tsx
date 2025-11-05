@@ -497,9 +497,9 @@ describe('TopicDetailScreen', () => {
         expect(screen.getAllByText('Previous Topic').length).toBeGreaterThan(0);
       });
 
-      // Previous button should not be visible (uses "Previous chapter" label from FloatingActionButtons)
-      const prevButton = screen.queryByLabelText('Previous chapter');
-      expect(prevButton).toBeNull();
+      // Previous button should be disabled
+      const prevButton = screen.getByLabelText('Previous chapter');
+      expect(prevButton).toBeDisabled();
     });
 
     it('should disable next button when on last topic', async () => {
@@ -528,9 +528,9 @@ describe('TopicDetailScreen', () => {
         expect(screen.getAllByText('The Flood').length).toBeGreaterThan(0);
       });
 
-      // Next button should not be visible (uses "Next chapter" label from FloatingActionButtons)
-      const nextButton = screen.queryByLabelText('Next chapter');
-      expect(nextButton).toBeNull();
+      // Next button should be disabled
+      const nextButton = screen.getByLabelText('Next chapter');
+      expect(nextButton).toBeDisabled();
     });
   });
 
