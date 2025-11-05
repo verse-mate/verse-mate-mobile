@@ -68,6 +68,7 @@ jest.mock('@/hooks/bible', () => {
       return { activeView, setActiveView, isLoading: false, error: null };
     }),
     useBookProgress: jest.fn(),
+    useLastReadPosition: jest.fn(),
   };
 });
 jest.mock('@/hooks/bible/use-recent-books');
@@ -224,6 +225,16 @@ describe('Bible Reading Interface - Integration Tests', () => {
 
     (useOfflineStatus as jest.Mock).mockReturnValue({
       isOffline: false,
+    });
+
+    // Mock useLastReadPosition
+    const { useLastReadPosition } = require('@/hooks/bible');
+    (useLastReadPosition as jest.Mock).mockReturnValue({
+      lastPosition: null,
+      savePosition: jest.fn(),
+      clearPosition: jest.fn(),
+      isLoading: false,
+      error: null,
     });
 
     (useBibleSummary as jest.Mock).mockReturnValue({
