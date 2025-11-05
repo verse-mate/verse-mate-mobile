@@ -11,7 +11,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,7 +30,7 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
-import { useActiveTab, useActiveView } from '@/hooks/bible';
+import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
 import {
   useTopicById,
   useTopicExplanation,
@@ -70,6 +70,9 @@ export default function TopicDetailScreen() {
   // Get active view from persistence (Bible references vs Explanations view)
   const { activeView, setActiveView } = useActiveView();
 
+  // Save reading position to AsyncStorage for app launch continuity
+  const { savePosition } = useLastReadPosition();
+
   // Navigation modal state
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
 
@@ -100,6 +103,19 @@ export default function TopicDetailScreen() {
 
   // Safe area insets for iOS notch/home indicator
   const insets = useSafeAreaInsets();
+
+  // Save reading position to AsyncStorage for app launch continuity
+  // Save whenever topicId, category, tab, or view changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: savePosition is a stable function
+  useEffect(() => {
+    savePosition({
+      type: 'topic',
+      topicId,
+      topicCategory: category,
+      activeTab,
+      activeView,
+    });
+  }, [topicId, category, activeTab, activeView]);
 
   // Handle back navigation
   const handleBack = useCallback(() => {

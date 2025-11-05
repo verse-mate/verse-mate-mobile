@@ -13,6 +13,8 @@ export { useActiveView } from './use-active-view';
 export { useBookProgress } from './use-book-progress';
 // Last read position hook (wraps API hook)
 export { useLastRead } from './use-last-read';
+// Last read position persistence hook (for app launch continuity)
+export { useLastReadPosition } from './use-last-read-position';
 // Offline status detection hook
 export { useOfflineStatus } from './use-offline-status';
 // Reading position persistence hook

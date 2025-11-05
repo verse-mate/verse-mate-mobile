@@ -47,6 +47,7 @@ jest.mock('@/src/api/generated', () => ({
 jest.mock('@/hooks/bible', () => ({
   useActiveTab: jest.fn(),
   useActiveView: jest.fn(),
+  useLastReadPosition: jest.fn(),
 }));
 
 jest.mock('@/hooks/bible/use-recent-books', () => ({
@@ -181,6 +182,16 @@ describe('TopicDetailScreen', () => {
     (useActiveView as jest.Mock).mockReturnValue({
       activeView: 'explanations', // Default to explanations view for existing tests
       setActiveView: jest.fn(),
+      isLoading: false,
+      error: null,
+    });
+
+    // Mock useLastReadPosition
+    const { useLastReadPosition } = require('@/hooks/bible');
+    (useLastReadPosition as jest.Mock).mockReturnValue({
+      lastPosition: null,
+      savePosition: jest.fn(),
+      clearPosition: jest.fn(),
       isLoading: false,
       error: null,
     });

@@ -71,6 +71,7 @@ jest.mock('@/hooks/bible', () => {
     }),
     useBookProgress: jest.fn(),
     useRecentBooks: jest.fn(),
+    useLastReadPosition: jest.fn(),
   };
 });
 
@@ -197,6 +198,16 @@ describe('ChapterScreen - View Mode State', () => {
       recentBooks: [],
       addRecentBook: jest.fn(),
       isLoading: false,
+    });
+
+    // Mock useLastReadPosition
+    const { useLastReadPosition } = require('@/hooks/bible');
+    (useLastReadPosition as jest.Mock).mockReturnValue({
+      lastPosition: null,
+      savePosition: jest.fn(),
+      clearPosition: jest.fn(),
+      isLoading: false,
+      error: null,
     });
 
     (useBibleChapter as jest.Mock).mockReturnValue({

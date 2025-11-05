@@ -32,7 +32,7 @@ import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { colors, headerSpecs, spacing } from '@/constants/bible-design-tokens';
-import { useActiveTab, useActiveView, useBookProgress } from '@/hooks/bible';
+import { useActiveTab, useActiveView, useBookProgress, useLastReadPosition } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import {
   useBibleChapter,
@@ -139,8 +139,11 @@ export default function ChapterScreen() {
   // Fetch chapter data for loading state check
   const { data: chapter, isLoading } = useBibleChapter(validBookId, validChapter);
 
-  // Save reading position mutation
+  // Save reading position mutation (API)
   const { mutate: saveLastRead } = useSaveLastRead();
+
+  // Save reading position to AsyncStorage for app launch continuity
+  const { savePosition } = useLastReadPosition();
 
   // Prefetch next/previous chapters in background (Task 5.5, 6.5)
   const prefetchNext = usePrefetchNextChapter(validBookId, validChapter, totalChapters);
@@ -153,7 +156,7 @@ export default function ChapterScreen() {
     booksMetadata
   );
 
-  // Save reading position on mount
+  // Save reading position on mount and navigation (API)
   // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   useEffect(() => {
     saveLastRead({
@@ -162,6 +165,19 @@ export default function ChapterScreen() {
       chapter_number: validChapter,
     });
   }, [validBookId, validChapter]);
+
+  // Save reading position to AsyncStorage for app launch continuity
+  // Save whenever bookId, chapter, tab, or view changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: savePosition is a stable function
+  useEffect(() => {
+    savePosition({
+      type: 'bible',
+      bookId: validBookId,
+      chapterNumber: validChapter,
+      activeTab,
+      activeView,
+    });
+  }, [validBookId, validChapter, activeTab, activeView]);
 
   // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5, 4.6)
   useEffect(() => {
