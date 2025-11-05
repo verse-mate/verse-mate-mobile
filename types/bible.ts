@@ -82,6 +82,29 @@ export interface BookProgress {
   percentage: number;
 }
 
+/**
+ * Last read position data stored in AsyncStorage
+ * Contains all necessary information to restore the user's last reading state
+ */
+export interface LastReadPosition {
+  /** Type of content: 'bible' for Bible chapter, 'topic' for topic */
+  type: 'bible' | 'topic';
+  /** Book ID (1-66) - required for Bible chapters */
+  bookId?: number;
+  /** Chapter number - required for Bible chapters */
+  chapterNumber?: number;
+  /** Active tab (summary, byline, detailed) */
+  activeTab: ContentTabType;
+  /** Active view mode (bible reading or explanations) */
+  activeView: ViewModeType;
+  /** Topic ID - required for topic content */
+  topicId?: string;
+  /** Topic category - optional for topic content */
+  topicCategory?: string;
+  /** Unix timestamp (milliseconds) when position was last saved */
+  timestamp: number;
+}
+
 // ============================================================================
 // Component Props Types
 // ============================================================================
@@ -145,6 +168,8 @@ export const STORAGE_KEYS = {
   RECENT_BOOKS: '@verse-mate/recent-books',
   /** Last read position (JSON object of ReadingPosition) */
   LAST_READ: '@verse-mate/last-read',
+  /** Last read position for app launch (includes bookId, chapter, tab, view, and optional topicId) */
+  LAST_READ_POSITION: '@verse-mate/last-read-position',
 } as const;
 
 // ============================================================================
@@ -322,4 +347,13 @@ export interface UseOfflineStatusResult {
   isOffline: boolean;
   isConnected: boolean;
   networkType: string | null;
+}
+
+/**
+ * Combined hook return type for last read position
+ */
+export interface UseLastReadPositionResult extends LoadingState {
+  lastPosition: LastReadPosition | null;
+  savePosition: (position: Omit<LastReadPosition, 'timestamp'>) => Promise<void>;
+  clearPosition: () => Promise<void>;
 }

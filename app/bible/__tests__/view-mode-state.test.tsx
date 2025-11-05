@@ -57,6 +57,7 @@ jest.mock('@/src/api/generated', () => ({
   useBibleDetailed: jest.fn(),
   usePrefetchNextChapter: jest.fn(),
   usePrefetchPreviousChapter: jest.fn(),
+  useTopicsSearch: jest.fn(),
 }));
 
 // Mock custom hooks
@@ -70,6 +71,7 @@ jest.mock('@/hooks/bible', () => {
     }),
     useBookProgress: jest.fn(),
     useRecentBooks: jest.fn(),
+    useLastReadPosition: jest.fn(),
   };
 });
 
@@ -198,6 +200,16 @@ describe('ChapterScreen - View Mode State', () => {
       isLoading: false,
     });
 
+    // Mock useLastReadPosition
+    const { useLastReadPosition } = require('@/hooks/bible');
+    (useLastReadPosition as jest.Mock).mockReturnValue({
+      lastPosition: null,
+      savePosition: jest.fn(),
+      clearPosition: jest.fn(),
+      isLoading: false,
+      error: null,
+    });
+
     (useBibleChapter as jest.Mock).mockReturnValue({
       data: mockChapterData,
       isLoading: false,
@@ -224,6 +236,13 @@ describe('ChapterScreen - View Mode State', () => {
 
     (usePrefetchNextChapter as jest.Mock).mockReturnValue(jest.fn());
     (usePrefetchPreviousChapter as jest.Mock).mockReturnValue(jest.fn());
+
+    const { useTopicsSearch } = require('@/src/api/generated');
+    (useTopicsSearch as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    });
   });
 
   it('should default to bible view on mount', async () => {

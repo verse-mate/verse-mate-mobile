@@ -57,32 +57,42 @@ export function FloatingActionButtons({
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* Previous Chapter Button (Left) */}
-      {showPrevious && (
-        <Pressable
-          onPress={handlePreviousPress}
-          style={({ pressed }) => [styles.fab, styles.fabLeft, pressed && styles.fabPressed]}
-          accessibilityLabel="Previous chapter"
-          accessibilityRole="button"
-          accessibilityHint="Navigate to the previous chapter"
-          testID="previous-chapter-button"
-        >
-          <Ionicons name="chevron-back" size={fabSpecs.iconSize} color={fabSpecs.iconColor} />
-        </Pressable>
-      )}
+      <Pressable
+        onPress={showPrevious ? handlePreviousPress : undefined}
+        style={({ pressed }) => [
+          styles.fab,
+          styles.fabLeft,
+          showPrevious && pressed && styles.fabPressed,
+          !showPrevious && styles.fabDisabled,
+        ]}
+        accessibilityLabel="Previous chapter"
+        accessibilityRole="button"
+        accessibilityHint="Navigate to the previous chapter"
+        accessibilityState={{ disabled: !showPrevious }}
+        testID="previous-chapter-button"
+        disabled={!showPrevious}
+      >
+        <Ionicons name="chevron-back" size={fabSpecs.iconSize} color={fabSpecs.iconColor} />
+      </Pressable>
 
       {/* Next Chapter Button (Right) */}
-      {showNext && (
-        <Pressable
-          onPress={handleNextPress}
-          style={({ pressed }) => [styles.fab, styles.fabRight, pressed && styles.fabPressed]}
-          accessibilityLabel="Next chapter"
-          accessibilityRole="button"
-          accessibilityHint="Navigate to the next chapter"
-          testID="next-chapter-button"
-        >
-          <Ionicons name="chevron-forward" size={fabSpecs.iconSize} color={fabSpecs.iconColor} />
-        </Pressable>
-      )}
+      <Pressable
+        onPress={showNext ? handleNextPress : undefined}
+        style={({ pressed }) => [
+          styles.fab,
+          styles.fabRight,
+          showNext && pressed && styles.fabPressed,
+          !showNext && styles.fabDisabled,
+        ]}
+        accessibilityLabel="Next chapter"
+        accessibilityRole="button"
+        accessibilityHint="Navigate to the next chapter"
+        accessibilityState={{ disabled: !showNext }}
+        testID="next-chapter-button"
+        disabled={!showNext}
+      >
+        <Ionicons name="chevron-forward" size={fabSpecs.iconSize} color={fabSpecs.iconColor} />
+      </Pressable>
     </View>
   );
 }
@@ -128,5 +138,8 @@ const styles = StyleSheet.create({
   fabPressed: {
     // Slight opacity change on press for visual feedback
     opacity: 0.85,
+  },
+  fabDisabled: {
+    opacity: 0.3,
   },
 });

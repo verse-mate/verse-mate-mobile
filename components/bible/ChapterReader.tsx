@@ -202,15 +202,12 @@ export function ChapterReader({
             <View style={styles.versesContainer}>
               {section.verses.map((verse) => (
                 <View key={verse.verseNumber} style={styles.verseRow}>
-                  {/* Superscript Verse Number */}
                   <Text
                     style={styles.verseNumber}
                     accessibilityLabel={`Verse ${verse.verseNumber}`}
                   >
                     {verse.verseNumber}
                   </Text>
-
-                  {/* Verse Text */}
                   <Text style={styles.verseText}>{verse.text}</Text>
                 </View>
               ))}
@@ -272,11 +269,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   versesContainer: {
-    gap: spacing.md,
+    flexDirection: 'column',
   },
   verseRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    marginBottom: spacing.md,
   },
   verseNumber: {
     fontSize: fontSizes.caption,

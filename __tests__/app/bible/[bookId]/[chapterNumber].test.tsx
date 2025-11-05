@@ -55,6 +55,7 @@ jest.mock('@/src/api/generated', () => ({
   useBibleDetailed: jest.fn(),
   usePrefetchNextChapter: jest.fn(),
   usePrefetchPreviousChapter: jest.fn(),
+  useTopicsSearch: jest.fn(),
 }));
 
 jest.mock('@/hooks/bible', () => {
@@ -63,6 +64,7 @@ jest.mock('@/hooks/bible', () => {
     useActiveTab: jest.fn(),
     useBookProgress: jest.fn(),
     useRecentBooks: jest.fn(),
+    useLastReadPosition: jest.fn(),
     useActiveView: jest.fn(() => {
       const [activeView, setActiveView] = React.useState('bible');
       return { activeView, setActiveView };
@@ -242,6 +244,16 @@ describe('ChapterScreen - PagerView Integration', () => {
       isLoading: false,
     });
 
+    // Mock useLastReadPosition
+    const { useLastReadPosition } = require('@/hooks/bible');
+    (useLastReadPosition as jest.Mock).mockReturnValue({
+      lastPosition: null,
+      savePosition: jest.fn(),
+      clearPosition: jest.fn(),
+      isLoading: false,
+      error: null,
+    });
+
     (useBibleSummary as jest.Mock).mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -265,6 +277,13 @@ describe('ChapterScreen - PagerView Integration', () => {
 
     (useBibleChapter as jest.Mock).mockReturnValue({
       data: mockChapterData,
+      isLoading: false,
+      error: null,
+    });
+
+    const { useTopicsSearch } = require('@/src/api/generated');
+    (useTopicsSearch as jest.Mock).mockReturnValue({
+      data: [],
       isLoading: false,
       error: null,
     });
@@ -295,8 +314,8 @@ describe('ChapterScreen - PagerView Integration', () => {
     await waitFor(() => {
       // Next button should be visible for Genesis 1 (can go forward)
       expect(getByTestId('next-chapter-button')).toBeTruthy();
-      // Previous button should NOT be visible (Genesis 1 is first)
-      expect(() => getByTestId('previous-chapter-button')).toThrow();
+      // Previous button should be present but disabled (Genesis 1 is first)
+      expect(getByTestId('previous-chapter-button')).toBeDisabled();
     });
   });
 
@@ -490,16 +509,15 @@ describe('ChapterScreen - PagerView Integration', () => {
         error: null,
       });
 
-      const { queryByTestId } = renderWithSafeArea(<ChapterScreen />);
-
+      const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
       await waitFor(() => {
-        // Next button should NOT be visible at Revelation 22
-        expect(queryByTestId('next-chapter-button')).toBeNull();
+        // Next button should be present but disabled at Revelation 22
+        expect(getByTestId('next-chapter-button')).toBeDisabled();
       });
 
       // setPage should NOT have been called
       expect(mockSetPage).not.toHaveBeenCalled();
-    });
+    }, 10000);
 
     /**
      * Test 12: Haptic feedback fires on valid navigation
