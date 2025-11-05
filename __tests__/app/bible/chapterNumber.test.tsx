@@ -264,7 +264,7 @@ describe('ChapterScreen', () => {
     await waitFor(() => {
       // Scroll view should be visible (using dynamic testID from ChapterPage)
       // Use getAllByTestId because PagerView renders multiple pages
-      expect(screen.getAllByTestId('chapter-page-scroll-1-1')[0]).toBeTruthy();
+      expect(screen.getAllByTestId('chapter-page-scroll-1-1-bible')[0]).toBeTruthy();
       // Section subtitle should be visible
       expect(screen.getAllByText('The Creation')[0]).toBeTruthy();
     });
