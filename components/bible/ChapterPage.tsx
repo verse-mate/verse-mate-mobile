@@ -16,7 +16,7 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { animations, colors, spacing } from '@/constants/bible-design-tokens';
@@ -99,100 +99,15 @@ export const ChapterPage = React.memo(function ChapterPage({
     error: detailedError,
   } = useBibleDetailed(bookId, chapterNumber, undefined);
 
-  // Track previous props to detect changes immediately (before queries update)
-  // This prevents Bible content flash when swiping in Explanations view
-  // Also track activeView to detect if it's flickering between bible/explanations
-  const prevPropsRef = useRef({ bookId, chapterNumber, activeView });
-
-  const activeViewChanged = prevPropsRef.current.activeView !== activeView;
-
-  // Update ref after render to track for next change
-  useEffect(() => {
-    prevPropsRef.current = { bookId, chapterNumber, activeView };
-  }, [bookId, chapterNumber, activeView]);
-
-  // Get active explanation content based on selected tab (memoized for performance)
-  const activeContent = useMemo(() => {
-    switch (activeTab) {
-      case 'summary':
-        return {
-          data: summaryData,
-          isLoading: isSummaryLoading,
-          error: summaryError,
-        };
-      case 'byline':
-        return {
-          data: byLineData,
-          isLoading: isByLineLoading,
-          error: byLineError,
-        };
-      case 'detailed':
-        return {
-          data: detailedData,
-          isLoading: isDetailedLoading,
-          error: detailedError,
-        };
-      default:
-        return {
-          data: undefined,
-          isLoading: false,
-          error: null,
-        };
-    }
-  }, [
-    activeTab,
-    summaryData,
-    isSummaryLoading,
-    summaryError,
-    byLineData,
-    isByLineLoading,
-    byLineError,
-    detailedData,
-    isDetailedLoading,
-    detailedError,
-  ]);
-
-  // Check if we should show skeleton
-  // Show skeleton when:
-  // 1. Bible chapter is missing (null or undefined) AND:
-  //    - We're loading for the first time (no placeholder data)
-  //    - OR we're loading without placeholder data
-  // 2. In explanations view AND:
-  //    - View just changed (prevents Bible flash)
-  //    - Explanation is loading for first time (no data yet, not even placeholder)
-  //    - No explanation data at all
-  //    - AND we're not showing placeholder data for the explanation
-  // NOTE: We do NOT show skeleton when showing placeholder data (old chapter while fetching new)
-  // because that would defeat the purpose of placeholderData - smooth transitions!
-  // Calculate skeleton conditions
-  // SIMPLIFIED LOGIC: Only show skeleton when we truly have NO data to display
-  // If we have ANY data (even old/placeholder), show it instead of skeleton
-  const condition1_noChapter = !chapter;
-  const condition2_explanationsView = activeView === 'explanations';
-  const condition2_noExplanationData = !activeContent.data;
-  const condition2_viewChanged = activeViewChanged;
-
-  const shouldShowSkeleton =
-    condition1_noChapter ||
-    (condition2_explanationsView && condition2_viewChanged) ||
-    (condition2_explanationsView && condition2_noExplanationData);
-
   return (
     <View style={styles.container}>
-      {shouldShowSkeleton ? (
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={true}
-        >
-          <SkeletonLoader />
-        </ScrollView>
-      ) : activeView === 'explanations' ? (
+      {activeView === 'explanations' ? (
         <View style={styles.container}>
           <TabContent
             chapter={chapter}
             activeTab="summary"
             content={summaryData}
+            isLoading={isSummaryLoading}
             error={summaryError}
             visible={activeTab === 'summary'}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
@@ -201,6 +116,7 @@ export const ChapterPage = React.memo(function ChapterPage({
             chapter={chapter}
             activeTab="byline"
             content={byLineData}
+            isLoading={isByLineLoading}
             error={byLineError}
             visible={activeTab === 'byline'}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
@@ -209,6 +125,7 @@ export const ChapterPage = React.memo(function ChapterPage({
             chapter={chapter}
             activeTab="detailed"
             content={detailedData}
+            isLoading={isDetailedLoading}
             error={detailedError}
             visible={activeTab === 'detailed'}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
@@ -223,7 +140,9 @@ export const ChapterPage = React.memo(function ChapterPage({
           testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
         >
           <View style={styles.readerContainer}>
-            <ChapterReader chapter={chapter} activeTab={activeTab} explanationsOnly={false} />
+            {chapter && (
+              <ChapterReader chapter={chapter} activeTab={activeTab} explanationsOnly={false} />
+            )}
           </View>
         </ScrollView>
       )}
@@ -241,6 +160,7 @@ function TabContent({
   chapter,
   activeTab,
   content,
+  isLoading,
   error,
   visible,
   testID,
@@ -248,11 +168,16 @@ function TabContent({
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
   content: ExplanationContent | null | undefined;
+  isLoading: boolean;
   error: Error | null;
   visible: boolean;
   testID: string;
 }) {
   if (!visible) return null;
+
+  // Determine content for the reader
+  const explanationContent = content && 'content' in content ? content : undefined;
+  const hasContent = explanationContent && explanationContent.content.trim().length > 0;
 
   return (
     <ScrollView
@@ -267,7 +192,20 @@ function TabContent({
           exiting={FadeOut.duration(animations.tabSwitch.duration)}
           style={styles.errorContainer}
         >
-          <Text style={styles.errorText}>Failed to load {activeTab} explanation</Text>
+          <Text style={styles.errorText}>Failed to load {activeTab} explanation.</Text>
+        </Animated.View>
+      ) : isLoading ? (
+        // Use a fragment of the skeleton loader for a better feel
+        <SkeletonLoader />
+      ) : !hasContent ? (
+        <Animated.View
+          entering={FadeIn.duration(animations.tabSwitch.duration)}
+          exiting={FadeOut.duration(animations.tabSwitch.duration)}
+          style={styles.errorContainer}
+        >
+          <Text style={styles.errorText}>
+            No {activeTab} explanation available for this chapter yet.
+          </Text>
         </Animated.View>
       ) : (
         <Animated.View
@@ -280,7 +218,7 @@ function TabContent({
               chapter={chapter}
               activeTab={activeTab}
               explanationsOnly={true}
-              explanation={content && 'content' in content ? content : undefined}
+              explanation={explanationContent}
             />
           )}
         </Animated.View>
