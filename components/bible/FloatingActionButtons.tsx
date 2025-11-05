@@ -58,16 +58,17 @@ export function FloatingActionButtons({
     <View style={styles.container} pointerEvents="box-none">
       {/* Previous Chapter Button (Left) */}
       <Pressable
-        onPress={handlePreviousPress}
+        onPress={showPrevious ? handlePreviousPress : undefined}
         style={({ pressed }) => [
           styles.fab,
           styles.fabLeft,
-          pressed && styles.fabPressed,
-          !showPrevious && styles.fabHidden, // Hide if not applicable
+          showPrevious && pressed && styles.fabPressed,
+          !showPrevious && styles.fabDisabled,
         ]}
         accessibilityLabel="Previous chapter"
         accessibilityRole="button"
         accessibilityHint="Navigate to the previous chapter"
+        accessibilityState={{ disabled: !showPrevious }}
         testID="previous-chapter-button"
         disabled={!showPrevious}
       >
@@ -76,16 +77,17 @@ export function FloatingActionButtons({
 
       {/* Next Chapter Button (Right) */}
       <Pressable
-        onPress={handleNextPress}
+        onPress={showNext ? handleNextPress : undefined}
         style={({ pressed }) => [
           styles.fab,
           styles.fabRight,
-          pressed && styles.fabPressed,
-          !showNext && styles.fabHidden, // Hide if not applicable
+          showNext && pressed && styles.fabPressed,
+          !showNext && styles.fabDisabled,
         ]}
         accessibilityLabel="Next chapter"
         accessibilityRole="button"
         accessibilityHint="Navigate to the next chapter"
+        accessibilityState={{ disabled: !showNext }}
         testID="next-chapter-button"
         disabled={!showNext}
       >
@@ -137,8 +139,7 @@ const styles = StyleSheet.create({
     // Slight opacity change on press for visual feedback
     opacity: 0.85,
   },
-  fabHidden: {
-    opacity: 0,
-    pointerEvents: 'none',
+  fabDisabled: {
+    opacity: 0.3,
   },
 });

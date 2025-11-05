@@ -252,10 +252,11 @@ function TabContent({
   visible: boolean;
   testID: string;
 }) {
-  const containerStyle = [styles.container, !visible && styles.hidden];
+  if (!visible) return null;
+
   return (
     <ScrollView
-      style={containerStyle}
+      style={styles.container}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={true}
       testID={testID}

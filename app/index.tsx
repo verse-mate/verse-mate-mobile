@@ -22,17 +22,33 @@ export default function Index() {
 
   // Redirect to last read position if available
   if (lastPosition) {
-    if (lastPosition.type === 'bible' && lastPosition.bookId && lastPosition.chapterNumber) {
+    if (
+      lastPosition.type === 'bible' &&
+      Number.isInteger(lastPosition.bookId) &&
+      Number.isInteger(lastPosition.chapterNumber) &&
+      (lastPosition.bookId as number) > 0 &&
+      (lastPosition.chapterNumber as number) > 0
+    ) {
       return <Redirect href={`/bible/${lastPosition.bookId}/${lastPosition.chapterNumber}`} />;
     }
-    if (lastPosition.type === 'topic' && lastPosition.topicId) {
+    if (
+      lastPosition.type === 'topic' &&
+      typeof lastPosition.topicId === 'string' &&
+      lastPosition.topicId.trim().length > 0
+    ) {
+      const allowedCategories = new Set(['EVENT', 'PERSON', 'PLACE', 'THEME']);
+      const category =
+        typeof lastPosition.topicCategory === 'string' &&
+        allowedCategories.has(lastPosition.topicCategory.toUpperCase())
+          ? lastPosition.topicCategory.toUpperCase()
+          : 'EVENT';
       return (
         <Redirect
           href={{
             pathname: '/topics/[topicId]',
             params: {
               topicId: lastPosition.topicId,
-              category: lastPosition.topicCategory || 'EVENT',
+              category,
             },
           }}
         />
