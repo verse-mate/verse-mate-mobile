@@ -55,8 +55,19 @@ jest.mock('expo-haptics', () => ({
 describe('useBookmarks', () => {
   let queryClient: QueryClient;
 
-  beforeAll(() => {
-    // Override auth session handler to return our test user
+  beforeEach(() => {
+    // Reset bookmark store to initial state
+    resetBookmarkStore();
+
+    // Create a new QueryClient for each test
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    // Override auth session handler to return our test user (must be in beforeEach for isolation)
     server.use(
       http.get(`${API_BASE_URL}/auth/session`, () => {
         return HttpResponse.json({
@@ -69,17 +80,12 @@ describe('useBookmarks', () => {
     );
   });
 
-  beforeEach(() => {
-    // Reset bookmark store to initial state
-    resetBookmarkStore();
+  afterEach(() => {
+    // Clear all queries and mutations from the query client
+    queryClient.clear();
 
-    // Create a new QueryClient for each test
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    });
+    // Reset MSW handlers to restore the auth session handler
+    server.restoreHandlers();
   });
 
   const createWrapper = () => {

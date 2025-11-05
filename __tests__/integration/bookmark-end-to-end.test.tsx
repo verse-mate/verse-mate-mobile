@@ -57,7 +57,16 @@ jest.mock('expo-haptics', () => ({
 describe('Bookmark Feature - End-to-End Integration Tests', () => {
   let queryClient: QueryClient;
 
-  beforeAll(() => {
+  beforeEach(() => {
+    resetBookmarkStore();
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    // Override auth session handler to return our test user (must be in beforeEach for isolation)
     server.use(
       http.get(`${API_BASE_URL}/auth/session`, () => {
         return HttpResponse.json({
@@ -70,14 +79,12 @@ describe('Bookmark Feature - End-to-End Integration Tests', () => {
     );
   });
 
-  beforeEach(() => {
-    resetBookmarkStore();
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    });
+  afterEach(() => {
+    // Clear all queries and mutations from the query client
+    queryClient.clear();
+
+    // Reset MSW handlers to restore the auth session handler
+    server.restoreHandlers();
   });
 
   const createWrapper = () => {
@@ -103,9 +110,9 @@ describe('Bookmark Feature - End-to-End Integration Tests', () => {
 
     const initialCount = result.current.bookmarks.length;
 
-    // Step 1: Add bookmark for Psalms 23 (book_id: 19, chapter: 23)
+    // Step 1: Add bookmark for Psalms 1 (book_id: 19, chapter: 1) - not in initial data
     await act(async () => {
-      await result.current.addBookmark(19, 23);
+      await result.current.addBookmark(19, 1);
     });
 
     // Wait for mutation and refetch to complete
@@ -116,7 +123,7 @@ describe('Bookmark Feature - End-to-End Integration Tests', () => {
 
     // Step 2: Verify bookmark appears in list
     expect(result.current.bookmarks.length).toBe(initialCount + 1);
-    expect(result.current.isBookmarked(19, 23)).toBe(true);
+    expect(result.current.isBookmarked(19, 1)).toBe(true);
 
     // Step 3: Verify bookmark persists after refetch (simulating navigation)
     await act(async () => {
@@ -128,9 +135,9 @@ describe('Bookmark Feature - End-to-End Integration Tests', () => {
     });
 
     // Step 4: Bookmark should still be present
-    expect(result.current.isBookmarked(19, 23)).toBe(true);
+    expect(result.current.isBookmarked(19, 1)).toBe(true);
     const bookmark = result.current.bookmarks.find(
-      (b) => b.book_id === 19 && b.chapter_number === 23
+      (b) => b.book_id === 19 && b.chapter_number === 1
     );
     expect(bookmark).toBeDefined();
     expect(bookmark?.book_name).toBe('Psalms');
