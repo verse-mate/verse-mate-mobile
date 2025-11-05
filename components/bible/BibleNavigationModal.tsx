@@ -152,14 +152,13 @@ function BibleNavigationModalComponent({
 
   // Filter books by testament and filter text
   const filteredBooks = useMemo(() => {
-    const testamentBooks = allBooks.filter((book) => book.testament === selectedTestament);
-
-    if (!filterText.trim()) {
-      return testamentBooks;
+    // If there's a filter text, search across all books
+    if (filterText.trim()) {
+      const searchLower = filterText.toLowerCase();
+      return allBooks.filter((book) => book.name.toLowerCase().includes(searchLower));
     }
-
-    const searchLower = filterText.toLowerCase();
-    return testamentBooks.filter((book) => book.name.toLowerCase().includes(searchLower));
+    // Otherwise, return books from the selected testament
+    return allBooks.filter((book) => book.testament === selectedTestament);
   }, [allBooks, selectedTestament, filterText]);
 
   // Filter topics by search text with smart sorting
