@@ -78,7 +78,7 @@ export default function ChapterScreen() {
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
 
-  // Get active view from persistence (Bible reading vs Explanations view)
+  // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
 
   // Navigation modal state (Task 7.9)
@@ -275,8 +275,19 @@ export default function ChapterScreen() {
     }
   }, [canGoNext, nextChapter]);
 
-  // Show skeleton loader while loading
-  if (isLoading) {
+  // Update last read position when chapter changes
+  useEffect(() => {
+    savePosition({
+      type: 'bible',
+      bookId,
+      chapterNumber,
+      activeTab,
+      activeView,
+    });
+  }, [bookId, chapterNumber, activeTab, activeView, savePosition]);
+
+  // Show skeleton loader while loading and no data is available
+  if (isLoading && !chapter) {
     return (
       <View style={styles.container}>
         <ChapterHeader

@@ -327,9 +327,11 @@ export interface UseActiveTabResult extends LoadingState {
 /**
  * Combined hook return type for active view mode
  */
-export interface UseActiveViewResult extends LoadingState {
+export interface UseActiveViewResult {
   activeView: ViewModeType;
   setActiveView: (view: ViewModeType) => Promise<void>;
+  isLoading: boolean;
+  error: Error | null;
 }
 
 /**
