@@ -35,6 +35,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   deleteBibleBookBookmarkRemoveMutation,
   getBibleBookBookmarksByUserIdOptions,
+  getBibleBookBookmarksByUserIdQueryKey,
   postBibleBookBookmarkAddMutation,
 } from '@/src/api/generated/@tanstack/react-query.gen';
 import type {
@@ -83,24 +84,31 @@ export interface UseBookmarksResult {
  * @returns {UseBookmarksResult} Bookmark state and methods
  */
 export function useBookmarks(): UseBookmarksResult {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
 
-  // Query key for bookmarks
-  const bookmarksQueryKey = useMemo(
-    () => (user?.id ? ['bookmarks', user.id] : ['bookmarks', 'unauthenticated']),
+  // Create query options with user ID
+  const queryOptions = useMemo(
+    () => ({
+      path: { user_id: user?.id || '' },
+    }),
     [user?.id]
+  );
+
+  // Query key for bookmarks (use generated query key function)
+  const bookmarksQueryKey = useMemo(
+    () => getBibleBookBookmarksByUserIdQueryKey(queryOptions),
+    [queryOptions]
   );
 
   // Fetch bookmarks from API
   const {
     data: bookmarksData,
-    isLoading: isFetchingBookmarks,
+    isFetching: isQueryFetching,
     refetch,
+    dataUpdatedAt,
   } = useQuery({
-    ...getBibleBookBookmarksByUserIdOptions({
-      path: { user_id: user?.id || '' },
-    }),
+    ...getBibleBookBookmarksByUserIdOptions(queryOptions),
     enabled: isAuthenticated && !!user?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -263,6 +271,14 @@ export function useBookmarks(): UseBookmarksResult {
       await refetch();
     }
   }, [isAuthenticated, user?.id, refetch]);
+
+  // Combine auth and query loading states
+  // Loading if:
+  // 1. Auth is still loading, OR
+  // 2. Query is actively fetching, OR
+  // 3. Auth is loaded but query hasn't fetched yet (dataUpdatedAt === 0)
+  const isFetchingBookmarks =
+    isAuthLoading || isQueryFetching || (isAuthenticated && dataUpdatedAt === 0);
 
   return {
     bookmarks,
