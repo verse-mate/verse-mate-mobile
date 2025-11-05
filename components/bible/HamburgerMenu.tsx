@@ -1,26 +1,28 @@
 /**
  * HamburgerMenu Component
  *
- * Slide-in menu drawer from right side with placeholder menu items.
- * All menu items show "Coming soon" alert when tapped.
+ * Slide-in menu drawer from right side with menu items for app features.
+ * Bookmarks navigation is fully wired and functional.
  *
  * Features:
  * - Slides in from right (300ms animation)
  * - White background, full height
- * - Five menu items with icons: Bookmarks, Favorites, Notes, Highlights, Settings
+ * - Menu items with icons: Bookmarks, Favorites, Notes, Highlights, Settings
  * - Close button (X) in header
  * - Tap backdrop or X to close
- * - Each item shows "This feature is coming soon!" alert
+ * - Bookmarks item navigates to /bookmarks screen
+ * - Haptic feedback on menu item press
  * - Temporary: Login/Signup buttons for auth testing
  *
  * @see Spec lines 52-55, 476-500 (Hamburger menu)
- * @see Task Group 8.5
+ * @see Task Group 6: Menu Integration and Final Testing
  *
  * @example
  * <HamburgerMenu visible={isOpen} onClose={() => setIsOpen(false)} />
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from 'react-native-reanimated';
@@ -39,7 +41,7 @@ interface MenuItem {
   id: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  action?: 'auth' | 'logout';
+  action?: 'auth' | 'logout' | 'bookmarks';
 }
 
 const authMenuItems: MenuItem[] = [
@@ -48,7 +50,7 @@ const authMenuItems: MenuItem[] = [
 ];
 
 const regularMenuItems: MenuItem[] = [
-  { id: 'bookmarks', label: 'Bookmarks', icon: 'bookmark-outline' },
+  { id: 'bookmarks', label: 'Bookmarks', icon: 'bookmark-outline', action: 'bookmarks' },
   { id: 'favorites', label: 'Favorites', icon: 'heart-outline' },
   { id: 'notes', label: 'Notes', icon: 'document-text-outline' },
   { id: 'highlights', label: 'Highlights', icon: 'color-wand-outline' },
@@ -68,9 +70,12 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
 
   /**
    * Handle menu item tap
-   * Routes to auth screens or shows "Coming soon" alert
+   * Routes to auth screens, bookmarks screen, or shows "Coming soon" alert
    */
   const handleItemPress = async (item: MenuItem) => {
+    // Trigger haptic feedback first
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     if (item.action === 'auth') {
       onClose();
       if (item.id === 'login') {
@@ -82,7 +87,12 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       await logout();
       Alert.alert('Logged Out', 'You have been logged out successfully.');
       onClose();
+    } else if (item.action === 'bookmarks') {
+      // Navigate to bookmarks screen
+      onClose();
+      router.push('/bookmarks');
     } else {
+      // Other features show "Coming soon" alert
       Alert.alert('Coming Soon', `${item.label} feature is coming soon!`);
     }
   };
