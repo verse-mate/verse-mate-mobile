@@ -91,6 +91,12 @@ export default function RootLayout() {
                     headerShown: false,
                   }}
                 />
+                <Stack.Screen
+                  name="bookmarks"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
               </Stack>
               <StatusBar style="auto" />
             </ThemeProvider>
