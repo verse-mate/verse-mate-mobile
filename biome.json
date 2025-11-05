@@ -13,7 +13,8 @@
       "__tests__/**/*.{js,jsx,ts,tsx}",
       ".agent-os/references/**/*.{js,jsx,ts,tsx}",
       "*.{js,jsx,ts,tsx}"
-    ]
+    ],
+    "ignoreUnknown": false
   },
   "vcs": {
     "enabled": true,

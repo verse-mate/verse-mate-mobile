@@ -57,6 +57,7 @@ jest.mock('@/src/api/generated', () => ({
   useBibleDetailed: jest.fn(),
   usePrefetchNextChapter: jest.fn(),
   usePrefetchPreviousChapter: jest.fn(),
+  useTopicsSearch: jest.fn(),
 }));
 jest.mock('@/hooks/bible', () => {
   const React = require('react');
@@ -67,6 +68,7 @@ jest.mock('@/hooks/bible', () => {
       return { activeView, setActiveView, isLoading: false, error: null };
     }),
     useBookProgress: jest.fn(),
+    useLastReadPosition: jest.fn(),
   };
 });
 jest.mock('@/hooks/bible/use-recent-books');
@@ -225,6 +227,16 @@ describe('Bible Reading Interface - Integration Tests', () => {
       isOffline: false,
     });
 
+    // Mock useLastReadPosition
+    const { useLastReadPosition } = require('@/hooks/bible');
+    (useLastReadPosition as jest.Mock).mockReturnValue({
+      lastPosition: null,
+      savePosition: jest.fn(),
+      clearPosition: jest.fn(),
+      isLoading: false,
+      error: null,
+    });
+
     (useBibleSummary as jest.Mock).mockReturnValue({
       data: mockSummaryExplanation,
       isLoading: false,
@@ -263,6 +275,13 @@ describe('Bible Reading Interface - Integration Tests', () => {
 
     (usePrefetchNextChapter as jest.Mock).mockReturnValue(jest.fn());
     (usePrefetchPreviousChapter as jest.Mock).mockReturnValue(jest.fn());
+
+    const { useTopicsSearch } = require('@/src/api/generated');
+    (useTopicsSearch as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    });
 
     router.push = jest.fn() as typeof router.push;
     router.replace = jest.fn() as typeof router.replace;
