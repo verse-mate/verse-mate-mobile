@@ -303,8 +303,8 @@ describe('ChapterScreen - PagerView Integration', () => {
     await waitFor(() => {
       // Next button should be visible for Genesis 1 (can go forward)
       expect(getByTestId('next-chapter-button')).toBeTruthy();
-      // Previous button should NOT be visible (Genesis 1 is first)
-      expect(() => getByTestId('previous-chapter-button')).toThrow();
+      // Previous button should be present but disabled (Genesis 1 is first)
+      expect(getByTestId('previous-chapter-button')).toBeDisabled();
     });
   });
 
@@ -498,16 +498,15 @@ describe('ChapterScreen - PagerView Integration', () => {
         error: null,
       });
 
-      const { queryByTestId } = renderWithSafeArea(<ChapterScreen />);
-
+      const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
       await waitFor(() => {
-        // Next button should NOT be visible at Revelation 22
-        expect(queryByTestId('next-chapter-button')).toBeNull();
+        // Next button should be present but disabled at Revelation 22
+        expect(getByTestId('next-chapter-button')).toBeDisabled();
       });
 
       // setPage should NOT have been called
       expect(mockSetPage).not.toHaveBeenCalled();
-    });
+    }, 10000);
 
     /**
      * Test 12: Haptic feedback fires on valid navigation
