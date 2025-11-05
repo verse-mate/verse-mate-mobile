@@ -26,7 +26,7 @@ import {
   useBibleDetailed,
   useBibleSummary,
 } from '@/src/api/generated/hooks';
-import type { ContentTabType } from '@/types/bible';
+import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
 
@@ -178,53 +178,116 @@ export const ChapterPage = React.memo(function ChapterPage({
     (condition2_explanationsView && condition2_noExplanationData);
 
   return (
+    <View style={styles.container}>
+      {shouldShowSkeleton ? (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={true}
+        >
+          <SkeletonLoader />
+        </ScrollView>
+      ) : activeView === 'explanations' ? (
+        <View style={styles.container}>
+          <TabContent
+            chapter={chapter}
+            activeTab="summary"
+            content={summaryData}
+            error={summaryError}
+            visible={activeTab === 'summary'}
+            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
+          />
+          <TabContent
+            chapter={chapter}
+            activeTab="byline"
+            content={byLineData}
+            error={byLineError}
+            visible={activeTab === 'byline'}
+            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
+          />
+          <TabContent
+            chapter={chapter}
+            activeTab="detailed"
+            content={detailedData}
+            error={detailedError}
+            visible={activeTab === 'detailed'}
+            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
+          />
+        </View>
+      ) : (
+        // Bible reading view (no explanations)
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={true}
+          testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
+        >
+          <View style={styles.readerContainer}>
+            <ChapterReader chapter={chapter} activeTab={activeTab} explanationsOnly={false} />
+          </View>
+        </ScrollView>
+      )}
+    </View>
+  );
+});
+
+/**
+ * TabContent Component
+ *
+ * Renders the content for a single explanation tab within its own ScrollView.
+ * This ensures each tab maintains its own independent scroll position.
+ */
+function TabContent({
+  chapter,
+  activeTab,
+  content,
+  error,
+  visible,
+  testID,
+}: {
+  chapter: ChapterContent | null | undefined;
+  activeTab: ContentTabType;
+  content: ExplanationContent | null | undefined;
+  error: Error | null;
+  visible: boolean;
+  testID: string;
+}) {
+  if (!visible) return null;
+
+  return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={true}
-      testID={`chapter-page-scroll-${bookId}-${chapterNumber}`}
+      testID={testID}
     >
-      {shouldShowSkeleton ? (
-        <SkeletonLoader />
-      ) : activeView === 'explanations' ? (
-        // Explanations view with tab content
-        activeContent.error ? (
-          // Show error state for tab content
-          <Animated.View
-            entering={FadeIn.duration(animations.tabSwitch.duration)}
-            exiting={FadeOut.duration(animations.tabSwitch.duration)}
-            style={styles.errorContainer}
-          >
-            <Text style={styles.errorText}>Failed to load {activeTab} explanation</Text>
-          </Animated.View>
-        ) : (
-          // Show chapter content with explanation (crossfade transition)
-          <Animated.View
-            key={activeTab} // Key ensures re-render on tab change
-            entering={FadeIn.duration(animations.tabSwitch.duration)}
-            exiting={FadeOut.duration(animations.tabSwitch.duration)}
-          >
+      {error ? (
+        <Animated.View
+          entering={FadeIn.duration(animations.tabSwitch.duration)}
+          exiting={FadeOut.duration(animations.tabSwitch.duration)}
+          style={styles.errorContainer}
+        >
+          <Text style={styles.errorText}>Failed to load {activeTab} explanation</Text>
+        </Animated.View>
+      ) : (
+        <Animated.View
+          key={activeTab}
+          entering={FadeIn.duration(animations.tabSwitch.duration)}
+          exiting={FadeOut.duration(animations.tabSwitch.duration)}
+        >
+          {chapter && (
             <ChapterReader
               chapter={chapter}
               activeTab={activeTab}
               explanationsOnly={true}
-              explanation={
-                activeContent.data && 'content' in activeContent.data
-                  ? activeContent.data
-                  : undefined
-              }
+              explanation={content && 'content' in content ? content : undefined}
             />
-          </Animated.View>
-        )
-      ) : (
-        // Bible reading view (no explanations)
-        <View style={styles.readerContainer}>
-          <ChapterReader chapter={chapter} activeTab={activeTab} explanationsOnly={false} />
-        </View>
+          )}
+        </Animated.View>
       )}
     </ScrollView>
   );
-});
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -250,5 +313,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.gray700,
     textAlign: 'center',
+  },
+  hidden: {
+    display: 'none',
   },
 });

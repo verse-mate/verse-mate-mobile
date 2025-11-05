@@ -53,6 +53,7 @@ jest.mock('@/src/api/generated', () => ({
   useBibleDetailed: jest.fn(),
   usePrefetchNextChapter: jest.fn(),
   usePrefetchPreviousChapter: jest.fn(),
+  useTopicsSearch: jest.fn(),
 }));
 
 jest.mock('@/hooks/bible', () => {
@@ -65,6 +66,7 @@ jest.mock('@/hooks/bible', () => {
     }),
     useBookProgress: jest.fn(),
     useRecentBooks: jest.fn(),
+    useLastReadPosition: jest.fn(),
   };
 });
 
@@ -180,6 +182,16 @@ describe('ChapterScreen', () => {
       isLoading: false,
     });
 
+    // Mock useLastReadPosition
+    const { useLastReadPosition } = require('@/hooks/bible');
+    (useLastReadPosition as jest.Mock).mockReturnValue({
+      lastPosition: null,
+      savePosition: jest.fn(),
+      clearPosition: jest.fn(),
+      isLoading: false,
+      error: null,
+    });
+
     (useBibleSummary as jest.Mock).mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -203,6 +215,13 @@ describe('ChapterScreen', () => {
 
     (useBibleChapter as jest.Mock).mockReturnValue({
       data: mockChapterData,
+      isLoading: false,
+      error: null,
+    });
+
+    const { useTopicsSearch } = require('@/src/api/generated');
+    (useTopicsSearch as jest.Mock).mockReturnValue({
+      data: [],
       isLoading: false,
       error: null,
     });
@@ -256,7 +275,7 @@ describe('ChapterScreen', () => {
     await waitFor(() => {
       // Scroll view should be visible (using dynamic testID from ChapterPage)
       // Use getAllByTestId because PagerView renders multiple pages
-      expect(screen.getAllByTestId('chapter-page-scroll-1-1')[0]).toBeTruthy();
+      expect(screen.getAllByTestId('chapter-page-scroll-1-1-bible')[0]).toBeTruthy();
       // Section subtitle should be visible
       expect(screen.getAllByText('The Creation')[0]).toBeTruthy();
     });

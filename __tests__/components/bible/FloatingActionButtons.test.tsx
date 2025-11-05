@@ -22,7 +22,7 @@ describe('FloatingActionButtons', () => {
    * Test 1: Previous button hidden when at chapter 1
    */
   it('hides previous button when showPrevious is false', () => {
-    const { queryByLabelText } = render(
+    const { getByLabelText } = render(
       <FloatingActionButtons
         onPrevious={mockOnPrevious}
         onNext={mockOnNext}
@@ -31,15 +31,15 @@ describe('FloatingActionButtons', () => {
       />
     );
 
-    const previousButton = queryByLabelText('Previous chapter');
-    expect(previousButton).toBeNull();
+    const previousButton = getByLabelText('Previous chapter');
+    expect(previousButton).toBeDisabled();
   });
 
   /**
    * Test 2: Next button hidden when at last chapter
    */
   it('hides next button when showNext is false', () => {
-    const { queryByLabelText } = render(
+    const { getByLabelText } = render(
       <FloatingActionButtons
         onPrevious={mockOnPrevious}
         onNext={mockOnNext}
@@ -48,8 +48,8 @@ describe('FloatingActionButtons', () => {
       />
     );
 
-    const nextButton = queryByLabelText('Next chapter');
-    expect(nextButton).toBeNull();
+    const nextButton = getByLabelText('Next chapter');
+    expect(nextButton).toBeDisabled();
   });
 
   /**
