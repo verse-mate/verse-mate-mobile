@@ -69,7 +69,15 @@ module.exports = defineConfig([
 
   // Ignore files
   {
-    ignores: ['dist/*', 'node_modules/**', '.expo/**', 'ios/**', 'android/**', 'build/**'],
+    ignores: [
+      'dist/*',
+      'node_modules/**',
+      '.expo/**',
+      'ios/**',
+      'android/**',
+      'build/**',
+      '.agent-os/web-repo/**',
+    ],
   },
 
   // IMPORTANT: Add Biome config last to prevent conflicts with Biome.js

@@ -32,7 +32,7 @@ import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { colors, headerSpecs, spacing } from '@/constants/bible-design-tokens';
-import { useActiveTab, useActiveView, useBookProgress } from '@/hooks/bible';
+import { useActiveTab, useActiveView, useBookProgress, useLastReadPosition } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import {
   useBibleChapter,
@@ -139,8 +139,11 @@ export default function ChapterScreen() {
   // Fetch chapter data for loading state check
   const { data: chapter, isLoading } = useBibleChapter(validBookId, validChapter);
 
-  // Save reading position mutation
+  // Save reading position mutation (API)
   const { mutate: saveLastRead } = useSaveLastRead();
+
+  // Save reading position to AsyncStorage for app launch continuity
+  const { savePosition } = useLastReadPosition();
 
   // Prefetch next/previous chapters in background (Task 5.5, 6.5)
   const prefetchNext = usePrefetchNextChapter(validBookId, validChapter, totalChapters);
@@ -153,14 +156,28 @@ export default function ChapterScreen() {
     booksMetadata
   );
 
-  // Save reading position on mount
+  // Save reading position on mount and navigation (API)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   useEffect(() => {
     saveLastRead({
       user_id: 'guest', // TODO: Replace with actual user ID when auth is added
       book_id: validBookId,
       chapter_number: validChapter,
     });
-  }, [validBookId, validChapter, saveLastRead]);
+  }, [validBookId, validChapter]);
+
+  // Save reading position to AsyncStorage for app launch continuity
+  // Save whenever bookId, chapter, tab, or view changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: savePosition is a stable function
+  useEffect(() => {
+    savePosition({
+      type: 'bible',
+      bookId: validBookId,
+      chapterNumber: validChapter,
+      activeTab,
+      activeView,
+    });
+  }, [validBookId, validChapter, activeTab, activeView]);
 
   // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5, 4.6)
   useEffect(() => {
@@ -192,6 +209,7 @@ export default function ChapterScreen() {
    * - Trigger prefetch after 1s delay
    * - Haptic feedback (medium impact)
    */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   const handlePageChange = useCallback(
     (newBookId: number, newChapterNumber: number) => {
       // Use router.replace for swipe navigation
@@ -214,7 +232,7 @@ export default function ChapterScreen() {
         prefetchPrevious();
       }, 1000);
     },
-    [saveLastRead, prefetchNext, prefetchPrevious]
+    [prefetchNext, prefetchPrevious]
   );
 
   /**
@@ -335,16 +353,24 @@ export default function ChapterScreen() {
       {/* Progress Bar (Task 8.4) */}
       <ProgressBar percentage={progress.percentage} />
 
-      {/* Navigation Modal (Task 7.9) */}
-      <BibleNavigationModal
-        visible={isNavigationModalOpen}
-        onClose={() => setIsNavigationModalOpen(false)}
-        currentBookId={validBookId}
-        currentChapter={validChapter}
-        onSelectChapter={(bookId, chapter) => {
-          router.replace(`/bible/${bookId}/${chapter}` as never);
-        }}
-      />
+      {/* Navigation Modal (Task 7.9) - Only render when needed to prevent Android flash */}
+      {isNavigationModalOpen && (
+        <BibleNavigationModal
+          visible={isNavigationModalOpen}
+          onClose={() => setIsNavigationModalOpen(false)}
+          currentBookId={validBookId}
+          currentChapter={validChapter}
+          onSelectChapter={(bookId, chapter) => {
+            router.replace(`/bible/${bookId}/${chapter}` as never);
+          }}
+          onSelectTopic={(topicId, category) => {
+            router.push({
+              pathname: '/topics/[topicId]',
+              params: { topicId, category },
+            });
+          }}
+        />
+      )}
 
       {/* Hamburger Menu (Task 8.5) */}
       <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
@@ -456,7 +482,7 @@ function ChapterHeader({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.gray50, // Match content background to prevent flash during route updates
   },
   header: {
     minHeight: headerSpecs.height,
