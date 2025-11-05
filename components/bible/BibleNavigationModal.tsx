@@ -24,6 +24,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  Layout,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -241,7 +242,7 @@ function BibleNavigationModalComponent({
 
   // Handle book selection
   const handleBookSelect = useCallback((book: BookMetadata) => {
-    setSelectedBookId(book.id);
+    setSelectedBookId((prevId) => (prevId === book.id ? null : book.id));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
@@ -511,7 +512,15 @@ function BibleNavigationModalComponent({
       <ScrollView style={styles.bookList} contentContainerStyle={styles.bookListContent}>
         {booksToShow.map((book, index) => {
           const isRecent = index < recentBooksForTestament.length && hasRecentBooks;
-          return renderBookItem(book, isRecent);
+          const isSelected = book.id === selectedBookId;
+
+          return (
+            // Use React.Fragment to render book item and conditionally the chapter grid
+            <Animated.View key={book.id} layout={Layout.duration(300)}>
+              {renderBookItem(book, isRecent)}
+              {isSelected && renderChapterGrid()}
+            </Animated.View>
+          );
         })}
       </ScrollView>
     );
@@ -570,10 +579,7 @@ function BibleNavigationModalComponent({
     const chapters = Array.from({ length: chapterCount }, (_, i) => i + 1);
 
     return (
-      <ScrollView
-        style={styles.chapterGridContainer}
-        contentContainerStyle={styles.chapterGridContent}
-      >
+      <View style={styles.chapterGridContent}>
         <View style={styles.chapterGrid}>
           {chapters.map((chapter) => {
             const isCurrent = selectedBookId === currentBookId && chapter === currentChapter;
@@ -599,7 +605,7 @@ function BibleNavigationModalComponent({
             );
           })}
         </View>
-      </ScrollView>
+      </View>
     );
   };
 
@@ -620,7 +626,7 @@ function BibleNavigationModalComponent({
             {renderBreadcrumb()}
 
             {/* Main tabs (OT, NT, Topics) */}
-            {renderMainTabs()}
+            {!filterText.trim() && renderMainTabs()}
 
             {/* Topic category tabs (only when Topics tab is active) */}
             {selectedTab === 'TOPICS' && renderTopicCategoryTabs()}
@@ -629,11 +635,7 @@ function BibleNavigationModalComponent({
             {renderFilterInput()}
 
             {/* Content area */}
-            {selectedTab === 'TOPICS'
-              ? renderTopicsList()
-              : selectedBookId && !filterText.trim()
-                ? renderChapterGrid()
-                : renderBookList()}
+            {selectedTab === 'TOPICS' ? renderTopicsList() : renderBookList()}
           </Animated.View>
         </GestureDetector>
       </Animated.View>
@@ -781,7 +783,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   chapterGridContent: {
-    padding: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    // paddingBottom is removed to avoid double padding with bookListContent
   },
   chapterGrid: {
     flexDirection: 'row',
@@ -789,7 +793,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   chapterButton: {
-    width: '17.6%', // 5 columns with gaps
+    width: '17.4%', // 5 columns with space-between
     aspectRatio: 1,
     backgroundColor: colors.white,
     borderRadius: 8,
