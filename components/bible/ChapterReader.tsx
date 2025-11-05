@@ -79,22 +79,14 @@ export function ChapterReader({
             </Text>
 
             {/* Verses */}
-            <View style={styles.versesContainer}>
+            <Text style={styles.verseText}>
               {section.verses.map((verse) => (
-                <View key={verse.verseNumber} style={styles.verseRow}>
-                  {/* Superscript Verse Number */}
-                  <Text
-                    style={styles.verseNumber}
-                    accessibilityLabel={`Verse ${verse.verseNumber}`}
-                  >
-                    {verse.verseNumber}
-                  </Text>
-
-                  {/* Verse Text */}
-                  <Text style={styles.verseText}>{verse.text}</Text>
-                </View>
+                <Text key={verse.verseNumber}>
+                  <Text style={styles.verseNumber}>{verse.verseNumber}</Text>
+                  <Text>{verse.text} </Text>
+                </Text>
               ))}
-            </View>
+            </Text>
           </View>
         ))}
 
@@ -136,13 +128,6 @@ const styles = StyleSheet.create({
     color: colors.gray500,
     marginBottom: spacing.md,
   },
-  versesContainer: {
-    gap: spacing.md,
-  },
-  verseRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
   verseNumber: {
     fontSize: fontSizes.caption,
     fontWeight: fontWeights.bold,
@@ -152,7 +137,6 @@ const styles = StyleSheet.create({
     marginTop: -4, // Superscript positioning
   },
   verseText: {
-    flex: 1,
     fontSize: fontSizes.bodyLarge,
     fontWeight: fontWeights.regular,
     lineHeight: fontSizes.bodyLarge * lineHeights.body,
