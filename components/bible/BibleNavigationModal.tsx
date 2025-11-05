@@ -89,7 +89,7 @@ function BibleNavigationModalComponent({
 
   // Fetch books and recent books - only when modal is visible
   const { data: allBooks = [], isLoading: isBooksLoading } = useBibleTestaments(undefined, {
-    enabled: !!visible,
+    enabled: visible,
   });
   const { recentBooks } = useRecentBooks();
 
@@ -242,7 +242,7 @@ function BibleNavigationModalComponent({
 
   // Handle book selection
   const handleBookSelect = useCallback((book: BookMetadata) => {
-    setSelectedBookId(book.id);
+    setSelectedBookId((prevId) => (prevId === book.id ? null : book.id));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
@@ -464,6 +464,7 @@ function BibleNavigationModalComponent({
 
     return (
       <Pressable
+        key={book.id}
         onPress={() => handleBookSelect(book)}
         style={[styles.bookItem, isSelected && styles.bookItemSelected]}
         accessibilityRole="button"
