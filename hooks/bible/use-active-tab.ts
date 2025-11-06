@@ -26,6 +26,17 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ContentTabType, UseActiveTabResult } from '@/types/bible';
 import { isContentTabType, STORAGE_KEYS } from '@/types/bible';
 
+// Module-level cache to prevent flickering on remount
+let inMemoryCache: ContentTabType | null = null;
+
+/**
+ * FOR TEST ENVIRONMENTS ONLY
+ * Resets the in-memory cache for this hook.
+ */
+export function __TEST_ONLY_RESET_CACHE() {
+  inMemoryCache = null;
+}
+
 /**
  * Hook to manage active tab state with AsyncStorage persistence
  *
@@ -36,64 +47,60 @@ import { isContentTabType, STORAGE_KEYS } from '@/types/bible';
  *   - error: Error object if loading or saving failed
  */
 export function useActiveTab(): UseActiveTabResult {
-  const [activeTab, setActiveTabState] = useState<ContentTabType>('summary');
-  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTabState] = useState<ContentTabType>(inMemoryCache || 'summary');
+  const [isLoading, setIsLoading] = useState(!inMemoryCache);
   const [error, setError] = useState<Error | null>(null);
 
   // Load persisted tab from AsyncStorage on mount
   useEffect(() => {
+    let isMounted = true;
     async function loadPersistedTab() {
+      if (inMemoryCache) {
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
-
         const storedTab = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TAB);
 
-        // Validate stored value is a valid tab type
-        if (storedTab && isContentTabType(storedTab)) {
-          setActiveTabState(storedTab);
-        } else {
-          // Invalid or missing value - use default 'summary'
-          setActiveTabState('summary');
+        if (isMounted) {
+          const finalTab = storedTab && isContentTabType(storedTab) ? storedTab : 'summary';
+          setActiveTabState(finalTab);
+          inMemoryCache = finalTab;
         }
       } catch (err) {
-        // Handle storage read error gracefully
-        setError(err instanceof Error ? err : new Error('Failed to load active tab'));
-        // Fall back to default on error
-        setActiveTabState('summary');
+        if (isMounted) {
+          setError(err instanceof Error ? err : new Error('Failed to load active tab'));
+          setActiveTabState('summary');
+          inMemoryCache = 'summary';
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadPersistedTab();
-  }, []); // Run only on mount
 
-  /**
-   * Set active tab and persist to AsyncStorage
-   * Updates both local state and storage atomically
-   */
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const setActiveTab = useCallback(async (tab: ContentTabType): Promise<void> => {
     try {
-      // Validate tab type
       if (!isContentTabType(tab)) {
         throw new Error(`Invalid tab type: ${tab}. Must be 'summary', 'byline', or 'detailed'.`);
       }
-
-      // Update state immediately for responsive UI
       setActiveTabState(tab);
-
-      // Persist to storage (async, but don't block UI)
+      inMemoryCache = tab;
       await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, tab);
-
-      // Clear any previous errors
       setError(null);
     } catch (err) {
-      // Handle storage write error
       const storageError = err instanceof Error ? err : new Error('Failed to save active tab');
       setError(storageError);
-
-      // Log error for debugging but don't throw (graceful degradation)
       console.error('useActiveTab: Failed to persist tab to storage:', storageError);
     }
   }, []);
