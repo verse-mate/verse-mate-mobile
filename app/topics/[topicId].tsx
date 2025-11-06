@@ -611,6 +611,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   topicButton: {
+    flexShrink: 1,
+    marginRight: spacing.sm,
     padding: spacing.xs,
   },
   topicButtonContent: {
@@ -622,6 +624,7 @@ const styles = StyleSheet.create({
     fontSize: headerSpecs.titleFontSize,
     fontWeight: headerSpecs.titleFontWeight,
     color: headerSpecs.titleColor,
+    maxWidth: '90%',
   },
   headerActions: {
     flexDirection: 'row',
