@@ -202,12 +202,26 @@ export function ChapterReader({
   };
 
   /**
-   * Handle text selection for creating new highlight
-   * Opens HighlightSelectionSheet with verse range
+   * Handle long-press on verse for creating new highlight
+   * Opens HighlightSelectionSheet for entire verse
    */
-  const handleTextSelect = (selection: TextSelection, verseNumber: number) => {
-    // Store selection context for later use
-    setSelectionContext({ verseNumber, selection });
+  const handleVerseLongPress = (verseNumber: number) => {
+    // Find the verse to get its full text
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === verseNumber);
+
+    if (!verse) return;
+
+    // Store selection context for entire verse
+    setSelectionContext({
+      verseNumber,
+      selection: {
+        start: 0,
+        end: verse.text.length,
+        text: verse.text,
+      },
+    });
     setSelectionSheetVisible(true);
   };
 
@@ -391,7 +405,7 @@ export function ChapterReader({
                     verseNumber={verse.verseNumber}
                     highlights={chapterHighlights}
                     onHighlightPress={handleHighlightPress}
-                    onTextSelect={handleTextSelect}
+                    onVerseLongPress={handleVerseLongPress}
                     style={styles.verseText}
                   />
                 </View>

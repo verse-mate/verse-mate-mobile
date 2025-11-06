@@ -9,8 +9,11 @@
  * - Semi-transparent highlight backgrounds (no borders/underlines)
  * - Character-level precision highlighting
  * - Multiple non-overlapping highlights per verse
- * - Tap detection on highlighted regions
- * - Text selection for new highlights (using onSelectionChange)
+ * - Long-press detection on highlighted regions (edit)
+ * - Long-press detection on plain text (create new highlight for entire verse)
+ *
+ * Note: Native text selection (onSelectionChange) is not reliable in React Native
+ * for Text components. We use long-press on plain text to trigger verse highlighting.
  *
  * @see Spec: .agent-os/specs/2025-11-06-highlight-feature/spec.md
  * @see Visual: after-selected-text-popup.png (highlighted text appearance)
@@ -56,17 +59,17 @@ export interface TextSelection {
   text: string;
 }
 
-export interface HighlightedTextProps extends Omit<TextProps, 'onSelectionChange'> {
+export interface HighlightedTextProps extends TextProps {
   /** Full text of the verse */
   text: string;
   /** Verse number for this text */
   verseNumber: number;
   /** Highlights that apply to this verse */
   highlights?: Highlight[];
-  /** Callback when highlighted text is tapped */
+  /** Callback when highlighted text is long-pressed (edit highlight) */
   onHighlightPress?: (highlightId: number) => void;
-  /** Callback when text is selected (for creating new highlight) */
-  onTextSelect?: (selection: TextSelection, verseNumber: number) => void;
+  /** Callback when plain text is long-pressed (create new highlight for entire verse) */
+  onVerseLongPress?: (verseNumber: number) => void;
   /** Style override for base text */
   style?: TextProps['style'];
 }
@@ -82,7 +85,7 @@ export function HighlightedText({
   verseNumber,
   highlights = [],
   onHighlightPress,
-  onTextSelect,
+  onVerseLongPress,
   style,
   ...textProps
 }: HighlightedTextProps) {
@@ -186,28 +189,18 @@ export function HighlightedText({
   };
 
   /**
-   * Handle text selection change
-   * Fires when user selects text with native selection handles
+   * Handle long-press on plain text (non-highlighted)
+   * Opens highlight creation sheet for entire verse
    */
-  // @ts-expect-error - React Native TextProps onSelectionChange event type is not fully compatible with our handler
-  const handleSelectionChange: TextProps['onSelectionChange'] = (event: {
-    nativeEvent: { selection: { start: number; end: number } };
-  }) => {
-    if (!onTextSelect) return;
+  const handleVerseLongPress = async () => {
+    if (!onVerseLongPress) return;
 
-    const { selection } = event.nativeEvent;
-    const { start, end } = selection;
-
-    // Only trigger if user has selected some text (not just cursor position)
-    if (start !== end) {
-      const selectedText = text.slice(start, end);
-      onTextSelect({ start, end, text: selectedText }, verseNumber);
-    }
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onVerseLongPress(verseNumber);
   };
 
   return (
-    // @ts-expect-error - selectable prop is valid for Text component but not in current TypeScript types
-    <Text style={style} selectable={true} onSelectionChange={handleSelectionChange} {...textProps}>
+    <Text style={style} onLongPress={handleVerseLongPress} {...textProps}>
       {segments.map((segment) => {
         // Use startChar and endChar for stable, unique keys
         const segmentKey = segment.highlight
@@ -228,7 +221,8 @@ export function HighlightedText({
             <Text
               key={segmentKey}
               style={highlightStyle}
-              onPress={() => handleSegmentPress(segment)}
+              onLongPress={() => handleSegmentPress(segment)}
+              suppressHighlighting={true}
             >
               {segment.text}
             </Text>

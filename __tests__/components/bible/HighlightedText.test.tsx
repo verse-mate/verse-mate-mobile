@@ -6,7 +6,7 @@
  * @see Task 4.1: Write 2-8 focused tests for text selection
  */
 
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
@@ -73,7 +73,7 @@ describe('HighlightedText', () => {
     expect(highlightedSegment?.props.children).toBe('beginning God');
   });
 
-  it('should trigger onHighlightPress when tapping highlighted text', () => {
+  it('should trigger onHighlightPress when long-pressing highlighted text', () => {
     const mockOnHighlightPress = jest.fn();
 
     const { root } = render(
@@ -92,9 +92,9 @@ describe('HighlightedText', () => {
       return style?.backgroundColor;
     });
 
-    // Tap on highlighted text
+    // Long-press on highlighted text
     if (highlightedSegment) {
-      fireEvent.press(highlightedSegment);
+      fireEvent(highlightedSegment, 'longPress');
     }
 
     // Verify callback was called with highlight_id
@@ -152,61 +152,69 @@ describe('HighlightedText', () => {
     expect(greenSegment).toBeTruthy();
   });
 
-  it('should call onTextSelect when text is selected', () => {
-    const mockOnTextSelect = jest.fn();
+  it('should call onVerseLongPress when verse is long-pressed', async () => {
+    const mockOnVerseLongPress = jest.fn();
 
-    const { getByText } = render(
+    const { UNSAFE_root } = render(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
         highlights={[]}
-        onTextSelect={mockOnTextSelect}
+        onVerseLongPress={mockOnVerseLongPress}
       />
     );
 
-    const textElement = getByText('In the beginning God created the heavens and the earth.');
+    // Find ALL elements recursively, not just by type
+    const findElementWithHandler = (node: any): any => {
+      if (node?.props?.onLongPress) {
+        return node;
+      }
+      if (node?.children) {
+        for (const child of node.children) {
+          const found = findElementWithHandler(child);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
 
-    // Simulate text selection
-    fireEvent(textElement, 'selectionChange', {
-      nativeEvent: {
-        selection: { start: 7, end: 20 },
-      },
+    const parentElement = findElementWithHandler(UNSAFE_root);
+
+    // Simulate long press on parent element
+    if (parentElement) {
+      fireEvent(parentElement, 'longPress');
+    }
+
+    // Wait for async handler to complete
+    await waitFor(() => {
+      expect(mockOnVerseLongPress).toHaveBeenCalledWith(1);
     });
 
-    // Verify callback was called with selection data
-    expect(mockOnTextSelect).toHaveBeenCalledWith(
-      {
-        start: 7,
-        end: 20,
-        text: 'beginning God',
-      },
-      1
-    );
+    // Verify haptic feedback
+    expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
   });
 
-  it('should not call onTextSelect for cursor position (no text selected)', () => {
-    const mockOnTextSelect = jest.fn();
-
-    const { getByText } = render(
+  it('should not call onVerseLongPress when callback not provided', () => {
+    const { root } = render(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
         highlights={[]}
-        onTextSelect={mockOnTextSelect}
       />
     );
 
-    const textElement = getByText('In the beginning God created the heavens and the earth.');
-
-    // Simulate cursor position (start === end)
-    fireEvent(textElement, 'selectionChange', {
-      nativeEvent: {
-        selection: { start: 7, end: 7 },
-      },
+    // Find the parent Text element that has the onLongPress handler
+    const textElements = root.findAllByType(Text);
+    const parentTextElement = textElements.find((el: ReactTestInstance) => {
+      return el.props.onLongPress !== undefined;
     });
 
-    // Should not trigger callback for cursor position
-    expect(mockOnTextSelect).not.toHaveBeenCalled();
+    // Should not throw error when long-pressing without callback
+    expect(() => {
+      if (parentTextElement) {
+        fireEvent(parentTextElement, 'longPress');
+      }
+    }).not.toThrow();
   });
 
   it('should handle multi-verse highlight spanning first verse', () => {
