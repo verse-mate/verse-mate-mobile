@@ -100,7 +100,6 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     } else if (item.action === 'highlights') {
       // Navigate to highlights screen
       onClose();
-      // @ts-expect-error - Expo Router types need regeneration after adding new route
       router.push('/highlights');
     } else {
       // Other features show "Coming soon" alert
