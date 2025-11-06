@@ -29,6 +29,7 @@ import {
   useBibleSummary,
 } from '@/src/api/generated/hooks';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
+import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
 
@@ -228,6 +229,7 @@ export const ChapterPage = React.memo(function ChapterPage({
               <SkeletonLoader />
             )}
           </View>
+          <BottomLogo />
         </ScrollView>
       )}
     </View>
@@ -317,6 +319,7 @@ function TabContent({
           )}
         </Animated.View>
       )}
+      <BottomLogo />
     </ScrollView>
   );
 }
@@ -330,7 +333,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xxl,
     // Add bottom padding to account for floating action buttons AND progress bar
-    paddingBottom: 130, // FAB height + bottom offset + progress bar + extra spacing
+    paddingBottom: 60, // FAB height + bottom offset + progress bar + extra spacing
   },
   readerContainer: {
     flex: 1,

@@ -11,11 +11,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
+import { BottomLogo } from '@/components/bible/BottomLogo';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
@@ -31,6 +33,7 @@ import {
 } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
+import { BOTTOM_THRESHOLD, useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import {
   useTopicById,
   useTopicExplanation,
@@ -79,6 +82,23 @@ export default function TopicDetailScreen() {
   // Hamburger menu state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // FAB visibility state and handlers
+  const {
+    visible: fabVisible,
+    handleScroll: handleFABScroll,
+    handleTap,
+  } = useFABVisibility({
+    initialVisible: true,
+  });
+
+  // Track last scroll position and timestamp for velocity calculation
+  const lastScrollY = useRef(0);
+  const lastScrollTime = useRef(Date.now());
+
+  // Track touch start time and position to differentiate tap from scroll
+  const touchStartTime = useRef(0);
+  const touchStartY = useRef(0);
+
   // Fetch topic data
   const { data: topicData, isLoading: isTopicLoading, error: topicError } = useTopicById(topicId);
   const { data: references } = useTopicReferences(topicId);
@@ -100,9 +120,6 @@ export default function TopicDetailScreen() {
   const hasNext = currentIndex >= 0 && currentIndex < sortedTopics.length - 1;
   const previousTopic = hasPrevious ? sortedTopics[currentIndex - 1] : null;
   const nextTopic = hasNext ? sortedTopics[currentIndex + 1] : null;
-
-  // Safe area insets for iOS notch/home indicator
-  const insets = useSafeAreaInsets();
 
   // Save reading position to AsyncStorage for app launch continuity
   // Save whenever topicId, category, tab, or view changes
@@ -182,6 +199,52 @@ export default function TopicDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   }, [nextTopic, category]);
+
+  // Handle touch start - record time and position
+  const handleTouchStart = useCallback((event: GestureResponderEvent) => {
+    touchStartTime.current = Date.now();
+    touchStartY.current = event.nativeEvent.pageY;
+  }, []);
+
+  // Handle touch end - detect if it was a tap (not a scroll)
+  const handleTouchEnd = useCallback(
+    (event: GestureResponderEvent) => {
+      const touchDuration = Date.now() - touchStartTime.current;
+      const touchMovement = Math.abs(event.nativeEvent.pageY - touchStartY.current);
+
+      // Only trigger tap if it was quick and didn't move much
+      if (touchDuration < 200 && touchMovement < 10) {
+        handleTap();
+      }
+    },
+    [handleTap]
+  );
+
+  // Handle scroll events - calculate velocity and detect bottom
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      const currentScrollY = contentOffset.y;
+      const currentTime = Date.now();
+
+      // Calculate scroll velocity (pixels per second)
+      const timeDelta = currentTime - lastScrollTime.current;
+      const scrollDelta = Math.abs(currentScrollY - lastScrollY.current);
+      const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
+
+      // Check if at bottom
+      const scrollHeight = contentSize.height - layoutMeasurement.height;
+      const isAtBottom = scrollHeight - currentScrollY <= BOTTOM_THRESHOLD;
+
+      // Update refs
+      lastScrollY.current = currentScrollY;
+      lastScrollTime.current = currentTime;
+
+      // Call FAB visibility handler
+      handleFABScroll(velocity, isAtBottom);
+    },
+    [handleFABScroll]
+  );
 
   // Loading state
   if (isTopicLoading) {
@@ -278,9 +341,13 @@ export default function TopicDetailScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: insets.bottom + spacing.xxl },
+          { paddingBottom: 60 }, // Match ChapterPage: FAB height + bottom offset + progress bar + extra spacing
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {/* Topic Title */}
         <Text style={styles.topicTitle} accessibilityRole="header">
@@ -330,6 +397,7 @@ export default function TopicDetailScreen() {
               </Text>
             </View>
           ))}
+        <BottomLogo />
       </ScrollView>
 
       {/* Floating Action Buttons for Topic Navigation */}
@@ -338,6 +406,7 @@ export default function TopicDetailScreen() {
         onNext={handleNext}
         showPrevious={hasPrevious}
         showNext={hasNext}
+        visible={fabVisible}
       />
 
       {/* Navigation Modal */}
