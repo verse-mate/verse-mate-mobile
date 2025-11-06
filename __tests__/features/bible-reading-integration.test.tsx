@@ -79,6 +79,36 @@ jest.mock('@react-native-community/netinfo', () => ({
   fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
 }));
 
+// Mock bookmarks and notes hooks (required by ChapterReader)
+jest.mock('@/hooks/bible/use-bookmarks', () => ({
+  useBookmarks: jest.fn(() => ({
+    bookmarks: [],
+    isBookmarked: jest.fn(() => false),
+    addBookmark: jest.fn(),
+    removeBookmark: jest.fn(),
+    refetchBookmarks: jest.fn(),
+    isFetchingBookmarks: false,
+    isAddingBookmark: false,
+    isRemovingBookmark: false,
+  })),
+}));
+
+jest.mock('@/hooks/bible/use-notes', () => ({
+  useNotes: jest.fn(() => ({
+    notes: [],
+    addNote: jest.fn(),
+    updateNote: jest.fn(),
+    deleteNote: jest.fn(),
+    getNotesByChapter: jest.fn(() => []),
+    hasNotes: jest.fn(() => false),
+    refetchNotes: jest.fn(),
+    isAddingNote: false,
+    isUpdatingNote: false,
+    isDeletingNote: false,
+    isFetchingNotes: false,
+  })),
+}));
+
 // Mock data
 const mockGenesisChapter1 = {
   bookId: 1,
