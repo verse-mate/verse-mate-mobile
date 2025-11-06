@@ -2,7 +2,7 @@
  * HamburgerMenu Component
  *
  * Slide-in menu drawer from right side with menu items for app features.
- * Bookmarks navigation is fully wired and functional.
+ * Bookmarks and Notes navigation are fully wired and functional.
  *
  * Features:
  * - Slides in from right (300ms animation)
@@ -11,6 +11,7 @@
  * - Close button (X) in header
  * - Tap backdrop or X to close
  * - Bookmarks item navigates to /bookmarks screen
+ * - Notes item navigates to /notes screen
  * - Haptic feedback on menu item press
  * - Temporary: Login/Signup buttons for auth testing
  *
@@ -41,7 +42,7 @@ interface MenuItem {
   id: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  action?: 'auth' | 'logout' | 'bookmarks';
+  action?: 'auth' | 'logout' | 'bookmarks' | 'notes';
 }
 
 const authMenuItems: MenuItem[] = [
@@ -52,7 +53,7 @@ const authMenuItems: MenuItem[] = [
 const regularMenuItems: MenuItem[] = [
   { id: 'bookmarks', label: 'Bookmarks', icon: 'bookmark-outline', action: 'bookmarks' },
   { id: 'favorites', label: 'Favorites', icon: 'heart-outline' },
-  { id: 'notes', label: 'Notes', icon: 'document-text-outline' },
+  { id: 'notes', label: 'Notes', icon: 'document-text-outline', action: 'notes' },
   { id: 'highlights', label: 'Highlights', icon: 'color-wand-outline' },
   { id: 'settings', label: 'Settings', icon: 'settings-outline' },
 ];
@@ -70,7 +71,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
 
   /**
    * Handle menu item tap
-   * Routes to auth screens, bookmarks screen, or shows "Coming soon" alert
+   * Routes to auth screens, bookmarks screen, notes screen, or shows "Coming soon" alert
    */
   const handleItemPress = async (item: MenuItem) => {
     // Trigger haptic feedback first
@@ -91,6 +92,10 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       // Navigate to bookmarks screen
       onClose();
       router.push('/bookmarks');
+    } else if (item.action === 'notes') {
+      // Navigate to notes screen
+      onClose();
+      router.push('/notes');
     } else {
       // Other features show "Coming soon" alert
       Alert.alert('Coming Soon', `${item.label} feature is coming soon!`);
