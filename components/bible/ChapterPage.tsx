@@ -100,9 +100,9 @@ export const ChapterPage = React.memo(function ChapterPage({
   } = useBibleDetailed(bookId, chapterNumber, undefined);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} collapsable={false}>
       {activeView === 'explanations' ? (
-        <View style={styles.container}>
+        <View style={styles.container} collapsable={false}>
           <TabContent
             chapter={chapter}
             activeTab="summary"
@@ -139,9 +139,11 @@ export const ChapterPage = React.memo(function ChapterPage({
           showsVerticalScrollIndicator={true}
           testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
         >
-          <View style={styles.readerContainer}>
-            {chapter && (
+          <View style={styles.readerContainer} collapsable={false}>
+            {chapter ? (
               <ChapterReader chapter={chapter} activeTab={activeTab} explanationsOnly={false} />
+            ) : (
+              <SkeletonLoader />
             )}
           </View>
         </ScrollView>

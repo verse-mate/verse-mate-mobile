@@ -283,6 +283,9 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
         initialPage={CENTER_INDEX}
         onPageSelected={handlePageSelected}
         testID="chapter-pager-view"
+        removeClippedSubviews={false}
+        offscreenPageLimit={4}
+        overScrollMode="never"
       >
         {pages}
       </PagerView>

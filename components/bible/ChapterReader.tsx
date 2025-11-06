@@ -52,9 +52,9 @@ export function ChapterReader({
   explanationsOnly = false,
 }: ChapterReaderProps) {
   return (
-    <View style={styles.container}>
+    <View style={styles.container} collapsable={false}>
       {/* Chapter Title Row with Bookmark */}
-      <View style={styles.titleRow}>
+      <View style={styles.titleRow} collapsable={false}>
         <Text style={styles.chapterTitle} accessibilityRole="header">
           {chapter.title}
         </Text>
@@ -73,6 +73,7 @@ export function ChapterReader({
             key={`section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`}
             style={styles.section}
             testID={`chapter-section-${section.startVerse}`}
+            collapsable={false}
           >
             {/* Section Subtitle (if present) */}
             {section.subtitle && (
@@ -108,7 +109,7 @@ export function ChapterReader({
 
       {/* Explanation Content (Markdown) - shown in Explanations view */}
       {explanation && (
-        <View style={styles.explanationContainer}>
+        <View style={styles.explanationContainer} collapsable={false}>
           <Markdown style={markdownStyles}>{explanation.content}</Markdown>
         </View>
       )}
