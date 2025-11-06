@@ -18,12 +18,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TopicDetailScreen from '@/app/topics/[topicId]';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveTab, useActiveView } from '@/hooks/bible';
-import {
-  useTopicById,
-  useTopicExplanation,
-  useTopicReferences,
-  useTopicsSearch,
-} from '@/src/api/generated';
+import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api/generated';
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -39,7 +34,6 @@ jest.mock('expo-router', () => ({
 jest.mock('@/src/api/generated', () => ({
   useTopicById: jest.fn(),
   useTopicReferences: jest.fn(),
-  useTopicExplanation: jest.fn(),
   useTopicsSearch: jest.fn(),
   useBibleTestaments: jest.fn(),
 }));
@@ -75,7 +69,7 @@ jest.mock('@react-native-community/netinfo', () => ({
   fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
 }));
 
-// Mock topic data
+// Mock topic data - matches the /topics/:id endpoint response structure
 const mockTopicData = {
   topic: {
     topic_id: 'event-1',
@@ -84,25 +78,21 @@ const mockTopicData = {
     category: 'EVENT',
     sort_order: 1,
   },
+  references: {
+    content: '## Genesis 1:1-31\n\nIn the beginning God created the heavens and the earth.',
+  },
+  explanation: {
+    summary:
+      'The Creation account describes how God created the universe in six days and rested on the seventh.',
+    byline:
+      '**Day 1:** Light\n**Day 2:** Sky\n**Day 3:** Land and plants\n**Day 4:** Sun, moon, stars\n**Day 5:** Sea creatures and birds\n**Day 6:** Land animals and humans\n**Day 7:** Rest',
+    detailed:
+      '# The Creation Account\n\nGod created everything in six days:\n\n1. Light and darkness\n2. Sky and waters\n3. Land, seas, and vegetation\n4. Sun, moon, and stars\n5. Sea creatures and birds\n6. Land animals and humans\n\nOn the seventh day, God rested.',
+  },
 };
 
 const mockReferences = {
   content: '## Genesis 1:1-31\n\nIn the beginning God created the heavens and the earth.',
-};
-
-const mockSummaryExplanation = {
-  explanation:
-    'The Creation account describes how God created the universe in six days and rested on the seventh.',
-};
-
-const mockBylineExplanation = {
-  explanation:
-    '**Day 1:** Light\n**Day 2:** Sky\n**Day 3:** Land and plants\n**Day 4:** Sun, moon, stars\n**Day 5:** Sea creatures and birds\n**Day 6:** Land animals and humans\n**Day 7:** Rest',
-};
-
-const mockDetailedExplanation = {
-  explanation:
-    '# The Creation Account\n\nGod created everything in six days:\n\n1. Light and darkness\n2. Sky and waters\n3. Land, seas, and vegetation\n4. Sun, moon, and stars\n5. Sea creatures and birds\n6. Land animals and humans\n\nOn the seventh day, God rested.',
 };
 
 // Mock category topics for navigation
@@ -208,12 +198,6 @@ describe('TopicDetailScreen', () => {
       error: null,
     });
 
-    (useTopicExplanation as jest.Mock).mockReturnValue({
-      data: mockSummaryExplanation,
-      isLoading: false,
-      error: null,
-    });
-
     (useTopicsSearch as jest.Mock).mockReturnValue({
       data: mockCategoryTopics,
       isLoading: false,
@@ -290,12 +274,6 @@ describe('TopicDetailScreen', () => {
         error: null,
       });
 
-      (useTopicExplanation as jest.Mock).mockReturnValue({
-        data: mockBylineExplanation,
-        isLoading: false,
-        error: null,
-      });
-
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
@@ -308,12 +286,6 @@ describe('TopicDetailScreen', () => {
       (useActiveTab as jest.Mock).mockReturnValue({
         activeTab: 'detailed',
         setActiveTab: mockSetActiveTab,
-        isLoading: false,
-        error: null,
-      });
-
-      (useTopicExplanation as jest.Mock).mockReturnValue({
-        data: mockDetailedExplanation,
         isLoading: false,
         error: null,
       });
@@ -395,7 +367,7 @@ describe('TopicDetailScreen', () => {
     });
 
     it('should show loading indicator while explanation is loading', async () => {
-      (useTopicExplanation as jest.Mock).mockReturnValue({
+      (useTopicById as jest.Mock).mockReturnValue({
         data: undefined,
         isLoading: true,
         error: null,
@@ -403,8 +375,10 @@ describe('TopicDetailScreen', () => {
 
       renderWithProviders(<TopicDetailScreen />);
 
+      // When topic is loading, it shows the skeleton loader
       await waitFor(() => {
-        expect(screen.getByText('Loading summary explanation...')).toBeTruthy();
+        expect(screen.getByTestId('skeleton-loader')).toBeTruthy();
+        expect(screen.getByText('Loading...')).toBeTruthy();
       });
     });
   });
@@ -440,8 +414,17 @@ describe('TopicDetailScreen', () => {
     });
 
     it('should show empty state when explanation is not available', async () => {
-      (useTopicExplanation as jest.Mock).mockReturnValue({
-        data: undefined,
+      // Mock topic data without explanations
+      (useTopicById as jest.Mock).mockReturnValue({
+        data: {
+          topic: mockTopicData.topic,
+          references: mockTopicData.references,
+          explanation: {
+            summary: '',
+            byline: '',
+            detailed: '',
+          },
+        },
         isLoading: false,
         error: null,
       });
@@ -467,6 +450,8 @@ describe('TopicDetailScreen', () => {
             category: 'EVENT',
             sort_order: 1,
           },
+          references: mockTopicData.references,
+          explanation: mockTopicData.explanation,
         },
         isLoading: false,
         error: null,
@@ -497,6 +482,8 @@ describe('TopicDetailScreen', () => {
             category: 'EVENT',
             sort_order: 0,
           },
+          references: mockTopicData.references,
+          explanation: mockTopicData.explanation,
         },
         isLoading: false,
         error: null,
@@ -528,6 +515,8 @@ describe('TopicDetailScreen', () => {
             category: 'EVENT',
             sort_order: 2,
           },
+          references: mockTopicData.references,
+          explanation: mockTopicData.explanation,
         },
         isLoading: false,
         error: null,
@@ -545,70 +534,26 @@ describe('TopicDetailScreen', () => {
     });
   });
 
-  describe('Language Preference', () => {
-    it('should use default language (en-US) when user is not authenticated', () => {
-      (useAuth as jest.Mock).mockReturnValue({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        login: jest.fn(),
-        signup: jest.fn(),
-        logout: jest.fn(),
-        restoreSession: jest.fn(),
-      });
-
+  describe('Bible Version', () => {
+    it('should call useTopicById with NASB1995 bible version', () => {
       renderWithProviders(<TopicDetailScreen />);
 
-      // Verify useTopicExplanation was called with 'en-US' as the language
-      expect(useTopicExplanation).toHaveBeenCalledWith('event-1', 'summary', 'en-US');
+      // Verify useTopicById was called with bible_version parameter
+      expect(useTopicById).toHaveBeenCalledWith('event-1', 'NASB1995');
     });
 
-    it('should use user preferred language when authenticated', () => {
-      (useAuth as jest.Mock).mockReturnValue({
-        user: {
-          id: 'user-1',
-          email: 'test@example.com',
-          firstName: 'Test',
-          lastName: 'User',
-          is_admin: false,
-          preferred_language: 'es-ES',
-        },
-        isAuthenticated: true,
-        isLoading: false,
-        login: jest.fn(),
-        signup: jest.fn(),
-        logout: jest.fn(),
-        restoreSession: jest.fn(),
-      });
-
+    it('should fetch all explanation types in single API call', () => {
+      // Mock all three tab states to ensure all explanations are accessible
       renderWithProviders(<TopicDetailScreen />);
 
-      // Verify useTopicExplanation was called with user's preferred language
-      expect(useTopicExplanation).toHaveBeenCalledWith('event-1', 'summary', 'es-ES');
-    });
+      // useTopicById should be called once with bible_version, returning all explanation types
+      expect(useTopicById).toHaveBeenCalledTimes(1);
+      expect(useTopicById).toHaveBeenCalledWith('event-1', 'NASB1995');
 
-    it('should fallback to en-US when preferred_language is null', () => {
-      (useAuth as jest.Mock).mockReturnValue({
-        user: {
-          id: 'user-1',
-          email: 'test@example.com',
-          firstName: 'Test',
-          lastName: 'User',
-          is_admin: false,
-          preferred_language: null,
-        },
-        isAuthenticated: true,
-        isLoading: false,
-        login: jest.fn(),
-        signup: jest.fn(),
-        logout: jest.fn(),
-        restoreSession: jest.fn(),
-      });
-
-      renderWithProviders(<TopicDetailScreen />);
-
-      // Verify useTopicExplanation was called with fallback language
-      expect(useTopicExplanation).toHaveBeenCalledWith('event-1', 'summary', 'en-US');
+      // The mock data should contain all three explanation types
+      expect(mockTopicData.explanation.summary).toBeTruthy();
+      expect(mockTopicData.explanation.byline).toBeTruthy();
+      expect(mockTopicData.explanation.detailed).toBeTruthy();
     });
   });
 });
