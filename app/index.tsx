@@ -36,7 +36,7 @@ export default function Index() {
       typeof lastPosition.topicId === 'string' &&
       lastPosition.topicId.trim().length > 0
     ) {
-      const allowedCategories = new Set(['EVENT', 'PERSON', 'PLACE', 'THEME']);
+      const allowedCategories = new Set(['EVENT', 'PROPHECY', 'PARABLE']);
       const category =
         typeof lastPosition.topicCategory === 'string' &&
         allowedCategories.has(lastPosition.topicCategory.toUpperCase())

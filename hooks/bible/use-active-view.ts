@@ -24,6 +24,9 @@ import { useCallback, useEffect, useState } from 'react';
 import type { UseActiveViewResult, ViewModeType } from '@/types/bible';
 import { isViewModeType, STORAGE_KEYS } from '@/types/bible';
 
+// Module-level cache to prevent flickering on remount
+let inMemoryCache: ViewModeType | null = null;
+
 /**
  * Hook to manage active view state with AsyncStorage persistence
  *
@@ -34,64 +37,69 @@ import { isViewModeType, STORAGE_KEYS } from '@/types/bible';
  *   - error: Error object if loading or saving failed
  */
 export function useActiveView(): UseActiveViewResult {
-  const [activeView, setActiveViewState] = useState<ViewModeType>('bible');
-  const [isLoading, setIsLoading] = useState(true);
+  const [activeView, setActiveViewState] = useState<ViewModeType>(inMemoryCache || 'bible');
+  const [isLoading, setIsLoading] = useState(!inMemoryCache);
   const [error, setError] = useState<Error | null>(null);
 
   // Load persisted view from AsyncStorage on mount
   useEffect(() => {
+    let isMounted = true;
     async function loadPersistedView() {
+      // Skip loading if cache is already populated
+      if (inMemoryCache) {
+        return;
+      }
+
       try {
         setIsLoading(true);
         setError(null);
 
         const storedView = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_VIEW);
 
-        // Validate stored value is a valid view type
-        if (storedView && isViewModeType(storedView)) {
-          setActiveViewState(storedView);
-        } else {
-          // Invalid or missing value - use default 'bible'
-          setActiveViewState('bible');
+        if (isMounted) {
+          const finalView = storedView && isViewModeType(storedView) ? storedView : 'bible';
+          setActiveViewState(finalView);
+          inMemoryCache = finalView; // Update cache
         }
       } catch (err) {
-        // Handle storage read error gracefully
-        setError(err instanceof Error ? err : new Error('Failed to load active view'));
-        // Fall back to default on error
-        setActiveViewState('bible');
+        if (isMounted) {
+          setError(err instanceof Error ? err : new Error('Failed to load active view'));
+          setActiveViewState('bible');
+          inMemoryCache = 'bible'; // Update cache on error
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadPersistedView();
+
+    return () => {
+      isMounted = false;
+    };
   }, []); // Run only on mount
 
   /**
    * Set active view and persist to AsyncStorage
-   * Updates both local state and storage atomically
    */
   const setActiveView = useCallback(async (view: ViewModeType): Promise<void> => {
     try {
-      // Validate view type
       if (!isViewModeType(view)) {
         throw new Error(`Invalid view type: ${view}. Must be 'bible' or 'explanations'.`);
       }
 
-      // Update state immediately for responsive UI
+      // Update state and cache immediately
       setActiveViewState(view);
+      inMemoryCache = view;
 
-      // Persist to storage (async, but don't block UI)
+      // Persist to storage
       await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_VIEW, view);
-
-      // Clear any previous errors
       setError(null);
     } catch (err) {
-      // Handle storage write error
       const storageError = err instanceof Error ? err : new Error('Failed to save active view');
       setError(storageError);
-
-      // Log error for debugging but don't throw (graceful degradation)
       console.error('useActiveView: Failed to persist view to storage:', storageError);
     }
   }, []);
