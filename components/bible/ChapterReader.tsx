@@ -5,21 +5,24 @@
  * Supports three reading modes via activeTab prop: summary, byline, detailed.
  *
  * Features:
- * - Chapter title (displayMedium: 32px, bold)
+ * - Chapter title (displayMedium: 32px, bold) with bookmark button aligned on the right
  * - Section subtitles (heading2: 20px, semibold)
  * - Verse range captions (caption: 12px, gray500)
  * - Bible text with superscript verse numbers
  * - Markdown rendering for explanation content
  *
  * @see Spec lines 778-821 (Markdown rendering)
+ * @see Task Group 4: Add Bookmark Toggle to Chapter Reading Screen
  */
 
 import { StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import {
   colors,
   fontSizes,
   fontWeights,
+  headerSpecs,
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
@@ -50,10 +53,18 @@ export function ChapterReader({
 }: ChapterReaderProps) {
   return (
     <View style={styles.container}>
-      {/* Chapter Title */}
-      <Text style={styles.chapterTitle} accessibilityRole="header">
-        {chapter.title}
-      </Text>
+      {/* Chapter Title Row with Bookmark */}
+      <View style={styles.titleRow}>
+        <Text style={styles.chapterTitle} accessibilityRole="header">
+          {chapter.title}
+        </Text>
+        <BookmarkToggle
+          bookId={chapter.bookId}
+          chapterNumber={chapter.chapterNumber}
+          size={headerSpecs.iconSize}
+          color={colors.gray900}
+        />
+      </View>
 
       {/* Render Bible verses (only in Bible view) */}
       {!explanationsOnly &&
@@ -109,12 +120,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // Title row with bookmark button on the right
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xxl,
+  },
   chapterTitle: {
+    flex: 1,
     fontSize: fontSizes.displayMedium,
     fontWeight: fontWeights.bold,
     lineHeight: fontSizes.displayMedium * lineHeights.display,
     color: colors.gray900,
-    marginBottom: spacing.xxl,
+    marginRight: spacing.md, // Space between title and bookmark
   },
   section: {
     marginBottom: spacing.xxxl,
