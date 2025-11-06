@@ -539,12 +539,42 @@ describe('Bible Reading Interface - Integration Tests', () => {
       error: null,
     });
 
+    // Mock explanation hooks (required by ChapterPagerView)
+    (useBibleSummary as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    });
+
+    (useBibleByLine as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    });
+
+    (useBibleDetailed as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    });
+
     renderWithSafeArea(<ChapterScreen />);
 
+    // Wait for skeleton loader to disappear first
+    await waitFor(
+      () => {
+        expect(screen.queryByTestId('skeleton-loader')).toBeNull();
+      },
+      { timeout: 10000 }
+    );
+
     // Verify Matthew 5 content loads
-    await waitFor(() => {
-      expect(screen.getByText('The Beatitudes')).toBeTruthy();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText('The Beatitudes')).toBeTruthy();
+      },
+      { timeout: 10000 }
+    );
 
     // Verify reading position saved for Matthew
     const mockMutate = (useSaveLastRead as jest.Mock).mock.results[0].value.mutate;
