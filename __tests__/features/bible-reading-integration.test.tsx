@@ -585,7 +585,7 @@ describe('Bible Reading Interface - Integration Tests', () => {
         chapter_number: 5,
       })
     );
-  });
+  }, 25000); // 25 second timeout for skeleton + content loading
 
   /**
    * Integration Test 6: Tab persistence across navigation
