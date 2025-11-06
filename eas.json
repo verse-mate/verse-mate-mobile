@@ -17,6 +17,7 @@
     "preview": {
       "distribution": "store",
       "channel": "preview",
+      "autoIncrement": true,
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release"
@@ -32,6 +33,7 @@
     "production": {
       "distribution": "store",
       "channel": "production",
+      "autoIncrement": true,
       "ios": {
         "simulator": false,
         "buildConfiguration": "Release"
