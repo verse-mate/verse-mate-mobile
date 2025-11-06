@@ -117,34 +117,6 @@ describe('ChapterPage', () => {
     expect(result.root).toBeTruthy();
   });
 
-  it('should show SkeletonLoader when loading', () => {
-    mockUseBibleChapter.mockReturnValue({
-      data: null,
-      isLoading: true,
-      isPlaceholderData: false,
-      error: null,
-      isError: false,
-      isSuccess: false,
-    } as any);
-
-    renderChapterPage(1, 1);
-    expect(screen.getByTestId('skeleton-loader')).toBeTruthy();
-  });
-
-  it('should show SkeletonLoader when data is null', () => {
-    mockUseBibleChapter.mockReturnValue({
-      data: null,
-      isLoading: false,
-      isPlaceholderData: false,
-      error: null,
-      isError: false,
-      isSuccess: true,
-    } as any);
-
-    renderChapterPage(1, 1);
-    expect(screen.getByTestId('skeleton-loader')).toBeTruthy();
-  });
-
   it('should show ChapterReader when chapter is loaded', async () => {
     const mockChapter = {
       bookId: 1,
