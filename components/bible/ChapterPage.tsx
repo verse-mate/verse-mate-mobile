@@ -16,10 +16,12 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
+import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { animations, colors, spacing } from '@/constants/bible-design-tokens';
+import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -45,6 +47,10 @@ export interface ChapterPageProps {
   activeTab: ContentTabType;
   /** Current view mode (bible or explanations) */
   activeView: 'bible' | 'explanations';
+  /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
+  onScroll?: (velocity: number, isAtBottom: boolean) => void;
+  /** Callback when user taps the screen */
+  onTap?: () => void;
 }
 
 /**
@@ -75,7 +81,43 @@ export const ChapterPage = React.memo(function ChapterPage({
   chapterNumber,
   activeTab,
   activeView,
+  onScroll,
+  onTap,
 }: ChapterPageProps) {
+  // Track last scroll position and timestamp for velocity calculation
+  const lastScrollY = useRef(0);
+  const lastScrollTime = useRef(Date.now());
+
+  // Track touch start time and position to differentiate tap from scroll
+  const touchStartTime = useRef(0);
+  const touchStartY = useRef(0);
+
+  /**
+   * Handle touch start - record time and position
+   */
+  const handleTouchStart = (event: GestureResponderEvent) => {
+    touchStartTime.current = Date.now();
+    touchStartY.current = event.nativeEvent.pageY;
+  };
+
+  /**
+   * Handle touch end - detect if it was a tap (not a scroll)
+   * A tap is defined as:
+   * - Touch duration < 200ms
+   * - Movement < 10 pixels
+   */
+  const handleTouchEnd = (event: GestureResponderEvent) => {
+    if (!onTap) return;
+
+    const touchDuration = Date.now() - touchStartTime.current;
+    const touchMovement = Math.abs(event.nativeEvent.pageY - touchStartY.current);
+
+    // Only trigger tap if it was quick and didn't move much
+    if (touchDuration < 200 && touchMovement < 10) {
+      onTap();
+    }
+  };
+
   // Fetch chapter content
   const { data: chapter } = useBibleChapter(bookId, chapterNumber, undefined);
 
@@ -99,6 +141,33 @@ export const ChapterPage = React.memo(function ChapterPage({
     error: detailedError,
   } = useBibleDetailed(bookId, chapterNumber, undefined);
 
+  /**
+   * Handle scroll events - calculate velocity and detect bottom
+   */
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!onScroll) return;
+
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const currentScrollY = contentOffset.y;
+    const currentTime = Date.now();
+
+    // Calculate scroll velocity (pixels per second)
+    const timeDelta = currentTime - lastScrollTime.current;
+    const scrollDelta = Math.abs(currentScrollY - lastScrollY.current);
+    const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
+
+    // Check if at bottom
+    const scrollHeight = contentSize.height - layoutMeasurement.height;
+    const isAtBottom = scrollHeight - currentScrollY <= BOTTOM_THRESHOLD;
+
+    // Update refs
+    lastScrollY.current = currentScrollY;
+    lastScrollTime.current = currentTime;
+
+    // Call parent callback
+    onScroll(velocity, isAtBottom);
+  };
+
   return (
     <View style={styles.container} collapsable={false}>
       {activeView === 'explanations' ? (
@@ -111,6 +180,9 @@ export const ChapterPage = React.memo(function ChapterPage({
             error={summaryError}
             visible={activeTab === 'summary'}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
+            onScroll={handleScroll}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           />
           <TabContent
             chapter={chapter}
@@ -120,6 +192,9 @@ export const ChapterPage = React.memo(function ChapterPage({
             error={byLineError}
             visible={activeTab === 'byline'}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
+            onScroll={handleScroll}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           />
           <TabContent
             chapter={chapter}
@@ -129,6 +204,9 @@ export const ChapterPage = React.memo(function ChapterPage({
             error={detailedError}
             visible={activeTab === 'detailed'}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
+            onScroll={handleScroll}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           />
         </View>
       ) : (
@@ -138,6 +216,10 @@ export const ChapterPage = React.memo(function ChapterPage({
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={true}
           testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
         >
           <View style={styles.readerContainer} collapsable={false}>
             {chapter ? (
@@ -166,6 +248,9 @@ function TabContent({
   error,
   visible,
   testID,
+  onScroll,
+  onTouchStart,
+  onTouchEnd,
 }: {
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
@@ -174,6 +259,9 @@ function TabContent({
   error: Error | null;
   visible: boolean;
   testID: string;
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onTouchStart?: (event: GestureResponderEvent) => void;
+  onTouchEnd?: (event: GestureResponderEvent) => void;
 }) {
   if (!visible) return null;
 
@@ -187,6 +275,10 @@ function TabContent({
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={true}
       testID={testID}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       {error ? (
         <Animated.View
