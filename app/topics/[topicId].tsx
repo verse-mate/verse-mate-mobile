@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
@@ -41,6 +42,70 @@ import type { TopicCategory, TopicListItem } from '@/types/topics';
  * View mode type for Topic reading interface
  */
 type ViewMode = 'bible' | 'explanations';
+
+/**
+ * Preprocess Bible references text to format verse numbers as superscript-like
+ *
+ * The backend returns verses with numbers on separate lines:
+ * ```
+ * 1
+ * In the beginning God created...
+ * 2
+ * The earth was formless...
+ * ```
+ *
+ * This function converts them to: `**1** In the beginning God created...`
+ * where the markdown bold style will be customized to look like superscript.
+ */
+function formatVerseNumbers(text: string): string {
+  if (!text) return text;
+
+  // Match pattern: standalone number on its own line, followed by verse text
+  // This regex looks for a number at the start of a line, followed by a newline,
+  // then text that doesn't start with a number
+  const versePattern = /^(\d+)\n([^\n])/gm;
+
+  return text.replace(versePattern, '**$1** $2');
+}
+
+/**
+ * Custom markdown renderers for special formatting
+ */
+const markdownRules: RenderRules = {
+  // Custom renderer for strong (bold) text to detect verse numbers
+  // and apply smaller, grayed styling (similar to Bible chapters)
+  strong: (node, children, _parent, styles) => {
+    // Check if the content is a number (verse number)
+    const content = node.content;
+    const isVerseNumber = content && /^\d+$/.test(content.trim());
+
+    if (isVerseNumber) {
+      // Verse number styling: smaller and gray
+      // Note: We can't perfectly replicate the superscript effect from ChapterReader
+      // because that uses separate Text components with marginTop, while markdown
+      // uses inline text. But we can make them smaller and gray to distinguish them.
+      return (
+        <Text
+          key={node.key}
+          style={{
+            fontSize: fontSizes.caption,
+            fontWeight: fontWeights.bold,
+            color: colors.gray500,
+          }}
+        >
+          {children}
+        </Text>
+      );
+    }
+
+    // Regular bold text (e.g., Hebrew terms in explanations)
+    return (
+      <Text key={node.key} style={styles.strong}>
+        {children}
+      </Text>
+    );
+  },
+};
 
 /**
  * Topic Detail Screen Component
@@ -367,11 +432,14 @@ export default function TopicDetailScreen() {
           'content' in references &&
           typeof references.content === 'string' ? (
             <View style={styles.referencesContainer}>
-              <Markdown style={markdownStyles}>
-                {references.content
-                  .replace(/\n\n/g, '___PARAGRAPH___')
-                  .replace(/\n/g, ' ')
-                  .replace(/___PARAGRAPH___/g, '\n\n')}
+              <Markdown style={markdownStyles} rules={markdownRules}>
+                {
+                  // First format verse numbers, THEN process newlines
+                  formatVerseNumbers(references.content)
+                    .replace(/\n\n/g, '___PARAGRAPH___')
+                    .replace(/\n/g, ' ')
+                    .replace(/___PARAGRAPH___/g, '\n\n')
+                }
               </Markdown>
             </View>
           ) : (
@@ -388,7 +456,9 @@ export default function TopicDetailScreen() {
             </View>
           ) : explanation && typeof explanation === 'string' ? (
             <View style={styles.explanationContainer}>
-              <Markdown style={markdownStyles}>{explanation}</Markdown>
+              <Markdown style={markdownStyles} rules={markdownRules}>
+                {explanation}
+              </Markdown>
             </View>
           ) : (
             <View style={styles.emptyContainer}>
@@ -693,10 +763,9 @@ const markdownStyles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   strong: {
-    fontSize: fontSizes.caption,
     fontWeight: fontWeights.bold,
-    color: colors.gray500,
-    marginRight: spacing.xs,
+    // Note: fontSize and color are handled by custom renderer for verse numbers
+    // Regular bold text uses default body text size and color
   },
   em: {
     fontStyle: 'italic',
