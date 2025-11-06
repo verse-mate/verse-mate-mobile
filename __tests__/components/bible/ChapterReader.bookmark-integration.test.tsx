@@ -17,15 +17,18 @@ import { ChapterReader } from '@/components/bible/ChapterReader';
 import { useAuth } from '@/contexts/AuthContext';
 // Import mocked modules
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
+import { useNotes } from '@/hooks/bible/use-notes';
 import type { ChapterContent } from '@/types/bible';
 
 // Mock dependencies
 jest.mock('@/hooks/bible/use-bookmarks');
+jest.mock('@/hooks/bible/use-notes');
 jest.mock('@/contexts/AuthContext');
 jest.mock('expo-haptics');
 
 // Mock functions
 const mockUseBookmarks = useBookmarks as jest.MockedFunction<typeof useBookmarks>;
+const mockUseNotes = useNotes as jest.MockedFunction<typeof useNotes>;
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
 // Sample chapter data for testing
@@ -88,6 +91,21 @@ describe('ChapterReader - Bookmark Integration', () => {
       isFetchingBookmarks: false,
       isAddingBookmark: false,
       isRemovingBookmark: false,
+    });
+
+    // Default mock: notes hook
+    mockUseNotes.mockReturnValue({
+      notes: [],
+      addNote: jest.fn().mockResolvedValue(undefined),
+      updateNote: jest.fn().mockResolvedValue(undefined),
+      deleteNote: jest.fn().mockResolvedValue(undefined),
+      getNotesByChapter: jest.fn().mockReturnValue([]),
+      hasNotes: jest.fn().mockReturnValue(false),
+      refetchNotes: jest.fn(),
+      isAddingNote: false,
+      isUpdatingNote: false,
+      isDeletingNote: false,
+      isFetchingNotes: false,
     });
   });
 

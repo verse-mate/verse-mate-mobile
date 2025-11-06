@@ -5,19 +5,26 @@
  * Supports three reading modes via activeTab prop: summary, byline, detailed.
  *
  * Features:
- * - Chapter title (displayMedium: 32px, bold) with bookmark button aligned on the right
+ * - Chapter title (displayMedium: 32px, bold) with bookmark and notes buttons on the right
  * - Section subtitles (heading2: 20px, semibold)
  * - Verse range captions (caption: 12px, gray500)
  * - Bible text with superscript verse numbers
  * - Markdown rendering for explanation content
+ * - Notes management via modals
  *
  * @see Spec lines 778-821 (Markdown rendering)
  * @see Task Group 4: Add Bookmark Toggle to Chapter Reading Screen
+ * @see Task Group 6: Screen Integration - NotesButton and Modals
  */
 
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
+import { NoteEditModal } from '@/components/bible/NoteEditModal';
+import { NotesButton } from '@/components/bible/NotesButton';
+import { NotesModal } from '@/components/bible/NotesModal';
+import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import {
   colors,
   fontSizes,
@@ -26,7 +33,9 @@ import {
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
+import { useNotes } from '@/hooks/bible/use-notes';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
+import type { Note } from '@/types/notes';
 
 interface ChapterReaderProps {
   /** Chapter content with verses and sections */
@@ -51,19 +60,140 @@ export function ChapterReader({
   explanation,
   explanationsOnly = false,
 }: ChapterReaderProps) {
+  const { deleteNote } = useNotes();
+
+  // Modal state management
+  const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+
+  /**
+   * Handle notes button press
+   * Opens the notes modal
+   */
+  const handleNotesPress = () => {
+    setNotesModalVisible(true);
+  };
+
+  /**
+   * Handle note card press from NotesModal
+   * Opens view modal with selected note, closes notes modal
+   */
+  const handleNotePress = (note: Note) => {
+    setSelectedNote(note);
+    setNotesModalVisible(false);
+    // Small delay to allow modal close animation before opening view modal
+    setTimeout(() => {
+      setViewModalVisible(true);
+    }, 100);
+  };
+
+  /**
+   * Handle edit button press from NotesModal
+   * Opens edit modal with selected note, closes notes modal
+   */
+  const handleEditNoteFromList = (note: Note) => {
+    setSelectedNote(note);
+    setNotesModalVisible(false);
+    // Small delay to allow modal close animation before opening edit modal
+    setTimeout(() => {
+      setEditModalVisible(true);
+    }, 100);
+  };
+
+  /**
+   * Handle edit button press from NoteViewModal
+   * Opens edit modal with selected note, closes view modal
+   */
+  const handleEditNoteFromView = (note: Note) => {
+    setSelectedNote(note);
+    setViewModalVisible(false);
+    // Small delay to allow modal close animation before opening edit modal
+    setTimeout(() => {
+      setEditModalVisible(true);
+    }, 100);
+  };
+
+  /**
+   * Handle delete button press from NoteViewModal
+   * Shows confirmation dialog and deletes note
+   */
+  const handleDeleteNote = (note: Note) => {
+    Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteNote(note.note_id);
+            // Close view modal after successful deletion
+            setViewModalVisible(false);
+            setSelectedNote(null);
+          } catch (error) {
+            console.error('Failed to delete note:', error);
+            Alert.alert('Error', 'Failed to delete note. Please try again.');
+          }
+        },
+      },
+    ]);
+  };
+
+  /**
+   * Handle close NotesModal
+   */
+  const handleNotesModalClose = () => {
+    setNotesModalVisible(false);
+  };
+
+  /**
+   * Handle close NoteViewModal
+   */
+  const handleViewModalClose = () => {
+    setViewModalVisible(false);
+    setSelectedNote(null);
+  };
+
+  /**
+   * Handle close NoteEditModal
+   */
+  const handleEditModalClose = () => {
+    setEditModalVisible(false);
+    setSelectedNote(null);
+  };
+
+  /**
+   * Handle successful note save from NoteEditModal
+   */
+  const handleNoteSave = () => {
+    // Close edit modal and return to notes modal
+    setEditModalVisible(false);
+    setSelectedNote(null);
+  };
+
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Chapter Title Row with Bookmark */}
+      {/* Chapter Title Row with Bookmark and Notes buttons */}
       <View style={styles.titleRow} collapsable={false}>
         <Text style={styles.chapterTitle} accessibilityRole="header">
           {chapter.title}
         </Text>
-        <BookmarkToggle
-          bookId={chapter.bookId}
-          chapterNumber={chapter.chapterNumber}
-          size={headerSpecs.iconSize}
-          color={colors.gray900}
-        />
+        <View style={styles.iconButtons}>
+          <BookmarkToggle
+            bookId={chapter.bookId}
+            chapterNumber={chapter.chapterNumber}
+            size={headerSpecs.iconSize}
+            color={colors.gray900}
+          />
+          <NotesButton
+            bookId={chapter.bookId}
+            chapterNumber={chapter.chapterNumber}
+            onPress={handleNotesPress}
+            size={headerSpecs.iconSize}
+            color={colors.gray900}
+          />
+        </View>
       </View>
 
       {/* Render Bible verses (only in Bible view) */}
@@ -113,6 +243,43 @@ export function ChapterReader({
           <Markdown style={markdownStyles}>{explanation.content}</Markdown>
         </View>
       )}
+
+      {/* Notes Modal - Chapter notes view */}
+      <NotesModal
+        visible={notesModalVisible}
+        bookId={chapter.bookId}
+        chapterNumber={chapter.chapterNumber}
+        bookName={chapter.title.split(' ')[0]} // Extract book name from title
+        onClose={handleNotesModalClose}
+        onNotePress={handleNotePress}
+        onEditNote={handleEditNoteFromList}
+        onDeleteNote={handleDeleteNote}
+      />
+
+      {/* Note View Modal - Read-only view */}
+      {selectedNote && (
+        <NoteViewModal
+          visible={viewModalVisible}
+          note={selectedNote}
+          bookName={chapter.title.split(' ')[0]}
+          chapterNumber={chapter.chapterNumber}
+          onClose={handleViewModalClose}
+          onEdit={handleEditNoteFromView}
+          onDelete={handleDeleteNote}
+        />
+      )}
+
+      {/* Note Edit Modal - Edit mode */}
+      {selectedNote && (
+        <NoteEditModal
+          visible={editModalVisible}
+          note={selectedNote}
+          bookName={chapter.title.split(' ')[0]}
+          chapterNumber={chapter.chapterNumber}
+          onClose={handleEditModalClose}
+          onSave={handleNoteSave}
+        />
+      )}
     </View>
   );
 }
@@ -121,7 +288,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  // Title row with bookmark button on the right
+  // Title row with bookmark and notes buttons on the right
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -134,7 +301,13 @@ const styles = StyleSheet.create({
     fontWeight: fontWeights.bold,
     lineHeight: fontSizes.displayMedium * lineHeights.display,
     color: colors.gray900,
-    marginRight: spacing.md, // Space between title and bookmark
+    marginRight: spacing.md, // Space between title and icons
+  },
+  // Container for icon buttons
+  iconButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   section: {
     marginBottom: spacing.xxxl,
