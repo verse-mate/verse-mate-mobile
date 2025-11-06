@@ -31,15 +31,9 @@ import {
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
-import { useAuth } from '@/contexts/AuthContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
 import { BOTTOM_THRESHOLD, useFABVisibility } from '@/hooks/bible/use-fab-visibility';
-import {
-  useTopicById,
-  useTopicExplanation,
-  useTopicReferences,
-  useTopicsSearch,
-} from '@/src/api/generated';
+import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api/generated';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
 
@@ -63,9 +57,14 @@ export default function TopicDetailScreen() {
   const topicId = params.topicId;
   const category = (params.category as TopicCategory) || 'EVENT';
 
-  // Get user's preferred language from auth context
-  const { user } = useAuth();
-  const preferredLanguage = (user?.preferred_language as string) || 'en-US';
+  // Note: User's preferred language is handled by backend based on user session
+  // The backend checks currentUserId and uses preferred_language from user table
+
+  // TODO: Implement Bible version selection in Settings page
+  // Web app stores this in URL params, mobile should use AsyncStorage
+  // For now, hardcoded to NASB1995 (backend default) to enable verse placeholder replacement
+  // See web implementation: packages/frontend-base/src/hooks/useBibleVersion.ts
+  const bibleVersion = 'NASB1995';
 
   // Get active tab from persistence (reuse Bible tab hook)
   const { activeTab, setActiveTab } = useActiveTab();
@@ -99,14 +98,18 @@ export default function TopicDetailScreen() {
   const touchStartTime = useRef(0);
   const touchStartY = useRef(0);
 
-  // Fetch topic data
-  const { data: topicData, isLoading: isTopicLoading, error: topicError } = useTopicById(topicId);
+  // Fetch topic data with verse replacement
+  // The /topics/:id endpoint returns all explanation types with verses replaced
+  const {
+    data: topicData,
+    isLoading: isTopicLoading,
+    error: topicError,
+  } = useTopicById(topicId, bibleVersion);
   const { data: references } = useTopicReferences(topicId);
-  const { data: explanation, isLoading: isExplanationLoading } = useTopicExplanation(
-    topicId,
-    activeTab,
-    preferredLanguage
-  );
+
+  // Extract the specific explanation type from the full topic response
+  const explanation = topicData?.explanation?.[activeTab];
+  const isExplanationLoading = isTopicLoading;
 
   // Fetch all topics in the category for navigation
   const { data: categoryTopics = [] } = useTopicsSearch(category);
@@ -383,12 +386,9 @@ export default function TopicDetailScreen() {
             <View style={styles.loadingContainer}>
               <Text style={styles.loadingText}>Loading {activeTab} explanation...</Text>
             </View>
-          ) : explanation &&
-            typeof explanation === 'object' &&
-            'explanation' in explanation &&
-            typeof explanation.explanation === 'string' ? (
+          ) : explanation && typeof explanation === 'string' ? (
             <View style={styles.explanationContainer}>
-              <Markdown style={markdownStyles}>{explanation.explanation}</Markdown>
+              <Markdown style={markdownStyles}>{explanation}</Markdown>
             </View>
           ) : (
             <View style={styles.emptyContainer}>
