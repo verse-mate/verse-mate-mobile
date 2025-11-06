@@ -1,0 +1,130 @@
+/**
+ * Tests for NoteCard Component
+ *
+ * Focused tests for note card display and interaction.
+ * Tests cover critical behaviors: content truncation, edit/delete handlers, press handler.
+ *
+ * @see Task Group 4.5: Write 2-8 focused tests for NoteCard component
+ */
+
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import { NoteCard } from '@/components/bible/NoteCard';
+import type { Note } from '@/types/notes';
+
+describe('NoteCard', () => {
+  const mockNote: Note = {
+    note_id: 'note-123',
+    content: 'This is a test note with some content that should be displayed in the card.',
+    created_at: '2025-01-01T12:00:00Z',
+    updated_at: '2025-01-01T12:00:00Z',
+    chapter_number: 1,
+    book_id: 1,
+    book_name: 'Genesis',
+    verse_number: null,
+  };
+
+  const mockOnPress = jest.fn();
+  const mockOnEdit = jest.fn();
+  const mockOnDelete = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should render note content', () => {
+    render(
+      <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+
+    expect(screen.getByText(/This is a test note/)).toBeTruthy();
+  });
+
+  it('should truncate long content to 100 characters by default', () => {
+    const longNote: Note = {
+      ...mockNote,
+      content: 'A'.repeat(150), // 150 characters
+    };
+
+    const { getByText } = render(
+      <NoteCard note={longNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+
+    // Should show first 100 characters plus ellipsis
+    const displayedText = getByText(/A{100}\.\.\./, { exact: false });
+    expect(displayedText).toBeTruthy();
+  });
+
+  it('should allow custom truncate length', () => {
+    const longNote: Note = {
+      ...mockNote,
+      content: 'B'.repeat(80),
+    };
+
+    const { getByText } = render(
+      <NoteCard
+        note={longNote}
+        onPress={mockOnPress}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+        truncateLength={50}
+      />
+    );
+
+    // Should truncate at 50 characters
+    const displayedText = getByText(/B{50}\.\.\./, { exact: false });
+    expect(displayedText).toBeTruthy();
+  });
+
+  it('should call onPress when card is pressed', () => {
+    render(
+      <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+
+    const card = screen.getByTestId('note-card-note-123');
+    fireEvent.press(card);
+
+    expect(mockOnPress).toHaveBeenCalledWith(mockNote);
+  });
+
+  it('should call onEdit when edit button is pressed', () => {
+    render(
+      <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+
+    const editButton = screen.getByTestId('note-edit-note-123');
+    fireEvent.press(editButton);
+
+    expect(mockOnEdit).toHaveBeenCalledWith(mockNote);
+  });
+
+  it('should call onDelete when delete button is pressed', () => {
+    render(
+      <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+
+    const deleteButton = screen.getByTestId('note-delete-note-123');
+    fireEvent.press(deleteButton);
+
+    expect(mockOnDelete).toHaveBeenCalledWith(mockNote);
+  });
+
+  it('should not truncate short content', () => {
+    const shortNote: Note = {
+      ...mockNote,
+      content: 'Short note',
+    };
+
+    const { getByText, queryByText } = render(
+      <NoteCard
+        note={shortNote}
+        onPress={mockOnPress}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
+      />
+    );
+
+    // Should show full content without ellipsis
+    expect(getByText('Short note')).toBeTruthy();
+    expect(queryByText(/\.\.\./)).toBeNull();
+  });
+});
