@@ -34,6 +34,7 @@ import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { colors, headerSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useActiveTab, useActiveView, useBookProgress, useLastReadPosition } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
+import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import {
   useBibleChapter,
   useBibleTestaments,
@@ -86,6 +87,15 @@ export default function ChapterScreen() {
 
   // Hamburger menu state (Task 8.5)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // FAB visibility state - manages auto-hide/show based on user interaction
+  const {
+    visible: fabVisible,
+    handleScroll,
+    handleTap,
+  } = useFABVisibility({
+    initialVisible: true,
+  });
 
   // Ref to ChapterPagerView for programmatic navigation
   const pagerRef = useRef<ChapterPagerViewRef>(null);
@@ -351,6 +361,8 @@ export default function ChapterScreen() {
         activeTab={activeTab}
         activeView={activeView}
         onPageChange={handlePageChange}
+        onScroll={handleScroll}
+        onTap={handleTap}
       />
 
       {/* Floating Action Buttons (Task 6.2, 6.4, 4.5) */}
@@ -359,6 +371,7 @@ export default function ChapterScreen() {
         onNext={handleNext}
         showPrevious={canGoPrevious}
         showNext={canGoNext}
+        visible={fabVisible}
       />
 
       {/* Progress Bar (Task 8.4) */}
