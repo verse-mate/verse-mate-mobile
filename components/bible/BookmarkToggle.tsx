@@ -7,7 +7,7 @@
  * - Optimistic UI updates with automatic rollback on failure
  * - Haptic feedback on press
  * - Accessibility support with proper labels and states
- * - Authentication guard (hidden when not authenticated)
+ * - Navigation to bookmarks screen for unauthenticated users (screen shows login prompt)
  * - Loading state handling
  *
  * Visual Design:
@@ -29,6 +29,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 import { colors, headerSpecs } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,11 +59,11 @@ export interface BookmarkToggleProps {
  *
  * Behavior:
  * - Triggers haptic feedback on every press
- * - Calls addBookmark() if currently unbookmarked
- * - Calls removeBookmark() if currently bookmarked
+ * - Navigates to bookmarks screen for unauthenticated users (screen shows login prompt)
+ * - Calls addBookmark() if currently unbookmarked (authenticated users)
+ * - Calls removeBookmark() if currently bookmarked (authenticated users)
  * - Optimistic UI update (icon changes immediately)
  * - Automatic rollback if API call fails
- * - Hidden when user is not authenticated
  *
  * Accessibility:
  * - accessibilityRole="button"
@@ -96,13 +97,20 @@ export function BookmarkToggle({
    *
    * Flow:
    * 1. Trigger haptic feedback immediately
-   * 2. Call addBookmark() or removeBookmark() based on current state
-   * 3. UI updates optimistically (icon changes immediately)
+   * 2. If not authenticated, navigate to bookmarks screen (shows login prompt)
+   * 3. If authenticated, toggle bookmark with optimistic update
    * 4. If API fails, hook automatically rolls back state
    */
   const handlePress = async () => {
-    // Trigger haptic feedback before state change (instant feedback)
+    // Trigger haptic feedback before any action (instant feedback)
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // If not authenticated, navigate to bookmarks screen
+    // The bookmarks screen will show the login prompt
+    if (!isAuthenticated) {
+      router.push('/bookmarks');
+      return;
+    }
 
     // Toggle bookmark (optimistic update handled by hook)
     if (bookmarked) {
@@ -111,11 +119,6 @@ export function BookmarkToggle({
       await addBookmark(bookId, chapterNumber);
     }
   };
-
-  // Hide component if user is not authenticated
-  if (!isAuthenticated) {
-    return null;
-  }
 
   return (
     <Pressable

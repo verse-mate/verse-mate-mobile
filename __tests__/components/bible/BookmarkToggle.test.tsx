@@ -16,6 +16,7 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
@@ -24,6 +25,12 @@ import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 jest.mock('@/contexts/AuthContext');
 jest.mock('@/hooks/bible/use-bookmarks');
 jest.mock('expo-haptics');
+jest.mock('expo-router', () => ({
+  router: {
+    push: jest.fn(),
+    back: jest.fn(),
+  },
+}));
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUseBookmarks = useBookmarks as jest.MockedFunction<typeof useBookmarks>;
@@ -149,9 +156,9 @@ describe('BookmarkToggle', () => {
   });
 
   /**
-   * Test 6: Hides component when user is not authenticated
+   * Test 6: Shows component and navigates to bookmarks screen when user is not authenticated
    */
-  it('hides component when user is not authenticated', () => {
+  it('shows component and navigates to bookmarks screen when user is not authenticated', async () => {
     mockUseAuth.mockReturnValue({
       user: null,
       isAuthenticated: false,
@@ -162,10 +169,22 @@ describe('BookmarkToggle', () => {
       restoreSession: jest.fn(),
     });
 
-    const { queryByLabelText } = render(<BookmarkToggle bookId={1} chapterNumber={1} />);
+    render(<BookmarkToggle bookId={1} chapterNumber={1} />);
 
-    expect(queryByLabelText('Bookmark this chapter')).toBeNull();
-    expect(queryByLabelText('Remove bookmark')).toBeNull();
+    // Component should be visible
+    const button = screen.getByLabelText('Bookmark this chapter');
+    expect(button).toBeTruthy();
+
+    // Press the button
+    fireEvent.press(button);
+
+    // Should navigate to bookmarks screen (which has the login prompt)
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith('/bookmarks');
+    });
+
+    // Should NOT attempt to add bookmark
+    expect(mockAddBookmark).not.toHaveBeenCalled();
   });
 
   /**

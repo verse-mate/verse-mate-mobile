@@ -191,7 +191,17 @@ export default function Bookmarks() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <Pressable
+          onPress={handleBackPress}
+          style={styles.backButton}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          testID="bookmarks-back-button"
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+        </Pressable>
         <Text style={styles.headerTitle}>Bookmarks</Text>
+        <View style={styles.headerSpacer} />
       </View>
       <ScrollView
         style={styles.scrollView}

@@ -5,8 +5,7 @@
  * Supports three reading modes via activeTab prop: summary, byline, detailed.
  *
  * Features:
- * - Chapter title (displayMedium: 32px, bold)
- * - Icon row with bookmark, copy, and share actions (Task Group 4)
+ * - Chapter title (displayMedium: 32px, bold) with bookmark button aligned on the right
  * - Section subtitles (heading2: 20px, semibold)
  * - Verse range captions (caption: 12px, gray500)
  * - Bible text with superscript verse numbers
@@ -16,12 +15,7 @@
  * @see Task Group 4: Add Bookmark Toggle to Chapter Reading Screen
  */
 
-import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
-import * as Haptics from 'expo-haptics';
-import * as Sharing from 'expo-sharing';
-import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import {
@@ -57,122 +51,19 @@ export function ChapterReader({
   explanation,
   explanationsOnly = false,
 }: ChapterReaderProps) {
-  const [isCopying, setIsCopying] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
-
-  /**
-   * Handle copy chapter text to clipboard
-   *
-   * Formats chapter text as: "Genesis 1:1 - verse text\nGenesis 1:2 - verse text"
-   */
-  const handleCopy = async () => {
-    try {
-      setIsCopying(true);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      // Format chapter text with verse numbers
-      const chapterText = chapter.sections
-        .flatMap((section) =>
-          section.verses.map(
-            (verse) =>
-              `${chapter.bookName} ${chapter.chapterNumber}:${verse.verseNumber} ${verse.text}`
-          )
-        )
-        .join('\n\n');
-
-      await Clipboard.setStringAsync(chapterText);
-      Alert.alert('Copied', 'Chapter text copied to clipboard');
-    } catch (_error) {
-      Alert.alert('Error', 'Failed to copy chapter text');
-    } finally {
-      setIsCopying(false);
-    }
-  };
-
-  /**
-   * Handle share chapter text
-   *
-   * Uses native sharing API to share chapter content
-   */
-  const handleShare = async () => {
-    try {
-      setIsSharing(true);
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      // Format chapter text with verse numbers
-      const chapterText = chapter.sections
-        .flatMap((section) =>
-          section.verses.map(
-            (verse) =>
-              `${chapter.bookName} ${chapter.chapterNumber}:${verse.verseNumber} ${verse.text}`
-          )
-        )
-        .join('\n\n');
-
-      const title = `${chapter.title}`;
-      const message = `${title}\n\n${chapterText}`;
-
-      // Check if sharing is available
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (!isAvailable) {
-        Alert.alert('Error', 'Sharing is not available on this device');
-        return;
-      }
-
-      // Create a temporary text file to share
-      // Note: expo-sharing requires a file URI, so we'll copy to clipboard as fallback
-      await Clipboard.setStringAsync(message);
-      Alert.alert(
-        'Ready to Share',
-        'Chapter text copied to clipboard. You can now paste it into your preferred sharing app.'
-      );
-    } catch (_error) {
-      Alert.alert('Error', 'Failed to share chapter text');
-    } finally {
-      setIsSharing(false);
-    }
-  };
-
   return (
     <View style={styles.container}>
-      {/* Chapter Title */}
-      <Text style={styles.chapterTitle} accessibilityRole="header">
-        {chapter.title}
-      </Text>
-
-      {/* Icon Row: Bookmark, Copy, Share (Task 4.3, 4.4) */}
-      <View style={styles.iconRow} testID="chapter-icon-row">
-        {/* Bookmark Toggle (leftmost) */}
+      {/* Chapter Title Row with Bookmark */}
+      <View style={styles.titleRow}>
+        <Text style={styles.chapterTitle} accessibilityRole="header">
+          {chapter.title}
+        </Text>
         <BookmarkToggle
           bookId={chapter.bookId}
           chapterNumber={chapter.chapterNumber}
           size={headerSpecs.iconSize}
           color={colors.gray900}
         />
-
-        {/* Copy Icon (middle) */}
-        <Pressable
-          onPress={handleCopy}
-          disabled={isCopying}
-          style={styles.iconButton}
-          accessibilityLabel="Copy chapter text"
-          accessibilityRole="button"
-          testID="copy-chapter-icon"
-        >
-          <Ionicons name="document-outline" size={headerSpecs.iconSize} color={colors.gray900} />
-        </Pressable>
-
-        {/* Share Icon (rightmost) */}
-        <Pressable
-          onPress={handleShare}
-          disabled={isSharing}
-          style={styles.iconButton}
-          accessibilityLabel="Share chapter"
-          accessibilityRole="button"
-          testID="share-chapter-icon"
-        >
-          <Ionicons name="share-outline" size={headerSpecs.iconSize} color={colors.gray900} />
-        </Pressable>
       </View>
 
       {/* Render Bible verses (only in Bible view) */}
@@ -229,27 +120,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // Title row with bookmark button on the right
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xxl,
+  },
   chapterTitle: {
+    flex: 1,
     fontSize: fontSizes.displayMedium,
     fontWeight: fontWeights.bold,
     lineHeight: fontSizes.displayMedium * lineHeights.display,
     color: colors.gray900,
-    marginBottom: spacing.md,
-  },
-  // Icon row for bookmark, copy, share (Task 4.4)
-  iconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md, // 12px spacing between icons
-    marginBottom: spacing.xxl,
-  },
-  // Icon button with 44px minimum touch target (Task 4.4)
-  iconButton: {
-    padding: spacing.sm, // 8px padding = 24px icon + 16px padding = 40px (close to 44px minimum)
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 44,
-    minHeight: 44,
+    marginRight: spacing.md, // Space between title and bookmark
   },
   section: {
     marginBottom: spacing.xxxl,
