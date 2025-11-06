@@ -5,8 +5,11 @@
  * Tests rendering of Bible text, section subtitles, verse numbers, and markdown.
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react-native';
+import type { ReactNode } from 'react';
 import { ChapterReader } from '@/components/bible/ChapterReader';
+import { AuthProvider } from '@/contexts/AuthContext';
 import type { ChapterContent } from '@/types/bible';
 
 // Mock chapter data
@@ -62,11 +65,33 @@ const mockExplanation = {
 };
 
 describe('ChapterReader', () => {
+  let queryClient: QueryClient;
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+  });
+
+  const createWrapper = () => {
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>{children}</AuthProvider>
+      </QueryClientProvider>
+    );
+    return Wrapper;
+  };
+
   /**
    * Test 1: Renders chapter title
    */
   it('renders chapter title with correct styling', () => {
-    render(<ChapterReader chapter={mockChapter} activeTab="summary" />);
+    render(<ChapterReader chapter={mockChapter} activeTab="summary" />, {
+      wrapper: createWrapper(),
+    });
 
     const title = screen.getByText('Genesis 1');
     expect(title).toBeTruthy();
@@ -76,7 +101,9 @@ describe('ChapterReader', () => {
    * Test 2: Renders section subtitles
    */
   it('renders section subtitles when present', () => {
-    render(<ChapterReader chapter={mockChapter} activeTab="summary" />);
+    render(<ChapterReader chapter={mockChapter} activeTab="summary" />, {
+      wrapper: createWrapper(),
+    });
 
     expect(screen.getByText('The Creation')).toBeTruthy();
     expect(screen.getByText('Let There Be Light')).toBeTruthy();
@@ -86,7 +113,9 @@ describe('ChapterReader', () => {
    * Test 3: Renders verse range captions
    */
   it('renders verse range captions for each section', () => {
-    render(<ChapterReader chapter={mockChapter} activeTab="summary" />);
+    render(<ChapterReader chapter={mockChapter} activeTab="summary" />, {
+      wrapper: createWrapper(),
+    });
 
     expect(screen.getByText('1-2')).toBeTruthy();
     expect(screen.getByText('3-5')).toBeTruthy();
@@ -96,7 +125,9 @@ describe('ChapterReader', () => {
    * Test 4: Renders Bible text with verse numbers
    */
   it('renders verse text with superscript verse numbers', () => {
-    render(<ChapterReader chapter={mockChapter} activeTab="summary" />);
+    render(<ChapterReader chapter={mockChapter} activeTab="summary" />, {
+      wrapper: createWrapper(),
+    });
 
     // Verify verse text is rendered
     expect(screen.getByText(/In the beginning God created/)).toBeTruthy();
@@ -108,7 +139,10 @@ describe('ChapterReader', () => {
    */
   it('renders explanation content in markdown format', () => {
     render(
-      <ChapterReader chapter={mockChapter} activeTab="summary" explanation={mockExplanation} />
+      <ChapterReader chapter={mockChapter} activeTab="summary" explanation={mockExplanation} />,
+      {
+        wrapper: createWrapper(),
+      }
     );
 
     // Markdown should render the heading and content
@@ -120,7 +154,9 @@ describe('ChapterReader', () => {
    * Test 6: Renders multiple sections correctly
    */
   it('renders all sections in order', () => {
-    const { getAllByTestId } = render(<ChapterReader chapter={mockChapter} activeTab="summary" />);
+    const { getAllByTestId } = render(<ChapterReader chapter={mockChapter} activeTab="summary" />, {
+      wrapper: createWrapper(),
+    });
 
     const sections = getAllByTestId(/chapter-section-/);
     expect(sections).toHaveLength(2);

@@ -11,6 +11,8 @@ export { useActiveTab } from './use-active-tab';
 export { useActiveView } from './use-active-view';
 // Book progress calculation hook
 export { useBookProgress } from './use-book-progress';
+// Bookmarks management hook
+export { useBookmarks } from './use-bookmarks';
 // Last read position hook (wraps API hook)
 export { useLastRead } from './use-last-read';
 // Last read position persistence hook (for app launch continuity)
