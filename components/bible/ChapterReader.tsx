@@ -37,6 +37,9 @@ import { useNotes } from '@/hooks/bible/use-notes';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 
+// TODO: This will be replaced by a user setting
+const PARAGRAPH_VIEW_ENABLED = true;
+
 interface ChapterReaderProps {
   /** Chapter content with verses and sections */
   chapter: ChapterContent;
@@ -221,19 +224,30 @@ export function ChapterReader({
             </Text>
 
             {/* Verses */}
-            <View style={styles.versesContainer}>
-              {section.verses.map((verse) => (
-                <View key={verse.verseNumber} style={styles.verseRow}>
-                  <Text
-                    style={styles.verseNumber}
-                    accessibilityLabel={`Verse ${verse.verseNumber}`}
-                  >
-                    {verse.verseNumber}
+            {PARAGRAPH_VIEW_ENABLED ? (
+              <Text style={styles.verseTextParagraph}>
+                {section.verses.map((verse) => (
+                  <Text key={verse.verseNumber}>
+                    <Text style={styles.verseNumber}>{verse.verseNumber}</Text>
+                    <Text>{` ${verse.text}`}</Text>
                   </Text>
-                  <Text style={styles.verseText}>{verse.text}</Text>
-                </View>
-              ))}
-            </View>
+                ))}
+              </Text>
+            ) : (
+              <View style={styles.versesContainer}>
+                {section.verses.map((verse) => (
+                  <View key={verse.verseNumber} style={styles.verseRow}>
+                    <Text
+                      style={styles.verseNumber}
+                      accessibilityLabel={`Verse ${verse.verseNumber}`}
+                    >
+                      {verse.verseNumber}
+                    </Text>
+                    <Text style={styles.verseText}>{verse.text}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         ))}
 
@@ -348,6 +362,13 @@ const styles = StyleSheet.create({
     fontWeight: fontWeights.regular,
     lineHeight: fontSizes.bodyLarge * lineHeights.body,
     color: colors.gray900,
+  },
+  verseTextParagraph: {
+    fontSize: fontSizes.bodyLarge,
+    fontWeight: fontWeights.regular,
+    lineHeight: fontSizes.bodyLarge * lineHeights.body,
+    color: colors.gray900,
+    marginBottom: spacing.md,
   },
   explanationContainer: {
     marginTop: spacing.xxxl,
