@@ -12,22 +12,27 @@
  * @see Task Group 4.1
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import type { ReactNode } from 'react';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { useAuth } from '@/contexts/AuthContext';
 // Import mocked modules
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
+import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { ChapterContent } from '@/types/bible';
 
 // Mock dependencies
 jest.mock('@/hooks/bible/use-bookmarks');
+jest.mock('@/hooks/bible/use-highlights');
 jest.mock('@/hooks/bible/use-notes');
 jest.mock('@/contexts/AuthContext');
 jest.mock('expo-haptics');
 
 // Mock functions
 const mockUseBookmarks = useBookmarks as jest.MockedFunction<typeof useBookmarks>;
+const mockUseHighlights = useHighlights as jest.MockedFunction<typeof useHighlights>;
 const mockUseNotes = useNotes as jest.MockedFunction<typeof useNotes>;
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
@@ -60,8 +65,18 @@ const mockChapter: ChapterContent = {
 };
 
 describe('ChapterReader - Bookmark Integration', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Create a fresh QueryClient for each test
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
 
     // Default mock: authenticated user
     mockUseAuth.mockReturnValue({
@@ -93,6 +108,21 @@ describe('ChapterReader - Bookmark Integration', () => {
       isRemovingBookmark: false,
     });
 
+    // Default mock: no highlights
+    mockUseHighlights.mockReturnValue({
+      allHighlights: [],
+      chapterHighlights: [],
+      isHighlighted: jest.fn().mockReturnValue(false),
+      addHighlight: jest.fn().mockResolvedValue(undefined),
+      updateHighlightColor: jest.fn().mockResolvedValue(undefined),
+      deleteHighlight: jest.fn().mockResolvedValue(undefined),
+      refetchHighlights: jest.fn(),
+      isFetchingHighlights: false,
+      isAddingHighlight: false,
+      isUpdatingHighlight: false,
+      isDeletingHighlight: false,
+    });
+
     // Default mock: notes hook
     mockUseNotes.mockReturnValue({
       notes: [],
@@ -109,9 +139,16 @@ describe('ChapterReader - Bookmark Integration', () => {
     });
   });
 
+  // Helper to wrap components with QueryClientProvider
+  const renderWithProvider = (ui: ReactNode) => {
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  };
+
   // Test 1: Bookmark toggle renders in title row
   test('renders bookmark toggle in title row', () => {
-    render(<ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />);
+    renderWithProvider(
+      <ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />
+    );
 
     // Check that bookmark toggle exists
     const bookmarkToggle = screen.getByTestId('bookmark-toggle-1-1');
@@ -124,7 +161,7 @@ describe('ChapterReader - Bookmark Integration', () => {
 
   // Test 2: Bookmark toggle is pressable and responds to press
   test('bookmark toggle is pressable and not disabled', () => {
-    const { getByTestId } = render(
+    const { getByTestId } = renderWithProvider(
       <ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />
     );
 
@@ -150,7 +187,7 @@ describe('ChapterReader - Bookmark Integration', () => {
       restoreSession: jest.fn(),
     });
 
-    const { queryByTestId } = render(
+    const { queryByTestId } = renderWithProvider(
       <ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />
     );
 

@@ -44,7 +44,33 @@ import type { TopicCategory, TopicListItem } from '@/types/topics';
 type ViewMode = 'bible' | 'explanations';
 
 /**
- * Preprocess Bible references text to format verse numbers as superscript-like
+ * Convert a number to Unicode superscript characters
+ * Maps each digit to its Unicode superscript equivalent
+ * Works for any combination of digits (e.g., 1 → ¹, 42 → ⁴², 150 → ¹⁵⁰)
+ */
+function toSuperscript(num: number): string {
+  const superscriptMap: Record<string, string> = {
+    '0': '⁰',
+    '1': '¹',
+    '2': '²',
+    '3': '³',
+    '4': '⁴',
+    '5': '⁵',
+    '6': '⁶',
+    '7': '⁷',
+    '8': '⁸',
+    '9': '⁹',
+  };
+
+  return num
+    .toString()
+    .split('')
+    .map((digit) => superscriptMap[digit] || digit)
+    .join('');
+}
+
+/**
+ * Preprocess Bible references text to format verse numbers as Unicode superscripts
  *
  * The backend returns verses with numbers on separate lines:
  * ```
@@ -54,8 +80,8 @@ type ViewMode = 'bible' | 'explanations';
  * The earth was formless...
  * ```
  *
- * This function converts them to: `**1** In the beginning God created...`
- * where the markdown bold style will be customized to look like superscript.
+ * This function converts them to: `¹In the beginning God created...`
+ * using Unicode superscript characters for natural elevation.
  */
 function formatVerseNumbers(text: string): string {
   if (!text) return text;
@@ -65,47 +91,16 @@ function formatVerseNumbers(text: string): string {
   // then text that doesn't start with a number
   const versePattern = /^(\d+)\n([^\n])/gm;
 
-  return text.replace(versePattern, '**$1** $2');
+  return text.replace(versePattern, (_match, verseNum, firstChar) => {
+    // Convert verse number to Unicode superscript and stick it to the text
+    return `**${toSuperscript(Number.parseInt(verseNum, 10))}**${firstChar}`;
+  });
 }
 
 /**
  * Custom markdown renderers for special formatting
  */
-const markdownRules: RenderRules = {
-  // Custom renderer for strong (bold) text to detect verse numbers
-  // and apply smaller, grayed styling (similar to Bible chapters)
-  strong: (node, children, _parent, styles) => {
-    // Check if the content is a number (verse number)
-    const content = node.content;
-    const isVerseNumber = content && /^\d+$/.test(content.trim());
-
-    if (isVerseNumber) {
-      // Verse number styling: smaller and gray
-      // Note: We can't perfectly replicate the superscript effect from ChapterReader
-      // because that uses separate Text components with marginTop, while markdown
-      // uses inline text. But we can make them smaller and gray to distinguish them.
-      return (
-        <Text
-          key={node.key}
-          style={{
-            fontSize: fontSizes.caption,
-            fontWeight: fontWeights.bold,
-            color: colors.gray500,
-          }}
-        >
-          {children}
-        </Text>
-      );
-    }
-
-    // Regular bold text (e.g., Hebrew terms in explanations)
-    return (
-      <Text key={node.key} style={styles.strong}>
-        {children}
-      </Text>
-    );
-  },
-};
+const markdownRules: RenderRules = {};
 
 /**
  * Topic Detail Screen Component
@@ -712,6 +707,14 @@ const styles = StyleSheet.create({
   },
 });
 
+const verseNumberSuperscriptStyle = {
+  fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
+  fontWeight: fontWeights.bold,
+  color: colors.gray500,
+  marginRight: spacing.xs / 2,
+  // Unicode superscript characters are naturally smaller and sit higher
+};
+
 /**
  * Markdown Styles
  *
@@ -720,7 +723,7 @@ const styles = StyleSheet.create({
 const markdownStyles = StyleSheet.create({
   body: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
   },
   heading1: {
@@ -749,13 +752,13 @@ const markdownStyles = StyleSheet.create({
   },
   paragraph: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.md,
   },
   list_item: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.xs,
   },
@@ -766,9 +769,8 @@ const markdownStyles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   strong: {
-    fontWeight: fontWeights.bold,
-    // Note: fontSize and color are handled by custom renderer for verse numbers
-    // Regular bold text uses default body text size and color
+    // Used for verse numbers
+    ...verseNumberSuperscriptStyle,
   },
   em: {
     fontStyle: 'italic',
@@ -781,4 +783,5 @@ const markdownStyles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginVertical: spacing.md,
   },
+  verseNumberSuperscript: verseNumberSuperscriptStyle,
 });
