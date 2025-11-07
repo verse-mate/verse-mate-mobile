@@ -723,7 +723,7 @@ const verseNumberSuperscriptStyle = {
 const markdownStyles = StyleSheet.create({
   body: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
   },
   heading1: {
@@ -752,13 +752,13 @@ const markdownStyles = StyleSheet.create({
   },
   paragraph: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.md,
   },
   list_item: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.xs,
   },

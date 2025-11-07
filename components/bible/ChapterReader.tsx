@@ -604,13 +604,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: fontSizes.bodyLarge,
     fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.bodyLarge * lineHeights.body,
+    lineHeight: fontSizes.bodyLarge * 1.8,
     color: colors.gray900,
   },
   verseTextParagraph: {
     fontSize: fontSizes.bodyLarge,
     fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.bodyLarge * lineHeights.body,
+    lineHeight: fontSizes.bodyLarge * 1.8,
     color: colors.gray900,
     marginBottom: spacing.md,
   },
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
 const markdownStyles = StyleSheet.create({
   body: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
   },
   heading1: {
@@ -662,7 +662,7 @@ const markdownStyles = StyleSheet.create({
   },
   paragraph: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.lg,
   },
@@ -676,7 +676,7 @@ const markdownStyles = StyleSheet.create({
   },
   list_item: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.sm,
   },
