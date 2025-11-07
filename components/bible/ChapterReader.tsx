@@ -11,16 +11,22 @@
  * - Bible text with superscript verse numbers
  * - Markdown rendering for explanation content
  * - Notes management via modals
+ * - Text highlighting with character-level precision
  *
  * @see Spec lines 778-821 (Markdown rendering)
  * @see Task Group 4: Add Bookmark Toggle to Chapter Reading Screen
  * @see Task Group 6: Screen Integration - NotesButton and Modals
+ * @see Task Group 5: Chapter View Highlight Integration
  */
 
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
+import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
+import type { TextSelection } from '@/components/bible/HighlightedText';
+import { HighlightedText } from '@/components/bible/HighlightedText';
+import { HighlightSelectionSheet } from '@/components/bible/HighlightSelectionSheet';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { NotesModal } from '@/components/bible/NotesModal';
@@ -33,12 +39,40 @@ import {
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
+import type { HighlightColor } from '@/constants/highlight-colors';
+import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
+
+/**
+ * Convert a number to Unicode superscript characters
+ * Maps each digit to its Unicode superscript equivalent
+ * Works for any combination of digits (e.g., 1 → ¹, 42 → ⁴², 150 → ¹⁵⁰)
+ */
+function toSuperscript(num: number): string {
+  const superscriptMap: Record<string, string> = {
+    '0': '⁰',
+    '1': '¹',
+    '2': '²',
+    '3': '³',
+    '4': '⁴',
+    '5': '⁵',
+    '6': '⁶',
+    '7': '⁷',
+    '8': '⁸',
+    '9': '⁹',
+  };
+
+  return num
+    .toString()
+    .split('')
+    .map((digit) => superscriptMap[digit] || digit)
+    .join('');
+}
 
 interface ChapterReaderProps {
   /** Chapter content with verses and sections */
@@ -52,10 +86,19 @@ interface ChapterReaderProps {
 }
 
 /**
+ * Selection context for creating highlights
+ * Stores the full selection details needed for the API
+ */
+interface SelectionContext {
+  verseNumber: number;
+  selection: TextSelection;
+}
+
+/**
  * ChapterReader Component
  *
  * Renders the chapter content in the selected reading mode.
- * - When explanationsOnly is false: Shows Bible text
+ * - When explanationsOnly is false: Shows Bible text with highlights
  * - When explanationsOnly is true: Shows only explanation content
  */
 export function ChapterReader({
@@ -65,11 +108,23 @@ export function ChapterReader({
 }: ChapterReaderProps) {
   const { deleteNote } = useNotes();
 
-  // Modal state management
+  // Fetch highlights for this chapter
+  const { chapterHighlights, addHighlight, updateHighlightColor, deleteHighlight } = useHighlights({
+    bookId: chapter.bookId,
+    chapterNumber: chapter.chapterNumber,
+  });
+
+  // Notes modal state
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+
+  // Highlight modal state
+  const [selectionSheetVisible, setSelectionSheetVisible] = useState(false);
+  const [editMenuVisible, setEditMenuVisible] = useState(false);
+  const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null);
+  const [selectedHighlightId, setSelectedHighlightId] = useState<number | null>(null);
 
   /**
    * Handle notes button press
@@ -175,6 +230,147 @@ export function ChapterReader({
     setSelectedNote(null);
   };
 
+  /**
+   * Handle long-press on verse for creating new highlight
+   * Opens HighlightSelectionSheet for entire verse
+   */
+  const handleVerseLongPress = (verseNumber: number) => {
+    // Find the verse to get its full text
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === verseNumber);
+
+    if (!verse) return;
+
+    // Store selection context for entire verse
+    setSelectionContext({
+      verseNumber,
+      selection: {
+        start: 0,
+        end: verse.text.length,
+        text: verse.text,
+      },
+    });
+    setSelectionSheetVisible(true);
+  };
+
+  /**
+   * Handle color selection from HighlightSelectionSheet
+   * Creates new highlight with optimistic update
+   */
+  const handleCreateHighlight = async (color: HighlightColor) => {
+    if (!selectionContext) return;
+
+    const { verseNumber, selection } = selectionContext;
+
+    try {
+      // Create highlight with character-level precision
+      await addHighlight({
+        bookId: chapter.bookId,
+        chapterNumber: chapter.chapterNumber,
+        startVerse: verseNumber,
+        endVerse: verseNumber, // Single verse for now
+        color,
+        startChar: selection.start,
+        endChar: selection.end,
+        selectedText: selection.text,
+      });
+
+      // Close sheet on success
+      setSelectionSheetVisible(false);
+      setSelectionContext(null);
+    } catch (error) {
+      console.error('Failed to create highlight:', error);
+
+      // Check if it's an overlap error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.toLowerCase().includes('overlap')) {
+        Alert.alert(
+          'Highlight Overlap',
+          'This text overlaps with an existing highlight. Please delete the existing highlight first or select different text.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to create highlight. Please try again.', [
+          { text: 'OK', style: 'default' },
+        ]);
+      }
+
+      // Keep sheet open so user can try again or cancel
+    }
+  };
+
+  /**
+   * Handle tap on highlighted text
+   * Opens HighlightEditMenu with current color
+   */
+  const handleHighlightPress = (highlightId: number) => {
+    setSelectedHighlightId(highlightId);
+    setEditMenuVisible(true);
+  };
+
+  /**
+   * Handle color change from HighlightEditMenu
+   * Updates highlight color with optimistic update
+   */
+  const handleUpdateHighlightColor = async (color: HighlightColor) => {
+    if (!selectedHighlightId) return;
+
+    try {
+      await updateHighlightColor(selectedHighlightId, color);
+
+      // Close menu on success
+      setEditMenuVisible(false);
+      setSelectedHighlightId(null);
+    } catch (error) {
+      console.error('Failed to update highlight color:', error);
+      Alert.alert('Error', 'Failed to update highlight color. Please try again.', [
+        { text: 'OK', style: 'default' },
+      ]);
+    }
+  };
+
+  /**
+   * Handle delete from HighlightEditMenu
+   * Deletes highlight with optimistic update
+   */
+  const handleDeleteHighlight = async () => {
+    if (!selectedHighlightId) return;
+
+    try {
+      await deleteHighlight(selectedHighlightId);
+
+      // Close menu on success
+      setEditMenuVisible(false);
+      setSelectedHighlightId(null);
+    } catch (error) {
+      console.error('Failed to delete highlight:', error);
+      Alert.alert('Error', 'Failed to delete highlight. Please try again.', [
+        { text: 'OK', style: 'default' },
+      ]);
+    }
+  };
+
+  /**
+   * Handle close HighlightSelectionSheet
+   */
+  const handleSelectionSheetClose = () => {
+    setSelectionSheetVisible(false);
+    setSelectionContext(null);
+  };
+
+  /**
+   * Handle close HighlightEditMenu
+   */
+  const handleEditMenuClose = () => {
+    setEditMenuVisible(false);
+    setSelectedHighlightId(null);
+  };
+
+  // Get current highlight color for edit menu
+  const currentHighlight = chapterHighlights.find((h) => h.highlight_id === selectedHighlightId);
+  const currentHighlightColor = currentHighlight?.color || 'yellow';
+
   return (
     <View style={styles.container} collapsable={false}>
       {/* Chapter Title Row with Bookmark and Notes buttons */}
@@ -223,13 +419,23 @@ export function ChapterReader({
               {section.startVerse}-{section.endVerse}
             </Text>
 
-            {/* Verses */}
+            {/* Verses with Highlighting */}
             {PARAGRAPH_VIEW_ENABLED ? (
               <Text style={styles.verseTextParagraph}>
-                {section.verses.map((verse) => (
+                {section.verses.map((verse, index) => (
                   <Text key={verse.verseNumber}>
-                    <Text style={styles.verseNumber}>{verse.verseNumber}</Text>
-                    <Text>{` ${verse.text}`}</Text>
+                    <Text style={styles.verseNumberSuperscript}>
+                      {index > 0 ? ' ' : ''}
+                      {toSuperscript(verse.verseNumber)}
+                    </Text>
+                    <HighlightedText
+                      text={verse.text} // No space - superscript sticks to verse. Add ` ${verse.text}` for spacing
+                      verseNumber={verse.verseNumber}
+                      highlights={chapterHighlights}
+                      onHighlightPress={handleHighlightPress}
+                      onVerseLongPress={handleVerseLongPress}
+                      style={styles.verseText}
+                    />
                   </Text>
                 ))}
               </Text>
@@ -243,7 +449,14 @@ export function ChapterReader({
                     >
                       {verse.verseNumber}
                     </Text>
-                    <Text style={styles.verseText}>{verse.text}</Text>
+                    <HighlightedText
+                      text={verse.text}
+                      verseNumber={verse.verseNumber}
+                      highlights={chapterHighlights}
+                      onHighlightPress={handleHighlightPress}
+                      onVerseLongPress={handleVerseLongPress}
+                      style={styles.verseText}
+                    />
                   </View>
                 ))}
               </View>
@@ -292,6 +505,30 @@ export function ChapterReader({
           chapterNumber={chapter.chapterNumber}
           onClose={handleEditModalClose}
           onSave={handleNoteSave}
+        />
+      )}
+
+      {/* Highlight Selection Sheet - Create new highlight */}
+      {selectionContext && (
+        <HighlightSelectionSheet
+          visible={selectionSheetVisible}
+          verseRange={{
+            start: selectionContext.verseNumber,
+            end: selectionContext.verseNumber,
+          }}
+          onColorSelect={handleCreateHighlight}
+          onClose={handleSelectionSheetClose}
+        />
+      )}
+
+      {/* Highlight Edit Menu - Edit/delete existing highlight */}
+      {selectedHighlightId && (
+        <HighlightEditMenu
+          visible={editMenuVisible}
+          currentColor={currentHighlightColor}
+          onColorChange={handleUpdateHighlightColor}
+          onDelete={handleDeleteHighlight}
+          onClose={handleEditMenuClose}
         />
       )}
     </View>
@@ -354,19 +591,26 @@ const styles = StyleSheet.create({
     lineHeight: fontSizes.bodyLarge * lineHeights.body,
     color: colors.gray500,
     marginRight: spacing.xs,
-    marginTop: -4, // Superscript positioning
+    marginTop: -4, // Superscript positioning (for verse row mode)
+  },
+  verseNumberSuperscript: {
+    fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
+    fontWeight: fontWeights.bold,
+    color: colors.gray500,
+    marginRight: spacing.xs / 2,
+    // Unicode superscript characters are naturally smaller and sit higher
   },
   verseText: {
     flex: 1,
     fontSize: fontSizes.bodyLarge,
     fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.bodyLarge * lineHeights.body,
+    lineHeight: fontSizes.bodyLarge * 1.8,
     color: colors.gray900,
   },
   verseTextParagraph: {
     fontSize: fontSizes.bodyLarge,
     fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.bodyLarge * lineHeights.body,
+    lineHeight: fontSizes.bodyLarge * 1.8,
     color: colors.gray900,
     marginBottom: spacing.md,
   },
@@ -389,7 +633,7 @@ const styles = StyleSheet.create({
 const markdownStyles = StyleSheet.create({
   body: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
   },
   heading1: {
@@ -418,7 +662,7 @@ const markdownStyles = StyleSheet.create({
   },
   paragraph: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.lg,
   },
@@ -432,7 +676,7 @@ const markdownStyles = StyleSheet.create({
   },
   list_item: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.sm,
   },

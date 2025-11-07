@@ -2,7 +2,7 @@
  * HamburgerMenu Component
  *
  * Slide-in menu drawer from right side with menu items for app features.
- * Bookmarks and Notes navigation are fully wired and functional.
+ * Bookmarks, Notes, and Highlights navigation are fully wired and functional.
  *
  * Features:
  * - Slides in from right (300ms animation)
@@ -12,11 +12,12 @@
  * - Tap backdrop or X to close
  * - Bookmarks item navigates to /bookmarks screen
  * - Notes item navigates to /notes screen
+ * - Highlights item navigates to /highlights screen
  * - Haptic feedback on menu item press
  * - Temporary: Login/Signup buttons for auth testing
  *
  * @see Spec lines 52-55, 476-500 (Hamburger menu)
- * @see Task Group 6: Menu Integration and Final Testing
+ * @see Task Group 7: Hamburger Menu & Route Configuration
  *
  * @example
  * <HamburgerMenu visible={isOpen} onClose={() => setIsOpen(false)} />
@@ -42,7 +43,7 @@ interface MenuItem {
   id: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  action?: 'auth' | 'logout' | 'bookmarks' | 'notes';
+  action?: 'auth' | 'logout' | 'bookmarks' | 'notes' | 'highlights';
 }
 
 const authMenuItems: MenuItem[] = [
@@ -54,7 +55,7 @@ const regularMenuItems: MenuItem[] = [
   { id: 'bookmarks', label: 'Bookmarks', icon: 'bookmark-outline', action: 'bookmarks' },
   { id: 'favorites', label: 'Favorites', icon: 'heart-outline' },
   { id: 'notes', label: 'Notes', icon: 'document-text-outline', action: 'notes' },
-  { id: 'highlights', label: 'Highlights', icon: 'color-wand-outline' },
+  { id: 'highlights', label: 'Highlights', icon: 'color-wand-outline', action: 'highlights' },
   { id: 'settings', label: 'Settings', icon: 'settings-outline' },
 ];
 
@@ -71,7 +72,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
 
   /**
    * Handle menu item tap
-   * Routes to auth screens, bookmarks screen, notes screen, or shows "Coming soon" alert
+   * Routes to auth screens, bookmarks screen, notes screen, highlights screen, or shows "Coming soon" alert
    */
   const handleItemPress = async (item: MenuItem) => {
     // Trigger haptic feedback first
@@ -96,6 +97,10 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       // Navigate to notes screen
       onClose();
       router.push('/notes');
+    } else if (item.action === 'highlights') {
+      // Navigate to highlights screen
+      onClose();
+      router.push('/highlights');
     } else {
       // Other features show "Coming soon" alert
       Alert.alert('Coming Soon', `${item.label} feature is coming soon!`);

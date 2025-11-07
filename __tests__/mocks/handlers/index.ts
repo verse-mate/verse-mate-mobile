@@ -12,17 +12,19 @@ import { authHandlers } from './auth';
 import { bibleHandlers } from './bible.handlers';
 import { bookmarkHandlers } from './bookmarks.handlers';
 import { explanationHandlers } from './explanations';
+import { highlightHandlers } from './highlights.handlers';
 import { notesHandlers } from './notes.handlers';
 import { verseHandlers } from './verses';
 
 // Combine all handlers
-// IMPORTANT: Bookmark and notes handlers must come BEFORE bible handlers to prevent
-// /bible/book/:bookId/:chapterNumber from matching /bible/book/bookmarks/:user_id or /bible/book/notes/:user_id
+// IMPORTANT: Bookmark, highlights, and notes handlers must come BEFORE bible handlers to prevent
+// /bible/book/:bookId/:chapterNumber from matching /bible/book/bookmarks/:user_id, /bible/highlights/:user_id, or /bible/book/notes/:user_id
 export const handlers = [
   ...authHandlers,
   ...verseHandlers,
   ...explanationHandlers,
   ...bookmarkHandlers, // Must come before bibleHandlers
+  ...highlightHandlers, // Must come before bibleHandlers
   ...notesHandlers, // Must come before bibleHandlers
   ...bibleHandlers,
 ];
@@ -34,5 +36,6 @@ export {
   explanationHandlers,
   bibleHandlers,
   bookmarkHandlers,
+  highlightHandlers,
   notesHandlers,
 };

@@ -1,0 +1,196 @@
+/**
+ * HighlightEditMenu Component
+ *
+ * Dark overlay menu for editing existing highlights.
+ * Appears when user taps on highlighted text.
+ *
+ * Features:
+ * - Dark charcoal background with white text
+ * - "CHANGE COLOR" section with 6-color picker
+ * - Current highlight color pre-selected
+ * - Red "Delete Highlight" option with trash icon
+ * - Floating overlay appearance (not full-screen)
+ * - Haptic feedback on color change and delete
+ * - Closes on backdrop tap or after action completes
+ *
+ * @see Spec: .agent-os/specs/2025-11-06-highlight-feature/spec.md (lines 65-75)
+ * @see Visual: .agent-os/specs/2025-11-06-highlight-feature/planning/visuals/highlight-clicked.png
+ *
+ * @example
+ * ```tsx
+ * <HighlightEditMenu
+ *   visible={isVisible}
+ *   currentColor="green"
+ *   onColorChange={(color) => handleUpdateColor(color)}
+ *   onDelete={handleDeleteHighlight}
+ *   onClose={handleClose}
+ * />
+ * ```
+ */
+
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { HighlightColorPicker } from '@/components/bible/HighlightColorPicker';
+import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import type { HighlightColor } from '@/constants/highlight-colors';
+
+/**
+ * Props for HighlightEditMenu component
+ */
+export interface HighlightEditMenuProps {
+  /** Whether modal is visible */
+  visible: boolean;
+  /** Current highlight color */
+  currentColor: HighlightColor;
+  /** Callback when color is changed */
+  onColorChange: (color: HighlightColor) => void;
+  /** Callback when delete is requested */
+  onDelete: () => void;
+  /** Callback when modal is closed */
+  onClose: () => void;
+}
+
+/**
+ * HighlightEditMenu Component
+ *
+ * Dark overlay menu for editing existing highlights with color picker and delete option.
+ */
+export function HighlightEditMenu({
+  visible,
+  currentColor,
+  onColorChange,
+  onDelete,
+  onClose,
+}: HighlightEditMenuProps) {
+  /**
+   * Handle color change with haptic feedback
+   */
+  const handleColorChange = async (color: HighlightColor) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onColorChange(color);
+  };
+
+  /**
+   * Handle delete with haptic feedback
+   */
+  const handleDelete = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onDelete();
+  };
+
+  /**
+   * Handle backdrop press with haptic feedback
+   */
+  const handleBackdropPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalContainer}
+      >
+        <Pressable style={styles.backdrop} onPress={handleBackdropPress} testID="backdrop" />
+
+        <SafeAreaView style={styles.centerContainer}>
+          <View style={styles.menuContent}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>CHANGE COLOR</Text>
+            </View>
+
+            {/* Color Picker */}
+            <View style={styles.colorPickerContainer}>
+              <HighlightColorPicker
+                selectedColor={currentColor}
+                onColorSelect={handleColorChange}
+                variant="dark"
+              />
+            </View>
+
+            {/* Delete Button */}
+            <Pressable
+              style={styles.deleteButton}
+              onPress={handleDelete}
+              accessibilityRole="button"
+              accessibilityLabel="Delete highlight"
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.error} />
+              <Text style={styles.deleteButtonText}>Delete Highlight</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.backdrop,
+  },
+  centerContainer: {
+    width: '100%',
+    paddingHorizontal: spacing.xl,
+    alignItems: 'center',
+  },
+  menuContent: {
+    backgroundColor: '#2a2a2a', // Charcoal background
+    borderRadius: 16,
+    padding: spacing.lg,
+    width: '100%',
+    maxWidth: 340,
+    // Shadow for floating effect
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  header: {
+    marginBottom: spacing.lg,
+  },
+  headerTitle: {
+    fontSize: fontSizes.caption,
+    fontWeight: fontWeights.semibold,
+    color: colors.white,
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  colorPickerContainer: {
+    marginBottom: spacing.lg,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    marginTop: spacing.sm,
+  },
+  deleteButtonText: {
+    fontSize: fontSizes.body,
+    fontWeight: fontWeights.medium,
+    color: colors.error,
+  },
+});
