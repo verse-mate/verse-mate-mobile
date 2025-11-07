@@ -48,6 +48,32 @@ import type { Note } from '@/types/notes';
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
 
+/**
+ * Convert a number to Unicode superscript characters
+ * Maps each digit to its Unicode superscript equivalent
+ * Works for any combination of digits (e.g., 1 → ¹, 42 → ⁴², 150 → ¹⁵⁰)
+ */
+function toSuperscript(num: number): string {
+  const superscriptMap: Record<string, string> = {
+    '0': '⁰',
+    '1': '¹',
+    '2': '²',
+    '3': '³',
+    '4': '⁴',
+    '5': '⁵',
+    '6': '⁶',
+    '7': '⁷',
+    '8': '⁸',
+    '9': '⁹',
+  };
+
+  return num
+    .toString()
+    .split('')
+    .map((digit) => superscriptMap[digit] || digit)
+    .join('');
+}
+
 interface ChapterReaderProps {
   /** Chapter content with verses and sections */
   chapter: ChapterContent;
@@ -396,11 +422,14 @@ export function ChapterReader({
             {/* Verses with Highlighting */}
             {PARAGRAPH_VIEW_ENABLED ? (
               <Text style={styles.verseTextParagraph}>
-                {section.verses.map((verse) => (
+                {section.verses.map((verse, index) => (
                   <Text key={verse.verseNumber}>
-                    <Text style={styles.verseNumber}>{verse.verseNumber}</Text>
+                    <Text style={styles.verseNumberSuperscript}>
+                      {index > 0 ? ' ' : ''}
+                      {toSuperscript(verse.verseNumber)}
+                    </Text>
                     <HighlightedText
-                      text={` ${verse.text}`}
+                      text={verse.text} // No space - superscript sticks to verse. Add ` ${verse.text}` for spacing
                       verseNumber={verse.verseNumber}
                       highlights={chapterHighlights}
                       onHighlightPress={handleHighlightPress}
@@ -562,7 +591,14 @@ const styles = StyleSheet.create({
     lineHeight: fontSizes.bodyLarge * lineHeights.body,
     color: colors.gray500,
     marginRight: spacing.xs,
-    marginTop: -4, // Superscript positioning
+    marginTop: -4, // Superscript positioning (for verse row mode)
+  },
+  verseNumberSuperscript: {
+    fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
+    fontWeight: fontWeights.bold,
+    color: colors.gray500,
+    marginRight: spacing.xs / 2,
+    // Unicode superscript characters are naturally smaller and sit higher
   },
   verseText: {
     flex: 1,
