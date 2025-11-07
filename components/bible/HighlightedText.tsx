@@ -200,7 +200,15 @@ export function HighlightedText({
   };
 
   return (
-    <Text style={style} onLongPress={handleVerseLongPress} {...textProps}>
+    <Text
+      style={style}
+      onLongPress={handleVerseLongPress}
+      // TODO: Temporary disable - native text selection shows immediately on any touch/scroll
+      // Consider building custom text selection UI with 300ms delay to prevent accidental triggers
+      selectable={false}
+      suppressHighlighting={true}
+      {...textProps}
+    >
       {segments.map((segment) => {
         // Use startChar and endChar for stable, unique keys
         const segmentKey = segment.highlight
@@ -222,6 +230,7 @@ export function HighlightedText({
               key={segmentKey}
               style={highlightStyle}
               onLongPress={() => handleSegmentPress(segment)}
+              // TODO: Temporary disable - prevents native selection UI on touch/scroll
               suppressHighlighting={true}
             >
               {segment.text}
@@ -230,7 +239,12 @@ export function HighlightedText({
         }
 
         // Plain text segment
-        return <Text key={segmentKey}>{segment.text}</Text>;
+        return (
+          // TODO: Temporary disable - prevents native selection UI on touch/scroll
+          <Text key={segmentKey} suppressHighlighting={true}>
+            {segment.text}
+          </Text>
+        );
       })}
     </Text>
   );
