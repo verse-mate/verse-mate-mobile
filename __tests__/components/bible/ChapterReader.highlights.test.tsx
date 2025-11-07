@@ -107,9 +107,9 @@ describe('ChapterReader - Highlight Integration', () => {
 
     it('should render verse numbers', () => {
       const { getByText } = renderChapterReader();
-      expect(getByText('1')).toBeTruthy();
-      expect(getByText('2')).toBeTruthy();
-      expect(getByText('3')).toBeTruthy();
+      expect(getByText('¹')).toBeTruthy();
+      expect(getByText('²')).toBeTruthy();
+      expect(getByText('³')).toBeTruthy();
     });
   });
 
