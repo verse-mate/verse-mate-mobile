@@ -504,9 +504,19 @@ export function getUserRecentlyViewedBooksOptions() {
 		queryKey: ['user', 'recently-viewed-books'],
 		queryFn: async () => {
 			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+
+			// Get access token from storage for authentication
+			const { getAccessToken } = await import('@/lib/auth/token-storage');
+			const accessToken = await getAccessToken();
+
+			const headers: HeadersInit = {};
+			if (accessToken) {
+				headers['Authorization'] = `Bearer ${accessToken}`;
+			}
+
 			const response = await fetch(`${baseUrl}/user/recently-viewed-books`, {
 				method: 'GET',
-				credentials: 'include',
+				headers,
 			});
 			if (!response.ok) {
 				throw new Error('Failed to fetch recently viewed books');
@@ -523,10 +533,19 @@ export function postUserRecentlyViewedBooksSyncMutation() {
 	return {
 		mutationFn: async ({ body }: { body: { books: { bookId: string; timestamp: number }[] } }) => {
 			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+
+			// Get access token from storage for authentication
+			const { getAccessToken } = await import('@/lib/auth/token-storage');
+			const accessToken = await getAccessToken();
+
+			const headers: HeadersInit = { 'Content-Type': 'application/json' };
+			if (accessToken) {
+				headers['Authorization'] = `Bearer ${accessToken}`;
+			}
+
 			const response = await fetch(`${baseUrl}/user/recently-viewed-books/sync`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				credentials: 'include',
+				headers,
 				body: JSON.stringify(body),
 			});
 			if (!response.ok) {
