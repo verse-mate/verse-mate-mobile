@@ -1,1 +1,4 @@
-bun tsc --noEmit
+# Type checking now runs on pre-commit
+# This hook can be used for additional checks like running tests
+# Uncomment to enable:
+# npm test
