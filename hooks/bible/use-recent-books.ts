@@ -153,7 +153,6 @@ export function useRecentBooks(): UseRecentBooksResult {
     }
 
     loadAndSyncRecentBooks();
-     
   }, [isAuthenticated, user?.id, syncMutation.mutateAsync]); // Re-run when auth state changes
 
   /**
