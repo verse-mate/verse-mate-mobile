@@ -491,3 +491,48 @@ export const useTopicExplanation = (
 		data: query.data && 'explanation' in query.data ? query.data.explanation : null,
 	};
 };
+
+// ============================================================================
+// Recently Viewed Books Hooks
+// ============================================================================
+
+/**
+ * Get user's recently viewed books
+ */
+export function getUserRecentlyViewedBooksOptions() {
+	return {
+		queryKey: ['user', 'recently-viewed-books'],
+		queryFn: async () => {
+			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+			const response = await fetch(`${baseUrl}/user/recently-viewed-books`, {
+				method: 'GET',
+				credentials: 'include',
+			});
+			if (!response.ok) {
+				throw new Error('Failed to fetch recently viewed books');
+			}
+			return response.json();
+		},
+	};
+}
+
+/**
+ * Sync recently viewed books with backend
+ */
+export function postUserRecentlyViewedBooksSyncMutation() {
+	return {
+		mutationFn: async ({ body }: { body: { books: { bookId: string; timestamp: number }[] } }) => {
+			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+			const response = await fetch(`${baseUrl}/user/recently-viewed-books/sync`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) {
+				throw new Error('Failed to sync recently viewed books');
+			}
+			return response.json();
+		},
+	};
+}
