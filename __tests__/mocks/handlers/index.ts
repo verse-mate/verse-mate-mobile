@@ -14,6 +14,7 @@ import { bookmarkHandlers } from './bookmarks.handlers';
 import { explanationHandlers } from './explanations';
 import { highlightHandlers } from './highlights.handlers';
 import { notesHandlers } from './notes.handlers';
+import { recentlyViewedBooksHandlers } from './recently-viewed-books.handlers';
 import { verseHandlers } from './verses';
 
 // Combine all handlers
@@ -26,6 +27,7 @@ export const handlers = [
   ...bookmarkHandlers, // Must come before bibleHandlers
   ...highlightHandlers, // Must come before bibleHandlers
   ...notesHandlers, // Must come before bibleHandlers
+  ...recentlyViewedBooksHandlers, // User-level handlers
   ...bibleHandlers,
 ];
 
@@ -38,4 +40,5 @@ export {
   bookmarkHandlers,
   highlightHandlers,
   notesHandlers,
+  recentlyViewedBooksHandlers,
 };
