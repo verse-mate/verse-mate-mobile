@@ -5,16 +5,18 @@
  * Supports three reading modes via activeTab prop: summary, byline, detailed.
  *
  * Features:
- * - Chapter title (displayMedium: 32px, bold) with bookmark and notes buttons on the right
+ * - Chapter title (displayMedium: 32px, bold) with bookmark, notes, and share buttons on the right
  * - Section subtitles (heading2: 20px, semibold)
  * - Verse range captions (caption: 12px, gray500)
  * - Bible text with superscript verse numbers
  * - Markdown rendering for explanation content
  * - Notes management via modals
+ * - Share functionality for chapter links
  *
  * @see Spec lines 778-821 (Markdown rendering)
  * @see Task Group 4: Add Bookmark Toggle to Chapter Reading Screen
  * @see Task Group 6: Screen Integration - NotesButton and Modals
+ * @see Task Group 3: Share Button and UI Integration
  */
 
 import { useState } from 'react';
@@ -25,6 +27,7 @@ import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
+import { ShareButton } from '@/components/bible/ShareButton';
 import {
   colors,
   fontSizes,
@@ -174,7 +177,7 @@ export function ChapterReader({
 
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Chapter Title Row with Bookmark and Notes buttons */}
+      {/* Chapter Title Row with Bookmark, Notes, and Share buttons */}
       <View style={styles.titleRow} collapsable={false}>
         <Text style={styles.chapterTitle} accessibilityRole="header">
           {chapter.title}
@@ -190,6 +193,13 @@ export function ChapterReader({
             bookId={chapter.bookId}
             chapterNumber={chapter.chapterNumber}
             onPress={handleNotesPress}
+            size={headerSpecs.iconSize}
+            color={colors.gray900}
+          />
+          <ShareButton
+            bookId={chapter.bookId}
+            chapterNumber={chapter.chapterNumber}
+            bookName={chapter.bookName}
             size={headerSpecs.iconSize}
             color={colors.gray900}
           />
@@ -288,7 +298,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  // Title row with bookmark and notes buttons on the right
+  // Title row with bookmark, notes, and share buttons on the right
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

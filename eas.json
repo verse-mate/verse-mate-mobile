@@ -12,6 +12,9 @@
       },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_WEB_URL": "https://staging.versemate.org"
       }
     },
     "preview": {
@@ -27,7 +30,8 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "APP_ENV": "preview"
+        "APP_ENV": "preview",
+        "EXPO_PUBLIC_WEB_URL": "https://app.versemate.org"
       }
     },
     "production": {
@@ -43,7 +47,8 @@
         "gradleCommand": ":app:bundleRelease"
       },
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_WEB_URL": "https://app.versemate.org"
       }
     }
   },
