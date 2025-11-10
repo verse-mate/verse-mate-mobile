@@ -12,23 +12,28 @@
  * @see Task Group 6.1
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import type { ReactNode } from 'react';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { useAuth } from '@/contexts/AuthContext';
 // Import mocked modules
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
+import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { ChapterContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 
 // Mock dependencies
 jest.mock('@/hooks/bible/use-bookmarks');
+jest.mock('@/hooks/bible/use-highlights');
 jest.mock('@/hooks/bible/use-notes');
 jest.mock('@/contexts/AuthContext');
 jest.mock('expo-haptics');
 
 // Mock functions
 const mockUseBookmarks = useBookmarks as jest.MockedFunction<typeof useBookmarks>;
+const mockUseHighlights = useHighlights as jest.MockedFunction<typeof useHighlights>;
 const mockUseNotes = useNotes as jest.MockedFunction<typeof useNotes>;
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
@@ -73,8 +78,18 @@ const mockNote: Note = {
 };
 
 describe('ChapterReader - Notes Integration', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Create a fresh QueryClient for each test
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
 
     // Default mock: authenticated user
     mockUseAuth.mockReturnValue({
@@ -106,6 +121,21 @@ describe('ChapterReader - Notes Integration', () => {
       isRemovingBookmark: false,
     });
 
+    // Default mock: no highlights
+    mockUseHighlights.mockReturnValue({
+      allHighlights: [],
+      chapterHighlights: [],
+      isHighlighted: jest.fn().mockReturnValue(false),
+      addHighlight: jest.fn().mockResolvedValue(undefined),
+      updateHighlightColor: jest.fn().mockResolvedValue(undefined),
+      deleteHighlight: jest.fn().mockResolvedValue(undefined),
+      refetchHighlights: jest.fn(),
+      isFetchingHighlights: false,
+      isAddingHighlight: false,
+      isUpdatingHighlight: false,
+      isDeletingHighlight: false,
+    });
+
     // Default mock: no notes
     mockUseNotes.mockReturnValue({
       notes: [],
@@ -122,9 +152,16 @@ describe('ChapterReader - Notes Integration', () => {
     });
   });
 
+  // Helper to wrap components with QueryClientProvider
+  const renderWithProvider = (ui: ReactNode) => {
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  };
+
   // Test 1: Notes button renders next to bookmark toggle
   test('renders notes button next to bookmark toggle in title row', () => {
-    render(<ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />);
+    renderWithProvider(
+      <ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />
+    );
 
     // Check that notes button exists
     const notesButton = screen.getByTestId('notes-button-1-1');
@@ -141,7 +178,7 @@ describe('ChapterReader - Notes Integration', () => {
 
   // Test 2: Notes button is pressable and not disabled
   test('notes button is pressable and not disabled', () => {
-    const { getByTestId } = render(
+    const { getByTestId } = renderWithProvider(
       <ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />
     );
 
@@ -171,7 +208,9 @@ describe('ChapterReader - Notes Integration', () => {
       isDeletingNote: false,
     });
 
-    render(<ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />);
+    renderWithProvider(
+      <ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />
+    );
 
     const notesButton = screen.getByTestId('notes-button-1-1');
     expect(notesButton).toBeTruthy();
@@ -197,7 +236,9 @@ describe('ChapterReader - Notes Integration', () => {
       isDeletingNote: false,
     });
 
-    render(<ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />);
+    renderWithProvider(
+      <ChapterReader chapter={mockChapter} activeTab="summary" explanationsOnly={false} />
+    );
 
     const notesButton = screen.getByTestId('notes-button-1-1');
     expect(notesButton).toBeTruthy();

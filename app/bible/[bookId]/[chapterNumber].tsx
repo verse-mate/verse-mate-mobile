@@ -34,6 +34,8 @@ import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { colors, headerSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useActiveTab, useActiveView, useBookProgress, useLastReadPosition } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
+import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
+import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import {
   useBibleChapter,
   useBibleTestaments,
@@ -86,6 +88,15 @@ export default function ChapterScreen() {
 
   // Hamburger menu state (Task 8.5)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // FAB visibility state - manages auto-hide/show based on user interaction
+  const {
+    visible: fabVisible,
+    handleScroll,
+    handleTap,
+  } = useFABVisibility({
+    initialVisible: true,
+  });
 
   // Ref to ChapterPagerView for programmatic navigation
   const pagerRef = useRef<ChapterPagerViewRef>(null);
@@ -145,6 +156,9 @@ export default function ChapterScreen() {
   // Save reading position to AsyncStorage for app launch continuity
   const { savePosition } = useLastReadPosition();
 
+  // Track recently viewed books
+  const { addRecentBook } = useRecentBooks();
+
   // Prefetch next/previous chapters in background (Task 5.5, 6.5)
   const prefetchNext = usePrefetchNextChapter(validBookId, validChapter, totalChapters);
   const prefetchPrevious = usePrefetchPreviousChapter(validBookId, validChapter);
@@ -178,6 +192,13 @@ export default function ChapterScreen() {
       activeView,
     });
   }, [validBookId, validChapter, activeTab, activeView]);
+
+  // Track recently viewed book when chapter changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: addRecentBook is a stable function
+  useEffect(() => {
+    // Only add to recent books when bookId changes (not on every chapter change within the same book)
+    addRecentBook(validBookId);
+  }, [validBookId]);
 
   // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5, 4.6)
   useEffect(() => {
@@ -351,6 +372,8 @@ export default function ChapterScreen() {
         activeTab={activeTab}
         activeView={activeView}
         onPageChange={handlePageChange}
+        onScroll={handleScroll}
+        onTap={handleTap}
       />
 
       {/* Floating Action Buttons (Task 6.2, 6.4, 4.5) */}
@@ -359,6 +382,7 @@ export default function ChapterScreen() {
         onNext={handleNext}
         showPrevious={canGoPrevious}
         showNext={canGoNext}
+        visible={fabVisible}
       />
 
       {/* Progress Bar (Task 8.4) */}

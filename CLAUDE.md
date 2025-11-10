@@ -178,8 +178,8 @@ The project uses a dual-linting setup:
 - Both run via `lint-staged` on pre-commit hooks
 
 **Git Hooks**:
-- Pre-commit: Runs `bun lint-staged` (Biome + ESLint on staged files)
-- Pre-push: Runs `bun tsc --noEmit` (TypeScript type checking)
+- Pre-commit: Runs `bun lint-staged` (Biome + ESLint on staged files) + `bun tsc --noEmit` (TypeScript type checking)
+- Pre-push: Available for additional checks (tests disabled by default)
 
 ### Path Aliases
 Use `@/` prefix to import from project root:

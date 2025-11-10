@@ -412,13 +412,21 @@ export const useTopicsSearch = (category: string, options?: { enabled?: boolean 
 };
 
 /**
- * Fetch topic details by ID
+ * Fetch topic details by ID with verse placeholder replacement
+ *
+ * Returns topic metadata, references, and all explanation types (summary, byline, detailed)
+ * with verse placeholders replaced when bibleVersion is provided.
+ *
  * @param topicId - Topic UUID
+ * @param bibleVersion - Bible version key for verse replacement (e.g., "NASB1995")
+ *   When provided, the backend replaces {verse:...} placeholders in all explanations.
+ *   Web app defaults to NASB1995. TODO: Should come from user settings in AsyncStorage.
  */
-export const useTopicById = (topicId: string) => {
+export const useTopicById = (topicId: string, bibleVersion?: string) => {
 	const query = useQuery({
 		...getTopicsByIdOptions({
 			path: { id: topicId },
+			query: bibleVersion ? ({ bible_version: bibleVersion } as any) : undefined,
 		}),
 		enabled: Boolean(topicId), // Only fetch when topicId is provided
 	});
@@ -450,15 +458,21 @@ export const useTopicReferences = (topicId: string, version?: string) => {
 };
 
 /**
- * Fetch topic explanation
+ * Fetch topic explanation with verse placeholder replacement
+ *
  * @param topicId - Topic UUID
  * @param type - Explanation type ("summary", "byline", "detailed")
  * @param lang - Language code (e.g., "en-US")
+ * @param bibleVersion - Bible version key for verse replacement (e.g., "NASB1995")
+ *   Required for placeholder replacement. Backend only replaces {verse:...} placeholders
+ *   when this parameter is provided. Defaults to NASB1995 in web app's useBibleVersion hook.
+ *   TODO: This should eventually come from user settings stored in AsyncStorage
  */
 export const useTopicExplanation = (
 	topicId: string,
 	type?: 'summary' | 'byline' | 'detailed',
 	lang?: string,
+	bibleVersion?: string,
 ) => {
 	const query = useQuery({
 		...getTopicsByIdExplanationOptions({
@@ -466,7 +480,8 @@ export const useTopicExplanation = (
 			query: {
 				...(type && { type }),
 				...(lang && { lang }),
-			},
+				...(bibleVersion && { bible_version: bibleVersion }),
+			} as any, // Using 'as any' because bible_version is not in the OpenAPI spec but is supported by the backend
 		}),
 		enabled: Boolean(topicId), // Only fetch when topicId is provided
 	});
@@ -476,3 +491,67 @@ export const useTopicExplanation = (
 		data: query.data && 'explanation' in query.data ? query.data.explanation : null,
 	};
 };
+
+// ============================================================================
+// Recently Viewed Books Hooks
+// ============================================================================
+
+/**
+ * Get user's recently viewed books
+ */
+export function getUserRecentlyViewedBooksOptions() {
+	return {
+		queryKey: ['user', 'recently-viewed-books'],
+		queryFn: async () => {
+			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+
+			// Get access token from storage for authentication
+			const { getAccessToken } = await import('@/lib/auth/token-storage');
+			const accessToken = await getAccessToken();
+
+			const headers: HeadersInit = {};
+			if (accessToken) {
+				headers['Authorization'] = `Bearer ${accessToken}`;
+			}
+
+			const response = await fetch(`${baseUrl}/user/recently-viewed-books`, {
+				method: 'GET',
+				headers,
+			});
+			if (!response.ok) {
+				throw new Error('Failed to fetch recently viewed books');
+			}
+			return response.json();
+		},
+	};
+}
+
+/**
+ * Sync recently viewed books with backend
+ */
+export function postUserRecentlyViewedBooksSyncMutation() {
+	return {
+		mutationFn: async ({ body }: { body: { books: { bookId: string; timestamp: number }[] } }) => {
+			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+
+			// Get access token from storage for authentication
+			const { getAccessToken } = await import('@/lib/auth/token-storage');
+			const accessToken = await getAccessToken();
+
+			const headers: HeadersInit = { 'Content-Type': 'application/json' };
+			if (accessToken) {
+				headers['Authorization'] = `Bearer ${accessToken}`;
+			}
+
+			const response = await fetch(`${baseUrl}/user/recently-viewed-books/sync`, {
+				method: 'POST',
+				headers,
+				body: JSON.stringify(body),
+			});
+			if (!response.ok) {
+				throw new Error('Failed to sync recently viewed books');
+			}
+			return response.json();
+		},
+	};
+}

@@ -208,13 +208,15 @@ function BibleNavigationModalComponent({
     });
   }, [currentTopics, topicFilterText]);
 
-  // Recent books for current testament
-  const recentBooksForTestament = useMemo(() => {
-    const recentBookIds = recentBooks.map((r) => r.bookId);
-    return allBooks.filter(
-      (book) => recentBookIds.includes(book.id) && book.testament === selectedTestament
-    );
-  }, [allBooks, recentBooks, selectedTestament]);
+  // Recent books across all testaments (excluding current book, sorted by timestamp)
+  const recentBooksFiltered = useMemo(() => {
+    // Filter out current book and sort by timestamp (most recent first)
+    return recentBooks
+      .filter((rb) => rb.bookId !== currentBookId)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .map((rb) => allBooks.find((b) => b.id === rb.bookId))
+      .filter((book): book is BookMetadata => book !== undefined);
+  }, [allBooks, recentBooks, currentBookId]);
 
   // Get selected book's chapter count
   const selectedBook = allBooks.find((book) => book.id === selectedBookId);
@@ -500,18 +502,19 @@ function BibleNavigationModalComponent({
       );
     }
 
-    const hasRecentBooks = recentBooksForTestament.length > 0 && !filterText.trim();
+    // Recent books are shown across all testaments (not filtered by current tab)
+    const hasRecentBooks = recentBooksFiltered.length > 0 && !filterText.trim();
     const booksToShow = hasRecentBooks
       ? [
-          ...recentBooksForTestament,
-          ...filteredBooks.filter((book) => !recentBooksForTestament.some((r) => r.id === book.id)),
+          ...recentBooksFiltered,
+          ...filteredBooks.filter((book) => !recentBooksFiltered.some((r) => r.id === book.id)),
         ]
       : filteredBooks;
 
     return (
       <ScrollView style={styles.bookList} contentContainerStyle={styles.bookListContent}>
         {booksToShow.map((book, index) => {
-          const isRecent = index < recentBooksForTestament.length && hasRecentBooks;
+          const isRecent = index < recentBooksFiltered.length && hasRecentBooks;
           const isSelected = book.id === selectedBookId;
 
           return (

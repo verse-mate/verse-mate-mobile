@@ -66,6 +66,10 @@ export interface ChapterPagerViewProps {
   activeView: 'bible' | 'explanations';
   /** Callback when page changes (after swipe completes) */
   onPageChange: (bookId: number, chapterNumber: number) => void;
+  /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
+  onScroll?: (velocity: number, isAtBottom: boolean) => void;
+  /** Callback when user taps the screen */
+  onTap?: () => void;
 }
 
 /**
@@ -98,7 +102,7 @@ export interface ChapterPagerViewProps {
  */
 export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerViewProps>(
   function ChapterPagerView(
-    { initialBookId, initialChapter, activeTab, activeView, onPageChange },
+    { initialBookId, initialChapter, activeTab, activeView, onPageChange, onScroll, onTap },
     ref
   ) {
     const pagerRef = useRef<PagerView>(null);
@@ -185,6 +189,8 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
             chapterNumber={1}
             activeTab={activeTab}
             activeView={activeView}
+            onScroll={onScroll}
+            onTap={onTap}
           />
         ));
       }
@@ -199,10 +205,12 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
             chapterNumber={chapterNumber} // DYNAMIC PROP: updates when window shifts
             activeTab={activeTab}
             activeView={activeView}
+            onScroll={onScroll}
+            onTap={onTap}
           />
         );
       });
-    }, [activeTab, activeView, booksMetadata, getChapterForPosition]);
+    }, [activeTab, activeView, booksMetadata, getChapterForPosition, onScroll, onTap]);
 
     /**
      * Handle page selection events

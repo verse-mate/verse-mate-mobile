@@ -16,8 +16,10 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import { colors, fabSpecs } from '@/constants/bible-design-tokens';
+import { useEffect } from 'react';
+import { Platform, Pressable, StyleSheet } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { animationDurations, colors, fabSpecs } from '@/constants/bible-design-tokens';
 
 interface FloatingActionButtonsProps {
   /** Callback fired when previous button is tapped */
@@ -28,6 +30,8 @@ interface FloatingActionButtonsProps {
   showPrevious: boolean;
   /** Whether to show next button (false when at last chapter) */
   showNext: boolean;
+  /** Whether buttons should be visible (fades in/out based on user interaction) */
+  visible?: boolean;
 }
 
 /**
@@ -35,13 +39,33 @@ interface FloatingActionButtonsProps {
  *
  * Renders previous/next chapter navigation buttons as floating action buttons
  * positioned at the bottom corners of the screen.
+ *
+ * Features fade in/out animation based on user interaction:
+ * - Fades out when reading (slow scroll or idle)
+ * - Fades in when navigating (fast scroll, tap, or at bottom)
  */
 export function FloatingActionButtons({
   onPrevious,
   onNext,
   showPrevious,
   showNext,
+  visible = true,
 }: FloatingActionButtonsProps) {
+  // Animated opacity value
+  const opacity = useSharedValue(visible ? 1 : 0);
+
+  // Update opacity when visibility changes
+  useEffect(() => {
+    opacity.value = withTiming(visible ? 1 : 0, {
+      duration: animationDurations.normal,
+    });
+  }, [visible, opacity]);
+
+  // Animated style for fade in/out
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
   const handlePreviousPress = () => {
     // Haptic feedback: medium impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -55,7 +79,7 @@ export function FloatingActionButtons({
   };
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <Animated.View style={[styles.container, animatedStyle]} pointerEvents="box-none">
       {/* Previous Chapter Button (Left) */}
       <Pressable
         onPress={showPrevious ? handlePreviousPress : undefined}
@@ -93,7 +117,7 @@ export function FloatingActionButtons({
       >
         <Ionicons name="chevron-forward" size={fabSpecs.iconSize} color={fabSpecs.iconColor} />
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 

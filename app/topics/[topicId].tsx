@@ -11,11 +11,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
+import { BottomLogo } from '@/components/bible/BottomLogo';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
@@ -29,14 +32,9 @@ import {
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
-import { useAuth } from '@/contexts/AuthContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
-import {
-  useTopicById,
-  useTopicExplanation,
-  useTopicReferences,
-  useTopicsSearch,
-} from '@/src/api/generated';
+import { BOTTOM_THRESHOLD, useFABVisibility } from '@/hooks/bible/use-fab-visibility';
+import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api/generated';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
 
@@ -44,6 +42,65 @@ import type { TopicCategory, TopicListItem } from '@/types/topics';
  * View mode type for Topic reading interface
  */
 type ViewMode = 'bible' | 'explanations';
+
+/**
+ * Convert a number to Unicode superscript characters
+ * Maps each digit to its Unicode superscript equivalent
+ * Works for any combination of digits (e.g., 1 → ¹, 42 → ⁴², 150 → ¹⁵⁰)
+ */
+function toSuperscript(num: number): string {
+  const superscriptMap: Record<string, string> = {
+    '0': '⁰',
+    '1': '¹',
+    '2': '²',
+    '3': '³',
+    '4': '⁴',
+    '5': '⁵',
+    '6': '⁶',
+    '7': '⁷',
+    '8': '⁸',
+    '9': '⁹',
+  };
+
+  return num
+    .toString()
+    .split('')
+    .map((digit) => superscriptMap[digit] || digit)
+    .join('');
+}
+
+/**
+ * Preprocess Bible references text to format verse numbers as Unicode superscripts
+ *
+ * The backend returns verses with numbers on separate lines:
+ * ```
+ * 1
+ * In the beginning God created...
+ * 2
+ * The earth was formless...
+ * ```
+ *
+ * This function converts them to: `¹In the beginning God created...`
+ * using Unicode superscript characters for natural elevation.
+ */
+function formatVerseNumbers(text: string): string {
+  if (!text) return text;
+
+  // Match pattern: standalone number on its own line, followed by verse text
+  // This regex looks for a number at the start of a line, followed by a newline,
+  // then text that doesn't start with a number
+  const versePattern = /^(\d+)\n([^\n])/gm;
+
+  return text.replace(versePattern, (_match, verseNum, firstChar) => {
+    // Convert verse number to Unicode superscript and stick it to the text
+    return `**${toSuperscript(Number.parseInt(verseNum, 10))}**${firstChar}`;
+  });
+}
+
+/**
+ * Custom markdown renderers for special formatting
+ */
+const markdownRules: RenderRules = {};
 
 /**
  * Topic Detail Screen Component
@@ -60,9 +117,14 @@ export default function TopicDetailScreen() {
   const topicId = params.topicId;
   const category = (params.category as TopicCategory) || 'EVENT';
 
-  // Get user's preferred language from auth context
-  const { user } = useAuth();
-  const preferredLanguage = (user?.preferred_language as string) || 'en-US';
+  // Note: User's preferred language is handled by backend based on user session
+  // The backend checks currentUserId and uses preferred_language from user table
+
+  // TODO: Implement Bible version selection in Settings page
+  // Web app stores this in URL params, mobile should use AsyncStorage
+  // For now, hardcoded to NASB1995 (backend default) to enable verse placeholder replacement
+  // See web implementation: packages/frontend-base/src/hooks/useBibleVersion.ts
+  const bibleVersion = 'NASB1995';
 
   // Get active tab from persistence (reuse Bible tab hook)
   const { activeTab, setActiveTab } = useActiveTab();
@@ -79,14 +141,35 @@ export default function TopicDetailScreen() {
   // Hamburger menu state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Fetch topic data
-  const { data: topicData, isLoading: isTopicLoading, error: topicError } = useTopicById(topicId);
+  // FAB visibility state and handlers
+  const {
+    visible: fabVisible,
+    handleScroll: handleFABScroll,
+    handleTap,
+  } = useFABVisibility({
+    initialVisible: true,
+  });
+
+  // Track last scroll position and timestamp for velocity calculation
+  const lastScrollY = useRef(0);
+  const lastScrollTime = useRef(Date.now());
+
+  // Track touch start time and position to differentiate tap from scroll
+  const touchStartTime = useRef(0);
+  const touchStartY = useRef(0);
+
+  // Fetch topic data with verse replacement
+  // The /topics/:id endpoint returns all explanation types with verses replaced
+  const {
+    data: topicData,
+    isLoading: isTopicLoading,
+    error: topicError,
+  } = useTopicById(topicId, bibleVersion);
   const { data: references } = useTopicReferences(topicId);
-  const { data: explanation, isLoading: isExplanationLoading } = useTopicExplanation(
-    topicId,
-    activeTab,
-    preferredLanguage
-  );
+
+  // Extract the specific explanation type from the full topic response
+  const explanation = topicData?.explanation?.[activeTab];
+  const isExplanationLoading = isTopicLoading;
 
   // Fetch all topics in the category for navigation
   const { data: categoryTopics = [] } = useTopicsSearch(category);
@@ -100,9 +183,6 @@ export default function TopicDetailScreen() {
   const hasNext = currentIndex >= 0 && currentIndex < sortedTopics.length - 1;
   const previousTopic = hasPrevious ? sortedTopics[currentIndex - 1] : null;
   const nextTopic = hasNext ? sortedTopics[currentIndex + 1] : null;
-
-  // Safe area insets for iOS notch/home indicator
-  const insets = useSafeAreaInsets();
 
   // Save reading position to AsyncStorage for app launch continuity
   // Save whenever topicId, category, tab, or view changes
@@ -182,6 +262,52 @@ export default function TopicDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   }, [nextTopic, category]);
+
+  // Handle touch start - record time and position
+  const handleTouchStart = useCallback((event: GestureResponderEvent) => {
+    touchStartTime.current = Date.now();
+    touchStartY.current = event.nativeEvent.pageY;
+  }, []);
+
+  // Handle touch end - detect if it was a tap (not a scroll)
+  const handleTouchEnd = useCallback(
+    (event: GestureResponderEvent) => {
+      const touchDuration = Date.now() - touchStartTime.current;
+      const touchMovement = Math.abs(event.nativeEvent.pageY - touchStartY.current);
+
+      // Only trigger tap if it was quick and didn't move much
+      if (touchDuration < 200 && touchMovement < 10) {
+        handleTap();
+      }
+    },
+    [handleTap]
+  );
+
+  // Handle scroll events - calculate velocity and detect bottom
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      const currentScrollY = contentOffset.y;
+      const currentTime = Date.now();
+
+      // Calculate scroll velocity (pixels per second)
+      const timeDelta = currentTime - lastScrollTime.current;
+      const scrollDelta = Math.abs(currentScrollY - lastScrollY.current);
+      const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
+
+      // Check if at bottom
+      const scrollHeight = contentSize.height - layoutMeasurement.height;
+      const isAtBottom = scrollHeight - currentScrollY <= BOTTOM_THRESHOLD;
+
+      // Update refs
+      lastScrollY.current = currentScrollY;
+      lastScrollTime.current = currentTime;
+
+      // Call FAB visibility handler
+      handleFABScroll(velocity, isAtBottom);
+    },
+    [handleFABScroll]
+  );
 
   // Loading state
   if (isTopicLoading) {
@@ -278,9 +404,13 @@ export default function TopicDetailScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: insets.bottom + spacing.xxl },
+          { paddingBottom: 60 }, // Match ChapterPage: FAB height + bottom offset + progress bar + extra spacing
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {/* Topic Title */}
         <Text style={styles.topicTitle} accessibilityRole="header">
@@ -297,11 +427,14 @@ export default function TopicDetailScreen() {
           'content' in references &&
           typeof references.content === 'string' ? (
             <View style={styles.referencesContainer}>
-              <Markdown style={markdownStyles}>
-                {references.content
-                  .replace(/\n\n/g, '___PARAGRAPH___')
-                  .replace(/\n/g, ' ')
-                  .replace(/___PARAGRAPH___/g, '\n\n')}
+              <Markdown style={markdownStyles} rules={markdownRules}>
+                {
+                  // First format verse numbers, THEN process newlines
+                  formatVerseNumbers(references.content)
+                    .replace(/\n\n/g, '___PARAGRAPH___')
+                    .replace(/\n/g, ' ')
+                    .replace(/___PARAGRAPH___/g, '\n\n')
+                }
               </Markdown>
             </View>
           ) : (
@@ -316,12 +449,11 @@ export default function TopicDetailScreen() {
             <View style={styles.loadingContainer}>
               <Text style={styles.loadingText}>Loading {activeTab} explanation...</Text>
             </View>
-          ) : explanation &&
-            typeof explanation === 'object' &&
-            'explanation' in explanation &&
-            typeof explanation.explanation === 'string' ? (
+          ) : explanation && typeof explanation === 'string' ? (
             <View style={styles.explanationContainer}>
-              <Markdown style={markdownStyles}>{explanation.explanation}</Markdown>
+              <Markdown style={markdownStyles} rules={markdownRules}>
+                {explanation}
+              </Markdown>
             </View>
           ) : (
             <View style={styles.emptyContainer}>
@@ -330,6 +462,7 @@ export default function TopicDetailScreen() {
               </Text>
             </View>
           ))}
+        <BottomLogo />
       </ScrollView>
 
       {/* Floating Action Buttons for Topic Navigation */}
@@ -338,6 +471,7 @@ export default function TopicDetailScreen() {
         onNext={handleNext}
         showPrevious={hasPrevious}
         showNext={hasNext}
+        visible={fabVisible}
       />
 
       {/* Navigation Modal */}
@@ -472,6 +606,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   topicButton: {
+    flexShrink: 1,
+    marginRight: spacing.sm,
     padding: spacing.xs,
   },
   topicButtonContent: {
@@ -483,6 +619,7 @@ const styles = StyleSheet.create({
     fontSize: headerSpecs.titleFontSize,
     fontWeight: headerSpecs.titleFontWeight,
     color: headerSpecs.titleColor,
+    maxWidth: '90%',
   },
   headerActions: {
     flexDirection: 'row',
@@ -570,6 +707,14 @@ const styles = StyleSheet.create({
   },
 });
 
+const verseNumberSuperscriptStyle = {
+  fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
+  fontWeight: fontWeights.bold,
+  color: colors.gray500,
+  marginRight: spacing.xs / 2,
+  // Unicode superscript characters are naturally smaller and sit higher
+};
+
 /**
  * Markdown Styles
  *
@@ -578,7 +723,7 @@ const styles = StyleSheet.create({
 const markdownStyles = StyleSheet.create({
   body: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
   },
   heading1: {
@@ -607,13 +752,13 @@ const markdownStyles = StyleSheet.create({
   },
   paragraph: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.md,
   },
   list_item: {
     fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
+    lineHeight: fontSizes.body * 1.8,
     color: colors.gray900,
     marginBottom: spacing.xs,
   },
@@ -624,10 +769,8 @@ const markdownStyles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   strong: {
-    fontSize: fontSizes.caption,
-    fontWeight: fontWeights.bold,
-    color: colors.gray500,
-    marginRight: spacing.xs,
+    // Used for verse numbers
+    ...verseNumberSuperscriptStyle,
   },
   em: {
     fontStyle: 'italic',
@@ -640,4 +783,5 @@ const markdownStyles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginVertical: spacing.md,
   },
+  verseNumberSuperscript: verseNumberSuperscriptStyle,
 });
