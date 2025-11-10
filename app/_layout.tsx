@@ -3,15 +3,18 @@
  *
  * Main application layout that wraps all screens with theme provider
  * and React Query provider. Handles app launch logic to navigate to
- * last read position or default to Genesis 1.
+ * last read position or default to Genesis 1. Also handles deep links
+ * for chapter sharing.
  *
  * @see Task Group 9.5 - Implement app launch logic
+ * @see Task Group 4 - Deep Link Handling
  */
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as Linking from 'expo-linking';
 import * as NavigationBar from 'expo-navigation-bar';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
@@ -27,6 +30,7 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
 import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
+import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 
 // Keep the splash screen visible while we fetch last read position
 SplashScreen.preventAutoHideAsync();
@@ -56,12 +60,94 @@ setupClientInterceptors();
 /**
  * Inner Layout Component
  *
- * Handles React Navigation theme and splash screen management.
+ * Handles React Navigation theme, deep link navigation, and splash screen management.
  * Must be inside ThemeProvider to access theme context.
  */
 function RootLayoutInner() {
   const { mode, colors, isLoading: themeLoading } = useTheme();
+  const router = useRouter();
   const hasInitialized = useRef(false);
+
+  /**
+   * Handle deep link navigation
+   *
+   * Listens for incoming deep links and navigates to the appropriate chapter.
+   * Validates bookId and chapterNumber before navigation.
+   * Falls back to Genesis 1 for invalid links.
+   */
+  useEffect(() => {
+    /**
+     * Process a deep link URL
+     *
+     * @param url - The incoming deep link URL
+     */
+    const handleDeepLink = (url: string | null) => {
+      if (!url) return;
+
+      try {
+        // TODO: Track analytics - deep_link_opened with { bookId, chapterNumber, source: url }
+
+        // Parse the URL to extract bookId and chapterNumber
+        const parsed = parseChapterShareUrl(url);
+
+        if (!parsed) {
+          // TODO: Track analytics - deep_link_failed with { url, error: 'invalid_format' }
+          console.warn('Failed to parse deep link URL:', url);
+          // Fallback to Genesis 1
+          router.replace('/bible/1/1');
+          return;
+        }
+
+        const { bookId, chapterNumber } = parsed;
+
+        // Validate bookId (parser already validates 1-66 range)
+        if (bookId < 1 || bookId > 66) {
+          console.warn('Invalid bookId in deep link:', bookId);
+          router.replace('/bible/1/1'); // Fallback to Genesis 1
+          return;
+        }
+
+        // Validate chapterNumber (additional validation happens in chapter screen)
+        if (chapterNumber < 1) {
+          console.warn('Invalid chapterNumber in deep link:', chapterNumber);
+          // Navigate to book's first chapter
+          router.replace(`/bible/${bookId}/1`);
+          return;
+        }
+
+        // TODO: Track analytics - deep_link_navigation_success with { bookId, chapterNumber }
+
+        // Navigate to the chapter
+        router.replace(`/bible/${bookId}/${chapterNumber}`);
+      } catch (error) {
+        // TODO: Track analytics - deep_link_failed with { url, error: error.message }
+        console.error('Error handling deep link:', error);
+        // Fallback to Genesis 1 on any error
+        router.replace('/bible/1/1');
+      }
+    };
+
+    // Handle initial URL (app opened from link)
+    const getInitialURL = async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        handleDeepLink(initialUrl);
+      }
+    };
+
+    // Handle URLs while app is running
+    const subscription = Linking.addEventListener('url', (event) => {
+      handleDeepLink(event.url);
+    });
+
+    // Get initial URL
+    getInitialURL();
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.remove();
+    };
+  }, [router]);
 
   // System UI setup for Android
   // Note: edgeToEdgeEnabled is set in app.json, which makes nav bar transparent automatically
@@ -176,6 +262,7 @@ function RootLayoutInner() {
  * - React Query provider setup
  * - Authentication provider setup
  * - PostHog analytics provider setup
+ * - Deep link handling for chapter sharing
  * - Splash screen management
  */
 export default function RootLayout() {
