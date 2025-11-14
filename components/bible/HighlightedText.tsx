@@ -24,6 +24,7 @@ import { useMemo } from 'react';
 import { Text, type TextProps } from 'react-native';
 import { HIGHLIGHT_COLORS } from '@/constants/highlight-colors';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import type { AutoHighlight } from '@/types/auto-highlights';
 
 /**
  * Opacity value for highlight backgrounds
@@ -33,14 +34,22 @@ import type { Highlight } from '@/hooks/bible/use-highlights';
 const HIGHLIGHT_OPACITY = 0.35;
 
 /**
+ * Opacity value for auto-highlight backgrounds
+ * Lighter than user highlights to distinguish AI-generated highlights
+ */
+const AUTO_HIGHLIGHT_OPACITY = 0.2;
+
+/**
  * Text segment representing a portion of verse text
- * Can be highlighted or plain text
+ * Can be highlighted, auto-highlighted, or plain text
  */
 interface TextSegment {
   /** Text content of this segment */
   text: string;
-  /** Highlight associated with this segment (if highlighted) */
+  /** User highlight associated with this segment (if highlighted) */
   highlight: Highlight | null;
+  /** Auto-highlight associated with this segment (if auto-highlighted) */
+  autoHighlight: AutoHighlight | null;
   /** Start character position in verse text */
   startChar: number;
   /** End character position in verse text */
@@ -64,10 +73,14 @@ export interface HighlightedTextProps extends TextProps {
   text: string;
   /** Verse number for this text */
   verseNumber: number;
-  /** Highlights that apply to this verse */
+  /** User highlights that apply to this verse */
   highlights?: Highlight[];
+  /** Auto-highlights that apply to this verse (AI-generated) */
+  autoHighlights?: AutoHighlight[];
   /** Callback when highlighted text is long-pressed (edit highlight) */
   onHighlightPress?: (highlightId: number) => void;
+  /** Callback when auto-highlight is pressed (show info tooltip) */
+  onAutoHighlightPress?: (autoHighlight: AutoHighlight) => void;
   /** Callback when plain text is long-pressed (create new highlight for entire verse) */
   onVerseLongPress?: (verseNumber: number) => void;
   /** Style override for base text */
@@ -84,29 +97,34 @@ export function HighlightedText({
   text,
   verseNumber,
   highlights = [],
+  autoHighlights = [],
   onHighlightPress,
+  onAutoHighlightPress,
   onVerseLongPress,
   style,
   ...textProps
 }: HighlightedTextProps) {
   /**
-   * Segment verse text based on highlights
-   * Creates array of text segments, some highlighted, some plain
+   * Segment verse text based on highlights and auto-highlights
+   * Creates array of text segments, some highlighted, some auto-highlighted, some plain
+   * User highlights take precedence over auto-highlights
    */
   const segments = useMemo(() => {
-    if (highlights.length === 0) {
-      return [{ text, highlight: null, startChar: 0, endChar: text.length }];
-    }
-
     // Filter highlights relevant to this verse
     const verseHighlights = highlights.filter(
       (h) => h.start_verse <= verseNumber && h.end_verse >= verseNumber
     );
 
-    if (verseHighlights.length === 0) {
-      return [{ text, highlight: null, startChar: 0, endChar: text.length }];
+    const verseAutoHighlights = autoHighlights.filter(
+      (h) => h.start_verse <= verseNumber && h.end_verse >= verseNumber
+    );
+
+    // If no highlights or auto-highlights, return plain text
+    if (verseHighlights.length === 0 && verseAutoHighlights.length === 0) {
+      return [{ text, highlight: null, autoHighlight: null, startChar: 0, endChar: text.length }];
     }
 
+    // Process user highlights first (they take precedence)
     // Sort highlights by start position
     const sortedHighlights = [...verseHighlights].sort((a, b) => {
       const aStart = (a.start_char ?? 0) as number;
@@ -116,6 +134,9 @@ export function HighlightedText({
 
     const textSegments: TextSegment[] = [];
     let currentPosition = 0;
+
+    // Track which character positions are covered by user highlights
+    const userHighlightedRanges: { start: number; end: number }[] = [];
 
     for (const highlight of sortedHighlights) {
       // Determine highlight boundaries within this verse
@@ -143,20 +164,40 @@ export function HighlightedText({
         }
       }
 
-      // Add plain text segment before highlight (if any)
+      userHighlightedRanges.push({ start: highlightStart, end: highlightEnd });
+
+      // Add plain text or auto-highlighted segment before user highlight (if any)
       if (currentPosition < highlightStart) {
-        textSegments.push({
-          text: text.slice(currentPosition, highlightStart),
-          highlight: null,
-          startChar: currentPosition,
-          endChar: highlightStart,
+        // Check if this range overlaps with any auto-highlights
+        const autoHighlightInRange = verseAutoHighlights.find((ah) => {
+          // Auto-highlights are always full verses (no character-level precision)
+          return ah.start_verse <= verseNumber && ah.end_verse >= verseNumber;
         });
+
+        if (autoHighlightInRange) {
+          textSegments.push({
+            text: text.slice(currentPosition, highlightStart),
+            highlight: null,
+            autoHighlight: autoHighlightInRange,
+            startChar: currentPosition,
+            endChar: highlightStart,
+          });
+        } else {
+          textSegments.push({
+            text: text.slice(currentPosition, highlightStart),
+            highlight: null,
+            autoHighlight: null,
+            startChar: currentPosition,
+            endChar: highlightStart,
+          });
+        }
       }
 
-      // Add highlighted segment
+      // Add user highlighted segment
       textSegments.push({
         text: text.slice(highlightStart, highlightEnd),
         highlight,
+        autoHighlight: null, // User highlights take precedence
         startChar: highlightStart,
         endChar: highlightEnd,
       });
@@ -164,27 +205,48 @@ export function HighlightedText({
       currentPosition = highlightEnd;
     }
 
-    // Add remaining plain text (if any)
+    // Add remaining text (plain or auto-highlighted)
     if (currentPosition < text.length) {
-      textSegments.push({
-        text: text.slice(currentPosition),
-        highlight: null,
-        startChar: currentPosition,
-        endChar: text.length,
+      // Check if remaining text should be auto-highlighted
+      const autoHighlightInRange = verseAutoHighlights.find((ah) => {
+        return ah.start_verse <= verseNumber && ah.end_verse >= verseNumber;
       });
+
+      if (autoHighlightInRange) {
+        textSegments.push({
+          text: text.slice(currentPosition),
+          highlight: null,
+          autoHighlight: autoHighlightInRange,
+          startChar: currentPosition,
+          endChar: text.length,
+        });
+      } else {
+        textSegments.push({
+          text: text.slice(currentPosition),
+          highlight: null,
+          autoHighlight: null,
+          startChar: currentPosition,
+          endChar: text.length,
+        });
+      }
     }
 
     return textSegments;
-  }, [text, highlights, verseNumber]);
+  }, [text, highlights, autoHighlights, verseNumber]);
 
   /**
    * Handle tap on a text segment
+   * Different behavior for user highlights vs auto-highlights
    */
   const handleSegmentPress = (segment: TextSegment) => {
     if (segment.highlight && onHighlightPress) {
       // Haptic feedback on highlighted text tap
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onHighlightPress(segment.highlight.highlight_id);
+    } else if (segment.autoHighlight && onAutoHighlightPress) {
+      // Haptic feedback on auto-highlight tap
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onAutoHighlightPress(segment.autoHighlight);
     }
   };
 
@@ -213,8 +275,11 @@ export function HighlightedText({
         // Use startChar and endChar for stable, unique keys
         const segmentKey = segment.highlight
           ? `highlight-${segment.highlight.highlight_id}-${segment.startChar}-${segment.endChar}`
-          : `text-${verseNumber}-${segment.startChar}-${segment.endChar}`;
+          : segment.autoHighlight
+            ? `auto-highlight-${segment.autoHighlight.auto_highlight_id}-${segment.startChar}-${segment.endChar}`
+            : `text-${verseNumber}-${segment.startChar}-${segment.endChar}`;
 
+        // User highlight segment (solid color)
         if (segment.highlight) {
           const backgroundColor = HIGHLIGHT_COLORS[segment.highlight.color];
           const highlightStyle = {
@@ -230,7 +295,35 @@ export function HighlightedText({
               key={segmentKey}
               style={highlightStyle}
               onLongPress={() => handleSegmentPress(segment)}
-              // TODO: Temporary disable - prevents native selection UI on touch/scroll
+              suppressHighlighting={true}
+            >
+              {segment.text}
+            </Text>
+          );
+        }
+
+        // Auto-highlight segment (lighter color + border)
+        if (segment.autoHighlight) {
+          const backgroundColor = HIGHLIGHT_COLORS[segment.autoHighlight.theme_color];
+          const autoHighlightStyle = {
+            backgroundColor:
+              backgroundColor +
+              Math.round(AUTO_HIGHLIGHT_OPACITY * 255)
+                .toString(16)
+                .padStart(2, '0'),
+            borderBottomWidth: 2,
+            borderBottomColor:
+              backgroundColor +
+              Math.round(0.5 * 255)
+                .toString(16)
+                .padStart(2, '0'),
+          };
+
+          return (
+            <Text
+              key={segmentKey}
+              style={autoHighlightStyle}
+              onPress={() => handleSegmentPress(segment)}
               suppressHighlighting={true}
             >
               {segment.text}
@@ -240,7 +333,6 @@ export function HighlightedText({
 
         // Plain text segment
         return (
-          // TODO: Temporary disable - prevents native selection UI on touch/scroll
           <Text key={segmentKey} suppressHighlighting={true}>
             {segment.text}
           </Text>
