@@ -22,6 +22,7 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
 import type { TextSelection } from '@/components/bible/HighlightedText';
@@ -40,8 +41,11 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
+import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { useAuth } from '@/hooks/use-auth';
+import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 
@@ -107,9 +111,16 @@ export function ChapterReader({
   explanationsOnly = false,
 }: ChapterReaderProps) {
   const { deleteNote } = useNotes();
+  const { user } = useAuth();
 
   // Fetch highlights for this chapter
   const { chapterHighlights, addHighlight, updateHighlightColor, deleteHighlight } = useHighlights({
+    bookId: chapter.bookId,
+    chapterNumber: chapter.chapterNumber,
+  });
+
+  // Fetch auto-highlights for this chapter
+  const { autoHighlights } = useAutoHighlights({
     bookId: chapter.bookId,
     chapterNumber: chapter.chapterNumber,
   });
@@ -125,6 +136,10 @@ export function ChapterReader({
   const [editMenuVisible, setEditMenuVisible] = useState(false);
   const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null);
   const [selectedHighlightId, setSelectedHighlightId] = useState<number | null>(null);
+
+  // Auto-highlight modal state
+  const [autoHighlightTooltipVisible, setAutoHighlightTooltipVisible] = useState(false);
+  const [selectedAutoHighlight, setSelectedAutoHighlight] = useState<AutoHighlight | null>(null);
 
   /**
    * Handle notes button press
@@ -310,6 +325,39 @@ export function ChapterReader({
   };
 
   /**
+   * Handle tap on auto-highlighted text
+   * Opens AutoHighlightTooltip with theme info
+   */
+  const handleAutoHighlightPress = (autoHighlight: AutoHighlight) => {
+    setSelectedAutoHighlight(autoHighlight);
+    setAutoHighlightTooltipVisible(true);
+  };
+
+  /**
+   * Handle save auto-highlight as user highlight
+   * Creates a new user highlight with the same verse range and color
+   */
+  const handleSaveAutoHighlightAsUserHighlight = async (
+    color: HighlightColor,
+    verseRange: { start: number; end: number }
+  ) => {
+    try {
+      // Create new user highlight with the auto-highlight's verse range and color
+      await addHighlight({
+        bookId: chapter.bookId,
+        chapterNumber: chapter.chapterNumber,
+        startVerse: verseRange.start,
+        endVerse: verseRange.end,
+        color,
+      });
+      Alert.alert('Success', 'Highlight saved to your collection!');
+    } catch (error) {
+      console.error('Failed to save auto-highlight as user highlight:', error);
+      Alert.alert('Error', 'Failed to save highlight. Please try again.');
+    }
+  };
+
+  /**
    * Handle color change from HighlightEditMenu
    * Updates highlight color with optimistic update
    */
@@ -432,7 +480,9 @@ export function ChapterReader({
                       text={verse.text} // No space - superscript sticks to verse. Add ` ${verse.text}` for spacing
                       verseNumber={verse.verseNumber}
                       highlights={chapterHighlights}
+                      autoHighlights={autoHighlights}
                       onHighlightPress={handleHighlightPress}
+                      onAutoHighlightPress={handleAutoHighlightPress}
                       onVerseLongPress={handleVerseLongPress}
                       style={styles.verseText}
                     />
@@ -453,7 +503,9 @@ export function ChapterReader({
                       text={verse.text}
                       verseNumber={verse.verseNumber}
                       highlights={chapterHighlights}
+                      autoHighlights={autoHighlights}
                       onHighlightPress={handleHighlightPress}
+                      onAutoHighlightPress={handleAutoHighlightPress}
                       onVerseLongPress={handleVerseLongPress}
                       style={styles.verseText}
                     />
@@ -531,6 +583,18 @@ export function ChapterReader({
           onClose={handleEditMenuClose}
         />
       )}
+
+      {/* Auto-Highlight Tooltip - Show AI-generated highlight info */}
+      <AutoHighlightTooltip
+        autoHighlight={selectedAutoHighlight}
+        visible={autoHighlightTooltipVisible}
+        onClose={() => {
+          setAutoHighlightTooltipVisible(false);
+          setSelectedAutoHighlight(null);
+        }}
+        onSaveAsUserHighlight={handleSaveAutoHighlightAsUserHighlight}
+        isLoggedIn={!!user}
+      />
     </View>
   );
 }
