@@ -621,7 +621,9 @@ export function ChapterReader({
       {/* Explanation Content (Markdown) - shown in Explanations view */}
       {explanation && (
         <View style={styles.explanationContainer} collapsable={false}>
-          <Markdown style={markdownStyles}>{explanation.content}</Markdown>
+          <Markdown style={markdownStyles}>
+            {explanation.content.replace(/###\s*Summary\s*\n/gi, '')}
+          </Markdown>
         </View>
       )}
 
