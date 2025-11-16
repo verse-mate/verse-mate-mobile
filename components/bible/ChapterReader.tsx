@@ -78,6 +78,76 @@ function toSuperscript(num: number): string {
     .join('');
 }
 
+/**
+ * Check if a verse text starts with a Biblical transition word
+ * Used to detect natural paragraph break points
+ */
+function startsWithTransitionWord(text: string): boolean {
+  const transitions = [
+    'Then',
+    'After',
+    'Meanwhile',
+    'Now',
+    'When',
+    'While',
+    'But',
+    'Yet',
+    'However',
+    'Nevertheless',
+    'Therefore',
+    'Thus',
+    'So',
+    'Accordingly',
+    'Moreover',
+    'Furthermore',
+    'Also',
+    'And',
+  ];
+
+  const firstWord = text.trim().split(/\s+/)[0];
+  // Remove punctuation for comparison
+  const cleanWord = firstWord.replace(/[.,;:!?'"]/g, '');
+  return transitions.includes(cleanWord);
+}
+
+/**
+ * Calculate intelligent paragraph break points for a section
+ * Returns array of verse numbers after which to insert breaks
+ */
+function calculateBreakPoints(verses: { verseNumber: number; text: string }[]): number[] {
+  const breakAfter: number[] = [];
+
+  // Don't break short sections (3 verses or fewer)
+  if (verses.length <= 3) return [];
+
+  let versesSinceLastBreak = 0;
+
+  for (let i = 0; i < verses.length - 1; i++) {
+    const currentVerse = verses[i];
+    const nextVerse = verses[i + 1];
+    versesSinceLastBreak++;
+
+    // Force break after 5 verses maximum
+    if (versesSinceLastBreak >= 5) {
+      breakAfter.push(currentVerse.verseNumber);
+      versesSinceLastBreak = 0;
+      continue;
+    }
+
+    // Check for natural break: ends with period + next starts with transition
+    const endsWithPeriod = currentVerse.text.trim().endsWith('.');
+    const nextStartsWithTransition = startsWithTransitionWord(nextVerse.text);
+
+    // Break if: ends with period + next has transition + at least 2 verses in group
+    if (endsWithPeriod && nextStartsWithTransition && versesSinceLastBreak >= 2) {
+      breakAfter.push(currentVerse.verseNumber);
+      versesSinceLastBreak = 0;
+    }
+  }
+
+  return breakAfter;
+}
+
 interface ChapterReaderProps {
   /** Chapter content with verses and sections */
   chapter: ChapterContent;
@@ -469,26 +539,58 @@ export function ChapterReader({
 
             {/* Verses with Highlighting */}
             {PARAGRAPH_VIEW_ENABLED ? (
-              <Text style={styles.verseTextParagraph}>
-                {section.verses.map((verse, index) => (
-                  <Text key={verse.verseNumber}>
-                    <Text style={styles.verseNumberSuperscript}>
-                      {index > 0 ? ' ' : ''}
-                      {toSuperscript(verse.verseNumber)}
-                    </Text>
-                    <HighlightedText
-                      text={verse.text} // No space - superscript sticks to verse. Add ` ${verse.text}` for spacing
-                      verseNumber={verse.verseNumber}
-                      highlights={chapterHighlights}
-                      autoHighlights={autoHighlights}
-                      onHighlightPress={handleHighlightPress}
-                      onAutoHighlightPress={handleAutoHighlightPress}
-                      onVerseLongPress={handleVerseLongPress}
-                      style={styles.verseText}
-                    />
-                  </Text>
-                ))}
-              </Text>
+              (() => {
+                // Calculate smart break points for this section
+                const breakPoints = new Set(calculateBreakPoints(section.verses));
+                const groups: (typeof section.verses)[] = [];
+                let currentGroup: typeof section.verses = [];
+
+                // Group verses based on break points
+                section.verses.forEach((verse, index) => {
+                  currentGroup.push(verse);
+
+                  // Check if we should break after this verse
+                  if (breakPoints.has(verse.verseNumber) || index === section.verses.length - 1) {
+                    groups.push([...currentGroup]);
+                    currentGroup = [];
+                  }
+                });
+
+                // Render verse groups with spacing between them
+                return groups.map((group, groupIndex) => {
+                  // Create stable key from first and last verse numbers in group
+                  const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
+                  return (
+                    <View key={groupKey}>
+                      <Text style={styles.verseTextParagraph}>
+                        {group.map((verse, verseIndex) => (
+                          <Text key={verse.verseNumber}>
+                            <Text style={styles.verseNumberSuperscript}>
+                              {verseIndex > 0 ? ' \u2009' : ''}
+                              {/* Regular space + thin space before verse number */}
+                              {toSuperscript(verse.verseNumber)}
+                              {'\u2009'}
+                              {/* Thin space after verse number */}
+                            </Text>
+                            <HighlightedText
+                              text={verse.text}
+                              verseNumber={verse.verseNumber}
+                              highlights={chapterHighlights}
+                              autoHighlights={autoHighlights}
+                              onHighlightPress={handleHighlightPress}
+                              onAutoHighlightPress={handleAutoHighlightPress}
+                              onVerseLongPress={handleVerseLongPress}
+                              style={styles.verseText}
+                            />
+                          </Text>
+                        ))}
+                      </Text>
+                      {/* Add spacing between paragraph groups */}
+                      {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}
+                    </View>
+                  );
+                });
+              })()
             ) : (
               <View style={styles.versesContainer}>
                 {section.verses.map((verse) => (
@@ -661,8 +763,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
     fontWeight: fontWeights.bold,
     color: colors.gray500,
-    marginRight: spacing.xs / 2,
-    // Unicode superscript characters are naturally smaller and sit higher
+    // Spacing handled by thin space Unicode characters (\u2009) in JSX
   },
   verseText: {
     flex: 1,
