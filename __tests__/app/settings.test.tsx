@@ -258,11 +258,11 @@ describe('SettingsScreen', () => {
       });
     });
 
-    it('should show "Coming soon" for Auto-Highlights', async () => {
+    it('should show Auto-Highlights section', async () => {
       renderWithProviders(<SettingsScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText('Coming soon on mobile')).toBeTruthy();
+        expect(screen.getByText('Auto-Highlights')).toBeTruthy();
       });
     });
 
