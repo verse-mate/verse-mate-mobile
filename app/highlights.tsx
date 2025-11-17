@@ -126,24 +126,15 @@ interface ChapterGroup {
 }
 
 /**
- * Helper function to derive book_id and chapter_number from chapter_id
- * Format: chapter_id = book_id * 1000 + chapter_number
- * Example: Genesis 1 = 1001, John 3 = 43003
- */
-function parseChapterId(chapterId: number): { bookId: number; chapterNumber: number } {
-  const bookId = Math.floor(chapterId / 1000);
-  const chapterNumber = chapterId % 1000;
-  return { bookId, chapterNumber };
-}
-
-/**
  * Helper function to group highlights by chapter
  */
 function groupHighlightsByChapter(highlights: Highlight[]): ChapterGroup[] {
   const groups = new Map<string, ChapterGroup>();
 
   for (const highlight of highlights) {
-    const { bookId, chapterNumber } = parseChapterId(highlight.chapter_id);
+    // Use book_id and chapter_number directly from the highlight
+    const bookId = highlight.book_id;
+    const chapterNumber = highlight.chapter_number;
     const key = `${bookId}-${chapterNumber}`;
 
     if (!groups.has(key)) {
