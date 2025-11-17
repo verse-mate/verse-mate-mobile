@@ -56,6 +56,8 @@ describe('HighlightsScreen', () => {
             highlight_id: 1,
             user_id: 'test-user-123',
             chapter_id: 1001, // Genesis 1
+            book_id: 1,
+            chapter_number: 1,
             start_verse: 1,
             end_verse: 1,
             color: 'yellow',
@@ -69,6 +71,8 @@ describe('HighlightsScreen', () => {
             highlight_id: 2,
             user_id: 'test-user-123',
             chapter_id: 1001, // Genesis 1
+            book_id: 1,
+            chapter_number: 1,
             start_verse: 3,
             end_verse: 5,
             color: 'green',
@@ -82,6 +86,8 @@ describe('HighlightsScreen', () => {
             highlight_id: 3,
             user_id: 'test-user-123',
             chapter_id: 43003, // John 3
+            book_id: 43,
+            chapter_number: 3,
             start_verse: 16,
             end_verse: 16,
             color: 'blue',
@@ -134,6 +140,8 @@ describe('HighlightsScreen', () => {
             highlight_id: 1,
             user_id: 'test-user-123',
             chapter_id: 1001, // Genesis 1
+            book_id: 1,
+            chapter_number: 1,
             start_verse: 1,
             end_verse: 1,
             color: 'yellow',
@@ -181,6 +189,8 @@ describe('HighlightsScreen', () => {
             highlight_id: 1,
             user_id: 'test-user-123',
             chapter_id: 1001,
+            book_id: 1,
+            chapter_number: 1,
             start_verse: 1,
             end_verse: 1,
             color: 'yellow',

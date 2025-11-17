@@ -21,6 +21,8 @@ export const mockHighlights: GetBibleHighlightsByUserIdResponse['highlights'] = 
     highlight_id: 1,
     user_id: MOCK_USER_ID,
     chapter_id: 1001, // Genesis 1
+    book_id: 1,
+    chapter_number: 1,
     start_verse: 1,
     end_verse: 1,
     color: 'yellow',
@@ -34,6 +36,8 @@ export const mockHighlights: GetBibleHighlightsByUserIdResponse['highlights'] = 
     highlight_id: 2,
     user_id: MOCK_USER_ID,
     chapter_id: 1001, // Genesis 1
+    book_id: 1,
+    chapter_number: 1,
     start_verse: 3,
     end_verse: 5,
     color: 'green',
@@ -47,6 +51,8 @@ export const mockHighlights: GetBibleHighlightsByUserIdResponse['highlights'] = 
     highlight_id: 3,
     user_id: MOCK_USER_ID,
     chapter_id: 43003, // John 3
+    book_id: 43,
+    chapter_number: 3,
     start_verse: 16,
     end_verse: 16,
     color: 'blue',
@@ -60,6 +66,8 @@ export const mockHighlights: GetBibleHighlightsByUserIdResponse['highlights'] = 
     highlight_id: 4,
     user_id: MOCK_USER_ID,
     chapter_id: 19023, // Psalms 23
+    book_id: 19,
+    chapter_number: 23,
     start_verse: 1,
     end_verse: 2,
     color: 'pink',
@@ -73,6 +81,8 @@ export const mockHighlights: GetBibleHighlightsByUserIdResponse['highlights'] = 
     highlight_id: 5,
     user_id: MOCK_USER_ID,
     chapter_id: 40005, // Matthew 5
+    book_id: 40,
+    chapter_number: 5,
     start_verse: 3,
     end_verse: 3,
     color: 'purple',
@@ -86,6 +96,8 @@ export const mockHighlights: GetBibleHighlightsByUserIdResponse['highlights'] = 
     highlight_id: 6,
     user_id: MOCK_USER_ID,
     chapter_id: 40005, // Matthew 5
+    book_id: 40,
+    chapter_number: 5,
     start_verse: 14,
     end_verse: 16,
     color: 'orange',
