@@ -249,6 +249,8 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           highlight_id: Date.now(), // Temporary ID
           user_id: variables.body.user_id,
           chapter_id: book_id * 1000 + chapter_number, // Approximate chapter_id
+          book_id,
+          chapter_number,
           start_verse,
           end_verse,
           color: color || 'yellow',
