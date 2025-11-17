@@ -14,8 +14,10 @@ import { bibleHandlers } from './bible.handlers';
 import { bookmarkHandlers } from './bookmarks.handlers';
 import { explanationHandlers } from './explanations';
 import { highlightHandlers } from './highlights.handlers';
+import { languagesHandlers } from './languages';
 import { notesHandlers } from './notes.handlers';
 import { recentlyViewedBooksHandlers } from './recently-viewed-books.handlers';
+import { userPreferencesHandlers } from './user-preferences';
 import { verseHandlers } from './verses';
 
 // Combine all handlers
@@ -30,6 +32,8 @@ export const handlers = [
   ...autoHighlightsHandlers, // Must come before bibleHandlers
   ...notesHandlers, // Must come before bibleHandlers
   ...recentlyViewedBooksHandlers, // User-level handlers
+  ...languagesHandlers, // Languages API handlers
+  ...userPreferencesHandlers, // User preferences handlers
   ...bibleHandlers,
 ];
 
@@ -42,6 +46,8 @@ export {
   bibleHandlers,
   bookmarkHandlers,
   highlightHandlers,
+  languagesHandlers,
   notesHandlers,
   recentlyViewedBooksHandlers,
+  userPreferencesHandlers,
 };
