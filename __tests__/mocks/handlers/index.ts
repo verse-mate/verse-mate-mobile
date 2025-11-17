@@ -9,6 +9,7 @@
  */
 
 import { authHandlers } from './auth';
+import { autoHighlightsHandlers } from './auto-highlights';
 import { bibleHandlers } from './bible.handlers';
 import { bookmarkHandlers } from './bookmarks.handlers';
 import { explanationHandlers } from './explanations';
@@ -26,6 +27,7 @@ export const handlers = [
   ...explanationHandlers,
   ...bookmarkHandlers, // Must come before bibleHandlers
   ...highlightHandlers, // Must come before bibleHandlers
+  ...autoHighlightsHandlers, // Must come before bibleHandlers
   ...notesHandlers, // Must come before bibleHandlers
   ...recentlyViewedBooksHandlers, // User-level handlers
   ...bibleHandlers,
@@ -34,6 +36,7 @@ export const handlers = [
 // Export individual handler groups for selective usage
 export {
   authHandlers,
+  autoHighlightsHandlers,
   verseHandlers,
   explanationHandlers,
   bibleHandlers,

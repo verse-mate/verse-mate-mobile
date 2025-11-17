@@ -22,6 +22,8 @@ describe('HighlightedText', () => {
     highlight_id: 1,
     user_id: 'user123',
     chapter_id: 1001,
+    book_id: 1,
+    chapter_number: 1,
     start_verse: 1,
     end_verse: 1,
     start_char: 7,

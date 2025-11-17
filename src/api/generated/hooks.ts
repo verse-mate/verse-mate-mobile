@@ -1,6 +1,7 @@
 // Custom React Query hooks wrapping the generated options
 import { useEffect } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { getAccessToken } from '@/lib/auth/token-storage';
 import {
 	transformTestamentsToBooks,
 	transformChapterResponse,
@@ -506,7 +507,6 @@ export function getUserRecentlyViewedBooksOptions() {
 			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
 
 			// Get access token from storage for authentication
-			const { getAccessToken } = await import('@/lib/auth/token-storage');
 			const accessToken = await getAccessToken();
 
 			const headers: HeadersInit = {};
@@ -535,7 +535,6 @@ export function postUserRecentlyViewedBooksSyncMutation() {
 			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
 
 			// Get access token from storage for authentication
-			const { getAccessToken } = await import('@/lib/auth/token-storage');
 			const accessToken = await getAccessToken();
 
 			const headers: HeadersInit = { 'Content-Type': 'application/json' };

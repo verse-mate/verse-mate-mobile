@@ -2096,6 +2096,8 @@ export type GetBibleHighlightsByUserIdResponses = {
             highlight_id: number;
             user_id: string;
             chapter_id: number;
+            book_id: number;
+            chapter_number: number;
             start_verse: number;
             end_verse: number;
             color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange';
@@ -2149,6 +2151,8 @@ export type GetBibleHighlightsByUserIdByBookIdByChapterNumberResponses = {
             highlight_id: number;
             user_id: string;
             chapter_id: number;
+            book_id: number;
+            chapter_number: number;
             start_verse: number;
             end_verse: number;
             color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange';
@@ -2166,6 +2170,7 @@ export type GetBibleHighlightsByUserIdByBookIdByChapterNumberResponse = GetBible
 export type PostBibleHighlightAddData = {
     body: {
         user_id: string;
+        chapter_id: number;
         book_id: number;
         chapter_number: number;
         start_verse: number;
@@ -2208,6 +2213,8 @@ export type PostBibleHighlightAddResponses = {
             highlight_id: number;
             user_id: string;
             chapter_id: number;
+            book_id: number;
+            chapter_number: number;
             start_verse: number;
             end_verse: number;
             color: string;
@@ -2306,6 +2313,8 @@ export type PutBibleHighlightByHighlightIdResponses = {
             highlight_id: number;
             user_id: string;
             chapter_id: number;
+            book_id: number;
+            chapter_number: number;
             start_verse: number;
             end_verse: number;
             color: string;
