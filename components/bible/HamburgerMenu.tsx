@@ -43,7 +43,7 @@ interface MenuItem {
   id: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  action?: 'auth' | 'logout' | 'bookmarks' | 'notes' | 'highlights';
+  action?: 'auth' | 'logout' | 'bookmarks' | 'notes' | 'highlights' | 'settings';
 }
 
 const authMenuItems: MenuItem[] = [
@@ -56,7 +56,7 @@ const regularMenuItems: MenuItem[] = [
   { id: 'favorites', label: 'Favorites', icon: 'heart-outline' },
   { id: 'notes', label: 'Notes', icon: 'document-text-outline', action: 'notes' },
   { id: 'highlights', label: 'Highlights', icon: 'color-wand-outline', action: 'highlights' },
-  { id: 'settings', label: 'Settings', icon: 'settings-outline' },
+  { id: 'settings', label: 'Settings', icon: 'settings-outline', action: 'settings' },
 ];
 
 const logoutMenuItem: MenuItem = {
@@ -101,6 +101,10 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       // Navigate to highlights screen
       onClose();
       router.push('/highlights');
+    } else if (item.action === 'settings') {
+      // Navigate to settings screen
+      onClose();
+      router.push('/settings');
     } else {
       // Other features show "Coming soon" alert
       Alert.alert('Coming Soon', `${item.label} feature is coming soon!`);
