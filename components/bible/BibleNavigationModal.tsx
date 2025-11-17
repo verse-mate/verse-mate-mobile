@@ -110,9 +110,13 @@ function BibleNavigationModalComponent({
   const { data: parableTopics = [], isLoading: isParablesLoading } = useTopicsSearch('PARABLE', {
     enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'PARABLE'),
   });
+  const { data: themeTopics = [], isLoading: isThemesLoading } = useTopicsSearch('THEME', {
+    enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'THEME'),
+  });
 
   // Combine loading states
-  const isTopicsLoading = isEventsLoading || isPropheciesLoading || isParablesLoading;
+  const isTopicsLoading =
+    isEventsLoading || isPropheciesLoading || isParablesLoading || isThemesLoading;
 
   // Get current category topics or all topics when searching
   const currentTopics = useMemo(() => {
@@ -122,14 +126,23 @@ function BibleNavigationModalComponent({
         ...(eventTopics as TopicListItem[]),
         ...(prophecyTopics as TopicListItem[]),
         ...(parableTopics as TopicListItem[]),
+        ...(themeTopics as TopicListItem[]),
       ];
     }
     // No search - return only selected category
     if (selectedTopicCategory === 'EVENT') return eventTopics as TopicListItem[];
     if (selectedTopicCategory === 'PROPHECY') return prophecyTopics as TopicListItem[];
     if (selectedTopicCategory === 'PARABLE') return parableTopics as TopicListItem[];
+    if (selectedTopicCategory === 'THEME') return themeTopics as TopicListItem[];
     return [];
-  }, [eventTopics, prophecyTopics, parableTopics, selectedTopicCategory, hasSearchText]);
+  }, [
+    eventTopics,
+    prophecyTopics,
+    parableTopics,
+    themeTopics,
+    selectedTopicCategory,
+    hasSearchText,
+  ]);
 
   // Animation values for swipe-to-dismiss
   const translateY = useSharedValue(0);
@@ -422,6 +435,22 @@ function BibleNavigationModalComponent({
           ]}
         >
           Parables
+        </Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => handleTopicCategoryChange('THEME')}
+        style={styles.categoryTab}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: selectedTopicCategory === 'THEME' }}
+      >
+        <Text
+          style={[
+            styles.categoryTabText,
+            selectedTopicCategory === 'THEME' && styles.categoryTabTextActive,
+          ]}
+        >
+          Themes
         </Text>
       </Pressable>
     </View>

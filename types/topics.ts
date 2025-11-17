@@ -17,13 +17,14 @@
  * - EVENT: Historical events in the Bible
  * - PROPHECY: Prophetic passages and their fulfillment
  * - PARABLE: Jesus' parables and teachings
+ * - THEME: Thematic Bible topics (e.g., Faith, Love, Hope)
  */
-export type TopicCategory = 'EVENT' | 'PROPHECY' | 'PARABLE';
+export type TopicCategory = 'EVENT' | 'PROPHECY' | 'PARABLE' | 'THEME';
 
 /**
  * Frontend-friendly category names (for UI display)
  */
-export type TopicCategoryDisplay = 'EVENTS' | 'PROPHECIES' | 'PARABLES';
+export type TopicCategoryDisplay = 'EVENTS' | 'PROPHECIES' | 'PARABLES' | 'THEMES';
 
 /**
  * Explanation type for topics
