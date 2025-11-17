@@ -175,6 +175,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
       expect(screen.getByText('Events')).toBeTruthy();
       expect(screen.getByText('Prophecies')).toBeTruthy();
       expect(screen.getByText('Parables')).toBeTruthy();
+      expect(screen.getByText('Themes')).toBeTruthy();
     });
 
     it('should display event topics by default when Topics tab is selected', async () => {
