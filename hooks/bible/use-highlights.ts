@@ -189,7 +189,6 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
     data: allHighlightsData,
     isFetching: isAllFetching,
     refetch: refetchAll,
-    dataUpdatedAt: allDataUpdatedAt,
   } = useQuery({
     ...getBibleHighlightsByUserIdOptions(allHighlightsQueryOptions),
     enabled: isAuthenticated && !!user?.id && fetchAllHighlights,
@@ -201,7 +200,6 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
     data: chapterHighlightsData,
     isFetching: isChapterFetching,
     refetch: refetchChapter,
-    dataUpdatedAt: chapterDataUpdatedAt,
   } = useQuery({
     ...getBibleHighlightsByUserIdByBookIdByChapterNumberOptions(chapterHighlightsQueryOptions),
     enabled: isAuthenticated && !!user?.id && !fetchAllHighlights && !!bookId && !!chapterNumber,
@@ -477,9 +475,13 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       }
 
       // Call mutation
+      // Note: chapter_id is calculated as bookId * 1000 + chapterNumber for the database
+      const chapterId = params.bookId * 1000 + params.chapterNumber;
+
       await addMutation.mutateAsync({
         body: {
           user_id: user.id,
+          chapter_id: chapterId,
           book_id: params.bookId,
           chapter_number: params.chapterNumber,
           start_verse: params.startVerse,
@@ -555,9 +557,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
 
   // Combine auth and query loading states
   const isFetchingHighlights =
-    isAuthLoading ||
-    (fetchAllHighlights ? isAllFetching : isChapterFetching) ||
-    (isAuthenticated && (fetchAllHighlights ? allDataUpdatedAt === 0 : chapterDataUpdatedAt === 0));
+    isAuthLoading || (fetchAllHighlights ? isAllFetching : isChapterFetching);
 
   return {
     allHighlights,

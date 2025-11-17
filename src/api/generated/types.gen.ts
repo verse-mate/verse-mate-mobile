@@ -2170,6 +2170,7 @@ export type GetBibleHighlightsByUserIdByBookIdByChapterNumberResponse = GetBible
 export type PostBibleHighlightAddData = {
     body: {
         user_id: string;
+        chapter_id: number;
         book_id: number;
         chapter_number: number;
         start_verse: number;
