@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
-import { getAccessToken } from '@/lib/auth/token-storage';
+import { getUserThemePreferences, updateUserThemePreference } from '@/lib/api/auto-highlights';
 
 interface HighlightTheme {
   theme_id: number;
@@ -57,22 +57,10 @@ export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps
         setIsLoading(true);
         setError(null);
 
-        const token = await getAccessToken();
-        const response = await fetch(
-          'https://api.verse-mate.apegro.dev/bible/user/theme-preferences',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch preferences');
-        }
-
-        const data = await response.json();
-        setThemes(data as HighlightTheme[]);
+        const result = await getUserThemePreferences();
+        // API response is wrapped in { success: true, data: [...] }
+        const themesData = result.data || result;
+        setThemes(themesData as HighlightTheme[]);
       } catch (err) {
         console.error('Failed to fetch highlight preferences:', err);
         setError('Failed to load highlight preferences');
@@ -89,22 +77,7 @@ export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps
     updates: { is_enabled?: boolean; relevance_threshold?: number }
   ) => {
     try {
-      const token = await getAccessToken();
-      const response = await fetch(
-        `https://api.verse-mate.apegro.dev/bible/user/theme-preferences/${themeId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updates),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to update preference');
-      }
+      await updateUserThemePreference(themeId, updates);
 
       // Invalidate queries to refresh auto-highlights
       queryClient.invalidateQueries({
