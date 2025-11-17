@@ -56,10 +56,16 @@ export function addToHighlightStore(
   startChar?: number,
   endChar?: number
 ) {
+  // Calculate book_id and chapter_number from chapter_id
+  const bookId = Math.floor(chapterId / 1000);
+  const chapterNumber = chapterId % 1000;
+
   highlightStore.push({
     highlight_id: nextHighlightId++,
     user_id: userId,
     chapter_id: chapterId,
+    book_id: bookId,
+    chapter_number: chapterNumber,
     start_verse: startVerse,
     end_verse: endVerse,
     color,
@@ -213,6 +219,8 @@ export const addHighlightHandler = http.post(
       highlight_id: nextHighlightId++,
       user_id: body.user_id,
       chapter_id: chapterId,
+      book_id: body.book_id,
+      chapter_number: body.chapter_number,
       start_verse: body.start_verse,
       end_verse: body.end_verse,
       color: body.color || 'yellow',

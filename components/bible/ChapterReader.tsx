@@ -22,6 +22,7 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
 import type { TextSelection } from '@/components/bible/HighlightedText';
@@ -40,8 +41,11 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
+import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { useAuth } from '@/hooks/use-auth';
+import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 
@@ -72,6 +76,76 @@ function toSuperscript(num: number): string {
     .split('')
     .map((digit) => superscriptMap[digit] || digit)
     .join('');
+}
+
+/**
+ * Check if a verse text starts with a Biblical transition word
+ * Used to detect natural paragraph break points
+ */
+function startsWithTransitionWord(text: string): boolean {
+  const transitions = [
+    'Then',
+    'After',
+    'Meanwhile',
+    'Now',
+    'When',
+    'While',
+    'But',
+    'Yet',
+    'However',
+    'Nevertheless',
+    'Therefore',
+    'Thus',
+    'So',
+    'Accordingly',
+    'Moreover',
+    'Furthermore',
+    'Also',
+    'And',
+  ];
+
+  const firstWord = text.trim().split(/\s+/)[0];
+  // Remove punctuation for comparison
+  const cleanWord = firstWord.replace(/[.,;:!?'"]/g, '');
+  return transitions.includes(cleanWord);
+}
+
+/**
+ * Calculate intelligent paragraph break points for a section
+ * Returns array of verse numbers after which to insert breaks
+ */
+function calculateBreakPoints(verses: { verseNumber: number; text: string }[]): number[] {
+  const breakAfter: number[] = [];
+
+  // Don't break short sections (3 verses or fewer)
+  if (verses.length <= 3) return [];
+
+  let versesSinceLastBreak = 0;
+
+  for (let i = 0; i < verses.length - 1; i++) {
+    const currentVerse = verses[i];
+    const nextVerse = verses[i + 1];
+    versesSinceLastBreak++;
+
+    // Force break after 5 verses maximum
+    if (versesSinceLastBreak >= 5) {
+      breakAfter.push(currentVerse.verseNumber);
+      versesSinceLastBreak = 0;
+      continue;
+    }
+
+    // Check for natural break: ends with period + next starts with transition
+    const endsWithPeriod = currentVerse.text.trim().endsWith('.');
+    const nextStartsWithTransition = startsWithTransitionWord(nextVerse.text);
+
+    // Break if: ends with period + next has transition + at least 2 verses in group
+    if (endsWithPeriod && nextStartsWithTransition && versesSinceLastBreak >= 2) {
+      breakAfter.push(currentVerse.verseNumber);
+      versesSinceLastBreak = 0;
+    }
+  }
+
+  return breakAfter;
 }
 
 interface ChapterReaderProps {
@@ -107,9 +181,16 @@ export function ChapterReader({
   explanationsOnly = false,
 }: ChapterReaderProps) {
   const { deleteNote } = useNotes();
+  const { user } = useAuth();
 
   // Fetch highlights for this chapter
   const { chapterHighlights, addHighlight, updateHighlightColor, deleteHighlight } = useHighlights({
+    bookId: chapter.bookId,
+    chapterNumber: chapter.chapterNumber,
+  });
+
+  // Fetch auto-highlights for this chapter
+  const { autoHighlights } = useAutoHighlights({
     bookId: chapter.bookId,
     chapterNumber: chapter.chapterNumber,
   });
@@ -125,6 +206,10 @@ export function ChapterReader({
   const [editMenuVisible, setEditMenuVisible] = useState(false);
   const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null);
   const [selectedHighlightId, setSelectedHighlightId] = useState<number | null>(null);
+
+  // Auto-highlight modal state
+  const [autoHighlightTooltipVisible, setAutoHighlightTooltipVisible] = useState(false);
+  const [selectedAutoHighlight, setSelectedAutoHighlight] = useState<AutoHighlight | null>(null);
 
   /**
    * Handle notes button press
@@ -310,6 +395,39 @@ export function ChapterReader({
   };
 
   /**
+   * Handle tap on auto-highlighted text
+   * Opens AutoHighlightTooltip with theme info
+   */
+  const handleAutoHighlightPress = (autoHighlight: AutoHighlight) => {
+    setSelectedAutoHighlight(autoHighlight);
+    setAutoHighlightTooltipVisible(true);
+  };
+
+  /**
+   * Handle save auto-highlight as user highlight
+   * Creates a new user highlight with the same verse range and color
+   */
+  const handleSaveAutoHighlightAsUserHighlight = async (
+    color: HighlightColor,
+    verseRange: { start: number; end: number }
+  ) => {
+    try {
+      // Create new user highlight with the auto-highlight's verse range and color
+      await addHighlight({
+        bookId: chapter.bookId,
+        chapterNumber: chapter.chapterNumber,
+        startVerse: verseRange.start,
+        endVerse: verseRange.end,
+        color,
+      });
+      Alert.alert('Success', 'Highlight saved to your collection!');
+    } catch (error) {
+      console.error('Failed to save auto-highlight as user highlight:', error);
+      Alert.alert('Error', 'Failed to save highlight. Please try again.');
+    }
+  };
+
+  /**
    * Handle color change from HighlightEditMenu
    * Updates highlight color with optimistic update
    */
@@ -421,24 +539,58 @@ export function ChapterReader({
 
             {/* Verses with Highlighting */}
             {PARAGRAPH_VIEW_ENABLED ? (
-              <Text style={styles.verseTextParagraph}>
-                {section.verses.map((verse, index) => (
-                  <Text key={verse.verseNumber}>
-                    <Text style={styles.verseNumberSuperscript}>
-                      {index > 0 ? ' ' : ''}
-                      {toSuperscript(verse.verseNumber)}
-                    </Text>
-                    <HighlightedText
-                      text={verse.text} // No space - superscript sticks to verse. Add ` ${verse.text}` for spacing
-                      verseNumber={verse.verseNumber}
-                      highlights={chapterHighlights}
-                      onHighlightPress={handleHighlightPress}
-                      onVerseLongPress={handleVerseLongPress}
-                      style={styles.verseText}
-                    />
-                  </Text>
-                ))}
-              </Text>
+              (() => {
+                // Calculate smart break points for this section
+                const breakPoints = new Set(calculateBreakPoints(section.verses));
+                const groups: (typeof section.verses)[] = [];
+                let currentGroup: typeof section.verses = [];
+
+                // Group verses based on break points
+                section.verses.forEach((verse, index) => {
+                  currentGroup.push(verse);
+
+                  // Check if we should break after this verse
+                  if (breakPoints.has(verse.verseNumber) || index === section.verses.length - 1) {
+                    groups.push([...currentGroup]);
+                    currentGroup = [];
+                  }
+                });
+
+                // Render verse groups with spacing between them
+                return groups.map((group, groupIndex) => {
+                  // Create stable key from first and last verse numbers in group
+                  const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
+                  return (
+                    <View key={groupKey}>
+                      <Text style={styles.verseTextParagraph}>
+                        {group.map((verse, verseIndex) => (
+                          <Text key={verse.verseNumber}>
+                            <Text style={styles.verseNumberSuperscript}>
+                              {verseIndex > 0 ? ' \u2009' : ''}
+                              {/* Regular space + thin space before verse number */}
+                              {toSuperscript(verse.verseNumber)}
+                              {'\u2009'}
+                              {/* Thin space after verse number */}
+                            </Text>
+                            <HighlightedText
+                              text={verse.text}
+                              verseNumber={verse.verseNumber}
+                              highlights={chapterHighlights}
+                              autoHighlights={autoHighlights}
+                              onHighlightPress={handleHighlightPress}
+                              onAutoHighlightPress={handleAutoHighlightPress}
+                              onVerseLongPress={handleVerseLongPress}
+                              style={styles.verseText}
+                            />
+                          </Text>
+                        ))}
+                      </Text>
+                      {/* Add spacing between paragraph groups */}
+                      {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}
+                    </View>
+                  );
+                });
+              })()
             ) : (
               <View style={styles.versesContainer}>
                 {section.verses.map((verse) => (
@@ -453,7 +605,9 @@ export function ChapterReader({
                       text={verse.text}
                       verseNumber={verse.verseNumber}
                       highlights={chapterHighlights}
+                      autoHighlights={autoHighlights}
                       onHighlightPress={handleHighlightPress}
+                      onAutoHighlightPress={handleAutoHighlightPress}
                       onVerseLongPress={handleVerseLongPress}
                       style={styles.verseText}
                     />
@@ -467,7 +621,9 @@ export function ChapterReader({
       {/* Explanation Content (Markdown) - shown in Explanations view */}
       {explanation && (
         <View style={styles.explanationContainer} collapsable={false}>
-          <Markdown style={markdownStyles}>{explanation.content}</Markdown>
+          <Markdown style={markdownStyles}>
+            {explanation.content.replace(/###\s*Summary\s*\n/gi, '')}
+          </Markdown>
         </View>
       )}
 
@@ -531,6 +687,18 @@ export function ChapterReader({
           onClose={handleEditMenuClose}
         />
       )}
+
+      {/* Auto-Highlight Tooltip - Show AI-generated highlight info */}
+      <AutoHighlightTooltip
+        autoHighlight={selectedAutoHighlight}
+        visible={autoHighlightTooltipVisible}
+        onClose={() => {
+          setAutoHighlightTooltipVisible(false);
+          setSelectedAutoHighlight(null);
+        }}
+        onSaveAsUserHighlight={handleSaveAutoHighlightAsUserHighlight}
+        isLoggedIn={!!user}
+      />
     </View>
   );
 }
@@ -597,20 +765,19 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
     fontWeight: fontWeights.bold,
     color: colors.gray500,
-    marginRight: spacing.xs / 2,
-    // Unicode superscript characters are naturally smaller and sit higher
+    // Spacing handled by thin space Unicode characters (\u2009) in JSX
   },
   verseText: {
     flex: 1,
     fontSize: fontSizes.bodyLarge,
     fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.bodyLarge * 1.8,
+    lineHeight: fontSizes.bodyLarge * 2.0,
     color: colors.gray900,
   },
   verseTextParagraph: {
     fontSize: fontSizes.bodyLarge,
     fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.bodyLarge * 1.8,
+    lineHeight: fontSizes.bodyLarge * 2.0,
     color: colors.gray900,
     marginBottom: spacing.md,
   },
@@ -632,8 +799,8 @@ const styles = StyleSheet.create({
  */
 const markdownStyles = StyleSheet.create({
   body: {
-    fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * 1.8,
+    fontSize: fontSizes.bodyLarge,
+    lineHeight: fontSizes.bodyLarge * 2.0,
     color: colors.gray900,
   },
   heading1: {
@@ -661,8 +828,8 @@ const markdownStyles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   paragraph: {
-    fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * 1.8,
+    fontSize: fontSizes.bodyLarge,
+    lineHeight: fontSizes.bodyLarge * 2.0,
     color: colors.gray900,
     marginBottom: spacing.lg,
   },
@@ -675,8 +842,8 @@ const markdownStyles = StyleSheet.create({
     color: colors.gray900,
   },
   list_item: {
-    fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * 1.8,
+    fontSize: fontSizes.bodyLarge,
+    lineHeight: fontSizes.bodyLarge * 2.0,
     color: colors.gray900,
     marginBottom: spacing.sm,
   },

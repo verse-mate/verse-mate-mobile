@@ -452,7 +452,7 @@ export default function TopicDetailScreen() {
           ) : explanation && typeof explanation === 'string' ? (
             <View style={styles.explanationContainer}>
               <Markdown style={markdownStyles} rules={markdownRules}>
-                {explanation}
+                {explanation.replace(/###\s*Summary\s*\n/gi, '')}
               </Markdown>
             </View>
           ) : (
@@ -722,8 +722,8 @@ const verseNumberSuperscriptStyle = {
  */
 const markdownStyles = StyleSheet.create({
   body: {
-    fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * 1.8,
+    fontSize: fontSizes.bodyLarge,
+    lineHeight: fontSizes.bodyLarge * 2.0,
     color: colors.gray900,
   },
   heading1: {
@@ -751,14 +751,14 @@ const markdownStyles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   paragraph: {
-    fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * 1.8,
+    fontSize: fontSizes.bodyLarge,
+    lineHeight: fontSizes.bodyLarge * 2.0,
     color: colors.gray900,
     marginBottom: spacing.md,
   },
   list_item: {
-    fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * 1.8,
+    fontSize: fontSizes.bodyLarge,
+    lineHeight: fontSizes.bodyLarge * 2.0,
     color: colors.gray900,
     marginBottom: spacing.xs,
   },
