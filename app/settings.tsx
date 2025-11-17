@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
+import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
 import { TextInput } from '@/components/ui/TextInput';
 import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import type { BibleVersion } from '@/constants/bible-versions';
@@ -371,15 +372,8 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* Auto-Highlight Settings - Coming Soon */}
-        {isAuthenticated && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Auto-Highlights</Text>
-            <View style={styles.comingSoonContainer}>
-              <Text style={styles.comingSoonText}>Coming soon on mobile</Text>
-            </View>
-          </View>
-        )}
+        {/* Auto-Highlight Settings */}
+        <AutoHighlightSettings isLoggedIn={isAuthenticated} />
 
         {/* Profile Information Section - Authenticated Only */}
         {isAuthenticated && user && (
@@ -541,18 +535,6 @@ const styles = StyleSheet.create({
   pickerItemTextSelected: {
     color: colors.gold,
     fontWeight: fontWeights.semibold,
-  },
-  comingSoonContainer: {
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.gray50,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  comingSoonText: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-    fontStyle: 'italic',
   },
   profileHeader: {
     flexDirection: 'row',
