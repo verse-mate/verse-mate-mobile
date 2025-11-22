@@ -79,7 +79,15 @@ export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps
     try {
       await updateUserThemePreference(themeId, updates);
 
-      // Invalidate queries to refresh auto-highlights
+      // Invalidate user preferences query
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const k = q.queryKey as unknown as (string | undefined)[];
+          return Array.isArray(k) && k[0] === 'user-theme-preferences';
+        },
+      });
+
+      // Invalidate auto-highlights queries to refresh
       queryClient.invalidateQueries({
         predicate: (q) => {
           const k = q.queryKey as unknown as (string | undefined)[];

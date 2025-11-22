@@ -8,9 +8,10 @@
  * @see app/highlights.tsx
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
-import React from 'react';
+import type React from 'react';
 import HighlightsScreen from '@/app/highlights';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHighlights } from '@/hooks/bible/use-highlights';
@@ -35,11 +36,23 @@ jest.mock('expo-haptics', () => ({
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUseHighlights = useHighlights as jest.MockedFunction<typeof useHighlights>;
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
+
+function renderWithProviders(component: React.ReactElement) {
+  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
+}
+
 describe('HighlightsScreen', () => {
   const mockUser = { id: 'test-user-123', email: 'test@example.com' };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
   });
 
   describe('Grouping by book and chapter', () => {
@@ -110,7 +123,7 @@ describe('HighlightsScreen', () => {
         refetchHighlights: jest.fn(),
       });
 
-      render(<HighlightsScreen />);
+      renderWithProviders(<HighlightsScreen />);
 
       await waitFor(() => {
         // Should have 2 groups (Genesis 1 and John 3)
@@ -164,7 +177,7 @@ describe('HighlightsScreen', () => {
         refetchHighlights: jest.fn(),
       });
 
-      const { getByTestId, queryByText } = render(<HighlightsScreen />);
+      const { getByTestId, queryByText } = renderWithProviders(<HighlightsScreen />);
 
       await waitFor(() => {
         expect(getByTestId('chapter-group-1-1')).toBeTruthy();
@@ -213,7 +226,7 @@ describe('HighlightsScreen', () => {
         refetchHighlights: jest.fn(),
       });
 
-      const { getByTestId, getByText } = render(<HighlightsScreen />);
+      const { getByTestId, getByText } = renderWithProviders(<HighlightsScreen />);
 
       await waitFor(() => {
         expect(getByTestId('chapter-group-1-1')).toBeTruthy();
@@ -223,7 +236,8 @@ describe('HighlightsScreen', () => {
       fireEvent.press(getByTestId('chapter-group-1-1'));
 
       await waitFor(() => {
-        expect(getByText('In the beginning')).toBeTruthy();
+        // Text now includes verse number: ¹ In the beginning
+        expect(getByText(/¹.*In the beginning/)).toBeTruthy();
       });
 
       // Tap the highlight item
@@ -258,7 +272,7 @@ describe('HighlightsScreen', () => {
         refetchHighlights: jest.fn(),
       });
 
-      render(<HighlightsScreen />);
+      renderWithProviders(<HighlightsScreen />);
 
       expect(screen.getByText('Please login to view your highlights')).toBeTruthy();
       expect(screen.getByTestId('highlights-login-button')).toBeTruthy();
@@ -285,7 +299,7 @@ describe('HighlightsScreen', () => {
         refetchHighlights: jest.fn(),
       });
 
-      const { getByTestId } = render(<HighlightsScreen />);
+      const { getByTestId } = renderWithProviders(<HighlightsScreen />);
 
       fireEvent.press(getByTestId('highlights-login-button'));
 
@@ -315,7 +329,7 @@ describe('HighlightsScreen', () => {
         refetchHighlights: jest.fn(),
       });
 
-      render(<HighlightsScreen />);
+      renderWithProviders(<HighlightsScreen />);
 
       await waitFor(() => {
         expect(screen.getByText('No highlights yet')).toBeTruthy();
@@ -346,7 +360,7 @@ describe('HighlightsScreen', () => {
         refetchHighlights: jest.fn(),
       });
 
-      render(<HighlightsScreen />);
+      renderWithProviders(<HighlightsScreen />);
 
       expect(screen.getByTestId('highlights-loading')).toBeTruthy();
     });
