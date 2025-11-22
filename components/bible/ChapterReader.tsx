@@ -41,8 +41,9 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
+import { HIGHLIGHT_COLORS } from '@/constants/highlight-colors';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
-import { useHighlights } from '@/hooks/bible/use-highlights';
+import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useAuth } from '@/hooks/use-auth';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -157,6 +158,38 @@ interface ChapterReaderProps {
   explanation?: ExplanationContent;
   /** Show only explanations, hide Bible verses (for Explanations view) */
   explanationsOnly?: boolean;
+}
+
+/**
+ * Check if a verse number separator should be highlighted
+ * Returns the highlight info if the verse is a continuation of a multi-verse highlight
+ */
+function getVerseNumberHighlight(
+  verseNumber: number,
+  highlights: Highlight[],
+  autoHighlights: AutoHighlight[]
+): { color: string; isAuto: boolean } | null {
+  // Check user highlights first (they take priority)
+  const multiVerseHighlight = highlights.find(
+    (h) =>
+      h.start_verse < verseNumber && h.end_verse >= verseNumber && h.start_verse !== h.end_verse
+  );
+
+  if (multiVerseHighlight) {
+    return { color: multiVerseHighlight.color, isAuto: false };
+  }
+
+  // Check auto-highlights
+  const multiVerseAutoHighlight = autoHighlights.find(
+    (h) =>
+      h.start_verse < verseNumber && h.end_verse >= verseNumber && h.start_verse !== h.end_verse
+  );
+
+  if (multiVerseAutoHighlight) {
+    return { color: multiVerseAutoHighlight.theme_color, isAuto: true };
+  }
+
+  return null;
 }
 
 /**
@@ -563,27 +596,58 @@ export function ChapterReader({
                   return (
                     <View key={groupKey}>
                       <Text style={styles.verseTextParagraph}>
-                        {group.map((verse, verseIndex) => (
-                          <Text key={verse.verseNumber}>
-                            <Text style={styles.verseNumberSuperscript}>
-                              {verseIndex > 0 ? ' \u2009' : ''}
-                              {/* Regular space + thin space before verse number */}
-                              {toSuperscript(verse.verseNumber)}
-                              {'\u2009'}
-                              {/* Thin space after verse number */}
+                        {group.map((verse, verseIndex) => {
+                          // Check if this verse number should be highlighted (continuation of multi-verse highlight)
+                          const verseNumberHighlight = getVerseNumberHighlight(
+                            verse.verseNumber,
+                            chapterHighlights,
+                            autoHighlights
+                          );
+
+                          // Calculate background color based on highlight type
+                          let backgroundColor: string | undefined;
+                          if (verseNumberHighlight) {
+                            const baseColor =
+                              HIGHLIGHT_COLORS[
+                                verseNumberHighlight.color as keyof typeof HIGHLIGHT_COLORS
+                              ];
+                            // Use different opacity for auto-highlights (0.2) vs user highlights (0.35)
+                            const opacity = verseNumberHighlight.isAuto ? 0.2 : 0.35;
+                            const opacityHex = Math.round(opacity * 255)
+                              .toString(16)
+                              .padStart(2, '0');
+                            backgroundColor = baseColor + opacityHex;
+                          }
+
+                          return (
+                            <Text key={verse.verseNumber}>
+                              <Text
+                                style={[
+                                  styles.verseNumberSuperscript,
+                                  backgroundColor && {
+                                    backgroundColor,
+                                  },
+                                ]}
+                              >
+                                {verseIndex > 0 ? ' \u2009' : ''}
+                                {/* Regular space + thin space before verse number */}
+                                {toSuperscript(verse.verseNumber)}
+                                {'\u2009'}
+                                {/* Thin space after verse number */}
+                              </Text>
+                              <HighlightedText
+                                text={verse.text}
+                                verseNumber={verse.verseNumber}
+                                highlights={chapterHighlights}
+                                autoHighlights={autoHighlights}
+                                onHighlightPress={handleHighlightPress}
+                                onAutoHighlightPress={handleAutoHighlightPress}
+                                onVerseLongPress={handleVerseLongPress}
+                                style={styles.verseText}
+                              />
                             </Text>
-                            <HighlightedText
-                              text={verse.text}
-                              verseNumber={verse.verseNumber}
-                              highlights={chapterHighlights}
-                              autoHighlights={autoHighlights}
-                              onHighlightPress={handleHighlightPress}
-                              onAutoHighlightPress={handleAutoHighlightPress}
-                              onVerseLongPress={handleVerseLongPress}
-                              style={styles.verseText}
-                            />
-                          </Text>
-                        ))}
+                          );
+                        })}
                       </Text>
                       {/* Add spacing between paragraph groups */}
                       {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}

@@ -44,6 +44,57 @@ import { useAuth } from '@/contexts/AuthContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 
 /**
+ * Convert a number to Unicode superscript characters
+ * Maps each digit to its Unicode superscript equivalent
+ */
+function toSuperscript(num: number): string {
+  const superscriptMap: Record<string, string> = {
+    '0': '⁰',
+    '1': '¹',
+    '2': '²',
+    '3': '³',
+    '4': '⁴',
+    '5': '⁵',
+    '6': '⁶',
+    '7': '⁷',
+    '8': '⁸',
+    '9': '⁹',
+  };
+
+  return num
+    .toString()
+    .split('')
+    .map((digit) => superscriptMap[digit] || digit)
+    .join('');
+}
+
+/**
+ * Format highlight text with verse numbers
+ * For single verse: "¹ verse text"
+ * For multiple verses: "¹ verse text \u2009² verse text"
+ */
+function formatHighlightWithVerseNumbers(highlight: Highlight): string {
+  const { start_verse, end_verse, selected_text } = highlight;
+
+  // If no selected_text, just show verse range
+  if (!selected_text) {
+    if (start_verse === end_verse) {
+      return `Verse ${start_verse}`;
+    }
+    return `Verses ${start_verse}-${end_verse}`;
+  }
+
+  // Single verse - add superscript number at start
+  if (start_verse === end_verse) {
+    return `${toSuperscript(start_verse)}\u2009${selected_text}`;
+  }
+
+  // Multiple verses - this is simplified since we don't have individual verse texts
+  // We'll show the range and the selected text
+  return `${toSuperscript(start_verse)}-${toSuperscript(end_verse)}\u2009${selected_text}`;
+}
+
+/**
  * Bible book names mapping
  * Maps book ID to book name for display
  */
@@ -459,7 +510,7 @@ export default function HighlightsScreen() {
                       testID={`highlight-item-${highlight.highlight_id}`}
                     >
                       <Text style={styles.highlightText} numberOfLines={2} ellipsizeMode="tail">
-                        {(highlight.selected_text as string) || ''}
+                        {formatHighlightWithVerseNumbers(highlight)}
                       </Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.gray500} />
                     </Pressable>
