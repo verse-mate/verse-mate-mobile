@@ -8,7 +8,7 @@
  * these can be replaced with generated API client calls.
  */
 
-import { getAccessToken } from '@/lib/auth/token-storage';
+import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import type {
   GetAutoHighlightsResponse,
   GetHighlightThemesResponse,
@@ -96,20 +96,10 @@ export async function getHighlightThemes(): Promise<GetHighlightThemesResponse> 
  * @returns User's theme preferences
  */
 export async function getUserThemePreferences(): Promise<GetUserThemePreferencesResponse> {
-  const accessToken = await getAccessToken();
-
-  if (!accessToken) {
-    throw new Error('Authentication required to fetch theme preferences');
-  }
-
   const url = `${BASE_URL}/bible/user/theme-preferences`;
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
   });
 
   if (!response.ok) {
@@ -130,20 +120,10 @@ export async function updateUserThemePreference(
   themeId: number,
   preferences: UpdateThemePreferenceRequest,
 ): Promise<{ success: boolean }> {
-  const accessToken = await getAccessToken();
-
-  if (!accessToken) {
-    throw new Error('Authentication required to update theme preferences');
-  }
-
   const url = `${BASE_URL}/bible/user/theme-preferences/${themeId}`;
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
     body: JSON.stringify(preferences),
   });
 
