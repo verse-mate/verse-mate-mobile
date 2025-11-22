@@ -38,9 +38,61 @@ import {
   Text,
   View,
 } from 'react-native';
+import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
 import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
+
+/**
+ * Convert a number to Unicode superscript characters
+ * Maps each digit to its Unicode superscript equivalent
+ */
+function toSuperscript(num: number): string {
+  const superscriptMap: Record<string, string> = {
+    '0': '⁰',
+    '1': '¹',
+    '2': '²',
+    '3': '³',
+    '4': '⁴',
+    '5': '⁵',
+    '6': '⁶',
+    '7': '⁷',
+    '8': '⁸',
+    '9': '⁹',
+  };
+
+  return num
+    .toString()
+    .split('')
+    .map((digit) => superscriptMap[digit] || digit)
+    .join('');
+}
+
+/**
+ * Format highlight text with verse numbers
+ * For single verse: "¹ verse text"
+ * For multiple verses: "¹ verse text \u2009² verse text"
+ */
+function formatHighlightWithVerseNumbers(highlight: Highlight): string {
+  const { start_verse, end_verse, selected_text } = highlight;
+
+  // If no selected_text, just show verse range
+  if (!selected_text) {
+    if (start_verse === end_verse) {
+      return `Verse ${start_verse}`;
+    }
+    return `Verses ${start_verse}-${end_verse}`;
+  }
+
+  // Single verse - add superscript number at start
+  if (start_verse === end_verse) {
+    return `${toSuperscript(start_verse)}\u2009${selected_text}`;
+  }
+
+  // Multiple verses - this is simplified since we don't have individual verse texts
+  // We'll show the range and the selected text
+  return `${toSuperscript(start_verse)}-${toSuperscript(end_verse)}\u2009${selected_text}`;
+}
 
 /**
  * Bible book names mapping
@@ -318,7 +370,7 @@ export default function HighlightsScreen() {
   // Group highlights by chapter
   const chapterGroups = groupHighlightsByChapter(allHighlights);
 
-  // Show empty state if no highlights exist
+  // Show empty state if no highlights exist (but still show auto-highlight settings)
   if (chapterGroups.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
@@ -335,11 +387,44 @@ export default function HighlightsScreen() {
           <Text style={styles.headerTitle}>Highlights</Text>
           <View style={styles.headerSpacer} />
         </View>
-        <View style={styles.centerContent}>
-          <Ionicons name="color-wand-outline" size={64} color={colors.gray300} />
-          <Text style={styles.emptyStateTitle}>No highlights yet</Text>
-          <Text style={styles.emptyStateSubtitle}>Start highlighting verses to see them here.</Text>
-        </View>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.gold]}
+            />
+          }
+        >
+          {/* Auto-Highlight Settings Section */}
+          <View style={styles.autoHighlightSection}>
+            <View style={styles.sectionHeaderContainer}>
+              <Ionicons name="sparkles" size={20} color={colors.gold} style={styles.sectionIcon} />
+              <Text style={styles.sectionHeader}>AI Auto-Highlights</Text>
+            </View>
+            <View style={styles.autoHighlightContainer}>
+              <AutoHighlightSettings isLoggedIn={isAuthenticated} />
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.sectionDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>My Highlights</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Empty State */}
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="color-wand-outline" size={64} color={colors.gray300} />
+            <Text style={styles.emptyStateTitle}>No highlights yet</Text>
+            <Text style={styles.emptyStateSubtitle}>
+              Start highlighting verses to see them here.
+            </Text>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -373,6 +458,25 @@ export default function HighlightsScreen() {
         }
         testID="highlights-list"
       >
+        {/* Auto-Highlight Settings Section */}
+        <View style={styles.autoHighlightSection}>
+          <View style={styles.sectionHeaderContainer}>
+            <Ionicons name="sparkles" size={20} color={colors.gold} style={styles.sectionIcon} />
+            <Text style={styles.sectionHeader}>AI Auto-Highlights</Text>
+          </View>
+          <View style={styles.autoHighlightContainer}>
+            <AutoHighlightSettings isLoggedIn={isAuthenticated} />
+          </View>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.sectionDivider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>My Highlights</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* User Highlights */}
         {chapterGroups.map((group) => {
           const isExpanded = isChapterExpanded(group.bookId, group.chapterNumber);
           const chevronIcon = isExpanded ? 'chevron-down' : 'chevron-forward';
@@ -406,7 +510,7 @@ export default function HighlightsScreen() {
                       testID={`highlight-item-${highlight.highlight_id}`}
                     >
                       <Text style={styles.highlightText} numberOfLines={2} ellipsizeMode="tail">
-                        {(highlight.selected_text as string) || ''}
+                        {formatHighlightWithVerseNumbers(highlight)}
                       </Text>
                       <Ionicons name="chevron-forward" size={20} color={colors.gray500} />
                     </Pressable>
@@ -454,6 +558,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxl * 2,
+  },
   emptyStateTitle: {
     fontSize: fontSizes.heading2,
     fontWeight: fontWeights.semibold,
@@ -485,6 +596,47 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingVertical: spacing.sm,
+  },
+  autoHighlightSection: {
+    marginBottom: spacing.lg,
+  },
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.white,
+  },
+  sectionIcon: {
+    marginRight: spacing.sm,
+  },
+  sectionHeader: {
+    fontSize: fontSizes.heading3,
+    fontWeight: fontWeights.semibold,
+    color: colors.gray900,
+  },
+  autoHighlightContainer: {
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.white,
+  },
+  sectionDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.gray300,
+  },
+  dividerText: {
+    paddingHorizontal: spacing.md,
+    fontSize: fontSizes.bodySmall,
+    fontWeight: fontWeights.semibold,
+    color: colors.gray500,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   chapterGroup: {
     marginBottom: spacing.xs,
