@@ -5,6 +5,7 @@
  * Handles:
  * - Automatic token injection in request headers
  * - 401 response handling with automatic token refresh and retry
+ * - Network error tracking with PostHog (4xx/5xx responses)
  *
  * NOTE: The generated client uses @hey-api/client-fetch (Fetch API), not axios.
  * Interceptors are implemented using the client's middleware system.
@@ -17,6 +18,18 @@ import { refreshAccessToken } from '@/lib/auth/token-refresh';
 
 // Track retry attempts per request to prevent infinite loops
 const retryAttempts = new WeakMap<Request, number>();
+
+// PostHog instance for error tracking
+// Set by setPostHogInstance function called from app initialization
+let posthogInstance: { captureException: (error: unknown, context?: unknown) => void } | null = null;
+
+/**
+ * Set PostHog instance for error tracking
+ * Called during app initialization after PostHog is set up
+ */
+export function setPostHogInstance(posthog: { captureException: (error: unknown, context?: unknown) => void } | null) {
+  posthogInstance = posthog;
+}
 
 /**
  * Request interceptor: Add Authorization header with access token
@@ -41,28 +54,58 @@ async function requestInterceptor(
 }
 
 /**
- * Response interceptor: Handle 401 responses with token refresh and retry
+ * Check if a path is an auth endpoint that should skip error tracking
+ */
+function isAuthEndpoint(path: string): boolean {
+  return (
+    path.includes('/auth/login') ||
+    path.includes('/auth/signup') ||
+    path.includes('/auth/refresh')
+  );
+}
+
+/**
+ * Response interceptor: Handle 401 responses with token refresh and retry,
+ * and track 4xx/5xx errors with PostHog
  */
 async function responseInterceptor(
   response: Response,
   request: Request,
   _options: ResolvedRequestOptions,
 ): Promise<Response> {
-  // Only handle 401 responses
-  if (response.status !== 401) {
-    return response;
-  }
-
   // Extract path from URL
   const url = new URL(request.url);
   const path = url.pathname;
 
+  // Track 4xx/5xx errors (except 401) with PostHog
+  if (response.status >= 400 && response.status !== 401) {
+    // Skip auth endpoints to avoid noise
+    if (!isAuthEndpoint(path)) {
+      const errorContext = {
+        context: 'network-error',
+        statusCode: response.status,
+        endpoint: path,
+        method: request.method,
+        url: request.url,
+      };
+
+      // Create error with status text
+      const error = new Error(
+        `HTTP ${response.status}: ${response.statusText || 'Network Error'} - ${request.method} ${path}`
+      );
+
+      // Capture with PostHog if available
+      posthogInstance?.captureException(error, errorContext);
+    }
+  }
+
+  // Only handle 401 responses for token refresh
+  if (response.status !== 401) {
+    return response;
+  }
+
   // Skip refresh for auth endpoints to prevent loops
-  if (
-    path.includes('/auth/login') ||
-    path.includes('/auth/signup') ||
-    path.includes('/auth/refresh')
-  ) {
+  if (isAuthEndpoint(path)) {
     return response;
   }
 
@@ -108,6 +151,6 @@ export function setupClientInterceptors(): void {
   // Add request interceptor for token injection
   client.interceptors.request.use(requestInterceptor);
 
-  // Add response interceptor for 401 handling
+  // Add response interceptor for 401 handling and error tracking
   client.interceptors.response.use(responseInterceptor);
 }

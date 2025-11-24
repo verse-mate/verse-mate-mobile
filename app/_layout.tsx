@@ -9,7 +9,7 @@
  */
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +20,8 @@ import 'react-native-reanimated';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
+import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 
 // Keep the splash screen visible while we fetch last read position
@@ -27,6 +29,12 @@ SplashScreen.preventAutoHideAsync();
 
 // Create a QueryClient instance (singleton)
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => handleReactQueryError(error as Error),
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => handleReactQueryError(error as Error),
+  }),
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes default stale time
@@ -41,8 +49,6 @@ const queryClient = new QueryClient({
 // Must be called before any API requests
 setupClientInterceptors();
 
-// Removed anchor setting - no tabs directory exists
-
 /**
  * Root Layout Component
  *
@@ -50,7 +56,7 @@ setupClientInterceptors();
  * - Theme provider setup
  * - React Query provider setup
  * - Authentication provider setup
- * - App launch navigation to last read position
+ * - PostHog analytics provider setup
  * - Splash screen management
  */
 export default function RootLayout() {
@@ -70,54 +76,54 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <AppErrorBoundary>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <Stack>
-                <Stack.Screen name="index" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="bible/[bookId]/[chapterNumber]"
-                  options={{
-                    headerShown: false,
-                    animation: 'none', // Disable route animations - PagerView handles swipe animations
-                  }}
-                />
-                <Stack.Screen
-                  name="topics/[topicId]"
-                  options={{
-                    headerShown: false,
-                    animation: 'none',
-                  }}
-                />
-                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-                <Stack.Screen
-                  name="auth"
-                  options={{
-                    presentation: 'modal',
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="bookmarks"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="settings"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-              </Stack>
-              <StatusBar style="auto" />
-            </ThemeProvider>
-          </AppErrorBoundary>
-        </AuthProvider>
-      </QueryClientProvider>
+      <AppPostHogProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <AppErrorBoundary>
+              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <Stack>
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="bible/[bookId]/[chapterNumber]"
+                    options={{
+                      headerShown: false,
+                      animation: 'none', // Disable route animations - PagerView handles swipe animations
+                    }}
+                  />
+                  <Stack.Screen
+                    name="topics/[topicId]"
+                    options={{
+                      headerShown: false,
+                      animation: 'none',
+                    }}
+                  />
+                  <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+                  <Stack.Screen
+                    name="auth"
+                    options={{
+                      presentation: 'modal',
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="bookmarks"
+                    options={{
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="settings"
+                    options={{
+                      headerShown: false,
+                    }}
+                  />
+                </Stack>
+                <StatusBar style="auto" />
+              </ThemeProvider>
+            </AppErrorBoundary>
+          </AuthProvider>
+        </QueryClientProvider>
+      </AppPostHogProvider>
     </GestureHandlerRootView>
   );
 }
-
-// AppLaunchNavigator removed - navigation logic moved to RootLayout useEffect
