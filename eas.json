@@ -12,6 +12,11 @@
       },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_POSTHOG_KEY": "",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
+        "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "false"
       }
     },
     "preview": {
@@ -27,7 +32,10 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "APP_ENV": "preview"
+        "APP_ENV": "preview",
+        "EXPO_PUBLIC_POSTHOG_KEY": "",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
+        "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "false"
       }
     },
     "production": {
@@ -43,7 +51,10 @@
         "gradleCommand": ":app:bundleRelease"
       },
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_POSTHOG_KEY": "",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
+        "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "true"
       }
     }
   },
