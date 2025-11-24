@@ -33,10 +33,10 @@ describe('HighlightColorPicker', () => {
     jest.clearAllMocks();
   });
 
-  it('should render all 6 color buttons', () => {
+  it('should render all color buttons', () => {
     render(<HighlightColorPicker {...defaultProps} />);
 
-    // Check that all 6 colors are rendered
+    // Check that all colors are rendered
     HIGHLIGHT_COLOR_ORDER.forEach((color) => {
       expect(screen.getByTestId(`color-button-${color}`)).toBeTruthy();
     });

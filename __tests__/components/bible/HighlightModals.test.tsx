@@ -64,13 +64,16 @@ describe('HighlightSelectionSheet', () => {
       />
     );
 
-    // Color picker should render all 6 colors
+    // Color picker should render all colors
     expect(screen.getByTestId('color-button-yellow')).toBeTruthy();
     expect(screen.getByTestId('color-button-green')).toBeTruthy();
     expect(screen.getByTestId('color-button-blue')).toBeTruthy();
     expect(screen.getByTestId('color-button-pink')).toBeTruthy();
     expect(screen.getByTestId('color-button-purple')).toBeTruthy();
     expect(screen.getByTestId('color-button-orange')).toBeTruthy();
+    expect(screen.getByTestId('color-button-red')).toBeTruthy();
+    expect(screen.getByTestId('color-button-teal')).toBeTruthy();
+    expect(screen.getByTestId('color-button-brown')).toBeTruthy();
   });
 
   it('triggers onColorSelect callback when color is selected', async () => {

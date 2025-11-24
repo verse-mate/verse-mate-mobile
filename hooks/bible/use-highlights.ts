@@ -46,6 +46,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
+import type { HighlightColor } from '@/constants/highlight-colors';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   deleteBibleHighlightByHighlightIdMutation,
@@ -70,9 +71,9 @@ import type {
 export type Highlight = GetBibleHighlightsByUserIdResponse['highlights'][number];
 
 /**
- * Highlight color type
+ * Re-export HighlightColor type for convenience
  */
-export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange';
+export type { HighlightColor };
 
 /**
  * Parameters for adding a new highlight
