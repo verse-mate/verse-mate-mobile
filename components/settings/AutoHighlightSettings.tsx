@@ -35,6 +35,9 @@ const COLOR_MAP: Record<string, string> = {
   orange: '#fed7aa',
   pink: '#fbcfe8',
   purple: '#e9d5ff',
+  red: '#fca5a5',
+  teal: '#5eead4',
+  brown: '#d7bfaa',
 };
 
 export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps) {
