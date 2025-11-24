@@ -1,11 +1,11 @@
 /**
  * HighlightColorPicker Component
  *
- * Displays a 2x3 grid of color buttons for selecting highlight color.
+ * Displays a 3x3 grid of color buttons for selecting highlight color.
  * Used in both creation (light variant) and edit (dark variant) contexts.
  *
  * Features:
- * - 6 color buttons in 2 rows of 3 columns
+ * - 9 color buttons in 3 rows of 3 columns
  * - Selected color shows checkmark icon overlay
  * - Border color adapts to variant (blue for light, white for dark)
  * - Haptic feedback on color selection
@@ -49,7 +49,7 @@ export interface HighlightColorPickerProps {
 /**
  * Color picker component for highlight selection
  *
- * Renders 6 color buttons in 2x3 grid layout.
+ * Renders 9 color buttons in 3x3 grid layout.
  * Selected color shows checkmark icon and border.
  */
 export function HighlightColorPicker({
@@ -102,6 +102,34 @@ export function HighlightColorPicker({
       {/* Row 2: Pink, Purple, Orange */}
       <View style={styles.row}>
         {HIGHLIGHT_COLOR_ORDER.slice(3, 6).map((color) => (
+          <Pressable
+            key={color}
+            style={[
+              styles.colorButton,
+              { backgroundColor: HIGHLIGHT_COLORS[color] },
+              selectedColor === color && { borderColor, borderWidth: 3 },
+            ]}
+            onPress={() => handleColorPress(color)}
+            testID={`color-button-${color}`}
+            accessibilityRole="button"
+            accessibilityLabel={`${color} highlight color`}
+            accessibilityState={{ selected: selectedColor === color }}
+          >
+            {selectedColor === color && (
+              <Ionicons
+                name="checkmark"
+                size={28}
+                color={variant === 'light' ? colors.info : colors.white}
+                testID={`checkmark-${color}`}
+              />
+            )}
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Row 3: Red, Teal, Brown */}
+      <View style={styles.row}>
+        {HIGHLIGHT_COLOR_ORDER.slice(6, 9).map((color) => (
           <Pressable
             key={color}
             style={[
