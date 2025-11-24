@@ -12,7 +12,7 @@ import type { GetBibleHighlightsByUserIdResponse } from '@/src/api/generated/typ
 export const MOCK_USER_ID = 'test-user-123';
 
 /**
- * Sample highlights with all 6 colors
+ * Sample highlights with various colors
  * Includes single-verse and multi-verse highlights
  * Includes character-level precision examples
  */

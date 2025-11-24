@@ -2,8 +2,8 @@
  * Highlight Color Constants
  *
  * Pre-defined color palette for Bible text highlighting.
- * Backend enforces exactly 6 colors: yellow, green, blue, pink, purple, orange.
- * Hex values match web app for consistency.
+ * Backend supports 9 colors: yellow, green, blue, pink, purple, orange, red, teal, brown.
+ * Uses Material Design color palette for vibrant, consistent mobile UI.
  *
  * @see Spec: .agent-os/specs/2025-11-06-highlight-feature/spec.md (lines 46-52)
  */
@@ -12,12 +12,22 @@
  * Highlight color type union
  * Must match backend enum exactly
  */
-export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange';
+export type HighlightColor =
+  | 'yellow'
+  | 'green'
+  | 'blue'
+  | 'pink'
+  | 'purple'
+  | 'orange'
+  | 'red'
+  | 'teal'
+  | 'brown';
 
 /**
- * Highlight color palette with exact hex values from web app
+ * Highlight color palette using Material Design colors
  *
  * Colors render as semi-transparent backgrounds for text readability.
+ * Uses vibrant Material Design colors for better visibility on mobile.
  * Maintain WCAG contrast ratios for accessibility.
  */
 export const HIGHLIGHT_COLORS: Record<HighlightColor, string> = {
@@ -27,6 +37,9 @@ export const HIGHLIGHT_COLORS: Record<HighlightColor, string> = {
   pink: '#E91E63',
   purple: '#9C27B0',
   orange: '#FF9800',
+  red: '#F44336',
+  teal: '#009688',
+  brown: '#795548',
 } as const;
 
 /**
@@ -36,7 +49,7 @@ export const DEFAULT_HIGHLIGHT_COLOR: HighlightColor = 'yellow';
 
 /**
  * Array of color keys for rendering color picker grid
- * Order matches visual design: Yellow, Green, Blue, Pink, Purple, Orange
+ * Order matches visual design: Yellow, Green, Blue, Pink, Purple, Orange, Red, Teal, Brown
  */
 export const HIGHLIGHT_COLOR_ORDER: HighlightColor[] = [
   'yellow',
@@ -45,4 +58,7 @@ export const HIGHLIGHT_COLOR_ORDER: HighlightColor[] = [
   'pink',
   'purple',
   'orange',
+  'red',
+  'teal',
+  'brown',
 ] as const;
