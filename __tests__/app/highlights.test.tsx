@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HighlightsScreen from '@/app/highlights';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHighlights } from '@/hooks/bible/use-highlights';
@@ -33,6 +34,20 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
+// Mock safe area context to ensure it renders children
+jest.mock('react-native-safe-area-context', () => {
+  return {
+    SafeAreaProvider: jest.fn(({ children }) => children),
+    SafeAreaView: jest.fn(({ children }) => children),
+    useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+  };
+});
+
+// Mock AutoHighlightSettings to prevent network requests
+jest.mock('@/components/settings/AutoHighlightSettings', () => ({
+  AutoHighlightSettings: () => null,
+}));
+
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUseHighlights = useHighlights as jest.MockedFunction<typeof useHighlights>;
 
@@ -44,7 +59,11 @@ const queryClient = new QueryClient({
 });
 
 function renderWithProviders(component: React.ReactElement) {
-  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
+  return render(
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>
+    </SafeAreaProvider>
+  );
 }
 
 describe('HighlightsScreen', () => {
