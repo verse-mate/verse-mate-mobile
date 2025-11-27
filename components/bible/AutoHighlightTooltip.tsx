@@ -22,8 +22,9 @@ import {
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
-import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleByLine } from '@/src/api/generated/hooks';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
@@ -56,6 +57,10 @@ export function AutoHighlightTooltip({
   onSaveAsUserHighlight,
   isLoggedIn,
 }: AutoHighlightTooltipProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
+
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
 
@@ -363,208 +368,210 @@ export function AutoHighlightTooltip({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  container: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: '80%',
-  },
-  contentContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    flexShrink: 1, // Ensure container shrinks if max height is reached
-  },
-  scrollContainer: {
-    flexShrink: 1, // Allow ScrollView to shrink to accommodate footer
-  },
-  header: {
-    alignItems: 'center',
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.gray300,
-    borderRadius: 2,
-  },
-  title: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginBottom: spacing.lg,
-  },
-  infoContainer: {
-    marginBottom: spacing.lg,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  label: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-    fontWeight: fontWeights.regular,
-  },
-  value: {
-    fontSize: fontSizes.body,
-    color: colors.gray900,
-    fontWeight: fontWeights.medium,
-  },
-  actionsContainer: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl, // Bottom padding for safe area/aesthetics
-    borderTopWidth: 1,
-    borderTopColor: colors.gray100, // Optional separator
-    backgroundColor: colors.white, // Ensure opaque background
-  },
-  primaryButton: {
-    backgroundColor: colors.gold,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: colors.white,
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-  },
-  secondaryButton: {
-    backgroundColor: 'transparent',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.gray300,
-  },
-  secondaryButtonText: {
-    color: colors.gray900,
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.medium,
-  },
-  loginPrompt: {
-    padding: spacing.lg,
-    backgroundColor: colors.gray100,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  loginPromptText: {
-    fontSize: fontSizes.body,
-    color: colors.gray700,
-    textAlign: 'center',
-  },
-  insightContainer: {
-    marginBottom: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray200,
-    paddingTop: spacing.md,
-    flexShrink: 1, // Allow container to shrink
-    minHeight: 0, // Necessary for flex shrink to work in some cases
-  },
-  insightToggle: {
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  insightToggleText: {
-    fontSize: fontSizes.bodySmall,
-    color: colors.gold,
-    fontWeight: fontWeights.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  insightContentWrapper: {
-    overflow: 'hidden',
-    flexShrink: 1, // Allow wrapper to shrink
-  },
-  insightScroll: {
-    backgroundColor: colors.gray50,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.gray200,
-  },
-  insightScrollContent: {
-    padding: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  loadingContainer: {
-    padding: spacing.lg,
-    alignItems: 'center',
-  },
-  emptyInsightContainer: {
-    padding: spacing.lg,
-    alignItems: 'center',
-    backgroundColor: colors.gray50,
-    borderRadius: 8,
-  },
-  insightEmptyText: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.backdrop,
+    },
+    container: {
+      backgroundColor: colors.backgroundElevated,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      maxHeight: '80%',
+    },
+    contentContainer: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      flexShrink: 1, // Ensure container shrinks if max height is reached
+    },
+    scrollContainer: {
+      flexShrink: 1, // Allow ScrollView to shrink to accommodate footer
+    },
+    header: {
+      alignItems: 'center',
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      backgroundColor: colors.border,
+      borderRadius: 2,
+    },
+    title: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.lg,
+    },
+    infoContainer: {
+      marginBottom: spacing.lg,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    label: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      fontWeight: fontWeights.regular,
+    },
+    value: {
+      fontSize: fontSizes.body,
+      color: colors.textPrimary,
+      fontWeight: fontWeights.medium,
+    },
+    actionsContainer: {
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.xl, // Bottom padding for safe area/aesthetics
+      borderTopWidth: 1,
+      borderTopColor: colors.divider, // Optional separator
+      backgroundColor: colors.backgroundElevated, // Ensure opaque background
+    },
+    primaryButton: {
+      backgroundColor: colors.gold,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    primaryButtonText: {
+      color: colors.background,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+    },
+    secondaryButton: {
+      backgroundColor: 'transparent',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    secondaryButtonText: {
+      color: colors.textPrimary,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+    },
+    loginPrompt: {
+      padding: spacing.lg,
+      backgroundColor: colors.background,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    loginPromptText: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    insightContainer: {
+      marginBottom: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+      paddingTop: spacing.md,
+      flexShrink: 1, // Allow container to shrink
+      minHeight: 0, // Necessary for flex shrink to work in some cases
+    },
+    insightToggle: {
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginBottom: spacing.xs,
+    },
+    insightToggleText: {
+      fontSize: fontSizes.bodySmall,
+      color: colors.gold,
+      fontWeight: fontWeights.semibold,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    insightContentWrapper: {
+      overflow: 'hidden',
+      flexShrink: 1, // Allow wrapper to shrink
+    },
+    insightScroll: {
+      backgroundColor: colors.background,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    insightScrollContent: {
+      padding: spacing.md,
+      paddingBottom: spacing.md,
+    },
+    loadingContainer: {
+      padding: spacing.lg,
+      alignItems: 'center',
+    },
+    emptyInsightContainer: {
+      padding: spacing.lg,
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      borderRadius: 8,
+    },
+    insightEmptyText: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      fontStyle: 'italic',
+      textAlign: 'center',
+    },
+  });
 
 /**
  * Markdown Styles
  * Adapts standard markdown styling for the tooltip context (smaller fonts)
  */
-const markdownStyles = StyleSheet.create({
-  body: {
-    fontSize: fontSizes.body, // 16px
-    lineHeight: fontSizes.body * 1.5,
-    color: colors.gray900,
-  },
-  heading1: {
-    fontSize: fontSizes.heading3, // Smaller than main view
-    fontWeight: fontWeights.bold,
-    color: colors.gray900,
-    marginBottom: spacing.xs,
-    marginTop: spacing.sm,
-  },
-  heading2: {
-    fontSize: fontSizes.heading3,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginBottom: spacing.xs,
-    marginTop: spacing.sm,
-  },
-  paragraph: {
-    fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * 1.5,
-    color: colors.gray900,
-    marginBottom: spacing.sm,
-  },
-  strong: {
-    fontWeight: fontWeights.bold,
-    color: colors.gray900,
-  },
-  em: {
-    fontStyle: 'italic',
-    color: colors.gray900,
-  },
-  blockquote: {
-    backgroundColor: colors.white,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.gold,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-});
+const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    body: {
+      fontSize: fontSizes.body, // 16px
+      lineHeight: fontSizes.body * 1.5,
+      color: colors.textPrimary,
+    },
+    heading1: {
+      fontSize: fontSizes.heading3, // Smaller than main view
+      fontWeight: fontWeights.bold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+      marginTop: spacing.sm,
+    },
+    heading2: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+      marginTop: spacing.sm,
+    },
+    paragraph: {
+      fontSize: fontSizes.body,
+      lineHeight: fontSizes.body * 1.5,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    strong: {
+      fontWeight: fontWeights.bold,
+      color: colors.textPrimary,
+    },
+    em: {
+      fontStyle: 'italic',
+      color: colors.textPrimary,
+    },
+    blockquote: {
+      backgroundColor: colors.background,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.gold,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      marginBottom: spacing.sm,
+    },
+  });

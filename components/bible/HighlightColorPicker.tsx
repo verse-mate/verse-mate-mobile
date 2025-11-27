@@ -27,12 +27,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { colors } from '@/constants/bible-design-tokens';
 import {
   HIGHLIGHT_COLOR_ORDER,
   HIGHLIGHT_COLORS,
   type HighlightColor,
 } from '@/constants/highlight-colors';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * Props for HighlightColorPicker component
@@ -57,6 +57,8 @@ export function HighlightColorPicker({
   onColorSelect,
   variant,
 }: HighlightColorPickerProps) {
+  const { colors } = useTheme();
+
   /**
    * Handle color button press
    */

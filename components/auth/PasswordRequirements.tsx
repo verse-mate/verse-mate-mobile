@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import type React from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import type { getColors } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import { getPasswordRequirements } from '@/lib/auth/password-validation';
 
 /**
@@ -21,6 +24,8 @@ export interface PasswordRequirementsProps {
 }
 
 export const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ password }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const requirements = getPasswordRequirements(password);
 
   return (
@@ -35,14 +40,14 @@ export const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ pass
               <Ionicons
                 name="checkmark-circle"
                 size={20}
-                color="#B4956B"
+                color={colors.gold}
                 testID={`requirement-${index}-met`}
               />
             ) : (
               <Ionicons
                 name="ellipse-outline"
                 size={20}
-                color={hasContent ? '#EF4444' : '#9CA3AF'}
+                color={hasContent ? colors.error : colors.textTertiary}
                 testID={`requirement-${index}-unmet`}
               />
             )}
@@ -54,19 +59,20 @@ export const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ pass
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  requirementItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  requirementText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#6B7280', // Gray color matching mockup
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      marginTop: 8,
+      marginBottom: 16,
+    },
+    requirementItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 4,
+    },
+    requirementText: {
+      marginLeft: 8,
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+  });

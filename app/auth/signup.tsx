@@ -8,7 +8,7 @@
  */
 
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -21,6 +21,8 @@ import {
 import { PasswordRequirements } from '@/components/auth/PasswordRequirements';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/ui/TextInput';
+import type { getColors } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useSignup } from '@/hooks/useSignup';
 import { validatePassword } from '@/lib/auth/password-validation';
 
@@ -38,6 +40,8 @@ import { validatePassword } from '@/lib/auth/password-validation';
  * - "Continue without account" option
  */
 export default function Signup() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -254,73 +258,76 @@ export default function Signup() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 24,
-  },
-  header: {
-    marginBottom: 32,
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    lineHeight: 24,
-  },
-  form: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 0,
-  },
-  nameField: {
-    flex: 1,
-  },
-  errorContainer: {
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-  },
-  errorText: {
-    color: '#EF4444',
-    fontSize: 14,
-  },
-  linkContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  linkText: {
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  linkTextUnderlined: {
-    fontSize: 16,
-    color: '#1F2937',
-    textDecorationLine: 'underline',
-  },
-  continueText: {
-    fontSize: 16,
-    color: '#B4956B',
-    textAlign: 'center',
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollContent: {
+      flexGrow: 1,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 24,
+      paddingTop: 48,
+      paddingBottom: 24,
+    },
+    header: {
+      marginBottom: 32,
+    },
+    heading: {
+      fontSize: 32,
+      fontWeight: 'bold',
+      color: colors.textPrimary,
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      lineHeight: 24,
+    },
+    form: {
+      flex: 1,
+    },
+    nameRow: {
+      flexDirection: 'row',
+      gap: 16,
+      marginBottom: 0,
+    },
+    nameField: {
+      flex: 1,
+    },
+    errorContainer: {
+      marginBottom: 16,
+      padding: 12,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.error,
+    },
+    errorText: {
+      color: colors.error,
+      fontSize: 14,
+    },
+    linkContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      marginTop: 24,
+      marginBottom: 16,
+    },
+    linkText: {
+      fontSize: 16,
+      color: colors.textPrimary,
+    },
+    linkTextUnderlined: {
+      fontSize: 16,
+      color: colors.textPrimary,
+      textDecorationLine: 'underline',
+    },
+    continueText: {
+      fontSize: 16,
+      color: colors.gold,
+      textAlign: 'center',
+    },
+  });
