@@ -558,7 +558,7 @@ function TopicHeader({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top }]} testID="topic-header">
+    <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="topic-header">
       {/* Topic Title Button (clickable to open navigation) */}
       <Pressable
         onPress={onNavigationPress}
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: headerSpecs.padding,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
   },
   topicButton: {
     flexShrink: 1,
