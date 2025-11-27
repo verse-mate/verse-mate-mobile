@@ -1,21 +1,42 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { colors } from '@/constants/bible-design-tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
+// Mock the hook
+jest.mock('@/src/api/generated/hooks', () => ({
+  useBibleByLine: jest.fn(() => ({
+    data: {
+      content:
+        '## 3:16\n> For God so loved the world...\n\n### Summary\nGod loved the world so much.',
+    },
+    isLoading: false,
+  })),
+}));
+
 // Mock AutoHighlight data
 const mockAutoHighlight: AutoHighlight = {
-  auto_highlight_id: 1, // Added
-  book_id: 43, // Changed from 'JHN' to a number
+  auto_highlight_id: 1,
+  book_id: 43,
   chapter_number: 3,
   start_verse: 16,
   end_verse: 16,
-  theme_id: 1, // Changed from 'love' to a number
+  theme_id: 1,
   theme_name: 'Gods Love',
   theme_color: 'yellow',
   relevance_score: 5,
+  created_at: '2023-01-01T12:00:00Z',
+};
 
-  created_at: '2023-01-01T12:00:00Z', // Added
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+  },
+});
+
+const renderWithProviders = (component: React.ReactNode) => {
+  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
 };
 
 describe('AutoHighlightTooltip', () => {
@@ -27,7 +48,7 @@ describe('AutoHighlightTooltip', () => {
   });
 
   it('renders correctly when visible', () => {
-    render(
+    renderWithProviders(
       <AutoHighlightTooltip
         autoHighlight={mockAutoHighlight}
         visible={true}
@@ -40,10 +61,12 @@ describe('AutoHighlightTooltip', () => {
     expect(screen.getByText('Gods Love')).toBeTruthy();
     expect(screen.getByText('AI-generated highlight')).toBeTruthy();
     expect(screen.getByText('Verse 16')).toBeTruthy();
+    // Toggle button should be visible
+    expect(screen.getByText('View Verse Insight')).toBeTruthy();
   });
 
   it('does not render when autoHighlight is null', () => {
-    render(
+    renderWithProviders(
       <AutoHighlightTooltip
         autoHighlight={null}
         visible={true}
@@ -57,7 +80,7 @@ describe('AutoHighlightTooltip', () => {
   });
 
   it('calls onSaveAsUserHighlight when save button is pressed', () => {
-    render(
+    renderWithProviders(
       <AutoHighlightTooltip
         autoHighlight={mockAutoHighlight}
         visible={true}
@@ -71,12 +94,10 @@ describe('AutoHighlightTooltip', () => {
     fireEvent.press(saveButton);
 
     expect(mockOnSave).toHaveBeenCalledWith('yellow', { start: 16, end: 16 });
-    // onClose is called after animation, which we can't easily test without waiting or mocking timers
-    // But we can check if the dismiss logic was triggered (which eventually calls onClose)
   });
 
   it('shows login prompt when not logged in', () => {
-    render(
+    renderWithProviders(
       <AutoHighlightTooltip
         autoHighlight={mockAutoHighlight}
         visible={true}
@@ -88,5 +109,25 @@ describe('AutoHighlightTooltip', () => {
 
     expect(screen.queryByText('Save as My Highlight')).toBeNull();
     expect(screen.getByText('Sign in to save this highlight to your collection')).toBeTruthy();
+  });
+
+  it('shows parsed insight when toggle is clicked', async () => {
+    renderWithProviders(
+      <AutoHighlightTooltip
+        autoHighlight={mockAutoHighlight}
+        visible={true}
+        onClose={mockOnClose}
+        onSaveAsUserHighlight={mockOnSave}
+        isLoggedIn={true}
+      />
+    );
+
+    const toggleButton = screen.getByText('View Verse Insight');
+    fireEvent.press(toggleButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Hide Verse Insight')).toBeTruthy();
+      expect(screen.getByText(/God loved the world so much/)).toBeTruthy();
+    });
   });
 });
