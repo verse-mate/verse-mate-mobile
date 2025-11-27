@@ -260,39 +260,38 @@ export function AutoHighlightTooltip({
         </Animated.View>
 
         {/* Animated Modal Content */}
-        <Animated.View
-          style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
-          {...panResponder.panHandlers}
-        >
+        <Animated.View style={[styles.container, { transform: [{ translateY: slideAnim }] }]}>
           {/* Header with pan responder for swipe */}
-          <View style={styles.header}>
+          <View style={styles.header} {...panResponder.panHandlers}>
             <View style={styles.handle} />
           </View>
 
           {/* Content */}
           <View style={styles.contentContainer}>
             <View style={styles.scrollContainer}>
-              {/* Title */}
-              <Text style={styles.title}>{autoHighlight.theme_name}</Text>
+              <View {...panResponder.panHandlers}>
+                {/* Title */}
+                <Text style={styles.title}>{autoHighlight.theme_name}</Text>
 
-              <View style={styles.infoContainer}>
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Relevance:</Text>
-                  <Text style={styles.value}>{autoHighlight.relevance_score} / 5</Text>
-                </View>
+                <View style={styles.infoContainer}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Relevance:</Text>
+                    <Text style={styles.value}>{autoHighlight.relevance_score} / 5</Text>
+                  </View>
 
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Type:</Text>
-                  <Text style={styles.value}>AI-generated highlight</Text>
-                </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Type:</Text>
+                    <Text style={styles.value}>AI-generated highlight</Text>
+                  </View>
 
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Verse Range:</Text>
-                  <Text style={styles.value}>
-                    {autoHighlight.start_verse === autoHighlight.end_verse
-                      ? `Verse ${autoHighlight.start_verse}`
-                      : `Verses ${autoHighlight.start_verse}-${autoHighlight.end_verse}`}
-                  </Text>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Verse Range:</Text>
+                    <Text style={styles.value}>
+                      {autoHighlight.start_verse === autoHighlight.end_verse
+                        ? `Verse ${autoHighlight.start_verse}`
+                        : `Verses ${autoHighlight.start_verse}-${autoHighlight.end_verse}`}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -302,6 +301,7 @@ export function AutoHighlightTooltip({
                   style={styles.insightToggle}
                   onPress={() => setExpanded(!expanded)}
                   hitSlop={10}
+                  {...panResponder.panHandlers}
                 >
                   <Text style={styles.insightToggleText}>
                     {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
@@ -338,7 +338,7 @@ export function AutoHighlightTooltip({
             </View>
 
             {/* Actions Footer */}
-            <View style={styles.actionsContainer}>
+            <View style={styles.actionsContainer} {...panResponder.panHandlers}>
               {isLoggedIn ? (
                 <>
                   <Pressable style={styles.primaryButton} onPress={handleSave}>
@@ -498,7 +498,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.gray200,
-    flexGrow: 0, // Don't force expand, let it scroll
   },
   insightScrollContent: {
     padding: spacing.md,
