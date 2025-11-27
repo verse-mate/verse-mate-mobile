@@ -22,11 +22,13 @@ import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
+import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { TextInput } from '@/components/ui/TextInput';
-import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { BibleVersion } from '@/constants/bible-versions';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import {
   getBibleLanguages,
@@ -43,6 +45,7 @@ interface Language {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, logout } = useAuth();
+  const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
   const queryClient = useQueryClient();
 
@@ -245,6 +248,9 @@ export default function SettingsScreen() {
     router.back();
   };
 
+  // Create theme-aware styles
+  const styles = createStyles(colors);
+
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       {/* Custom Header */}
@@ -256,7 +262,7 @@ export default function SettingsScreen() {
           accessibilityRole="button"
           testID="settings-back-button"
         >
-          <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={styles.headerSpacer} />
@@ -269,6 +275,9 @@ export default function SettingsScreen() {
           { paddingBottom: insets.bottom + spacing.xl },
         ]}
       >
+        {/* Theme Selector Section */}
+        <ThemeSelector />
+
         {/* Bible Version Section */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Bible Version</Text>
@@ -282,7 +291,7 @@ export default function SettingsScreen() {
             <Ionicons
               name={showVersionPicker ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color={colors.gray700}
+              color={colors.textSecondary}
             />
           </Pressable>
 
@@ -335,7 +344,7 @@ export default function SettingsScreen() {
               <Ionicons
                 name={showLanguagePicker ? 'chevron-up' : 'chevron-down'}
                 size={20}
-                color={colors.gray700}
+                color={colors.textSecondary}
               />
             </Pressable>
 
@@ -471,7 +480,7 @@ export default function SettingsScreen() {
         {/* Not Authenticated Message */}
         {!isAuthenticated && (
           <View style={styles.notAuthenticatedContainer}>
-            <Ionicons name="person-outline" size={64} color={colors.gray300} />
+            <Ionicons name="person-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.notAuthenticatedText}>
               Sign in to access language preferences, auto-highlights, and profile settings.
             </Text>
@@ -488,150 +497,151 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-    backgroundColor: colors.white,
-  },
-  backButton: {
-    padding: spacing.xs,
-    marginRight: spacing.sm,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: fontSizes.displayMedium,
-    fontWeight: fontWeights.bold,
-    color: colors.gray900,
-  },
-  headerSpacer: {
-    width: 32, // Same width as back button for centering
-  },
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: spacing.lg,
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionLabel: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginBottom: spacing.md,
-  },
-  selectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.gray300,
-    borderRadius: 8,
-  },
-  selectButtonText: {
-    flex: 1,
-    fontSize: fontSizes.body,
-    color: colors.gray900,
-  },
-  pickerContainer: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.gray300,
-    borderRadius: 8,
-    maxHeight: 300,
-  },
-  pickerScrollView: {
-    maxHeight: 300,
-  },
-  pickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
-  },
-  pickerItemSelected: {
-    backgroundColor: colors.gray50,
-  },
-  pickerItemText: {
-    flex: 1,
-    fontSize: fontSizes.body,
-    color: colors.gray700,
-  },
-  pickerItemTextSelected: {
-    color: colors.gold,
-    fontWeight: fontWeights.semibold,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  profileIconWrapper: {
-    marginRight: spacing.md,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginBottom: spacing.xs / 2,
-  },
-  profileSubtext: {
-    fontSize: fontSizes.caption,
-    color: colors.gray500,
-  },
-  form: {
-    marginBottom: spacing.lg,
-  },
-  errorContainer: {
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-  },
-  errorText: {
-    fontSize: fontSizes.caption,
-    color: '#DC2626',
-  },
-  changeIndicator: {
-    fontSize: fontSizes.caption,
-    color: colors.gray500,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  notAuthenticatedContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.xl,
-  },
-  notAuthenticatedText: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-    textAlign: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
-    lineHeight: 24,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    backButton: {
+      padding: spacing.xs,
+      marginRight: spacing.sm,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: fontSizes.displayMedium,
+      fontWeight: fontWeights.bold,
+      color: colors.textPrimary,
+    },
+    headerSpacer: {
+      width: 32, // Same width as back button for centering
+    },
+    scrollView: {
+      flex: 1,
+    },
+    contentContainer: {
+      padding: spacing.lg,
+    },
+    section: {
+      marginBottom: spacing.xl,
+    },
+    sectionLabel: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+    },
+    selectButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+    },
+    selectButtonText: {
+      flex: 1,
+      fontSize: fontSizes.body,
+      color: colors.textPrimary,
+    },
+    pickerContainer: {
+      marginTop: spacing.sm,
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      maxHeight: 300,
+    },
+    pickerScrollView: {
+      maxHeight: 300,
+    },
+    pickerItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    pickerItemSelected: {
+      backgroundColor: colors.backgroundOverlay,
+    },
+    pickerItemText: {
+      flex: 1,
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+    },
+    pickerItemTextSelected: {
+      color: colors.gold,
+      fontWeight: fontWeights.semibold,
+    },
+    profileHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    profileIconWrapper: {
+      marginRight: spacing.md,
+    },
+    profileInfo: {
+      flex: 1,
+    },
+    profileName: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs / 2,
+    },
+    profileSubtext: {
+      fontSize: fontSizes.caption,
+      color: colors.textSecondary,
+    },
+    form: {
+      marginBottom: spacing.lg,
+    },
+    errorContainer: {
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      backgroundColor: colors.error + '20', // 20% opacity
+      borderRadius: 8,
+    },
+    errorText: {
+      fontSize: fontSizes.caption,
+      color: colors.error,
+    },
+    changeIndicator: {
+      fontSize: fontSizes.caption,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+    notAuthenticatedContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xxl,
+      paddingHorizontal: spacing.xl,
+    },
+    notAuthenticatedText: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.lg,
+      marginBottom: spacing.xl,
+      lineHeight: 24,
+    },
+  });
