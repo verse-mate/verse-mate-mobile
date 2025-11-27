@@ -775,7 +775,7 @@ const markdownStyles = StyleSheet.create({
     fontWeight: fontWeights.semibold,
     lineHeight: fontSizes.heading2 * lineHeights.heading,
     color: colors.gray900,
-    marginTop: spacing.xl,
+    marginTop: 64,
     marginBottom: spacing.sm,
   },
   heading3: {
@@ -783,7 +783,8 @@ const markdownStyles = StyleSheet.create({
     fontWeight: fontWeights.semibold,
     lineHeight: fontSizes.heading3 * lineHeights.heading,
     color: colors.gray900,
-    marginTop: spacing.lg,
+
+    marginTop: 64,
     marginBottom: spacing.sm,
   },
   paragraph: {
