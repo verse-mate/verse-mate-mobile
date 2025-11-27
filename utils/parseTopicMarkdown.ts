@@ -58,6 +58,7 @@ export function parseTopicMarkdown(markdownContent: string): ParsedTopicContent 
  * Handles both:
  * - Verses with references: "[number]\n[text] ([reference])"
  * - Verses without references: "[number]\n[text]"
+ * - Plain text without verse numbers: treated as a single verse
  */
 function parseVerses(text: string): ParsedTopicVerse[] {
   const verses: ParsedTopicVerse[] = [];
@@ -94,6 +95,15 @@ function parseVerses(text: string): ParsedTopicVerse[] {
         });
       }
     }
+  }
+
+  // If no verses were parsed, treat the entire text as plain text (no verse numbers)
+  if (verses.length === 0 && text.trim()) {
+    verses.push({
+      verseNumber: '', // No verse number for plain text
+      text: text.trim(),
+      reference: '',
+    });
   }
 
   return verses;

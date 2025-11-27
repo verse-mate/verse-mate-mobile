@@ -398,18 +398,7 @@ export default function HighlightsScreen() {
             />
           }
         >
-          {/* Auto-Highlight Settings Section */}
-          <View style={styles.autoHighlightSection}>
-            <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="sparkles" size={20} color={colors.gold} style={styles.sectionIcon} />
-              <Text style={styles.sectionHeader}>AI Auto-Highlights</Text>
-            </View>
-            <View style={styles.autoHighlightContainer}>
-              <AutoHighlightSettings isLoggedIn={isAuthenticated} />
-            </View>
-          </View>
-
-          {/* Divider */}
+          {/* My Highlights Section Header */}
           <View style={styles.sectionDivider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>My Highlights</Text>
@@ -423,6 +412,20 @@ export default function HighlightsScreen() {
             <Text style={styles.emptyStateSubtitle}>
               Start highlighting verses to see them here.
             </Text>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.sectionDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>AI Auto-Highlights</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Auto-Highlight Settings Section */}
+          <View style={styles.autoHighlightSection}>
+            <View style={styles.autoHighlightContainer}>
+              <AutoHighlightSettings isLoggedIn={isAuthenticated} alwaysExpanded={true} />
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -458,18 +461,7 @@ export default function HighlightsScreen() {
         }
         testID="highlights-list"
       >
-        {/* Auto-Highlight Settings Section */}
-        <View style={styles.autoHighlightSection}>
-          <View style={styles.sectionHeaderContainer}>
-            <Ionicons name="sparkles" size={20} color={colors.gold} style={styles.sectionIcon} />
-            <Text style={styles.sectionHeader}>AI Auto-Highlights</Text>
-          </View>
-          <View style={styles.autoHighlightContainer}>
-            <AutoHighlightSettings isLoggedIn={isAuthenticated} />
-          </View>
-        </View>
-
-        {/* Divider */}
+        {/* My Highlights Section Header */}
         <View style={styles.sectionDivider}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>My Highlights</Text>
@@ -520,6 +512,20 @@ export default function HighlightsScreen() {
             </View>
           );
         })}
+
+        {/* Divider */}
+        <View style={styles.sectionDivider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>AI Auto-Highlights</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Auto-Highlight Settings Section */}
+        <View style={styles.autoHighlightSection}>
+          <View style={styles.autoHighlightContainer}>
+            <AutoHighlightSettings isLoggedIn={isAuthenticated} alwaysExpanded={true} />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

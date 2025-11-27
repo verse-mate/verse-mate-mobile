@@ -91,10 +91,12 @@ export function TopicText({ topicName, markdownContent }: TopicTextProps) {
             <Text style={styles.versesText}>
               {section.verses.map((verse, verseIndex) => (
                 <Text key={`${verse.verseNumber}-${verse.reference}-${verseIndex}`}>
-                  {/* Verse number as superscript */}
-                  <Text style={styles.verseNumber}>
-                    {toSuperscript(Number.parseInt(verse.verseNumber, 10))}
-                  </Text>
+                  {/* Verse number as superscript - only show if verse number exists */}
+                  {verse.verseNumber && (
+                    <Text style={styles.verseNumber}>
+                      {toSuperscript(Number.parseInt(verse.verseNumber, 10))}
+                    </Text>
+                  )}
                   {/* Verse text */}
                   <Text style={styles.verseText}>
                     {verse.text}
