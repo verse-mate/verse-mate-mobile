@@ -17,6 +17,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 // Import mocked modules
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 import { useHighlights } from '@/hooks/bible/use-highlights';
@@ -141,8 +142,14 @@ describe('ChapterReader - Bookmark Integration', () => {
 
   // Helper to wrap components with QueryClientProvider
   const renderWithProvider = (ui: ReactNode) => {
-    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>{ui}</ThemeProvider>
+      </QueryClientProvider>
+    );
   };
+
+  const renderWithTheme = renderWithProvider; // Alias for consistency
 
   // Test 1: Bookmark toggle renders in title row
   test('renders bookmark toggle in title row', () => {

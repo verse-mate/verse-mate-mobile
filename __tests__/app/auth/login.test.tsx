@@ -9,7 +9,9 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import type React from 'react';
 import Login from '@/app/auth/login';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useLogin } from '@/hooks/useLogin';
 
 // Mock dependencies
@@ -22,6 +24,10 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/hooks/useLogin');
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('Login Screen', () => {
   const mockLogin = jest.fn();
@@ -37,7 +43,7 @@ describe('Login Screen', () => {
   });
 
   it('renders login form with all fields', () => {
-    render(<Login />);
+    renderWithTheme(<Login />);
 
     expect(screen.getByText('Welcome back')).toBeTruthy();
     expect(screen.getByText('Login into your account')).toBeTruthy();
@@ -47,7 +53,7 @@ describe('Login Screen', () => {
   });
 
   it('submits form with valid data', async () => {
-    render(<Login />);
+    renderWithTheme(<Login />);
 
     // Fill in form
     fireEvent.changeText(screen.getByTestId('login-email'), 'john@example.com');
@@ -67,7 +73,7 @@ describe('Login Screen', () => {
   });
 
   it('navigates to signup when create account link is pressed', () => {
-    render(<Login />);
+    renderWithTheme(<Login />);
 
     const signupLink = screen.getByTestId('login-signup-link');
     fireEvent.press(signupLink);
@@ -76,7 +82,7 @@ describe('Login Screen', () => {
   });
 
   it('dismisses modal when continue without account is pressed', () => {
-    render(<Login />);
+    renderWithTheme(<Login />);
 
     const continueLink = screen.getByTestId('login-continue-without-account');
     fireEvent.press(continueLink);

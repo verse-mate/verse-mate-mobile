@@ -8,8 +8,10 @@
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import type React from 'react';
 import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
 import { HighlightSelectionSheet } from '@/components/bible/HighlightSelectionSheet';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // Mock haptics
 jest.mock('expo-haptics', () => ({
@@ -18,6 +20,10 @@ jest.mock('expo-haptics', () => ({
     Light: 'light',
   },
 }));
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('HighlightSelectionSheet', () => {
   const mockOnColorSelect = jest.fn();
@@ -28,7 +34,7 @@ describe('HighlightSelectionSheet', () => {
   });
 
   it('renders with verse range for single verse', () => {
-    render(
+    renderWithTheme(
       <HighlightSelectionSheet
         visible={true}
         verseRange={{ start: 2, end: 2 }}
@@ -42,7 +48,7 @@ describe('HighlightSelectionSheet', () => {
   });
 
   it('renders with verse range for multiple verses', () => {
-    render(
+    renderWithTheme(
       <HighlightSelectionSheet
         visible={true}
         verseRange={{ start: 1, end: 5 }}
@@ -55,7 +61,7 @@ describe('HighlightSelectionSheet', () => {
   });
 
   it('displays color picker component', () => {
-    render(
+    renderWithTheme(
       <HighlightSelectionSheet
         visible={true}
         verseRange={{ start: 1, end: 1 }}
@@ -77,7 +83,7 @@ describe('HighlightSelectionSheet', () => {
   });
 
   it('triggers onColorSelect callback when color is selected', async () => {
-    render(
+    renderWithTheme(
       <HighlightSelectionSheet
         visible={true}
         verseRange={{ start: 1, end: 1 }}
@@ -94,7 +100,7 @@ describe('HighlightSelectionSheet', () => {
   });
 
   it('closes modal when backdrop is pressed', async () => {
-    render(
+    renderWithTheme(
       <HighlightSelectionSheet
         visible={true}
         verseRange={{ start: 1, end: 1 }}
@@ -121,7 +127,7 @@ describe('HighlightEditMenu', () => {
   });
 
   it('renders with current color selected', () => {
-    render(
+    renderWithTheme(
       <HighlightEditMenu
         visible={true}
         currentColor="green"
@@ -137,7 +143,7 @@ describe('HighlightEditMenu', () => {
   });
 
   it('triggers onColorChange callback when color is selected', async () => {
-    render(
+    renderWithTheme(
       <HighlightEditMenu
         visible={true}
         currentColor="yellow"
@@ -155,7 +161,7 @@ describe('HighlightEditMenu', () => {
   });
 
   it('triggers onDelete callback when delete button is pressed', async () => {
-    render(
+    renderWithTheme(
       <HighlightEditMenu
         visible={true}
         currentColor="yellow"
@@ -173,7 +179,7 @@ describe('HighlightEditMenu', () => {
   });
 
   it('closes modal when backdrop is pressed', async () => {
-    render(
+    renderWithTheme(
       <HighlightEditMenu
         visible={true}
         currentColor="yellow"

@@ -9,7 +9,9 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import type React from 'react';
 import Signup from '@/app/auth/signup';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useSignup } from '@/hooks/useSignup';
 
 // Mock dependencies
@@ -22,6 +24,10 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/hooks/useSignup');
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('Signup Screen', () => {
   const mockSignup = jest.fn();
@@ -37,7 +43,7 @@ describe('Signup Screen', () => {
   });
 
   it('renders signup form with all fields', () => {
-    render(<Signup />);
+    renderWithTheme(<Signup />);
 
     expect(screen.getByText('Create Account')).toBeTruthy();
     expect(screen.getByTestId('signup-first-name')).toBeTruthy();
@@ -48,7 +54,7 @@ describe('Signup Screen', () => {
   });
 
   it('submits form with valid data', async () => {
-    render(<Signup />);
+    renderWithTheme(<Signup />);
 
     // Fill in form
     fireEvent.changeText(screen.getByTestId('signup-first-name'), 'John');
@@ -72,7 +78,7 @@ describe('Signup Screen', () => {
   });
 
   it('navigates to login when login link is pressed', () => {
-    render(<Signup />);
+    renderWithTheme(<Signup />);
 
     const loginLink = screen.getByTestId('signup-login-link');
     fireEvent.press(loginLink);
@@ -81,7 +87,7 @@ describe('Signup Screen', () => {
   });
 
   it('dismisses modal when continue without account is pressed', () => {
-    render(<Signup />);
+    renderWithTheme(<Signup />);
 
     const continueLink = screen.getByTestId('signup-continue-without-account');
     fireEvent.press(continueLink);
@@ -90,7 +96,7 @@ describe('Signup Screen', () => {
   });
 
   it('disables submit button when form is invalid', () => {
-    render(<Signup />);
+    renderWithTheme(<Signup />);
 
     const submitButton = screen.getByTestId('signup-submit');
 

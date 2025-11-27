@@ -199,16 +199,38 @@ export default function SettingsScreen() {
     } catch (error: unknown) {
       let errorMessage = 'An error occurred while saving your changes.';
 
-      const err = error as { value?: { message?: string } | string };
+      const err = error as {
+        message?: string;
+        data?: { value?: { message?: string } };
+        value?: { message?: string } | string;
+      };
+
+      // Check for error in data.value.message structure (API error format)
       if (
+        err?.data?.value &&
+        typeof err.data.value === 'object' &&
+        err.data.value.message === 'EMAIL_ALREADY_EXISTS'
+      ) {
+        errorMessage = 'This email address is already in use by another account.';
+      }
+      // Check for error in value.message structure (alternative format)
+      else if (
         err?.value &&
         typeof err.value === 'object' &&
         err.value.message === 'EMAIL_ALREADY_EXISTS'
       ) {
         errorMessage = 'This email address is already in use by another account.';
-      } else if (err?.value && typeof err.value === 'string') {
+      }
+      // Check for direct message
+      else if (err?.message === 'EMAIL_ALREADY_EXISTS') {
+        errorMessage = 'This email address is already in use by another account.';
+      }
+      // Generic value string
+      else if (err?.value && typeof err.value === 'string') {
         errorMessage = err.value;
-      } else if (typeof error === 'string') {
+      }
+      // Direct string error
+      else if (typeof error === 'string') {
         errorMessage = error;
       }
 

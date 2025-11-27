@@ -8,8 +8,14 @@
  */
 
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import type React from 'react';
 import { NoteCard } from '@/components/bible/NoteCard';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { Note } from '@/types/notes';
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('NoteCard', () => {
   const mockNote: Note = {
@@ -32,7 +38,7 @@ describe('NoteCard', () => {
   });
 
   it('should render note content', () => {
-    render(
+    renderWithTheme(
       <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
@@ -45,7 +51,7 @@ describe('NoteCard', () => {
       content: 'A'.repeat(150), // 150 characters
     };
 
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <NoteCard note={longNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
@@ -60,7 +66,7 @@ describe('NoteCard', () => {
       content: 'B'.repeat(80),
     };
 
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <NoteCard
         note={longNote}
         onPress={mockOnPress}
@@ -76,7 +82,7 @@ describe('NoteCard', () => {
   });
 
   it('should call onPress when card is pressed', () => {
-    render(
+    renderWithTheme(
       <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
@@ -87,7 +93,7 @@ describe('NoteCard', () => {
   });
 
   it('should call onEdit when edit button is pressed', () => {
-    render(
+    renderWithTheme(
       <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
@@ -98,7 +104,7 @@ describe('NoteCard', () => {
   });
 
   it('should call onDelete when delete button is pressed', () => {
-    render(
+    renderWithTheme(
       <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
@@ -114,7 +120,7 @@ describe('NoteCard', () => {
       content: 'Short note',
     };
 
-    const { getByText, queryByText } = render(
+    const { getByText, queryByText } = renderWithTheme(
       <NoteCard
         note={shortNote}
         onPress={mockOnPress}

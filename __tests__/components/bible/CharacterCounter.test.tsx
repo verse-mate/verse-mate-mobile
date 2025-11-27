@@ -10,10 +10,15 @@
 import { render, screen } from '@testing-library/react-native';
 import { CharacterCounter } from '@/components/bible/CharacterCounter';
 import { NOTES_CONFIG } from '@/constants/notes';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('CharacterCounter', () => {
   it('should be hidden when below threshold', () => {
-    const { queryByText } = render(
+    const { queryByText } = renderWithTheme(
       <CharacterCounter
         currentLength={4000}
         maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
@@ -26,7 +31,7 @@ describe('CharacterCounter', () => {
   });
 
   it('should be visible when at threshold', () => {
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <CharacterCounter
         currentLength={4500}
         maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
@@ -38,7 +43,7 @@ describe('CharacterCounter', () => {
   });
 
   it('should be visible when above threshold', () => {
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <CharacterCounter
         currentLength={4800}
         maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
@@ -50,7 +55,7 @@ describe('CharacterCounter', () => {
   });
 
   it('should display correct format', () => {
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <CharacterCounter currentLength={4750} maxLength={5000} threshold={4500} />
     );
 
@@ -58,7 +63,7 @@ describe('CharacterCounter', () => {
   });
 
   it('should have error styling when at limit', () => {
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <CharacterCounter currentLength={5000} maxLength={5000} threshold={4500} />
     );
 
@@ -69,7 +74,7 @@ describe('CharacterCounter', () => {
   });
 
   it('should have error styling when over limit', () => {
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <CharacterCounter currentLength={5001} maxLength={5000} threshold={4500} />
     );
 
