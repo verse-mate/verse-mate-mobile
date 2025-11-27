@@ -24,6 +24,7 @@ import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons'
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { TopicText } from '@/components/topics/TopicText';
 import {
   colors,
   fontSizes,
@@ -412,56 +413,91 @@ export default function TopicDetailScreen() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Topic Title */}
-        <Text style={styles.topicTitle} accessibilityRole="header">
-          {topic.name}
-        </Text>
-
-        {/* Topic Description */}
-        {topicDescription ? <Text style={styles.topicDescription}>{topicDescription}</Text> : null}
-
         {/* Bible References View */}
         {activeView === 'bible' &&
           (references &&
           typeof references === 'object' &&
           'content' in references &&
           typeof references.content === 'string' ? (
-            <View style={styles.referencesContainer}>
-              <Markdown style={markdownStyles} rules={markdownRules}>
-                {
-                  // First format verse numbers, THEN process newlines
-                  formatVerseNumbers(references.content)
-                    .replace(/\n\n/g, '___PARAGRAPH___')
-                    .replace(/\n/g, ' ')
-                    .replace(/___PARAGRAPH___/g, '\n\n')
-                }
-              </Markdown>
-            </View>
+            // Use TopicText if content has structured format (## subtitles)
+            // Otherwise fall back to existing Markdown renderer
+            references.content.includes('## ') ? (
+              <TopicText topicName={topic.name} markdownContent={references.content} />
+            ) : (
+              <>
+                {/* Topic Title (only shown for non-structured content) */}
+                <Text style={styles.topicTitle} accessibilityRole="header">
+                  {topic.name}
+                </Text>
+
+                {/* Topic Description */}
+                {topicDescription ? (
+                  <Text style={styles.topicDescription}>{topicDescription}</Text>
+                ) : null}
+
+                <View style={styles.referencesContainer}>
+                  <Markdown style={markdownStyles} rules={markdownRules}>
+                    {
+                      // First format verse numbers, THEN process newlines
+                      formatVerseNumbers(references.content)
+                        .replace(/\n\n/g, '___PARAGRAPH___')
+                        .replace(/\n/g, ' ')
+                        .replace(/___PARAGRAPH___/g, '\n\n')
+                    }
+                  </Markdown>
+                </View>
+              </>
+            )
           ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No Bible references available for this topic.</Text>
-            </View>
+            <>
+              {/* Topic Title (shown in empty state) */}
+              <Text style={styles.topicTitle} accessibilityRole="header">
+                {topic.name}
+              </Text>
+
+              {/* Topic Description */}
+              {topicDescription ? (
+                <Text style={styles.topicDescription}>{topicDescription}</Text>
+              ) : null}
+
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No Bible references available for this topic.</Text>
+              </View>
+            </>
           ))}
 
         {/* Explanations View */}
-        {activeView === 'explanations' &&
-          (isExplanationLoading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Loading {activeTab} explanation...</Text>
-            </View>
-          ) : explanation && typeof explanation === 'string' ? (
-            <View style={styles.explanationContainer}>
-              <Markdown style={markdownStyles} rules={markdownRules}>
-                {explanation.replace(/###\s*Summary\s*\n/gi, '')}
-              </Markdown>
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                No {activeTab} explanation available for this topic yet.
-              </Text>
-            </View>
-          ))}
+        {activeView === 'explanations' && (
+          <>
+            {/* Topic Title */}
+            <Text style={styles.topicTitle} accessibilityRole="header">
+              {topic.name}
+            </Text>
+
+            {/* Topic Description */}
+            {topicDescription ? (
+              <Text style={styles.topicDescription}>{topicDescription}</Text>
+            ) : null}
+
+            {isExplanationLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Loading {activeTab} explanation...</Text>
+              </View>
+            ) : explanation && typeof explanation === 'string' ? (
+              <View style={styles.explanationContainer}>
+                <Markdown style={markdownStyles} rules={markdownRules}>
+                  {explanation.replace(/###\s*Summary\s*\n/gi, '')}
+                </Markdown>
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  No {activeTab} explanation available for this topic yet.
+                </Text>
+              </View>
+            )}
+          </>
+        )}
         <BottomLogo />
       </ScrollView>
 
