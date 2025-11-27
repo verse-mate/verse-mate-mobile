@@ -2,15 +2,14 @@
  * Auto-Highlight Settings Component
  *
  * Mobile implementation of auto-highlight theme preferences.
- * Allows users to toggle themes, adjust relevance thresholds, and bulk enable/disable.
+ * Allows users to toggle themes on/off and bulk enable/disable.
+ * Relevance thresholds are managed by admins only.
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { Button } from '@/components/Button';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import { getUserThemePreferences, updateUserThemePreference } from '@/lib/api/auto-highlights';
 
@@ -22,10 +21,14 @@ interface HighlightTheme {
   is_enabled: boolean;
   custom_color: string | null;
   relevance_threshold: number;
+  default_relevance_threshold: number;
+  admin_override: boolean;
 }
 
 interface AutoHighlightSettingsProps {
   isLoggedIn: boolean;
+  /** If true, settings are always expanded and cannot be collapsed */
+  alwaysExpanded?: boolean;
 }
 
 const COLOR_MAP: Record<string, string> = {
@@ -40,13 +43,15 @@ const COLOR_MAP: Record<string, string> = {
   brown: '#d7bfaa',
 };
 
-export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps) {
+export function AutoHighlightSettings({
+  isLoggedIn,
+  alwaysExpanded = false,
+}: AutoHighlightSettingsProps) {
   const queryClient = useQueryClient();
   const [themes, setThemes] = useState<HighlightTheme[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(alwaysExpanded);
 
   // Fetch theme preferences
   useEffect(() => {
@@ -97,9 +102,6 @@ export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps
           return Array.isArray(k) && k[0] === 'auto-highlights';
         },
       });
-
-      setSuccessMessage('Preferences updated');
-      setTimeout(() => setSuccessMessage(null), 2000);
     } catch (err) {
       console.error('Failed to update preference:', err);
       setError('Failed to update preference');
@@ -132,52 +134,25 @@ export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps
     }
   };
 
-  const handleRelevanceChange = async (themeId: number, newRelevance: number) => {
-    if (!isLoggedIn) return;
-
-    // Update local state immediately
-    setThemes((prev) =>
-      prev.map((theme) =>
-        theme.theme_id === themeId ? { ...theme, relevance_threshold: newRelevance } : theme
-      )
-    );
-
-    try {
-      await updatePreference(themeId, { relevance_threshold: newRelevance });
-    } catch {
-      // Error already handled in updatePreference
-    }
-  };
-
-  const handleEnableAll = async () => {
+  const handleToggleAll = async (enable: boolean) => {
     if (!isLoggedIn) return;
 
     // Optimistic update
-    setThemes((prev) => prev.map((theme) => ({ ...theme, is_enabled: true })));
+    setThemes((prev) => prev.map((theme) => ({ ...theme, is_enabled: enable })));
 
     try {
       await Promise.all(
-        themes.map((theme) => updatePreference(theme.theme_id, { is_enabled: true }))
+        themes.map((theme) => updatePreference(theme.theme_id, { is_enabled: enable }))
       );
     } catch {
-      Alert.alert('Error', 'Failed to enable all themes');
+      Alert.alert('Error', `Failed to ${enable ? 'enable' : 'disable'} all themes`);
+      // Revert on error
+      setThemes((prev) => prev.map((theme) => ({ ...theme, is_enabled: !enable })));
     }
   };
 
-  const handleDisableAll = async () => {
-    if (!isLoggedIn) return;
-
-    // Optimistic update
-    setThemes((prev) => prev.map((theme) => ({ ...theme, is_enabled: false })));
-
-    try {
-      await Promise.all(
-        themes.map((theme) => updatePreference(theme.theme_id, { is_enabled: false }))
-      );
-    } catch {
-      Alert.alert('Error', 'Failed to disable all themes');
-    }
-  };
+  // Check if all themes are enabled
+  const allEnabled = themes.length > 0 && themes.every((theme) => theme.is_enabled);
 
   if (isLoading) {
     return (
@@ -190,19 +165,21 @@ export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps
 
   return (
     <View style={styles.section}>
-      <View style={styles.headerRow}>
-        <Text style={styles.sectionLabel}>Auto-Highlights</Text>
-        <Pressable style={styles.toggleButton} onPress={() => setIsExpanded(!isExpanded)}>
-          <Text style={styles.toggleButtonText}>{isExpanded ? 'Hide' : 'Show'}</Text>
-          <Ionicons
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={colors.gray700}
-          />
-        </Pressable>
-      </View>
+      {!alwaysExpanded && (
+        <View style={styles.headerRow}>
+          <Text style={styles.sectionLabel}>Auto-Highlights</Text>
+          <Pressable style={styles.toggleButton} onPress={() => setIsExpanded(!isExpanded)}>
+            <Text style={styles.toggleButtonText}>{isExpanded ? 'Hide' : 'Show'}</Text>
+            <Ionicons
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={colors.gray700}
+            />
+          </Pressable>
+        </View>
+      )}
 
-      {isExpanded && (
+      {(isExpanded || alwaysExpanded) && (
         <View style={styles.expandedContent}>
           {!isLoggedIn && (
             <View style={styles.loginPrompt}>
@@ -220,33 +197,35 @@ export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps
             </Text>
             {isLoggedIn && (
               <Text style={styles.descriptionText}>
-                Customize which themes are visible and set how relevant highlights should be (1 =
-                most relevant, 5 = all).
+                Toggle themes on or off to customize which highlights you see.
               </Text>
             )}
           </View>
 
           {error && <Text style={styles.errorText}>{error}</Text>}
-          {successMessage && <Text style={styles.successText}>{successMessage}</Text>}
 
           {isLoggedIn && themes.length > 0 && (
             <>
-              <View style={styles.actionsRow}>
-                <Button
-                  title="Enable All"
-                  onPress={handleEnableAll}
-                  variant="outline"
-                  testID="enable-all-themes"
-                />
-                <Button
-                  title="Disable All"
-                  onPress={handleDisableAll}
-                  variant="outline"
-                  testID="disable-all-themes"
-                />
+              {/* Master toggle for all auto-highlights */}
+              <View style={styles.masterToggleContainer}>
+                <View style={styles.masterToggleContent}>
+                  <View>
+                    <Text style={styles.masterToggleLabel}>Enable All Auto-Highlights</Text>
+                    <Text style={styles.masterToggleSubtext}>
+                      Turn all AI-generated highlights on or off
+                    </Text>
+                  </View>
+                  <Switch
+                    value={allEnabled}
+                    onValueChange={handleToggleAll}
+                    trackColor={{ false: colors.gray300, true: colors.gold }}
+                    thumbColor={colors.white}
+                    testID="toggle-all-auto-highlights"
+                  />
+                </View>
               </View>
 
-              <ScrollView style={styles.themeList} nestedScrollEnabled>
+              <View>
                 {themes.map((theme) => (
                   <View key={theme.theme_id} style={styles.themeItem}>
                     <View style={styles.themeHeader}>
@@ -271,37 +250,9 @@ export function AutoHighlightSettings({ isLoggedIn }: AutoHighlightSettingsProps
                     {theme.theme_description && (
                       <Text style={styles.themeDescription}>{theme.theme_description}</Text>
                     )}
-
-                    <View style={styles.relevanceControl}>
-                      <Text style={styles.relevanceLabel}>
-                        Relevance: {theme.relevance_threshold}
-                      </Text>
-                      <Slider
-                        style={styles.slider}
-                        minimumValue={1}
-                        maximumValue={5}
-                        step={1}
-                        value={theme.relevance_threshold}
-                        onSlidingComplete={(value) =>
-                          handleRelevanceChange(theme.theme_id, Math.round(value))
-                        }
-                        minimumTrackTintColor={colors.gold}
-                        maximumTrackTintColor={colors.gray300}
-                        thumbTintColor={colors.gold}
-                        disabled={!theme.is_enabled}
-                        testID={`theme-slider-${theme.theme_id}`}
-                      />
-                      <View style={styles.relevanceLabels}>
-                        <Text style={styles.relevanceLabelText}>1</Text>
-                        <Text style={styles.relevanceLabelText}>2</Text>
-                        <Text style={styles.relevanceLabelText}>3</Text>
-                        <Text style={styles.relevanceLabelText}>4</Text>
-                        <Text style={styles.relevanceLabelText}>5</Text>
-                      </View>
-                    </View>
                   </View>
                 ))}
-              </ScrollView>
+              </View>
 
               <View style={styles.legend}>
                 <Text style={styles.legendTitle}>Visual Guide:</Text>
@@ -396,21 +347,30 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: spacing.md,
   },
-  successText: {
-    fontSize: fontSizes.bodySmall,
-    color: colors.success,
-    padding: spacing.md,
-    backgroundColor: '#D1FAE5',
+  masterToggleContainer: {
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.gray50,
     borderRadius: 8,
-    marginBottom: spacing.md,
+    borderWidth: 2,
+    borderColor: `${colors.gold}40`, // 40 = 25% opacity
   },
-  actionsRow: {
+  masterToggleContent: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: spacing.md,
-    marginBottom: spacing.md,
   },
-  themeList: {
-    maxHeight: 400,
+  masterToggleLabel: {
+    fontSize: fontSizes.body,
+    fontWeight: fontWeights.semibold,
+    color: colors.gray900,
+    marginBottom: spacing.xs / 2,
+  },
+  masterToggleSubtext: {
+    fontSize: fontSizes.bodySmall,
+    color: colors.gray500,
+    lineHeight: 18,
   },
   themeItem: {
     padding: spacing.md,
@@ -448,30 +408,7 @@ const styles = StyleSheet.create({
   themeDescription: {
     fontSize: fontSizes.bodySmall,
     color: colors.gray500,
-    marginBottom: spacing.md,
     lineHeight: 18,
-  },
-  relevanceControl: {
-    marginTop: spacing.sm,
-  },
-  relevanceLabel: {
-    fontSize: fontSizes.bodySmall,
-    color: colors.gray700,
-    fontWeight: fontWeights.medium,
-    marginBottom: spacing.xs,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  relevanceLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xs,
-  },
-  relevanceLabelText: {
-    fontSize: fontSizes.caption,
-    color: colors.gray500,
   },
   legend: {
     marginTop: spacing.lg,

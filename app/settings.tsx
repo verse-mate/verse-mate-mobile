@@ -15,9 +15,10 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
-import { router, Stack } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
@@ -236,17 +237,33 @@ export default function SettingsScreen() {
     return `${lang.nativeName} (${lang.name})`;
   };
 
+  /**
+   * Handle back button press
+   */
+  const handleBackPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.back();
+  };
+
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: 'Settings',
-          headerShown: true,
-          headerBackTitle: 'Back',
-        }}
-      />
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Custom Header */}
+      <View style={styles.header}>
+        <Pressable
+          onPress={handleBackPress}
+          style={styles.backButton}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+          testID="settings-back-button"
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Settings</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView
-        style={styles.container}
+        style={styles.scrollView}
         contentContainerStyle={[
           styles.contentContainer,
           { paddingBottom: insets.bottom + spacing.xl },
@@ -467,7 +484,7 @@ export default function SettingsScreen() {
           </View>
         )}
       </ScrollView>
-    </>
+    </SafeAreaView>
   );
 }
 
@@ -475,6 +492,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.white,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray200,
+    backgroundColor: colors.white,
+  },
+  backButton: {
+    padding: spacing.xs,
+    marginRight: spacing.sm,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: fontSizes.displayMedium,
+    fontWeight: fontWeights.bold,
+    color: colors.gray900,
+  },
+  headerSpacer: {
+    width: 32, // Same width as back button for centering
+  },
+  scrollView: {
+    flex: 1,
   },
   contentContainer: {
     padding: spacing.lg,

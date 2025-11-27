@@ -15,7 +15,12 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
-import { getAutoHighlights, getUserThemePreferences } from '@/lib/api/auto-highlights';
+import {
+  getAutoHighlights,
+  getDefaultAutoHighlightsEnabled,
+  getHighlightThemes,
+  getUserThemePreferences,
+} from '@/lib/api/auto-highlights';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
 interface UseAutoHighlightsParams {
@@ -40,10 +45,11 @@ interface UseAutoHighlightsReturn {
  * For logged-in users:
  * - Fetches user's theme preferences
  * - Filters auto-highlights by enabled themes
- * - Applies per-theme relevance thresholds
+ * - Applies per-theme relevance thresholds (respects admin_override)
  *
  * For logged-out users:
- * - Shows all themes with default relevance threshold of 3
+ * - Checks global default enabled setting
+ * - Uses theme default relevance thresholds
  *
  * @param params - Hook parameters
  * @returns Auto-highlights data and loading state
@@ -53,6 +59,28 @@ export function useAutoHighlights({
   chapterNumber,
 }: UseAutoHighlightsParams): UseAutoHighlightsReturn {
   const { user } = useAuth();
+
+  // Fetch global default enabled setting (only for logged-out users)
+  const { data: defaultEnabledData } = useQuery({
+    queryKey: ['auto-highlights-default-enabled'],
+    queryFn: async () => {
+      const response = await getDefaultAutoHighlightsEnabled();
+      return response.data?.default_enabled ?? false;
+    },
+    enabled: !user?.id, // Only fetch for logged-out users
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  // Fetch themes (only for logged-out users, to get default relevance thresholds)
+  const { data: themesData } = useQuery({
+    queryKey: ['highlight-themes'],
+    queryFn: async () => {
+      const response = await getHighlightThemes();
+      return response.data || [];
+    },
+    enabled: !user?.id, // Only fetch for logged-out users
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
 
   // Fetch user theme preferences (only for logged-in users)
   const {
@@ -76,23 +104,48 @@ export function useAutoHighlights({
     isLoading: isLoadingHighlights,
     error: highlightsError,
   } = useQuery({
-    queryKey: ['auto-highlights', bookId, chapterNumber, preferencesData],
+    queryKey: [
+      'auto-highlights',
+      bookId,
+      chapterNumber,
+      preferencesData,
+      themesData,
+      defaultEnabledData,
+    ],
     queryFn: async () => {
       if (!bookId || !chapterNumber) return [];
 
-      // Build query parameters based on user preferences
+      // For logged-out users, check if auto-highlights are enabled globally
+      if (!user?.id && !defaultEnabledData) {
+        return [];
+      }
+
+      // Build query parameters based on user preferences or theme defaults
       let themeIds: number[] = [];
       const themeRelevanceMap: Record<number, number> = {};
 
-      if (preferencesData && Array.isArray(preferencesData)) {
+      if (user?.id && preferencesData && Array.isArray(preferencesData)) {
         // Logged-in user: use their preferences
         const enabledPreferences = preferencesData.filter((p) => p.is_enabled);
 
         themeIds = enabledPreferences.map((p) => p.theme_id);
 
         // Build per-theme relevance map
+        // Use custom relevance only if admin_override is true, otherwise use theme default
         for (const pref of enabledPreferences) {
-          themeRelevanceMap[pref.theme_id] = pref.relevance_threshold;
+          themeRelevanceMap[pref.theme_id] = pref.admin_override
+            ? pref.relevance_threshold
+            : pref.default_relevance_threshold;
+        }
+      } else if (!user?.id && themesData && Array.isArray(themesData)) {
+        // Logged-out user: use theme defaults
+        const activeThemes = themesData.filter((t) => t.is_active);
+
+        themeIds = activeThemes.map((t) => t.theme_id);
+
+        // Build per-theme relevance map using default thresholds
+        for (const theme of activeThemes) {
+          themeRelevanceMap[theme.theme_id] = theme.default_relevance_threshold || 3;
         }
       }
 

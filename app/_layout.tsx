@@ -105,6 +105,12 @@ export default function RootLayout() {
                   }}
                 />
                 <Stack.Screen
+                  name="highlights"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
                   name="settings"
                   options={{
                     headerShown: false,
