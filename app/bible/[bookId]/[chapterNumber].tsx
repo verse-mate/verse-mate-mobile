@@ -31,7 +31,8 @@ import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { colors, headerSpecs, spacing } from '@/constants/bible-design-tokens';
+import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useActiveTab, useActiveView, useBookProgress, useLastReadPosition } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
@@ -76,6 +77,11 @@ export default function ChapterScreen() {
   const params = useLocalSearchParams<{ bookId: string; chapterNumber: string }>();
   const bookId = Number(params.bookId);
   const chapterNumber = Number(params.chapterNumber);
+
+  // Theme
+  const { colors, mode } = useTheme();
+  const headerSpecs = getHeaderSpecs(mode);
+  const styles = useMemo(() => createStyles(colors, headerSpecs), [colors, headerSpecs]);
 
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
@@ -318,6 +324,9 @@ export default function ChapterScreen() {
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
           onMenuPress={() => {}}
+          colors={colors}
+          headerSpecs={headerSpecs}
+          styles={styles}
         />
         <SkeletonLoader />
       </View>
@@ -335,6 +344,9 @@ export default function ChapterScreen() {
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
           onMenuPress={() => {}}
+          colors={colors}
+          headerSpecs={headerSpecs}
+          styles={styles}
         />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Chapter not found</Text>
@@ -357,6 +369,9 @@ export default function ChapterScreen() {
         onMenuPress={() => {
           setIsMenuOpen(true); // Task 8.5
         }}
+        colors={colors}
+        headerSpecs={headerSpecs}
+        styles={styles}
       />
 
       {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
@@ -432,6 +447,9 @@ interface ChapterHeaderProps {
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
+  colors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>;
+  headerSpecs: ReturnType<typeof getHeaderSpecs>;
+  styles: ReturnType<typeof createStyles>;
 }
 
 function ChapterHeader({
@@ -441,6 +459,9 @@ function ChapterHeader({
   onNavigationPress,
   onViewChange,
   onMenuPress,
+  colors,
+  headerSpecs,
+  styles,
 }: ChapterHeaderProps) {
   const insets = useSafeAreaInsets();
 
@@ -459,7 +480,7 @@ function ChapterHeader({
           <Text style={styles.headerTitle}>
             {bookName} {chapterNumber}
           </Text>
-          <Ionicons name="chevron-down" size={16} color={colors.white} />
+          <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
         </View>
       </Pressable>
 
@@ -477,7 +498,7 @@ function ChapterHeader({
           <Ionicons
             name="book-outline"
             size={headerSpecs.iconSize}
-            color={activeView === 'bible' ? colors.gold : colors.white}
+            color={activeView === 'bible' ? colors.gold : headerSpecs.iconColor}
           />
         </Pressable>
 
@@ -493,7 +514,7 @@ function ChapterHeader({
           <Ionicons
             name="reader-outline"
             size={headerSpecs.iconSize}
-            color={activeView === 'explanations' ? colors.gold : colors.white}
+            color={activeView === 'explanations' ? colors.gold : headerSpecs.iconColor}
           />
         </Pressable>
 
@@ -507,59 +528,63 @@ function ChapterHeader({
           accessibilityLabel="Open menu"
           accessibilityRole="button"
         >
-          <Ionicons name="menu" size={headerSpecs.iconSize} color={colors.white} />
+          <Ionicons name="menu" size={headerSpecs.iconSize} color={headerSpecs.iconColor} />
         </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.gray50, // Match content background to prevent flash during route updates
-  },
-  header: {
-    minHeight: headerSpecs.height,
-    backgroundColor: headerSpecs.backgroundColor,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: headerSpecs.padding,
-    paddingBottom: spacing.md,
-  },
-  chapterButton: {
-    padding: spacing.xs,
-  },
-  chapterButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  headerTitle: {
-    fontSize: headerSpecs.titleFontSize,
-    fontWeight: headerSpecs.titleFontWeight,
-    color: headerSpecs.titleColor,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-  },
-  iconButton: {
-    padding: spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xxl,
-  },
-  errorText: {
-    fontSize: 16,
-    color: colors.gray700,
-    textAlign: 'center',
-  },
-});
+const createStyles = (
+  colors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>,
+  headerSpecs: ReturnType<typeof getHeaderSpecs>
+) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background, // Match content background to prevent flash during route updates
+    },
+    header: {
+      minHeight: headerSpecs.height,
+      backgroundColor: headerSpecs.backgroundColor,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: headerSpecs.padding,
+      paddingBottom: spacing.md,
+    },
+    chapterButton: {
+      padding: spacing.xs,
+    },
+    chapterButtonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    headerTitle: {
+      fontSize: headerSpecs.titleFontSize,
+      fontWeight: headerSpecs.titleFontWeight,
+      color: headerSpecs.titleColor,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.lg,
+    },
+    iconButton: {
+      padding: spacing.xs,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xxl,
+    },
+    errorText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+  });
