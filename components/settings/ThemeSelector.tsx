@@ -39,6 +39,11 @@ const themeOptions: ThemeOption[] = [
     description: 'Switch based on your location',
   },
   {
+    value: 'ambient',
+    label: 'Auto (Ambient Light)',
+    description: 'Switch based on light levels',
+  },
+  {
     value: 'light',
     label: 'Light',
     description: 'Always use light theme',
