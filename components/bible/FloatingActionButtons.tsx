@@ -16,10 +16,16 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { animationDurations, colors, fabSpecs } from '@/constants/bible-design-tokens';
+import {
+  animationDurations,
+  type getColors,
+  getFabSpecs,
+  type ThemeMode,
+} from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface FloatingActionButtonsProps {
   /** Callback fired when previous button is tapped */
@@ -51,6 +57,10 @@ export function FloatingActionButtons({
   showNext,
   visible = true,
 }: FloatingActionButtonsProps) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+  const specs = getFabSpecs(mode);
+
   // Animated opacity value
   const opacity = useSharedValue(visible ? 1 : 0);
 
@@ -96,7 +106,7 @@ export function FloatingActionButtons({
         testID="previous-chapter-button"
         disabled={!showPrevious}
       >
-        <Ionicons name="chevron-back" size={fabSpecs.iconSize} color={fabSpecs.iconColor} />
+        <Ionicons name="chevron-back" size={specs.iconSize} color={specs.iconColor} />
       </Pressable>
 
       {/* Next Chapter Button (Right) */}
@@ -115,55 +125,59 @@ export function FloatingActionButtons({
         testID="next-chapter-button"
         disabled={!showNext}
       >
-        <Ionicons name="chevron-forward" size={fabSpecs.iconSize} color={fabSpecs.iconColor} />
+        <Ionicons name="chevron-forward" size={specs.iconSize} color={specs.iconColor} />
       </Pressable>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: fabSpecs.bottomOffset, // 60px above progress bar
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: fabSpecs.sideOffset, // 20px from edges
-    // Allow touches to pass through empty space
-    pointerEvents: 'box-none',
-  },
-  fab: {
-    width: fabSpecs.size,
-    height: fabSpecs.size,
-    borderRadius: fabSpecs.borderRadius,
-    backgroundColor: fabSpecs.backgroundColor,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // Platform-specific shadows
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: fabSpecs.shadowOpacity,
-        shadowRadius: fabSpecs.shadowRadius,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  fabLeft: {
-    // Positioned on the left side
-  },
-  fabRight: {
-    // Positioned on the right side
-  },
-  fabPressed: {
-    // Slight opacity change on press for visual feedback
-    opacity: 0.85,
-  },
-  fabDisabled: {
-    opacity: 0.3,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+  const specs = getFabSpecs(mode);
+
+  return StyleSheet.create({
+    container: {
+      position: 'absolute',
+      bottom: specs.bottomOffset, // 60px above progress bar
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: specs.sideOffset, // 20px from edges
+      // Allow touches to pass through empty space
+      pointerEvents: 'box-none',
+    },
+    fab: {
+      width: specs.size,
+      height: specs.size,
+      borderRadius: specs.borderRadius,
+      backgroundColor: specs.backgroundColor,
+      justifyContent: 'center',
+      alignItems: 'center',
+      // Platform-specific shadows
+      ...Platform.select({
+        ios: {
+          shadowColor: specs.shadowColor,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: specs.shadowOpacity,
+          shadowRadius: specs.shadowRadius,
+        },
+        android: {
+          elevation: 8,
+        },
+      }),
+    },
+    fabLeft: {
+      // Positioned on the left side
+    },
+    fabRight: {
+      // Positioned on the right side
+    },
+    fabPressed: {
+      // Slight opacity change on press for visual feedback
+      opacity: 0.85,
+    },
+    fabDisabled: {
+      opacity: 0.3,
+    },
+  });
+};

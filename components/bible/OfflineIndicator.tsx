@@ -20,11 +20,14 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
-import { colors, headerSpecs } from '@/constants/bible-design-tokens';
+import { getHeaderSpecs } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 
 export function OfflineIndicator() {
+  const { colors, mode } = useTheme();
   const { isOffline } = useOfflineStatus();
+  const specs = getHeaderSpecs(mode);
 
   // Hide indicator when online
   if (!isOffline) {
@@ -35,8 +38,8 @@ export function OfflineIndicator() {
     <View style={styles.container} testID="offline-indicator">
       <Ionicons
         name="cloud-offline-outline"
-        size={headerSpecs.iconSize}
-        color={colors.gray500}
+        size={specs.iconSize}
+        color={colors.textTertiary}
         accessibilityLabel="Offline mode"
         accessibilityRole="image"
       />

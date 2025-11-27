@@ -27,7 +27,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -40,8 +40,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
-import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 
 /**
@@ -228,6 +229,8 @@ function groupHighlightsByChapter(highlights: Highlight[]): ChapterGroup[] {
  * - Collapsed: Only shows header
  */
 export default function HighlightsScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { allHighlights, isFetchingHighlights, refetchHighlights } = useHighlights();
@@ -322,13 +325,13 @@ export default function HighlightsScreen() {
             accessibilityRole="button"
             testID="highlights-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Highlights</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="color-wand-outline" size={64} color={colors.gray300} />
+          <Ionicons name="color-wand-outline" size={64} color={colors.textDisabled} />
           <Text style={styles.emptyStateTitle}>Please login to view your highlights</Text>
           <Text style={styles.emptyStateSubtitle}>
             Sign in to save and access your highlighted verses
@@ -357,7 +360,7 @@ export default function HighlightsScreen() {
             accessibilityRole="button"
             testID="highlights-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Highlights</Text>
           <View style={styles.headerSpacer} />
@@ -384,7 +387,7 @@ export default function HighlightsScreen() {
             accessibilityRole="button"
             testID="highlights-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Highlights</Text>
           <View style={styles.headerSpacer} />
@@ -409,7 +412,7 @@ export default function HighlightsScreen() {
 
           {/* Empty State */}
           <View style={styles.emptyStateContainer}>
-            <Ionicons name="color-wand-outline" size={64} color={colors.gray300} />
+            <Ionicons name="color-wand-outline" size={64} color={colors.textDisabled} />
             <Text style={styles.emptyStateTitle}>No highlights yet</Text>
             <Text style={styles.emptyStateSubtitle}>
               Start highlighting verses to see them here.
@@ -445,7 +448,7 @@ export default function HighlightsScreen() {
           accessibilityRole="button"
           testID="highlights-back-button"
         >
-          <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Highlights</Text>
         <View style={styles.headerSpacer} />
@@ -487,7 +490,7 @@ export default function HighlightsScreen() {
                   {group.bookName} {group.chapterNumber} ({group.highlights.length}{' '}
                   {group.highlights.length === 1 ? 'highlight' : 'highlights'})
                 </Text>
-                <Ionicons name={chevronIcon} size={20} color={colors.gray500} />
+                <Ionicons name={chevronIcon} size={20} color={colors.textSecondary} />
               </Pressable>
 
               {/* Chapter Group Content (Expanded) */}
@@ -506,7 +509,7 @@ export default function HighlightsScreen() {
                       <Text style={styles.highlightText} numberOfLines={2} ellipsizeMode="tail">
                         {formatHighlightWithVerseNumbers(highlight)}
                       </Text>
-                      <Ionicons name="chevron-forward" size={20} color={colors.gray500} />
+                      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                     </Pressable>
                   ))}
                 </View>
@@ -533,163 +536,164 @@ export default function HighlightsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  backButton: {
-    padding: spacing.xs,
-    marginRight: spacing.sm,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: fontSizes.displayMedium,
-    fontWeight: fontWeights.bold,
-    color: colors.gray900,
-  },
-  headerSpacer: {
-    width: 32, // Same width as back button for centering
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xxl * 2,
-  },
-  emptyStateTitle: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginTop: spacing.lg,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  loginButton: {
-    marginTop: spacing.xl,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: colors.gold,
-    borderRadius: 8,
-  },
-  loginButtonText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.white,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingVertical: spacing.sm,
-  },
-  autoHighlightSection: {
-    marginBottom: spacing.lg,
-  },
-  sectionHeaderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.white,
-  },
-  sectionIcon: {
-    marginRight: spacing.sm,
-  },
-  sectionHeader: {
-    fontSize: fontSizes.heading3,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-  },
-  autoHighlightContainer: {
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.white,
-  },
-  sectionDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.gray300,
-  },
-  dividerText: {
-    paddingHorizontal: spacing.md,
-    fontSize: fontSizes.bodySmall,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray500,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  chapterGroup: {
-    marginBottom: spacing.xs,
-  },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.gray50,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
-  },
-  groupHeaderPressed: {
-    backgroundColor: colors.gray100,
-  },
-  groupTitle: {
-    flex: 1,
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-  },
-  groupContent: {
-    backgroundColor: colors.white,
-    paddingVertical: spacing.sm,
-  },
-  highlightItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
-    minHeight: 60,
-  },
-  highlightItemPressed: {
-    backgroundColor: colors.gray50,
-  },
-  highlightText: {
-    flex: 1,
-    fontSize: fontSizes.body,
-    color: colors.gray900,
-    lineHeight: 20,
-    marginRight: spacing.md,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    backButton: {
+      padding: spacing.xs,
+      marginRight: spacing.sm,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: fontSizes.displayMedium,
+      fontWeight: fontWeights.bold,
+      color: colors.textPrimary,
+    },
+    headerSpacer: {
+      width: 32, // Same width as back button for centering
+    },
+    centerContent: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    emptyStateContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.xxl * 2,
+    },
+    emptyStateTitle: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginTop: spacing.lg,
+      textAlign: 'center',
+    },
+    emptyStateSubtitle: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      marginTop: spacing.sm,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    loginButton: {
+      marginTop: spacing.xl,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      backgroundColor: colors.gold,
+      borderRadius: 8,
+    },
+    loginButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingVertical: spacing.sm,
+    },
+    autoHighlightSection: {
+      marginBottom: spacing.lg,
+    },
+    sectionHeaderContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      backgroundColor: colors.background,
+    },
+    sectionIcon: {
+      marginRight: spacing.sm,
+    },
+    sectionHeader: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    autoHighlightContainer: {
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.background,
+    },
+    sectionDivider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.xl,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: colors.border,
+    },
+    dividerText: {
+      paddingHorizontal: spacing.md,
+      fontSize: fontSizes.bodySmall,
+      fontWeight: fontWeights.semibold,
+      color: colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    chapterGroup: {
+      marginBottom: spacing.xs,
+    },
+    groupHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.backgroundElevated,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    groupHeaderPressed: {
+      backgroundColor: colors.divider,
+    },
+    groupTitle: {
+      flex: 1,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    groupContent: {
+      backgroundColor: colors.background,
+      paddingVertical: spacing.sm,
+    },
+    highlightItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+      minHeight: 60,
+    },
+    highlightItemPressed: {
+      backgroundColor: colors.backgroundElevated,
+    },
+    highlightText: {
+      flex: 1,
+      fontSize: fontSizes.body,
+      color: colors.textPrimary,
+      lineHeight: 20,
+      marginRight: spacing.md,
+    },
+  });

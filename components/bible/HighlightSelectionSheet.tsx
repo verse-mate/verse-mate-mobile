@@ -29,6 +29,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useMemo } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -42,13 +43,15 @@ import {
 } from 'react-native';
 import { HighlightColorPicker } from '@/components/bible/HighlightColorPicker';
 import {
-  colors,
   fontSizes,
   fontWeights,
-  modalSpecs,
+  type getColors,
+  getModalSpecs,
   spacing,
+  type ThemeMode,
 } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * Verse range for the highlight selection
@@ -85,6 +88,9 @@ export function HighlightSelectionSheet({
   onColorSelect,
   onClose,
 }: HighlightSelectionSheetProps) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+
   /**
    * Format verse range for display
    * Single verse: "Verse 2"
@@ -137,7 +143,7 @@ export function HighlightSelectionSheet({
               style={styles.closeButton}
               testID="close-button"
             >
-              <Ionicons name="close" size={24} color={colors.gray900} />
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
             </Pressable>
           </View>
 
@@ -149,7 +155,7 @@ export function HighlightSelectionSheet({
               <HighlightColorPicker
                 selectedColor="yellow"
                 onColorSelect={handleColorSelect}
-                variant="light"
+                variant={mode === 'dark' ? 'dark' : 'light'}
               />
             </View>
 
@@ -166,19 +172,19 @@ export function HighlightSelectionSheet({
 
               {/* Take a Note */}
               <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('note')}>
-                <Ionicons name="document-text-outline" size={20} color={colors.gray700} />
+                <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
                 <Text style={styles.quickActionText}>Take a Note</Text>
               </Pressable>
 
               {/* Copy Verse */}
               <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('copy')}>
-                <Ionicons name="copy-outline" size={20} color={colors.gray700} />
+                <Ionicons name="copy-outline" size={20} color={colors.textSecondary} />
                 <Text style={styles.quickActionText}>Copy Verse</Text>
               </Pressable>
 
               {/* Share Verse */}
               <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('share')}>
-                <Ionicons name="share-outline" size={20} color={colors.gray700} />
+                <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
                 <Text style={styles.quickActionText}>Share Verse</Text>
               </Pressable>
             </View>
@@ -189,69 +195,73 @@ export function HighlightSelectionSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.backdrop,
-  },
-  modalContent: {
-    height: modalSpecs.height,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
-    borderTopRightRadius: modalSpecs.borderTopRightRadius,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  verseRangeLabel: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    flex: 1,
-  },
-  closeButton: {
-    padding: spacing.xs,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: fontSizes.caption,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray500,
-    letterSpacing: 1,
-    marginBottom: spacing.md,
-  },
-  quickActions: {
-    gap: spacing.xs,
-  },
-  quickActionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-    borderRadius: 8,
-    backgroundColor: colors.gray50,
-  },
-  quickActionText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.regular,
-    color: colors.gray900,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+  const modalSpecs = getModalSpecs(mode);
+
+  return StyleSheet.create({
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: modalSpecs.backdropColor,
+    },
+    modalContent: {
+      height: modalSpecs.height,
+      backgroundColor: modalSpecs.backgroundColor,
+      borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
+      borderTopRightRadius: modalSpecs.borderTopRightRadius,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    verseRangeLabel: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      flex: 1,
+    },
+    closeButton: {
+      padding: spacing.xs,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: spacing.lg,
+    },
+    section: {
+      marginBottom: spacing.xl,
+    },
+    sectionTitle: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.textSecondary,
+      letterSpacing: 1,
+      marginBottom: spacing.md,
+    },
+    quickActions: {
+      gap: spacing.xs,
+    },
+    quickActionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      gap: spacing.md,
+      borderRadius: 8,
+      backgroundColor: colors.gray50,
+    },
+    quickActionText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.regular,
+      color: colors.textPrimary,
+    },
+  });
+};

@@ -27,8 +27,10 @@
  * ```
  */
 
+import { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { colors, fontSizes, fontWeights } from '@/constants/bible-design-tokens';
+import { fontSizes, fontWeights, type getColors } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * Props for CharacterCounter component
@@ -53,6 +55,9 @@ export interface CharacterCounterProps {
  * - Shows count with error color when at or over limit
  */
 export function CharacterCounter({ currentLength, maxLength, threshold }: CharacterCounterProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   // Hide counter if below threshold
   if (currentLength < threshold) {
     return null;
@@ -67,14 +72,15 @@ export function CharacterCounter({ currentLength, maxLength, threshold }: Charac
   return <Text style={[styles.counter, isOverLimit && styles.counterError]}>{text}</Text>;
 }
 
-const styles = StyleSheet.create({
-  counter: {
-    fontSize: fontSizes.caption,
-    fontWeight: fontWeights.regular,
-    color: colors.gray500,
-    textAlign: 'right',
-  },
-  counterError: {
-    color: colors.error,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    counter: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.regular,
+      color: colors.textTertiary,
+      textAlign: 'right',
+    },
+    counterError: {
+      color: colors.error,
+    },
+  });

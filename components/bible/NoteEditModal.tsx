@@ -29,7 +29,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -44,13 +44,15 @@ import {
 } from 'react-native';
 import { CharacterCounter } from '@/components/bible/CharacterCounter';
 import {
-  colors,
   fontSizes,
   fontWeights,
-  modalSpecs,
+  type getColors,
+  getModalSpecs,
   spacing,
+  type ThemeMode,
 } from '@/constants/bible-design-tokens';
 import { NOTES_CONFIG } from '@/constants/notes';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useNoteDraft } from '@/hooks/bible/use-note-draft';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { Note } from '@/types/notes';
@@ -86,6 +88,8 @@ export function NoteEditModal({
   onClose,
   onSave,
 }: NoteEditModalProps) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
   const { updateNote, isUpdatingNote } = useNotes();
   const { draftContent, isDraftRestored, saveDraft, clearDraft } = useNoteDraft(
     note.book_id * 1000 + note.chapter_number, // Generate chapterId
@@ -162,7 +166,7 @@ export function NoteEditModal({
               {bookName} {chapterNumber}
             </Text>
             <Pressable onPress={onClose} style={styles.closeButton} testID="edit-close-button">
-              <Ionicons name="close" size={24} color={colors.gray900} />
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
             </Pressable>
           </View>
 
@@ -218,97 +222,103 @@ export function NoteEditModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.backdrop,
-  },
-  modalContent: {
-    height: modalSpecs.height,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
-    borderTopRightRadius: modalSpecs.borderTopRightRadius,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  headerTitle: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    flex: 1,
-  },
-  closeButton: {
-    padding: spacing.xs,
-  },
-  draftIndicator: {
-    backgroundColor: colors.info,
-    padding: spacing.sm,
-    alignItems: 'center',
-  },
-  draftIndicatorText: {
-    fontSize: fontSizes.bodySmall,
-    color: colors.white,
-    fontWeight: fontWeights.medium,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-  },
-  textarea: {
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    borderRadius: 8,
-    padding: spacing.md,
-    fontSize: fontSizes.body,
-    color: colors.gray900,
-    minHeight: 200,
-    textAlignVertical: 'top',
-  },
-  actions: {
-    flexDirection: 'row',
-    padding: spacing.lg,
-    gap: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray200,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: colors.gray200,
-  },
-  cancelButtonText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray700,
-  },
-  saveButton: {
-    backgroundColor: colors.gold,
-  },
-  saveButtonDisabled: {
-    backgroundColor: colors.gray300,
-  },
-  actionButtonText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.white,
-  },
-  saveButtonTextDisabled: {
-    color: colors.gray500,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+  const modalSpecs = getModalSpecs(mode);
+
+  return StyleSheet.create({
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: modalSpecs.backdropColor,
+    },
+    modalContent: {
+      height: modalSpecs.height,
+      backgroundColor: modalSpecs.backgroundColor,
+      borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
+      borderTopRightRadius: modalSpecs.borderTopRightRadius,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      flex: 1,
+    },
+    closeButton: {
+      padding: spacing.xs,
+    },
+    draftIndicator: {
+      backgroundColor: colors.info,
+      padding: spacing.sm,
+      alignItems: 'center',
+    },
+    draftIndicatorText: {
+      fontSize: fontSizes.bodySmall,
+      color: colors.white,
+      fontWeight: fontWeights.medium,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: spacing.lg,
+    },
+    textarea: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: spacing.md,
+      fontSize: fontSizes.body,
+      color: colors.textPrimary,
+      minHeight: 200,
+      textAlignVertical: 'top',
+    },
+    actions: {
+      flexDirection: 'row',
+      padding: spacing.lg,
+      gap: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    actionButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    cancelButton: {
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    cancelButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    saveButton: {
+      backgroundColor: colors.gold,
+    },
+    saveButtonDisabled: {
+      backgroundColor: colors.textDisabled,
+    },
+    actionButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.background, // Contrast
+    },
+    saveButtonTextDisabled: {
+      color: colors.textTertiary,
+    },
+  });
+};

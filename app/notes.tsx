@@ -28,7 +28,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -43,8 +43,9 @@ import {
 import { NoteCard } from '@/components/bible/NoteCard';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
-import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { Note } from '@/types/notes';
 
@@ -105,6 +106,8 @@ function groupNotesByChapter(notes: Note[]): ChapterGroup[] {
  * - Collapsed: Only shows header
  */
 export default function NotesScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { notes, isFetchingNotes, refetchNotes, deleteNote } = useNotes();
 
@@ -263,13 +266,13 @@ export default function NotesScreen() {
             accessibilityRole="button"
             testID="notes-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Notes</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="document-text-outline" size={64} color={colors.gray300} />
+          <Ionicons name="document-text-outline" size={64} color={colors.textDisabled} />
           <Text style={styles.emptyStateTitle}>Please login to view your notes</Text>
           <Text style={styles.emptyStateSubtitle}>
             Sign in to create and access your Bible study notes
@@ -298,7 +301,7 @@ export default function NotesScreen() {
             accessibilityRole="button"
             testID="notes-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Notes</Text>
           <View style={styles.headerSpacer} />
@@ -325,13 +328,13 @@ export default function NotesScreen() {
             accessibilityRole="button"
             testID="notes-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Notes</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="document-text-outline" size={64} color={colors.gray300} />
+          <Ionicons name="document-text-outline" size={64} color={colors.textDisabled} />
           <Text style={styles.emptyStateTitle}>No notes yet</Text>
           <Text style={styles.emptyStateSubtitle}>
             Start taking notes while reading chapters to see them here.
@@ -352,7 +355,7 @@ export default function NotesScreen() {
           accessibilityRole="button"
           testID="notes-back-button"
         >
-          <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Notes</Text>
         <View style={styles.headerSpacer} />
@@ -386,7 +389,7 @@ export default function NotesScreen() {
                   {group.bookName} {group.chapterNumber} ({group.notes.length}{' '}
                   {group.notes.length === 1 ? 'note' : 'notes'})
                 </Text>
-                <Ionicons name={chevronIcon} size={20} color={colors.gray500} />
+                <Ionicons name={chevronIcon} size={20} color={colors.textSecondary} />
               </Pressable>
 
               {/* Chapter Group Content (Expanded) */}
@@ -436,95 +439,96 @@ export default function NotesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  backButton: {
-    padding: spacing.xs,
-    marginRight: spacing.sm,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: fontSizes.displayMedium,
-    fontWeight: fontWeights.bold,
-    color: colors.gray900,
-  },
-  headerSpacer: {
-    width: 32, // Same width as back button for centering
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emptyStateTitle: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginTop: spacing.lg,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  loginButton: {
-    marginTop: spacing.xl,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: colors.gold,
-    borderRadius: 8,
-  },
-  loginButtonText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.white,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingVertical: spacing.sm,
-  },
-  chapterGroup: {
-    marginBottom: spacing.xs,
-  },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.gray50,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
-  },
-  groupHeaderPressed: {
-    backgroundColor: colors.gray100,
-  },
-  groupTitle: {
-    flex: 1,
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-  },
-  groupContent: {
-    backgroundColor: colors.white,
-    paddingVertical: spacing.sm,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    backButton: {
+      padding: spacing.xs,
+      marginRight: spacing.sm,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: fontSizes.displayMedium,
+      fontWeight: fontWeights.bold,
+      color: colors.textPrimary,
+    },
+    headerSpacer: {
+      width: 32, // Same width as back button for centering
+    },
+    centerContent: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    emptyStateTitle: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginTop: spacing.lg,
+      textAlign: 'center',
+    },
+    emptyStateSubtitle: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      marginTop: spacing.sm,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    loginButton: {
+      marginTop: spacing.xl,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      backgroundColor: colors.gold,
+      borderRadius: 8,
+    },
+    loginButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingVertical: spacing.sm,
+    },
+    chapterGroup: {
+      marginBottom: spacing.xs,
+    },
+    groupHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.backgroundElevated,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    groupHeaderPressed: {
+      backgroundColor: colors.divider,
+    },
+    groupTitle: {
+      flex: 1,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    groupContent: {
+      backgroundColor: colors.background,
+      paddingVertical: spacing.sm,
+    },
+  });

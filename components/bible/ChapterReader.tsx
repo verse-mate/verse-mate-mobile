@@ -19,7 +19,7 @@
  * @see Task Group 5: Chapter View Highlight Integration
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
@@ -33,15 +33,16 @@ import { NotesButton } from '@/components/bible/NotesButton';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import {
-  colors,
   fontSizes,
   fontWeights,
-  headerSpecs,
+  type getColors,
+  getHeaderSpecs,
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { HIGHLIGHT_COLORS } from '@/constants/highlight-colors';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
@@ -213,6 +214,10 @@ export function ChapterReader({
   explanation,
   explanationsOnly = false,
 }: ChapterReaderProps) {
+  const { colors, mode } = useTheme();
+  const specs = getHeaderSpecs(mode);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
   const { deleteNote } = useNotes();
   const { user } = useAuth();
 
@@ -533,15 +538,15 @@ export function ChapterReader({
           <BookmarkToggle
             bookId={chapter.bookId}
             chapterNumber={chapter.chapterNumber}
-            size={headerSpecs.iconSize}
-            color={colors.gray900}
+            size={specs.iconSize}
+            color={colors.textPrimary}
           />
           <NotesButton
             bookId={chapter.bookId}
             chapterNumber={chapter.chapterNumber}
             onPress={handleNotesPress}
-            size={headerSpecs.iconSize}
-            color={colors.gray900}
+            size={specs.iconSize}
+            color={colors.textPrimary}
           />
         </View>
       </View>
@@ -767,91 +772,92 @@ export function ChapterReader({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  // Title row with bookmark and notes buttons on the right
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xxl,
-  },
-  chapterTitle: {
-    flex: 1,
-    fontSize: fontSizes.displayMedium,
-    fontWeight: fontWeights.bold,
-    lineHeight: fontSizes.displayMedium * lineHeights.display,
-    color: colors.gray900,
-    marginRight: spacing.md, // Space between title and icons
-  },
-  // Container for icon buttons
-  iconButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  section: {
-    marginBottom: spacing.xxxl,
-  },
-  sectionSubtitle: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.heading2 * lineHeights.heading,
-    color: colors.gray900,
-    marginBottom: spacing.sm,
-  },
-  verseRange: {
-    fontSize: fontSizes.caption,
-    fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.caption * lineHeights.ui,
-    color: colors.gray500,
-    marginBottom: spacing.md,
-  },
-  versesContainer: {
-    flexDirection: 'column',
-  },
-  verseRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.md,
-  },
-  verseNumber: {
-    fontSize: fontSizes.caption,
-    fontWeight: fontWeights.bold,
-    lineHeight: fontSizes.bodyLarge * lineHeights.body,
-    color: colors.gray500,
-    marginRight: spacing.xs,
-    marginTop: -4, // Superscript positioning (for verse row mode)
-  },
-  verseNumberSuperscript: {
-    fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
-    fontWeight: fontWeights.bold,
-    color: colors.gray500,
-    // Spacing handled by thin space Unicode characters (\u2009) in JSX
-  },
-  verseText: {
-    flex: 1,
-    fontSize: fontSizes.bodyLarge,
-    fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray900,
-  },
-  verseTextParagraph: {
-    fontSize: fontSizes.bodyLarge,
-    fontWeight: fontWeights.regular,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray900,
-    marginBottom: spacing.md,
-  },
-  explanationContainer: {
-    marginTop: spacing.xxxl,
-    paddingTop: spacing.xxl,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray200,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    // Title row with bookmark and notes buttons on the right
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xxl,
+    },
+    chapterTitle: {
+      flex: 1,
+      fontSize: fontSizes.displayMedium,
+      fontWeight: fontWeights.bold,
+      lineHeight: fontSizes.displayMedium * lineHeights.display,
+      color: colors.textPrimary,
+      marginRight: spacing.md, // Space between title and icons
+    },
+    // Container for icon buttons
+    iconButtons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    section: {
+      marginBottom: spacing.xxxl,
+    },
+    sectionSubtitle: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    verseRange: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.regular,
+      lineHeight: fontSizes.caption * lineHeights.ui,
+      color: colors.textTertiary,
+      marginBottom: spacing.md,
+    },
+    versesContainer: {
+      flexDirection: 'column',
+    },
+    verseRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: spacing.md,
+    },
+    verseNumber: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.bold,
+      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      color: colors.textTertiary,
+      marginRight: spacing.xs,
+      marginTop: -4, // Superscript positioning (for verse row mode)
+    },
+    verseNumberSuperscript: {
+      fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
+      fontWeight: fontWeights.bold,
+      color: colors.textTertiary,
+      // Spacing handled by thin space Unicode characters (\u2009) in JSX
+    },
+    verseText: {
+      flex: 1,
+      fontSize: fontSizes.bodyLarge,
+      fontWeight: fontWeights.regular,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+    },
+    verseTextParagraph: {
+      fontSize: fontSizes.bodyLarge,
+      fontWeight: fontWeights.regular,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+    },
+    explanationContainer: {
+      marginTop: spacing.xxxl,
+      paddingTop: spacing.xxl,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+  });
 
 /**
  * Markdown Styles
@@ -861,95 +867,96 @@ const styles = StyleSheet.create({
  *
  * @see Spec lines 778-821 (Markdown rendering)
  */
-const markdownStyles = StyleSheet.create({
-  body: {
-    fontSize: fontSizes.bodyLarge,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray900,
-  },
-  heading1: {
-    fontSize: fontSizes.heading1,
-    fontWeight: fontWeights.bold,
-    lineHeight: fontSizes.heading1 * lineHeights.heading,
-    color: colors.gray900,
-    marginTop: spacing.xxl,
-    marginBottom: spacing.md,
-  },
-  heading2: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.heading2 * lineHeights.heading,
-    color: colors.gray900,
-    marginTop: 64,
-    marginBottom: spacing.sm,
-  },
-  heading3: {
-    fontSize: fontSizes.heading3,
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.heading3 * lineHeights.heading,
-    color: colors.gray900,
-    marginTop: 64,
-    marginBottom: spacing.sm,
-  },
-  paragraph: {
-    fontSize: fontSizes.bodyLarge,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray900,
-    marginBottom: spacing.lg,
-  },
-  strong: {
-    fontWeight: fontWeights.bold,
-    color: colors.gray900,
-  },
-  em: {
-    fontStyle: 'italic',
-    color: colors.gray900,
-  },
-  list_item: {
-    fontSize: fontSizes.bodyLarge,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray900,
-    marginBottom: spacing.sm,
-  },
-  bullet_list: {
-    marginBottom: spacing.lg,
-  },
-  ordered_list: {
-    marginBottom: spacing.lg,
-  },
-  code_inline: {
-    fontFamily: 'monospace',
-    fontSize: fontSizes.bodySmall,
-    backgroundColor: colors.gray50,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 3,
-    color: colors.gray900,
-  },
-  fence: {
-    fontFamily: 'monospace',
-    fontSize: fontSizes.bodySmall,
-    backgroundColor: colors.gray50,
-    padding: spacing.md,
-    borderRadius: 4,
-    marginBottom: spacing.lg,
-    color: colors.gray900,
-  },
-  blockquote: {
-    backgroundColor: colors.gray50,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.gold,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  link: {
-    color: colors.gold,
-    textDecorationLine: 'underline',
-  },
-  hr: {
-    backgroundColor: colors.gray200,
-    height: 1,
-    marginVertical: spacing.xl,
-  },
-});
+const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    body: {
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+    },
+    heading1: {
+      fontSize: fontSizes.heading1,
+      fontWeight: fontWeights.bold,
+      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      color: colors.textPrimary,
+      marginTop: spacing.xxl,
+      marginBottom: spacing.md,
+    },
+    heading2: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      color: colors.textPrimary,
+      marginTop: 64,
+      marginBottom: spacing.sm,
+    },
+    heading3: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      lineHeight: fontSizes.heading3 * lineHeights.heading,
+      color: colors.textPrimary,
+      marginTop: 64,
+      marginBottom: spacing.sm,
+    },
+    paragraph: {
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+      marginBottom: spacing.lg,
+    },
+    strong: {
+      fontWeight: fontWeights.bold,
+      color: colors.textPrimary,
+    },
+    em: {
+      fontStyle: 'italic',
+      color: colors.textPrimary,
+    },
+    list_item: {
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    bullet_list: {
+      marginBottom: spacing.lg,
+    },
+    ordered_list: {
+      marginBottom: spacing.lg,
+    },
+    code_inline: {
+      fontFamily: 'monospace',
+      fontSize: fontSizes.bodySmall,
+      backgroundColor: colors.backgroundElevated,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 2,
+      borderRadius: 3,
+      color: colors.textPrimary,
+    },
+    fence: {
+      fontFamily: 'monospace',
+      fontSize: fontSizes.bodySmall,
+      backgroundColor: colors.backgroundElevated,
+      padding: spacing.md,
+      borderRadius: 4,
+      marginBottom: spacing.lg,
+      color: colors.textPrimary,
+    },
+    blockquote: {
+      backgroundColor: colors.backgroundElevated,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.gold,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    link: {
+      color: colors.gold,
+      textDecorationLine: 'underline',
+    },
+    hr: {
+      backgroundColor: colors.border,
+      height: 1,
+      marginVertical: spacing.xl,
+    },
+  });
