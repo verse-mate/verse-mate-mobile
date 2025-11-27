@@ -445,7 +445,7 @@ function ChapterHeader({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top }]} testID="chapter-header">
+    <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="chapter-header">
       {/* Chapter Title Button (clickable to open navigation) */}
       <Pressable
         onPress={onNavigationPress}
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: headerSpecs.padding,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.md,
   },
   chapterButton: {
     padding: spacing.xs,

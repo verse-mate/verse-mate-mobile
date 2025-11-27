@@ -38,6 +38,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
 import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
@@ -227,6 +228,7 @@ function groupHighlightsByChapter(highlights: Highlight[]): ChapterGroup[] {
  * - Collapsed: Only shows header
  */
 export default function HighlightsScreen() {
+  const insets = useSafeAreaInsets();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { allHighlights, isFetchingHighlights, refetchHighlights } = useHighlights();
 
@@ -300,7 +302,7 @@ export default function HighlightsScreen() {
   // Show loading indicator while auth state is being determined
   if (isAuthLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="highlights-loading" />
         </View>
@@ -311,7 +313,7 @@ export default function HighlightsScreen() {
   // Show login prompt if user is not authenticated
   if (!isAuthenticated || !user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Pressable
             onPress={handleBackPress}
@@ -346,7 +348,7 @@ export default function HighlightsScreen() {
   // Show loading indicator while fetching highlights
   if (isFetchingHighlights && allHighlights.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Pressable
             onPress={handleBackPress}
@@ -373,7 +375,7 @@ export default function HighlightsScreen() {
   // Show empty state if no highlights exist (but still show auto-highlight settings)
   if (chapterGroups.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Pressable
             onPress={handleBackPress}
@@ -398,18 +400,7 @@ export default function HighlightsScreen() {
             />
           }
         >
-          {/* Auto-Highlight Settings Section */}
-          <View style={styles.autoHighlightSection}>
-            <View style={styles.sectionHeaderContainer}>
-              <Ionicons name="sparkles" size={20} color={colors.gold} style={styles.sectionIcon} />
-              <Text style={styles.sectionHeader}>AI Auto-Highlights</Text>
-            </View>
-            <View style={styles.autoHighlightContainer}>
-              <AutoHighlightSettings isLoggedIn={isAuthenticated} />
-            </View>
-          </View>
-
-          {/* Divider */}
+          {/* My Highlights Section Header */}
           <View style={styles.sectionDivider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>My Highlights</Text>
@@ -424,6 +415,20 @@ export default function HighlightsScreen() {
               Start highlighting verses to see them here.
             </Text>
           </View>
+
+          {/* Divider */}
+          <View style={styles.sectionDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>AI Auto-Highlights</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Auto-Highlight Settings Section */}
+          <View style={styles.autoHighlightSection}>
+            <View style={styles.autoHighlightContainer}>
+              <AutoHighlightSettings isLoggedIn={isAuthenticated} alwaysExpanded={true} />
+            </View>
+          </View>
         </ScrollView>
       </SafeAreaView>
     );
@@ -431,7 +436,7 @@ export default function HighlightsScreen() {
 
   // Render highlights list with collapsible groups
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable
           onPress={handleBackPress}
@@ -458,18 +463,7 @@ export default function HighlightsScreen() {
         }
         testID="highlights-list"
       >
-        {/* Auto-Highlight Settings Section */}
-        <View style={styles.autoHighlightSection}>
-          <View style={styles.sectionHeaderContainer}>
-            <Ionicons name="sparkles" size={20} color={colors.gold} style={styles.sectionIcon} />
-            <Text style={styles.sectionHeader}>AI Auto-Highlights</Text>
-          </View>
-          <View style={styles.autoHighlightContainer}>
-            <AutoHighlightSettings isLoggedIn={isAuthenticated} />
-          </View>
-        </View>
-
-        {/* Divider */}
+        {/* My Highlights Section Header */}
         <View style={styles.sectionDivider}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>My Highlights</Text>
@@ -520,6 +514,20 @@ export default function HighlightsScreen() {
             </View>
           );
         })}
+
+        {/* Divider */}
+        <View style={styles.sectionDivider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>AI Auto-Highlights</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Auto-Highlight Settings Section */}
+        <View style={styles.autoHighlightSection}>
+          <View style={styles.autoHighlightContainer}>
+            <AutoHighlightSettings isLoggedIn={isAuthenticated} alwaysExpanded={true} />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
