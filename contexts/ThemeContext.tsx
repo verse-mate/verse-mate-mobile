@@ -10,6 +10,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import { LightSensor } from 'expo-sensors';
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import SunCalc from 'suncalc';
@@ -26,8 +27,9 @@ import { getColors, type ThemeMode } from '@/constants/bible-design-tokens';
  * - 'light': Always use light theme
  * - 'dark': Always use dark theme
  * - 'sunrise_sunset': Switch based on calculated solar position
+ * - 'ambient': Switch based on ambient light sensor
  */
-export type ThemePreference = 'auto' | 'light' | 'dark' | 'sunrise_sunset';
+export type ThemePreference = 'auto' | 'light' | 'dark' | 'sunrise_sunset' | 'ambient';
 
 /**
  * Theme context value provided to all consumers
@@ -74,6 +76,31 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [coords, setCoords] = useState<Location.LocationObjectCoords | null>(null);
   const [now, setNow] = useState(new Date());
+  const [ambientMode, setAmbientMode] = useState<ThemeMode>('light');
+
+  // Handle ambient light sensor
+  useEffect(() => {
+    if (preference !== 'ambient') return;
+
+    // Set update interval to 1s to save battery and reduce jitter
+    LightSensor.setUpdateInterval(3000);
+
+    const subscription = LightSensor.addListener(({ illuminance }) => {
+      // Hysteresis to prevent flickering:
+      // Dark if < 60 lux (dim room/night)
+      // Light if > 90 lux (bright room/day)
+      // No change in between (dead zone)
+      if (illuminance < 60) {
+        setAmbientMode('dark');
+      } else if (illuminance > 90) {
+        setAmbientMode('light');
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [preference]);
 
   // Update time every minute to check for sunrise/sunset transitions
   useEffect(() => {
@@ -126,11 +153,14 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // Resolve preference to actual theme mode
   // If preference is 'auto', use system color scheme
   // If 'sunrise_sunset', use calculated mode based on location
+  // If 'ambient', use mode from light sensor
   const mode: ThemeMode = preference === 'auto'
     ? (systemColorScheme === 'dark' ? 'dark' : 'light')
     : preference === 'sunrise_sunset'
       ? sunriseSunsetMode
-      : preference;
+      : preference === 'ambient'
+        ? ambientMode
+        : preference;
 
   // Get colors for current mode
   const colors = getColors(mode);
@@ -144,7 +174,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
           stored === 'auto' ||
           stored === 'light' ||
           stored === 'dark' ||
-          stored === 'sunrise_sunset'
+          stored === 'sunrise_sunset' ||
+          stored === 'ambient'
         )) {
           setPreferenceState(stored as ThemePreference);
         }

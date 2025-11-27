@@ -13,6 +13,12 @@ jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
 }));
+jest.mock('expo-sensors', () => ({
+  LightSensor: {
+    setUpdateInterval: jest.fn(),
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+  },
+}));
 jest.mock('suncalc');
 jest.mock('react-native', () => ({
   useColorScheme: jest.fn(),
@@ -299,5 +305,94 @@ describe('ThemeContext', () => {
 
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
+  });
+
+  // Test 13: 'ambient' preference switches to light mode when bright
+  it('should switch to light mode in "ambient" preference when environment is bright', async () => {
+    const { LightSensor } = require('expo-sensors');
+    const { result } = renderHook(() => useTheme(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.setPreference('ambient');
+    });
+
+    expect(LightSensor.setUpdateInterval).toHaveBeenCalledWith(3000);
+    expect(LightSensor.addListener).toHaveBeenCalled();
+
+    // Get the most recent listener callback
+    const calls = LightSensor.addListener.mock.calls;
+    const callback = calls[calls.length - 1][0];
+
+    act(() => {
+      callback({ illuminance: 150 }); // > 100 lux -> light
+    });
+
+    await waitFor(() => expect(result.current.mode).toBe('light'));
+  });
+
+  // Test 14: 'ambient' preference switches to dark mode when dim
+  it('should switch to dark mode in "ambient" preference when environment is dim', async () => {
+    const { LightSensor } = require('expo-sensors');
+    const { result } = renderHook(() => useTheme(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.setPreference('ambient');
+    });
+
+    const calls = LightSensor.addListener.mock.calls;
+    const callback = calls[calls.length - 1][0];
+
+    act(() => {
+      callback({ illuminance: 30 }); // < 50 lux -> dark
+    });
+
+    await waitFor(() => expect(result.current.mode).toBe('dark'));
+  });
+
+  // Test 15: 'ambient' preference respects hysteresis (no change in dead zone)
+  it('should not change mode in "ambient" preference when light level is in hysteresis zone', async () => {
+    const { LightSensor } = require('expo-sensors');
+    const { result } = renderHook(() => useTheme(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // Start with ambient
+    await act(async () => {
+      await result.current.setPreference('ambient');
+    });
+
+    const calls = LightSensor.addListener.mock.calls;
+    const callback = calls[calls.length - 1][0];
+
+    // Force to dark first
+    act(() => {
+      callback({ illuminance: 10 });
+    });
+    await waitFor(() => expect(result.current.mode).toBe('dark'));
+
+    // Update to 80 (between 50 and 100) -> should stay dark
+    act(() => {
+      callback({ illuminance: 80 });
+    });
+
+    // Should still be dark
+    expect(result.current.mode).toBe('dark');
+
+    // Update to 120 -> light
+    act(() => {
+      callback({ illuminance: 120 });
+    });
+    await waitFor(() => expect(result.current.mode).toBe('light'));
+
+    // Update to 60 (between 50 and 100) -> should stay light
+    act(() => {
+      callback({ illuminance: 60 });
+    });
+
+    expect(result.current.mode).toBe('light');
   });
 });
