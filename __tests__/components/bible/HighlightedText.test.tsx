@@ -8,14 +8,20 @@
 
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
+import type React from 'react';
 import { Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { HighlightedText } from '@/components/bible/HighlightedText';
 import { HIGHLIGHT_COLORS } from '@/constants/highlight-colors';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 
 // Mock haptics
 jest.mock('expo-haptics');
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('HighlightedText', () => {
   const mockHighlight: Highlight = {
@@ -39,7 +45,7 @@ describe('HighlightedText', () => {
   });
 
   it('should render plain text without highlights', () => {
-    const { getByText } = render(
+    const { getByText } = renderWithTheme(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
@@ -51,7 +57,7 @@ describe('HighlightedText', () => {
   });
 
   it('should render text with semi-transparent highlight background', () => {
-    const { root } = render(
+    const { root } = renderWithTheme(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
@@ -78,7 +84,7 @@ describe('HighlightedText', () => {
   it('should trigger onHighlightPress when long-pressing highlighted text', () => {
     const mockOnHighlightPress = jest.fn();
 
-    const { root } = render(
+    const { root } = renderWithTheme(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
@@ -126,7 +132,7 @@ describe('HighlightedText', () => {
       },
     ];
 
-    const { root } = render(
+    const { root } = renderWithTheme(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
@@ -157,7 +163,7 @@ describe('HighlightedText', () => {
   it('should call onVerseLongPress when verse is long-pressed', async () => {
     const mockOnVerseLongPress = jest.fn();
 
-    const { UNSAFE_root } = render(
+    const { UNSAFE_root } = renderWithTheme(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
@@ -197,7 +203,7 @@ describe('HighlightedText', () => {
   });
 
   it('should not call onVerseLongPress when callback not provided', () => {
-    const { root } = render(
+    const { root } = renderWithTheme(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
@@ -229,7 +235,7 @@ describe('HighlightedText', () => {
       selected_text: 'the heavens and the earth...',
     };
 
-    const { root } = render(
+    const { root } = renderWithTheme(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}

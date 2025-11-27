@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { colors } from '@/constants/bible-design-tokens';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
 // Mock the hook
@@ -36,7 +37,11 @@ const queryClient = new QueryClient({
 });
 
 const renderWithProviders = (component: React.ReactNode) => {
-  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>{component}</ThemeProvider>
+    </QueryClientProvider>
+  );
 };
 
 describe('AutoHighlightTooltip', () => {

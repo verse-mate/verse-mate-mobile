@@ -9,8 +9,10 @@
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
+import type React from 'react';
 import { HighlightColorPicker } from '@/components/bible/HighlightColorPicker';
 import { HIGHLIGHT_COLOR_ORDER } from '@/constants/highlight-colors';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // Mock haptics
 jest.mock('expo-haptics', () => ({
@@ -19,6 +21,10 @@ jest.mock('expo-haptics', () => ({
     Light: 'light',
   },
 }));
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('HighlightColorPicker', () => {
   const mockOnColorSelect = jest.fn();
@@ -34,7 +40,7 @@ describe('HighlightColorPicker', () => {
   });
 
   it('should render all color buttons', () => {
-    render(<HighlightColorPicker {...defaultProps} />);
+    renderWithTheme(<HighlightColorPicker {...defaultProps} />);
 
     // Check that all colors are rendered
     HIGHLIGHT_COLOR_ORDER.forEach((color) => {
@@ -43,7 +49,7 @@ describe('HighlightColorPicker', () => {
   });
 
   it('should show checkmark on selected color', () => {
-    render(<HighlightColorPicker {...defaultProps} selectedColor="green" />);
+    renderWithTheme(<HighlightColorPicker {...defaultProps} selectedColor="green" />);
 
     // Green should have checkmark
     expect(screen.getByTestId('checkmark-green')).toBeTruthy();
@@ -57,7 +63,7 @@ describe('HighlightColorPicker', () => {
   });
 
   it('should call onColorSelect when color button is pressed', async () => {
-    render(<HighlightColorPicker {...defaultProps} />);
+    renderWithTheme(<HighlightColorPicker {...defaultProps} />);
 
     const blueButton = screen.getByTestId('color-button-blue');
 
@@ -72,7 +78,7 @@ describe('HighlightColorPicker', () => {
   });
 
   it('should trigger haptic feedback on color press', async () => {
-    render(<HighlightColorPicker {...defaultProps} />);
+    renderWithTheme(<HighlightColorPicker {...defaultProps} />);
 
     const pinkButton = screen.getByTestId('color-button-pink');
 
@@ -86,21 +92,21 @@ describe('HighlightColorPicker', () => {
   });
 
   it('should render with light variant styling', () => {
-    render(<HighlightColorPicker {...defaultProps} variant="light" />);
+    renderWithTheme(<HighlightColorPicker {...defaultProps} variant="light" />);
 
     // Component should render without errors
     expect(screen.getByTestId('color-button-yellow')).toBeTruthy();
   });
 
   it('should render with dark variant styling', () => {
-    render(<HighlightColorPicker {...defaultProps} variant="dark" />);
+    renderWithTheme(<HighlightColorPicker {...defaultProps} variant="dark" />);
 
     // Component should render without errors
     expect(screen.getByTestId('color-button-yellow')).toBeTruthy();
   });
 
   it('should have correct accessibility labels', () => {
-    render(<HighlightColorPicker {...defaultProps} />);
+    renderWithTheme(<HighlightColorPicker {...defaultProps} />);
 
     const yellowButton = screen.getByTestId('color-button-yellow');
     expect(yellowButton.props.accessibilityLabel).toBe('yellow highlight color');
@@ -108,7 +114,7 @@ describe('HighlightColorPicker', () => {
   });
 
   it('should update accessibility state when color is selected', () => {
-    render(<HighlightColorPicker {...defaultProps} selectedColor="purple" />);
+    renderWithTheme(<HighlightColorPicker {...defaultProps} selectedColor="purple" />);
 
     const purpleButton = screen.getByTestId('color-button-purple');
     const greenButton = screen.getByTestId('color-button-green');

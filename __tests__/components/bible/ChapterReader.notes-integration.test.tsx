@@ -1,22 +1,9 @@
-/**
- * ChapterReader Notes Integration Tests (Task Group 6.1)
- *
- * Tests notes button integration in chapter reading screen.
- * Focused tests for critical notes behaviors only.
- *
- * Test coverage:
- * 1. Notes button renders next to bookmark toggle in title row
- * 2. Notes button is pressable and not disabled
- * 3. Notes button shows correct icon state (filled vs outline)
- *
- * @see Task Group 6.1
- */
-
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 // Import mocked modules
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 import { useHighlights } from '@/hooks/bible/use-highlights';
@@ -154,8 +141,14 @@ describe('ChapterReader - Notes Integration', () => {
 
   // Helper to wrap components with QueryClientProvider
   const renderWithProvider = (ui: ReactNode) => {
-    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>{ui}</ThemeProvider>
+      </QueryClientProvider>
+    );
   };
+
+  const renderWithTheme = renderWithProvider; // Alias for consistency
 
   // Test 1: Notes button renders next to bookmark toggle
   test('renders notes button next to bookmark toggle in title row', () => {

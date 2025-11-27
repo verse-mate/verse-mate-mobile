@@ -8,8 +8,14 @@
  */
 
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import type React from 'react';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { Note } from '@/types/notes';
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('NoteViewModal', () => {
   const mockNote: Note = {
@@ -32,7 +38,7 @@ describe('NoteViewModal', () => {
   });
 
   it('should display full note content without truncation', () => {
-    render(
+    renderWithTheme(
       <NoteViewModal
         visible={true}
         note={mockNote}
@@ -48,7 +54,7 @@ describe('NoteViewModal', () => {
   });
 
   it('should display chapter reference in header', () => {
-    render(
+    renderWithTheme(
       <NoteViewModal
         visible={true}
         note={mockNote}
@@ -64,7 +70,7 @@ describe('NoteViewModal', () => {
   });
 
   it('should call onEdit when Edit button is pressed', () => {
-    render(
+    renderWithTheme(
       <NoteViewModal
         visible={true}
         note={mockNote}
@@ -83,7 +89,7 @@ describe('NoteViewModal', () => {
   });
 
   it('should call onDelete when Delete button is pressed', () => {
-    render(
+    renderWithTheme(
       <NoteViewModal
         visible={true}
         note={mockNote}
@@ -102,7 +108,7 @@ describe('NoteViewModal', () => {
   });
 
   it('should call onClose when close button is pressed', () => {
-    render(
+    renderWithTheme(
       <NoteViewModal
         visible={true}
         note={mockNote}

@@ -7,8 +7,14 @@
  * @see Task 6.1 - Write 3-5 focused tests for FloatingActionButtons
  */
 
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import type React from 'react';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('FloatingActionButtons', () => {
   const mockOnPrevious = jest.fn();
@@ -22,7 +28,7 @@ describe('FloatingActionButtons', () => {
    * Test 1: Previous button hidden when at chapter 1
    */
   it('hides previous button when showPrevious is false', () => {
-    const { getByLabelText } = render(
+    renderWithTheme(
       <FloatingActionButtons
         onPrevious={mockOnPrevious}
         onNext={mockOnNext}
@@ -31,7 +37,7 @@ describe('FloatingActionButtons', () => {
       />
     );
 
-    const previousButton = getByLabelText('Previous chapter');
+    const previousButton = screen.getByLabelText('Previous chapter');
     expect(previousButton).toBeDisabled();
   });
 
@@ -39,7 +45,7 @@ describe('FloatingActionButtons', () => {
    * Test 2: Next button hidden when at last chapter
    */
   it('hides next button when showNext is false', () => {
-    const { getByLabelText } = render(
+    renderWithTheme(
       <FloatingActionButtons
         onPrevious={mockOnPrevious}
         onNext={mockOnNext}
@@ -48,7 +54,7 @@ describe('FloatingActionButtons', () => {
       />
     );
 
-    const nextButton = getByLabelText('Next chapter');
+    const nextButton = screen.getByLabelText('Next chapter');
     expect(nextButton).toBeDisabled();
   });
 
@@ -56,7 +62,7 @@ describe('FloatingActionButtons', () => {
    * Test 3: Previous button fires onPrevious callback
    */
   it('calls onPrevious callback when previous button is tapped', () => {
-    const { getByLabelText } = render(
+    renderWithTheme(
       <FloatingActionButtons
         onPrevious={mockOnPrevious}
         onNext={mockOnNext}
@@ -65,7 +71,7 @@ describe('FloatingActionButtons', () => {
       />
     );
 
-    const previousButton = getByLabelText('Previous chapter');
+    const previousButton = screen.getByLabelText('Previous chapter');
     fireEvent.press(previousButton);
 
     expect(mockOnPrevious).toHaveBeenCalledTimes(1);
@@ -76,7 +82,7 @@ describe('FloatingActionButtons', () => {
    * Test 4: Next button fires onNext callback
    */
   it('calls onNext callback when next button is tapped', () => {
-    const { getByLabelText } = render(
+    renderWithTheme(
       <FloatingActionButtons
         onPrevious={mockOnPrevious}
         onNext={mockOnNext}
@@ -85,7 +91,7 @@ describe('FloatingActionButtons', () => {
       />
     );
 
-    const nextButton = getByLabelText('Next chapter');
+    const nextButton = screen.getByLabelText('Next chapter');
     fireEvent.press(nextButton);
 
     expect(mockOnNext).toHaveBeenCalledTimes(1);
@@ -96,7 +102,7 @@ describe('FloatingActionButtons', () => {
    * Test 5: Both buttons shown when both props are true
    */
   it('shows both buttons when showPrevious and showNext are true', () => {
-    const { getByLabelText } = render(
+    renderWithTheme(
       <FloatingActionButtons
         onPrevious={mockOnPrevious}
         onNext={mockOnNext}
@@ -105,8 +111,8 @@ describe('FloatingActionButtons', () => {
       />
     );
 
-    const previousButton = getByLabelText('Previous chapter');
-    const nextButton = getByLabelText('Next chapter');
+    const previousButton = screen.getByLabelText('Previous chapter');
+    const nextButton = screen.getByLabelText('Next chapter');
 
     expect(previousButton).toBeTruthy();
     expect(nextButton).toBeTruthy();

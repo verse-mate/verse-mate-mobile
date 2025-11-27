@@ -15,6 +15,7 @@ import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HighlightsScreen from '@/app/highlights';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useHighlights } from '@/hooks/bible/use-highlights';
 
 // Mock dependencies
@@ -61,7 +62,9 @@ const queryClient = new QueryClient({
 function renderWithProviders(component: React.ReactElement) {
   return render(
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>{component}</ThemeProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   );
 }
