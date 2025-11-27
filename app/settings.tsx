@@ -297,9 +297,6 @@ export default function SettingsScreen() {
           { paddingBottom: insets.bottom + spacing.xl },
         ]}
       >
-        {/* Theme Selector Section */}
-        <ThemeSelector />
-
         {/* Bible Version Section */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Bible Version</Text>
@@ -484,6 +481,9 @@ export default function SettingsScreen() {
             )}
           </View>
         )}
+
+        {/* Theme Selector Section */}
+        <ThemeSelector />
 
         {/* Account Actions Section - Authenticated Only */}
         {isAuthenticated && (

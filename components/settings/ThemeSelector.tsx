@@ -34,6 +34,11 @@ const themeOptions: ThemeOption[] = [
     description: 'Matches your device settings',
   },
   {
+    value: 'sunrise_sunset',
+    label: 'Sunrise to Sunset',
+    description: 'Switch based on your location',
+  },
+  {
     value: 'light',
     label: 'Light',
     description: 'Always use light theme',

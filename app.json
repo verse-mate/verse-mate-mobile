@@ -80,6 +80,12 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Verse Mate to determine sunrise and sunset times for automatic theme switching."
+        }
       ]
     ],
     "experiments": {

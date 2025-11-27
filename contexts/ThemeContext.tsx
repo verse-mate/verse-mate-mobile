@@ -9,8 +9,10 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
+import SunCalc from 'suncalc';
 
 import { getColors, type ThemeMode } from '@/constants/bible-design-tokens';
 
@@ -23,8 +25,9 @@ import { getColors, type ThemeMode } from '@/constants/bible-design-tokens';
  * - 'auto': Follow system color scheme
  * - 'light': Always use light theme
  * - 'dark': Always use dark theme
+ * - 'sunrise_sunset': Switch based on calculated solar position
  */
-export type ThemePreference = 'auto' | 'light' | 'dark';
+export type ThemePreference = 'auto' | 'light' | 'dark' | 'sunrise_sunset';
 
 /**
  * Theme context value provided to all consumers
@@ -69,12 +72,65 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // State
   const [preference, setPreferenceState] = useState<ThemePreference>(DEFAULT_PREFERENCE);
   const [isLoading, setIsLoading] = useState(true);
+  const [coords, setCoords] = useState<Location.LocationObjectCoords | null>(null);
+  const [now, setNow] = useState(new Date());
+
+  // Update time every minute to check for sunrise/sunset transitions
+  useEffect(() => {
+    if (preference !== 'sunrise_sunset') return;
+
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [preference]);
+
+  // Request location when sunrise_sunset is selected
+  useEffect(() => {
+    if (preference === 'sunrise_sunset' && !coords) {
+      (async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            console.warn('Permission to access location was denied');
+            // We could revert to 'auto' here, but keeping 'sunrise_sunset'
+            // with a fallback (e.g. 6am/6pm default) might be better UX
+            // or just defaulting to light/dark until permission is granted.
+            return;
+          }
+
+          const location = await Location.getCurrentPositionAsync({});
+          setCoords(location.coords);
+        } catch (error) {
+          console.error('Error getting location:', error);
+        }
+      })();
+    }
+  }, [preference, coords]);
+
+  // Calculate sunrise/sunset mode
+  let sunriseSunsetMode: ThemeMode = 'light'; // Default fallback
+  if (coords) {
+    const times = SunCalc.getTimes(now, coords.latitude, coords.longitude);
+    // valid times are dates, invalid are "Invalid Date"
+    if (!isNaN(times.sunrise.getTime()) && !isNaN(times.sunset.getTime())) {
+      if (now >= times.sunrise && now < times.sunset) {
+        sunriseSunsetMode = 'light';
+      } else {
+        sunriseSunsetMode = 'dark';
+      }
+    }
+  }
 
   // Resolve preference to actual theme mode
-  // If preference is 'auto', use system color scheme, otherwise use the preference
+  // If preference is 'auto', use system color scheme
+  // If 'sunrise_sunset', use calculated mode based on location
   const mode: ThemeMode = preference === 'auto'
     ? (systemColorScheme === 'dark' ? 'dark' : 'light')
-    : preference;
+    : preference === 'sunrise_sunset'
+      ? sunriseSunsetMode
+      : preference;
 
   // Get colors for current mode
   const colors = getColors(mode);
@@ -84,7 +140,12 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const loadThemePreference = async () => {
       try {
         const stored = await AsyncStorage.getItem(THEME_PREFERENCE_KEY);
-        if (stored && (stored === 'auto' || stored === 'light' || stored === 'dark')) {
+        if (stored && (
+          stored === 'auto' ||
+          stored === 'light' ||
+          stored === 'dark' ||
+          stored === 'sunrise_sunset'
+        )) {
           setPreferenceState(stored as ThemePreference);
         }
       } catch (error) {
