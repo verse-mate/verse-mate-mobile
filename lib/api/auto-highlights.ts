@@ -110,6 +110,34 @@ export async function getUserThemePreferences(): Promise<GetUserThemePreferences
 }
 
 /**
+ * Get global default auto-highlights enabled setting
+ * Public endpoint - no authentication required
+ *
+ * Returns whether auto-highlights are enabled by default for logged-out users.
+ *
+ * @returns Default enabled setting
+ */
+export async function getDefaultAutoHighlightsEnabled(): Promise<{
+  success: boolean;
+  data: { default_enabled: boolean };
+}> {
+  const url = `${BASE_URL}/admin/auto-highlight-settings/default-enabled`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch default enabled setting: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Update user's preference for a specific theme
  * Requires authentication
  *

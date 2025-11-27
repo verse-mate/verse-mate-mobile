@@ -51,6 +51,8 @@ export interface HighlightTheme {
   priority: number;
   /** Whether theme is active system-wide */
   is_active: boolean;
+  /** Default relevance threshold for this theme (1-5) */
+  default_relevance_threshold: number;
 }
 
 /**
@@ -72,6 +74,10 @@ export interface UserThemePreference {
   custom_color: HighlightColor | null;
   /** Relevance threshold (1-5, only show highlights with score <= this) */
   relevance_threshold: number;
+  /** Theme's default relevance threshold (from theme definition) */
+  default_relevance_threshold: number;
+  /** Whether admin has overridden user's preference (true = use user's custom value, false = use theme default) */
+  admin_override: boolean;
 }
 
 /**
@@ -108,4 +114,6 @@ export interface UpdateThemePreferenceRequest {
   custom_color?: HighlightColor;
   /** Relevance threshold (1-5) */
   relevance_threshold?: number;
+  /** Admin override flag (admin-only) */
+  admin_override?: boolean;
 }
