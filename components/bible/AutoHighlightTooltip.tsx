@@ -162,13 +162,9 @@ export function AutoHighlightTooltip({
 
   // Handle explicit dismiss (user action)
   const handleDismiss = () => {
-    if (expanded) {
-      setExpanded(false); // Collapse first if expanded
-    } else {
-      animateClose(() => {
-        onClose();
-      });
-    }
+    animateClose(() => {
+      onClose();
+    });
   };
 
   // Keep refs for PanResponder closure
@@ -190,9 +186,8 @@ export function AutoHighlightTooltip({
         return Math.abs(gestureState.dy) > 5;
       },
       onPanResponderMove: (_, gestureState) => {
-        // Only allow downward drag for sliding the whole modal if NOT expanded
-        // If expanded, we don't want to slide the modal down easily, we want to collapse.
-        if (!isExpandedRef.current && gestureState.dy > 0) {
+        // Only allow downward drag for sliding the whole modal
+        if (gestureState.dy > 0) {
           slideAnim.setValue(gestureState.dy);
         }
       },
@@ -201,24 +196,12 @@ export function AutoHighlightTooltip({
         if (gestureState.dy < -50 && !isExpandedRef.current) {
           expandRef.current(true);
         }
-        // Swipe Down -> Dismiss (if not expanded) OR Collapse (if expanded)
-        else if (gestureState.dy > 50) {
-          if (isExpandedRef.current) {
-            expandRef.current(false);
-          } else if (gestureState.dy > 70) {
-            // Dragged down enough to dismiss
-            dismissRef.current();
-          } else {
-            // Otherwise, snap back to position
-            Animated.spring(slideAnim, {
-              toValue: 0,
-              useNativeDriver: true,
-              damping: 20,
-              stiffness: 90,
-            }).start();
-          }
-        } else if (!isExpandedRef.current) {
-          // Snap back if drag wasn't significant and not expanded
+        // Swipe Down -> Dismiss
+        else if (gestureState.dy > 70) {
+          dismissRef.current();
+        }
+        // Snap back if dragged down but not enough
+        else if (gestureState.dy > 0) {
           Animated.spring(slideAnim, {
             toValue: 0,
             useNativeDriver: true,
@@ -269,14 +252,20 @@ export function AutoHighlightTooltip({
       {/* Main Container - positions content at bottom */}
       <View style={styles.overlay}>
         {/* Animated Backdrop - Absolute positioned behind content */}
-        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+        <Animated.View
+          style={[styles.backdrop, { opacity: backdropOpacity }]}
+          {...panResponder.panHandlers}
+        >
           <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
         </Animated.View>
 
         {/* Animated Modal Content */}
-        <Animated.View style={[styles.container, { transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View
+          style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
+          {...panResponder.panHandlers}
+        >
           {/* Header with pan responder for swipe */}
-          <View style={styles.header} {...panResponder.panHandlers}>
+          <View style={styles.header}>
             <View style={styles.handle} />
           </View>
 
