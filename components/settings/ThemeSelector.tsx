@@ -35,7 +35,7 @@ const themeOptions: ThemeOption[] = [
   },
   {
     value: 'sunrise_sunset',
-    label: 'Sunrise to Sunset',
+    label: 'Auto (Sunrise / Sunset)',
     description: 'Switch based on your location',
   },
   {
