@@ -16,6 +16,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Bookmarks from '@/app/bookmarks';
 import type { User } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,6 +45,11 @@ jest.mock('@/hooks/bible/use-bookmarks', () => ({
   useBookmarks: jest.fn(),
 }));
 
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: jest.fn(({ children }) => children),
+  useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+}));
+
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUseBookmarks = useBookmarks as jest.MockedFunction<typeof useBookmarks>;
 
@@ -58,7 +64,11 @@ const mockUser: User = {
 };
 
 const renderWithTheme = (component: React.ReactElement) => {
-  return render(<ThemeProvider>{component}</ThemeProvider>);
+  return render(
+    <SafeAreaProvider>
+      <ThemeProvider>{component}</ThemeProvider>
+    </SafeAreaProvider>
+  );
 };
 
 describe('Bookmarks Screen', () => {

@@ -9,6 +9,7 @@
 
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import NotesScreen from '@/app/notes';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -24,6 +25,12 @@ jest.mock('expo-router', () => ({
     push: jest.fn(),
     back: jest.fn(),
   },
+}));
+
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: jest.fn(({ children }) => children),
+  SafeAreaView: jest.fn(({ children }) => children),
+  useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
 }));
 
 // Mock functions
@@ -65,7 +72,11 @@ const mockNotes: Note[] = [
 ];
 
 const renderWithTheme = (component: React.ReactElement) => {
-  return render(<ThemeProvider>{component}</ThemeProvider>);
+  return render(
+    <SafeAreaProvider>
+      <ThemeProvider>{component}</ThemeProvider>
+    </SafeAreaProvider>
+  );
 };
 
 describe('Notes List Screen', () => {
