@@ -24,6 +24,7 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
+import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
 import type { TextSelection } from '@/components/bible/HighlightedText';
 import { HighlightedText } from '@/components/bible/HighlightedText';
@@ -218,7 +219,7 @@ export function ChapterReader({
   const specs = getHeaderSpecs(mode);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
-  const { deleteNote } = useNotes();
+  const { deleteNote, isDeletingNote } = useNotes();
   const { user } = useAuth();
 
   // Fetch highlights for this chapter
@@ -237,7 +238,9 @@ export function ChapterReader({
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
 
   // Highlight modal state
   const [selectionSheetVisible, setSelectionSheetVisible] = useState(false);
@@ -298,27 +301,38 @@ export function ChapterReader({
 
   /**
    * Handle delete button press from NoteViewModal
-   * Shows confirmation dialog and deletes note
+   * Shows custom confirmation modal
    */
   const handleDeleteNote = (note: Note) => {
-    Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteNote(note.note_id);
-            // Close view modal after successful deletion
-            setViewModalVisible(false);
-            setSelectedNote(null);
-          } catch (error) {
-            console.error('Failed to delete note:', error);
-            Alert.alert('Error', 'Failed to delete note. Please try again.');
-          }
-        },
-      },
-    ]);
+    setNoteToDelete(note);
+    setDeleteConfirmVisible(true);
+  };
+
+  /**
+   * Handle confirmed deletion
+   */
+  const handleConfirmDelete = async () => {
+    if (!noteToDelete) return;
+
+    try {
+      await deleteNote(noteToDelete.note_id);
+      // Close modals after successful deletion
+      setDeleteConfirmVisible(false);
+      setViewModalVisible(false);
+      setSelectedNote(null);
+      setNoteToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete note:', error);
+      // Keep delete modal open, could add error state here
+    }
+  };
+
+  /**
+   * Handle cancel deletion
+   */
+  const handleCancelDelete = () => {
+    setDeleteConfirmVisible(false);
+    setNoteToDelete(null);
   };
 
   /**
@@ -732,6 +746,14 @@ export function ChapterReader({
           onSave={handleNoteSave}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        visible={deleteConfirmVisible}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeletingNote}
+      />
 
       {/* Highlight Selection Sheet - Create new highlight */}
       {selectionContext && (
