@@ -25,15 +25,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -56,6 +49,7 @@ import { useBookmarks } from '@/hooks/bible/use-bookmarks';
  * - Navigates to /bible/{bookId}/{chapterNumber}
  */
 export default function Bookmarks() {
+  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
@@ -96,19 +90,19 @@ export default function Bookmarks() {
   // Show loading indicator while auth state is being determined
   if (isAuthLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="bookmarks-loading" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show login prompt if user is not authenticated
   if (!isAuthenticated || !user) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -135,15 +129,15 @@ export default function Bookmarks() {
             <Text style={styles.loginButtonText}>Login</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show loading indicator while fetching bookmarks
   if (isFetchingBookmarks) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -159,15 +153,15 @@ export default function Bookmarks() {
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="bookmarks-loading" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show empty state if no bookmarks exist
   if (bookmarks.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -187,14 +181,14 @@ export default function Bookmarks() {
             Tap the bookmark icon while reading to save chapters for later.
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Render bookmarks list
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
@@ -209,7 +203,10 @@ export default function Bookmarks() {
       </View>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + spacing.sm },
+        ]}
         testID="bookmarks-list"
       >
         {bookmarks.map((bookmark) => (
@@ -229,7 +226,7 @@ export default function Bookmarks() {
           </Pressable>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

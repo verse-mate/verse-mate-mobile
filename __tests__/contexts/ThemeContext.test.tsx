@@ -19,9 +19,21 @@ jest.mock('expo-sensors', () => ({
     addListener: jest.fn(() => ({ remove: jest.fn() })),
   },
 }));
+jest.mock('expo-navigation-bar', () => ({
+  setBackgroundColorAsync: jest.fn(),
+  setButtonStyleAsync: jest.fn(),
+  setPositionAsync: jest.fn(),
+}));
+jest.mock('expo-system-ui', () => ({
+  setBackgroundColorAsync: jest.fn(),
+}));
 jest.mock('suncalc');
 jest.mock('react-native', () => ({
   useColorScheme: jest.fn(),
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((objs: Record<string, any>) => objs.ios),
+  },
 }));
 
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
@@ -394,5 +406,38 @@ describe('ThemeContext', () => {
     });
 
     expect(result.current.mode).toBe('light');
+  });
+
+  // Test 16: Android Navigation Bar updates on theme change
+  it('should update Android System UI (Background & Nav Bar) when theme changes', async () => {
+    const { Platform } = require('react-native');
+    const NavigationBar = require('expo-navigation-bar');
+    const SystemUI = require('expo-system-ui');
+
+    // Switch to Android for this test
+    Platform.OS = 'android';
+
+    const { result } = renderHook(() => useTheme(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    // Switch to dark mode
+    await act(async () => {
+      await result.current.setPreference('dark');
+    });
+
+    expect(SystemUI.setBackgroundColorAsync).toHaveBeenCalled(); // Check it was called with a color
+    expect(NavigationBar.setButtonStyleAsync).toHaveBeenCalledWith('light');
+
+    // Switch to light mode
+    await act(async () => {
+      await result.current.setPreference('light');
+    });
+
+    expect(SystemUI.setBackgroundColorAsync).toHaveBeenCalled();
+    expect(NavigationBar.setButtonStyleAsync).toHaveBeenCalledWith('dark');
+
+    // Reset Platform to ios
+    Platform.OS = 'ios';
   });
 });

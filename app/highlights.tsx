@@ -32,7 +32,6 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -305,19 +304,19 @@ export default function HighlightsScreen() {
   // Show loading indicator while auth state is being determined
   if (isAuthLoading) {
     return (
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.container}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="highlights-loading" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show login prompt if user is not authenticated
   if (!isAuthenticated || !user) {
     return (
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -344,15 +343,15 @@ export default function HighlightsScreen() {
             <Text style={styles.loginButtonText}>Login</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show loading indicator while fetching highlights
   if (isFetchingHighlights && allHighlights.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -368,7 +367,7 @@ export default function HighlightsScreen() {
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="highlights-loading" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -378,8 +377,8 @@ export default function HighlightsScreen() {
   // Show empty state if no highlights exist (but still show auto-highlight settings)
   if (chapterGroups.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -433,14 +432,14 @@ export default function HighlightsScreen() {
             </View>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Render highlights list with collapsible groups
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
@@ -456,7 +455,10 @@ export default function HighlightsScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + spacing.sm },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -532,7 +534,7 @@ export default function HighlightsScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
