@@ -16,9 +16,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
@@ -43,7 +51,7 @@ interface Language {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, restoreSession } = useAuth();
   const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
   const queryClient = useQueryClient();
@@ -63,9 +71,11 @@ export default function SettingsScreen() {
   const [email, setEmail] = useState(user?.email || '');
 
   // UI state
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [globalError, setGlobalError] = useState<string | null>(null);
-  const [_globalSuccess, setGlobalSuccess] = useState(false);
+
+  // Track if we need to save on blur
+  const hasPendingChangesRef = useRef(false);
 
   // Update form fields when user session changes
   useEffect(() => {
@@ -113,6 +123,119 @@ export default function SettingsScreen() {
     }
   }, [isAuthenticated]);
 
+  const hasProfileChanges = useCallback(() => {
+    return (
+      firstName !== (user?.firstName || '') ||
+      lastName !== (user?.lastName || '') ||
+      email !== (user?.email || '')
+    );
+  }, [firstName, lastName, email, user]);
+
+  const saveProfile = useCallback(async () => {
+    if (!hasProfileChanges()) return;
+
+    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      setGlobalError('All fields are required.');
+      setSaveStatus('error');
+      return;
+    }
+
+    setGlobalError(null);
+    setSaveStatus('saving');
+
+    try {
+      const { error } = await putAuthProfile({
+        body: {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Refresh user session to get updated profile data
+      await restoreSession();
+
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error: unknown) {
+      let errorMessage = 'An error occurred while saving your changes.';
+
+      const err = error as {
+        message?: string;
+        data?: { value?: { message?: string } };
+        value?: { message?: string } | string;
+      };
+
+      // Check for error in data.value.message structure (API error format)
+      if (
+        err?.data?.value &&
+        typeof err.data.value === 'object' &&
+        err.data.value.message === 'EMAIL_ALREADY_EXISTS'
+      ) {
+        errorMessage = 'This email address is already in use by another account.';
+      }
+      // Check for error in value.message structure (alternative format)
+      else if (
+        err?.value &&
+        typeof err.value === 'object' &&
+        err.value.message === 'EMAIL_ALREADY_EXISTS'
+      ) {
+        errorMessage = 'This email address is already in use by another account.';
+      }
+      // Check for direct message
+      else if (err?.message === 'EMAIL_ALREADY_EXISTS') {
+        errorMessage = 'This email address is already in use by another account.';
+      }
+      // Generic value string
+      else if (err?.value && typeof err.value === 'string') {
+        errorMessage = err.value;
+      }
+      // Direct string error
+      else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+
+      setGlobalError(errorMessage);
+      setSaveStatus('error');
+    }
+  }, [firstName, lastName, email, hasProfileChanges, restoreSession]);
+
+  // Track pending changes
+  useEffect(() => {
+    hasPendingChangesRef.current = hasProfileChanges();
+  }, [hasProfileChanges]);
+
+  // Auto-save profile changes
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    // Only save if there are actual changes
+    if (!hasProfileChanges()) return;
+
+    const timer = setTimeout(() => {
+      saveProfile();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, user, hasProfileChanges, saveProfile]);
+
+  // Save pending changes when screen loses focus
+  useFocusEffect(
+    useCallback(() => {
+      // Cleanup function runs when screen loses focus
+      return () => {
+        if (hasPendingChangesRef.current && isAuthenticated) {
+          // Save synchronously on blur (don't await to avoid blocking navigation)
+          saveProfile();
+        }
+      };
+    }, [isAuthenticated, saveProfile])
+  );
+
   const handleBibleVersionChange = async (version: BibleVersion) => {
     try {
       await setBibleVersion(version.key);
@@ -156,90 +279,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const hasProfileChanges = () => {
-    return (
-      firstName !== (user?.firstName || '') ||
-      lastName !== (user?.lastName || '') ||
-      email !== (user?.email || '')
-    );
-  };
-
-  const handleSaveProfile = async () => {
-    if (!hasProfileChanges()) {
-      Alert.alert('No Changes', 'No changes to save');
-      return;
-    }
-
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      setGlobalError('All fields are required.');
-      return;
-    }
-
-    setGlobalError(null);
-    setGlobalSuccess(false);
-    setIsSaving(true);
-
-    try {
-      const { error } = await putAuthProfile({
-        body: {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim(),
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setGlobalSuccess(true);
-      Alert.alert('Success', 'Profile updated successfully!');
-      setTimeout(() => setGlobalSuccess(false), 3000);
-    } catch (error: unknown) {
-      let errorMessage = 'An error occurred while saving your changes.';
-
-      const err = error as {
-        message?: string;
-        data?: { value?: { message?: string } };
-        value?: { message?: string } | string;
-      };
-
-      // Check for error in data.value.message structure (API error format)
-      if (
-        err?.data?.value &&
-        typeof err.data.value === 'object' &&
-        err.data.value.message === 'EMAIL_ALREADY_EXISTS'
-      ) {
-        errorMessage = 'This email address is already in use by another account.';
-      }
-      // Check for error in value.message structure (alternative format)
-      else if (
-        err?.value &&
-        typeof err.value === 'object' &&
-        err.value.message === 'EMAIL_ALREADY_EXISTS'
-      ) {
-        errorMessage = 'This email address is already in use by another account.';
-      }
-      // Check for direct message
-      else if (err?.message === 'EMAIL_ALREADY_EXISTS') {
-        errorMessage = 'This email address is already in use by another account.';
-      }
-      // Generic value string
-      else if (err?.value && typeof err.value === 'string') {
-        errorMessage = err.value;
-      }
-      // Direct string error
-      else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-
-      setGlobalError(errorMessage);
-      setGlobalSuccess(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleLogout = async () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
@@ -266,6 +305,12 @@ export default function SettingsScreen() {
    */
   const handleBackPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Save any pending changes before navigating away
+    if (hasProfileChanges()) {
+      await saveProfile();
+    }
+
     router.back();
   };
 
@@ -307,7 +352,32 @@ export default function SettingsScreen() {
                 <Ionicons name="person-circle-outline" size={48} color={colors.gray700} />
               </View>
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>Profile Details</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.profileName}>Profile Details</Text>
+                  {saveStatus === 'saving' && (
+                    <ActivityIndicator
+                      size="small"
+                      color={colors.textSecondary}
+                      style={{ marginLeft: 8 }}
+                    />
+                  )}
+                  {saveStatus === 'saved' && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color={colors.success}
+                      style={{ marginLeft: 8 }}
+                    />
+                  )}
+                  {saveStatus === 'error' && (
+                    <Ionicons
+                      name="alert-circle"
+                      size={20}
+                      color={colors.error}
+                      style={{ marginLeft: 8 }}
+                    />
+                  )}
+                </View>
                 <Text style={styles.profileSubtext}>Update your personal information</Text>
               </View>
             </View>
@@ -344,18 +414,6 @@ export default function SettingsScreen() {
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{globalError}</Text>
               </View>
-            )}
-
-            <Button
-              title={hasProfileChanges() ? 'Save Changes' : 'No changes to save'}
-              onPress={handleSaveProfile}
-              disabled={isSaving || !hasProfileChanges()}
-              fullWidth
-              testID="settings-save-button"
-            />
-
-            {hasProfileChanges() && (
-              <Text style={styles.changeIndicator}>You have unsaved changes</Text>
             )}
           </View>
         )}

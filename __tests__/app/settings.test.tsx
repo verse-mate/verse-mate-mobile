@@ -14,7 +14,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type React from 'react';
 import { Alert } from 'react-native';
@@ -31,6 +31,12 @@ jest.mock('expo-router', () => ({
     back: jest.fn(),
     push: jest.fn(),
   },
+  useFocusEffect: jest.fn((callback) => {
+    // Call the callback immediately in tests to simulate mount
+    // The cleanup function (if any) will be called when component unmounts
+    const cleanup = callback();
+    return cleanup;
+  }),
 }));
 
 jest.mock('@/contexts/AuthContext');
@@ -128,6 +134,12 @@ describe('SettingsScreen', () => {
       request: {} as Request,
       response: {} as Response,
     });
+
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   const renderWithProviders = (component: React.ReactElement) => {
@@ -270,35 +282,7 @@ describe('SettingsScreen', () => {
       expect(emailInput.props.value).toBe('test@example.com');
     });
 
-    it('shows "No changes to save" when no changes made', () => {
-      renderWithProviders(<SettingsScreen />);
-
-      expect(screen.getByText('No changes to save')).toBeTruthy();
-    });
-
-    it('enables save button when changes are made', async () => {
-      renderWithProviders(<SettingsScreen />);
-
-      const firstNameInput = screen.getByTestId('settings-first-name-input');
-      fireEvent.changeText(firstNameInput, 'NewName');
-
-      await waitFor(() => {
-        expect(screen.getByText('Save Changes')).toBeTruthy();
-      });
-    });
-
-    it('shows change indicator when changes are made', async () => {
-      renderWithProviders(<SettingsScreen />);
-
-      const firstNameInput = screen.getByTestId('settings-first-name-input');
-      fireEvent.changeText(firstNameInput, 'NewName');
-
-      await waitFor(() => {
-        expect(screen.getByText('You have unsaved changes')).toBeTruthy();
-      });
-    });
-
-    it('saves profile changes successfully', async () => {
+    it('auto-saves profile changes after debounce', async () => {
       mockPutAuthProfile.mockResolvedValue({
         data: { ...mockUser, firstName: 'NewName' },
         error: undefined,
@@ -312,14 +296,10 @@ describe('SettingsScreen', () => {
       const firstNameInput = screen.getByTestId('settings-first-name-input');
       fireEvent.changeText(firstNameInput, 'NewName');
 
-      // Wait for save button to be enabled
-      await waitFor(() => {
-        expect(screen.getByText('Save Changes')).toBeTruthy();
+      // Fast-forward debounce timer (1000ms)
+      act(() => {
+        jest.advanceTimersByTime(1000);
       });
-
-      // Click save
-      const saveButton = screen.getByTestId('settings-save-button');
-      fireEvent.press(saveButton);
 
       // Verify API was called
       await waitFor(() => {
@@ -350,9 +330,10 @@ describe('SettingsScreen', () => {
       const emailInput = screen.getByTestId('settings-email-input');
       fireEvent.changeText(emailInput, 'existing@example.com');
 
-      // Click save
-      const saveButton = screen.getByTestId('settings-save-button');
-      fireEvent.press(saveButton);
+      // Fast-forward debounce timer
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
 
       // Verify error message
       await waitFor(() => {
