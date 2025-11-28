@@ -8,7 +8,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import type { ThemePreference } from '@/contexts/ThemeContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -63,13 +63,19 @@ export function ThemeSelector() {
   const { preference, setPreference, colors } = useTheme();
   const [showPicker, setShowPicker] = useState(false);
 
+  // Filter options based on platform
+  const visibleOptions = themeOptions.filter(
+    (option) => option.value !== 'ambient' || Platform.OS === 'android'
+  );
+
   const handleThemeChange = async (newPreference: ThemePreference) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await setPreference(newPreference);
     setShowPicker(false);
   };
 
-  const selectedOption = themeOptions.find((option) => option.value === preference);
+  const selectedOption =
+    visibleOptions.find((option) => option.value === preference) || visibleOptions[0];
   const styles = createStyles(colors);
 
   return (
@@ -91,7 +97,7 @@ export function ThemeSelector() {
 
       {showPicker && (
         <View style={styles.pickerContainer}>
-          {themeOptions.map((option) => (
+          {visibleOptions.map((option) => (
             <Pressable
               key={option.value}
               style={[styles.pickerItem, option.value === preference && styles.pickerItemSelected]}

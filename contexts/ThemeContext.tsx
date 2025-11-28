@@ -84,6 +84,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   useEffect(() => {
     if (preference !== 'ambient') return;
 
+    // Ambient light sensor is restricted on iOS
+    if (Platform.OS === 'ios') return;
+
     // Set update interval to 1s to save battery and reduce jitter
     LightSensor.setUpdateInterval(3000);
 
@@ -100,7 +103,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     });
 
     return () => {
-      subscription.remove();
+      subscription?.remove();
     };
   }, [preference]);
 
