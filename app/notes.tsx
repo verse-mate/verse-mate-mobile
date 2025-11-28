@@ -34,12 +34,12 @@ import {
   Alert,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NoteCard } from '@/components/bible/NoteCard';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
@@ -93,7 +93,7 @@ function groupNotesByChapter(notes: Note[]): ChapterGroup[] {
  * Notes List Screen Component
  *
  * Layout:
- * - SafeAreaView for proper screen padding
+ * - View for proper screen padding
  * - Header with "Notes" title and back button
  * - ScrollView list of collapsible chapter groups
  * - Empty state when no notes
@@ -106,6 +106,7 @@ function groupNotesByChapter(notes: Note[]): ChapterGroup[] {
  * - Collapsed: Only shows header
  */
 export default function NotesScreen() {
+  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
@@ -246,19 +247,19 @@ export default function NotesScreen() {
   // Show loading indicator while auth state is being determined
   if (isAuthLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="notes-loading" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show login prompt if user is not authenticated
   if (!isAuthenticated || !user) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -285,15 +286,15 @@ export default function NotesScreen() {
             <Text style={styles.loginButtonText}>Login</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show loading indicator while fetching notes
   if (isFetchingNotes && notes.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -309,7 +310,7 @@ export default function NotesScreen() {
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="notes-loading" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -319,8 +320,8 @@ export default function NotesScreen() {
   // Show empty state if no notes exist
   if (chapterGroups.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top }]}>
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -340,14 +341,14 @@ export default function NotesScreen() {
             Start taking notes while reading chapters to see them here.
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Render notes list with collapsible groups
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
@@ -363,7 +364,10 @@ export default function NotesScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + spacing.sm },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -435,7 +439,7 @@ export default function NotesScreen() {
           onSave={handleNoteSave}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

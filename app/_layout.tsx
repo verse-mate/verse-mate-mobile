@@ -10,17 +10,19 @@
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import * as SystemUI from 'expo-system-ui';
+import { useEffect, useRef } from 'react';
+import { InteractionManager, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 
 // Keep the splash screen visible while we fetch last read position
@@ -51,13 +53,65 @@ setupClientInterceptors();
  * Must be inside ThemeProvider to access theme context.
  */
 function RootLayoutInner() {
-  const { mode, isLoading: themeLoading } = useTheme();
+  const { mode, colors, isLoading: themeLoading } = useTheme();
+  const hasInitialized = useRef(false);
 
-  // Hide splash screen once theme is loaded
+  // Multi-strategy edge-to-edge initialization for Android
+  // Tries multiple timing strategies to ensure nav bar transparency activates
+  useEffect(() => {
+    if (Platform.OS !== 'android' || themeLoading || hasInitialized.current) {
+      return;
+    }
+
+    const applyEdgeToEdge = async () => {
+      try {
+        await SystemUI.setBackgroundColorAsync(colors.background);
+        await NavigationBar.setButtonStyleAsync(mode === 'dark' ? 'light' : 'dark');
+        await NavigationBar.setVisibilityAsync('visible');
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (!errorMsg.includes('edge-to-edge')) {
+          console.error('Failed to apply edge-to-edge:', error);
+        }
+      }
+    };
+
+    // Strategy 1: Immediate application
+    applyEdgeToEdge();
+
+    // Strategy 2: After current interactions complete
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      applyEdgeToEdge();
+    });
+
+    // Strategy 3: Multiple retry attempts with increasing delays
+    const timers = [
+      setTimeout(() => applyEdgeToEdge(), 50),
+      setTimeout(() => applyEdgeToEdge(), 150),
+      setTimeout(() => applyEdgeToEdge(), 300),
+    ];
+
+    hasInitialized.current = true;
+
+    return () => {
+      interactionHandle.cancel();
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+    };
+  }, [themeLoading, colors.background, mode]);
+
+  // Hide splash screen with delay to ensure window layout is ready
   useEffect(() => {
     if (!themeLoading) {
       async function hideSplash() {
         try {
+          // Wait for interactions to complete before hiding splash
+          await new Promise((resolve) => {
+            InteractionManager.runAfterInteractions(() => {
+              setTimeout(resolve, 200);
+            });
+          });
           await SplashScreen.hideAsync();
         } catch (err) {
           console.error('Error hiding splash screen:', err);

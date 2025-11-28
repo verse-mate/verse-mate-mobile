@@ -35,13 +35,13 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CharacterCounter } from '@/components/bible/CharacterCounter';
 import {
   fontSizes,

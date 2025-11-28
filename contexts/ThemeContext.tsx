@@ -10,9 +10,11 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import * as NavigationBar from 'expo-navigation-bar';
 import { LightSensor } from 'expo-sensors';
+import * as SystemUI from 'expo-system-ui';
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 import SunCalc from 'suncalc';
 
 import { getColors, type ThemeMode } from '@/constants/bible-design-tokens';
@@ -164,6 +166,19 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   // Get colors for current mode
   const colors = getColors(mode);
+
+  // Update Android System UI when theme changes
+  // Note: Initial edge-to-edge setup is handled in app/_layout.tsx
+  // This effect handles theme changes after app has loaded
+  useEffect(() => {
+    if (Platform.OS === 'android' && !isLoading) {
+      // Update root window background when theme changes
+      SystemUI.setBackgroundColorAsync(colors.background);
+
+      // Update nav bar button color when theme changes
+      NavigationBar.setButtonStyleAsync(mode === 'dark' ? 'light' : 'dark');
+    }
+  }, [mode, colors.background, isLoading]);
 
   // Load theme preference from AsyncStorage on mount
   useEffect(() => {
