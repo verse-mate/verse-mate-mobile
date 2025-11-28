@@ -34,6 +34,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -42,6 +43,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -124,6 +126,9 @@ export function NotesModal({
       return;
     }
 
+    // Dismiss keyboard after validation
+    Keyboard.dismiss();
+
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
@@ -151,86 +156,92 @@ export function NotesModal({
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
 
-        <SafeAreaView style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>
-              Notes for {bookName} {chapterNumber}
-            </Text>
-            <Pressable onPress={onClose} style={styles.closeButton} testID="close-button">
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </Pressable>
-          </View>
+        <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+          <SafeAreaView style={{ flex: 1 }}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>
+                Notes for {bookName} {chapterNumber}
+              </Text>
+              <Pressable onPress={onClose} style={styles.closeButton} testID="close-button">
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </Pressable>
+            </View>
 
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            {/* Add New Note Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Add New Note</Text>
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="always"
+            >
+              {/* Add New Note Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Add New Note</Text>
 
-              <TextInput
-                ref={textInputRef}
-                style={styles.textarea}
-                placeholder="Write your note here..."
-                placeholderTextColor={colors.textTertiary}
-                multiline
-                numberOfLines={4}
-                value={newNoteContent}
-                onChangeText={setNewNoteContent}
-                maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
-              />
-
-              <View style={styles.addNoteFooter}>
-                <CharacterCounter
-                  currentLength={newNoteContent.length}
+                <TextInput
+                  ref={textInputRef}
+                  style={styles.textarea}
+                  placeholder="Write your note here..."
+                  placeholderTextColor={colors.textTertiary}
+                  multiline
+                  numberOfLines={4}
+                  value={newNoteContent}
+                  onChangeText={setNewNoteContent}
                   maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
-                  threshold={NOTES_CONFIG.COUNTER_DISPLAY_THRESHOLD}
                 />
 
-                <Pressable
-                  onPress={handleAddNote}
-                  disabled={isAddButtonDisabled}
-                  style={[styles.addButton, isAddButtonDisabled && styles.addButtonDisabled]}
-                  accessibilityState={{ disabled: isAddButtonDisabled }}
-                >
-                  <Text
-                    style={[
-                      styles.addButtonText,
-                      isAddButtonDisabled && styles.addButtonTextDisabled,
-                    ]}
+                <View style={styles.addNoteFooter}>
+                  <CharacterCounter
+                    currentLength={newNoteContent.length}
+                    maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
+                    threshold={NOTES_CONFIG.COUNTER_DISPLAY_THRESHOLD}
+                  />
+
+                  <TouchableOpacity
+                    onPress={handleAddNote}
+                    disabled={isAddButtonDisabled}
+                    style={[styles.addButton, isAddButtonDisabled && styles.addButtonDisabled]}
+                    activeOpacity={0.7}
                   >
-                    {isAddingNote ? 'Adding...' : 'Add Note'}
-                  </Text>
-                </Pressable>
+                    <Text
+                      style={[
+                        styles.addButtonText,
+                        isAddButtonDisabled && styles.addButtonTextDisabled,
+                      ]}
+                    >
+                      {isAddingNote ? 'Adding...' : 'Add Note'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
 
-            {/* Existing Notes Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Existing Notes ({chapterNotes.length})</Text>
+              {/* Existing Notes Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Existing Notes ({chapterNotes.length})</Text>
 
-              {chapterNotes.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No notes yet</Text>
-                  <Text style={styles.emptyStateSubtext}>
-                    Add your first note for this chapter above.
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.notesList}>
-                  {chapterNotes.map((note) => (
-                    <NoteCard
-                      key={note.note_id}
-                      note={note}
-                      onPress={onNotePress}
-                      onEdit={onEditNote}
-                      onDelete={onDeleteNote}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          </ScrollView>
-        </SafeAreaView>
+                {chapterNotes.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No notes yet</Text>
+                    <Text style={styles.emptyStateSubtext}>
+                      Add your first note for this chapter above.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.notesList}>
+                    {chapterNotes.map((note) => (
+                      <NoteCard
+                        key={note.note_id}
+                        note={note}
+                        onPress={onNotePress}
+                        onEdit={onEditNote}
+                        onDelete={onDeleteNote}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </Pressable>
       </KeyboardAvoidingView>
     </Modal>
   );
