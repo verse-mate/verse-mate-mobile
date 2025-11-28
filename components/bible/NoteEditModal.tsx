@@ -31,6 +31,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -39,6 +40,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -131,6 +133,9 @@ export function NoteEditModal({
       return;
     }
 
+    // Dismiss keyboard after validation
+    Keyboard.dismiss();
+
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
@@ -159,64 +164,71 @@ export function NoteEditModal({
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
 
-        <SafeAreaView style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>
-              {bookName} {chapterNumber}
-            </Text>
-            <Pressable onPress={onClose} style={styles.closeButton} testID="edit-close-button">
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </Pressable>
-          </View>
-
-          {/* Draft restored indicator */}
-          {isDraftRestored && (
-            <View style={styles.draftIndicator}>
-              <Text style={styles.draftIndicatorText}>Draft restored</Text>
-            </View>
-          )}
-
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            <TextInput
-              ref={textInputRef}
-              style={styles.textarea}
-              multiline
-              value={content}
-              onChangeText={setContent}
-              maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
-            />
-
-            <CharacterCounter
-              currentLength={content.length}
-              maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
-              threshold={NOTES_CONFIG.COUNTER_DISPLAY_THRESHOLD}
-            />
-          </ScrollView>
-
-          {/* Actions */}
-          <View style={styles.actions}>
-            <Pressable onPress={onClose} style={[styles.actionButton, styles.cancelButton]}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handleSave}
-              disabled={isSaveDisabled}
-              style={[
-                styles.actionButton,
-                styles.saveButton,
-                isSaveDisabled && styles.saveButtonDisabled,
-              ]}
-            >
-              <Text
-                style={[styles.actionButtonText, isSaveDisabled && styles.saveButtonTextDisabled]}
-              >
-                {isUpdatingNote ? 'Saving...' : 'Save'}
+        <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+          <SafeAreaView style={{ flex: 1 }}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>
+                {bookName} {chapterNumber}
               </Text>
-            </Pressable>
-          </View>
-        </SafeAreaView>
+              <Pressable onPress={onClose} style={styles.closeButton} testID="edit-close-button">
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </Pressable>
+            </View>
+
+            {/* Draft restored indicator */}
+            {isDraftRestored && (
+              <View style={styles.draftIndicator}>
+                <Text style={styles.draftIndicatorText}>Draft restored</Text>
+              </View>
+            )}
+
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="always"
+            >
+              <TextInput
+                ref={textInputRef}
+                style={styles.textarea}
+                multiline
+                value={content}
+                onChangeText={setContent}
+                maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
+              />
+
+              <CharacterCounter
+                currentLength={content.length}
+                maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
+                threshold={NOTES_CONFIG.COUNTER_DISPLAY_THRESHOLD}
+              />
+            </ScrollView>
+
+            {/* Actions */}
+            <View style={styles.actions}>
+              <Pressable onPress={onClose} style={[styles.actionButton, styles.cancelButton]}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </Pressable>
+
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={isSaveDisabled}
+                style={[
+                  styles.actionButton,
+                  styles.saveButton,
+                  isSaveDisabled && styles.saveButtonDisabled,
+                ]}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[styles.actionButtonText, isSaveDisabled && styles.saveButtonTextDisabled]}
+                >
+                  {isUpdatingNote ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </Pressable>
       </KeyboardAvoidingView>
     </Modal>
   );
