@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import type { LocationPermissionResponse } from 'expo-location';
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 import { act } from 'react-test-renderer';
 import SunCalc, { type GetTimesResult } from 'suncalc';
 
@@ -50,6 +51,7 @@ describe('ThemeContext', () => {
     mockAsyncStorage.setItem.mockResolvedValue(undefined);
     mockUseColorScheme.mockReturnValue('light'); // Default system scheme
     jest.useFakeTimers();
+    Platform.OS = 'ios'; // Ensure Platform.OS is iOS for most tests
 
     // Default mock for location permissions and getting current position
     mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
@@ -321,6 +323,7 @@ describe('ThemeContext', () => {
 
   // Test 13: 'ambient' preference switches to light mode when bright
   it('should switch to light mode in "ambient" preference when environment is bright', async () => {
+    Platform.OS = 'android'; // Temporarily set to Android for this test
     const { LightSensor } = require('expo-sensors');
     const { result } = renderHook(() => useTheme(), { wrapper: createWrapper() });
 
@@ -346,6 +349,7 @@ describe('ThemeContext', () => {
 
   // Test 14: 'ambient' preference switches to dark mode when dim
   it('should switch to dark mode in "ambient" preference when environment is dim', async () => {
+    Platform.OS = 'android'; // Temporarily set to Android for this test
     const { LightSensor } = require('expo-sensors');
     const { result } = renderHook(() => useTheme(), { wrapper: createWrapper() });
 
@@ -367,6 +371,7 @@ describe('ThemeContext', () => {
 
   // Test 15: 'ambient' preference respects hysteresis (no change in dead zone)
   it('should not change mode in "ambient" preference when light level is in hysteresis zone', async () => {
+    Platform.OS = 'android'; // Temporarily set to Android for this test
     const { LightSensor } = require('expo-sensors');
     const { result } = renderHook(() => useTheme(), { wrapper: createWrapper() });
 
