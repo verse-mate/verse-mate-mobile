@@ -149,8 +149,6 @@ describe('ChapterReader - Bookmark Integration', () => {
     );
   };
 
-  const renderWithTheme = renderWithProvider; // Alias for consistency
-
   // Test 1: Bookmark toggle renders in title row
   test('renders bookmark toggle in title row', () => {
     renderWithProvider(

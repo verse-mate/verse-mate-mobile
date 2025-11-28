@@ -8,11 +8,9 @@
  */
 
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import NotesScreen from '@/app/notes';
 import { useAuth } from '@/contexts/AuthContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { Note } from '@/types/notes';
 
@@ -71,12 +69,8 @@ const mockNotes: Note[] = [
   },
 ];
 
-const renderWithTheme = (component: React.ReactElement) => {
-  return render(
-    <SafeAreaProvider>
-      <ThemeProvider>{component}</ThemeProvider>
-    </SafeAreaProvider>
-  );
+const renderWithProviders = (component: React.ReactElement) => {
+  return render(<SafeAreaProvider>{component}</SafeAreaProvider>);
 };
 
 describe('Notes List Screen', () => {
@@ -130,7 +124,7 @@ describe('Notes List Screen', () => {
       restoreSession: jest.fn(),
     });
 
-    renderWithTheme(<NotesScreen />);
+    renderWithProviders(<NotesScreen />);
 
     expect(screen.getByText('Please login to view your notes')).toBeTruthy();
     expect(screen.getByTestId('notes-login-button')).toBeTruthy();
@@ -138,7 +132,7 @@ describe('Notes List Screen', () => {
 
   // Test 2: Show empty state when user has no notes
   test('shows empty state when user has no notes', () => {
-    renderWithTheme(<NotesScreen />);
+    renderWithProviders(<NotesScreen />);
 
     expect(screen.getByText('No notes yet')).toBeTruthy();
     expect(
@@ -163,7 +157,7 @@ describe('Notes List Screen', () => {
       isDeletingNote: false,
     });
 
-    renderWithTheme(<NotesScreen />);
+    renderWithProviders(<NotesScreen />);
 
     // Check for chapter group headers
     expect(screen.getByText('Genesis 1 (2 notes)')).toBeTruthy();
@@ -187,7 +181,7 @@ describe('Notes List Screen', () => {
       isDeletingNote: false,
     });
 
-    const { getByTestId } = renderWithTheme(<NotesScreen />);
+    const { getByTestId } = renderWithProviders(<NotesScreen />);
 
     // Find chapter group header
     const chapterGroup = getByTestId('chapter-group-1-1');
@@ -215,7 +209,7 @@ describe('Notes List Screen', () => {
       isDeletingNote: false,
     });
 
-    renderWithTheme(<NotesScreen />);
+    renderWithProviders(<NotesScreen />);
 
     expect(screen.getByTestId('notes-loading')).toBeTruthy();
   });

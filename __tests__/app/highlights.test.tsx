@@ -15,7 +15,6 @@ import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HighlightsScreen from '@/app/highlights';
 import { useAuth } from '@/contexts/AuthContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useHighlights } from '@/hooks/bible/use-highlights';
 
 // Mock dependencies
@@ -62,9 +61,7 @@ const queryClient = new QueryClient({
 function renderWithProviders(component: React.ReactElement) {
   return render(
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>{component}</ThemeProvider>
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>
     </SafeAreaProvider>
   );
 }
@@ -258,8 +255,8 @@ describe('HighlightsScreen', () => {
       fireEvent.press(getByTestId('chapter-group-1-1'));
 
       await waitFor(() => {
-        // Text now includes verse number: ¹ In the beginning
-        expect(getByText(/¹.*In the beginning/)).toBeTruthy();
+        // Text now includes verse number: 1 In the beginning
+        expect(getByText(/\u00b9.*In the beginning/)).toBeTruthy();
       });
 
       // Tap the highlight item

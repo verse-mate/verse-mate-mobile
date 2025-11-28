@@ -48,20 +48,20 @@ type ViewMode = 'bible' | 'explanations';
 /**
  * Convert a number to Unicode superscript characters
  * Maps each digit to its Unicode superscript equivalent
- * Works for any combination of digits (e.g., 1 → ¹, 42 → ⁴², 150 → ¹⁵⁰)
+ * Works for any combination of digits (e.g., 1 -> 1, 42 -> 42, 150 -> 150)
  */
 function toSuperscript(num: number): string {
   const superscriptMap: Record<string, string> = {
-    '0': '⁰',
-    '1': '¹',
-    '2': '²',
-    '3': '³',
-    '4': '⁴',
-    '5': '⁵',
-    '6': '⁶',
-    '7': '⁷',
-    '8': '⁸',
-    '9': '⁹',
+    '0': '0',
+    '1': '1',
+    '2': '2',
+    '3': '3',
+    '4': '4',
+    '5': '5',
+    '6': '6',
+    '7': '7',
+    '8': '8',
+    '9': '9',
   };
 
   return num
@@ -82,7 +82,7 @@ function toSuperscript(num: number): string {
  * The earth was formless...
  * ```
  *
- * This function converts them to: `¹In the beginning God created...`
+ * This function converts them to: `1In the beginning God created...`
  * using Unicode superscript characters for natural elevation.
  */
 function formatVerseNumbers(text: string): string {
@@ -114,9 +114,8 @@ const markdownRules: RenderRules = {};
  * - Navigation back to topics list
  */
 export default function TopicDetailScreen() {
-  const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
-  const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
+  const { colors } = useTheme();
+  const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
 
   // Extract topicId from route params
   const params = useLocalSearchParams<{ topicId: string; category?: string }>();
@@ -560,9 +559,10 @@ function TopicHeader({
   onViewChange,
   onMenuPress,
 }: TopicHeaderProps) {
+  // Get theme directly inside TopicHeader (no props drilling)
   const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
-  const specs = getHeaderSpecs(mode);
+  const headerSpecs = getHeaderSpecs(mode);
+  const styles = useMemo(() => createHeaderStyles(headerSpecs), [headerSpecs]);
   const insets = useSafeAreaInsets();
 
   return (
@@ -580,7 +580,7 @@ function TopicHeader({
           <Text style={styles.headerTitle} numberOfLines={1}>
             {topicName}
           </Text>
-          <Ionicons name="chevron-down" size={16} color={specs.titleColor} />
+          <Ionicons name="chevron-down" size={16} color={headerSpecs.titleColor} />
         </View>
       </Pressable>
 
@@ -597,8 +597,8 @@ function TopicHeader({
         >
           <Ionicons
             name="book-outline"
-            size={specs.iconSize}
-            color={activeView === 'bible' ? colors.gold : specs.iconColor}
+            size={headerSpecs.iconSize}
+            color={activeView === 'bible' ? colors.gold : headerSpecs.iconColor}
           />
         </Pressable>
 
@@ -613,8 +613,8 @@ function TopicHeader({
         >
           <Ionicons
             name="reader-outline"
-            size={specs.iconSize}
-            color={activeView === 'explanations' ? colors.gold : specs.iconColor}
+            size={headerSpecs.iconSize}
+            color={activeView === 'explanations' ? colors.gold : headerSpecs.iconColor}
           />
         </Pressable>
 
@@ -628,23 +628,18 @@ function TopicHeader({
           accessibilityLabel="Open menu"
           accessibilityRole="button"
         >
-          <Ionicons name="menu" size={specs.iconSize} color={specs.iconColor} />
+          <Ionicons name="menu" size={headerSpecs.iconSize} color={headerSpecs.iconColor} />
         </Pressable>
       </View>
     </View>
   );
 }
 
-const createStyles = (
-  colors: ReturnType<typeof getColors>,
-  mode: ReturnType<typeof useTheme>['mode']
-) => {
-  const headerSpecs = getHeaderSpecs(mode);
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background, // Match content background to prevent flash during route updates
-    },
+/**
+ * Creates styles for TopicHeader component
+ */
+const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
+  StyleSheet.create({
     header: {
       minHeight: headerSpecs.height,
       backgroundColor: headerSpecs.backgroundColor,
@@ -679,6 +674,18 @@ const createStyles = (
       padding: spacing.xs,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+  });
+
+/**
+ * Creates all styles for TopicDetailScreen component
+ * Returns both component styles and markdown styles in a single factory
+ */
+const createStyles = (colors: ReturnType<typeof getColors>) => {
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background, // Match content background to prevent flash during route updates
     },
     scrollView: {
       flex: 1,
@@ -755,14 +762,12 @@ const createStyles = (
       color: colors.background,
     },
   });
-};
 
-/**
- * Markdown Styles
- *
- * Reused from ChapterReader for consistency
- */
-const createMarkdownStyles = (colors: ReturnType<typeof getColors>) => {
+  /**
+   * Markdown Styles
+   *
+   * Reused from ChapterReader for consistency
+   */
   const verseNumberSuperscriptStyle = {
     fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
     fontWeight: fontWeights.bold,
@@ -771,7 +776,7 @@ const createMarkdownStyles = (colors: ReturnType<typeof getColors>) => {
     // Unicode superscript characters are naturally smaller and sit higher
   };
 
-  return StyleSheet.create({
+  const markdownStyles = StyleSheet.create({
     body: {
       fontSize: fontSizes.bodyLarge,
       lineHeight: fontSizes.bodyLarge * 2.0,
@@ -837,4 +842,6 @@ const createMarkdownStyles = (colors: ReturnType<typeof getColors>) => {
     },
     verseNumberSuperscript: verseNumberSuperscriptStyle,
   });
+
+  return { styles, markdownStyles };
 };

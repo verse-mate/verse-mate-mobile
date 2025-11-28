@@ -53,3 +53,17 @@ jest.mock('@react-native-async-storage/async-storage', () => {
     }),
   };
 });
+
+// Global mock for ThemeContext to avoid expo-location dependency issues in tests
+// This mock provides a simple default theme that works for all components
+// Note: __tests__/contexts/ThemeContext.test.tsx has its own mocks and is not affected by this
+jest.mock('@/contexts/ThemeContext', () => ({
+  ThemeProvider: ({ children }) => children,
+  useTheme: () => ({
+    preference: 'auto',
+    mode: 'light',
+    colors: require('@/constants/bible-design-tokens').colors.light,
+    setPreference: jest.fn(),
+    isLoading: false,
+  }),
+}));

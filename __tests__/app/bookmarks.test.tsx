@@ -16,11 +16,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Bookmarks from '@/app/bookmarks';
 import type { User } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 
 // Mock dependencies
@@ -63,12 +63,8 @@ const mockUser: User = {
   preferred_language: 'en',
 };
 
-const renderWithTheme = (component: React.ReactElement) => {
-  return render(
-    <SafeAreaProvider>
-      <ThemeProvider>{component}</ThemeProvider>
-    </SafeAreaProvider>
-  );
+const renderWithProviders = (component: React.ReactElement) => {
+  return render(<SafeAreaProvider>{component}</SafeAreaProvider>);
 };
 
 describe('Bookmarks Screen', () => {
@@ -108,7 +104,7 @@ describe('Bookmarks Screen', () => {
       refetchBookmarks: jest.fn(),
     });
 
-    renderWithTheme(<Bookmarks />);
+    renderWithProviders(<Bookmarks />);
 
     // Verify all bookmarks are rendered with correct format
     await waitFor(() => {
@@ -144,7 +140,7 @@ describe('Bookmarks Screen', () => {
       refetchBookmarks: jest.fn(),
     });
 
-    renderWithTheme(<Bookmarks />);
+    renderWithProviders(<Bookmarks />);
 
     // Tap on Genesis 1
     const bookmarkItem = await waitFor(() => screen.getByTestId('bookmark-item-1-1'));
@@ -186,7 +182,7 @@ describe('Bookmarks Screen', () => {
       refetchBookmarks: jest.fn(),
     });
 
-    renderWithTheme(<Bookmarks />);
+    renderWithProviders(<Bookmarks />);
 
     // Verify empty state message displays
     await waitFor(() => {
@@ -221,7 +217,7 @@ describe('Bookmarks Screen', () => {
       refetchBookmarks: jest.fn(),
     });
 
-    renderWithTheme(<Bookmarks />);
+    renderWithProviders(<Bookmarks />);
 
     // Verify login prompt displays
     await waitFor(() => {
@@ -256,7 +252,7 @@ describe('Bookmarks Screen', () => {
       refetchBookmarks: jest.fn(),
     });
 
-    renderWithTheme(<Bookmarks />);
+    renderWithProviders(<Bookmarks />);
 
     // Verify loading indicator displays
     await waitFor(() => {
@@ -291,7 +287,7 @@ describe('Bookmarks Screen', () => {
       refetchBookmarks: jest.fn(),
     });
 
-    renderWithTheme(<Bookmarks />);
+    renderWithProviders(<Bookmarks />);
 
     // Verify loading indicator displays during auth check
     await waitFor(() => {
@@ -325,7 +321,7 @@ describe('Bookmarks Screen', () => {
       refetchBookmarks: jest.fn(),
     });
 
-    renderWithTheme(<Bookmarks />);
+    renderWithProviders(<Bookmarks />);
 
     // Verify title renders
     await waitFor(() => {

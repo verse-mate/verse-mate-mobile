@@ -1,3 +1,4 @@
+// Unmock the ThemeContext so we test the actual implementation
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import type { LocationPermissionResponse } from 'expo-location';
@@ -7,6 +8,8 @@ import { act } from 'react-test-renderer';
 import SunCalc, { type GetTimesResult } from 'suncalc';
 
 import { type ThemePreference, ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+
+jest.unmock('@/contexts/ThemeContext');
 
 // Mock dependencies
 jest.mock('@react-native-async-storage/async-storage');
