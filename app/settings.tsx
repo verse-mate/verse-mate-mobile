@@ -132,7 +132,13 @@ export default function SettingsScreen() {
   }, [firstName, lastName, email, user]);
 
   const saveProfile = useCallback(async () => {
-    if (!hasProfileChanges()) return;
+    // Check for changes inline to avoid dependency on hasProfileChanges
+    const hasChanges =
+      firstName !== (user?.firstName || '') ||
+      lastName !== (user?.lastName || '') ||
+      email !== (user?.email || '');
+
+    if (!hasChanges) return;
 
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
       setGlobalError('All fields are required.');
@@ -202,26 +208,37 @@ export default function SettingsScreen() {
       setGlobalError(errorMessage);
       setSaveStatus('error');
     }
-  }, [firstName, lastName, email, hasProfileChanges, restoreSession]);
+  }, [firstName, lastName, email, user, restoreSession]);
 
   // Track pending changes
   useEffect(() => {
     hasPendingChangesRef.current = hasProfileChanges();
   }, [hasProfileChanges]);
 
+  // Store latest saveProfile in a ref to avoid re-running effect when it changes
+  const saveProfileRef = useRef(saveProfile);
+  useEffect(() => {
+    saveProfileRef.current = saveProfile;
+  }, [saveProfile]);
+
   // Auto-save profile changes
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    // Only save if there are actual changes
-    if (!hasProfileChanges()) return;
+    // Check if there are actual changes
+    const hasChanges =
+      firstName !== (user?.firstName || '') ||
+      lastName !== (user?.lastName || '') ||
+      email !== (user?.email || '');
+
+    if (!hasChanges) return;
 
     const timer = setTimeout(() => {
-      saveProfile();
+      saveProfileRef.current();
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, user, hasProfileChanges, saveProfile]);
+  }, [isAuthenticated, user, firstName, lastName, email]);
 
   // Save pending changes when screen loses focus
   useFocusEffect(
