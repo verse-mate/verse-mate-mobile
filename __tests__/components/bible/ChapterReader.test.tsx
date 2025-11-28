@@ -10,6 +10,7 @@ import { render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { ChapterContent } from '@/types/bible';
 
 // Mock chapter data
@@ -79,7 +80,9 @@ describe('ChapterReader', () => {
   const createWrapper = () => {
     const Wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </AuthProvider>
       </QueryClientProvider>
     );
     return Wrapper;

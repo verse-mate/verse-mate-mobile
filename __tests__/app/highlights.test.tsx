@@ -255,8 +255,8 @@ describe('HighlightsScreen', () => {
       fireEvent.press(getByTestId('chapter-group-1-1'));
 
       await waitFor(() => {
-        // Text now includes verse number: ¹ In the beginning
-        expect(getByText(/¹.*In the beginning/)).toBeTruthy();
+        // Text now includes verse number: 1 In the beginning
+        expect(getByText(/\u00b9.*In the beginning/)).toBeTruthy();
       });
 
       // Tap the highlight item

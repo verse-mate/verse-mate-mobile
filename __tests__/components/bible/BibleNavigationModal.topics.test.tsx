@@ -11,7 +11,9 @@
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import type React from 'react';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
 
@@ -25,6 +27,14 @@ jest.mock('expo-haptics', () => ({
     Medium: 'medium',
   },
 }));
+
+const renderWithTheme = (component: React.ReactElement) => {
+  const result = render(<ThemeProvider>{component}</ThemeProvider>);
+  return {
+    ...result,
+    rerender: (ui: React.ReactElement) => result.rerender(<ThemeProvider>{ui}</ThemeProvider>),
+  };
+};
 
 // Mock book data
 const mockBooks = [
@@ -139,7 +149,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
 
   describe('Topics Tab Rendering', () => {
     it('should render Topics tab alongside OT and NT tabs', () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -156,7 +166,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
     });
 
     it('should render category tabs when Topics tab is active', () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -179,7 +189,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
     });
 
     it('should display event topics by default when Topics tab is selected', async () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -210,7 +220,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
         return { data: mockEventTopics, isLoading: false, error: null };
       });
 
-      const { rerender } = render(
+      const { rerender } = renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -255,7 +265,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
         return { data: mockEventTopics, isLoading: false, error: null };
       });
 
-      const { rerender } = render(
+      const { rerender } = renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -295,7 +305,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
 
   describe('Topic Filtering', () => {
     it('should show filter input for topics', () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -315,7 +325,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
     });
 
     it('should filter topics by search text', async () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -344,7 +354,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
     });
 
     it('should search across all categories when filter text is present', async () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -391,7 +401,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
 
   describe('Topic Selection', () => {
     it('should call onSelectTopic with correct topicId and category when topic is pressed', async () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -417,7 +427,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
     });
 
     it('should close modal after topic selection', async () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -443,7 +453,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
     });
 
     it('should render topic with description', async () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -472,7 +482,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
         error: null,
       });
 
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -498,7 +508,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
         error: null,
       });
 
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -518,7 +528,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
 
   describe('Breadcrumb Navigation', () => {
     it('should show correct breadcrumb for Topics tab', async () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -539,7 +549,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
     });
 
     it('should update breadcrumb when switching categories', async () => {
-      render(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}

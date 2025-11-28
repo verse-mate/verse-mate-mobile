@@ -11,7 +11,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
@@ -26,13 +26,14 @@ import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { TopicText } from '@/components/topics/TopicText';
 import {
-  colors,
   fontSizes,
   fontWeights,
-  headerSpecs,
+  type getColors,
+  getHeaderSpecs,
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
 import { BOTTOM_THRESHOLD, useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api/generated';
@@ -47,7 +48,7 @@ type ViewMode = 'bible' | 'explanations';
 /**
  * Convert a number to Unicode superscript characters
  * Maps each digit to its Unicode superscript equivalent
- * Works for any combination of digits (e.g., 1 → ¹, 42 → ⁴², 150 → ¹⁵⁰)
+ * Works for any combination of digits (e.g., 1 -> 1, 42 -> 42, 150 -> 150)
  */
 function toSuperscript(num: number): string {
   const superscriptMap: Record<string, string> = {
@@ -81,7 +82,7 @@ function toSuperscript(num: number): string {
  * The earth was formless...
  * ```
  *
- * This function converts them to: `¹In the beginning God created...`
+ * This function converts them to: `1In the beginning God created...`
  * using Unicode superscript characters for natural elevation.
  */
 function formatVerseNumbers(text: string): string {
@@ -113,6 +114,9 @@ const markdownRules: RenderRules = {};
  * - Navigation back to topics list
  */
 export default function TopicDetailScreen() {
+  const { colors } = useTheme();
+  const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
+
   // Extract topicId from route params
   const params = useLocalSearchParams<{ topicId: string; category?: string }>();
   const topicId = params.topicId;
@@ -555,6 +559,10 @@ function TopicHeader({
   onViewChange,
   onMenuPress,
 }: TopicHeaderProps) {
+  // Get theme directly inside TopicHeader (no props drilling)
+  const { colors, mode } = useTheme();
+  const headerSpecs = getHeaderSpecs(mode);
+  const styles = useMemo(() => createHeaderStyles(headerSpecs), [headerSpecs]);
   const insets = useSafeAreaInsets();
 
   return (
@@ -572,7 +580,7 @@ function TopicHeader({
           <Text style={styles.headerTitle} numberOfLines={1}>
             {topicName}
           </Text>
-          <Ionicons name="chevron-down" size={16} color={colors.white} />
+          <Ionicons name="chevron-down" size={16} color={headerSpecs.titleColor} />
         </View>
       </Pressable>
 
@@ -590,7 +598,7 @@ function TopicHeader({
           <Ionicons
             name="book-outline"
             size={headerSpecs.iconSize}
-            color={activeView === 'bible' ? colors.gold : colors.white}
+            color={activeView === 'bible' ? colors.gold : headerSpecs.iconColor}
           />
         </Pressable>
 
@@ -606,7 +614,7 @@ function TopicHeader({
           <Ionicons
             name="reader-outline"
             size={headerSpecs.iconSize}
-            color={activeView === 'explanations' ? colors.gold : colors.white}
+            color={activeView === 'explanations' ? colors.gold : headerSpecs.iconColor}
           />
         </Pressable>
 
@@ -620,205 +628,220 @@ function TopicHeader({
           accessibilityLabel="Open menu"
           accessibilityRole="button"
         >
-          <Ionicons name="menu" size={headerSpecs.iconSize} color={colors.white} />
+          <Ionicons name="menu" size={headerSpecs.iconSize} color={headerSpecs.iconColor} />
         </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.gray50, // Match content background to prevent flash during route updates
-  },
-  header: {
-    minHeight: headerSpecs.height,
-    backgroundColor: headerSpecs.backgroundColor,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: headerSpecs.padding,
-    paddingBottom: spacing.md,
-  },
-  topicButton: {
-    flexShrink: 1,
-    marginRight: spacing.sm,
-    padding: spacing.xs,
-  },
-  topicButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  headerTitle: {
-    fontSize: headerSpecs.titleFontSize,
-    fontWeight: headerSpecs.titleFontWeight,
-    color: headerSpecs.titleColor,
-    maxWidth: '90%',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
-  },
-  iconButton: {
-    padding: spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.xl,
-  },
-  topicTitle: {
-    fontSize: fontSizes.displayMedium,
-    fontWeight: fontWeights.bold,
-    lineHeight: fontSizes.displayMedium * lineHeights.display,
-    color: colors.gray900,
-    marginBottom: spacing.lg,
-  },
-  topicDescription: {
-    fontSize: fontSizes.body,
-    lineHeight: fontSizes.body * lineHeights.body,
-    color: colors.gray500,
-    marginBottom: spacing.xxl,
-  },
-  referencesContainer: {
-    marginBottom: spacing.xxxl,
-  },
-  sectionTitle: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.heading2 * lineHeights.heading,
-    color: colors.gray900,
-    marginBottom: spacing.md,
-  },
-  explanationContainer: {
-    marginTop: spacing.xxl,
-    paddingTop: spacing.xxl,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray200,
-  },
-  loadingContainer: {
-    padding: spacing.xxl,
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-  },
-  emptyContainer: {
-    padding: spacing.xxl,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-    textAlign: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xxl,
-  },
-  errorText: {
-    fontSize: fontSizes.heading2,
-    color: colors.gray500,
-    marginBottom: spacing.xl,
-  },
-  errorButton: {
-    backgroundColor: colors.gold,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: 8,
-  },
-  errorButtonText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.medium,
-    color: colors.white,
-  },
-});
-
-const verseNumberSuperscriptStyle = {
-  fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
-  fontWeight: fontWeights.bold,
-  color: colors.gray500,
-  marginRight: spacing.xs / 2,
-  // Unicode superscript characters are naturally smaller and sit higher
-};
+/**
+ * Creates styles for TopicHeader component
+ */
+const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
+  StyleSheet.create({
+    header: {
+      minHeight: headerSpecs.height,
+      backgroundColor: headerSpecs.backgroundColor,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: headerSpecs.padding,
+      paddingBottom: spacing.md,
+    },
+    topicButton: {
+      flexShrink: 1,
+      marginRight: spacing.sm,
+      padding: spacing.xs,
+    },
+    topicButtonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    headerTitle: {
+      fontSize: headerSpecs.titleFontSize,
+      fontWeight: headerSpecs.titleFontWeight,
+      color: headerSpecs.titleColor,
+      maxWidth: '90%',
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.lg,
+    },
+    iconButton: {
+      padding: spacing.xs,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  });
 
 /**
- * Markdown Styles
- *
- * Reused from ChapterReader for consistency
+ * Creates all styles for TopicDetailScreen component
+ * Returns both component styles and markdown styles in a single factory
  */
-const markdownStyles = StyleSheet.create({
-  body: {
-    fontSize: fontSizes.bodyLarge,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray900,
-  },
-  heading1: {
-    fontSize: fontSizes.heading1,
-    fontWeight: fontWeights.bold,
-    lineHeight: fontSizes.heading1 * lineHeights.heading,
-    color: colors.gray900,
-    marginTop: spacing.xxl,
-    marginBottom: spacing.md,
-  },
-  heading2: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.heading2 * lineHeights.heading,
-    color: colors.gray900,
-    marginTop: 64,
-    marginBottom: spacing.sm,
-  },
-  heading3: {
-    fontSize: fontSizes.heading3,
-    fontWeight: fontWeights.semibold,
-    lineHeight: fontSizes.heading3 * lineHeights.heading,
-    color: colors.gray900,
+const createStyles = (colors: ReturnType<typeof getColors>) => {
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background, // Match content background to prevent flash during route updates
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: spacing.xl,
+    },
+    topicTitle: {
+      fontSize: fontSizes.displayMedium,
+      fontWeight: fontWeights.bold,
+      lineHeight: fontSizes.displayMedium * lineHeights.display,
+      color: colors.textPrimary,
+      marginBottom: spacing.lg,
+    },
+    topicDescription: {
+      fontSize: fontSizes.body,
+      lineHeight: fontSizes.body * lineHeights.body,
+      color: colors.textSecondary,
+      marginBottom: spacing.xxl,
+    },
+    referencesContainer: {
+      marginBottom: spacing.xxxl,
+    },
+    sectionTitle: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+    },
+    explanationContainer: {
+      marginTop: spacing.xxl,
+      paddingTop: spacing.xxl,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    loadingContainer: {
+      padding: spacing.xxl,
+      alignItems: 'center',
+    },
+    loadingText: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+    },
+    emptyContainer: {
+      padding: spacing.xxl,
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    errorContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.xxl,
+    },
+    errorText: {
+      fontSize: fontSizes.heading2,
+      color: colors.textSecondary,
+      marginBottom: spacing.xl,
+    },
+    errorButton: {
+      backgroundColor: colors.gold,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+      borderRadius: 8,
+    },
+    errorButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+      color: colors.background,
+    },
+  });
 
-    marginTop: 64,
-    marginBottom: spacing.sm,
-  },
-  paragraph: {
-    fontSize: fontSizes.bodyLarge,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray900,
-    marginBottom: spacing.md,
-  },
-  list_item: {
-    fontSize: fontSizes.bodyLarge,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray900,
-    marginBottom: spacing.xs,
-  },
-  bullet_list: {
-    marginBottom: spacing.md,
-  },
-  ordered_list: {
-    marginBottom: spacing.md,
-  },
-  strong: {
-    // Used for verse numbers
-    ...verseNumberSuperscriptStyle,
-  },
-  em: {
-    fontStyle: 'italic',
-  },
-  blockquote: {
-    backgroundColor: colors.gray50,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.gold,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    marginVertical: spacing.md,
-  },
-  verseNumberSuperscript: verseNumberSuperscriptStyle,
-});
+  /**
+   * Markdown Styles
+   *
+   * Reused from ChapterReader for consistency
+   */
+  const verseNumberSuperscriptStyle = {
+    fontSize: fontSizes.bodyLarge, // Same as body text - Unicode chars are already small
+    fontWeight: fontWeights.bold,
+    color: colors.textTertiary,
+    marginRight: spacing.xs / 2,
+    // Unicode superscript characters are naturally smaller and sit higher
+  };
+
+  const markdownStyles = StyleSheet.create({
+    body: {
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+    },
+    heading1: {
+      fontSize: fontSizes.heading1,
+      fontWeight: fontWeights.bold,
+      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      color: colors.textPrimary,
+      marginTop: spacing.xxl,
+      marginBottom: spacing.md,
+    },
+    heading2: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      color: colors.textPrimary,
+      marginTop: 64,
+      marginBottom: spacing.sm,
+    },
+    heading3: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      lineHeight: fontSizes.heading3 * lineHeights.heading,
+      color: colors.textPrimary,
+
+      marginTop: 64,
+      marginBottom: spacing.sm,
+    },
+    paragraph: {
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+    },
+    list_item: {
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    bullet_list: {
+      marginBottom: spacing.md,
+    },
+    ordered_list: {
+      marginBottom: spacing.md,
+    },
+    strong: {
+      // Used for verse numbers
+      ...verseNumberSuperscriptStyle,
+    },
+    em: {
+      fontStyle: 'italic',
+    },
+    blockquote: {
+      backgroundColor: colors.backgroundElevated,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.gold,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      marginVertical: spacing.md,
+    },
+    verseNumberSuperscript: verseNumberSuperscriptStyle,
+  });
+
+  return { styles, markdownStyles };
+};

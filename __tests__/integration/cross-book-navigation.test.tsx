@@ -13,7 +13,9 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react-native';
+import type React from 'react';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { getAbsolutePageIndex, getChapterFromPageIndex } from '@/utils/bible/chapter-index-utils';
 import { mockTestamentBooks } from '../mocks/data/bible-books.data';
 
@@ -102,13 +104,15 @@ describe('Cross-Book Navigation', () => {
   const renderPagerView = (bookId: number, chapterNumber: number) => {
     return render(
       <QueryClientProvider client={queryClient}>
-        <ChapterPagerView
-          initialBookId={bookId}
-          initialChapter={chapterNumber}
-          activeTab="summary"
-          activeView="bible"
-          onPageChange={mockOnPageChange}
-        />
+        <ThemeProvider>
+          <ChapterPagerView
+            initialBookId={bookId}
+            initialChapter={chapterNumber}
+            activeTab="summary"
+            activeView="bible"
+            onPageChange={mockOnPageChange}
+          />
+        </ThemeProvider>
       </QueryClientProvider>
     );
   };

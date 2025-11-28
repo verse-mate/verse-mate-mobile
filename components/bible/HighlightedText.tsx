@@ -11,6 +11,7 @@
  * - Multiple non-overlapping highlights per verse
  * - Long-press detection on highlighted regions (edit)
  * - Long-press detection on plain text (create new highlight for entire verse)
+ * - Theme-aware highlight colors (brighter in dark mode)
  *
  * Note: Native text selection (onSelectionChange) is not reliable in React Native
  * for Text components. We use long-press on plain text to trigger verse highlighting.
@@ -22,7 +23,8 @@
 import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 import { Text, type TextProps } from 'react-native';
-import { HIGHLIGHT_COLORS } from '@/constants/highlight-colors';
+import { getHighlightColor } from '@/constants/highlight-colors';
+import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
@@ -104,6 +106,9 @@ export function HighlightedText({
   style,
   ...textProps
 }: HighlightedTextProps) {
+  // Get current theme mode for highlight color selection
+  const { mode } = useTheme();
+
   /**
    * Segment verse text based on highlights and auto-highlights
    * Creates array of text segments, some highlighted, some auto-highlighted, some plain
@@ -281,7 +286,8 @@ export function HighlightedText({
 
         // User highlight segment (solid color)
         if (segment.highlight) {
-          const backgroundColor = HIGHLIGHT_COLORS[segment.highlight.color];
+          // Use theme-aware highlight color
+          const backgroundColor = getHighlightColor(segment.highlight.color, mode);
           const highlightStyle = {
             backgroundColor:
               backgroundColor +
@@ -304,7 +310,8 @@ export function HighlightedText({
 
         // Auto-highlight segment (lighter color + border)
         if (segment.autoHighlight) {
-          const backgroundColor = HIGHLIGHT_COLORS[segment.autoHighlight.theme_color];
+          // Use theme-aware highlight color for auto-highlights too
+          const backgroundColor = getHighlightColor(segment.autoHighlight.theme_color, mode);
           const autoHighlightStyle = {
             backgroundColor:
               backgroundColor +

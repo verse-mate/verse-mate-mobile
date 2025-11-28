@@ -10,6 +10,7 @@
  * - Border color adapts to variant (blue for light, white for dark)
  * - Haptic feedback on color selection
  * - Minimum 44x44pt touch targets
+ * - Theme-aware color previews (brighter colors in dark mode)
  *
  * @see Spec: .agent-os/specs/2025-11-06-highlight-feature/spec.md (lines 54-75)
  * @see Visual: .agent-os/specs/2025-11-06-highlight-feature/planning/visuals/selected-text-popup.png
@@ -27,12 +28,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { colors } from '@/constants/bible-design-tokens';
 import {
+  getHighlightColor,
   HIGHLIGHT_COLOR_ORDER,
-  HIGHLIGHT_COLORS,
   type HighlightColor,
 } from '@/constants/highlight-colors';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * Props for HighlightColorPicker component
@@ -57,6 +58,8 @@ export function HighlightColorPicker({
   onColorSelect,
   variant,
 }: HighlightColorPickerProps) {
+  const { colors, mode } = useTheme();
+
   /**
    * Handle color button press
    */
@@ -78,7 +81,7 @@ export function HighlightColorPicker({
             key={color}
             style={[
               styles.colorButton,
-              { backgroundColor: HIGHLIGHT_COLORS[color] },
+              { backgroundColor: getHighlightColor(color, mode) },
               selectedColor === color && { borderColor, borderWidth: 3 },
             ]}
             onPress={() => handleColorPress(color)}
@@ -106,7 +109,7 @@ export function HighlightColorPicker({
             key={color}
             style={[
               styles.colorButton,
-              { backgroundColor: HIGHLIGHT_COLORS[color] },
+              { backgroundColor: getHighlightColor(color, mode) },
               selectedColor === color && { borderColor, borderWidth: 3 },
             ]}
             onPress={() => handleColorPress(color)}
@@ -134,7 +137,7 @@ export function HighlightColorPicker({
             key={color}
             style={[
               styles.colorButton,
-              { backgroundColor: HIGHLIGHT_COLORS[color] },
+              { backgroundColor: getHighlightColor(color, mode) },
               selectedColor === color && { borderColor, borderWidth: 3 },
             ]}
             onPress={() => handleColorPress(color)}

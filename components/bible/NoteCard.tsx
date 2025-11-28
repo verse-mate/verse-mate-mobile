@@ -31,9 +31,11 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { NOTES_CONFIG } from '@/constants/notes';
+import { useTheme } from '@/contexts/ThemeContext';
 import type { Note } from '@/types/notes';
 
 /**
@@ -71,6 +73,9 @@ export function NoteCard({
   onDelete,
   truncateLength = NOTES_CONFIG.PREVIEW_TRUNCATE_LENGTH,
 }: NoteCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   // Truncate content if needed
   const displayContent =
     note.content.length > truncateLength
@@ -98,7 +103,7 @@ export function NoteCard({
           style={styles.actionButton}
           testID={`note-edit-${note.note_id}`}
         >
-          <Ionicons name="pencil" size={20} color={colors.gray700} />
+          <Ionicons name="pencil" size={20} color={colors.textSecondary} />
         </Pressable>
 
         <Pressable
@@ -116,34 +121,35 @@ export function NoteCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    backgroundColor: colors.gray50,
-    borderRadius: 8,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    alignItems: 'flex-start',
-  },
-  cardPressed: {
-    backgroundColor: colors.gray100,
-  },
-  content: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  text: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.regular,
-    color: colors.gray900,
-    lineHeight: fontSizes.body * 1.5,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  actionButton: {
-    padding: spacing.xs,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 8,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      alignItems: 'flex-start',
+    },
+    cardPressed: {
+      backgroundColor: colors.divider,
+    },
+    content: {
+      flex: 1,
+      marginRight: spacing.md,
+    },
+    text: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.regular,
+      color: colors.textPrimary,
+      lineHeight: fontSizes.body * 1.5,
+    },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    actionButton: {
+      padding: spacing.xs,
+    },
+  });

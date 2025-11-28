@@ -18,8 +18,15 @@
  */
 
 import * as Haptics from 'expo-haptics';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, tabSpecs } from '@/constants/bible-design-tokens';
+import {
+  type getColors,
+  getTabSpecs,
+  spacing,
+  type ThemeMode,
+} from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import type { ContentTabType } from '@/types/bible';
 
 interface ChapterContentTabsProps {
@@ -51,6 +58,9 @@ export function ChapterContentTabs({
   onTabChange,
   disabled = false,
 }: ChapterContentTabsProps) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+
   /**
    * Handle tab press
    * - Trigger haptic feedback
@@ -104,48 +114,52 @@ export function ChapterContentTabs({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.white,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    gap: tabSpecs.gap,
-    justifyContent: 'flex-start',
-  },
-  tab: {
-    borderRadius: tabSpecs.borderRadius,
-    paddingVertical: tabSpecs.paddingVertical,
-    paddingHorizontal: tabSpecs.paddingHorizontal,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 80, // Ensure consistent sizing
-  },
-  tabActive: {
-    backgroundColor: tabSpecs.active.backgroundColor,
-  },
-  tabInactive: {
-    backgroundColor: tabSpecs.inactive.backgroundColor,
-  },
-  tabPressed: {
-    opacity: 0.8, // Visual feedback on press
-  },
-  tabDisabled: {
-    opacity: 0.5,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.25,
-  },
-  tabTextActive: {
-    color: tabSpecs.active.textColor,
-  },
-  tabTextInactive: {
-    color: tabSpecs.inactive.textColor,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+  const specs = getTabSpecs(mode);
+
+  return StyleSheet.create({
+    container: {
+      backgroundColor: colors.background,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    tabsRow: {
+      flexDirection: 'row',
+      gap: specs.gap,
+      justifyContent: 'flex-start',
+    },
+    tab: {
+      borderRadius: specs.borderRadius,
+      paddingVertical: specs.paddingVertical,
+      paddingHorizontal: specs.paddingHorizontal,
+      justifyContent: 'center',
+      alignItems: 'center',
+      minWidth: 80, // Ensure consistent sizing
+    },
+    tabActive: {
+      backgroundColor: specs.active.backgroundColor,
+    },
+    tabInactive: {
+      backgroundColor: specs.inactive.backgroundColor,
+    },
+    tabPressed: {
+      opacity: 0.8, // Visual feedback on press
+    },
+    tabDisabled: {
+      opacity: 0.5,
+    },
+    tabText: {
+      fontSize: 14,
+      fontWeight: '600',
+      letterSpacing: 0.25,
+    },
+    tabTextActive: {
+      color: specs.active.textColor,
+    },
+    tabTextInactive: {
+      color: specs.inactive.textColor,
+    },
+  });
+};

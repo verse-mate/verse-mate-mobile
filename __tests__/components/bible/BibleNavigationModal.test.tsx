@@ -13,6 +13,7 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
 
@@ -66,6 +67,10 @@ const mockBooks = [
   },
 ];
 
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
+
 describe('BibleNavigationModal', () => {
   const mockOnClose = jest.fn();
   const mockOnSelectChapter = jest.fn();
@@ -98,7 +103,7 @@ describe('BibleNavigationModal', () => {
   });
 
   it('should render modal with testament tabs and book list when visible', () => {
-    render(
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}
@@ -119,7 +124,7 @@ describe('BibleNavigationModal', () => {
   });
 
   it('should display chapter grid when book is selected', async () => {
-    render(
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}
@@ -145,7 +150,7 @@ describe('BibleNavigationModal', () => {
   });
 
   it('should call onSelectChapter when chapter button is pressed', async () => {
-    render(
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}
@@ -174,7 +179,7 @@ describe('BibleNavigationModal', () => {
   });
 
   it('should render filter input', () => {
-    render(
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}
@@ -190,7 +195,7 @@ describe('BibleNavigationModal', () => {
   });
 
   it('should show book list when filter text is entered', async () => {
-    render(
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}

@@ -1,5 +1,8 @@
 import type React from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import type { getColors } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * Button Component
@@ -22,6 +25,9 @@ export const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
   testID,
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <TouchableOpacity
       style={[
@@ -45,54 +51,55 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  primary: {
-    backgroundColor: '#007AFF',
-  },
-  secondary: {
-    backgroundColor: '#6B7280',
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#007AFF',
-  },
-  auth: {
-    backgroundColor: '#B4956B', // Tan/gold brand color
-    borderRadius: 8,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  buttonDisabled: {
-    backgroundColor: '#D1D5DB',
-    borderColor: '#D1D5DB',
-  },
-  text: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  primaryText: {
-    color: '#FFFFFF',
-  },
-  secondaryText: {
-    color: '#FFFFFF',
-  },
-  outlineText: {
-    color: '#007AFF',
-  },
-  authText: {
-    color: '#FFFFFF', // White text for auth variant
-  },
-  textDisabled: {
-    color: '#9CA3AF',
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    button: {
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 48,
+    },
+    primary: {
+      backgroundColor: colors.info,
+    },
+    secondary: {
+      backgroundColor: colors.gray700,
+    },
+    outline: {
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderColor: colors.info,
+    },
+    auth: {
+      backgroundColor: colors.gold,
+      borderRadius: 8,
+    },
+    fullWidth: {
+      width: '100%',
+    },
+    buttonDisabled: {
+      backgroundColor: colors.gray300,
+      borderColor: colors.gray300,
+    },
+    text: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    primaryText: {
+      color: colors.white,
+    },
+    secondaryText: {
+      color: colors.white,
+    },
+    outlineText: {
+      color: colors.info,
+    },
+    authText: {
+      color: colors.background, // Contrast: Black on Gold (Dark), White on Gold (Light)
+    },
+    textDisabled: {
+      color: colors.gray500,
+    },
+  });

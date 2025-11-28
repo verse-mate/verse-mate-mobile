@@ -6,27 +6,36 @@
  * auto-highlights, and user profile management.
  *
  * Features:
+ * - Profile Information editing (authenticated users only)
  * - Bible Version selection (available to all users)
  * - Language Preferences (authenticated users only)
- * - Auto-Highlight Settings (authenticated users only)
- * - Profile Information editing (authenticated users only)
+ * - Theme Selector (available to all users)
  * - Logout (authenticated users only)
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
-import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
+import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { TextInput } from '@/components/ui/TextInput';
-import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { BibleVersion } from '@/constants/bible-versions';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import {
   getBibleLanguages,
@@ -42,7 +51,8 @@ interface Language {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, restoreSession } = useAuth();
+  const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
   const queryClient = useQueryClient();
 
@@ -61,9 +71,11 @@ export default function SettingsScreen() {
   const [email, setEmail] = useState(user?.email || '');
 
   // UI state
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [globalError, setGlobalError] = useState<string | null>(null);
-  const [_globalSuccess, setGlobalSuccess] = useState(false);
+
+  // Track if we need to save on blur
+  const hasPendingChangesRef = useRef(false);
 
   // Update form fields when user session changes
   useEffect(() => {
@@ -111,6 +123,136 @@ export default function SettingsScreen() {
     }
   }, [isAuthenticated]);
 
+  const hasProfileChanges = useCallback(() => {
+    return (
+      firstName !== (user?.firstName || '') ||
+      lastName !== (user?.lastName || '') ||
+      email !== (user?.email || '')
+    );
+  }, [firstName, lastName, email, user]);
+
+  const saveProfile = useCallback(async () => {
+    // Check for changes inline to avoid dependency on hasProfileChanges
+    const hasChanges =
+      firstName !== (user?.firstName || '') ||
+      lastName !== (user?.lastName || '') ||
+      email !== (user?.email || '');
+
+    if (!hasChanges) return;
+
+    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+      setGlobalError('All fields are required.');
+      setSaveStatus('error');
+      return;
+    }
+
+    setGlobalError(null);
+    setSaveStatus('saving');
+
+    try {
+      const { error } = await putAuthProfile({
+        body: {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Refresh user session to get updated profile data
+      await restoreSession();
+
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error: unknown) {
+      let errorMessage = 'An error occurred while saving your changes.';
+
+      const err = error as {
+        message?: string;
+        data?: { value?: { message?: string } };
+        value?: { message?: string } | string;
+      };
+
+      // Check for error in data.value.message structure (API error format)
+      if (
+        err?.data?.value &&
+        typeof err.data.value === 'object' &&
+        err.data.value.message === 'EMAIL_ALREADY_EXISTS'
+      ) {
+        errorMessage = 'This email address is already in use by another account.';
+      }
+      // Check for error in value.message structure (alternative format)
+      else if (
+        err?.value &&
+        typeof err.value === 'object' &&
+        err.value.message === 'EMAIL_ALREADY_EXISTS'
+      ) {
+        errorMessage = 'This email address is already in use by another account.';
+      }
+      // Check for direct message
+      else if (err?.message === 'EMAIL_ALREADY_EXISTS') {
+        errorMessage = 'This email address is already in use by another account.';
+      }
+      // Generic value string
+      else if (err?.value && typeof err.value === 'string') {
+        errorMessage = err.value;
+      }
+      // Direct string error
+      else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+
+      setGlobalError(errorMessage);
+      setSaveStatus('error');
+    }
+  }, [firstName, lastName, email, user, restoreSession]);
+
+  // Track pending changes
+  useEffect(() => {
+    hasPendingChangesRef.current = hasProfileChanges();
+  }, [hasProfileChanges]);
+
+  // Store latest saveProfile in a ref to avoid re-running effect when it changes
+  const saveProfileRef = useRef(saveProfile);
+  useEffect(() => {
+    saveProfileRef.current = saveProfile;
+  }, [saveProfile]);
+
+  // Auto-save profile changes
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    // Check if there are actual changes
+    const hasChanges =
+      firstName !== (user?.firstName || '') ||
+      lastName !== (user?.lastName || '') ||
+      email !== (user?.email || '');
+
+    if (!hasChanges) return;
+
+    const timer = setTimeout(() => {
+      saveProfileRef.current();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, user, firstName, lastName, email]);
+
+  // Save pending changes when screen loses focus
+  useFocusEffect(
+    useCallback(() => {
+      // Cleanup function runs when screen loses focus
+      return () => {
+        if (hasPendingChangesRef.current && isAuthenticated) {
+          // Save synchronously on blur (don't await to avoid blocking navigation)
+          saveProfile();
+        }
+      };
+    }, [isAuthenticated, saveProfile])
+  );
+
   const handleBibleVersionChange = async (version: BibleVersion) => {
     try {
       await setBibleVersion(version.key);
@@ -154,68 +296,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const hasProfileChanges = () => {
-    return (
-      firstName !== (user?.firstName || '') ||
-      lastName !== (user?.lastName || '') ||
-      email !== (user?.email || '')
-    );
-  };
-
-  const handleSaveProfile = async () => {
-    if (!hasProfileChanges()) {
-      Alert.alert('No Changes', 'No changes to save');
-      return;
-    }
-
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      setGlobalError('All fields are required.');
-      return;
-    }
-
-    setGlobalError(null);
-    setGlobalSuccess(false);
-    setIsSaving(true);
-
-    try {
-      const { error } = await putAuthProfile({
-        body: {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim(),
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      setGlobalSuccess(true);
-      Alert.alert('Success', 'Profile updated successfully!');
-      setTimeout(() => setGlobalSuccess(false), 3000);
-    } catch (error: unknown) {
-      let errorMessage = 'An error occurred while saving your changes.';
-
-      const err = error as { value?: { message?: string } | string };
-      if (
-        err?.value &&
-        typeof err.value === 'object' &&
-        err.value.message === 'EMAIL_ALREADY_EXISTS'
-      ) {
-        errorMessage = 'This email address is already in use by another account.';
-      } else if (err?.value && typeof err.value === 'string') {
-        errorMessage = err.value;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-
-      setGlobalError(errorMessage);
-      setGlobalSuccess(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleLogout = async () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       { text: 'Cancel', style: 'cancel' },
@@ -242,13 +322,24 @@ export default function SettingsScreen() {
    */
   const handleBackPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Save any pending changes before navigating away
+    if (hasProfileChanges()) {
+      await saveProfile();
+    }
+
     router.back();
   };
 
+  // Create theme-aware styles
+  const styles = createStyles(colors);
+
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* Custom Header */}
-      <View style={styles.header}>
+      <View
+        style={[styles.header, { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md }]}
+      >
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
@@ -256,7 +347,7 @@ export default function SettingsScreen() {
           accessibilityRole="button"
           testID="settings-back-button"
         >
-          <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={styles.headerSpacer} />
@@ -269,6 +360,81 @@ export default function SettingsScreen() {
           { paddingBottom: insets.bottom + spacing.xl },
         ]}
       >
+        {/* Profile Information Section - Authenticated Only */}
+        {isAuthenticated && user && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Profile Information</Text>
+            <View style={styles.profileHeader}>
+              <View style={styles.profileIconWrapper}>
+                <Ionicons name="person-circle-outline" size={48} color={colors.gray700} />
+              </View>
+              <View style={styles.profileInfo}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.profileName}>Profile Details</Text>
+                  {saveStatus === 'saving' && (
+                    <ActivityIndicator
+                      size="small"
+                      color={colors.textSecondary}
+                      style={{ marginLeft: 8 }}
+                    />
+                  )}
+                  {saveStatus === 'saved' && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color={colors.success}
+                      style={{ marginLeft: 8 }}
+                    />
+                  )}
+                  {saveStatus === 'error' && (
+                    <Ionicons
+                      name="alert-circle"
+                      size={20}
+                      color={colors.error}
+                      style={{ marginLeft: 8 }}
+                    />
+                  )}
+                </View>
+                <Text style={styles.profileSubtext}>Update your personal information</Text>
+              </View>
+            </View>
+
+            <View style={styles.form}>
+              <TextInput
+                label="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Enter your first name"
+                testID="settings-first-name-input"
+              />
+
+              <TextInput
+                label="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Enter your last name"
+                testID="settings-last-name-input"
+              />
+
+              <TextInput
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                testID="settings-email-input"
+              />
+            </View>
+
+            {globalError && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{globalError}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Bible Version Section */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Bible Version</Text>
@@ -282,7 +448,7 @@ export default function SettingsScreen() {
             <Ionicons
               name={showVersionPicker ? 'chevron-up' : 'chevron-down'}
               size={20}
-              color={colors.gray700}
+              color={colors.textSecondary}
             />
           </Pressable>
 
@@ -335,7 +501,7 @@ export default function SettingsScreen() {
               <Ionicons
                 name={showLanguagePicker ? 'chevron-up' : 'chevron-down'}
                 size={20}
-                color={colors.gray700}
+                color={colors.textSecondary}
               />
             </Pressable>
 
@@ -389,70 +555,8 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* Auto-Highlight Settings */}
-        <AutoHighlightSettings isLoggedIn={isAuthenticated} />
-
-        {/* Profile Information Section - Authenticated Only */}
-        {isAuthenticated && user && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Profile Information</Text>
-            <View style={styles.profileHeader}>
-              <View style={styles.profileIconWrapper}>
-                <Ionicons name="person-circle-outline" size={48} color={colors.gray700} />
-              </View>
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>Profile Details</Text>
-                <Text style={styles.profileSubtext}>Update your personal information</Text>
-              </View>
-            </View>
-
-            <View style={styles.form}>
-              <TextInput
-                label="First Name"
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholder="Enter your first name"
-                testID="settings-first-name-input"
-              />
-
-              <TextInput
-                label="Last Name"
-                value={lastName}
-                onChangeText={setLastName}
-                placeholder="Enter your last name"
-                testID="settings-last-name-input"
-              />
-
-              <TextInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter your email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                testID="settings-email-input"
-              />
-            </View>
-
-            {globalError && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{globalError}</Text>
-              </View>
-            )}
-
-            <Button
-              title={hasProfileChanges() ? 'Save Changes' : 'No changes to save'}
-              onPress={handleSaveProfile}
-              disabled={isSaving || !hasProfileChanges()}
-              fullWidth
-              testID="settings-save-button"
-            />
-
-            {hasProfileChanges() && (
-              <Text style={styles.changeIndicator}>You have unsaved changes</Text>
-            )}
-          </View>
-        )}
+        {/* Theme Selector Section */}
+        <ThemeSelector />
 
         {/* Account Actions Section - Authenticated Only */}
         {isAuthenticated && (
@@ -471,7 +575,7 @@ export default function SettingsScreen() {
         {/* Not Authenticated Message */}
         {!isAuthenticated && (
           <View style={styles.notAuthenticatedContainer}>
-            <Ionicons name="person-outline" size={64} color={colors.gray300} />
+            <Ionicons name="person-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.notAuthenticatedText}>
               Sign in to access language preferences, auto-highlights, and profile settings.
             </Text>
@@ -484,154 +588,154 @@ export default function SettingsScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-    backgroundColor: colors.white,
-  },
-  backButton: {
-    padding: spacing.xs,
-    marginRight: spacing.sm,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: fontSizes.displayMedium,
-    fontWeight: fontWeights.bold,
-    color: colors.gray900,
-  },
-  headerSpacer: {
-    width: 32, // Same width as back button for centering
-  },
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: spacing.lg,
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionLabel: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginBottom: spacing.md,
-  },
-  selectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.gray300,
-    borderRadius: 8,
-  },
-  selectButtonText: {
-    flex: 1,
-    fontSize: fontSizes.body,
-    color: colors.gray900,
-  },
-  pickerContainer: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.gray300,
-    borderRadius: 8,
-    maxHeight: 300,
-  },
-  pickerScrollView: {
-    maxHeight: 300,
-  },
-  pickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
-  },
-  pickerItemSelected: {
-    backgroundColor: colors.gray50,
-  },
-  pickerItemText: {
-    flex: 1,
-    fontSize: fontSizes.body,
-    color: colors.gray700,
-  },
-  pickerItemTextSelected: {
-    color: colors.gold,
-    fontWeight: fontWeights.semibold,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  profileIconWrapper: {
-    marginRight: spacing.md,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginBottom: spacing.xs / 2,
-  },
-  profileSubtext: {
-    fontSize: fontSizes.caption,
-    color: colors.gray500,
-  },
-  form: {
-    marginBottom: spacing.lg,
-  },
-  errorContainer: {
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-  },
-  errorText: {
-    fontSize: fontSizes.caption,
-    color: '#DC2626',
-  },
-  changeIndicator: {
-    fontSize: fontSizes.caption,
-    color: colors.gray500,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  notAuthenticatedContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.xl,
-  },
-  notAuthenticatedText: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-    textAlign: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
-    lineHeight: 24,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    backButton: {
+      padding: spacing.xs,
+      marginRight: spacing.sm,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: fontSizes.displayMedium,
+      fontWeight: fontWeights.bold,
+      color: colors.textPrimary,
+    },
+    headerSpacer: {
+      width: 32, // Same width as back button for centering
+    },
+    scrollView: {
+      flex: 1,
+    },
+    contentContainer: {
+      padding: spacing.lg,
+    },
+    section: {
+      marginBottom: spacing.xl,
+    },
+    sectionLabel: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+    },
+    selectButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+    },
+    selectButtonText: {
+      flex: 1,
+      fontSize: fontSizes.body,
+      color: colors.textPrimary,
+    },
+    pickerContainer: {
+      marginTop: spacing.sm,
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      maxHeight: 300,
+    },
+    pickerScrollView: {
+      maxHeight: 300,
+    },
+    pickerItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    pickerItemSelected: {
+      backgroundColor: colors.backgroundOverlay,
+    },
+    pickerItemText: {
+      flex: 1,
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+    },
+    pickerItemTextSelected: {
+      color: colors.gold,
+      fontWeight: fontWeights.semibold,
+    },
+    profileHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    profileIconWrapper: {
+      marginRight: spacing.md,
+    },
+    profileInfo: {
+      flex: 1,
+    },
+    profileName: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs / 2,
+    },
+    profileSubtext: {
+      fontSize: fontSizes.caption,
+      color: colors.textSecondary,
+    },
+    form: {
+      marginBottom: spacing.lg,
+    },
+    errorContainer: {
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      backgroundColor: `${colors.error}20`, // 20% opacity
+      borderRadius: 8,
+    },
+    errorText: {
+      fontSize: fontSizes.caption,
+      color: colors.error,
+    },
+    changeIndicator: {
+      fontSize: fontSizes.caption,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+    notAuthenticatedContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.xxl,
+      paddingHorizontal: spacing.xl,
+    },
+    notAuthenticatedText: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: spacing.lg,
+      marginBottom: spacing.xl,
+      lineHeight: 24,
+    },
+  });

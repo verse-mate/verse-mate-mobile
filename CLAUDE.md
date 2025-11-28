@@ -143,7 +143,7 @@ The app uses Expo Router's file-based routing system:
 - `components/` - Reusable UI components
   - `components/ui/` - Base UI primitives
   - `components/*.stories.tsx` - Storybook stories for components
-- `hooks/` - Custom React hooks (e.g., `use-color-scheme`, `use-theme-color`)
+- `hooks/` - Custom React hooks (e.g., `use-auth`, `use-bookmarks`)
 - `constants/` - Shared constants and theme definitions
 
 ### Testing Infrastructure
@@ -184,7 +184,7 @@ The project uses a dual-linting setup:
 ### Path Aliases
 Use `@/` prefix to import from project root:
 ```typescript
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/contexts/ThemeContext';
 ```
 
 ### Platform-Specific Files

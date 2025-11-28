@@ -26,7 +26,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet } from 'react-native';
-import { colors, headerSpecs } from '@/constants/bible-design-tokens';
+import { getHeaderSpecs } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useNotes } from '@/hooks/bible/use-notes';
 
 /**
@@ -41,7 +42,7 @@ export interface NotesButtonProps {
   onPress: () => void;
   /** Icon size in pixels (default: 24px from headerSpecs.iconSize) */
   size?: number;
-  /** Icon color (default: colors.black) */
+  /** Icon color (default: specs.iconColor) */
   color?: string;
 }
 
@@ -61,14 +62,13 @@ export interface NotesButtonProps {
  * - accessibilityRole="button"
  * - accessibilityLabel for screen readers
  */
-export function NotesButton({
-  bookId,
-  chapterNumber,
-  onPress,
-  size = headerSpecs.iconSize,
-  color = colors.black,
-}: NotesButtonProps) {
+export function NotesButton({ bookId, chapterNumber, onPress, size, color }: NotesButtonProps) {
+  const { mode } = useTheme();
+  const specs = getHeaderSpecs(mode);
   const { hasNotes } = useNotes();
+
+  const iconSize = size ?? specs.iconSize;
+  const iconColor = color ?? specs.iconColor;
 
   // Check if chapter has notes
   const chapterHasNotes = hasNotes(bookId, chapterNumber);
@@ -99,7 +99,7 @@ export function NotesButton({
       accessibilityRole="button"
       testID={`notes-button-${bookId}-${chapterNumber}`}
     >
-      <Ionicons name={iconName} size={size} color={color} />
+      <Ionicons name={iconName} size={iconSize} color={iconColor} />
     </Pressable>
   );
 }

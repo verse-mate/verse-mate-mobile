@@ -10,16 +10,19 @@
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import * as SystemUI from 'expo-system-ui';
+import { useEffect, useRef } from 'react';
+import { InteractionManager, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 
 // Keep the splash screen visible while we fetch last read position
@@ -44,82 +47,159 @@ setupClientInterceptors();
 // Removed anchor setting - no tabs directory exists
 
 /**
+ * Inner Layout Component
+ *
+ * Handles React Navigation theme and splash screen management.
+ * Must be inside ThemeProvider to access theme context.
+ */
+function RootLayoutInner() {
+  const { mode, colors, isLoading: themeLoading } = useTheme();
+  const hasInitialized = useRef(false);
+
+  // Multi-strategy edge-to-edge initialization for Android
+  // Tries multiple timing strategies to ensure nav bar transparency activates
+  useEffect(() => {
+    if (Platform.OS !== 'android' || themeLoading || hasInitialized.current) {
+      return;
+    }
+
+    const applyEdgeToEdge = async () => {
+      try {
+        await SystemUI.setBackgroundColorAsync(colors.background);
+        await NavigationBar.setButtonStyleAsync(mode === 'dark' ? 'light' : 'dark');
+        await NavigationBar.setVisibilityAsync('visible');
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (!errorMsg.includes('edge-to-edge')) {
+          console.error('Failed to apply edge-to-edge:', error);
+        }
+      }
+    };
+
+    // Strategy 1: Immediate application
+    applyEdgeToEdge();
+
+    // Strategy 2: After current interactions complete
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      applyEdgeToEdge();
+    });
+
+    // Strategy 3: Multiple retry attempts with increasing delays
+    const timers = [
+      setTimeout(() => applyEdgeToEdge(), 50),
+      setTimeout(() => applyEdgeToEdge(), 150),
+      setTimeout(() => applyEdgeToEdge(), 300),
+    ];
+
+    hasInitialized.current = true;
+
+    return () => {
+      interactionHandle.cancel();
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+    };
+  }, [themeLoading, colors.background, mode]);
+
+  // Hide splash screen with delay to ensure window layout is ready
+  useEffect(() => {
+    if (!themeLoading) {
+      async function hideSplash() {
+        try {
+          // Wait for interactions to complete before hiding splash
+          await new Promise((resolve) => {
+            InteractionManager.runAfterInteractions(() => {
+              setTimeout(resolve, 200);
+            });
+          });
+          await SplashScreen.hideAsync();
+        } catch (err) {
+          console.error('Error hiding splash screen:', err);
+        }
+      }
+      hideSplash();
+    }
+  }, [themeLoading]);
+
+  // Select React Navigation theme based on resolved mode
+  const navigationTheme = mode === 'dark' ? DarkTheme : DefaultTheme;
+
+  return (
+    <AppErrorBoundary>
+      <ThemeProvider value={navigationTheme}>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="bible/[bookId]/[chapterNumber]"
+            options={{
+              headerShown: false,
+              animation: 'none', // Disable route animations - PagerView handles swipe animations
+            }}
+          />
+          <Stack.Screen
+            name="topics/[topicId]"
+            options={{
+              headerShown: false,
+              animation: 'none',
+            }}
+          />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen
+            name="auth"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="bookmarks"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="highlights"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="settings"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="notes"
+            options={{
+              headerShown: false,
+            }}
+          />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </AppErrorBoundary>
+  );
+}
+
+/**
  * Root Layout Component
  *
  * Handles:
- * - Theme provider setup
+ * - Theme provider setup (custom + React Navigation)
  * - React Query provider setup
  * - Authentication provider setup
  * - App launch navigation to last read position
  * - Splash screen management
  */
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
-  // Hide splash screen once the layout is ready
-  useEffect(() => {
-    async function hideSplash() {
-      try {
-        await SplashScreen.hideAsync();
-      } catch (err) {
-        console.error('Error hiding splash screen:', err);
-      }
-    }
-    hideSplash();
-  }, []);
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <AppErrorBoundary>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <Stack>
-                <Stack.Screen name="index" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="bible/[bookId]/[chapterNumber]"
-                  options={{
-                    headerShown: false,
-                    animation: 'none', // Disable route animations - PagerView handles swipe animations
-                  }}
-                />
-                <Stack.Screen
-                  name="topics/[topicId]"
-                  options={{
-                    headerShown: false,
-                    animation: 'none',
-                  }}
-                />
-                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-                <Stack.Screen
-                  name="auth"
-                  options={{
-                    presentation: 'modal',
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="bookmarks"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="highlights"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="settings"
-                  options={{
-                    headerShown: false,
-                  }}
-                />
-              </Stack>
-              <StatusBar style="auto" />
-            </ThemeProvider>
-          </AppErrorBoundary>
+          <CustomThemeProvider>
+            <RootLayoutInner />
+          </CustomThemeProvider>
         </AuthProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

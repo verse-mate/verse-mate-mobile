@@ -13,6 +13,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react-native';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBibleTestaments } from '@/src/api/generated/hooks';
 import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
 
@@ -91,13 +92,15 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <ChapterPagerView
-          initialBookId={1}
-          initialChapter={5}
-          activeTab="summary"
-          activeView="bible"
-          onPageChange={onPageChange}
-        />
+        <ThemeProvider>
+          <ChapterPagerView
+            initialBookId={1}
+            initialChapter={5}
+            activeTab="summary"
+            activeView="bible"
+            onPageChange={onPageChange}
+          />
+        </ThemeProvider>
       </QueryClientProvider>
     );
 
@@ -121,13 +124,15 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
 
     const { unmount } = render(
       <QueryClientProvider client={queryClient}>
-        <ChapterPagerView
-          initialBookId={1}
-          initialChapter={5}
-          activeTab="summary"
-          activeView="bible"
-          onPageChange={onPageChange}
-        />
+        <ThemeProvider>
+          <ChapterPagerView
+            initialBookId={1}
+            initialChapter={5}
+            activeTab="summary"
+            activeView="bible"
+            onPageChange={onPageChange}
+          />
+        </ThemeProvider>
       </QueryClientProvider>
     );
 
@@ -148,13 +153,15 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <ChapterPagerView
-          initialBookId={1}
-          initialChapter={5}
-          activeTab="summary"
-          activeView="bible"
-          onPageChange={onPageChange}
-        />
+        <ThemeProvider>
+          <ChapterPagerView
+            initialBookId={1}
+            initialChapter={5}
+            activeTab="summary"
+            activeView="bible"
+            onPageChange={onPageChange}
+          />
+        </ThemeProvider>
       </QueryClientProvider>
     );
 
@@ -185,13 +192,15 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <ChapterPagerView
-          initialBookId={1}
-          initialChapter={1}
-          activeTab="summary"
-          activeView="bible"
-          onPageChange={onPageChange}
-        />
+        <ThemeProvider>
+          <ChapterPagerView
+            initialBookId={1}
+            initialChapter={1}
+            activeTab="summary"
+            activeView="bible"
+            onPageChange={onPageChange}
+          />
+        </ThemeProvider>
       </QueryClientProvider>
     );
 
@@ -213,13 +222,15 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <ChapterPagerView
-          initialBookId={1}
-          initialChapter={5}
-          activeTab="summary"
-          activeView="bible"
-          onPageChange={onPageChange}
-        />
+        <ThemeProvider>
+          <ChapterPagerView
+            initialBookId={1}
+            initialChapter={5}
+            activeTab="summary"
+            activeView="bible"
+            onPageChange={onPageChange}
+          />
+        </ThemeProvider>
       </QueryClientProvider>
     );
 
