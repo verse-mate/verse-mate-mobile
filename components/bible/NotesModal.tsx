@@ -156,7 +156,7 @@ export function NotesModal({
       >
         <Pressable style={styles.backdrop} onPress={onClose} />
 
-        <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={styles.modalContent} onPress={(e) => e?.stopPropagation?.()}>
           <SafeAreaView style={{ flex: 1 }}>
             {/* Header */}
             <View style={styles.header}>
