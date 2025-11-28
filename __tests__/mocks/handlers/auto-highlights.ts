@@ -147,7 +147,7 @@ function createHandlersForBaseUrl(baseUrl: string) {
      * PATCH /bible/user/theme-preferences/:theme_id
      * Updates user's preference for a specific theme (requires auth)
      */
-    http.patch(`${baseUrl}/bible/user/theme-preferences/:themeId`, async ({ request, params }) => {
+    http.patch(`${baseUrl}/bible/user/theme-preferences/:themeId`, async ({ request }) => {
       const authHeader = request.headers.get('Authorization');
 
       // Check for auth token
@@ -160,9 +160,6 @@ function createHandlersForBaseUrl(baseUrl: string) {
           { status: 401 }
         );
       }
-
-      const { themeId: _themeId } = params;
-      const _body = await request.json();
 
       // In a real scenario, we'd update the mock data here
       // For testing, just return success
