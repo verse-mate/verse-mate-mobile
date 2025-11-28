@@ -31,6 +31,12 @@ jest.mock('expo-router', () => ({
     back: jest.fn(),
     push: jest.fn(),
   },
+  useFocusEffect: jest.fn((callback) => {
+    // Call the callback immediately in tests to simulate mount
+    // The cleanup function (if any) will be called when component unmounts
+    const cleanup = callback();
+    return cleanup;
+  }),
 }));
 
 jest.mock('@/contexts/AuthContext');
