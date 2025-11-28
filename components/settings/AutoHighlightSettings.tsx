@@ -187,7 +187,7 @@ export function AutoHighlightSettings({
           {!isLoggedIn && (
             <View style={styles.loginPrompt}>
               <Text style={styles.loginPromptText}>
-                Sign in to customize which AI-generated highlight themes are visible and set
+                Sign in to customize which Auto-generated highlight themes are visible and set
                 relevance preferences.
               </Text>
             </View>
@@ -195,7 +195,7 @@ export function AutoHighlightSettings({
 
           <View style={styles.description}>
             <Text style={styles.descriptionText}>
-              AI-generated highlights help identify key verses, promises, commands, and more
+              Auto-generated highlights help identify key verses, promises, commands, and more
               throughout the Bible.
             </Text>
             {isLoggedIn && (
@@ -215,7 +215,7 @@ export function AutoHighlightSettings({
                   <View>
                     <Text style={styles.masterToggleLabel}>Enable All Auto-Highlights</Text>
                     <Text style={styles.masterToggleSubtext}>
-                      Turn all AI-generated highlights on or off
+                      Turn all Auto-generated highlights on or off
                     </Text>
                   </View>
                   <Switch
@@ -255,22 +255,6 @@ export function AutoHighlightSettings({
                     )}
                   </View>
                 ))}
-              </View>
-
-              <View style={styles.legend}>
-                <Text style={styles.legendTitle}>Visual Guide:</Text>
-                <View style={styles.legendItems}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendSwatch, styles.userHighlightSwatch]} />
-                    <Text style={styles.legendText}>Your highlights (solid background)</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendSwatch, styles.autoHighlightSwatch]} />
-                    <Text style={styles.legendText}>
-                      Auto-highlights (lighter background + underline)
-                    </Text>
-                  </View>
-                </View>
               </View>
             </>
           )}

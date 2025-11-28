@@ -21,7 +21,6 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
-import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { TextInput } from '@/components/ui/TextInput';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
@@ -276,7 +275,9 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       {/* Custom Header */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.header, { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md }]}
+      >
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
@@ -297,6 +298,68 @@ export default function SettingsScreen() {
           { paddingBottom: insets.bottom + spacing.xl },
         ]}
       >
+        {/* Profile Information Section - Authenticated Only */}
+        {isAuthenticated && user && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Profile Information</Text>
+            <View style={styles.profileHeader}>
+              <View style={styles.profileIconWrapper}>
+                <Ionicons name="person-circle-outline" size={48} color={colors.gray700} />
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>Profile Details</Text>
+                <Text style={styles.profileSubtext}>Update your personal information</Text>
+              </View>
+            </View>
+
+            <View style={styles.form}>
+              <TextInput
+                label="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Enter your first name"
+                testID="settings-first-name-input"
+              />
+
+              <TextInput
+                label="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Enter your last name"
+                testID="settings-last-name-input"
+              />
+
+              <TextInput
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                testID="settings-email-input"
+              />
+            </View>
+
+            {globalError && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{globalError}</Text>
+              </View>
+            )}
+
+            <Button
+              title={hasProfileChanges() ? 'Save Changes' : 'No changes to save'}
+              onPress={handleSaveProfile}
+              disabled={isSaving || !hasProfileChanges()}
+              fullWidth
+              testID="settings-save-button"
+            />
+
+            {hasProfileChanges() && (
+              <Text style={styles.changeIndicator}>You have unsaved changes</Text>
+            )}
+          </View>
+        )}
+
         {/* Bible Version Section */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Bible Version</Text>
@@ -417,71 +480,6 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* Auto-Highlight Settings */}
-        <AutoHighlightSettings isLoggedIn={isAuthenticated} />
-
-        {/* Profile Information Section - Authenticated Only */}
-        {isAuthenticated && user && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Profile Information</Text>
-            <View style={styles.profileHeader}>
-              <View style={styles.profileIconWrapper}>
-                <Ionicons name="person-circle-outline" size={48} color={colors.gray700} />
-              </View>
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>Profile Details</Text>
-                <Text style={styles.profileSubtext}>Update your personal information</Text>
-              </View>
-            </View>
-
-            <View style={styles.form}>
-              <TextInput
-                label="First Name"
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholder="Enter your first name"
-                testID="settings-first-name-input"
-              />
-
-              <TextInput
-                label="Last Name"
-                value={lastName}
-                onChangeText={setLastName}
-                placeholder="Enter your last name"
-                testID="settings-last-name-input"
-              />
-
-              <TextInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter your email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                testID="settings-email-input"
-              />
-            </View>
-
-            {globalError && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{globalError}</Text>
-              </View>
-            )}
-
-            <Button
-              title={hasProfileChanges() ? 'Save Changes' : 'No changes to save'}
-              onPress={handleSaveProfile}
-              disabled={isSaving || !hasProfileChanges()}
-              fullWidth
-              testID="settings-save-button"
-            />
-
-            {hasProfileChanges() && (
-              <Text style={styles.changeIndicator}>You have unsaved changes</Text>
-            )}
-          </View>
-        )}
-
         {/* Theme Selector Section */}
         <ThemeSelector />
 
@@ -530,7 +528,6 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
       backgroundColor: colors.background,

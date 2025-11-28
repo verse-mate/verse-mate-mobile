@@ -102,7 +102,12 @@ export default function Bookmarks() {
   if (!isAuthenticated || !user) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top }]}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md },
+          ]}
+        >
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -137,7 +142,12 @@ export default function Bookmarks() {
   if (isFetchingBookmarks) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top }]}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md },
+          ]}
+        >
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -161,7 +171,12 @@ export default function Bookmarks() {
   if (bookmarks.length === 0) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top }]}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md },
+          ]}
+        >
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -188,7 +203,9 @@ export default function Bookmarks() {
   // Render bookmarks list
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.header, { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md }]}
+      >
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
@@ -241,9 +258,9 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      backgroundColor: colors.background,
     },
     backButton: {
       padding: spacing.xs,
