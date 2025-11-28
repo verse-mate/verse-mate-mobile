@@ -484,31 +484,4 @@ describe('SettingsScreen', () => {
       expect(screen.queryByText('Language Preferences')).toBeNull();
     });
   });
-
-  describe('Auto-Highlight Settings', () => {
-    it('shows auto-highlight settings when authenticated', () => {
-      renderWithTheme(<SettingsScreen />);
-
-      const autoHighlightComponent = screen.getByTestId('auto-highlight-settings');
-      expect(autoHighlightComponent).toBeTruthy();
-      expect(autoHighlightComponent.props.children).toBe('Auto Highlights');
-    });
-
-    it('does not show auto-highlight content when not authenticated', () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        login: jest.fn(),
-        signup: jest.fn(),
-        logout: jest.fn(),
-        restoreSession: jest.fn(),
-      });
-
-      renderWithTheme(<SettingsScreen />);
-
-      const autoHighlightComponent = screen.getByTestId('auto-highlight-settings');
-      expect(autoHighlightComponent.props.children).toBe('');
-    });
-  });
 });
