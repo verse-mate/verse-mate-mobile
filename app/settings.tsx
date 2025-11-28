@@ -6,10 +6,10 @@
  * auto-highlights, and user profile management.
  *
  * Features:
+ * - Profile Information editing (authenticated users only)
  * - Bible Version selection (available to all users)
  * - Language Preferences (authenticated users only)
- * - Auto-Highlight Settings (authenticated users only)
- * - Profile Information editing (authenticated users only)
+ * - Theme Selector (available to all users)
  * - Logout (authenticated users only)
  */
 
