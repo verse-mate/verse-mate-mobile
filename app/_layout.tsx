@@ -169,6 +169,12 @@ function RootLayoutInner() {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="notes"
+            options={{
+              headerShown: false,
+            }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

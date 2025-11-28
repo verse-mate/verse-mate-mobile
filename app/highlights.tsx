@@ -316,7 +316,12 @@ export default function HighlightsScreen() {
   if (!isAuthenticated || !user) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top }]}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md },
+          ]}
+        >
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -351,7 +356,12 @@ export default function HighlightsScreen() {
   if (isFetchingHighlights && allHighlights.length === 0) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top }]}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md },
+          ]}
+        >
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -378,7 +388,12 @@ export default function HighlightsScreen() {
   if (chapterGroups.length === 0) {
     return (
       <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top }]}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md },
+          ]}
+        >
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -421,7 +436,7 @@ export default function HighlightsScreen() {
           {/* Divider */}
           <View style={styles.sectionDivider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>AI Auto-Highlights</Text>
+            <Text style={styles.dividerText}>Auto-Highlights</Text>
             <View style={styles.dividerLine} />
           </View>
 
@@ -439,7 +454,9 @@ export default function HighlightsScreen() {
   // Render highlights list with collapsible groups
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View
+        style={[styles.header, { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md }]}
+      >
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
@@ -523,7 +540,7 @@ export default function HighlightsScreen() {
         {/* Divider */}
         <View style={styles.sectionDivider}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>AI Auto-Highlights</Text>
+          <Text style={styles.dividerText}>Auto-Highlights</Text>
           <View style={styles.dividerLine} />
         </View>
 
@@ -549,9 +566,9 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      backgroundColor: colors.background,
     },
     backButton: {
       padding: spacing.xs,
