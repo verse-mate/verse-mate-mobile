@@ -394,21 +394,21 @@ describe('ThemeContext', () => {
     });
     await waitFor(() => expect(result.current.mode).toBe('dark'));
 
-    // Update to 80 (between 50 and 100) -> should stay dark
+    // Update to 65 (between 50 and 80) -> should stay dark
     act(() => {
-      callback({ illuminance: 80 });
+      callback({ illuminance: 65 });
     });
 
     // Should still be dark
     expect(result.current.mode).toBe('dark');
 
-    // Update to 120 -> light
+    // Update to 100 -> light
     act(() => {
-      callback({ illuminance: 120 });
+      callback({ illuminance: 100 });
     });
     await waitFor(() => expect(result.current.mode).toBe('light'));
 
-    // Update to 60 (between 50 and 100) -> should stay light
+    // Update to 60 (between 50 and 80) -> should stay light
     act(() => {
       callback({ illuminance: 60 });
     });
