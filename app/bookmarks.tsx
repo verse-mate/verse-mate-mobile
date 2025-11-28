@@ -24,17 +24,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import {
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { useMemo } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 
 /**
@@ -54,6 +49,9 @@ import { useBookmarks } from '@/hooks/bible/use-bookmarks';
  * - Navigates to /bible/{bookId}/{chapterNumber}
  */
 export default function Bookmarks() {
+  const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { bookmarks, isFetchingBookmarks } = useBookmarks();
 
@@ -92,19 +90,24 @@ export default function Bookmarks() {
   // Show loading indicator while auth state is being determined
   if (isAuthLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="bookmarks-loading" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show login prompt if user is not authenticated
   if (!isAuthenticated || !user) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md },
+          ]}
+        >
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -112,13 +115,13 @@ export default function Bookmarks() {
             accessibilityRole="button"
             testID="bookmarks-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Bookmarks</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="bookmark-outline" size={64} color={colors.gray300} />
+          <Ionicons name="bookmark-outline" size={64} color={colors.textDisabled} />
           <Text style={styles.emptyStateTitle}>Please login to view your bookmarks</Text>
           <Text style={styles.emptyStateSubtitle}>
             Sign in to save and access your favorite Bible chapters
@@ -131,15 +134,20 @@ export default function Bookmarks() {
             <Text style={styles.loginButtonText}>Login</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show loading indicator while fetching bookmarks
   if (isFetchingBookmarks) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md },
+          ]}
+        >
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -147,7 +155,7 @@ export default function Bookmarks() {
             accessibilityRole="button"
             testID="bookmarks-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Bookmarks</Text>
           <View style={styles.headerSpacer} />
@@ -155,15 +163,20 @@ export default function Bookmarks() {
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="bookmarks-loading" />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Show empty state if no bookmarks exist
   if (bookmarks.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md },
+          ]}
+        >
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
@@ -171,26 +184,28 @@ export default function Bookmarks() {
             accessibilityRole="button"
             testID="bookmarks-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>Bookmarks</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="bookmark-outline" size={64} color={colors.gray300} />
+          <Ionicons name="bookmark-outline" size={64} color={colors.textDisabled} />
           <Text style={styles.emptyStateTitle}>No bookmarked chapters yet</Text>
           <Text style={styles.emptyStateSubtitle}>
             Tap the bookmark icon while reading to save chapters for later.
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Render bookmarks list
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <View
+        style={[styles.header, { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md }]}
+      >
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
@@ -198,14 +213,17 @@ export default function Bookmarks() {
           accessibilityRole="button"
           testID="bookmarks-back-button"
         >
-          <Ionicons name="arrow-back" size={24} color={colors.gray900} />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Bookmarks</Text>
         <View style={styles.headerSpacer} />
       </View>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + spacing.sm },
+        ]}
         testID="bookmarks-list"
       >
         {bookmarks.map((bookmark) => (
@@ -221,103 +239,104 @@ export default function Bookmarks() {
                 {bookmark.book_name} {bookmark.chapter_number}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.gray500} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </Pressable>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  backButton: {
-    padding: spacing.xs,
-    marginRight: spacing.sm,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: fontSizes.displayMedium,
-    fontWeight: fontWeights.bold,
-    color: colors.gray900,
-  },
-  headerSpacer: {
-    width: 32, // Same width as back button for centering
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  emptyStateTitle: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginTop: spacing.lg,
-    textAlign: 'center',
-  },
-  emptyStateSubtitle: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  loginButton: {
-    marginTop: spacing.xl,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: colors.gold,
-    borderRadius: 8,
-  },
-  loginButtonText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.white,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingVertical: spacing.sm,
-  },
-  bookmarkItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
-    minHeight: 60,
-  },
-  bookmarkItemPressed: {
-    backgroundColor: colors.gray50,
-  },
-  bookmarkItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  bookmarkIcon: {
-    marginRight: spacing.md,
-  },
-  bookmarkText: {
-    fontSize: fontSizes.bodyLarge,
-    fontWeight: fontWeights.medium,
-    color: colors.gray900,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    backButton: {
+      padding: spacing.xs,
+      marginRight: spacing.sm,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: fontSizes.displayMedium,
+      fontWeight: fontWeights.bold,
+      color: colors.textPrimary,
+    },
+    headerSpacer: {
+      width: 32, // Same width as back button for centering
+    },
+    centerContent: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    emptyStateTitle: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginTop: spacing.lg,
+      textAlign: 'center',
+    },
+    emptyStateSubtitle: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      marginTop: spacing.sm,
+      textAlign: 'center',
+      lineHeight: 24,
+    },
+    loginButton: {
+      marginTop: spacing.xl,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      backgroundColor: colors.gold,
+      borderRadius: 8,
+    },
+    loginButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.background, // Contrast on gold
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      paddingVertical: spacing.sm,
+    },
+    bookmarkItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+      minHeight: 60,
+    },
+    bookmarkItemPressed: {
+      backgroundColor: colors.backgroundElevated,
+    },
+    bookmarkItemContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    bookmarkIcon: {
+      marginRight: spacing.md,
+    },
+    bookmarkText: {
+      fontSize: fontSizes.bodyLarge,
+      fontWeight: fontWeights.medium,
+      color: colors.textPrimary,
+    },
+  });

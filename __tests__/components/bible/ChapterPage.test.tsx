@@ -14,7 +14,9 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react-native';
+import type React from 'react';
 import { ChapterPage } from '@/components/bible/ChapterPage';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -93,12 +95,14 @@ describe('ChapterPage', () => {
   ) => {
     return render(
       <QueryClientProvider client={queryClient}>
-        <ChapterPage
-          bookId={bookId}
-          chapterNumber={chapterNumber}
-          activeTab={activeTab}
-          activeView={activeView}
-        />
+        <ThemeProvider>
+          <ChapterPage
+            bookId={bookId}
+            chapterNumber={chapterNumber}
+            activeTab={activeTab}
+            activeView={activeView}
+          />
+        </ThemeProvider>
       </QueryClientProvider>
     );
   };
@@ -182,7 +186,9 @@ describe('ChapterPage', () => {
     // Simulate window shift - props update but key stays same
     rerender(
       <QueryClientProvider client={queryClient}>
-        <ChapterPage bookId={1} chapterNumber={2} activeTab="summary" activeView="bible" />
+        <ThemeProvider>
+          <ChapterPage bookId={1} chapterNumber={2} activeTab="summary" activeView="bible" />
+        </ThemeProvider>
       </QueryClientProvider>
     );
 

@@ -26,11 +26,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface HamburgerMenuProps {
   /** Whether menu is visible */
@@ -67,6 +69,8 @@ const logoutMenuItem: MenuItem = {
 };
 
 export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, logout } = useAuth();
 
@@ -145,7 +149,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
               accessibilityRole="button"
               testID="menu-close-button"
             >
-              <Ionicons name="close" size={24} color={colors.black} />
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
             </Pressable>
           </View>
 
@@ -153,7 +157,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
           {isAuthenticated && user && (
             <View style={styles.userSection}>
               <View style={styles.userInfo}>
-                <Ionicons name="person-circle-outline" size={48} color={colors.gray700} />
+                <Ionicons name="person-circle-outline" size={48} color={colors.textSecondary} />
                 <View style={styles.userDetails}>
                   <Text style={styles.userName}>
                     {user.firstName} {user.lastName}
@@ -177,7 +181,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                   accessibilityRole="button"
                   testID={`menu-item-${item.id}`}
                 >
-                  <Ionicons name={item.icon} size={24} color={colors.gray700} />
+                  <Ionicons name={item.icon} size={24} color={colors.textSecondary} />
                   <Text style={styles.menuItemText}>{item.label}</Text>
                 </Pressable>
               ))}
@@ -196,7 +200,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                 accessibilityRole="button"
                 testID={`menu-item-${item.id}`}
               >
-                <Ionicons name={item.icon} size={24} color={colors.gray700} />
+                <Ionicons name={item.icon} size={24} color={colors.textSecondary} />
                 <Text style={styles.menuItemText}>{item.label}</Text>
               </Pressable>
             ))}
@@ -226,106 +230,107 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: colors.backdrop,
-    justifyContent: 'flex-end',
-    flexDirection: 'row',
-  },
-  backdropTouchable: {
-    flex: 1,
-  },
-  menuContainer: {
-    width: '75%', // 75% of screen width
-    height: '100%',
-    backgroundColor: colors.white,
-    shadowColor: colors.black,
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8, // Android shadow
-  },
-  header: {
-    minHeight: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  headerTitle: {
-    fontSize: fontSizes.heading3,
-    fontWeight: fontWeights.semibold,
-    color: colors.black,
-  },
-  closeButton: {
-    padding: spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  userSection: {
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  userDetails: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    marginBottom: spacing.xs / 2,
-  },
-  userEmail: {
-    fontSize: fontSizes.caption,
-    color: colors.gray500,
-  },
-  authSection: {
-    paddingTop: spacing.lg,
-  },
-  authSectionTitle: {
-    fontSize: fontSizes.caption,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray500,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.gray200,
-    marginVertical: spacing.lg,
-  },
-  menuItems: {
-    paddingTop: spacing.lg,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    gap: spacing.lg,
-  },
-  menuItemPressed: {
-    backgroundColor: colors.gray50,
-  },
-  menuItemText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.regular,
-    color: colors.gray900,
-  },
-  logoutSection: {
-    marginTop: spacing.lg,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: colors.backdrop,
+      justifyContent: 'flex-end',
+      flexDirection: 'row',
+    },
+    backdropTouchable: {
+      flex: 1,
+    },
+    menuContainer: {
+      width: '75%', // 75% of screen width
+      height: '100%',
+      backgroundColor: colors.backgroundElevated,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: -2, height: 0 },
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      elevation: 8, // Android shadow
+    },
+    header: {
+      minHeight: 56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    closeButton: {
+      padding: spacing.xs,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    userSection: {
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.xl,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    userInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    userDetails: {
+      flex: 1,
+    },
+    userName: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs / 2,
+    },
+    userEmail: {
+      fontSize: fontSizes.caption,
+      color: colors.textTertiary,
+    },
+    authSection: {
+      paddingTop: spacing.lg,
+    },
+    authSectionTitle: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.textTertiary,
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.sm,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.divider,
+      marginVertical: spacing.lg,
+    },
+    menuItems: {
+      paddingTop: spacing.lg,
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.xl,
+      gap: spacing.lg,
+    },
+    menuItemPressed: {
+      backgroundColor: colors.background,
+    },
+    menuItemText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.regular,
+      color: colors.textPrimary,
+    },
+    logoutSection: {
+      marginTop: spacing.lg,
+    },
+  });

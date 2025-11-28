@@ -16,11 +16,12 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { animations, colors, spacing } from '@/constants/bible-design-tokens';
+import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import {
   useBibleByLine,
@@ -85,6 +86,9 @@ export const ChapterPage = React.memo(function ChapterPage({
   onScroll,
   onTap,
 }: ChapterPageProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   // Track last scroll position and timestamp for velocity calculation
   const lastScrollY = useRef(0);
   const lastScrollTime = useRef(Date.now());
@@ -265,6 +269,9 @@ function TabContent({
   onTouchStart?: (event: GestureResponderEvent) => void;
   onTouchEnd?: (event: GestureResponderEvent) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (!visible) return null;
 
   // Determine content for the reader
@@ -324,32 +331,34 @@ function TabContent({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
-    // Add bottom padding to account for floating action buttons AND progress bar
-    paddingBottom: 60, // FAB height + bottom offset + progress bar + extra spacing
-  },
-  readerContainer: {
-    flex: 1,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xxl,
-  },
-  errorText: {
-    fontSize: 16,
-    color: colors.gray700,
-    textAlign: 'center',
-  },
-  hidden: {
-    display: 'none',
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    contentContainer: {
+      flexGrow: 1,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.xxl,
+      // Add bottom padding to account for floating action buttons AND progress bar
+      paddingBottom: 60, // FAB height + bottom offset + progress bar + extra spacing
+    },
+    readerContainer: {
+      flex: 1,
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xxl,
+    },
+    errorText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    hidden: {
+      display: 'none',
+    },
+  });

@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 
 // Mock dependencies
@@ -35,6 +36,10 @@ jest.mock('expo-router', () => ({
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUseBookmarks = useBookmarks as jest.MockedFunction<typeof useBookmarks>;
 const mockHaptics = Haptics.impactAsync as jest.MockedFunction<typeof Haptics.impactAsync>;
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('BookmarkToggle', () => {
   const mockAddBookmark = jest.fn();
@@ -89,7 +94,7 @@ describe('BookmarkToggle', () => {
   it('renders bookmark-outline icon when chapter is not bookmarked', () => {
     mockIsBookmarked.mockReturnValue(false);
 
-    render(<BookmarkToggle bookId={1} chapterNumber={1} />);
+    renderWithTheme(<BookmarkToggle bookId={1} chapterNumber={1} />);
 
     const button = screen.getByLabelText('Bookmark this chapter');
     expect(button).toBeTruthy();
@@ -101,7 +106,7 @@ describe('BookmarkToggle', () => {
   it('renders bookmark icon when chapter is bookmarked', () => {
     mockIsBookmarked.mockReturnValue(true);
 
-    render(<BookmarkToggle bookId={1} chapterNumber={1} />);
+    renderWithTheme(<BookmarkToggle bookId={1} chapterNumber={1} />);
 
     const button = screen.getByLabelText('Remove bookmark');
     expect(button).toBeTruthy();
@@ -113,7 +118,7 @@ describe('BookmarkToggle', () => {
   it('calls addBookmark when pressing unbookmarked icon', async () => {
     mockIsBookmarked.mockReturnValue(false);
 
-    render(<BookmarkToggle bookId={1} chapterNumber={1} />);
+    renderWithTheme(<BookmarkToggle bookId={1} chapterNumber={1} />);
 
     const button = screen.getByLabelText('Bookmark this chapter');
     fireEvent.press(button);
@@ -130,7 +135,7 @@ describe('BookmarkToggle', () => {
   it('calls removeBookmark when pressing bookmarked icon', async () => {
     mockIsBookmarked.mockReturnValue(true);
 
-    render(<BookmarkToggle bookId={1} chapterNumber={1} />);
+    renderWithTheme(<BookmarkToggle bookId={1} chapterNumber={1} />);
 
     const button = screen.getByLabelText('Remove bookmark');
     fireEvent.press(button);
@@ -145,7 +150,7 @@ describe('BookmarkToggle', () => {
    * Test 5: Triggers haptic feedback on press
    */
   it('triggers haptic feedback on press', async () => {
-    render(<BookmarkToggle bookId={1} chapterNumber={1} />);
+    renderWithTheme(<BookmarkToggle bookId={1} chapterNumber={1} />);
 
     const button = screen.getByLabelText('Bookmark this chapter');
     fireEvent.press(button);
@@ -169,7 +174,7 @@ describe('BookmarkToggle', () => {
       restoreSession: jest.fn(),
     });
 
-    render(<BookmarkToggle bookId={1} chapterNumber={1} />);
+    renderWithTheme(<BookmarkToggle bookId={1} chapterNumber={1} />);
 
     // Component should be visible
     const button = screen.getByLabelText('Bookmark this chapter');
@@ -193,7 +198,7 @@ describe('BookmarkToggle', () => {
   it('sets correct accessibility props for bookmarked state', () => {
     mockIsBookmarked.mockReturnValue(true);
 
-    render(<BookmarkToggle bookId={1} chapterNumber={1} />);
+    renderWithTheme(<BookmarkToggle bookId={1} chapterNumber={1} />);
 
     const button = screen.getByLabelText('Remove bookmark');
     expect(button).toBeTruthy();

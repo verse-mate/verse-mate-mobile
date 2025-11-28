@@ -12,12 +12,13 @@
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import {
-  colors,
   fontSizes,
   fontWeights,
+  type getColors,
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import type { ParsedTopicContent } from '@/utils/parseTopicMarkdown';
 import { parseTopicMarkdown } from '@/utils/parseTopicMarkdown';
 
@@ -52,6 +53,9 @@ function toSuperscript(num: number): string {
 }
 
 export function TopicText({ topicName, markdownContent }: TopicTextProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   // Parse the markdown content into structured data
   const parsedContent: ParsedTopicContent = useMemo(() => {
     return parseTopicMarkdown(markdownContent);
@@ -117,77 +121,78 @@ export function TopicText({ topicName, markdownContent }: TopicTextProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  contentBox: {
-    flexDirection: 'column',
-    gap: spacing.xxxl * 2, // 64px equivalent
-    paddingBottom: spacing.xxxl,
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  title: {
-    fontFamily: 'System',
-    fontWeight: fontWeights.bold as '700',
-    fontSize: fontSizes.displayMedium,
-    lineHeight: fontSizes.displayMedium * lineHeights.display,
-    color: colors.gray900,
-  },
-  textBox: {
-    flexDirection: 'column',
-    gap: spacing.md,
-  },
-  subtitleBox: {
-    flexDirection: 'column',
-    gap: 4,
-    width: '100%',
-  },
-  subtitle: {
-    fontFamily: 'System',
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.bold as '700',
-    lineHeight: fontSizes.heading2 * lineHeights.heading,
-    textAlign: 'left',
-    color: colors.gray900,
-  },
-  subtitleReference: {
-    fontFamily: 'System',
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.regular as '400',
-    lineHeight: fontSizes.body * lineHeights.body,
-    textAlign: 'left',
-    color: colors.gray500,
-  },
-  versesContainer: {
-    width: '100%',
-  },
-  versesText: {
-    fontSize: fontSizes.bodyLarge,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    textAlign: 'left',
-    color: colors.gray900,
-  },
-  verseNumber: {
-    fontSize: fontSizes.bodyLarge,
-    fontWeight: fontWeights.bold as '700',
-    color: colors.gray500,
-    marginRight: spacing.xs / 2,
-  },
-  verseText: {
-    fontFamily: 'System',
-    fontWeight: fontWeights.regular as '400',
-    fontSize: fontSizes.bodyLarge,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray900,
-  },
-  verseReference: {
-    fontFamily: 'System',
-    fontWeight: fontWeights.regular as '400',
-    fontSize: fontSizes.body,
-    lineHeight: fontSizes.bodyLarge * 2.0,
-    color: colors.gray500,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    contentBox: {
+      flexDirection: 'column',
+      gap: spacing.xxxl * 2, // 64px equivalent
+      paddingBottom: spacing.xxxl,
+    },
+    titleContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    title: {
+      fontFamily: 'System',
+      fontWeight: fontWeights.bold as '700',
+      fontSize: fontSizes.displayMedium,
+      lineHeight: fontSizes.displayMedium * lineHeights.display,
+      color: colors.textPrimary,
+    },
+    textBox: {
+      flexDirection: 'column',
+      gap: spacing.md,
+    },
+    subtitleBox: {
+      flexDirection: 'column',
+      gap: 4,
+      width: '100%',
+    },
+    subtitle: {
+      fontFamily: 'System',
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.bold as '700',
+      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      textAlign: 'left',
+      color: colors.textPrimary,
+    },
+    subtitleReference: {
+      fontFamily: 'System',
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.regular as '400',
+      lineHeight: fontSizes.body * lineHeights.body,
+      textAlign: 'left',
+      color: colors.textTertiary,
+    },
+    versesContainer: {
+      width: '100%',
+    },
+    versesText: {
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      textAlign: 'left',
+      color: colors.textPrimary,
+    },
+    verseNumber: {
+      fontSize: fontSizes.bodyLarge,
+      fontWeight: fontWeights.bold as '700',
+      color: colors.textTertiary,
+      marginRight: spacing.xs / 2,
+    },
+    verseText: {
+      fontFamily: 'System',
+      fontWeight: fontWeights.regular as '400',
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+    },
+    verseReference: {
+      fontFamily: 'System',
+      fontWeight: fontWeights.regular as '400',
+      fontSize: fontSizes.body,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textTertiary,
+    },
+  });

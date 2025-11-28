@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -7,7 +7,8 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { skeletonSpecs } from '@/constants/bible-design-tokens';
+import { getSkeletonSpecs } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * SkeletonLoader Component
@@ -25,6 +26,10 @@ import { skeletonSpecs } from '@/constants/bible-design-tokens';
  * @see Spec lines 698-776 (SkeletonLoader implementation)
  */
 export function SkeletonLoader() {
+  const { mode } = useTheme();
+  const skeletonSpecs = getSkeletonSpecs(mode);
+  const styles = useMemo(() => createStyles(skeletonSpecs), [skeletonSpecs]);
+
   const opacity = useSharedValue(1);
 
   useEffect(() => {
@@ -57,36 +62,37 @@ export function SkeletonLoader() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-  },
-  title: {
-    width: '60%',
-    height: skeletonSpecs.titleHeight,
-    backgroundColor: skeletonSpecs.backgroundColor,
-    borderRadius: skeletonSpecs.borderRadius,
-    marginBottom: 16,
-  },
-  subtitle: {
-    width: '40%',
-    height: skeletonSpecs.subtitleHeight,
-    backgroundColor: skeletonSpecs.backgroundColor,
-    borderRadius: skeletonSpecs.borderRadius,
-    marginBottom: 12,
-  },
-  paragraph: {
-    width: '100%',
-    height: skeletonSpecs.paragraphHeight,
-    backgroundColor: skeletonSpecs.backgroundColor,
-    borderRadius: skeletonSpecs.borderRadius,
-    marginBottom: 8,
-  },
-  paragraphShort: {
-    width: '80%',
-    height: skeletonSpecs.paragraphHeight,
-    backgroundColor: skeletonSpecs.backgroundColor,
-    borderRadius: skeletonSpecs.borderRadius,
-    marginBottom: 12,
-  },
-});
+const createStyles = (skeletonSpecs: ReturnType<typeof getSkeletonSpecs>) =>
+  StyleSheet.create({
+    container: {
+      padding: 20,
+    },
+    title: {
+      width: '60%',
+      height: skeletonSpecs.titleHeight,
+      backgroundColor: skeletonSpecs.backgroundColor,
+      borderRadius: skeletonSpecs.borderRadius,
+      marginBottom: 16,
+    },
+    subtitle: {
+      width: '40%',
+      height: skeletonSpecs.subtitleHeight,
+      backgroundColor: skeletonSpecs.backgroundColor,
+      borderRadius: skeletonSpecs.borderRadius,
+      marginBottom: 12,
+    },
+    paragraph: {
+      width: '100%',
+      height: skeletonSpecs.paragraphHeight,
+      backgroundColor: skeletonSpecs.backgroundColor,
+      borderRadius: skeletonSpecs.borderRadius,
+      marginBottom: 8,
+    },
+    paragraphShort: {
+      width: '80%',
+      height: skeletonSpecs.paragraphHeight,
+      backgroundColor: skeletonSpecs.backgroundColor,
+      borderRadius: skeletonSpecs.borderRadius,
+      marginBottom: 12,
+    },
+  });

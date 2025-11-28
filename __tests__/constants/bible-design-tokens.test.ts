@@ -61,23 +61,23 @@ describe('Design Tokens', () => {
     it('should have gold color contrast ratio calculated correctly', () => {
       // Gold is used for accent elements, not primary text
       // Verify the actual contrast ratio is calculated
-      const ratio = getContrastRatio(colors.gold, colors.white);
+      const ratio = getContrastRatio(colors.light.gold, colors.light.white);
       expect(ratio).toBeGreaterThan(2.5); // Minimum for very large UI elements
       expect(ratio).toBeLessThan(3); // Actual is ~2.73:1
     });
 
     it('should have black text meet WCAG AAA contrast (7:1) on white', () => {
-      const ratio = getContrastRatio(colors.black, colors.white);
+      const ratio = getContrastRatio(colors.light.black, colors.light.white);
       expect(ratio).toBeGreaterThanOrEqual(7);
     });
 
     it('should have gray900 text meet WCAG AAA contrast (7:1) on white', () => {
-      const ratio = getContrastRatio(colors.gray900, colors.white);
+      const ratio = getContrastRatio(colors.light.gray900, colors.light.white);
       expect(ratio).toBeGreaterThanOrEqual(7);
     });
 
     it('should have gray500 text meet WCAG AA contrast (4.5:1) on white', () => {
-      const ratio = getContrastRatio(colors.gray500, colors.white);
+      const ratio = getContrastRatio(colors.light.gray500, colors.light.white);
       expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
   });

@@ -14,6 +14,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { ChapterContent } from '@/types/bible';
 
 // Mock expo-haptics
@@ -78,7 +79,9 @@ function renderChapterReader(chapter: ChapterContent = mockChapter) {
   return render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ChapterReader chapter={chapter} activeTab="summary" />
+        <ThemeProvider>
+          <ChapterReader chapter={chapter} activeTab="summary" />
+        </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

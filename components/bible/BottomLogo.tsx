@@ -4,18 +4,26 @@
  * Displays the VerseMate logo at the bottom of content pages.
  * Used in both Bible chapter and topics pages for branding.
  * Positioned with equal spacing above and below within the bottom padding area.
+ *
+ * Theme-aware: Uses dark text logo for light mode, white text logo for dark mode.
  */
 
 import { Image, StyleSheet, View } from 'react-native';
+import { useTheme } from '@/contexts/ThemeContext';
+
+// Pre-require both logos for fast switching
+const regularLogo = require('@/assets/images/logo/regular-logo.png');
+const whiteLogo = require('@/assets/images/logo/white-regular-logo.png');
 
 export function BottomLogo() {
+  const { mode } = useTheme();
+
+  // Use white logo on dark backgrounds, regular (dark) logo on light backgrounds
+  const logoSource = mode === 'dark' ? whiteLogo : regularLogo;
+
   return (
     <View style={styles.container}>
-      <Image
-        source={require('@/assets/images/logo/regular-logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      <Image source={logoSource} style={styles.logo} resizeMode="contain" testID="bottom-logo" />
     </View>
   );
 }

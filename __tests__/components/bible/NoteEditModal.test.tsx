@@ -8,7 +8,9 @@
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import type React from 'react';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useNoteDraft } from '@/hooks/bible/use-note-draft';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { Note } from '@/types/notes';
@@ -24,6 +26,10 @@ jest.mock('expo-haptics', () => ({
     Light: 'light',
   },
 }));
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('NoteEditModal', () => {
   const mockNote: Note = {
@@ -59,7 +65,7 @@ describe('NoteEditModal', () => {
   });
 
   it('should pre-fill textarea with existing note content', () => {
-    render(
+    renderWithTheme(
       <NoteEditModal
         visible={true}
         note={mockNote}
@@ -75,7 +81,7 @@ describe('NoteEditModal', () => {
   });
 
   it('should call updateNote when Save button is pressed', async () => {
-    render(
+    renderWithTheme(
       <NoteEditModal
         visible={true}
         note={mockNote}
@@ -103,7 +109,7 @@ describe('NoteEditModal', () => {
   });
 
   it('should call onClose when Cancel button is pressed', () => {
-    render(
+    renderWithTheme(
       <NoteEditModal
         visible={true}
         note={mockNote}
@@ -121,7 +127,7 @@ describe('NoteEditModal', () => {
   });
 
   it('should display character counter when approaching limit', () => {
-    render(
+    renderWithTheme(
       <NoteEditModal
         visible={true}
         note={mockNote}
@@ -142,7 +148,7 @@ describe('NoteEditModal', () => {
   });
 
   it('should call clearDraft after successful save', async () => {
-    render(
+    renderWithTheme(
       <NoteEditModal
         visible={true}
         note={mockNote}

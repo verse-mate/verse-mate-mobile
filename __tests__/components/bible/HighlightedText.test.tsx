@@ -2,8 +2,10 @@
  * HighlightedText Component Tests
  *
  * Tests for text highlighting rendering and tap detection.
+ * Includes tests for theme-aware highlight colors.
  *
  * @see Task 4.1: Write 2-8 focused tests for text selection
+ * @see Task 7.3: Add highlight color dark variants
  */
 
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
@@ -11,11 +13,17 @@ import * as Haptics from 'expo-haptics';
 import { Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
 import { HighlightedText } from '@/components/bible/HighlightedText';
-import { HIGHLIGHT_COLORS } from '@/constants/highlight-colors';
+import { HIGHLIGHT_COLORS, HIGHLIGHT_COLORS_DARK } from '@/constants/highlight-colors';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 
 // Mock haptics
 jest.mock('expo-haptics');
+
+// Mock useTheme to control theme mode in tests
+const mockUseTheme = jest.fn();
+jest.mock('@/contexts/ThemeContext', () => ({
+  useTheme: () => mockUseTheme(),
+}));
 
 describe('HighlightedText', () => {
   const mockHighlight: Highlight = {
@@ -36,6 +44,14 @@ describe('HighlightedText', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default to light mode
+    mockUseTheme.mockReturnValue({
+      mode: 'light',
+      preference: 'light',
+      colors: {},
+      setPreference: jest.fn(),
+      isLoading: false,
+    });
   });
 
   it('should render plain text without highlights', () => {
@@ -73,6 +89,81 @@ describe('HighlightedText', () => {
 
     expect(highlightedSegment).toBeTruthy();
     expect(highlightedSegment?.props.children).toBe('beginning God');
+  });
+
+  it('should use dark mode highlight colors when theme is dark', () => {
+    // Set theme to dark mode
+    mockUseTheme.mockReturnValue({
+      mode: 'dark',
+      preference: 'dark',
+      colors: {},
+      setPreference: jest.fn(),
+      isLoading: false,
+    });
+
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[mockHighlight]}
+      />
+    );
+
+    // Find text elements within the component
+    const textElements = root.findAllByType(Text);
+
+    // Verify highlight segment uses dark mode yellow color
+    const highlightedSegment = textElements.find((el: ReactTestInstance) => {
+      const style = el.props.style;
+      return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.yellow);
+    });
+
+    expect(highlightedSegment).toBeTruthy();
+    expect(highlightedSegment?.props.children).toBe('beginning God');
+  });
+
+  it('should use different colors for different highlights in dark mode', () => {
+    // Set theme to dark mode
+    mockUseTheme.mockReturnValue({
+      mode: 'dark',
+      preference: 'dark',
+      colors: {},
+      setPreference: jest.fn(),
+      isLoading: false,
+    });
+
+    const greenHighlight: Highlight = {
+      ...mockHighlight,
+      highlight_id: 2,
+      start_char: 29,
+      end_char: 40,
+      color: 'green',
+      selected_text: 'the heavens',
+    };
+
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[mockHighlight, greenHighlight]}
+      />
+    );
+
+    const textElements = root.findAllByType(Text);
+
+    // Verify dark mode yellow highlight
+    const yellowSegment = textElements.find((el: ReactTestInstance) => {
+      const style = el.props.style;
+      return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.yellow);
+    });
+    expect(yellowSegment).toBeTruthy();
+
+    // Verify dark mode green highlight
+    const greenSegment = textElements.find((el: ReactTestInstance) => {
+      const style = el.props.style;
+      return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.green);
+    });
+    expect(greenSegment).toBeTruthy();
   });
 
   it('should trigger onHighlightPress when long-pressing highlighted text', () => {
