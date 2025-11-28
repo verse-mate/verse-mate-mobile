@@ -92,12 +92,12 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
     const subscription = LightSensor.addListener(({ illuminance }) => {
       // Hysteresis to prevent flickering:
-      // Dark if < 60 lux (dim room/night)
-      // Light if > 90 lux (bright room/day)
+      // Dark if < 50 lux (dim room/night)
+      // Light if > 80 lux (bright room/day)
       // No change in between (dead zone)
-      if (illuminance < 60) {
+      if (illuminance < 50) {
         setAmbientMode('dark');
-      } else if (illuminance > 90) {
+      } else if (illuminance > 80) {
         setAmbientMode('light');
       }
     });
