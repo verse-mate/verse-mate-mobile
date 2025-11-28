@@ -17,6 +17,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { Alert } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SettingsScreen from '@/app/settings';
 import type { User } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,7 +43,9 @@ jest.mock('expo-haptics', () => ({
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  SafeAreaProvider: jest.fn(({ children }) => children),
+  SafeAreaView: jest.fn(({ children }) => children),
+  useSafeAreaInsets: jest.fn(() => ({ top: 0, bottom: 0, left: 0, right: 0 })),
 }));
 
 // Mock AutoHighlightSettings component
@@ -129,9 +132,11 @@ describe('SettingsScreen', () => {
 
   const renderWithTheme = (component: React.ReactElement) => {
     return render(
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>{component}</ThemeProvider>
-      </QueryClientProvider>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>{component}</ThemeProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
     );
   };
 
