@@ -9,21 +9,11 @@
  */
 
 import { render, screen } from '@testing-library/react-native';
-import type React from 'react';
 import { ProgressBar } from '@/components/bible/ProgressBar';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-
-const renderWithTheme = (component: React.ReactElement) => {
-  const result = render(<ThemeProvider>{component}</ThemeProvider>);
-  return {
-    ...result,
-    rerender: (ui: React.ReactElement) => result.rerender(<ThemeProvider>{ui}</ThemeProvider>),
-  };
-};
 
 describe('ProgressBar', () => {
   it('renders without crashing', () => {
-    renderWithTheme(<ProgressBar percentage={50} />);
+    render(<ProgressBar percentage={50} />);
 
     expect(screen.getByTestId('progress-bar')).toBeTruthy();
     expect(screen.getByTestId('progress-bar-fill')).toBeTruthy();
@@ -31,7 +21,7 @@ describe('ProgressBar', () => {
   });
 
   it('displays percentage text correctly', () => {
-    const { rerender } = renderWithTheme(<ProgressBar percentage={42} />);
+    const { rerender } = render(<ProgressBar percentage={42} />);
 
     // Check percentage text
     expect(screen.getByText('42%')).toBeTruthy();
@@ -49,7 +39,7 @@ describe('ProgressBar', () => {
   });
 
   it('renders fill bar with correct structure', () => {
-    renderWithTheme(<ProgressBar percentage={50} />);
+    render(<ProgressBar percentage={50} />);
 
     const progressBar = screen.getByTestId('progress-bar');
     const fill = screen.getByTestId('progress-bar-fill');
@@ -62,7 +52,7 @@ describe('ProgressBar', () => {
   });
 
   it('updates when percentage changes', () => {
-    const { rerender } = renderWithTheme(<ProgressBar percentage={25} />);
+    const { rerender } = render(<ProgressBar percentage={25} />);
 
     // Initial state
     expect(screen.getByText('25%')).toBeTruthy();

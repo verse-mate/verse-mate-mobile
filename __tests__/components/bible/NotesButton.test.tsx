@@ -8,9 +8,7 @@
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import type React from 'react';
 import { NotesButton } from '@/components/bible/NotesButton';
-import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useNotes } from '@/hooks/bible/use-notes';
 
 // Mock useNotes hook
@@ -24,10 +22,6 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
-const renderWithTheme = (component: React.ReactElement) => {
-  return render(<ThemeProvider>{component}</ThemeProvider>);
-};
-
 describe('NotesButton', () => {
   const mockOnPress = jest.fn();
 
@@ -39,7 +33,7 @@ describe('NotesButton', () => {
   });
 
   it('should render outline icon when chapter has no notes', () => {
-    renderWithTheme(<NotesButton bookId={1} chapterNumber={1} onPress={mockOnPress} />);
+    render(<NotesButton bookId={1} chapterNumber={1} onPress={mockOnPress} />);
 
     const button = screen.getByTestId('notes-button-1-1');
     expect(button).toBeTruthy();
@@ -54,7 +48,7 @@ describe('NotesButton', () => {
       hasNotes: jest.fn(() => true), // Chapter has notes
     });
 
-    renderWithTheme(<NotesButton bookId={1} chapterNumber={1} onPress={mockOnPress} />);
+    render(<NotesButton bookId={1} chapterNumber={1} onPress={mockOnPress} />);
 
     const button = screen.getByTestId('notes-button-1-1');
     expect(button).toBeTruthy();
@@ -65,7 +59,7 @@ describe('NotesButton', () => {
   });
 
   it('should call onPress handler when pressed', async () => {
-    renderWithTheme(<NotesButton bookId={1} chapterNumber={1} onPress={mockOnPress} />);
+    render(<NotesButton bookId={1} chapterNumber={1} onPress={mockOnPress} />);
 
     const button = screen.getByTestId('notes-button-1-1');
 
@@ -79,7 +73,7 @@ describe('NotesButton', () => {
   });
 
   it('should have correct accessibility label', () => {
-    renderWithTheme(<NotesButton bookId={1} chapterNumber={1} onPress={mockOnPress} />);
+    render(<NotesButton bookId={1} chapterNumber={1} onPress={mockOnPress} />);
 
     const button = screen.getByLabelText('Notes for this chapter');
     expect(button).toBeTruthy();
@@ -91,7 +85,7 @@ describe('NotesButton', () => {
       hasNotes: mockHasNotes,
     });
 
-    renderWithTheme(<NotesButton bookId={43} chapterNumber={5} onPress={mockOnPress} />);
+    render(<NotesButton bookId={43} chapterNumber={5} onPress={mockOnPress} />);
 
     expect(mockHasNotes).toHaveBeenCalledWith(43, 5);
   });

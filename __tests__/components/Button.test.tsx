@@ -1,11 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type React from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-
-const renderWithTheme = (component: React.ReactElement) => {
-  return render(<ThemeProvider>{component}</ThemeProvider>);
-};
 
 /**
  * Example Button Component
@@ -113,7 +108,7 @@ describe('Button Component', () => {
       const title = 'Read Verse';
 
       // Act
-      renderWithTheme(<Button title={title} onPress={() => {}} />);
+      render(<Button title={title} onPress={() => {}} />);
 
       // Assert
       expect(screen.getByText(title)).toBeOnTheScreen();
@@ -124,7 +119,7 @@ describe('Button Component', () => {
       const testID = 'read-verse-button';
 
       // Act
-      renderWithTheme(<Button title="Read Verse" onPress={() => {}} testID={testID} />);
+      render(<Button title="Read Verse" onPress={() => {}} testID={testID} />);
 
       // Assert
       expect(screen.getByTestId(testID)).toBeOnTheScreen();
@@ -135,7 +130,7 @@ describe('Button Component', () => {
     it('calls onPress handler when pressed', () => {
       // Arrange
       const mockOnPress = jest.fn();
-      renderWithTheme(<Button title="Read Verse" onPress={mockOnPress} />);
+      render(<Button title="Read Verse" onPress={mockOnPress} />);
 
       // Act
       fireEvent.press(screen.getByText('Read Verse'));
@@ -147,7 +142,7 @@ describe('Button Component', () => {
     it('does not call onPress when disabled', () => {
       // Arrange
       const mockOnPress = jest.fn();
-      renderWithTheme(<Button title="Read Verse" onPress={mockOnPress} disabled={true} />);
+      render(<Button title="Read Verse" onPress={mockOnPress} disabled={true} />);
 
       // Act
       fireEvent.press(screen.getByText('Read Verse'));
@@ -160,7 +155,7 @@ describe('Button Component', () => {
   describe('Accessibility', () => {
     it('has correct accessibility role', () => {
       // Arrange & Act
-      renderWithTheme(<Button title="Read Verse" onPress={() => {}} />);
+      render(<Button title="Read Verse" onPress={() => {}} />);
 
       // Assert
       const button = screen.getByRole('button');
@@ -172,7 +167,7 @@ describe('Button Component', () => {
       const title = 'Read Verse';
 
       // Act
-      renderWithTheme(<Button title={title} onPress={() => {}} />);
+      render(<Button title={title} onPress={() => {}} />);
 
       // Assert
       const button = screen.getByLabelText(title);
@@ -181,7 +176,7 @@ describe('Button Component', () => {
 
     it('indicates disabled state to screen readers', () => {
       // Arrange & Act
-      renderWithTheme(<Button title="Read Verse" onPress={() => {}} disabled={true} />);
+      render(<Button title="Read Verse" onPress={() => {}} disabled={true} />);
 
       // Assert
       const button = screen.getByRole('button');
@@ -192,7 +187,7 @@ describe('Button Component', () => {
   describe('Styling States', () => {
     it('applies disabled styles when disabled', () => {
       // Arrange & Act
-      renderWithTheme(<Button title="Read Verse" onPress={() => {}} disabled={true} />);
+      render(<Button title="Read Verse" onPress={() => {}} disabled={true} />);
 
       // Assert - Verify disabled button is rendered (visual check)
       const button = screen.getByRole('button');

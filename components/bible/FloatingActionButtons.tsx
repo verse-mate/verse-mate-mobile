@@ -19,12 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo } from 'react';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import {
-  animationDurations,
-  type getColors,
-  getFabSpecs,
-  type ThemeMode,
-} from '@/constants/bible-design-tokens';
+import { animationDurations, getFabSpecs, type ThemeMode } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface FloatingActionButtonsProps {
@@ -57,8 +52,8 @@ export function FloatingActionButtons({
   showNext,
   visible = true,
 }: FloatingActionButtonsProps) {
-  const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+  const { mode } = useTheme();
+  const styles = useMemo(() => createStyles(mode), [mode]);
   const specs = getFabSpecs(mode);
 
   // Animated opacity value
@@ -131,7 +126,7 @@ export function FloatingActionButtons({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+const createStyles = (mode: ThemeMode) => {
   const specs = getFabSpecs(mode);
 
   return StyleSheet.create({

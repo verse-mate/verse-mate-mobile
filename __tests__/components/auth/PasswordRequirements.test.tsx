@@ -1,15 +1,9 @@
 import { render } from '@testing-library/react-native';
-import type React from 'react';
 import { PasswordRequirements } from '@/components/auth/PasswordRequirements';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-
-const renderWithTheme = (component: React.ReactElement) => {
-  return render(<ThemeProvider>{component}</ThemeProvider>);
-};
 
 describe('PasswordRequirements Component', () => {
   it('renders all password requirements', () => {
-    const { getByText } = renderWithTheme(<PasswordRequirements password="" />);
+    const { getByText } = render(<PasswordRequirements password="" />);
 
     expect(getByText('At least 8 characters')).toBeTruthy();
     expect(getByText('At least 1 numeric character')).toBeTruthy();
@@ -17,7 +11,7 @@ describe('PasswordRequirements Component', () => {
   });
 
   it('shows unmet requirements for empty password', () => {
-    const { getByTestId } = renderWithTheme(<PasswordRequirements password="" />);
+    const { getByTestId } = render(<PasswordRequirements password="" />);
 
     // All requirements should be unmet (neutral state)
     expect(getByTestId('requirement-0-unmet')).toBeTruthy();
@@ -26,7 +20,7 @@ describe('PasswordRequirements Component', () => {
   });
 
   it('updates requirements in real-time as password meets criteria', () => {
-    const { rerender, getByTestId, queryByTestId } = renderWithTheme(
+    const { rerender, getByTestId, queryByTestId } = render(
       <PasswordRequirements password="abc" />
     );
 
@@ -36,11 +30,7 @@ describe('PasswordRequirements Component', () => {
     expect(getByTestId('requirement-2-met')).toBeTruthy(); // letter met
 
     // Update to password that meets all requirements
-    rerender(
-      <ThemeProvider>
-        <PasswordRequirements password="abcdefgh1" />
-      </ThemeProvider>
-    );
+    rerender(<PasswordRequirements password="abcdefgh1" />);
 
     expect(getByTestId('requirement-0-met')).toBeTruthy(); // length met
     expect(getByTestId('requirement-1-met')).toBeTruthy(); // number met
@@ -48,9 +38,7 @@ describe('PasswordRequirements Component', () => {
   });
 
   it('shows partial completion for password with some requirements met', () => {
-    const { getByTestId, queryByTestId } = renderWithTheme(
-      <PasswordRequirements password="12345678" />
-    );
+    const { getByTestId, queryByTestId } = render(<PasswordRequirements password="12345678" />);
 
     // Password "12345678" meets length and number, but not letter
     expect(getByTestId('requirement-0-met')).toBeTruthy(); // length met

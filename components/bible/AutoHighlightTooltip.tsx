@@ -58,8 +58,7 @@ export function AutoHighlightTooltip({
   isLoggedIn,
 }: AutoHighlightTooltipProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
-  const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
+  const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
 
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
@@ -368,8 +367,12 @@ export function AutoHighlightTooltip({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>) =>
-  StyleSheet.create({
+/**
+ * Creates all styles for AutoHighlightTooltip component
+ * Returns both component styles and markdown styles in a single factory
+ */
+const createStyles = (colors: ReturnType<typeof getColors>) => {
+  const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
@@ -527,12 +530,11 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
   });
 
-/**
- * Markdown Styles
- * Adapts standard markdown styling for the tooltip context (smaller fonts)
- */
-const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
-  StyleSheet.create({
+  /**
+   * Markdown Styles
+   * Adapts standard markdown styling for the tooltip context (smaller fonts)
+   */
+  const markdownStyles = StyleSheet.create({
     body: {
       fontSize: fontSizes.body, // 16px
       lineHeight: fontSizes.body * 1.5,
@@ -575,3 +577,6 @@ const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
       marginBottom: spacing.sm,
     },
   });
+
+  return { styles, markdownStyles };
+};

@@ -161,8 +161,8 @@ function createHandlersForBaseUrl(baseUrl: string) {
         );
       }
 
-      const { themeId } = params;
-      const body = await request.json();
+      const { themeId: _themeId } = params;
+      const _body = await request.json();
 
       // In a real scenario, we'd update the mock data here
       // For testing, just return success

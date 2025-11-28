@@ -636,7 +636,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     errorContainer: {
       marginBottom: spacing.md,
       padding: spacing.md,
-      backgroundColor: colors.error + '20', // 20% opacity
+      backgroundColor: `${colors.error}20`, // 20% opacity
       borderRadius: 8,
     },
     errorText: {

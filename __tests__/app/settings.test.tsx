@@ -16,12 +16,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import type React from 'react';
 import { Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SettingsScreen from '@/app/settings';
 import type { User } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import * as sdk from '@/src/api/generated/sdk.gen';
 
@@ -77,7 +77,7 @@ const mockGetBibleLanguages = sdk.getBibleLanguages as jest.MockedFunction<
   typeof sdk.getBibleLanguages
 >;
 const mockPutAuthProfile = sdk.putAuthProfile as jest.MockedFunction<typeof sdk.putAuthProfile>;
-const mockPatchUserPreferences = sdk.patchUserPreferences as jest.MockedFunction<
+const _mockPatchUserPreferences = sdk.patchUserPreferences as jest.MockedFunction<
   typeof sdk.patchUserPreferences
 >;
 
@@ -130,25 +130,23 @@ describe('SettingsScreen', () => {
     });
   });
 
-  const renderWithTheme = (component: React.ReactElement) => {
+  const renderWithProviders = (component: React.ReactElement) => {
     return render(
       <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider>{component}</ThemeProvider>
-        </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>
       </SafeAreaProvider>
     );
   };
 
   describe('Screen Rendering', () => {
     it('renders settings screen with title', () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       expect(screen.getByText('Settings')).toBeTruthy();
     });
 
     it('renders back button', () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       const backButton = screen.getByTestId('settings-back-button');
       expect(backButton).toBeTruthy();
@@ -157,7 +155,7 @@ describe('SettingsScreen', () => {
 
   describe('Theme Selector', () => {
     it('renders ThemeSelector component', () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       // ThemeSelector should be rendered (exact assertion depends on ThemeSelector implementation)
       // For now, verify the screen renders without errors
@@ -167,7 +165,7 @@ describe('SettingsScreen', () => {
 
   describe('Bible Version Selection', () => {
     it('renders Bible Version section', async () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       await waitFor(() => {
         expect(screen.getByText('Bible Version')).toBeTruthy();
@@ -184,7 +182,7 @@ describe('SettingsScreen', () => {
         isLoading: false,
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       // Wait for screen to render
       await waitFor(() => {
@@ -199,7 +197,7 @@ describe('SettingsScreen', () => {
 
   describe('Authentication Guards', () => {
     it('shows profile section when authenticated', () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       expect(screen.getByText('Profile Information')).toBeTruthy();
       expect(screen.getByTestId('settings-first-name-input')).toBeTruthy();
@@ -216,7 +214,7 @@ describe('SettingsScreen', () => {
         restoreSession: jest.fn(),
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       expect(screen.queryByText('Profile Information')).toBeNull();
       expect(screen.queryByTestId('settings-first-name-input')).toBeNull();
@@ -233,7 +231,7 @@ describe('SettingsScreen', () => {
         restoreSession: jest.fn(),
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       expect(screen.getByText(/Sign in to access language preferences/i)).toBeTruthy();
       expect(screen.getByTestId('settings-sign-in-button')).toBeTruthy();
@@ -250,7 +248,7 @@ describe('SettingsScreen', () => {
         restoreSession: jest.fn(),
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       const signInButton = screen.getByTestId('settings-sign-in-button');
       fireEvent.press(signInButton);
@@ -261,7 +259,7 @@ describe('SettingsScreen', () => {
 
   describe('Profile Editing', () => {
     it('renders profile form with current user data', () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       const firstNameInput = screen.getByTestId('settings-first-name-input');
       const lastNameInput = screen.getByTestId('settings-last-name-input');
@@ -273,13 +271,13 @@ describe('SettingsScreen', () => {
     });
 
     it('shows "No changes to save" when no changes made', () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       expect(screen.getByText('No changes to save')).toBeTruthy();
     });
 
     it('enables save button when changes are made', async () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       const firstNameInput = screen.getByTestId('settings-first-name-input');
       fireEvent.changeText(firstNameInput, 'NewName');
@@ -290,7 +288,7 @@ describe('SettingsScreen', () => {
     });
 
     it('shows change indicator when changes are made', async () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       const firstNameInput = screen.getByTestId('settings-first-name-input');
       fireEvent.changeText(firstNameInput, 'NewName');
@@ -308,7 +306,7 @@ describe('SettingsScreen', () => {
         response: {} as Response,
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       // Change first name
       const firstNameInput = screen.getByTestId('settings-first-name-input');
@@ -346,7 +344,7 @@ describe('SettingsScreen', () => {
         response: {} as Response,
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       // Change email
       const emailInput = screen.getByTestId('settings-email-input');
@@ -367,7 +365,7 @@ describe('SettingsScreen', () => {
 
   describe('Logout', () => {
     it('shows logout button when authenticated', () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       expect(screen.getByTestId('settings-logout-button')).toBeTruthy();
     });
@@ -383,13 +381,13 @@ describe('SettingsScreen', () => {
         restoreSession: jest.fn(),
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       expect(screen.queryByTestId('settings-logout-button')).toBeNull();
     });
 
     it('shows confirmation alert when logout is pressed', () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       const logoutButton = screen.getByTestId('settings-logout-button');
       fireEvent.press(logoutButton);
@@ -416,7 +414,7 @@ describe('SettingsScreen', () => {
         restoreSession: jest.fn(),
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       const logoutButton = screen.getByTestId('settings-logout-button');
       fireEvent.press(logoutButton);
@@ -435,7 +433,7 @@ describe('SettingsScreen', () => {
 
   describe('Navigation', () => {
     it('navigates back when back button is pressed', async () => {
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       const backButton = screen.getByTestId('settings-back-button');
       fireEvent.press(backButton);
@@ -456,14 +454,14 @@ describe('SettingsScreen', () => {
             native_name: 'English',
             explanation_count: 10,
           },
-          { language_code: 'es-ES', name: 'Spanish', native_name: 'Espa�ol', explanation_count: 5 },
+          { language_code: 'es-ES', name: 'Spanish', native_name: 'Espanol', explanation_count: 5 },
         ],
         error: undefined,
         request: {} as Request,
         response: {} as Response,
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       expect(screen.getByText('Language Preferences')).toBeTruthy();
     });
@@ -479,7 +477,7 @@ describe('SettingsScreen', () => {
         restoreSession: jest.fn(),
       });
 
-      renderWithTheme(<SettingsScreen />);
+      renderWithProviders(<SettingsScreen />);
 
       expect(screen.queryByText('Language Preferences')).toBeNull();
     });

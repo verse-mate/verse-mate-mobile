@@ -148,8 +148,6 @@ describe('ChapterReader - Notes Integration', () => {
     );
   };
 
-  const renderWithTheme = renderWithProvider; // Alias for consistency
-
   // Test 1: Notes button renders next to bookmark toggle
   test('renders notes button next to bookmark toggle in title row', () => {
     renderWithProvider(

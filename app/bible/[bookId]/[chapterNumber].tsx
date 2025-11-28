@@ -80,8 +80,7 @@ export default function ChapterScreen() {
 
   // Theme
   const { colors, mode } = useTheme();
-  const headerSpecs = getHeaderSpecs(mode);
-  const styles = useMemo(() => createStyles(colors, headerSpecs), [colors, headerSpecs]);
+  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
 
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
@@ -324,9 +323,6 @@ export default function ChapterScreen() {
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
           onMenuPress={() => {}}
-          colors={colors}
-          headerSpecs={headerSpecs}
-          styles={styles}
         />
         <SkeletonLoader />
       </View>
@@ -344,9 +340,6 @@ export default function ChapterScreen() {
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
           onMenuPress={() => {}}
-          colors={colors}
-          headerSpecs={headerSpecs}
-          styles={styles}
         />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Chapter not found</Text>
@@ -369,9 +362,6 @@ export default function ChapterScreen() {
         onMenuPress={() => {
           setIsMenuOpen(true); // Task 8.5
         }}
-        colors={colors}
-        headerSpecs={headerSpecs}
-        styles={styles}
       />
 
       {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
@@ -447,9 +437,6 @@ interface ChapterHeaderProps {
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
-  colors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>;
-  headerSpecs: ReturnType<typeof getHeaderSpecs>;
-  styles: ReturnType<typeof createStyles>;
 }
 
 function ChapterHeader({
@@ -459,10 +446,11 @@ function ChapterHeader({
   onNavigationPress,
   onViewChange,
   onMenuPress,
-  colors,
-  headerSpecs,
-  styles,
 }: ChapterHeaderProps) {
+  // Get theme directly inside ChapterHeader (no props drilling)
+  const { colors, mode } = useTheme();
+  const headerSpecs = getHeaderSpecs(mode);
+  const styles = useMemo(() => createHeaderStyles(headerSpecs), [headerSpecs]);
   const insets = useSafeAreaInsets();
 
   return (
@@ -535,15 +523,11 @@ function ChapterHeader({
   );
 }
 
-const createStyles = (
-  colors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>,
-  headerSpecs: ReturnType<typeof getHeaderSpecs>
-) =>
+/**
+ * Creates styles for ChapterHeader component
+ */
+const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background, // Match content background to prevent flash during route updates
-    },
     header: {
       minHeight: headerSpecs.height,
       backgroundColor: headerSpecs.backgroundColor,
@@ -575,6 +559,20 @@ const createStyles = (
       padding: spacing.xs,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+  });
+
+/**
+ * Creates styles for ChapterScreen component
+ */
+const createStyles = (
+  colors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>,
+  _mode: 'light' | 'dark'
+) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background, // Match content background to prevent flash during route updates
     },
     errorContainer: {
       flex: 1,

@@ -1,11 +1,5 @@
 import { render } from '@testing-library/react-native';
-import type React from 'react';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-
-const renderWithTheme = (component: React.ReactElement) => {
-  return render(<ThemeProvider>{component}</ThemeProvider>);
-};
 
 describe('SkeletonLoader', () => {
   /**
@@ -13,7 +7,7 @@ describe('SkeletonLoader', () => {
    * Verifies basic rendering and structure
    */
   it('renders without crashing', () => {
-    const { getByTestId } = renderWithTheme(<SkeletonLoader />);
+    const { getByTestId } = render(<SkeletonLoader />);
     expect(getByTestId('skeleton-loader')).toBeTruthy();
   });
 
@@ -22,7 +16,7 @@ describe('SkeletonLoader', () => {
    * Verifies that the shimmer animation is present and not crashing
    */
   it('starts shimmer animation on mount', () => {
-    const { getByTestId } = renderWithTheme(<SkeletonLoader />);
+    const { getByTestId } = render(<SkeletonLoader />);
     const container = getByTestId('skeleton-loader');
     expect(container).toBeTruthy();
 
@@ -39,7 +33,7 @@ describe('SkeletonLoader', () => {
    * Verifies the component renders all expected skeleton elements
    */
   it('renders all skeleton elements', () => {
-    const { getByTestId } = renderWithTheme(<SkeletonLoader />);
+    const { getByTestId } = render(<SkeletonLoader />);
 
     // Verify title skeleton (60% width, 32px height)
     const title = getByTestId('skeleton-title');
