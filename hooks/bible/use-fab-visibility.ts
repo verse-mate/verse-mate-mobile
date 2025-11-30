@@ -96,14 +96,21 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
         // At bottom - show buttons and keep them visible (no timeout)
         clearIdleTimeout();
         setVisible(true);
-      } else if (velocity > SCROLL_VELOCITY_THRESHOLD) {
-        // Fast scroll (navigating) - show buttons with 3s timeout
+      } else if (velocity < -SCROLL_VELOCITY_THRESHOLD) {
+        // Fast scroll UP (navigating back) - show buttons with 3s timeout
         // Only restart timeout if not already visible to prevent flickering
         if (!visible) {
           setVisible(true);
         }
-        // Always restart the timeout on fast scroll
+        // Always restart the timeout on fast scroll up
         startIdleTimeout();
+      } else if (velocity > 0 && visible) {
+        // Optional: Hide immediately on scroll DOWN?
+        // The user asked "it only triggers when going up".
+        // If currently visible, and we scroll down, should we hide?
+        // Standard behavior is often yes.
+        // Let's rely on the idle timer for now to be safe, or purely on the "trigger" logic.
+        // The request was about *triggering* the fade in.
       }
       // Note: Don't do anything on slow scroll - let existing timer continue
     },
