@@ -705,7 +705,7 @@ export function ChapterReader({
       {explanation && (
         <View style={styles.explanationContainer} collapsable={false}>
           <Markdown style={markdownStyles}>
-            {explanation.content.replace(/###\s*Summary\s*\n/gi, '')}
+            {explanation.content.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
           </Markdown>
         </View>
       )}

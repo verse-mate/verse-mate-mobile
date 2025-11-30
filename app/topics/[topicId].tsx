@@ -490,7 +490,7 @@ export default function TopicDetailScreen() {
             ) : explanation && typeof explanation === 'string' ? (
               <View style={styles.explanationContainer}>
                 <Markdown style={markdownStyles} rules={markdownRules}>
-                  {explanation.replace(/###\s*Summary\s*\n/gi, '')}
+                  {explanation.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
                 </Markdown>
               </View>
             ) : (
