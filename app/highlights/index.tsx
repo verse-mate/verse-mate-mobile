@@ -234,9 +234,6 @@ export default function HighlightsScreen() {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { allHighlights, isFetchingHighlights, refetchHighlights } = useHighlights();
 
-  // Expanded chapter groups state
-  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
-
   // Pull-to-refresh state
   const [refreshing, setRefreshing] = useState(false);
 
@@ -250,33 +247,23 @@ export default function HighlightsScreen() {
   };
 
   /**
-   * Toggle chapter group expand/collapse
+   * Handle chapter group press
+   * Opens screen with highlights for that chapter
    */
-  const toggleChapter = async (bookId: number, chapterNumber: number) => {
+  const handleChapterPress = async (group: ChapterGroup) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const key = `${bookId}-${chapterNumber}`;
-    setExpandedChapters((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
+    router.push({
+      pathname: '/highlights/[bookId]/[chapterNumber]',
+      params: {
+        bookId: group.bookId,
+        chapterNumber: group.chapterNumber,
+        bookName: group.bookName,
+      },
     });
   };
 
   /**
-   * Check if chapter group is expanded
-   */
-  const isChapterExpanded = (bookId: number, chapterNumber: number): boolean => {
-    const key = `${bookId}-${chapterNumber}`;
-    return expandedChapters.has(key);
-  };
-
-  /**
-   * Handle highlight item press
+   * Handle highlight item press (from modal)
    * Navigates to chapter with highlight visible
    */
   const handleHighlightPress = async (bookId: number, chapterNumber: number) => {
@@ -493,49 +480,22 @@ export default function HighlightsScreen() {
         </View>
 
         {/* User Highlights */}
-        {chapterGroups.map((group) => {
-          const isExpanded = isChapterExpanded(group.bookId, group.chapterNumber);
-          const chevronIcon = isExpanded ? 'chevron-down' : 'chevron-forward';
-
-          return (
-            <View key={`${group.bookId}-${group.chapterNumber}`} style={styles.chapterGroup}>
-              {/* Chapter Group Header */}
-              <Pressable
-                style={({ pressed }) => [styles.groupHeader, pressed && styles.groupHeaderPressed]}
-                onPress={() => toggleChapter(group.bookId, group.chapterNumber)}
-                testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
-              >
-                <Text style={styles.groupTitle}>
-                  {group.bookName} {group.chapterNumber} ({group.highlights.length}{' '}
-                  {group.highlights.length === 1 ? 'highlight' : 'highlights'})
-                </Text>
-                <Ionicons name={chevronIcon} size={20} color={colors.textSecondary} />
-              </Pressable>
-
-              {/* Chapter Group Content (Expanded) */}
-              {isExpanded && (
-                <View style={styles.groupContent}>
-                  {group.highlights.map((highlight) => (
-                    <Pressable
-                      key={highlight.highlight_id}
-                      style={({ pressed }) => [
-                        styles.highlightItem,
-                        pressed && styles.highlightItemPressed,
-                      ]}
-                      onPress={() => handleHighlightPress(group.bookId, group.chapterNumber)}
-                      testID={`highlight-item-${highlight.highlight_id}`}
-                    >
-                      <Text style={styles.highlightText} numberOfLines={2} ellipsizeMode="tail">
-                        {formatHighlightWithVerseNumbers(highlight)}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-          );
-        })}
+        {chapterGroups.map((group) => (
+          <View key={`${group.bookId}-${group.chapterNumber}`} style={styles.chapterGroup}>
+            {/* Chapter Group Header */}
+            <Pressable
+              style={({ pressed }) => [styles.groupHeader, pressed && styles.groupHeaderPressed]}
+              onPress={() => handleChapterPress(group)}
+              testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
+            >
+              <Text style={styles.groupTitle}>
+                {group.bookName} {group.chapterNumber} ({group.highlights.length}{' '}
+                {group.highlights.length === 1 ? 'highlight' : 'highlights'})
+              </Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        ))}
 
         {/* Divider */}
         <View style={styles.sectionDivider}>

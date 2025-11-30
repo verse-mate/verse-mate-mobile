@@ -158,8 +158,8 @@ describe('HighlightsScreen', () => {
     });
   });
 
-  describe('Collapsible group toggle', () => {
-    it('should toggle chapter groups on press', async () => {
+  describe('Navigation to chapter highlights', () => {
+    it('should navigate to chapter highlights list on press', async () => {
       mockUseAuth.mockReturnValue({
         user: mockUser,
         isAuthenticated: true,
@@ -196,75 +196,25 @@ describe('HighlightsScreen', () => {
         refetchHighlights: jest.fn(),
       });
 
-      const { getByTestId, queryByText } = renderWithProviders(<HighlightsScreen />);
+      const { getByTestId } = renderWithProviders(<HighlightsScreen />);
 
       await waitFor(() => {
         expect(getByTestId('chapter-group-1-1')).toBeTruthy();
       });
 
-      // Initially collapsed, so highlight text should not be visible
-      expect(queryByText('In the beginning')).toBeNull();
-    });
-  });
-
-  describe('Navigation to chapter on tap', () => {
-    it('should navigate to chapter when highlight item is tapped', async () => {
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        isAuthenticated: true,
-        isLoading: false,
-      } as any);
-
-      mockUseHighlights.mockReturnValue({
-        allHighlights: [
-          {
-            highlight_id: 1,
-            user_id: 'test-user-123',
-            chapter_id: 1001,
-            book_id: 1,
-            chapter_number: 1,
-            start_verse: 1,
-            end_verse: 1,
-            color: 'yellow',
-            start_char: 0,
-            end_char: 50,
-            selected_text: 'In the beginning',
-            created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-01T00:00:00Z',
-          },
-        ],
-        chapterHighlights: [],
-        isFetchingHighlights: false,
-        isAddingHighlight: false,
-        isUpdatingHighlight: false,
-        isDeletingHighlight: false,
-        isHighlighted: jest.fn(),
-        addHighlight: jest.fn(),
-        updateHighlightColor: jest.fn(),
-        deleteHighlight: jest.fn(),
-        refetchHighlights: jest.fn(),
-      });
-
-      const { getByTestId, getByText } = renderWithProviders(<HighlightsScreen />);
-
-      await waitFor(() => {
-        expect(getByTestId('chapter-group-1-1')).toBeTruthy();
-      });
-
-      // Expand the group first
+      // Press the chapter group
       fireEvent.press(getByTestId('chapter-group-1-1'));
 
+      // Should navigate to the chapter highlights screen
       await waitFor(() => {
-        // Text now includes verse number: 1 In the beginning
-        expect(getByText(/\u00b9.*In the beginning/)).toBeTruthy();
-      });
-
-      // Tap the highlight item
-      fireEvent.press(getByTestId('highlight-item-1'));
-
-      // Should navigate to chapter (wait for async haptic feedback)
-      await waitFor(() => {
-        expect(router.push).toHaveBeenCalledWith('/bible/1/1');
+        expect(router.push).toHaveBeenCalledWith({
+          pathname: '/highlights/[bookId]/[chapterNumber]',
+          params: {
+            bookId: 1,
+            chapterNumber: 1,
+            bookName: 'Genesis',
+          },
+        });
       });
     });
   });

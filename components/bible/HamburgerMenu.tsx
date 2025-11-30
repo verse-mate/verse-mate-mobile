@@ -104,7 +104,8 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     } else if (item.action === 'highlights') {
       // Navigate to highlights screen
       onClose();
-      router.push('/highlights');
+      // biome-ignore lint/suspicious/noExplicitAny: Typed routes might be stale after refactor
+      router.push('/highlights' as any);
     } else if (item.action === 'settings') {
       // Navigate to settings screen
       onClose();
