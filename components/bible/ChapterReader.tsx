@@ -25,6 +25,7 @@ import Markdown from 'react-native-markdown-display';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
+import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
 import type { TextSelection } from '@/components/bible/HighlightedText';
 import { HighlightedText } from '@/components/bible/HighlightedText';
@@ -33,6 +34,7 @@ import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
+import { SuccessModal } from '@/components/bible/SuccessModal';
 import {
   fontSizes,
   fontWeights,
@@ -251,6 +253,8 @@ export function ChapterReader({
   // Auto-highlight modal state
   const [autoHighlightTooltipVisible, setAutoHighlightTooltipVisible] = useState(false);
   const [selectedAutoHighlight, setSelectedAutoHighlight] = useState<AutoHighlight | null>(null);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
 
   /**
    * Handle notes button press
@@ -474,10 +478,10 @@ export function ChapterReader({
         color,
         selectedText, // Pass the extracted text
       });
-      Alert.alert('Success', 'Highlight saved to your collection!');
+      setSuccessModalVisible(true);
     } catch (error) {
       console.error('Failed to save auto-highlight as user highlight:', error);
-      Alert.alert('Error', 'Failed to save highlight. Please try again.');
+      setErrorModalVisible(true);
     }
   };
 
@@ -791,6 +795,20 @@ export function ChapterReader({
         }}
         onSaveAsUserHighlight={handleSaveAutoHighlightAsUserHighlight}
         isLoggedIn={!!user}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        visible={successModalVisible}
+        message="Highlight saved to your collection!"
+        onClose={() => setSuccessModalVisible(false)}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        visible={errorModalVisible}
+        message="Failed to save highlight. Please try again."
+        onClose={() => setErrorModalVisible(false)}
       />
     </View>
   );
