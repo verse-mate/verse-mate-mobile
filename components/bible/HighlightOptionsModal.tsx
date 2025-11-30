@@ -69,6 +69,8 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       alignItems: 'center',
       backgroundColor: colors.backgroundElevated,
       borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     cancelButtonText: {
       fontSize: fontSizes.body,
@@ -430,6 +432,8 @@ function OptionItem({ icon, label, onPress, isDestructive, colors }: OptionItemP
           height: 40,
           borderRadius: 20,
           backgroundColor: isDestructive ? `${colors.error}30` : colors.backgroundElevated,
+          borderWidth: 1,
+          borderColor: isDestructive ? colors.error : colors.border,
           justifyContent: 'center',
           alignItems: 'center',
           marginRight: spacing.md,
