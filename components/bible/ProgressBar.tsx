@@ -31,9 +31,12 @@ interface ProgressBarProps {
 }
 
 export function ProgressBar({ percentage }: ProgressBarProps) {
-  const { mode } = useTheme();
+  const { mode, colors } = useTheme();
   const progressBarSpecs = getProgressBarSpecs(mode);
-  const styles = useMemo(() => createStyles(progressBarSpecs), [progressBarSpecs]);
+  const styles = useMemo(
+    () => createStyles(progressBarSpecs, colors.background),
+    [progressBarSpecs, colors.background]
+  );
 
   // Shared value for animated width
   const fillWidth = useSharedValue(percentage);
@@ -66,27 +69,33 @@ export function ProgressBar({ percentage }: ProgressBarProps) {
   );
 }
 
-const createStyles = (progressBarSpecs: ReturnType<typeof getProgressBarSpecs>) =>
+const createStyles = (
+  progressBarSpecs: ReturnType<typeof getProgressBarSpecs>,
+  backgroundColor: string
+) =>
   StyleSheet.create({
     container: {
       position: 'absolute',
       bottom: 0,
       left: 0,
       right: 0,
-      height: progressBarSpecs.height,
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 8,
+      paddingTop: 2,
+      backgroundColor: backgroundColor,
     },
     track: {
       flex: 1,
       height: progressBarSpecs.height,
       backgroundColor: progressBarSpecs.backgroundColor,
       overflow: 'hidden',
+      borderRadius: progressBarSpecs.height / 2,
     },
     fill: {
       height: '100%',
       backgroundColor: progressBarSpecs.fillColor,
+      borderRadius: progressBarSpecs.height / 2,
     },
     percentage: {
       fontSize: progressBarSpecs.percentageFontSize,
