@@ -23,6 +23,7 @@ import 'react-native-reanimated';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 
 // Keep the splash screen visible while we fetch last read position
@@ -177,7 +178,9 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <CustomThemeProvider>
-            <RootLayoutInner />
+            <ToastProvider>
+              <RootLayoutInner />
+            </ToastProvider>
           </CustomThemeProvider>
         </AuthProvider>
       </QueryClientProvider>

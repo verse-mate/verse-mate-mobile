@@ -32,7 +32,7 @@ export function Toast({ visible, message, onHide, duration = 2000 }: ToastProps)
         styles.container,
         {
           backgroundColor: colors.textPrimary, // High contrast
-          bottom: insets.bottom + 80, // Floating at bottom
+          bottom: insets.bottom + 120, // Floating at bottom
         },
       ]}
       entering={FadeIn}
