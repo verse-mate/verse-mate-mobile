@@ -1,62 +1,28 @@
-/**
- * Chapter Highlights Screen
- *
- * Displays all user highlights for a specific Bible chapter.
- * Navigated to from the main Highlights list.
- */
-
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HighlightOptionsModal } from '@/components/bible/HighlightOptionsModal';
+import { Toast } from '@/components/ui/Toast';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 
 /**
- * Convert a number to Unicode superscript characters
+ * Format reference title (e.g., "Genesis 1:1" or "Genesis 1:1-5")
  */
-function toSuperscript(num: number): string {
-  const superscriptMap: Record<string, string> = {
-    '0': '⁰',
-    '1': '¹',
-    '2': '²',
-    '3': '³',
-    '4': '⁴',
-    '5': '⁵',
-    '6': '⁶',
-    '7': '⁷',
-    '8': '⁸',
-    '9': '⁹',
-  };
-
-  return num
-    .toString()
-    .split('')
-    .map((digit) => superscriptMap[digit] || digit)
-    .join('');
-}
-
-/**
- * Format highlight text with verse numbers
- */
-function formatHighlightWithVerseNumbers(highlight: Highlight): string {
-  const { start_verse, end_verse, selected_text } = highlight;
-
-  if (!selected_text) {
-    if (start_verse === end_verse) {
-      return `Verse ${start_verse}`;
-    }
-    return `Verses ${start_verse}-${end_verse}`;
+function formatReference(
+  bookName: string,
+  chapter: number,
+  startVerse: number,
+  endVerse: number
+): string {
+  if (startVerse === endVerse) {
+    return `${bookName} ${chapter}:${startVerse}`;
   }
-
-  if (start_verse === end_verse) {
-    return `${toSuperscript(start_verse)}\u2009${selected_text}`;
-  }
-
-  return `${toSuperscript(start_verse)}-${toSuperscript(end_verse)}\u2009${selected_text}`;
+  return `${bookName} ${chapter}:${startVerse}-${endVerse}`;
 }
 
 export default function ChapterHighlightsScreen() {
@@ -65,14 +31,21 @@ export default function ChapterHighlightsScreen() {
     chapterNumber: string;
     bookName: string;
   }>();
+
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-
   const parsedBookId = parseInt(bookId || '0', 10);
   const parsedChapterNumber = parseInt(chapterNumber || '0', 10);
 
-  const { chapterHighlights, isFetchingHighlights } = useHighlights({
+  const [selectedHighlight, setSelectedHighlight] = useState<Highlight | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  // Toast State
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const { chapterHighlights, isFetchingHighlights, deleteHighlight } = useHighlights({
     bookId: parsedBookId,
     chapterNumber: parsedChapterNumber,
   });
@@ -84,10 +57,20 @@ export default function ChapterHighlightsScreen() {
 
   const handleHighlightPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Navigate to the chapter reading view
-    // We can go back to highlights list then to bible, OR replace?
-    // Usually "push" to bible is fine.
     router.push(`/bible/${parsedBookId}/${parsedChapterNumber}`);
+  };
+
+  const handleMenuPress = async (highlight: Highlight) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedHighlight(highlight);
+    setIsModalVisible(true);
+  };
+
+  const handleActionComplete = (action: string) => {
+    if (action === 'copy') {
+      setToastMessage('Copied to clipboard');
+      setIsToastVisible(true);
+    }
   };
 
   if (isFetchingHighlights && chapterHighlights.length === 0) {
@@ -107,9 +90,12 @@ export default function ChapterHighlightsScreen() {
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
+
           <Text style={styles.headerTitle}>Loading...</Text>
+
           <View style={styles.headerSpacer} />
         </View>
+
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.gold} testID="activity-indicator" />
         </View>
@@ -118,7 +104,7 @@ export default function ChapterHighlightsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} collapsable={false}>
       <View
         style={[styles.header, { paddingTop: insets.top + spacing.md, paddingBottom: spacing.md }]}
       >
@@ -130,9 +116,11 @@ export default function ChapterHighlightsScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
+
         <Text style={styles.headerTitle}>
           {bookName} {chapterNumber}
         </Text>
+
         <View style={styles.headerSpacer} />
       </View>
 
@@ -152,21 +140,52 @@ export default function ChapterHighlightsScreen() {
             {chapterHighlights.map((highlight) => (
               <Pressable
                 key={highlight.highlight_id}
-                style={({ pressed }) => [
-                  styles.highlightItem,
-                  pressed && styles.highlightItemPressed,
-                ]}
+                style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
                 onPress={handleHighlightPress}
               >
-                <Text style={styles.highlightText} numberOfLines={3} ellipsizeMode="tail">
-                  {formatHighlightWithVerseNumbers(highlight)}
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>
+                    {formatReference(
+                      bookName || '',
+                      parsedChapterNumber,
+                      highlight.start_verse,
+                      highlight.end_verse
+                    )}
+                  </Text>
+                </View>
+
+                <Text style={styles.cardText} numberOfLines={5} ellipsizeMode="tail">
+                  {String(highlight.selected_text || 'No content')}
                 </Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+
+                <View style={styles.cardFooter}>
+                  <Pressable
+                    onPress={() => handleMenuPress(highlight)}
+                    hitSlop={12}
+                    style={({ pressed }) => [styles.menuButton, pressed && { opacity: 0.7 }]}
+                  >
+                    <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
               </Pressable>
             ))}
           </View>
         )}
       </ScrollView>
+
+      <HighlightOptionsModal
+        visible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+        highlight={selectedHighlight}
+        deleteHighlight={deleteHighlight}
+        onActionComplete={handleActionComplete}
+      />
+
+      <Toast
+        visible={isToastVisible}
+        message={toastMessage}
+        onHide={() => setIsToastVisible(false)}
+      />
     </View>
   );
 }
@@ -212,29 +231,45 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       padding: spacing.lg,
     },
     highlightsList: {
-      gap: spacing.sm,
+      gap: spacing.md,
     },
-    highlightItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
-      minHeight: 60,
-      backgroundColor: colors.background,
-      borderRadius: 8,
-    },
-    highlightItemPressed: {
+    card: {
       backgroundColor: colors.backgroundElevated,
+      borderRadius: 12,
+      padding: spacing.md,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
     },
-    highlightText: {
-      flex: 1,
+    cardPressed: {
+      opacity: 0.95,
+      transform: [{ scale: 0.995 }],
+    },
+    cardHeader: {
+      marginBottom: spacing.sm,
+    },
+    cardTitle: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.bold,
+      color: colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    cardText: {
       fontSize: fontSizes.body,
       color: colors.textPrimary,
       lineHeight: 24,
-      marginRight: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    cardFooter: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      marginTop: spacing.xs,
+    },
+    menuButton: {
+      padding: spacing.xs,
     },
     emptyState: {
       alignItems: 'center',

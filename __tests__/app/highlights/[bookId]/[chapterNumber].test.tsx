@@ -131,8 +131,12 @@ describe('ChapterHighlightsScreen', () => {
     });
     renderWithProviders(<ChapterHighlightsScreen />);
     await waitFor(() => {
-      expect(screen.getByText('¹ In the beginning God created the heavens')).toBeTruthy();
-      expect(screen.getByText('³-⁵ And God said, Let there be light')).toBeTruthy();
+      // Check for titles
+      expect(screen.getByText('Genesis 1:1')).toBeTruthy();
+      expect(screen.getByText('Genesis 1:3-5')).toBeTruthy();
+      // Check for content
+      expect(screen.getByText('In the beginning God created the heavens')).toBeTruthy();
+      expect(screen.getByText('And God said, Let there be light')).toBeTruthy();
     });
   });
 
@@ -144,7 +148,7 @@ describe('ChapterHighlightsScreen', () => {
     });
     renderWithProviders(<ChapterHighlightsScreen />);
     await waitFor(() => {
-      const highlightItem = screen.getByText('¹ In the beginning God created the heavens');
+      const highlightItem = screen.getByText('In the beginning God created the heavens');
       fireEvent.press(highlightItem);
     });
     expect(router.push).toHaveBeenCalledWith('/bible/1/1');

@@ -759,6 +759,8 @@ export function ChapterReader({
         onCancel={handleCancelDelete}
         onConfirm={handleConfirmDelete}
         isDeleting={isDeletingNote}
+        title="Delete Note"
+        message="Are you sure you want to delete this note?"
       />
 
       {/* Highlight Selection Sheet - Create new highlight */}

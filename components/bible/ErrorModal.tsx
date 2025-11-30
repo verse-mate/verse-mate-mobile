@@ -29,7 +29,14 @@ export function ErrorModal({
   const styles = createStyles(colors);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      presentationStyle="overFullScreen"
+      hardwareAccelerated
+    >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.dialog} onPress={(e) => e?.stopPropagation?.()}>
           {/* Icon */}

@@ -1,29 +1,3 @@
-/**
- * Highlights List Screen
- *
- * Displays user's highlights grouped by book and chapter in collapsible sections.
- * Each group shows book name, chapter number, and highlight count.
- *
- * Features:
- * - Collapsible chapter groups (collapsed by default)
- * - Group header format: "{Book Name} {Chapter Number} ({count} highlights)"
- * - Chevron icon rotates on expand/collapse
- * - Individual highlight items within expanded groups
- * - Tap highlight to navigate to chapter
- * - Pull-to-refresh functionality
- * - Empty state for no highlights
- * - Authentication guard
- * - Loading state handling
- *
- * @see Task Group 6: My Highlights List Screen
- * @see Spec: .agent-os/specs/2025-11-06-highlight-feature/spec.md (lines 87-99)
- * @see Reference: app/notes.tsx
- *
- * @example
- * Navigation: router.push('/highlights')
- * Accessible from hamburger menu
- */
-
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -43,57 +17,6 @@ import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bib
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
-
-/**
- * Convert a number to Unicode superscript characters
- * Maps each digit to its Unicode superscript equivalent
- */
-function toSuperscript(num: number): string {
-  const superscriptMap: Record<string, string> = {
-    '0': '⁰',
-    '1': '¹',
-    '2': '²',
-    '3': '³',
-    '4': '⁴',
-    '5': '⁵',
-    '6': '⁶',
-    '7': '⁷',
-    '8': '⁸',
-    '9': '⁹',
-  };
-
-  return num
-    .toString()
-    .split('')
-    .map((digit) => superscriptMap[digit] || digit)
-    .join('');
-}
-
-/**
- * Format highlight text with verse numbers
- * For single verse: "¹ verse text"
- * For multiple verses: "¹ verse text \u2009² verse text"
- */
-function formatHighlightWithVerseNumbers(highlight: Highlight): string {
-  const { start_verse, end_verse, selected_text } = highlight;
-
-  // If no selected_text, just show verse range
-  if (!selected_text) {
-    if (start_verse === end_verse) {
-      return `Verse ${start_verse}`;
-    }
-    return `Verses ${start_verse}-${end_verse}`;
-  }
-
-  // Single verse - add superscript number at start
-  if (start_verse === end_verse) {
-    return `${toSuperscript(start_verse)}\u2009${selected_text}`;
-  }
-
-  // Multiple verses - this is simplified since we don't have individual verse texts
-  // We'll show the range and the selected text
-  return `${toSuperscript(start_verse)}-${toSuperscript(end_verse)}\u2009${selected_text}`;
-}
 
 /**
  * Bible book names mapping
@@ -260,15 +183,6 @@ export default function HighlightsScreen() {
         bookName: group.bookName,
       },
     });
-  };
-
-  /**
-   * Handle highlight item press (from modal)
-   * Navigates to chapter with highlight visible
-   */
-  const handleHighlightPress = async (bookId: number, chapterNumber: number) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/bible/${bookId}/${chapterNumber}`);
   };
 
   /**
