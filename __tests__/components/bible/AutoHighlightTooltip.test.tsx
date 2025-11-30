@@ -98,7 +98,12 @@ describe('AutoHighlightTooltip', () => {
     const saveButton = screen.getByText('Save as My Highlight');
     fireEvent.press(saveButton);
 
-    expect(mockOnSave).toHaveBeenCalledWith('yellow', { start: 16, end: 16 });
+    // Updated expectation: includes the extracted verse text
+    expect(mockOnSave).toHaveBeenCalledWith(
+      'yellow',
+      { start: 16, end: 16 },
+      'For God so loved the world...'
+    );
   });
 
   it('shows login prompt when not logged in', () => {

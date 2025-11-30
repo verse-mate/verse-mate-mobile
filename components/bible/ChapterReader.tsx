@@ -461,7 +461,8 @@ export function ChapterReader({
    */
   const handleSaveAutoHighlightAsUserHighlight = async (
     color: HighlightColor,
-    verseRange: { start: number; end: number }
+    verseRange: { start: number; end: number },
+    selectedText?: string
   ) => {
     try {
       // Create new user highlight with the auto-highlight's verse range and color
@@ -471,6 +472,7 @@ export function ChapterReader({
         startVerse: verseRange.start,
         endVerse: verseRange.end,
         color,
+        selectedText, // Pass the extracted text
       });
       Alert.alert('Success', 'Highlight saved to your collection!');
     } catch (error) {
