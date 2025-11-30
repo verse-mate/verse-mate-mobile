@@ -21,7 +21,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Keyboard,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Layout,
@@ -263,6 +272,7 @@ function BibleNavigationModalComponent({
   // Handle book selection
   const handleBookSelect = useCallback((book: BookMetadata) => {
     setSelectedBookId((prevId) => (prevId === book.id ? null : book.id));
+    Keyboard.dismiss();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
@@ -546,7 +556,11 @@ function BibleNavigationModalComponent({
       : filteredBooks;
 
     return (
-      <ScrollView style={styles.bookList} contentContainerStyle={styles.bookListContent}>
+      <ScrollView
+        style={styles.bookList}
+        contentContainerStyle={styles.bookListContent}
+        keyboardShouldPersistTaps="always"
+      >
         {booksToShow.map((book, index) => {
           const isRecent = index < recentBooksFiltered.length && hasRecentBooks;
           const isSelected = book.id === selectedBookId;
@@ -582,7 +596,11 @@ function BibleNavigationModalComponent({
     }
 
     return (
-      <ScrollView style={styles.bookList} contentContainerStyle={styles.bookListContent}>
+      <ScrollView
+        style={styles.bookList}
+        contentContainerStyle={styles.bookListContent}
+        keyboardShouldPersistTaps="always"
+      >
         {filteredTopics.map((topic: TopicListItem) => (
           <Pressable
             key={topic.topic_id}

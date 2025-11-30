@@ -126,9 +126,6 @@ export function NotesModal({
       return;
     }
 
-    // Dismiss keyboard after validation
-    Keyboard.dismiss();
-
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
@@ -138,6 +135,17 @@ export function NotesModal({
     } catch (error) {
       console.error('Failed to add note:', error);
     }
+  };
+
+  /**
+   * Wrapper to dismiss keyboard then execute add
+   */
+  const handleAddNoteWithKeyboardDismiss = () => {
+    Keyboard.dismiss();
+    // Use setImmediate to let keyboard dismissal complete first
+    setImmediate(() => {
+      handleAddNote();
+    });
   };
 
   /**
@@ -197,7 +205,8 @@ export function NotesModal({
                   />
 
                   <TouchableOpacity
-                    onPress={handleAddNote}
+                    onPressIn={() => Keyboard.dismiss()}
+                    onPress={handleAddNoteWithKeyboardDismiss}
                     disabled={isAddButtonDisabled}
                     style={[styles.addButton, isAddButtonDisabled && styles.addButtonDisabled]}
                     activeOpacity={0.7}
