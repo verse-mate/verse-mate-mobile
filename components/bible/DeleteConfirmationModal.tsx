@@ -32,8 +32,6 @@ export function DeleteConfirmationModal({
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
-  console.log('[DeleteConfirmationModal] Rendering with visible:', visible);
-
   const handleCancel = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onCancel();
