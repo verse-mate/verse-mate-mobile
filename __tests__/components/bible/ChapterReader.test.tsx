@@ -138,7 +138,7 @@ describe('ChapterReader', () => {
   });
 
   /**
-   * Test 5: Renders explanation content when provided
+   * Test 5: Renders explanation content in markdown format
    */
   it('renders explanation content in markdown format', () => {
     render(
@@ -148,8 +148,10 @@ describe('ChapterReader', () => {
       }
     );
 
-    // Markdown should render the heading and content
-    expect(screen.getByText(/Summary/)).toBeTruthy();
+    // Header "Summary" should be stripped out by the renderer
+    expect(screen.queryByText(/^Summary$/)).toBeNull();
+
+    // Content should be present
     expect(screen.getByText(/creation of the world/)).toBeTruthy();
   });
 
