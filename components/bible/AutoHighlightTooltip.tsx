@@ -45,6 +45,8 @@ interface AutoHighlightTooltipProps {
     verseRange: { start: number; end: number },
     selectedText?: string
   ) => void;
+  /** Callback when save is successful */
+  onSaveSuccess?: () => void;
   /** Whether user is logged in */
   isLoggedIn: boolean;
 }
@@ -59,6 +61,7 @@ export function AutoHighlightTooltip({
   visible,
   onClose,
   onSaveAsUserHighlight,
+  onSaveSuccess,
   isLoggedIn,
 }: AutoHighlightTooltipProps) {
   const { colors } = useTheme();
@@ -252,6 +255,7 @@ export function AutoHighlightTooltip({
       },
       verseText || undefined
     );
+    onSaveSuccess?.();
     handleDismiss();
   };
 
@@ -305,7 +309,7 @@ export function AutoHighlightTooltip({
 
                   <View style={styles.infoRow}>
                     <Text style={styles.label}>Type:</Text>
-                    <Text style={styles.value}>AI-generated highlight</Text>
+                    <Text style={styles.value}>Auto-generated highlight</Text>
                   </View>
 
                   <View style={styles.infoRow}>

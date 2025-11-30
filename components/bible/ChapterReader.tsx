@@ -34,7 +34,6 @@ import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
-import { SuccessModal } from '@/components/bible/SuccessModal';
 import {
   fontSizes,
   fontWeights,
@@ -46,6 +45,7 @@ import {
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { HIGHLIGHT_COLORS } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
@@ -223,6 +223,7 @@ export function ChapterReader({
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
   const { deleteNote, isDeletingNote } = useNotes();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   // Fetch highlights for this chapter
   const { chapterHighlights, addHighlight, updateHighlightColor, deleteHighlight } = useHighlights({
@@ -253,7 +254,6 @@ export function ChapterReader({
   // Auto-highlight modal state
   const [autoHighlightTooltipVisible, setAutoHighlightTooltipVisible] = useState(false);
   const [selectedAutoHighlight, setSelectedAutoHighlight] = useState<AutoHighlight | null>(null);
-  const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
 
   /**
@@ -478,7 +478,7 @@ export function ChapterReader({
         color,
         selectedText, // Pass the extracted text
       });
-      setSuccessModalVisible(true);
+      showToast('Highlight saved to your collection!');
     } catch (error) {
       console.error('Failed to save auto-highlight as user highlight:', error);
       setErrorModalVisible(true);
@@ -657,8 +657,7 @@ export function ChapterReader({
                                 {verseIndex > 0 ? ' \u2009' : ''}
                                 {/* Regular space + thin space before verse number */}
                                 {toSuperscript(verse.verseNumber)}
-                                {'\u2009'}
-                                {/* Thin space after verse number */}
+                                {'\u2009'} {/* Thin space after verse number */}
                               </Text>
                               <HighlightedText
                                 text={verse.text}
@@ -797,13 +796,6 @@ export function ChapterReader({
         }}
         onSaveAsUserHighlight={handleSaveAutoHighlightAsUserHighlight}
         isLoggedIn={!!user}
-      />
-
-      {/* Success Modal */}
-      <SuccessModal
-        visible={successModalVisible}
-        message="Highlight saved to your collection!"
-        onClose={() => setSuccessModalVisible(false)}
       />
 
       {/* Error Modal */}

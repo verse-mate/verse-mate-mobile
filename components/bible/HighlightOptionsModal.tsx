@@ -440,14 +440,19 @@ export function HighlightOptionsModal({
           <Animated.View
             style={[styles.sheetContainer, { transform: [{ translateY: slideAnim }] }]}
           >
-            {/* Handle for bottom sheet */}
-            <View style={styles.handleContainer} {...panResponder.panHandlers}>
-              <View style={styles.handle} />
+            {/* Header Area (Handle + Title) - Swipeable */}
+            <View {...panResponder.panHandlers}>
+              <View style={styles.handleContainer}>
+                <View style={styles.handle} />
+              </View>
+              <Text style={styles.title}>Highlight Options</Text>
             </View>
 
-            <ScrollView style={styles.optionsScrollView}>
-              <Text style={styles.title}>Highlight Options</Text>
-
+            <ScrollView
+              style={styles.optionsScrollView}
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.optionsContainer}>
                 <OptionItem
                   icon="copy-outline"
