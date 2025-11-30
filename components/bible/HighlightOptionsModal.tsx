@@ -1,9 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { type EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -21,8 +30,12 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
   StyleSheet.create({
     overlay: {
       flex: 1,
+      // This controls the main positioning of content within the modal
+      // It will either justify-end for the menu, or center for dialogs
       justifyContent: 'flex-end',
+      alignItems: 'center', // For centering dialogs horizontally
     },
+    // Backdrop styles
     backdrop: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -30,6 +43,8 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
     backdropPressable: {
       ...StyleSheet.absoluteFillObject,
     },
+
+    // Sheet Container (for Options Menu)
     sheetContainer: {
       backgroundColor: colors.background,
       borderTopLeftRadius: 24,
@@ -43,6 +58,18 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       shadowRadius: 10,
       elevation: 10,
       maxHeight: Dimensions.get('window').height * 0.9,
+      width: '100%', // Ensure it spans full width
+    },
+    handleContainer: {
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.textTertiary,
+      opacity: 0.3,
     },
     title: {
       fontSize: fontSizes.heading3,
@@ -77,9 +104,34 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       fontWeight: fontWeights.bold,
       color: colors.textPrimary,
     },
-    dialogOverlay: {
+    optionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.sm,
+      borderRadius: 12,
+    },
+    iconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: 'transparent', // Default transparent, set by logic
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    optionLabel: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+      color: colors.textPrimary,
+    },
+
+    // Dialog Overlay (for Delete/Success/Error dialogs - centered)
+    dialogCenterOverlay: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0.5)', // Will be controlled by animated opacity
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 20,
@@ -179,19 +231,117 @@ export function HighlightOptionsModal({
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createThemedStyles(colors, insets), [colors, insets]);
 
+  // Internal state for modal visibility to control animations
+  const [internalVisible, setInternalVisible] = useState(false);
+
+  // Dialog specific states
   const [isConfirmDeleteVisible, setIsConfirmDeleteVisible] = useState(false);
   const [isSuccessVisible, setIsSuccessVisible] = useState(false);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
+  // Animated values
+  const screenHeight = Dimensions.get('window').height;
+  const slideAnim = useRef(new Animated.Value(screenHeight)).current; // Start off-screen
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  // Helper to animate open
+  const animateOpen = useCallback(() => {
+    setInternalVisible(true); // Mount content for animation
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+      }),
+    ]).start();
+  }, [backdropOpacity, slideAnim]);
+
+  // Helper to animate close
+  const animateClose = useCallback(
+    (callback?: () => void) => {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: screenHeight, // Slide off-screen
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 90,
+          overshootClamping: true,
+          restDisplacementThreshold: 40,
+          restSpeedThreshold: 40,
+        }),
+      ]).start();
+
+      // Force cleanup after animation to prevent blocking UI if spring "tail" persists
+      setTimeout(() => {
+        setInternalVisible(false); // Unmount content
+        // Reset all internal states when closing, so it's fresh on next open
+        setIsConfirmDeleteVisible(false);
+        setIsSuccessVisible(false);
+        setIsErrorVisible(false);
+        setStatusMessage('');
+        if (callback) callback();
+      }, 300); // Match fadeOut duration
+    },
+    [backdropOpacity, slideAnim, screenHeight]
+  );
+
+  // Sync visible prop with internal state and trigger animations
   useEffect(() => {
-    if (!visible) {
+    if (visible && !internalVisible) {
+      // Reset all internal states when opening to ensure fresh state
       setIsConfirmDeleteVisible(false);
       setIsSuccessVisible(false);
       setIsErrorVisible(false);
       setStatusMessage('');
+      animateOpen();
+    } else if (!visible && internalVisible) {
+      animateClose(onClose);
     }
-  }, [visible]);
+  }, [visible, internalVisible, animateOpen, animateClose, onClose]);
+
+  // Pan Responder for swipe-to-dismiss on the bottom sheet
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          // Only allow downward drag
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 100) {
+          // If dragged down enough, dismiss
+          animateClose(onClose);
+        } else {
+          // Snap back to open position
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 90,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const handleDismiss = () => {
+    animateClose(onClose);
+  };
 
   const handleAction = async (action: string) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -207,14 +357,14 @@ export function HighlightOptionsModal({
         if (highlight.selected_text) {
           await Clipboard.setStringAsync(String(highlight.selected_text));
           onActionComplete?.('copy');
-          onClose(); // Close instantly
+          handleDismiss(); // Dismiss entire modal after copy
         } else {
           setStatusMessage('No text to copy for this highlight.');
           setIsErrorVisible(true);
         }
         break;
       case 'delete':
-        setIsConfirmDeleteVisible(true);
+        setIsConfirmDeleteVisible(true); // Show confirmation dialog (this is central, not part of sheet)
         break;
       case 'share':
         setStatusMessage('"Share" feature is coming soon!');
@@ -239,11 +389,10 @@ export function HighlightOptionsModal({
 
     try {
       await deleteHighlight(highlight.highlight_id);
-      // DO NOT reset isConfirmDeleteVisible here.
-      // Closing the modal will unmount it, and the next mount will be fresh.
-      onClose();
+      // After successful delete, close the entire modal
+      handleDismiss();
     } catch (error) {
-      // If error, we DO want to switch from Confirm to Error
+      // If error, switch from Confirm to Error dialog
       setIsConfirmDeleteVisible(false);
       setStatusMessage('Failed to delete highlight.');
       setIsErrorVisible(true);
@@ -252,46 +401,50 @@ export function HighlightOptionsModal({
   };
 
   const handleStatusModalClose = () => {
-    // DO NOT reset state here. Just close.
-    // This keeps the dialog visible while the parent modal fades out.
-    onClose();
+    // Close the entire modal after status dialog is acknowledged
+    handleDismiss();
   };
 
   const isDialogActive = isConfirmDeleteVisible || isSuccessVisible || isErrorVisible;
 
-  if (!visible) return null;
+  // Only render if internalVisible is true (after enter animation, before exit animation)
+  if (!internalVisible) return null;
 
   return (
     <Modal
-      visible={visible}
+      visible={true} // Modal is always visible internally when internalVisible is true
       transparent
-      animationType="fade"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={handleDismiss} // Use internal dismiss handler
       statusBarTranslucent
       presentationStyle="overFullScreen"
     >
-      <View style={styles.overlay} pointerEvents="box-none">
+      {/* Main Overlay Container */}
+      <View
+        style={[styles.overlay, isDialogActive && { justifyContent: 'center' }]}
+        pointerEvents="box-none"
+      >
+        {/* Backdrop (animated opacity) */}
         <Animated.View
-          style={styles.backdrop}
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
+          style={[styles.backdrop, { opacity: backdropOpacity }]}
+          pointerEvents={isDialogActive ? 'auto' : 'none'} // Backdrop should only handle presses if dialog is active
         >
-          <Pressable style={styles.backdropPressable} onPress={onClose} />
+          {/* Pressable on backdrop to dismiss - only active when menu is shown */}
+          {!isDialogActive && (
+            <Pressable style={styles.backdropPressable} onPress={handleDismiss} />
+          )}
         </Animated.View>
 
+        {/* Bottom Sheet for Options Menu (swipeable) */}
         {!isDialogActive && (
-          <Animated.View style={styles.sheetContainer} entering={FadeIn.duration(300)}>
-            <View style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: colors.textTertiary,
-                  opacity: 0.3,
-                }}
-              />
+          <Animated.View
+            style={[styles.sheetContainer, { transform: [{ translateY: slideAnim }] }]}
+          >
+            {/* Handle for bottom sheet */}
+            <View style={styles.handleContainer} {...panResponder.panHandlers}>
+              <View style={styles.handle} />
             </View>
+
             <ScrollView style={styles.optionsScrollView}>
               <Text style={styles.title}>Highlight Options</Text>
 
@@ -324,18 +477,18 @@ export function HighlightOptionsModal({
                 />
               </View>
 
-              <Pressable style={styles.cancelButton} onPress={onClose}>
+              <Pressable style={styles.cancelButton} onPress={handleDismiss}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
             </ScrollView>
           </Animated.View>
         )}
 
+        {/* Centered Dialogs (Delete Confirmation, Success, Error) */}
         {isDialogActive && (
           <Animated.View
-            style={styles.dialogOverlay}
-            entering={FadeIn.duration(300)}
-            exiting={FadeOut.duration(300)}
+            style={[styles.dialogCenterOverlay, { opacity: backdropOpacity }]} // Fade with backdrop
+            pointerEvents="auto" // Ensure dialog is interactive
           >
             <Pressable style={styles.dialog} onPress={(e) => e?.stopPropagation?.()}>
               {isConfirmDeleteVisible && (
