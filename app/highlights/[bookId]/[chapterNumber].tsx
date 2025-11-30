@@ -236,6 +236,8 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     card: {
       backgroundColor: colors.backgroundElevated,
       borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
       padding: spacing.md,
       shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: 2 },

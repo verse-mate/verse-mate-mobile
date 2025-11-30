@@ -136,19 +136,6 @@ function groupHighlightsByChapter(highlights: Highlight[]): ChapterGroup[] {
 
 /**
  * Highlights List Screen Component
- *
- * Layout:
- * - SafeAreaView for proper screen padding
- * - Header with "Highlights" title and back button
- * - ScrollView list of collapsible chapter groups
- * - Empty state when no highlights
- * - Login prompt when not authenticated
- * - Loading indicator during fetch
- *
- * Chapter Group Format:
- * - Header: "{Book Name} {Chapter Number} ({count} highlights)" with chevron
- * - Expanded: Shows individual highlight items
- * - Collapsed: Only shows header
  */
 export default function HighlightsScreen() {
   const { colors } = useTheme();
@@ -402,11 +389,18 @@ export default function HighlightsScreen() {
               onPress={() => handleChapterPress(group)}
               testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
             >
-              <Text style={styles.groupTitle}>
-                {group.bookName} {group.chapterNumber} ({group.highlights.length}{' '}
-                {group.highlights.length === 1 ? 'highlight' : 'highlights'})
-              </Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              <View style={styles.groupInfo}>
+                <Text style={styles.groupTitle}>
+                  {group.bookName} {group.chapterNumber}
+                </Text>
+                <Text style={styles.groupSubtitle}>
+                  {group.highlights.length}{' '}
+                  {group.highlights.length === 1 ? 'highlight' : 'highlights'}
+                </Text>
+              </View>
+              <View style={styles.groupIconContainer}>
+                <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+              </View>
             </Pressable>
           </View>
         ))}
@@ -455,7 +449,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       color: colors.textPrimary,
     },
     headerSpacer: {
-      width: 32, // Same width as back button for centering
+      width: 32,
     },
     centerContent: {
       flex: 1,
@@ -543,27 +537,53 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
+    // Updated Card Styles
     chapterGroup: {
-      marginBottom: spacing.xs,
+      marginBottom: spacing.md,
+      marginHorizontal: spacing.lg,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      overflow: 'hidden',
     },
     groupHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      backgroundColor: colors.backgroundElevated,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
+      padding: spacing.lg,
     },
     groupHeaderPressed: {
-      backgroundColor: colors.divider,
+      backgroundColor: `${colors.divider}20`, // Subtle press effect
+    },
+    groupInfo: {
+      flex: 1,
     },
     groupTitle: {
-      flex: 1,
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.semibold,
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.bold,
       color: colors.textPrimary,
+      marginBottom: 2,
+    },
+    groupSubtitle: {
+      fontSize: fontSizes.caption,
+      color: colors.textSecondary,
+      fontWeight: fontWeights.medium,
+    },
+    groupIconContainer: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     groupContent: {
       backgroundColor: colors.background,
