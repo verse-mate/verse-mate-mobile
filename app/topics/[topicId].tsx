@@ -297,7 +297,7 @@ export default function TopicDetailScreen() {
 
       // Calculate scroll velocity (pixels per second)
       const timeDelta = currentTime - lastScrollTime.current;
-      const scrollDelta = Math.abs(currentScrollY - lastScrollY.current);
+      const scrollDelta = currentScrollY - lastScrollY.current; // Signed value to track direction
       const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
 
       // Check if at bottom
