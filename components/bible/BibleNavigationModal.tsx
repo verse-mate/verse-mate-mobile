@@ -548,12 +548,14 @@ function BibleNavigationModalComponent({
 
     // Recent books are shown across all testaments (not filtered by current tab)
     const hasRecentBooks = recentBooksFiltered.length > 0 && !filterText.trim();
-    const booksToShow = hasRecentBooks
-      ? [
-          ...recentBooksFiltered,
-          ...filteredBooks.filter((book) => !recentBooksFiltered.some((r) => r.id === book.id)),
-        ]
-      : filteredBooks;
+    const booksToShow = (
+      hasRecentBooks
+        ? [
+            ...recentBooksFiltered,
+            ...filteredBooks.filter((book) => !recentBooksFiltered.some((r) => r.id === book.id)),
+          ]
+        : filteredBooks
+    ).filter((book) => book.id !== currentBookId); // Filter out current book to avoid duplication
 
     return (
       <ScrollView
@@ -561,6 +563,42 @@ function BibleNavigationModalComponent({
         contentContainerStyle={styles.bookListContent}
         keyboardShouldPersistTaps="always"
       >
+        {/* Current book/chapter display - Clickable to expand */}
+        {!filterText.trim() && allBooks.find((b) => b.id === currentBookId) && (
+          <Animated.View layout={Layout.duration(300)}>
+            <Pressable
+              onPress={() => {
+                const book = allBooks.find((b) => b.id === currentBookId);
+                if (book) handleBookSelect(book);
+              }}
+              style={styles.currentChapterDisplay}
+              accessibilityRole="button"
+              accessibilityLabel={`Current book: ${
+                allBooks.find((b) => b.id === currentBookId)?.name
+              }`}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Text style={styles.currentChapterText}>
+                  {allBooks.find((b) => b.id === currentBookId)?.name}
+                </Text>
+                {selectedBookId === currentBookId ? (
+                  <Ionicons name="chevron-down" size={20} color={colors.gold} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+                )}
+              </View>
+            </Pressable>
+            {/* Show chapter grid if this book is selected */}
+            {selectedBookId === currentBookId && renderChapterGrid()}
+          </Animated.View>
+        )}
+
         {booksToShow.map((book, index) => {
           const isRecent = index < recentBooksFiltered.length && hasRecentBooks;
           const isSelected = book.id === selectedBookId;
@@ -905,6 +943,19 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       fontSize: fontSizes.bodySmall,
       color: colors.textSecondary,
       lineHeight: fontSizes.bodySmall * lineHeights.body,
+    },
+    currentChapterDisplay: {
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      minHeight: 56,
+      backgroundColor: modalSpecs.backgroundColor,
+    },
+    currentChapterText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.gold,
     },
   });
 };
