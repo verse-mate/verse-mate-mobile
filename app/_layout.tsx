@@ -69,8 +69,8 @@ function RootLayoutInner() {
         await SystemUI.setBackgroundColorAsync(colors.background);
         // Update nav bar button style (light buttons on dark theme, dark on light)
         await NavigationBar.setButtonStyleAsync(mode === 'dark' ? 'light' : 'dark');
-        // Hide nav bar (edge-to-edge makes it transparent, this hides it)
-        await NavigationBar.setVisibilityAsync('hidden');
+        // Ensure nav bar is visible (reverting hidden state)
+        await NavigationBar.setVisibilityAsync('visible');
       } catch (error) {
         console.error('Failed to apply system UI settings:', error);
       }
