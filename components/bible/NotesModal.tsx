@@ -214,7 +214,6 @@ export function NotesModal({
                   />
 
                   <TouchableOpacity
-                    onPressIn={() => Keyboard.dismiss()}
                     onPress={handleAddNoteWithKeyboardDismiss}
                     disabled={isAddButtonDisabled}
                     style={[styles.addButton, isAddButtonDisabled && styles.addButtonDisabled]}

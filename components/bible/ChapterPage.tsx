@@ -12,11 +12,12 @@
  * - Renders ChapterReader when loaded
  * - Contains ScrollView for vertical scrolling
  * - Props update when window shifts (key stays stable)
+ * - Manages Notes Modals to prevent ScrollView interaction issues
  *
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -29,9 +30,14 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
+import { NoteEditModal } from '@/components/bible/NoteEditModal';
+import { NotesModal } from '@/components/bible/NotesModal';
+import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import { useNotes } from '@/hooks/bible/use-notes';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -39,6 +45,7 @@ import {
   useBibleSummary,
 } from '@/src/api/generated/hooks';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
+import type { Note } from '@/types/notes';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
@@ -236,6 +243,16 @@ export const ChapterPage = React.memo(function ChapterPage({
   // Track current scroll position manually for distance calc (JS side)
   const currentScrollYRef = useRef(0);
 
+  // Note Modals State
+  const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+
+  const { deleteNote, isDeletingNote } = useNotes();
+
   // Reset scroll state when book/chapter changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
   useEffect(() => {
@@ -402,6 +419,55 @@ export const ChapterPage = React.memo(function ChapterPage({
     onScroll(velocity, isAtBottom);
   };
 
+  /**
+   * Note Handlers
+   */
+  const handleOpenNotes = () => {
+    setNotesModalVisible(true);
+  };
+
+  const handleNotePress = (note: Note) => {
+    setSelectedNote(note);
+    setNotesModalVisible(false);
+    setTimeout(() => setViewModalVisible(true), 100);
+  };
+
+  const handleEditNote = (note: Note) => {
+    setSelectedNote(note);
+    setNotesModalVisible(false); // Close notes list
+    setViewModalVisible(false); // Close view modal if open
+    setTimeout(() => setEditModalVisible(true), 100);
+  };
+
+  // Called from NoteViewModal (which doesn't use OptionsModal internally yet)
+  const handleDeleteNote = (note: Note) => {
+    setNoteToDelete(note);
+    setDeleteConfirmVisible(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!noteToDelete) return;
+    try {
+      await deleteNote(noteToDelete.note_id);
+      setDeleteConfirmVisible(false);
+      setViewModalVisible(false);
+      setNoteToDelete(null);
+      setSelectedNote(null);
+    } catch (error) {
+      console.error('Failed to delete note:', error);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmVisible(false);
+    setNoteToDelete(null);
+  };
+
+  const handleNoteSave = () => {
+    setEditModalVisible(false);
+    setSelectedNote(null);
+  };
+
   return (
     <View style={styles.container} collapsable={false}>
       {activeView === 'explanations' ? (
@@ -463,6 +529,7 @@ export const ChapterPage = React.memo(function ChapterPage({
                 activeTab={activeTab}
                 explanationsOnly={false}
                 onContentLayout={handleContentLayout}
+                onOpenNotes={handleOpenNotes}
               />
             ) : (
               <SkeletonLoader />
@@ -471,6 +538,55 @@ export const ChapterPage = React.memo(function ChapterPage({
           <BottomLogo />
         </Animated.ScrollView>
       )}
+
+      {/* Note Modals - Rendered OUTSIDE ScrollView */}
+      <NotesModal
+        visible={notesModalVisible}
+        bookId={bookId}
+        chapterNumber={chapterNumber}
+        bookName={chapter?.title.split(' ')[0] || ''}
+        onClose={() => setNotesModalVisible(false)}
+        onNotePress={handleNotePress}
+        onEditNote={handleEditNote}
+      />
+
+      {selectedNote && (
+        <NoteViewModal
+          visible={viewModalVisible}
+          note={selectedNote}
+          bookName={chapter?.title.split(' ')[0] || ''}
+          chapterNumber={chapterNumber}
+          onClose={() => {
+            setViewModalVisible(false);
+            setSelectedNote(null);
+          }}
+          onEdit={handleEditNote}
+          onDelete={handleDeleteNote}
+        />
+      )}
+
+      {selectedNote && (
+        <NoteEditModal
+          visible={editModalVisible}
+          note={selectedNote}
+          bookName={chapter?.title.split(' ')[0] || ''}
+          chapterNumber={chapterNumber}
+          onClose={() => {
+            setEditModalVisible(false);
+            setSelectedNote(null);
+          }}
+          onSave={handleNoteSave}
+        />
+      )}
+
+      <DeleteConfirmationModal
+        visible={deleteConfirmVisible}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeletingNote}
+        title="Delete Note"
+        message="Are you sure you want to delete this note?"
+      />
     </View>
   );
 });
