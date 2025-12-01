@@ -212,8 +212,8 @@ describe('HighlightsScreen', () => {
         expect(router.push).toHaveBeenCalledWith({
           pathname: '/highlights/[bookId]/[chapterNumber]',
           params: {
-            bookId: 1,
-            chapterNumber: 1,
+            bookId: '1',
+            chapterNumber: '1',
             bookName: 'Genesis',
           },
         });

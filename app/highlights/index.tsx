@@ -165,8 +165,8 @@ export default function HighlightsScreen() {
     router.push({
       pathname: '/highlights/[bookId]/[chapterNumber]',
       params: {
-        bookId: group.bookId,
-        chapterNumber: group.chapterNumber,
+        bookId: String(group.bookId),
+        chapterNumber: String(group.chapterNumber),
         bookName: group.bookName,
       },
     });

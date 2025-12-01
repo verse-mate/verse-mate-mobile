@@ -84,7 +84,7 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
    * Handle scroll events
    * Shows/hides buttons based on scroll velocity and position
    *
-   * @param velocity - Scroll velocity in pixels/second (absolute value)
+   * @param velocity - Scroll velocity in pixels/second (signed value: negative = up, positive = down)
    * @param isAtBottom - Whether user is at/near bottom of content
    */
   const handleScroll = useCallback(
@@ -105,12 +105,9 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
         // Always restart the timeout on fast scroll up
         startIdleTimeout();
       } else if (velocity > 0 && visible) {
-        // Optional: Hide immediately on scroll DOWN?
-        // The user asked "it only triggers when going up".
-        // If currently visible, and we scroll down, should we hide?
-        // Standard behavior is often yes.
-        // Let's rely on the idle timer for now to be safe, or purely on the "trigger" logic.
-        // The request was about *triggering* the fade in.
+        // Hide immediately on scroll down to avoid lingering FABs
+        clearIdleTimeout();
+        setVisible(false);
       }
       // Note: Don't do anything on slow scroll - let existing timer continue
     },
