@@ -16,8 +16,27 @@ import { render, waitFor } from '@testing-library/react-native';
 import type React from 'react';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { getAbsolutePageIndex, getChapterFromPageIndex } from '@/utils/bible/chapter-index-utils';
 import { mockTestamentBooks } from '../mocks/data/bible-books.data';
+
+// Mock Safe Area Context
+jest.mock('react-native-safe-area-context', () => {
+  return {
+    SafeAreaProvider: jest.fn(({ children }) => children),
+    SafeAreaView: jest.fn(({ children }) => children),
+    useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+  };
+});
+
+// Mock AuthContext
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(() => ({
+    isAuthenticated: true,
+    user: { id: 'test-user' },
+    isLoading: false,
+  })),
+}));
 
 // Mock child components to avoid rendering complexity
 jest.mock('@/components/bible/SkeletonLoader', () => ({
@@ -105,13 +124,15 @@ describe('Cross-Book Navigation', () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
-            initialBookId={bookId}
-            initialChapter={chapterNumber}
-            activeTab="summary"
-            activeView="bible"
-            onPageChange={mockOnPageChange}
-          />
+          <ToastProvider>
+            <ChapterPagerView
+              initialBookId={bookId}
+              initialChapter={chapterNumber}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={mockOnPageChange}
+            />
+          </ToastProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );

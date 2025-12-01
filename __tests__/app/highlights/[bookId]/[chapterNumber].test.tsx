@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterHighlightsScreen from '@/app/highlights/[bookId]/[chapterNumber]';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useHighlights } from '@/hooks/bible/use-highlights';
 
 jest.mock('expo-router', () => ({
@@ -49,7 +50,9 @@ const queryClient = new QueryClient({
 function renderWithProviders(component: React.ReactElement) {
   return render(
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>{component}</ToastProvider>
+      </QueryClientProvider>
     </SafeAreaProvider>
   );
 }
@@ -151,7 +154,10 @@ describe('ChapterHighlightsScreen', () => {
       const highlightItem = screen.getByText('In the beginning God created the heavens');
       fireEvent.press(highlightItem);
     });
-    expect(router.push).toHaveBeenCalledWith('/bible/1/1');
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/bible/[bookId]/[chapterNumber]',
+      params: { bookId: 1, chapterNumber: 1, verse: 1 },
+    });
   });
 
   it('navigates back when back button is pressed', async () => {
