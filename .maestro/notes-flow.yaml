@@ -1,0 +1,100 @@
+---
+appId: org.versemate.mobile
+name: Notes Feature Flow (Unauthenticated)
+description: Tests notes feature navigation for unauthenticated users
+tags:
+  - notes
+  - user-flow
+
+---
+
+# Notes Feature E2E Test Flow (Unauthenticated)
+#
+# This flow tests notes feature navigation for unauthenticated users:
+# 1. Navigate to notes list via hamburger menu
+# 2. Verify login prompt is shown
+# 3. Navigate back to chapter screen
+#
+# Note: Full notes create/edit/delete testing requires authentication.
+
+# ============================================
+# Test Setup: Launch App
+# ============================================
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Notes via Hamburger Menu
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu to open
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Tap on Notes menu item
+- tapOn:
+    id: "menu-item-notes"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Login Prompt
+# ============================================
+
+# Verify we're on notes screen with login prompt
+- assertVisible:
+    text: "Please login to view your notes"
+
+# Verify login button is present
+- assertVisible:
+    id: "notes-login-button"
+
+# Verify back button is visible
+- assertVisible:
+    id: "notes-back-button"
+
+# ============================================
+# Test 3: Navigate Back to Chapter
+# ============================================
+
+# Go back to chapter
+- tapOn:
+    id: "notes-back-button"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================

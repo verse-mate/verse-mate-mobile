@@ -1,295 +1,118 @@
 ---
 appId: org.versemate.mobile
-name: Bookmark Chapters Flow
-description: Tests complete bookmark feature workflow including toggle, list, and navigation
+name: Bookmark Feature Flow (Unauthenticated)
+description: Tests bookmark feature navigation for unauthenticated users
 tags:
-  - critical
   - bookmark
   - user-flow
 
 ---
 
-# Bookmark Feature E2E Test Flow
+# Bookmark Feature E2E Test Flow (Unauthenticated)
 #
-# This flow tests all critical bookmark user journeys:
-# 1. Navigate to a chapter and add bookmark
-# 2. Verify bookmark toggle state changes
-# 3. Navigate to bookmarks list via menu
-# 4. Verify bookmarked chapter appears in list
-# 5. Tap bookmark to navigate back to chapter
-# 6. Remove bookmark and verify removal
+# This flow tests bookmark feature behavior for unauthenticated users:
+# 1. Tap bookmark toggle -> navigates to bookmarks screen (login prompt)
+# 2. Verify login prompt is shown
+# 3. Navigate via hamburger menu to bookmarks -> same login prompt
 #
-# Prerequisites:
-# - User must be authenticated (logged in)
-# - App must be built with bookmark feature implemented
+# Note: Full bookmark add/remove/list testing requires authentication.
+# When authentication can be automated, this test should be expanded.
 #
-# Note: This test uses UI element IDs (testID) for reliable interaction
+# For authenticated bookmark testing, use auth-flow.yaml to login first,
+# then run bookmark-authenticated-flow.yaml (future test).
 
 # ============================================
-# Test Setup: Launch App and Navigate to Chapter
+# Test Setup: Launch App
 # ============================================
 
 - launchApp:
     appId: org.versemate.mobile
 
-# Wait for app to load
-- waitForAnimationToEnd
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
 
-# Verify app loads to Genesis 1 (default)
-- assertVisible:
-    text: "Genesis 1"
-  timeout: 5000
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
 
 # ============================================
-# Test 1: Add Bookmark from Chapter Screen
+# Test 1: Bookmark Toggle (Unauthenticated)
 # ============================================
 
-# Verify bookmark toggle is visible (should be unbookmarked state)
+# Verify bookmark toggle is visible
 - assertVisible:
     id: "bookmark-toggle-1-1"
 
-# Verify bookmark toggle shows unbookmarked icon (bookmark-outline)
-- assertVisible:
-    id: "bookmark-toggle-1-1"
-
-# Tap bookmark toggle to add bookmark
+# Tap bookmark toggle (should navigate to bookmarks screen for unauthenticated users)
 - tapOn:
     id: "bookmark-toggle-1-1"
 
-# Wait for optimistic UI update
+# Wait for navigation
 - waitForAnimationToEnd
 
-# Verify bookmark is now in bookmarked state (icon should change to filled bookmark)
-# Note: Visual verification depends on icon change, which Maestro can detect via accessibility state
+# Verify we're on bookmarks screen with login prompt
 - assertVisible:
-    id: "bookmark-toggle-1-1"
+    text: "Please login to view your bookmarks"
+
+# Verify login button is present
+- assertVisible:
+    id: "bookmarks-login-button"
+
+# Go back to chapter
+- tapOn:
+    id: "bookmarks-back-button"
+
+# Wait for navigation back
+- waitForAnimationToEnd
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
 
 # ============================================
-# Test 2: Navigate to Bookmarks List via Menu
+# Test 2: Hamburger Menu -> Bookmarks (Unauthenticated)
 # ============================================
 
 # Open hamburger menu
 - tapOn:
     id: "hamburger-menu-button"
-  optional: true
 
 # Wait for menu to open
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
 
 # Verify bookmarks menu item is visible
 - assertVisible:
-    text: "Bookmarks"
+    id: "menu-item-bookmarks"
 
 # Tap on bookmarks menu item
 - tapOn:
-    text: "Bookmarks"
-
-# Wait for navigation to bookmarks screen
-- waitForAnimationToEnd
-
-# ============================================
-# Test 3: Verify Bookmark Appears in List
-# ============================================
-
-# Verify bookmarks screen header
-- assertVisible:
-    text: "Bookmarks"
-
-# Verify Genesis 1 bookmark appears in list
-- assertVisible:
-    text: "Genesis 1"
-
-# Verify bookmark item is pressable
-- assertVisible:
-    id: "bookmark-item-1-1"
-
-# ============================================
-# Test 4: Navigate Back to Chapter from List
-# ============================================
-
-# Tap on Genesis 1 bookmark item
-- tapOn:
-    id: "bookmark-item-1-1"
-
-# Wait for navigation to chapter
-- waitForAnimationToEnd
-
-# Verify we navigated back to Genesis 1
-- assertVisible:
-    text: "Genesis 1"
-
-# Verify bookmark toggle still shows bookmarked state
-- assertVisible:
-    id: "bookmark-toggle-1-1"
-
-# ============================================
-# Test 5: Remove Bookmark from Chapter
-# ============================================
-
-# Tap bookmark toggle to remove bookmark
-- tapOn:
-    id: "bookmark-toggle-1-1"
-
-# Wait for optimistic UI update
-- waitForAnimationToEnd
-
-# Bookmark should now be in unbookmarked state
-- assertVisible:
-    id: "bookmark-toggle-1-1"
-
-# ============================================
-# Test 6: Verify Bookmark Removed from List
-# ============================================
-
-# Open hamburger menu again
-- tapOn:
-    id: "hamburger-menu-button"
-  optional: true
-
-# Wait for menu to open
-- waitForAnimationToEnd
-
-# Navigate to bookmarks
-- tapOn:
-    text: "Bookmarks"
+    id: "menu-item-bookmarks"
 
 # Wait for navigation
 - waitForAnimationToEnd
 
-# Genesis 1 should no longer appear in bookmarks list
-# OR empty state message should appear
+# Verify bookmarks screen with login prompt
 - assertVisible:
-    text: "No bookmarked chapters yet"
-  optional: true
+    text: "Please login to view your bookmarks"
 
-# If empty state not visible, verify Genesis 1 is not in list
-- assertNotVisible:
-    id: "bookmark-item-1-1"
-  timeout: 2000
-
-# ============================================
-# Test 7: Bookmark Another Chapter
-# ============================================
-
-# Navigate back to a chapter (e.g., John 3)
-# For this test, we'll use the Bible navigation to go to John 3
-
-# Go back to main screen first (close bookmarks)
-- back
-
-# Wait for navigation
-- waitForAnimationToEnd
-
-# Open Bible navigation modal
-- tapOn:
-    id: "bible-navigation-button"
-  optional: true
-
-# Wait for modal to open
-- waitForAnimationToEnd
-
-# Search for John
-- tapOn:
-    id: "bible-search-input"
-  optional: true
-
-- inputText: "John"
-
-# Wait for search results
-- waitForAnimationToEnd
-
-# Select John (book 43)
-- tapOn:
-    text: "John"
-
-# Wait for chapter selection
-- waitForAnimationToEnd
-
-# Select Chapter 3
-- tapOn:
-    text: "Chapter 3"
-  optional: true
-
-# Wait for chapter to load
-- waitForAnimationToEnd
-
-# Verify we're on John 3
+# Verify back button is visible
 - assertVisible:
-    text: "John 3"
-
-# Add bookmark for John 3
-- tapOn:
-    id: "bookmark-toggle-43-3"
-  optional: true
-
-# Wait for bookmark to be added
-- waitForAnimationToEnd
-
-# ============================================
-# Test 8: Verify Multiple Bookmarks in List
-# ============================================
-
-# Open hamburger menu
-- tapOn:
-    id: "hamburger-menu-button"
-  optional: true
-
-# Navigate to bookmarks
-- tapOn:
-    text: "Bookmarks"
-
-# Wait for bookmarks list to load
-- waitForAnimationToEnd
-
-# Verify John 3 bookmark appears
-- assertVisible:
-    text: "John 3"
-
-# Verify bookmark item is present
-- assertVisible:
-    id: "bookmark-item-43-3"
-  optional: true
-
-# ============================================
-# Test 9: Empty State Flow (Optional)
-# ============================================
-
-# Remove all bookmarks to test empty state
-- tapOn:
-    id: "bookmark-item-43-3"
-  optional: true
-
-# Wait for navigation to chapter
-- waitForAnimationToEnd
-
-# Remove bookmark
-- tapOn:
-    id: "bookmark-toggle-43-3"
-  optional: true
-
-# Wait for removal
-- waitForAnimationToEnd
-
-# Go back to bookmarks list
-- tapOn:
-    id: "hamburger-menu-button"
-  optional: true
-
-- tapOn:
-    text: "Bookmarks"
-
-# Wait for list
-- waitForAnimationToEnd
-
-# Verify empty state message
-- assertVisible:
-    text: "No bookmarked chapters yet"
-  timeout: 3000
-
-# Verify empty state includes helpful message
-- assertVisible:
-    text: "Tap the bookmark icon while reading"
-  optional: true
+    id: "bookmarks-back-button"
 
 # ============================================
 # Test Complete
