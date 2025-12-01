@@ -218,7 +218,6 @@ export function NoteEditModal({
                 </Pressable>
 
                 <TouchableOpacity
-                  onPressIn={() => Keyboard.dismiss()}
                   onPress={handleSaveWithKeyboardDismiss}
                   disabled={isSaveDisabled}
                   style={[
