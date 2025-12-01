@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "logout": "expo logout",
     "format": "biome format --write app components hooks constants utils types scripts __tests__",
     "lint": "biome check app components hooks constants utils types scripts __tests__ && eslint .",
     "lint:fix": "biome check --write app components hooks constants utils types scripts __tests__ && eslint --fix .",
