@@ -1,0 +1,168 @@
+---
+appId: org.versemate.mobile
+name: Bible View Switcher Flow
+description: Tests view switching between Bible and Explanations views
+tags:
+  - critical
+  - view-switcher
+  - reading-modes
+
+---
+
+# Bible View Switcher E2E Test Flow
+#
+# Tests the Bible vs Explanations view switching functionality
+#
+# Test Scenarios:
+# 1. Basic view switching (Bible -> Explanations -> Bible)
+# 2. Tab visibility in Explanations view
+# 3. Tab persistence across view switches
+# 4. Tab persistence across chapter changes
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Verify view icons are visible
+- assertVisible:
+    id: "bible-view-icon"
+
+- assertVisible:
+    id: "explanations-view-icon"
+
+# Scenario 1: Basic View Switching
+# First, ensure we're in Bible view (app may have persisted Explanations view)
+- tapOn:
+    id: "bible-view-icon"
+
+- waitForAnimationToEnd
+
+# Tabs should NOT be visible in Bible view
+- assertNotVisible:
+    id: "chapter-content-tabs"
+
+# Switch to Explanations view
+- tapOn:
+    id: "explanations-view-icon"
+
+# Wait for view to switch
+- waitForAnimationToEnd
+
+# Tabs SHOULD be visible in Explanations view
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# Verify default tab (Summary) is visible
+- assertVisible:
+    id: "tab-summary"
+
+# Verify other tabs are available
+- assertVisible:
+    id: "tab-byline"
+
+- assertVisible:
+    id: "tab-detailed"
+
+# Switch back to Bible view
+- tapOn:
+    id: "bible-view-icon"
+
+# Wait for view to switch
+- waitForAnimationToEnd
+
+# Tabs should be hidden again
+- assertNotVisible:
+    id: "chapter-content-tabs"
+
+# Scenario 2: Tab Persistence Across View Switches
+# Switch to Explanations view
+- tapOn:
+    id: "explanations-view-icon"
+
+# Wait for tabs to appear
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# Select Detailed tab
+- tapOn:
+    id: "tab-detailed"
+
+# Wait for tab switch
+- waitForAnimationToEnd
+
+# Switch back to Bible view
+- tapOn:
+    id: "bible-view-icon"
+
+# Wait for view switch
+- waitForAnimationToEnd
+
+# Tabs should be hidden
+- assertNotVisible:
+    id: "chapter-content-tabs"
+
+# Switch back to Explanations view
+- tapOn:
+    id: "explanations-view-icon"
+
+# Wait for tabs to reappear
+- waitForAnimationToEnd
+
+# Tabs should be visible
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# Detailed tab should still be selected (tab persistence)
+- assertVisible:
+    id: "tab-detailed"
+
+# Scenario 3: Tab Persistence Across Chapter Changes
+# Select By Line tab
+- tapOn:
+    id: "tab-byline"
+
+# Wait for tab switch
+- waitForAnimationToEnd
+
+# Navigate to next chapter using floating action button
+- scroll
+- scroll
+- scroll
+
+- tapOn:
+    id: "next-chapter-button"
+
+# Wait for chapter to load
+- waitForAnimationToEnd
+
+# Verify chapter selector button visible (chapter loaded)
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Tabs should still be visible
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# By Line tab should still be selected (tab persistence across chapter change)
+- assertVisible:
+    id: "tab-byline"
