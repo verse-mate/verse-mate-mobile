@@ -77,7 +77,7 @@ export const colors = {
     /** Background color for main content */
     background: '#ffffff',
     /** Background color for elevated surfaces (cards, modals) */
-    backgroundElevated: '#ffffff',
+    backgroundElevated: '#f5f5f5',
     /** Background color for overlay surfaces (sheets, tooltips) */
     backgroundOverlay: '#ffffff',
     /** Primary text color */

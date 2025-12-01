@@ -133,9 +133,6 @@ export function NoteEditModal({
       return;
     }
 
-    // Dismiss keyboard after validation
-    Keyboard.dismiss();
-
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
@@ -145,6 +142,17 @@ export function NoteEditModal({
     } catch (error) {
       console.error('Failed to update note:', error);
     }
+  };
+
+  /**
+   * Wrapper to dismiss keyboard then execute save
+   */
+  const handleSaveWithKeyboardDismiss = () => {
+    Keyboard.dismiss();
+    // Use setImmediate to let keyboard dismissal complete first
+    setImmediate(() => {
+      handleSave();
+    });
   };
 
   /**
@@ -202,31 +210,34 @@ export function NoteEditModal({
                 maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
                 threshold={NOTES_CONFIG.COUNTER_DISPLAY_THRESHOLD}
               />
-            </ScrollView>
 
-            {/* Actions */}
-            <View style={styles.actions}>
-              <Pressable onPress={onClose} style={[styles.actionButton, styles.cancelButton]}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </Pressable>
+              {/* Actions - moved inside ScrollView */}
+              <View style={styles.actions}>
+                <Pressable onPress={onClose} style={[styles.actionButton, styles.cancelButton]}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </Pressable>
 
-              <TouchableOpacity
-                onPress={handleSave}
-                disabled={isSaveDisabled}
-                style={[
-                  styles.actionButton,
-                  styles.saveButton,
-                  isSaveDisabled && styles.saveButtonDisabled,
-                ]}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[styles.actionButtonText, isSaveDisabled && styles.saveButtonTextDisabled]}
+                <TouchableOpacity
+                  onPress={handleSaveWithKeyboardDismiss}
+                  disabled={isSaveDisabled}
+                  style={[
+                    styles.actionButton,
+                    styles.saveButton,
+                    isSaveDisabled && styles.saveButtonDisabled,
+                  ]}
+                  activeOpacity={0.7}
                 >
-                  {isUpdatingNote ? 'Saving...' : 'Save'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  <Text
+                    style={[
+                      styles.actionButtonText,
+                      isSaveDisabled && styles.saveButtonTextDisabled,
+                    ]}
+                  >
+                    {isUpdatingNote ? 'Saving...' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </SafeAreaView>
         </Pressable>
       </KeyboardAvoidingView>

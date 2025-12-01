@@ -64,6 +64,8 @@ export interface ChapterPagerViewProps {
   activeTab: ContentTabType;
   /** Current view mode (bible or explanations) */
   activeView: 'bible' | 'explanations';
+  /** Target verse to scroll to (optional) */
+  targetVerse?: number;
   /** Callback when page changes (after swipe completes) */
   onPageChange: (bookId: number, chapterNumber: number) => void;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
@@ -102,7 +104,16 @@ export interface ChapterPagerViewProps {
  */
 export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerViewProps>(
   function ChapterPagerView(
-    { initialBookId, initialChapter, activeTab, activeView, onPageChange, onScroll, onTap },
+    {
+      initialBookId,
+      initialChapter,
+      activeTab,
+      activeView,
+      targetVerse,
+      onPageChange,
+      onScroll,
+      onTap,
+    },
     ref
   ) {
     const pagerRef = useRef<PagerView>(null);
@@ -198,6 +209,9 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => {
         const { bookId, chapterNumber } = getChapterForPosition(windowPosition);
 
+        // Only pass targetVerse if this page matches the requested chapter
+        const isTargetChapter = bookId === initialBookId && chapterNumber === initialChapter;
+
         return (
           <ChapterPage
             key={`page-${windowPosition}`} // STABLE KEY: never changes
@@ -205,12 +219,23 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
             chapterNumber={chapterNumber} // DYNAMIC PROP: updates when window shifts
             activeTab={activeTab}
             activeView={activeView}
+            targetVerse={isTargetChapter ? targetVerse : undefined}
             onScroll={onScroll}
             onTap={onTap}
           />
         );
       });
-    }, [activeTab, activeView, booksMetadata, getChapterForPosition, onScroll, onTap]);
+    }, [
+      activeTab,
+      activeView,
+      booksMetadata,
+      getChapterForPosition,
+      onScroll,
+      onTap,
+      initialBookId,
+      initialChapter,
+      targetVerse,
+    ]);
 
     /**
      * Handle page selection events

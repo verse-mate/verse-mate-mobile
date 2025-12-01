@@ -168,6 +168,17 @@ function createHandlersForBaseUrl(baseUrl: string) {
         success: true,
       });
     }),
+
+    /**
+     * GET /admin/auto-highlight-settings/default-enabled
+     * Returns whether auto-highlights are enabled by default for logged-out users.
+     */
+    http.get(`${baseUrl}/admin/auto-highlight-settings/default-enabled`, () => {
+      return HttpResponse.json({
+        success: true,
+        data: { default_enabled: true },
+      });
+    }),
   ];
 }
 

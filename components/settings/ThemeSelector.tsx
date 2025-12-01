@@ -65,7 +65,9 @@ export function ThemeSelector() {
 
   // Filter options based on platform
   const visibleOptions = themeOptions.filter(
-    (option) => option.value !== 'ambient' || Platform.OS === 'android'
+    (option) =>
+      (option.value !== 'ambient' || Platform.OS === 'android') &&
+      (option.value !== 'sunrise_sunset' || Platform.OS === 'android')
   );
 
   const handleThemeChange = async (newPreference: ThemePreference) => {

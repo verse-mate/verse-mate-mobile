@@ -27,7 +27,10 @@ import type { HighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleByLine } from '@/src/api/generated/hooks';
 import type { AutoHighlight } from '@/types/auto-highlights';
-import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
+import {
+  extractVerseTextFromByLine,
+  parseByLineExplanation,
+} from '@/utils/bible/parseByLineExplanation';
 
 interface AutoHighlightTooltipProps {
   /** Auto-highlight to display info for */
@@ -39,8 +42,11 @@ interface AutoHighlightTooltipProps {
   /** Callback to save auto-highlight as user highlight */
   onSaveAsUserHighlight: (
     color: HighlightColor,
-    verseRange: { start: number; end: number }
+    verseRange: { start: number; end: number },
+    selectedText?: string
   ) => void;
+  /** Callback when save is successful */
+  onSaveSuccess?: () => void;
   /** Whether user is logged in */
   isLoggedIn: boolean;
 }
@@ -55,6 +61,7 @@ export function AutoHighlightTooltip({
   visible,
   onClose,
   onSaveAsUserHighlight,
+  onSaveSuccess,
   isLoggedIn,
 }: AutoHighlightTooltipProps) {
   const { colors } = useTheme();
@@ -228,10 +235,27 @@ export function AutoHighlightTooltip({
       ]);
       return;
     }
-    onSaveAsUserHighlight(autoHighlight.theme_color, {
-      start: autoHighlight.start_verse,
-      end: autoHighlight.end_verse, // Use end_verse for multi-verse highlights
-    });
+
+    // Extract verse text for the highlight
+    const verseText =
+      byLineData?.content && autoHighlight
+        ? extractVerseTextFromByLine(
+            byLineData.content,
+            autoHighlight.chapter_number,
+            autoHighlight.start_verse,
+            autoHighlight.end_verse
+          )
+        : undefined;
+
+    onSaveAsUserHighlight(
+      autoHighlight.theme_color,
+      {
+        start: autoHighlight.start_verse,
+        end: autoHighlight.end_verse, // Use end_verse for multi-verse highlights
+      },
+      verseText || undefined
+    );
+    onSaveSuccess?.();
     handleDismiss();
   };
 
@@ -285,7 +309,7 @@ export function AutoHighlightTooltip({
 
                   <View style={styles.infoRow}>
                     <Text style={styles.label}>Type:</Text>
-                    <Text style={styles.value}>AI-generated highlight</Text>
+                    <Text style={styles.value}>Auto-generated highlight</Text>
                   </View>
 
                   <View style={styles.infoRow}>

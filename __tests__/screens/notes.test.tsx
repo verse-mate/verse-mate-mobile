@@ -7,22 +7,31 @@
  * @see Task Group 6.3
  */
 
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
+import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import NotesScreen from '@/app/notes';
-import { useAuth } from '@/contexts/AuthContext';
+import NotesScreen from '@/app/notes/index';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { Note } from '@/types/notes';
 
 // Mock dependencies
 jest.mock('@/hooks/bible/use-notes');
 jest.mock('@/contexts/AuthContext');
-jest.mock('expo-haptics');
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn().mockResolvedValue(undefined),
+  ImpactFeedbackStyle: {
+    Light: 'light',
+  },
+}));
 jest.mock('expo-router', () => ({
   router: {
     push: jest.fn(),
     back: jest.fn(),
   },
+  useLocalSearchParams: jest.fn(),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -111,9 +120,8 @@ describe('Notes List Screen', () => {
     });
   });
 
-  // Test 1: Show login prompt when not authenticated
-  test('shows login prompt when user is not authenticated', () => {
-    // Mock unauthenticated user
+  test('shows login prompt when user is not authenticated', async () => {
+    // Mock unauthenticated user for this specific test
     mockUseAuth.mockReturnValue({
       user: null,
       isAuthenticated: false,
@@ -126,30 +134,30 @@ describe('Notes List Screen', () => {
 
     renderWithProviders(<NotesScreen />);
 
-    expect(screen.getByText('Please login to view your notes')).toBeTruthy();
-    expect(screen.getByTestId('notes-login-button')).toBeTruthy();
+    expect(await screen.findByText('Please login to view your notes')).toBeTruthy();
+    expect(await screen.findByTestId('notes-login-button')).toBeTruthy();
   });
 
-  // Test 2: Show empty state when user has no notes
-  test('shows empty state when user has no notes', () => {
+  test('shows empty state when user has no notes', async () => {
+    // Default mocks already set for empty state
     renderWithProviders(<NotesScreen />);
 
-    expect(screen.getByText('No notes yet')).toBeTruthy();
+    expect(await screen.findByText('No notes yet')).toBeTruthy();
     expect(
-      screen.getByText('Start taking notes while reading chapters to see them here.')
+      await screen.findByText('Start taking notes while reading chapters to see them here.')
     ).toBeTruthy();
   });
 
   // Test 3: Display chapter groups when user has notes
-  test('displays chapter groups when user has notes', () => {
-    // Mock notes data
+  test('displays chapter groups when user has notes', async () => {
+    // Mock notes data for this specific test
     mockUseNotes.mockReturnValue({
       notes: mockNotes,
       addNote: jest.fn().mockResolvedValue(undefined),
       updateNote: jest.fn().mockResolvedValue(undefined),
       deleteNote: jest.fn().mockResolvedValue(undefined),
-      getNotesByChapter: jest.fn().mockReturnValue([]),
-      hasNotes: jest.fn().mockReturnValue(true),
+      getNotesByChapter: jest.fn(() => mockNotes), // Return mockNotes
+      hasNotes: jest.fn(() => true), // Indicate notes are present
       refetchNotes: jest.fn(),
       isFetchingNotes: false,
       isAddingNote: false,
@@ -160,20 +168,22 @@ describe('Notes List Screen', () => {
     renderWithProviders(<NotesScreen />);
 
     // Check for chapter group headers
-    expect(screen.getByText('Genesis 1 (2 notes)')).toBeTruthy();
-    expect(screen.getByText('Joshua 2 (1 note)')).toBeTruthy();
+    expect(await screen.findByText('Genesis 1')).toBeTruthy();
+    expect(await screen.findByText('2 notes')).toBeTruthy();
+    expect(await screen.findByText('Joshua 2')).toBeTruthy();
+    expect(await screen.findByText('1 note')).toBeTruthy();
   });
 
-  // Test 4: Expand chapter groups on tap
-  test('expands chapter group on tap', () => {
-    // Mock notes data
+  // Test 4: Navigates to chapter notes detail screen on tap
+  test('navigates to chapter notes detail screen on tap', async () => {
+    // Mock notes data for this specific test
     mockUseNotes.mockReturnValue({
       notes: mockNotes,
-      addNote: jest.fn().mockResolvedValue(undefined),
-      updateNote: jest.fn().mockResolvedValue(undefined),
-      deleteNote: jest.fn().mockResolvedValue(undefined),
-      getNotesByChapter: jest.fn().mockReturnValue([]),
-      hasNotes: jest.fn().mockReturnValue(true),
+      addNote: jest.fn(),
+      updateNote: jest.fn(),
+      deleteNote: jest.fn(),
+      getNotesByChapter: jest.fn(() => mockNotes), // Return mockNotes
+      hasNotes: jest.fn(() => true),
       refetchNotes: jest.fn(),
       isFetchingNotes: false,
       isAddingNote: false,
@@ -181,20 +191,23 @@ describe('Notes List Screen', () => {
       isDeletingNote: false,
     });
 
-    const { getByTestId } = renderWithProviders(<NotesScreen />);
+    renderWithProviders(<NotesScreen />);
 
-    // Find chapter group header
-    const chapterGroup = getByTestId('chapter-group-1-1');
+    const chapterGroup = await screen.findByTestId('chapter-group-1-1'); // Wait for the element
+    fireEvent.press(chapterGroup);
 
-    // Verify we can tap without errors
-    expect(() => fireEvent.press(chapterGroup)).not.toThrow();
-
-    // Tap again should also work (collapse)
-    expect(() => fireEvent.press(chapterGroup)).not.toThrow();
+    // Wait for the async navigation to complete
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/notes/[bookId]/[chapterNumber]',
+        params: { bookId: 1, chapterNumber: 1, bookName: 'Genesis' },
+      });
+    });
   });
 
   // Test 5: Show loading indicator while fetching
-  test('shows loading indicator while fetching notes', () => {
+  test('shows loading indicator while fetching notes', async () => {
+    // Mock fetching state for this specific test
     mockUseNotes.mockReturnValue({
       notes: [],
       addNote: jest.fn().mockResolvedValue(undefined),
@@ -203,7 +216,7 @@ describe('Notes List Screen', () => {
       getNotesByChapter: jest.fn().mockReturnValue([]),
       hasNotes: jest.fn().mockReturnValue(false),
       refetchNotes: jest.fn(),
-      isFetchingNotes: true,
+      isFetchingNotes: true, // Set to true for loading state
       isAddingNote: false,
       isUpdatingNote: false,
       isDeletingNote: false,
@@ -211,6 +224,6 @@ describe('Notes List Screen', () => {
 
     renderWithProviders(<NotesScreen />);
 
-    expect(screen.getByTestId('notes-loading')).toBeTruthy();
+    expect(await screen.findByTestId('notes-loading')).toBeTruthy(); // Wait for the loading indicator
   });
 });
