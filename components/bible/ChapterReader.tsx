@@ -758,7 +758,6 @@ export function ChapterReader({
         onClose={handleNotesModalClose}
         onNotePress={handleNotePress}
         onEditNote={handleEditNoteFromList}
-        onDeleteNote={handleDeleteNote}
       />
 
       {/* Note View Modal - Read-only view */}
