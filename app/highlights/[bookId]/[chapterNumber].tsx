@@ -5,9 +5,9 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HighlightOptionsModal } from '@/components/bible/HighlightOptionsModal';
-import { Toast } from '@/components/ui/Toast';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 
 /**
@@ -41,9 +41,7 @@ export default function ChapterHighlightsScreen() {
   const [selectedHighlight, setSelectedHighlight] = useState<Highlight | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  // Toast State
-  const [isToastVisible, setIsToastVisible] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
+  const { showToast } = useToast();
 
   const { chapterHighlights, isFetchingHighlights, deleteHighlight } = useHighlights({
     bookId: parsedBookId,
@@ -55,9 +53,16 @@ export default function ChapterHighlightsScreen() {
     router.back();
   };
 
-  const handleHighlightPress = async () => {
+  const handleHighlightPress = async (highlight: Highlight) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/bible/${parsedBookId}/${parsedChapterNumber}`);
+    router.push({
+      pathname: '/bible/[bookId]/[chapterNumber]',
+      params: {
+        bookId: parsedBookId,
+        chapterNumber: parsedChapterNumber,
+        verse: highlight.start_verse,
+      },
+    });
   };
 
   const handleMenuPress = async (highlight: Highlight) => {
@@ -68,8 +73,7 @@ export default function ChapterHighlightsScreen() {
 
   const handleActionComplete = (action: string) => {
     if (action === 'copy') {
-      setToastMessage('Copied to clipboard');
-      setIsToastVisible(true);
+      showToast('Copied to clipboard');
     }
   };
 
@@ -141,7 +145,7 @@ export default function ChapterHighlightsScreen() {
               <Pressable
                 key={highlight.highlight_id}
                 style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-                onPress={handleHighlightPress}
+                onPress={() => handleHighlightPress(highlight)}
               >
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>
@@ -179,12 +183,6 @@ export default function ChapterHighlightsScreen() {
         highlight={selectedHighlight}
         deleteHighlight={deleteHighlight}
         onActionComplete={handleActionComplete}
-      />
-
-      <Toast
-        visible={isToastVisible}
-        message={toastMessage}
-        onHide={() => setIsToastVisible(false)}
       />
     </View>
   );

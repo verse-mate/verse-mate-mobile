@@ -19,7 +19,7 @@
  * @see Task Group 5: Chapter View Highlight Integration
  */
 
-import { useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
@@ -162,6 +162,8 @@ interface ChapterReaderProps {
   explanation?: ExplanationContent;
   /** Show only explanations, hide Bible verses (for Explanations view) */
   explanationsOnly?: boolean;
+  /** Callback to report Y-position of verse sections for scrolling */
+  onContentLayout?: (sectionPositions: Record<number, number>) => void;
 }
 
 /**
@@ -216,6 +218,7 @@ export function ChapterReader({
   chapter,
   explanation,
   explanationsOnly = false,
+  onContentLayout,
 }: ChapterReaderProps) {
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
@@ -224,6 +227,20 @@ export function ChapterReader({
   const { deleteNote, isDeletingNote } = useNotes();
   const { user } = useAuth();
   const { showToast } = useToast();
+
+  // Store section layouts: map startVerse -> Y position
+  // Using a ref to avoid re-renders on layout updates
+  const sectionPositions = useRef<Record<number, number>>({});
+  const layoutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (layoutTimeoutRef.current) {
+        clearTimeout(layoutTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Fetch highlights for this chapter
   const { chapterHighlights, addHighlight, updateHighlightColor, deleteHighlight } = useHighlights({
@@ -256,6 +273,21 @@ export function ChapterReader({
   const [selectedAutoHighlight, setSelectedAutoHighlight] = useState<AutoHighlight | null>(null);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
 
+  /**
+   * Handle layout of a verse/paragraph
+   */
+  const handleVerseLayout = (startVerse: number, y: number) => {
+    sectionPositions.current[startVerse] = y;
+
+    // Debounce layout updates to prevent excessive updates and premature scrolling
+    if (layoutTimeoutRef.current) {
+      clearTimeout(layoutTimeoutRef.current);
+    }
+
+    layoutTimeoutRef.current = setTimeout(() => {
+      onContentLayout?.(sectionPositions.current);
+    }, 100);
+  };
   /**
    * Handle notes button press
    * Opens the notes modal
@@ -574,19 +606,14 @@ export function ChapterReader({
       {/* Render Bible verses (only in Bible view) */}
       {!explanationsOnly &&
         chapter.sections.map((section) => (
-          <View
-            key={`section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`}
-            style={styles.section}
-            testID={`chapter-section-${section.startVerse}`}
-            collapsable={false}
-          >
+          // Flattened section structure - using Fragment to ensure children layout is relative to root
+          <Fragment key={`section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`}>
             {/* Section Subtitle (if present) */}
-            {section.subtitle && (
+            {section.subtitle ? (
               <Text style={styles.sectionSubtitle} accessibilityRole="header">
                 {section.subtitle}
               </Text>
-            )}
-
+            ) : null}
             {/* Verse Range Caption */}
             <Text
               style={styles.verseRange}
@@ -594,7 +621,6 @@ export function ChapterReader({
             >
               {section.startVerse}-{section.endVerse}
             </Text>
-
             {/* Verses with Highlighting */}
             {PARAGRAPH_VIEW_ENABLED ? (
               (() => {
@@ -619,7 +645,12 @@ export function ChapterReader({
                   // Create stable key from first and last verse numbers in group
                   const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
                   return (
-                    <View key={groupKey}>
+                    <View
+                      key={groupKey}
+                      onLayout={(e) =>
+                        handleVerseLayout(group[0].verseNumber, e.nativeEvent.layout.y)
+                      }
+                    >
                       <Text style={styles.verseTextParagraph}>
                         {group.map((verse, verseIndex) => {
                           // Check if this verse number should be highlighted (continuation of multi-verse highlight)
@@ -657,7 +688,8 @@ export function ChapterReader({
                                 {verseIndex > 0 ? ' \u2009' : ''}
                                 {/* Regular space + thin space before verse number */}
                                 {toSuperscript(verse.verseNumber)}
-                                {'\u2009'} {/* Thin space after verse number */}
+                                {'\u2009'}
+                                {/* Thin space after verse number */}
                               </Text>
                               <HighlightedText
                                 text={verse.text}
@@ -703,7 +735,9 @@ export function ChapterReader({
                 ))}
               </View>
             )}
-          </View>
+            {/* Section Bottom Margin */}
+            <View style={{ height: spacing.xxxl }} />
+          </Fragment>
         ))}
 
       {/* Explanation Content (Markdown) - shown in Explanations view */}
@@ -835,7 +869,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       gap: spacing.xs,
     },
     section: {
-      marginBottom: spacing.xxxl,
+      // marginBottom: spacing.xxxl, // Removed, handled by spacer view now
     },
     sectionSubtitle: {
       fontSize: fontSizes.heading2,
