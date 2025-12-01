@@ -54,6 +54,55 @@ jest.mock('@react-native-async-storage/async-storage', () => {
   };
 });
 
+// Mock react-native-gesture-handler
+jest.mock('react-native-gesture-handler', () => {
+  const MockView = ({ children }) => children;
+  return {
+    Swipeable: MockView,
+    DrawerLayout: MockView,
+    State: {},
+    ScrollView: MockView,
+    Slider: MockView,
+    Switch: MockView,
+    TextInput: MockView,
+    ToolbarAndroid: MockView,
+    ViewPagerAndroid: MockView,
+    DrawerLayoutAndroid: MockView,
+    WebView: MockView,
+    NativeViewGestureHandler: MockView,
+    TapGestureHandler: MockView,
+    FlingGestureHandler: MockView,
+    ForceTouchGestureHandler: MockView,
+    LongPressGestureHandler: MockView,
+    PanGestureHandler: MockView,
+    PinchGestureHandler: MockView,
+    RotationGestureHandler: MockView,
+    /* Buttons */
+    RawButton: MockView,
+    BaseButton: MockView,
+    RectButton: MockView,
+    BorderlessButton: MockView,
+    /* Other */
+    FlatList: MockView,
+    gestureHandlerRootHOC: jest.fn(),
+    Directions: {},
+    Gesture: {
+      Pan: () => {
+        const pan = {
+          onEnd: jest.fn().mockReturnThis(),
+          onUpdate: jest.fn().mockReturnThis(),
+          onStart: jest.fn().mockReturnThis(),
+          onFinalize: jest.fn().mockReturnThis(),
+          minDistance: jest.fn().mockReturnThis(),
+        };
+        return pan;
+      },
+    },
+    GestureDetector: MockView,
+    GestureHandlerRootView: MockView,
+  };
+});
+
 // Global mock for ThemeContext to avoid expo-location dependency issues in tests
 // This mock provides a simple default theme that works for all components
 // Note: __tests__/contexts/ThemeContext.test.tsx has its own mocks and is not affected by this
