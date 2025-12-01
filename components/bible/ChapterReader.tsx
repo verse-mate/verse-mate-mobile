@@ -37,7 +37,7 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
-import { HIGHLIGHT_COLORS } from '@/constants/highlight-colors';
+import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
@@ -152,29 +152,81 @@ interface ChapterReaderProps {
 }
 
 /**
- * Check if a verse number separator should be highlighted
+ * Check if the end of a verse is highlighted
  */
-function getVerseNumberHighlight(
+function getEndHighlight(
+  verseNumber: number,
+  textLength: number,
+  highlights: Highlight[],
+  autoHighlights: AutoHighlight[]
+): { color: string; isAuto: boolean } | null {
+  // Check user highlights
+  const highlight = highlights.find((h) => {
+    // Highlight strictly after this verse -> irrelevant
+    if (h.start_verse > verseNumber) return false;
+    // Highlight strictly before this verse -> irrelevant
+    if (h.end_verse < verseNumber) return false;
+
+    // If highlight ends after this verse, it definitely covers the end
+    if (h.end_verse > verseNumber) return true;
+
+    // If highlight ends on this verse, check char
+    // Assuming null end_char means end of verse
+    const endChar = (h.end_char as number | null) ?? textLength;
+    return endChar >= textLength;
+  });
+
+  if (highlight) {
+    return { color: highlight.color, isAuto: false };
+  }
+
+  // Check auto-highlights
+  const autoHighlight = autoHighlights.find((h) => {
+    // Auto-highlights are always full verse ranges
+    return h.start_verse <= verseNumber && h.end_verse >= verseNumber;
+  });
+
+  if (autoHighlight) {
+    return { color: autoHighlight.theme_color, isAuto: true };
+  }
+
+  return null;
+}
+
+/**
+ * Check if the start of a verse is highlighted
+ */
+function getStartHighlight(
   verseNumber: number,
   highlights: Highlight[],
   autoHighlights: AutoHighlight[]
 ): { color: string; isAuto: boolean } | null {
-  const multiVerseHighlight = highlights.find(
-    (h) =>
-      h.start_verse < verseNumber && h.end_verse >= verseNumber && h.start_verse !== h.end_verse
-  );
+  // Check user highlights
+  const highlight = highlights.find((h) => {
+    // Highlight strictly after this verse -> irrelevant
+    if (h.start_verse > verseNumber) return false;
+    // Highlight strictly before this verse -> irrelevant
+    if (h.end_verse < verseNumber) return false;
 
-  if (multiVerseHighlight) {
-    return { color: multiVerseHighlight.color, isAuto: false };
+    // If highlight starts before this verse, it definitely covers the start
+    if (h.start_verse < verseNumber) return true;
+
+    // If highlight starts on this verse, check char
+    const startChar = (h.start_char as number | null) ?? 0;
+    return startChar === 0;
+  });
+
+  if (highlight) {
+    return { color: highlight.color, isAuto: false };
   }
 
-  const multiVerseAutoHighlight = autoHighlights.find(
-    (h) =>
-      h.start_verse < verseNumber && h.end_verse >= verseNumber && h.start_verse !== h.end_verse
-  );
+  // Check auto-highlights
+  const autoHighlight = autoHighlights.find((h) => {
+    return h.start_verse <= verseNumber && h.end_verse >= verseNumber;
+  });
 
-  if (multiVerseAutoHighlight) {
-    return { color: multiVerseAutoHighlight.theme_color, isAuto: true };
+  if (autoHighlight) {
+    return { color: autoHighlight.theme_color, isAuto: true };
   }
 
   return null;
@@ -481,38 +533,135 @@ export function ChapterReader({
                     >
                       <Text style={styles.verseTextParagraph}>
                         {group.map((verse, verseIndex) => {
-                          const verseNumberHighlight = getVerseNumberHighlight(
+                          // Determine background color for verse number (from current verse's start)
+                          // We calculate this early to use it for the second half of the leading space
+                          let currBackgroundColor: string | undefined;
+                          const startHighlight = getStartHighlight(
                             verse.verseNumber,
                             chapterHighlights,
                             autoHighlights
                           );
 
-                          let backgroundColor: string | undefined;
-                          if (verseNumberHighlight) {
-                            const baseColor =
-                              HIGHLIGHT_COLORS[
-                                verseNumberHighlight.color as keyof typeof HIGHLIGHT_COLORS
-                              ];
-                            const opacity = verseNumberHighlight.isAuto ? 0.2 : 0.35;
+                          if (startHighlight) {
+                            const baseColor = getHighlightColor(
+                              startHighlight.color as HighlightColor,
+                              mode
+                            );
+                            const opacity = startHighlight.isAuto ? 0.2 : 0.35;
                             const opacityHex = Math.round(opacity * 255)
                               .toString(16)
                               .padStart(2, '0');
-                            backgroundColor = baseColor + opacityHex;
+                            currBackgroundColor = baseColor + opacityHex;
+                          }
+
+                          // Determine background color for leading space (from previous verse's end)
+                          let prevBackgroundColor: string | undefined;
+                          if (verseIndex > 0) {
+                            const prevVerse = group[verseIndex - 1];
+                            const endHighlight = getEndHighlight(
+                              prevVerse.verseNumber,
+                              prevVerse.text.length,
+                              chapterHighlights,
+                              autoHighlights
+                            );
+
+                            if (endHighlight) {
+                              const baseColor = getHighlightColor(
+                                endHighlight.color as HighlightColor,
+                                mode
+                              );
+                              const opacity = endHighlight.isAuto ? 0.2 : 0.35;
+                              const opacityHex = Math.round(opacity * 255)
+                                .toString(16)
+                                .padStart(2, '0');
+                              prevBackgroundColor = baseColor + opacityHex;
+                            }
+                          }
+
+                          // Determine background color for trailing space (only if current highlight continues or next verse is highlighted)
+                          let trailingSpaceBackgroundColor: string | undefined;
+                          const currentVerseEndHighlight = getEndHighlight(
+                            verse.verseNumber,
+                            verse.text.length,
+                            chapterHighlights,
+                            autoHighlights
+                          );
+                          const nextVerse = group[verseIndex + 1];
+                          const nextVerseStartHighlight = nextVerse
+                            ? getStartHighlight(
+                                nextVerse.verseNumber,
+                                chapterHighlights,
+                                autoHighlights
+                              )
+                            : null;
+
+                          if (currentVerseEndHighlight) {
+                            const baseColor = getHighlightColor(
+                              currentVerseEndHighlight.color as HighlightColor,
+                              mode
+                            );
+                            const opacity = currentVerseEndHighlight.isAuto ? 0.2 : 0.35;
+                            const opacityHex = Math.round(opacity * 255)
+                              .toString(16)
+                              .padStart(2, '0');
+                            trailingSpaceBackgroundColor = baseColor + opacityHex;
+                          } else if (nextVerseStartHighlight) {
+                            const baseColor = getHighlightColor(
+                              nextVerseStartHighlight.color as HighlightColor,
+                              mode
+                            );
+                            const opacity = nextVerseStartHighlight.isAuto ? 0.2 : 0.35;
+                            const opacityHex = Math.round(opacity * 255)
+                              .toString(16)
+                              .padStart(2, '0');
+                            trailingSpaceBackgroundColor = baseColor + opacityHex;
                           }
 
                           return (
                             <Text key={verse.verseNumber}>
-                              <Text
-                                style={[
-                                  styles.verseNumberSuperscript,
-                                  backgroundColor && {
-                                    backgroundColor,
-                                  },
-                                ]}
-                              >
-                                {verseIndex > 0 ? ' \u2009' : ''}
-                                {toSuperscript(verse.verseNumber)}
-                                {'\u2009'}
+                              <Text style={styles.verseNumberSuperscript}>
+                                {verseIndex > 0 && (
+                                  <>
+                                    {/* First half of whitespace: matches previous verse */}
+                                    <Text
+                                      style={
+                                        prevBackgroundColor && {
+                                          backgroundColor: prevBackgroundColor,
+                                        }
+                                      }
+                                    >
+                                      {'\u2009'}
+                                    </Text>
+                                    {/* Second half of whitespace: matches current verse */}
+                                    <Text
+                                      style={
+                                        currBackgroundColor && {
+                                          backgroundColor: currBackgroundColor,
+                                        }
+                                      }
+                                    >
+                                      {'\u2009'}
+                                    </Text>
+                                  </>
+                                )}
+                                <Text
+                                  style={
+                                    currBackgroundColor && {
+                                      backgroundColor: currBackgroundColor,
+                                    }
+                                  }
+                                >
+                                  {toSuperscript(verse.verseNumber)}
+                                </Text>
+                                <Text
+                                  style={
+                                    trailingSpaceBackgroundColor && {
+                                      backgroundColor: trailingSpaceBackgroundColor,
+                                    }
+                                  }
+                                >
+                                  {'\u202F'}
+                                </Text>
                               </Text>
                               <HighlightedText
                                 text={verse.text}
