@@ -16,6 +16,8 @@ interface DeleteConfirmationModalProps {
   onCancel: () => void;
   onConfirm: () => void;
   isDeleting?: boolean;
+  title: string;
+  message: string;
 }
 
 export function DeleteConfirmationModal({
@@ -23,6 +25,8 @@ export function DeleteConfirmationModal({
   onCancel,
   onConfirm,
   isDeleting = false,
+  title,
+  message,
 }: DeleteConfirmationModalProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -38,19 +42,19 @@ export function DeleteConfirmationModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
       <Pressable style={styles.backdrop} onPress={handleCancel}>
-        <Pressable style={styles.dialog} onPress={(e) => e?.stopPropagation?.()}>
+        <Pressable style={styles.dialog} onPress={(e) => e.stopPropagation()}>
           {/* Icon */}
           <View style={styles.iconContainer}>
             <Ionicons name="trash-outline" size={48} color={colors.error} />
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Delete Note</Text>
+          <Text style={styles.title}>{title}</Text>
 
           {/* Message */}
-          <Text style={styles.message}>Are you sure you want to delete this note?</Text>
+          <Text style={styles.message}>{message}</Text>
           <Text style={styles.submessage}>This action cannot be undone.</Text>
 
           {/* Actions */}
@@ -90,14 +94,15 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       backgroundColor: colors.background,
       borderRadius: 16,
       padding: spacing.xxl,
-      width: '100%',
-      maxWidth: 400,
+      marginHorizontal: spacing.xl,
       alignItems: 'center',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 8,
+      width: '100%',
+      maxWidth: 400,
     },
     iconContainer: {
       marginBottom: spacing.lg,

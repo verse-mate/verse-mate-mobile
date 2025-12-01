@@ -14,6 +14,7 @@ import { useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useBookProgress, useRecentBooks } from '@/hooks/bible';
 import {
   useBibleByLine,
@@ -155,7 +156,7 @@ function renderWithProviders(component: React.ReactElement) {
             insets: { top: 47, left: 0, right: 0, bottom: 34 },
           }}
         >
-          {children}
+          <ToastProvider>{children}</ToastProvider>
         </SafeAreaProvider>
       </ThemeProvider>
     </QueryClientProvider>

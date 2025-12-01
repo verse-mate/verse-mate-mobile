@@ -140,3 +140,62 @@ export function parseByLineExplanation(
 
   return summaries.join('\n\n');
 }
+
+/**
+ * Extracts the verse text (blockquotes) for a specific verse range from the byline markdown.
+ *
+ * @param markdownContent The full markdown string.
+ * @param chapterNumber The chapter number.
+ * @param startVerse The start verse.
+ * @param endVerse The end verse.
+ * @returns The combined verse text for the range, or null if not found.
+ */
+export function extractVerseTextFromByLine(
+  markdownContent: string,
+  chapterNumber: number,
+  startVerse: number,
+  endVerse: number
+): string | null {
+  if (!markdownContent) return null;
+
+  const verseTexts: string[] = [];
+  const content = markdownContent.replace(/\r\n/g, '\n');
+  const versesToFind = new Set<number>();
+  for (let i = startVerse; i <= endVerse; i++) {
+    versesToFind.add(i);
+  }
+
+  const lines = content.split('\n');
+  let currentVerse: number | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Check if this line is a verse header
+    if (line.startsWith('## ')) {
+      currentVerse = null;
+      const match = line.match(/(\d+):(\d+)/);
+      if (match) {
+        const foundChapter = parseInt(match[1], 10);
+        const foundVerse = parseInt(match[2], 10);
+        if (foundChapter === chapterNumber && versesToFind.has(foundVerse)) {
+          currentVerse = foundVerse;
+        }
+      }
+      continue;
+    }
+
+    // Collect verse text (blockquotes)
+    if (currentVerse !== null && line.trim().startsWith('>')) {
+      // Remove '> ' prefix and trim
+      const text = line.trim().substring(1).trim();
+      if (text) {
+        verseTexts.push(text);
+      }
+    }
+  }
+
+  if (verseTexts.length === 0) return null;
+
+  return verseTexts.join(' ');
+}

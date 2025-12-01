@@ -26,9 +26,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from 'react-native-reanimated';
+import { useEffect, useMemo } from 'react';
+import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  runOnJS,
+  SlideInRight,
+  SlideOutRight,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
@@ -70,9 +81,26 @@ const logoutMenuItem: MenuItem = {
 
 export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { width: windowWidth } = useWindowDimensions();
+  const menuWidth = Math.min(windowWidth * 0.8, 320); // 80% of screen width, max 320px
+  const styles = useMemo(() => createStyles(colors, menuWidth), [colors, menuWidth]);
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, logout } = useAuth();
+
+  // Shared value for swipe translation
+  const translateX = useSharedValue(0);
+
+  // Reset translation when menu closes (prepares for next open)
+  useEffect(() => {
+    if (!visible) {
+      translateX.value = 0;
+    }
+  }, [visible, translateX]);
+
+  // Animated style for menu container
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   /**
    * Handle menu item tap
@@ -104,7 +132,8 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     } else if (item.action === 'highlights') {
       // Navigate to highlights screen
       onClose();
-      router.push('/highlights');
+      // biome-ignore lint/suspicious/noExplicitAny: Typed routes might be stale after refactor
+      router.push('/highlights' as any);
     } else if (item.action === 'settings') {
       // Navigate to settings screen
       onClose();
@@ -115,6 +144,33 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     }
   };
 
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .onUpdate((event) => {
+          // Only allow dragging to the right (closing)
+          translateX.value = Math.max(0, event.translationX);
+        })
+        .onEnd((event) => {
+          const SWIPE_THRESHOLD_DISTANCE = menuWidth * 0.3;
+          const SWIPE_THRESHOLD_VELOCITY = 300;
+
+          if (
+            event.translationX > SWIPE_THRESHOLD_DISTANCE ||
+            event.velocityX > SWIPE_THRESHOLD_VELOCITY
+          ) {
+            // Animate off-screen then close
+            translateX.value = withTiming(menuWidth, { duration: 200 }, () => {
+              runOnJS(onClose)();
+            });
+          } else {
+            // Snap back to open
+            translateX.value = withSpring(0);
+          }
+        }),
+    [menuWidth, onClose, translateX]
+  );
+
   return (
     <Modal
       visible={visible}
@@ -123,114 +179,118 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       onRequestClose={onClose}
       testID="hamburger-menu-modal"
     >
-      {/* Backdrop with fade animation */}
-      <Animated.View
-        style={styles.backdrop}
-        entering={FadeIn.duration(300)}
-        exiting={FadeOut.duration(300)}
-      >
-        {/* Backdrop touchable area */}
-        <Pressable style={styles.backdropTouchable} onPress={onClose} testID="menu-backdrop" />
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <GestureDetector gesture={panGesture}>
+          {/* Backdrop with fade animation */}
+          <Animated.View
+            style={styles.backdrop}
+            entering={FadeIn.duration(300)}
+            exiting={FadeOut.duration(300)}
+          >
+            {/* Backdrop touchable area */}
+            <Pressable style={styles.backdropTouchable} onPress={onClose} testID="menu-backdrop" />
 
-        {/* Menu container with slide animation */}
-        <Animated.View
-          style={styles.menuContainer}
-          entering={SlideInRight.duration(300)}
-          exiting={SlideOutRight.duration(300)}
-          testID="hamburger-menu"
-        >
-          {/* Header with close button */}
-          <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-            <Text style={styles.headerTitle}>Menu</Text>
-            <Pressable
-              onPress={onClose}
-              style={styles.closeButton}
-              accessibilityLabel="Close menu"
-              accessibilityRole="button"
-              testID="menu-close-button"
+            {/* Menu container with slide animation */}
+            <Animated.View
+              style={[styles.menuContainer, animatedStyle]}
+              entering={SlideInRight.duration(300)}
+              exiting={SlideOutRight.duration(300)}
+              testID="hamburger-menu"
             >
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </Pressable>
-          </View>
-
-          {/* User Info Section (if authenticated) */}
-          {isAuthenticated && user && (
-            <View style={styles.userSection}>
-              <View style={styles.userInfo}>
-                <Ionicons name="person-circle-outline" size={48} color={colors.textSecondary} />
-                <View style={styles.userDetails}>
-                  <Text style={styles.userName}>
-                    {user.firstName} {user.lastName}
-                  </Text>
-                  <Text style={styles.userEmail}>{user.email}</Text>
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* Auth buttons (if not authenticated) */}
-          {!isAuthenticated && (
-            <View style={styles.authSection}>
-              <Text style={styles.authSectionTitle}>Account</Text>
-              {authMenuItems.map((item) => (
+              {/* Header with close button */}
+              <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+                <Text style={styles.headerTitle}>Menu</Text>
                 <Pressable
-                  key={item.id}
-                  style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                  onPress={() => handleItemPress(item)}
-                  accessibilityLabel={item.label}
+                  onPress={onClose}
+                  style={styles.closeButton}
+                  accessibilityLabel="Close menu"
                   accessibilityRole="button"
-                  testID={`menu-item-${item.id}`}
+                  testID="menu-close-button"
                 >
-                  <Ionicons name={item.icon} size={24} color={colors.textSecondary} />
-                  <Text style={styles.menuItemText}>{item.label}</Text>
+                  <Ionicons name="close" size={24} color={colors.textPrimary} />
                 </Pressable>
-              ))}
-              <View style={styles.divider} />
-            </View>
-          )}
+              </View>
 
-          {/* Regular menu items */}
-          <View style={styles.menuItems}>
-            {regularMenuItems.map((item) => (
-              <Pressable
-                key={item.id}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                onPress={() => handleItemPress(item)}
-                accessibilityLabel={item.label}
-                accessibilityRole="button"
-                testID={`menu-item-${item.id}`}
-              >
-                <Ionicons name={item.icon} size={24} color={colors.textSecondary} />
-                <Text style={styles.menuItemText}>{item.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+              {/* User Info Section (if authenticated) */}
+              {isAuthenticated && user && (
+                <View style={styles.userSection}>
+                  <View style={styles.userInfo}>
+                    <Ionicons name="person-circle-outline" size={48} color={colors.textSecondary} />
+                    <View style={styles.userDetails}>
+                      <Text style={styles.userName}>
+                        {user.firstName} {user.lastName}
+                      </Text>
+                      <Text style={styles.userEmail}>{user.email}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
 
-          {/* Logout button (if authenticated) */}
-          {isAuthenticated && (
-            <View style={styles.logoutSection}>
-              <View style={styles.divider} />
-              <Pressable
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                onPress={() => handleItemPress(logoutMenuItem)}
-                accessibilityLabel={logoutMenuItem.label}
-                accessibilityRole="button"
-                testID={`menu-item-${logoutMenuItem.id}`}
-              >
-                <Ionicons name={logoutMenuItem.icon} size={24} color={colors.error} />
-                <Text style={[styles.menuItemText, { color: colors.error }]}>
-                  {logoutMenuItem.label}
-                </Text>
-              </Pressable>
-            </View>
-          )}
-        </Animated.View>
-      </Animated.View>
+              {/* Auth buttons (if not authenticated) */}
+              {!isAuthenticated && (
+                <View style={styles.authSection}>
+                  <Text style={styles.authSectionTitle}>Account</Text>
+                  {authMenuItems.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                      onPress={() => handleItemPress(item)}
+                      accessibilityLabel={item.label}
+                      accessibilityRole="button"
+                      testID={`menu-item-${item.id}`}
+                    >
+                      <Ionicons name={item.icon} size={24} color={colors.textSecondary} />
+                      <Text style={styles.menuItemText}>{item.label}</Text>
+                    </Pressable>
+                  ))}
+                  <View style={styles.divider} />
+                </View>
+              )}
+
+              {/* Regular menu items */}
+              <View style={styles.menuItems}>
+                {regularMenuItems.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                    onPress={() => handleItemPress(item)}
+                    accessibilityLabel={item.label}
+                    accessibilityRole="button"
+                    testID={`menu-item-${item.id}`}
+                  >
+                    <Ionicons name={item.icon} size={24} color={colors.textSecondary} />
+                    <Text style={styles.menuItemText}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Logout button (if authenticated) */}
+              {isAuthenticated && (
+                <View style={styles.logoutSection}>
+                  <View style={styles.divider} />
+                  <Pressable
+                    style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                    onPress={() => handleItemPress(logoutMenuItem)}
+                    accessibilityLabel={logoutMenuItem.label}
+                    accessibilityRole="button"
+                    testID={`menu-item-${logoutMenuItem.id}`}
+                  >
+                    <Ionicons name={logoutMenuItem.icon} size={24} color={colors.error} />
+                    <Text style={[styles.menuItemText, { color: colors.error }]}>
+                      {logoutMenuItem.label}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+            </Animated.View>
+          </Animated.View>
+        </GestureDetector>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>) =>
+const createStyles = (colors: ReturnType<typeof getColors>, menuWidth: number) =>
   StyleSheet.create({
     backdrop: {
       flex: 1,
@@ -242,7 +302,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       flex: 1,
     },
     menuContainer: {
-      width: '75%', // 75% of screen width
+      width: menuWidth, // 75% of screen width
       height: '100%',
       backgroundColor: colors.backgroundElevated,
       shadowColor: colors.shadow,

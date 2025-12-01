@@ -38,8 +38,13 @@ export async function getAutoHighlights(
 ): Promise<GetAutoHighlightsResponse> {
   const queryParams = new URLSearchParams();
 
-  if (options?.themeIds && options.themeIds.length > 0) {
-    queryParams.append('themes', options.themeIds.join(','));
+  if (options?.themeIds !== undefined) {
+    if (options.themeIds.length > 0) {
+      queryParams.append('themes', options.themeIds.join(','));
+    } else {
+      // If themeIds is an empty array, send "themes=" to explicitly tell backend no themes
+      queryParams.append('themes', '');
+    }
   }
 
   if (options?.themeRelevance) {

@@ -297,7 +297,7 @@ export default function TopicDetailScreen() {
 
       // Calculate scroll velocity (pixels per second)
       const timeDelta = currentTime - lastScrollTime.current;
-      const scrollDelta = Math.abs(currentScrollY - lastScrollY.current);
+      const scrollDelta = currentScrollY - lastScrollY.current; // Signed value to track direction
       const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
 
       // Check if at bottom
@@ -490,7 +490,7 @@ export default function TopicDetailScreen() {
             ) : explanation && typeof explanation === 'string' ? (
               <View style={styles.explanationContainer}>
                 <Markdown style={markdownStyles} rules={markdownRules}>
-                  {explanation.replace(/###\s*Summary\s*\n/gi, '')}
+                  {explanation.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
                 </Markdown>
               </View>
             ) : (

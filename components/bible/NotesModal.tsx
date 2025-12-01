@@ -14,20 +14,6 @@
  *
  * @see Spec: agent-os/specs/2025-11-05-notes-functionality/spec.md (lines 20-28)
  * @see Task Group 5: Modal Components - NotesModal
- *
- * @example
- * ```tsx
- * <NotesModal
- *   visible={isVisible}
- *   bookId={1}
- *   chapterNumber={1}
- *   bookName="Genesis"
- *   onClose={handleClose}
- *   onNotePress={handleNotePress}
- *   onEditNote={handleEditNote}
- *   onDeleteNote={handleDeleteNote}
- * />
- * ```
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -49,6 +35,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CharacterCounter } from '@/components/bible/CharacterCounter';
 import { NoteCard } from '@/components/bible/NoteCard';
+import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import {
   fontSizes,
   fontWeights,
@@ -59,6 +46,7 @@ import {
 } from '@/constants/bible-design-tokens';
 import { NOTES_CONFIG } from '@/constants/notes';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { Note } from '@/types/notes';
 
@@ -80,8 +68,6 @@ export interface NotesModalProps {
   onNotePress: (note: Note) => void;
   /** Callback when edit button is pressed */
   onEditNote: (note: Note) => void;
-  /** Callback when delete button is pressed */
-  onDeleteNote: (note: Note) => void;
 }
 
 /**
@@ -97,13 +83,17 @@ export function NotesModal({
   onClose,
   onNotePress,
   onEditNote,
-  onDeleteNote,
 }: NotesModalProps) {
   const { colors, mode } = useTheme();
   const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
-  const { addNote, getNotesByChapter, isAddingNote } = useNotes();
+  const { addNote, getNotesByChapter, isAddingNote, deleteNote } = useNotes();
+  const { showToast } = useToast();
   const [newNoteContent, setNewNoteContent] = useState('');
   const textInputRef = useRef<TextInput>(null);
+
+  // Options Modal State
+  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
 
   // Get notes for this chapter
   const chapterNotes = getNotesByChapter(bookId, chapterNumber);
@@ -126,17 +116,44 @@ export function NotesModal({
       return;
     }
 
-    // Dismiss keyboard after validation
-    Keyboard.dismiss();
-
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
       await addNote(bookId, chapterNumber, newNoteContent.trim());
       // Clear textarea after successful addition
       setNewNoteContent('');
+      showToast('Note added successfully');
     } catch (error) {
       console.error('Failed to add note:', error);
+    }
+  };
+
+  /**
+   * Wrapper to dismiss keyboard then execute add
+   */
+  const handleAddNoteWithKeyboardDismiss = () => {
+    Keyboard.dismiss();
+    // Use setImmediate to let keyboard dismissal complete first
+    setImmediate(() => {
+      handleAddNote();
+    });
+  };
+
+  const handleMenuPress = async (note: Note) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedNote(note);
+    setOptionsModalVisible(true);
+  };
+
+  const handleEditFromMenu = () => {
+    if (selectedNote) {
+      onEditNote(selectedNote);
+    }
+  };
+
+  const handleActionComplete = (action: string) => {
+    if (action === 'copy') {
+      showToast('Note copied to clipboard');
     }
   };
 
@@ -197,7 +214,7 @@ export function NotesModal({
                   />
 
                   <TouchableOpacity
-                    onPress={handleAddNote}
+                    onPress={handleAddNoteWithKeyboardDismiss}
                     disabled={isAddButtonDisabled}
                     style={[styles.addButton, isAddButtonDisabled && styles.addButtonDisabled]}
                     activeOpacity={0.7}
@@ -232,8 +249,7 @@ export function NotesModal({
                         key={note.note_id}
                         note={note}
                         onPress={onNotePress}
-                        onEdit={onEditNote}
-                        onDelete={onDeleteNote}
+                        onMenuPress={handleMenuPress}
                       />
                     ))}
                   </View>
@@ -242,6 +258,16 @@ export function NotesModal({
             </ScrollView>
           </SafeAreaView>
         </Pressable>
+
+        {/* Note Options Modal */}
+        <NoteOptionsModal
+          visible={optionsModalVisible}
+          onClose={() => setOptionsModalVisible(false)}
+          note={selectedNote}
+          deleteNote={deleteNote} // Use deleteNote from hook directly
+          onEdit={handleEditFromMenu}
+          onActionComplete={handleActionComplete}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );

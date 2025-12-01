@@ -23,6 +23,7 @@ import 'react-native-reanimated';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 
 // Keep the splash screen visible while we fetch last read position
@@ -56,49 +57,28 @@ function RootLayoutInner() {
   const { mode, colors, isLoading: themeLoading } = useTheme();
   const hasInitialized = useRef(false);
 
-  // Multi-strategy edge-to-edge initialization for Android
-  // Tries multiple timing strategies to ensure nav bar transparency activates
+  // System UI setup for Android
+  // Note: edgeToEdgeEnabled is set in app.json, which makes nav bar transparent automatically
   useEffect(() => {
     if (Platform.OS !== 'android' || themeLoading || hasInitialized.current) {
       return;
     }
 
-    const applyEdgeToEdge = async () => {
+    const applySystemUI = async () => {
       try {
+        // Update background color to match theme
         await SystemUI.setBackgroundColorAsync(colors.background);
+        // Update nav bar button style (light buttons on dark theme, dark on light)
         await NavigationBar.setButtonStyleAsync(mode === 'dark' ? 'light' : 'dark');
+        // Ensure nav bar is visible (reverting hidden state)
         await NavigationBar.setVisibilityAsync('visible');
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        if (!errorMsg.includes('edge-to-edge')) {
-          console.error('Failed to apply edge-to-edge:', error);
-        }
+        console.error('Failed to apply system UI settings:', error);
       }
     };
 
-    // Strategy 1: Immediate application
-    applyEdgeToEdge();
-
-    // Strategy 2: After current interactions complete
-    const interactionHandle = InteractionManager.runAfterInteractions(() => {
-      applyEdgeToEdge();
-    });
-
-    // Strategy 3: Multiple retry attempts with increasing delays
-    const timers = [
-      setTimeout(() => applyEdgeToEdge(), 50),
-      setTimeout(() => applyEdgeToEdge(), 150),
-      setTimeout(() => applyEdgeToEdge(), 300),
-    ];
-
+    applySystemUI();
     hasInitialized.current = true;
-
-    return () => {
-      interactionHandle.cancel();
-      for (const timer of timers) {
-        clearTimeout(timer);
-      }
-    };
   }, [themeLoading, colors.background, mode]);
 
   // Hide splash screen with delay to ensure window layout is ready
@@ -198,7 +178,9 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <CustomThemeProvider>
-            <RootLayoutInner />
+            <ToastProvider>
+              <RootLayoutInner />
+            </ToastProvider>
           </CustomThemeProvider>
         </AuthProvider>
       </QueryClientProvider>

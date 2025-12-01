@@ -1,29 +1,3 @@
-/**
- * Highlights List Screen
- *
- * Displays user's highlights grouped by book and chapter in collapsible sections.
- * Each group shows book name, chapter number, and highlight count.
- *
- * Features:
- * - Collapsible chapter groups (collapsed by default)
- * - Group header format: "{Book Name} {Chapter Number} ({count} highlights)"
- * - Chevron icon rotates on expand/collapse
- * - Individual highlight items within expanded groups
- * - Tap highlight to navigate to chapter
- * - Pull-to-refresh functionality
- * - Empty state for no highlights
- * - Authentication guard
- * - Loading state handling
- *
- * @see Task Group 6: My Highlights List Screen
- * @see Spec: .agent-os/specs/2025-11-06-highlight-feature/spec.md (lines 87-99)
- * @see Reference: app/notes.tsx
- *
- * @example
- * Navigation: router.push('/highlights')
- * Accessible from hamburger menu
- */
-
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -43,57 +17,6 @@ import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bib
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
-
-/**
- * Convert a number to Unicode superscript characters
- * Maps each digit to its Unicode superscript equivalent
- */
-function toSuperscript(num: number): string {
-  const superscriptMap: Record<string, string> = {
-    '0': '⁰',
-    '1': '¹',
-    '2': '²',
-    '3': '³',
-    '4': '⁴',
-    '5': '⁵',
-    '6': '⁶',
-    '7': '⁷',
-    '8': '⁸',
-    '9': '⁹',
-  };
-
-  return num
-    .toString()
-    .split('')
-    .map((digit) => superscriptMap[digit] || digit)
-    .join('');
-}
-
-/**
- * Format highlight text with verse numbers
- * For single verse: "¹ verse text"
- * For multiple verses: "¹ verse text \u2009² verse text"
- */
-function formatHighlightWithVerseNumbers(highlight: Highlight): string {
-  const { start_verse, end_verse, selected_text } = highlight;
-
-  // If no selected_text, just show verse range
-  if (!selected_text) {
-    if (start_verse === end_verse) {
-      return `Verse ${start_verse}`;
-    }
-    return `Verses ${start_verse}-${end_verse}`;
-  }
-
-  // Single verse - add superscript number at start
-  if (start_verse === end_verse) {
-    return `${toSuperscript(start_verse)}\u2009${selected_text}`;
-  }
-
-  // Multiple verses - this is simplified since we don't have individual verse texts
-  // We'll show the range and the selected text
-  return `${toSuperscript(start_verse)}-${toSuperscript(end_verse)}\u2009${selected_text}`;
-}
 
 /**
  * Bible book names mapping
@@ -213,19 +136,6 @@ function groupHighlightsByChapter(highlights: Highlight[]): ChapterGroup[] {
 
 /**
  * Highlights List Screen Component
- *
- * Layout:
- * - SafeAreaView for proper screen padding
- * - Header with "Highlights" title and back button
- * - ScrollView list of collapsible chapter groups
- * - Empty state when no highlights
- * - Login prompt when not authenticated
- * - Loading indicator during fetch
- *
- * Chapter Group Format:
- * - Header: "{Book Name} {Chapter Number} ({count} highlights)" with chevron
- * - Expanded: Shows individual highlight items
- * - Collapsed: Only shows header
  */
 export default function HighlightsScreen() {
   const { colors } = useTheme();
@@ -233,9 +143,6 @@ export default function HighlightsScreen() {
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { allHighlights, isFetchingHighlights, refetchHighlights } = useHighlights();
-
-  // Expanded chapter groups state
-  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
 
   // Pull-to-refresh state
   const [refreshing, setRefreshing] = useState(false);
@@ -250,38 +157,19 @@ export default function HighlightsScreen() {
   };
 
   /**
-   * Toggle chapter group expand/collapse
+   * Handle chapter group press
+   * Opens screen with highlights for that chapter
    */
-  const toggleChapter = async (bookId: number, chapterNumber: number) => {
+  const handleChapterPress = async (group: ChapterGroup) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const key = `${bookId}-${chapterNumber}`;
-    setExpandedChapters((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
+    router.push({
+      pathname: '/highlights/[bookId]/[chapterNumber]',
+      params: {
+        bookId: String(group.bookId),
+        chapterNumber: String(group.chapterNumber),
+        bookName: group.bookName,
+      },
     });
-  };
-
-  /**
-   * Check if chapter group is expanded
-   */
-  const isChapterExpanded = (bookId: number, chapterNumber: number): boolean => {
-    const key = `${bookId}-${chapterNumber}`;
-    return expandedChapters.has(key);
-  };
-
-  /**
-   * Handle highlight item press
-   * Navigates to chapter with highlight visible
-   */
-  const handleHighlightPress = async (bookId: number, chapterNumber: number) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/bible/${bookId}/${chapterNumber}`);
   };
 
   /**
@@ -493,49 +381,29 @@ export default function HighlightsScreen() {
         </View>
 
         {/* User Highlights */}
-        {chapterGroups.map((group) => {
-          const isExpanded = isChapterExpanded(group.bookId, group.chapterNumber);
-          const chevronIcon = isExpanded ? 'chevron-down' : 'chevron-forward';
-
-          return (
-            <View key={`${group.bookId}-${group.chapterNumber}`} style={styles.chapterGroup}>
-              {/* Chapter Group Header */}
-              <Pressable
-                style={({ pressed }) => [styles.groupHeader, pressed && styles.groupHeaderPressed]}
-                onPress={() => toggleChapter(group.bookId, group.chapterNumber)}
-                testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
-              >
+        {chapterGroups.map((group) => (
+          <View key={`${group.bookId}-${group.chapterNumber}`} style={styles.chapterGroup}>
+            {/* Chapter Group Header */}
+            <Pressable
+              style={({ pressed }) => [styles.groupHeader, pressed && styles.groupHeaderPressed]}
+              onPress={() => handleChapterPress(group)}
+              testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
+            >
+              <View style={styles.groupInfo}>
                 <Text style={styles.groupTitle}>
-                  {group.bookName} {group.chapterNumber} ({group.highlights.length}{' '}
-                  {group.highlights.length === 1 ? 'highlight' : 'highlights'})
+                  {group.bookName} {group.chapterNumber}
                 </Text>
-                <Ionicons name={chevronIcon} size={20} color={colors.textSecondary} />
-              </Pressable>
-
-              {/* Chapter Group Content (Expanded) */}
-              {isExpanded && (
-                <View style={styles.groupContent}>
-                  {group.highlights.map((highlight) => (
-                    <Pressable
-                      key={highlight.highlight_id}
-                      style={({ pressed }) => [
-                        styles.highlightItem,
-                        pressed && styles.highlightItemPressed,
-                      ]}
-                      onPress={() => handleHighlightPress(group.bookId, group.chapterNumber)}
-                      testID={`highlight-item-${highlight.highlight_id}`}
-                    >
-                      <Text style={styles.highlightText} numberOfLines={2} ellipsizeMode="tail">
-                        {formatHighlightWithVerseNumbers(highlight)}
-                      </Text>
-                      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-          );
-        })}
+                <Text style={styles.groupSubtitle}>
+                  {group.highlights.length}{' '}
+                  {group.highlights.length === 1 ? 'highlight' : 'highlights'}
+                </Text>
+              </View>
+              <View style={styles.groupIconContainer}>
+                <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+              </View>
+            </Pressable>
+          </View>
+        ))}
 
         {/* Divider */}
         <View style={styles.sectionDivider}>
@@ -581,7 +449,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       color: colors.textPrimary,
     },
     headerSpacer: {
-      width: 32, // Same width as back button for centering
+      width: 32,
     },
     centerContent: {
       flex: 1,
@@ -669,27 +537,53 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
+    // Updated Card Styles
     chapterGroup: {
-      marginBottom: spacing.xs,
+      marginBottom: spacing.md,
+      marginHorizontal: spacing.lg,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      overflow: 'hidden',
     },
     groupHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      backgroundColor: colors.backgroundElevated,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
+      padding: spacing.lg,
     },
     groupHeaderPressed: {
-      backgroundColor: colors.divider,
+      backgroundColor: `${colors.divider}20`, // Subtle press effect
+    },
+    groupInfo: {
+      flex: 1,
     },
     groupTitle: {
-      flex: 1,
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.semibold,
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.bold,
       color: colors.textPrimary,
+      marginBottom: 2,
+    },
+    groupSubtitle: {
+      fontSize: fontSizes.caption,
+      color: colors.textSecondary,
+      fontWeight: fontWeights.medium,
+    },
+    groupIconContainer: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     groupContent: {
       backgroundColor: colors.background,

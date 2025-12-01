@@ -64,7 +64,7 @@ describe('AutoHighlightTooltip', () => {
     );
 
     expect(screen.getByText('Gods Love')).toBeTruthy();
-    expect(screen.getByText('AI-generated highlight')).toBeTruthy();
+    expect(screen.getByText('Auto-generated highlight')).toBeTruthy();
     expect(screen.getByText('Verse 16')).toBeTruthy();
     // Toggle button should be visible
     expect(screen.getByText('View Verse Insight')).toBeTruthy();
@@ -98,7 +98,12 @@ describe('AutoHighlightTooltip', () => {
     const saveButton = screen.getByText('Save as My Highlight');
     fireEvent.press(saveButton);
 
-    expect(mockOnSave).toHaveBeenCalledWith('yellow', { start: 16, end: 16 });
+    // Updated expectation: includes the extracted verse text
+    expect(mockOnSave).toHaveBeenCalledWith(
+      'yellow',
+      { start: 16, end: 16 },
+      'For God so loved the world...'
+    );
   });
 
   it('shows login prompt when not logged in', () => {

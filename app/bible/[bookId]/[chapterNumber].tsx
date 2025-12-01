@@ -74,9 +74,10 @@ const CENTER_INDEX = 2;
  */
 export default function ChapterScreen() {
   // Extract and validate route params
-  const params = useLocalSearchParams<{ bookId: string; chapterNumber: string }>();
+  const params = useLocalSearchParams<{ bookId: string; chapterNumber: string; verse?: string }>();
   const bookId = Number(params.bookId);
   const chapterNumber = Number(params.chapterNumber);
+  const targetVerse = params.verse ? Number(params.verse) : undefined;
 
   // Theme
   const { colors, mode } = useTheme();
@@ -376,6 +377,7 @@ export default function ChapterScreen() {
         initialChapter={validChapter}
         activeTab={activeTab}
         activeView={activeView}
+        targetVerse={targetVerse}
         onPageChange={handlePageChange}
         onScroll={handleScroll}
         onTap={handleTap}
