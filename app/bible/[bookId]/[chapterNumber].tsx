@@ -515,6 +515,7 @@ function ChapterHeader({
           style={styles.iconButton}
           accessibilityLabel="Open menu"
           accessibilityRole="button"
+          testID="hamburger-menu-button"
         >
           <Ionicons name="menu" size={headerSpecs.iconSize} color={headerSpecs.iconColor} />
         </Pressable>

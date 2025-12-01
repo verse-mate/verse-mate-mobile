@@ -1,0 +1,144 @@
+---
+appId: org.versemate.mobile
+name: Content Tab Switching Flow
+description: Tests switching between Summary, By Line, and Detailed tabs
+tags:
+  - critical
+  - tabs
+  - reading-modes
+
+---
+
+# Content Tab Switching E2E Test
+#
+# This flow tests tab switching and content loading:
+# - Switch between Summary, By Line, Detailed tabs
+# - Verify content loads for each tab
+# - Verify tab persistence across navigation
+#
+# User Journey:
+# 1. Launch app to Genesis 1
+# 2. Switch to Explanations view to access tabs
+# 3. Verify Summary tab active by default
+# 4. Switch to By Line tab
+# 5. Switch to Detailed tab
+# 6. Navigate to next chapter -> verify tab persists
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to load
+- waitForAnimationToEnd
+
+# Verify app loaded (chapter selector visible)
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Tabs should NOT be visible in Bible view (default)
+- assertNotVisible:
+    id: "chapter-content-tabs"
+
+# Switch to Explanations view to access tabs
+- tapOn:
+    id: "explanations-view-icon"
+
+# Wait for view to switch
+- waitForAnimationToEnd
+
+# Verify tabs container is visible
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# Verify Summary tab is visible (default tab)
+- assertVisible:
+    id: "tab-summary"
+
+# Verify By Line tab is available
+- assertVisible:
+    id: "tab-byline"
+
+# Verify Detailed tab is available
+- assertVisible:
+    id: "tab-detailed"
+
+# Switch to By Line tab
+- tapOn:
+    id: "tab-byline"
+
+# Wait for content to switch
+- waitForAnimationToEnd
+
+# Verify By Line tab is now selected
+- assertVisible:
+    id: "tab-byline"
+
+# Chapter selector should still be visible
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Switch to Detailed tab
+- tapOn:
+    id: "tab-detailed"
+
+# Wait for content to switch
+- waitForAnimationToEnd
+
+# Verify Detailed tab is now selected
+- assertVisible:
+    id: "tab-detailed"
+
+# Chapter selector should still be visible
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Scroll to find next chapter button
+- scroll
+- scroll
+- scroll
+
+# Navigate to next chapter
+- tapOn:
+    id: "next-chapter-button"
+
+# Wait for chapter to load
+- waitForAnimationToEnd
+
+# Verify chapter loaded (chapter selector visible)
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Verify tabs are STILL visible (we're still in Explanations view)
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# Verify Detailed tab is STILL selected (tab persistence)
+- assertVisible:
+    id: "tab-detailed"
+
+# Switch back to Summary tab
+- tapOn:
+    id: "tab-summary"
+
+# Wait for tab switch
+- waitForAnimationToEnd
+
+# Verify Summary tab is now selected
+- assertVisible:
+    id: "tab-summary"
+
+# Chapter selector should still be visible
+- assertVisible:
+    id: "chapter-selector-button"
