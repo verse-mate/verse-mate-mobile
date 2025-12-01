@@ -1,0 +1,102 @@
+---
+appId: org.versemate.mobile
+name: Settings Flow
+description: Tests settings screen navigation and basic functionality
+tags:
+  - settings
+  - user-flow
+
+---
+
+# Settings E2E Test Flow
+#
+# This flow tests settings management functionality:
+# 1. Navigate to settings via hamburger menu
+# 2. Verify settings elements are visible
+# 3. Navigate back to chapter screen
+#
+# Note: Theme switching and profile editing are optional as they
+# depend on authentication state and specific UI implementation.
+
+# ============================================
+# Test Setup: Launch App
+# ============================================
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Settings via Hamburger Menu
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu to open
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Tap on Settings menu item
+- tapOn:
+    id: "menu-item-settings"
+
+# Wait for navigation to settings screen
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Settings Screen Elements
+# ============================================
+
+# Verify settings back button is visible
+- assertVisible:
+    id: "settings-back-button"
+
+# Verify Bible Version section is visible (available to all users)
+- assertVisible:
+    text: "Bible Version"
+
+# For unauthenticated user, sign in button should be visible
+- assertVisible:
+    id: "settings-sign-in-button"
+    optional: true
+
+# ============================================
+# Test 3: Navigate Back to Chapter
+# ============================================
+
+# Use settings back button
+- tapOn:
+    id: "settings-back-button"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================

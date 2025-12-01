@@ -363,6 +363,7 @@ function BibleNavigationModalComponent({
         style={styles.testamentTab}
         accessibilityRole="tab"
         accessibilityState={{ selected: selectedTab === 'OT' }}
+        testID="tab-old-testament"
       >
         <Text
           style={[styles.testamentTabText, selectedTab === 'OT' && styles.testamentTabTextActive]}
@@ -376,6 +377,7 @@ function BibleNavigationModalComponent({
         style={styles.testamentTab}
         accessibilityRole="tab"
         accessibilityState={{ selected: selectedTab === 'NT' }}
+        testID="tab-new-testament"
       >
         <Text
           style={[styles.testamentTabText, selectedTab === 'NT' && styles.testamentTabTextActive]}
@@ -389,6 +391,7 @@ function BibleNavigationModalComponent({
         style={styles.testamentTab}
         accessibilityRole="tab"
         accessibilityState={{ selected: selectedTab === 'TOPICS' }}
+        testID="tab-topics"
       >
         <Text
           style={[

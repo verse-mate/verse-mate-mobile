@@ -1,0 +1,160 @@
+---
+appId: org.versemate.mobile
+name: Topics Reading Flow
+description: Tests topics navigation and selection functionality
+tags:
+  - topics
+  - navigation
+
+---
+
+# Topics Reading E2E Test Flow
+#
+# This flow tests topics functionality:
+# 1. Navigate to topics via navigation modal
+# 2. Verify topic categories are visible
+# 3. Select a topic from the list
+# 4. Return to Bible chapter
+
+# ============================================
+# Test Setup: Launch App
+# ============================================
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load (either chapter or topic screen)
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Topics
+# ============================================
+
+# Open navigation modal (try chapter selector first, then topic selector)
+- tapOn:
+    id: "chapter-selector-button"
+    optional: true
+
+- tapOn:
+    id: "topic-selector-button"
+    optional: true
+
+# Wait for modal to open
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Tap on Topics tab
+- tapOn:
+    id: "tab-topics"
+
+# Wait for topics to load
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Topics Categories
+# ============================================
+
+# Verify category tabs are visible (Events, Prophecies, Parables, Themes)
+- assertVisible:
+    text: "Events"
+
+- assertVisible:
+    text: "Prophecies"
+
+- assertVisible:
+    text: "Parables"
+
+- assertVisible:
+    text: "Themes"
+
+# ============================================
+# Test 3: Select a Topic
+# ============================================
+
+# Tap on first topic in the list (The Creation of the World)
+- tapOn:
+    text: "The Creation of the World"
+
+# Wait for topic to load
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# ============================================
+# Test 4: Verify Topic Loaded
+# ============================================
+
+# Verify topic selector button is visible (topics use topic-selector-button)
+- assertVisible:
+    id: "topic-selector-button"
+
+# ============================================
+# Test 5: Return to Bible Chapter
+# ============================================
+
+# Open navigation modal again using topic selector
+- tapOn:
+    id: "topic-selector-button"
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Switch to Old Testament tab (go back to Bible)
+- tapOn:
+    id: "tab-old-testament"
+
+# Wait for tab switch
+- waitForAnimationToEnd
+
+# Select Genesis
+- tapOn:
+    id: "book-item-genesis"
+
+# Wait for chapter grid
+- waitForAnimationToEnd
+
+# Select chapter 1
+- tapOn:
+    id: "chapter-1"
+
+# Wait for chapter to load
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're back on a chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================

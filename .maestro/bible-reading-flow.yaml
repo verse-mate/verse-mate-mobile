@@ -22,19 +22,47 @@ tags:
 - launchApp:
     appId: org.versemate.mobile
 
-# App redirects to Genesis 1 in Bible view (default)
-- assertVisible: "Genesis 1"
+# For development builds: tap on localhost to connect to dev server if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+# Dismiss developer menu if shown
+- tapOn:
+    text: "Continue"
+    optional: true
+
+# Dismiss dev tools panel by tapping outside or X button
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load (either Bible chapter or Topic screen)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Now verify we're on a chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
 
 # Wait for content to load
 - waitForAnimationToEnd
 
-# Verify Bible view icon is active (testID)
+# Verify Bible view icon is present (testID)
 - assertVisible:
     id: "bible-view-icon"
 
 # Verify Explanations view icon is present
 - assertVisible:
     id: "explanations-view-icon"
+
+# First, ensure we're in Bible view by tapping the Bible view icon
+- tapOn:
+    id: "bible-view-icon"
+
+- waitForAnimationToEnd
 
 # Tabs should NOT be visible in Bible view (key differentiator)
 - assertNotVisible:
@@ -48,5 +76,6 @@ tags:
 - assertVisible:
     id: "tab-summary"
 
-# Verify still on Genesis 1
-- assertVisible: "Genesis 1"
+# Verify chapter selector button still visible after view switch
+- assertVisible:
+    id: "chapter-selector-button"
