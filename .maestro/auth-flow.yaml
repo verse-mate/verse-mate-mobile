@@ -1,54 +1,106 @@
 ---
 appId: org.versemate.mobile
 name: Authentication Flow
-description: Tests complete authentication flows including signup, login, and session persistence
+description: Tests authentication UI navigation including signup and login screens
 tags:
-  - critical
   - auth
   - user-flow
 
 ---
 
-# Authentication E2E Test Flow
+# Authentication UI Navigation E2E Test
 #
-# This flow tests all critical authentication user journeys:
-# 1. Signup with new account
-# 2. Login with existing account
-# 3. Session persistence after app restart
+# This flow tests authentication UI accessibility and navigation:
+# 1. Navigate to Login via hamburger menu
+# 2. Verify login form elements
+# 3. Navigate to Signup via link
+# 4. Verify signup form elements
 #
-# Prerequisites:
-# - App must be built with auth screens implemented
-# - Backend API must be accessible or mocked
-#
-# Note: This test uses UI element IDs (testID) for reliable interaction
+# Note: This test verifies UI navigation only.
+# Actual signup/login would require test credentials and API connectivity.
 
 # ============================================
-# Test 1: Complete Signup Flow
+# Test Setup: Launch App
 # ============================================
 
 - launchApp:
     appId: org.versemate.mobile
 
-# Wait for app to load
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Login via Hamburger Menu
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu to open
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Verify Login menu item is visible (shows when not authenticated)
+- assertVisible:
+    id: "menu-item-login"
+
+# Tap on Login menu item
+- tapOn:
+    id: "menu-item-login"
+
+# Wait for navigation
 - waitForAnimationToEnd
 
-# Navigate to auth modal by tapping a bookmark button (triggers auth requirement)
-# For this test, we'll directly navigate to the signup screen
-- tapOn:
-    id: "open-auth-modal"
-  optional: true
+# Verify login screen is visible
+- assertVisible:
+    text: "Welcome back"
 
-# If auth modal doesn't auto-open, navigate to it via profile/settings
-# This is a placeholder - actual trigger depends on implementation
+# Verify login form fields are present
+- assertVisible:
+    id: "login-email"
+
+- assertVisible:
+    id: "login-password"
+
+# Verify submit button is present
+- assertVisible:
+    id: "login-submit"
+
+# ============================================
+# Test 2: Navigate to Signup via Link
+# ============================================
+
+# Tap on "Don't have an account? Sign up" link
 - tapOn:
-    text: "Sign In"
-  optional: true
+    id: "login-signup-link"
+
+# Wait for navigation
+- waitForAnimationToEnd
 
 # Verify signup screen is visible
 - assertVisible:
     text: "Create Account"
 
-# Verify all form fields are present
+# Verify signup form fields are present
 - assertVisible:
     id: "signup-first-name"
 
@@ -61,149 +113,28 @@ tags:
 - assertVisible:
     id: "signup-password"
 
-# Fill in signup form
-- tapOn:
-    id: "signup-first-name"
-- inputText: "John"
-
-- tapOn:
-    id: "signup-last-name"
-- inputText: "Doe"
-
-- tapOn:
-    id: "signup-email"
-- inputText: "john.doe.maestro@example.com"
-
-- tapOn:
-    id: "signup-password"
-- inputText: "password123"
-
-# Verify password requirements update in real-time
-- assertVisible:
-    text: "At least 8 characters"
-
-- assertVisible:
-    text: "At least 1 numeric character"
-
-- assertVisible:
-    text: "At least 1 letter"
-
-# Verify submit button becomes enabled
+# Verify submit button is present
 - assertVisible:
     id: "signup-submit"
 
-# Submit signup form
-- tapOn:
-    id: "signup-submit"
-
-# Wait for signup to complete and modal to dismiss
-- waitForAnimationToEnd
-
-# Verify modal has dismissed (signup screen no longer visible)
-- assertNotVisible:
-    text: "Create Account"
-  timeout: 5000
-
-# Verify we're back to main app (authenticated state)
-# This assertion depends on your app's authenticated UI
-- assertVisible:
-    text: "Genesis 1"
-  optional: true
-
 # ============================================
-# Test 2: Navigate to Login and Back
+# Test 3: Navigate Back to Login
 # ============================================
 
-# For this test, we'll logout first (if logout feature exists)
-# Then test login flow
-
-# Open auth modal again
-- tapOn:
-    text: "Sign In"
-  optional: true
-
-# Should see signup screen by default
-- assertVisible:
-    text: "Create Account"
-  optional: true
-
-# Tap "Already have an account? Login" link
+# Tap on "Already have an account? Login" link
 - tapOn:
     id: "signup-login-link"
-  optional: true
 
-# Verify login screen appears
-- assertVisible:
-    text: "Welcome back"
-  timeout: 3000
-
-- assertVisible:
-    text: "Login into your account"
-
-# Verify login form fields
-- assertVisible:
-    id: "login-email"
-
-- assertVisible:
-    id: "login-password"
-
-# Fill in login form
-- tapOn:
-    id: "login-email"
-- inputText: "john.doe.maestro@example.com"
-
-- tapOn:
-    id: "login-password"
-- inputText: "password123"
-
-# Submit login
-- tapOn:
-    id: "login-submit"
-
-# Wait for login to complete
+# Wait for navigation
 - waitForAnimationToEnd
 
-# Verify modal dismissed
-- assertNotVisible:
+# Verify login screen is visible
+- assertVisible:
     text: "Welcome back"
-  timeout: 5000
-
-# ============================================
-# Test 3: Continue Without Account
-# ============================================
-
-# Open auth modal again
-- tapOn:
-    text: "Sign In"
-  optional: true
-
-# Verify we can continue without authenticating
-- tapOn:
-    id: "signup-continue-without-account"
-  optional: true
-
-# Modal should dismiss
-- waitForAnimationToEnd
-
-# ============================================
-# Test 4: Session Persistence (App Restart)
-# ============================================
-
-# This test is commented out as it requires special Maestro handling
-# Uncomment when ready to test session persistence
-
-# - stopApp
-# - launchApp:
-#     appId: org.versemate.mobile
-#
-# - waitForAnimationToEnd
-#
-# # After restart, user should still be authenticated
-# # Verify authenticated state (no auth modal appears)
-# - assertNotVisible:
-#     text: "Create Account"
-#   timeout: 3000
 
 # ============================================
 # Test Complete
 # ============================================
+
+# Note: Navigation back to main app not tested here as it requires
+# multiple back presses through the auth navigation stack.

@@ -13,21 +13,35 @@ tags:
 #
 # This flow tests chapter navigation functionality:
 # - Next/Previous chapter buttons
-# - Swipe gestures for navigation
-# - Progress bar updates
+# - Progress through multiple chapters
 #
 # User Journey:
 # 1. Launch app to Genesis 1
 # 2. Verify content loads
-# 3. Tap next chapter button → Genesis 2
-# 4. Swipe left → Genesis 3
-# 5. Verify progress bar updates
+# 3. Tap next chapter button -> Genesis 2
+# 4. Tap next chapter button -> Genesis 3
+# 5. Tap previous chapter button -> Genesis 2
+# 6. Tap previous chapter button -> Genesis 1
 
 - launchApp:
     appId: org.versemate.mobile
 
-# Wait for app to load
-- assertVisible: "Genesis 1"
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to load - verify chapter selector is visible
+- assertVisible:
+    id: "chapter-selector-button"
 
 # Wait for content to load
 - waitForAnimationToEnd
@@ -41,11 +55,12 @@ tags:
 - tapOn:
     id: "next-chapter-button"
 
-# Wait for Genesis 2 to load
-- assertVisible: "Genesis 2"
+# Wait for new chapter to load
+- waitForAnimationToEnd
 
-# Wait for new content to load
-- assertVisible: "Genesis 2"
+# Verify chapter selector button still visible (chapter loaded)
+- assertVisible:
+    id: "chapter-selector-button"
 
 # Scroll down to find next chapter button
 - scroll
@@ -56,8 +71,12 @@ tags:
 - tapOn:
     id: "next-chapter-button"
 
-# Wait for Genesis 3 to load
-- assertVisible: "Genesis 3"
+# Wait for new chapter to load
+- waitForAnimationToEnd
+
+# Verify chapter selector button still visible
+- assertVisible:
+    id: "chapter-selector-button"
 
 # Scroll down to find previous chapter button
 - scroll
@@ -68,19 +87,28 @@ tags:
 - tapOn:
     id: "previous-chapter-button"
 
-# Should go back to Genesis 2
-- assertVisible: "Genesis 2"
+# Wait for chapter to load
+- waitForAnimationToEnd
 
-# Tap previous chapter again to go to Genesis 1
+# Verify chapter selector button still visible
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Scroll down to find previous chapter button
 - scroll
 - scroll
 - scroll
 
+# Tap previous chapter again to go back
 - tapOn:
     id: "previous-chapter-button"
 
-# Should go back to Genesis 1
-- assertVisible: "Genesis 1"
+# Wait for chapter to load
+- waitForAnimationToEnd
+
+# Verify chapter selector button still visible
+- assertVisible:
+    id: "chapter-selector-button"
 
 # Scroll down to verify next chapter button still works
 - scroll

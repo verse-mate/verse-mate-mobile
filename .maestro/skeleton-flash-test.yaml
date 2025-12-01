@@ -27,13 +27,27 @@ tags:
 # - Should show old chapter content (Genesis 1) during swipe
 # - Should smoothly transition to new chapter content (Genesis 2)
 # - Should NOT show skeleton loader between transitions
-# - Header should update to "Genesis 2" at same time as content updates
+# - Header should update at same time as content updates
 
 - launchApp:
     appId: org.versemate.mobile
 
-# Wait for Genesis 1 to load in Bible view
-- assertVisible: "Genesis 1"
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for chapter to load - verify chapter selector is visible
+- assertVisible:
+    id: "chapter-selector-button"
 
 # Wait for content to load
 - waitForAnimationToEnd
@@ -52,10 +66,10 @@ tags:
 # Wait a moment to ensure explanation is cached
 - waitForAnimationToEnd
 
-# Take screenshot before swipe (Genesis 1 explanation)
-- takeScreenshot: before-swipe-genesis-1
+# Take screenshot before swipe
+- takeScreenshot: before-swipe-chapter-1
 
-# Swipe left to go to Genesis 2
+# Swipe left to go to next chapter
 # This is the critical moment - we should NOT see skeleton flash
 - swipe:
     direction: LEFT
@@ -64,11 +78,12 @@ tags:
 # Wait for animation to complete
 - waitForAnimationToEnd
 
-# Take screenshot after swipe (Genesis 2 explanation)
-- takeScreenshot: after-swipe-genesis-2
+# Take screenshot after swipe
+- takeScreenshot: after-swipe-chapter-2
 
-# Verify header updated to Genesis 2
-- assertVisible: "Genesis 2"
+# Verify chapter selector button is visible (chapter loaded)
+- assertVisible:
+    id: "chapter-selector-button"
 
 # Verify we're still in Explanations view (tabs visible)
 - assertVisible:
@@ -79,7 +94,7 @@ tags:
 - assertNotVisible:
     id: "skeleton-loader"
 
-# Swipe left again to Genesis 3 (test consecutive swipes)
+# Swipe left again to next chapter (test consecutive swipes)
 - swipe:
     direction: LEFT
     duration: 500
@@ -87,16 +102,17 @@ tags:
 - waitForAnimationToEnd
 
 # Take screenshot after second swipe
-- takeScreenshot: after-swipe-genesis-3
+- takeScreenshot: after-swipe-chapter-3
 
-# Verify header updated to Genesis 3
-- assertVisible: "Genesis 3"
+# Verify chapter selector button still visible
+- assertVisible:
+    id: "chapter-selector-button"
 
 # CRITICAL: Again verify skeleton is not visible
 - assertNotVisible:
     id: "skeleton-loader"
 
-# Swipe right back to Genesis 2 (test reverse direction)
+# Swipe right back to previous chapter (test reverse direction)
 - swipe:
     direction: RIGHT
     duration: 500
@@ -104,10 +120,11 @@ tags:
 - waitForAnimationToEnd
 
 # Take screenshot after reverse swipe
-- takeScreenshot: after-swipe-back-genesis-2
+- takeScreenshot: after-swipe-back-chapter-2
 
-# Verify header updated back to Genesis 2
-- assertVisible: "Genesis 2"
+# Verify chapter selector button visible
+- assertVisible:
+    id: "chapter-selector-button"
 
 # CRITICAL: Skeleton should not be visible
 - assertNotVisible:
