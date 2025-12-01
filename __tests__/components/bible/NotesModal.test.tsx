@@ -9,13 +9,24 @@
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { Note } from '@/types/notes';
 
 // Mock useNotes hook
 jest.mock('@/hooks/bible/use-notes');
+
+// Mock Safe Area Context
+jest.mock('react-native-safe-area-context', () => {
+  return {
+    SafeAreaProvider: jest.fn(({ children }) => children),
+    SafeAreaView: jest.fn(({ children }) => children),
+    useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+  };
+});
 
 // Mock haptics
 jest.mock('expo-haptics', () => ({
@@ -26,15 +37,21 @@ jest.mock('expo-haptics', () => ({
 }));
 
 const renderWithTheme = (component: React.ReactElement) => {
-  return render(<ThemeProvider>{component}</ThemeProvider>);
+  return render(
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ToastProvider>{component}</ToastProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
 };
 
 describe('NotesModal', () => {
   const mockOnClose = jest.fn();
   const mockOnNotePress = jest.fn();
   const mockOnEditNote = jest.fn();
-  const mockOnDeleteNote = jest.fn();
   const mockAddNote = jest.fn().mockResolvedValue(undefined);
+  const mockDeleteNote = jest.fn();
   const mockGetNotesByChapter = jest.fn();
 
   const defaultProps = {
@@ -45,7 +62,6 @@ describe('NotesModal', () => {
     onClose: mockOnClose,
     onNotePress: mockOnNotePress,
     onEditNote: mockOnEditNote,
-    onDeleteNote: mockOnDeleteNote,
   };
 
   beforeEach(() => {
@@ -54,6 +70,7 @@ describe('NotesModal', () => {
       addNote: mockAddNote,
       getNotesByChapter: mockGetNotesByChapter.mockReturnValue([]),
       isAddingNote: false,
+      deleteNote: mockDeleteNote,
     });
   });
 

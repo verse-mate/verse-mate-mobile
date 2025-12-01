@@ -64,7 +64,7 @@ describe('AutoHighlightTooltip', () => {
     );
 
     expect(screen.getByText('Gods Love')).toBeTruthy();
-    expect(screen.getByText('AI-generated highlight')).toBeTruthy();
+    expect(screen.getByText('Auto-generated highlight')).toBeTruthy();
     expect(screen.getByText('Verse 16')).toBeTruthy();
     // Toggle button should be visible
     expect(screen.getByText('View Verse Insight')).toBeTruthy();
