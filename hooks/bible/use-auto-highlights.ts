@@ -130,6 +130,11 @@ export function useAutoHighlights({
 
         themeIds = enabledPreferences.map((p) => p.theme_id);
 
+        // If user has explicitly disabled all themes, return empty highlights
+        if (themeIds.length === 0 && enabledPreferences.length === 0) {
+          return [];
+        }
+
         // Build per-theme relevance map
         // Use custom relevance only if admin_override is true, otherwise use theme default
         for (const pref of enabledPreferences) {
@@ -155,7 +160,7 @@ export function useAutoHighlights({
         .join(',');
 
       const response = await getAutoHighlights(bookId, chapterNumber, {
-        themeIds: themeIds.length > 0 ? themeIds : undefined,
+        themeIds: themeIds,
         themeRelevance: themeRelevancePairs || undefined,
       });
 
