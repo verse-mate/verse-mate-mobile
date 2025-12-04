@@ -89,6 +89,13 @@
         {
           "locationWhenInUsePermission": "Allow Verse Mate to determine sunrise and sunset times for automatic theme switching."
         }
+      ],
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.GOOGLE_IOS_CLIENT_ID"
+        }
       ]
     ],
     "experiments": {
