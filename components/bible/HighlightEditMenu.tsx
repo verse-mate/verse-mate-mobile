@@ -30,19 +30,21 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useMemo } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { HighlightColorPicker } from '@/components/bible/HighlightColorPicker';
-import { colors, fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * Props for HighlightEditMenu component
@@ -72,6 +74,9 @@ export function HighlightEditMenu({
   onDelete,
   onClose,
 }: HighlightEditMenuProps) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   /**
    * Handle color change with haptic feedback
    */
@@ -116,7 +121,7 @@ export function HighlightEditMenu({
               <HighlightColorPicker
                 selectedColor={currentColor}
                 onColorSelect={handleColorChange}
-                variant="dark"
+                variant={mode === 'dark' ? 'dark' : 'light'}
               />
             </View>
 
@@ -137,60 +142,61 @@ export function HighlightEditMenu({
   );
 }
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.backdrop,
-  },
-  centerContainer: {
-    width: '100%',
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-  },
-  menuContent: {
-    backgroundColor: '#2a2a2a', // Charcoal background
-    borderRadius: 16,
-    padding: spacing.lg,
-    width: '100%',
-    maxWidth: 340,
-    // Shadow for floating effect
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  header: {
-    marginBottom: spacing.lg,
-  },
-  headerTitle: {
-    fontSize: fontSizes.caption,
-    fontWeight: fontWeights.semibold,
-    color: colors.white,
-    letterSpacing: 1,
-    textAlign: 'center',
-  },
-  colorPickerContainer: {
-    marginBottom: spacing.lg,
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
-    marginTop: spacing.sm,
-  },
-  deleteButtonText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.medium,
-    color: colors.error,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.backdrop,
+    },
+    centerContainer: {
+      width: '100%',
+      paddingHorizontal: spacing.xl,
+      alignItems: 'center',
+    },
+    menuContent: {
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 16,
+      padding: spacing.lg,
+      width: '100%',
+      maxWidth: 340,
+      // Shadow for floating effect
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    header: {
+      marginBottom: spacing.lg,
+    },
+    headerTitle: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      letterSpacing: 1,
+      textAlign: 'center',
+    },
+    colorPickerContainer: {
+      marginBottom: spacing.lg,
+    },
+    deleteButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.md,
+      gap: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.divider,
+      marginTop: spacing.sm,
+    },
+    deleteButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+      color: colors.error,
+    },
+  });

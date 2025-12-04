@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import HighlightsScreen from '@/app/highlights';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHighlights } from '@/hooks/bible/use-highlights';
@@ -33,6 +34,20 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
+// Mock safe area context to ensure it renders children
+jest.mock('react-native-safe-area-context', () => {
+  return {
+    SafeAreaProvider: jest.fn(({ children }) => children),
+    SafeAreaView: jest.fn(({ children }) => children),
+    useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+  };
+});
+
+// Mock AutoHighlightSettings to prevent network requests
+jest.mock('@/components/settings/AutoHighlightSettings', () => ({
+  AutoHighlightSettings: () => null,
+}));
+
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUseHighlights = useHighlights as jest.MockedFunction<typeof useHighlights>;
 
@@ -44,7 +59,11 @@ const queryClient = new QueryClient({
 });
 
 function renderWithProviders(component: React.ReactElement) {
-  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
+  return render(
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>
+    </SafeAreaProvider>
+  );
 }
 
 describe('HighlightsScreen', () => {
@@ -130,17 +149,19 @@ describe('HighlightsScreen', () => {
         expect(screen.getByTestId('chapter-group-1-1')).toBeTruthy();
         expect(screen.getByTestId('chapter-group-43-3')).toBeTruthy();
 
-        // Genesis 1 group should show 2 highlights count
-        expect(screen.getByText(/Genesis 1 \(2 highlights\)/)).toBeTruthy();
+        // Genesis 1 group should show title and subtitle separately
+        expect(screen.getByText('Genesis 1')).toBeTruthy();
+        expect(screen.getByText('2 highlights')).toBeTruthy();
 
-        // John 3 group should show 1 highlight count
-        expect(screen.getByText(/John 3 \(1 highlight\)/)).toBeTruthy();
+        // John 3 group should show title and subtitle separately
+        expect(screen.getByText('John 3')).toBeTruthy();
+        expect(screen.getByText('1 highlight')).toBeTruthy();
       });
     });
   });
 
-  describe('Collapsible group toggle', () => {
-    it('should toggle chapter groups on press', async () => {
+  describe('Navigation to chapter highlights', () => {
+    it('should navigate to chapter highlights list on press', async () => {
       mockUseAuth.mockReturnValue({
         user: mockUser,
         isAuthenticated: true,
@@ -177,75 +198,25 @@ describe('HighlightsScreen', () => {
         refetchHighlights: jest.fn(),
       });
 
-      const { getByTestId, queryByText } = renderWithProviders(<HighlightsScreen />);
+      const { getByTestId } = renderWithProviders(<HighlightsScreen />);
 
       await waitFor(() => {
         expect(getByTestId('chapter-group-1-1')).toBeTruthy();
       });
 
-      // Initially collapsed, so highlight text should not be visible
-      expect(queryByText('In the beginning')).toBeNull();
-    });
-  });
-
-  describe('Navigation to chapter on tap', () => {
-    it('should navigate to chapter when highlight item is tapped', async () => {
-      mockUseAuth.mockReturnValue({
-        user: mockUser,
-        isAuthenticated: true,
-        isLoading: false,
-      } as any);
-
-      mockUseHighlights.mockReturnValue({
-        allHighlights: [
-          {
-            highlight_id: 1,
-            user_id: 'test-user-123',
-            chapter_id: 1001,
-            book_id: 1,
-            chapter_number: 1,
-            start_verse: 1,
-            end_verse: 1,
-            color: 'yellow',
-            start_char: 0,
-            end_char: 50,
-            selected_text: 'In the beginning',
-            created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-01T00:00:00Z',
-          },
-        ],
-        chapterHighlights: [],
-        isFetchingHighlights: false,
-        isAddingHighlight: false,
-        isUpdatingHighlight: false,
-        isDeletingHighlight: false,
-        isHighlighted: jest.fn(),
-        addHighlight: jest.fn(),
-        updateHighlightColor: jest.fn(),
-        deleteHighlight: jest.fn(),
-        refetchHighlights: jest.fn(),
-      });
-
-      const { getByTestId, getByText } = renderWithProviders(<HighlightsScreen />);
-
-      await waitFor(() => {
-        expect(getByTestId('chapter-group-1-1')).toBeTruthy();
-      });
-
-      // Expand the group first
+      // Press the chapter group
       fireEvent.press(getByTestId('chapter-group-1-1'));
 
+      // Should navigate to the chapter highlights screen
       await waitFor(() => {
-        // Text now includes verse number: ¹ In the beginning
-        expect(getByText(/¹.*In the beginning/)).toBeTruthy();
-      });
-
-      // Tap the highlight item
-      fireEvent.press(getByTestId('highlight-item-1'));
-
-      // Should navigate to chapter (wait for async haptic feedback)
-      await waitFor(() => {
-        expect(router.push).toHaveBeenCalledWith('/bible/1/1');
+        expect(router.push).toHaveBeenCalledWith({
+          pathname: '/highlights/[bookId]/[chapterNumber]',
+          params: {
+            bookId: '1',
+            chapterNumber: '1',
+            bookName: 'Genesis',
+          },
+        });
       });
     });
   });

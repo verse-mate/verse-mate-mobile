@@ -2,7 +2,7 @@
  * Tests for NoteCard Component
  *
  * Focused tests for note card display and interaction.
- * Tests cover critical behaviors: content truncation, edit/delete handlers, press handler.
+ * Tests cover critical behaviors: content truncation, menu handler, press handler.
  *
  * @see Task Group 4.5: Write 2-8 focused tests for NoteCard component
  */
@@ -24,17 +24,14 @@ describe('NoteCard', () => {
   };
 
   const mockOnPress = jest.fn();
-  const mockOnEdit = jest.fn();
-  const mockOnDelete = jest.fn();
+  const mockOnMenuPress = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('should render note content', () => {
-    render(
-      <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
-    );
+    render(<NoteCard note={mockNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />);
 
     expect(screen.getByText(/This is a test note/)).toBeTruthy();
   });
@@ -46,7 +43,7 @@ describe('NoteCard', () => {
     };
 
     const { getByText } = render(
-      <NoteCard note={longNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+      <NoteCard note={longNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />
     );
 
     // Should show first 100 characters plus ellipsis
@@ -64,8 +61,7 @@ describe('NoteCard', () => {
       <NoteCard
         note={longNote}
         onPress={mockOnPress}
-        onEdit={mockOnEdit}
-        onDelete={mockOnDelete}
+        onMenuPress={mockOnMenuPress}
         truncateLength={50}
       />
     );
@@ -76,9 +72,7 @@ describe('NoteCard', () => {
   });
 
   it('should call onPress when card is pressed', () => {
-    render(
-      <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
-    );
+    render(<NoteCard note={mockNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />);
 
     const card = screen.getByTestId('note-card-note-123');
     fireEvent.press(card);
@@ -86,26 +80,13 @@ describe('NoteCard', () => {
     expect(mockOnPress).toHaveBeenCalledWith(mockNote);
   });
 
-  it('should call onEdit when edit button is pressed', () => {
-    render(
-      <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
-    );
+  it('should call onMenuPress when menu button is pressed', () => {
+    render(<NoteCard note={mockNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />);
 
-    const editButton = screen.getByTestId('note-edit-note-123');
-    fireEvent.press(editButton);
+    const menuButton = screen.getByTestId('note-menu-note-123');
+    fireEvent.press(menuButton);
 
-    expect(mockOnEdit).toHaveBeenCalledWith(mockNote);
-  });
-
-  it('should call onDelete when delete button is pressed', () => {
-    render(
-      <NoteCard note={mockNote} onPress={mockOnPress} onEdit={mockOnEdit} onDelete={mockOnDelete} />
-    );
-
-    const deleteButton = screen.getByTestId('note-delete-note-123');
-    fireEvent.press(deleteButton);
-
-    expect(mockOnDelete).toHaveBeenCalledWith(mockNote);
+    expect(mockOnMenuPress).toHaveBeenCalledWith(mockNote);
   });
 
   it('should not truncate short content', () => {
@@ -115,12 +96,7 @@ describe('NoteCard', () => {
     };
 
     const { getByText, queryByText } = render(
-      <NoteCard
-        note={shortNote}
-        onPress={mockOnPress}
-        onEdit={mockOnEdit}
-        onDelete={mockOnDelete}
-      />
+      <NoteCard note={shortNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />
     );
 
     // Should show full content without ellipsis

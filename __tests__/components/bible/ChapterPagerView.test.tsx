@@ -22,6 +22,7 @@ import { render, screen } from '@testing-library/react-native';
 import React, { useRef } from 'react';
 import type { ChapterPagerViewRef } from '@/components/bible/ChapterPagerView';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBibleTestaments } from '@/src/api/generated/hooks';
 import type { ContentTabType } from '@/types/bible';
 import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
@@ -114,13 +115,15 @@ describe('ChapterPagerView', () => {
   ) => {
     return render(
       <QueryClientProvider client={queryClient}>
-        <ChapterPagerView
-          initialBookId={initialBookId}
-          initialChapter={initialChapter}
-          activeTab={activeTab}
-          activeView={activeView}
-          onPageChange={onPageChange || jest.fn()}
-        />
+        <ThemeProvider>
+          <ChapterPagerView
+            initialBookId={initialBookId}
+            initialChapter={initialChapter}
+            activeTab={activeTab}
+            activeView={activeView}
+            onPageChange={onPageChange || jest.fn()}
+          />
+        </ThemeProvider>
       </QueryClientProvider>
     );
   };

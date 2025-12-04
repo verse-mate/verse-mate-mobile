@@ -14,7 +14,18 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import type { ChapterContent } from '@/types/bible';
+
+// Mock Safe Area Context
+jest.mock('react-native-safe-area-context', () => {
+  return {
+    SafeAreaProvider: jest.fn(({ children }) => children),
+    SafeAreaView: jest.fn(({ children }) => children),
+    useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+  };
+});
 
 // Mock expo-haptics
 jest.mock('expo-haptics', () => ({
@@ -78,7 +89,11 @@ function renderChapterReader(chapter: ChapterContent = mockChapter) {
   return render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ChapterReader chapter={chapter} activeTab="summary" />
+        <ThemeProvider>
+          <ToastProvider>
+            <ChapterReader chapter={chapter} activeTab="summary" />
+          </ToastProvider>
+        </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

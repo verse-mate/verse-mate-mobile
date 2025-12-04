@@ -19,10 +19,11 @@
  * // Renders: 42% progress bar at bottom of screen
  */
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { animations, progressBarSpecs } from '@/constants/bible-design-tokens';
+import { animations, getProgressBarSpecs } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ProgressBarProps {
   /** Progress percentage (0-100) */
@@ -30,6 +31,13 @@ interface ProgressBarProps {
 }
 
 export function ProgressBar({ percentage }: ProgressBarProps) {
+  const { mode, colors } = useTheme();
+  const progressBarSpecs = getProgressBarSpecs(mode);
+  const styles = useMemo(
+    () => createStyles(progressBarSpecs, colors.background),
+    [progressBarSpecs, colors.background]
+  );
+
   // Shared value for animated width
   const fillWidth = useSharedValue(percentage);
 
@@ -61,31 +69,38 @@ export function ProgressBar({ percentage }: ProgressBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: progressBarSpecs.height,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  track: {
-    flex: 1,
-    height: progressBarSpecs.height,
-    backgroundColor: progressBarSpecs.backgroundColor,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    backgroundColor: progressBarSpecs.fillColor,
-  },
-  percentage: {
-    fontSize: progressBarSpecs.percentageFontSize,
-    color: progressBarSpecs.percentageColor,
-    marginLeft: 8,
-    fontWeight: '500',
-  },
-});
+const createStyles = (
+  progressBarSpecs: ReturnType<typeof getProgressBarSpecs>,
+  backgroundColor: string
+) =>
+  StyleSheet.create({
+    container: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      paddingTop: 2,
+      backgroundColor: backgroundColor,
+    },
+    track: {
+      flex: 1,
+      height: progressBarSpecs.height,
+      backgroundColor: progressBarSpecs.backgroundColor,
+      overflow: 'hidden',
+      borderRadius: progressBarSpecs.height / 2,
+    },
+    fill: {
+      height: '100%',
+      backgroundColor: progressBarSpecs.fillColor,
+      borderRadius: progressBarSpecs.height / 2,
+    },
+    percentage: {
+      fontSize: progressBarSpecs.percentageFontSize,
+      color: progressBarSpecs.percentageColor,
+      marginLeft: 8,
+      fontWeight: '500',
+    },
+  });

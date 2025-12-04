@@ -12,6 +12,7 @@ import { useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useActiveTab, useBookProgress, useRecentBooks } from '@/hooks/bible';
 import {
   useBibleByLine,
@@ -179,14 +180,16 @@ function renderWithSafeArea(component: React.ReactElement) {
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider
-        initialMetrics={{
-          frame: { x: 0, y: 0, width: 390, height: 844 },
-          insets: { top: 47, left: 0, right: 0, bottom: 34 },
-        }}
-      >
-        {children}
-      </SafeAreaProvider>
+      <ThemeProvider>
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 47, left: 0, right: 0, bottom: 34 },
+          }}
+        >
+          {children}
+        </SafeAreaProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 

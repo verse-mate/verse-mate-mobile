@@ -31,8 +31,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
-import { colors, headerSpecs } from '@/constants/bible-design-tokens';
+import { getHeaderSpecs } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 
 /**
@@ -45,7 +46,7 @@ export interface BookmarkToggleProps {
   chapterNumber: number;
   /** Icon size in pixels (default: 24px from headerSpecs.iconSize) */
   size?: number;
-  /** Icon color (default: colors.black) */
+  /** Icon color (default: specs.iconColor) */
   color?: string;
 }
 
@@ -70,15 +71,15 @@ export interface BookmarkToggleProps {
  * - Dynamic accessibilityLabel based on state
  * - accessibilityState.selected indicates bookmarked state
  */
-export function BookmarkToggle({
-  bookId,
-  chapterNumber,
-  size = headerSpecs.iconSize,
-  color = colors.black,
-}: BookmarkToggleProps) {
+export function BookmarkToggle({ bookId, chapterNumber, size, color }: BookmarkToggleProps) {
+  const { mode } = useTheme();
+  const specs = getHeaderSpecs(mode);
   const { isAuthenticated } = useAuth();
   const { isBookmarked, addBookmark, removeBookmark, isAddingBookmark, isRemovingBookmark } =
     useBookmarks();
+
+  const iconSize = size ?? specs.iconSize;
+  const iconColor = color ?? specs.iconColor;
 
   // Check if chapter is bookmarked
   const bookmarked = isBookmarked(bookId, chapterNumber);
@@ -130,7 +131,7 @@ export function BookmarkToggle({
       accessibilityState={{ selected: bookmarked }}
       testID={`bookmark-toggle-${bookId}-${chapterNumber}`}
     >
-      <Ionicons name={iconName} size={size} color={color} />
+      <Ionicons name={iconName} size={iconSize} color={iconColor} />
     </Pressable>
   );
 }

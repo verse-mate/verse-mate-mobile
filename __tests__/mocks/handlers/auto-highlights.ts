@@ -147,7 +147,7 @@ function createHandlersForBaseUrl(baseUrl: string) {
      * PATCH /bible/user/theme-preferences/:theme_id
      * Updates user's preference for a specific theme (requires auth)
      */
-    http.patch(`${baseUrl}/bible/user/theme-preferences/:themeId`, async ({ request, params }) => {
+    http.patch(`${baseUrl}/bible/user/theme-preferences/:themeId`, async ({ request }) => {
       const authHeader = request.headers.get('Authorization');
 
       // Check for auth token
@@ -161,14 +161,22 @@ function createHandlersForBaseUrl(baseUrl: string) {
         );
       }
 
-      const { themeId } = params;
-      const body = await request.json();
-
       // In a real scenario, we'd update the mock data here
       // For testing, just return success
 
       return HttpResponse.json({
         success: true,
+      });
+    }),
+
+    /**
+     * GET /admin/auto-highlight-settings/default-enabled
+     * Returns whether auto-highlights are enabled by default for logged-out users.
+     */
+    http.get(`${baseUrl}/admin/auto-highlight-settings/default-enabled`, () => {
+      return HttpResponse.json({
+        success: true,
+        data: { default_enabled: true },
       });
     }),
   ];

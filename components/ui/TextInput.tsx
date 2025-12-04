@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import type React from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TextInput as RNTextInput, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import type { getColors } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * TextInput Component
@@ -67,6 +69,8 @@ export const TextInput: React.FC<TextInputProps> = ({
   autoComplete,
   textContentType,
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const togglePasswordVisibility = () => {
@@ -82,6 +86,7 @@ export const TextInput: React.FC<TextInputProps> = ({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
+          placeholderTextColor={colors.textTertiary}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           testID={testID}
           autoCapitalize={autoCapitalize}
@@ -104,7 +109,7 @@ export const TextInput: React.FC<TextInputProps> = ({
             <Ionicons
               name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={24}
-              color="#B4956B" // Tan/gold brand color
+              color={colors.gold}
             />
           </TouchableOpacity>
         )}
@@ -114,43 +119,44 @@ export const TextInput: React.FC<TextInputProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1F2937', // Dark text color
-    marginBottom: 8,
-  },
-  inputContainer: {
-    position: 'relative',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB', // Gray border
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#1F2937',
-    backgroundColor: '#FFFFFF',
-    minHeight: 48,
-  },
-  inputError: {
-    borderColor: '#EF4444', // Red border for error state
-  },
-  eyeIcon: {
-    position: 'absolute',
-    right: 12,
-    top: 12,
-    padding: 4,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#EF4444', // Red error text
-    marginTop: 4,
-    marginLeft: 4,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      marginBottom: 16,
+    },
+    label: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.textPrimary,
+      marginBottom: 8,
+    },
+    inputContainer: {
+      position: 'relative',
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      fontSize: 16,
+      color: colors.textPrimary,
+      backgroundColor: colors.gray50,
+      minHeight: 48,
+    },
+    inputError: {
+      borderColor: colors.error,
+    },
+    eyeIcon: {
+      position: 'absolute',
+      right: 12,
+      top: 12,
+      padding: 4,
+    },
+    errorText: {
+      fontSize: 14,
+      color: colors.error,
+      marginTop: 4,
+      marginLeft: 4,
+    },
+  });

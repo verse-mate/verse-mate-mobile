@@ -17,8 +17,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import type React from 'react';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // Mock expo-router
 jest.mock('expo-router', () => ({
@@ -50,7 +52,11 @@ jest.mock('react-native-safe-area-context', () => ({
 
 // Helper to wrap component with AuthProvider
 function renderWithAuth(ui: React.ReactElement) {
-  return render(<AuthProvider>{ui}</AuthProvider>);
+  return render(
+    <AuthProvider>
+      <ThemeProvider>{ui}</ThemeProvider>
+    </AuthProvider>
+  );
 }
 
 describe('HamburgerMenu - Highlights Integration', () => {

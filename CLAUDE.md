@@ -143,7 +143,7 @@ The app uses Expo Router's file-based routing system:
 - `components/` - Reusable UI components
   - `components/ui/` - Base UI primitives
   - `components/*.stories.tsx` - Storybook stories for components
-- `hooks/` - Custom React hooks (e.g., `use-color-scheme`, `use-theme-color`)
+- `hooks/` - Custom React hooks (e.g., `use-auth`, `use-bookmarks`)
 - `constants/` - Shared constants and theme definitions
 
 ### Testing Infrastructure
@@ -159,7 +159,21 @@ The project uses a comprehensive testing setup:
 
 **E2E Tests (Maestro)**:
 - Test flows in `.maestro/` directory (YAML format)
-- Platform-specific commands: `bun run maestro:test:ios` and `maestro:test:android`
+- Run all tests: `maestro test .maestro`
+- Run specific test: `maestro test .maestro/{file}.yaml`
+- Interactive debugging: `maestro studio`
+- See `.maestro/README.md` for complete documentation
+
+**Maestro Test Organization**:
+- File naming: `{feature}-flow.yaml` for user journeys, `{feature}-test.yaml` for regression tests
+- All tests use `id:` (testID) selectors for stability across UI text changes
+- Tags: `critical` (must pass), `auth`, `user-flow`, `regression`, `navigation`
+- iOS is the primary E2E platform (Android API 35 has Maestro compatibility issues)
+
+**Maestro testID Conventions**:
+- Component-based: `{component}-{element}` (e.g., `skeleton-loader`, `menu-close-button`)
+- Action-based: `{feature}-{action}` (e.g., `login-submit`, `bookmarks-back-button`)
+- Dynamic IDs: `{component}-{identifier}` (e.g., `chapter-{number}`, `book-item-{name}`)
 
 **Key Testing Patterns**:
 - MSW server started in `beforeAll`, reset in `afterEach`, closed in `afterAll`
@@ -184,7 +198,7 @@ The project uses a dual-linting setup:
 ### Path Aliases
 Use `@/` prefix to import from project root:
 ```typescript
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/contexts/ThemeContext';
 ```
 
 ### Platform-Specific Files

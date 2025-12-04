@@ -11,6 +11,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useBookProgress, useRecentBooks } from '@/hooks/bible';
 import {
   useBibleByLine,
@@ -22,6 +24,22 @@ import {
   usePrefetchPreviousChapter,
   useSaveLastRead,
 } from '@/src/api/generated';
+
+// Mock highlights hooks
+jest.mock('@/hooks/bible/use-highlights', () => ({
+  useHighlights: jest.fn(() => ({
+    chapterHighlights: [],
+    addHighlight: jest.fn(),
+    updateHighlightColor: jest.fn(),
+    deleteHighlight: jest.fn(),
+  })),
+}));
+
+jest.mock('@/hooks/bible/use-auto-highlights', () => ({
+  useAutoHighlights: jest.fn(() => ({
+    autoHighlights: [],
+  })),
+}));
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -124,14 +142,16 @@ function renderWithSafeArea(component: React.ReactElement) {
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider
-        initialMetrics={{
-          frame: { x: 0, y: 0, width: 390, height: 844 },
-          insets: { top: 47, left: 0, right: 0, bottom: 34 },
-        }}
-      >
-        {children}
-      </SafeAreaProvider>
+      <ThemeProvider>
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 47, left: 0, right: 0, bottom: 34 },
+          }}
+        >
+          <ToastProvider>{children}</ToastProvider>
+        </SafeAreaProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 
