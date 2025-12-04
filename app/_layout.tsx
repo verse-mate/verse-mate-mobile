@@ -9,7 +9,7 @@
  */
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -24,6 +24,8 @@ import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
+import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
+import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 
 // Keep the splash screen visible while we fetch last read position
@@ -31,6 +33,12 @@ SplashScreen.preventAutoHideAsync();
 
 // Create a QueryClient instance (singleton)
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => handleReactQueryError(error as Error),
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => handleReactQueryError(error as Error),
+  }),
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes default stale time
@@ -44,8 +52,6 @@ const queryClient = new QueryClient({
 // Set up client interceptors for authentication
 // Must be called before any API requests
 setupClientInterceptors();
-
-// Removed anchor setting - no tabs directory exists
 
 /**
  * Inner Layout Component
@@ -169,23 +175,23 @@ function RootLayoutInner() {
  * - Theme provider setup (custom + React Navigation)
  * - React Query provider setup
  * - Authentication provider setup
- * - App launch navigation to last read position
+ * - PostHog analytics provider setup
  * - Splash screen management
  */
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <CustomThemeProvider>
-            <ToastProvider>
-              <RootLayoutInner />
-            </ToastProvider>
-          </CustomThemeProvider>
-        </AuthProvider>
-      </QueryClientProvider>
+      <AppPostHogProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <CustomThemeProvider>
+              <ToastProvider>
+                <RootLayoutInner />
+              </ToastProvider>
+            </CustomThemeProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </AppPostHogProvider>
     </GestureHandlerRootView>
   );
 }
-
-// AppLaunchNavigator removed - navigation logic moved to RootLayout useEffect
