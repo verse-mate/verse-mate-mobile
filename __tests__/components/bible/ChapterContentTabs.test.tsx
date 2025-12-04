@@ -8,8 +8,14 @@
  */
 
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import type React from 'react';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { ContentTabType } from '@/types/bible';
+
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
 
 describe('ChapterContentTabs', () => {
   const mockOnTabChange = jest.fn();
@@ -24,7 +30,7 @@ describe('ChapterContentTabs', () => {
   it('should highlight active tab with gold background', () => {
     const activeTab: ContentTabType = 'summary';
 
-    render(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
+    renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
 
     // Use testID to get the Pressable element directly
     const summaryTab = screen.getByTestId('tab-summary');
@@ -45,7 +51,7 @@ describe('ChapterContentTabs', () => {
   it('should show inactive tabs with gray background', () => {
     const activeTab: ContentTabType = 'byline';
 
-    render(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
+    renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
 
     const summaryTab = screen.getByTestId('tab-summary');
     const byLineTab = screen.getByTestId('tab-byline');
@@ -65,7 +71,7 @@ describe('ChapterContentTabs', () => {
   it('should call onTabChange when a tab is tapped', () => {
     const activeTab: ContentTabType = 'summary';
 
-    render(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
+    renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
 
     // Tap on 'By Line' tab
     const byLineTab = screen.getByTestId('tab-byline');
@@ -82,7 +88,7 @@ describe('ChapterContentTabs', () => {
   it('should fire onTabChange for all tab interactions', () => {
     const activeTab: ContentTabType = 'summary';
 
-    render(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
+    renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
 
     // Tap 'By Line'
     fireEvent.press(screen.getByTestId('tab-byline'));
@@ -102,7 +108,7 @@ describe('ChapterContentTabs', () => {
   it('should render all three content tabs', () => {
     const activeTab: ContentTabType = 'summary';
 
-    render(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
+    renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
 
     // All three tabs should be visible
     expect(screen.getByText('Summary')).toBeTruthy();

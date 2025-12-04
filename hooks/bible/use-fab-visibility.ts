@@ -84,7 +84,7 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
    * Handle scroll events
    * Shows/hides buttons based on scroll velocity and position
    *
-   * @param velocity - Scroll velocity in pixels/second (absolute value)
+   * @param velocity - Scroll velocity in pixels/second (signed value: negative = up, positive = down)
    * @param isAtBottom - Whether user is at/near bottom of content
    */
   const handleScroll = useCallback(
@@ -96,14 +96,18 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
         // At bottom - show buttons and keep them visible (no timeout)
         clearIdleTimeout();
         setVisible(true);
-      } else if (velocity > SCROLL_VELOCITY_THRESHOLD) {
-        // Fast scroll (navigating) - show buttons with 3s timeout
+      } else if (velocity < -SCROLL_VELOCITY_THRESHOLD) {
+        // Fast scroll UP (navigating back) - show buttons with 3s timeout
         // Only restart timeout if not already visible to prevent flickering
         if (!visible) {
           setVisible(true);
         }
-        // Always restart the timeout on fast scroll
+        // Always restart the timeout on fast scroll up
         startIdleTimeout();
+      } else if (velocity > 0 && visible) {
+        // Hide immediately on scroll down to avoid lingering FABs
+        clearIdleTimeout();
+        setVisible(false);
       }
       // Note: Don't do anything on slow scroll - let existing timer continue
     },

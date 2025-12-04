@@ -1,5 +1,8 @@
 import type React from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import type { getColors } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 
 /**
  * VerseCard Component
@@ -22,6 +25,8 @@ export const VerseCard: React.FC<VerseCardProps> = ({
   highlighted = false,
   testID,
 }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const reference = `${book} ${chapter}:${verse}`;
 
   return (
@@ -47,32 +52,33 @@ export const VerseCard: React.FC<VerseCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardHighlighted: {
-    backgroundColor: '#FEF3C7',
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
-  },
-  reference: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  text: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#1F2937',
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 12,
+      padding: 16,
+      marginVertical: 8,
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    cardHighlighted: {
+      backgroundColor: colors.goldLight,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.gold,
+    },
+    reference: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    text: {
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.textPrimary,
+    },
+  });

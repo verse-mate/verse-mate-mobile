@@ -13,6 +13,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useBookProgress } from '@/hooks/bible';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
@@ -35,6 +37,15 @@ jest.mock('expo-router', () => ({
   },
   useLocalSearchParams: jest.fn(),
 }));
+
+// Mock Safe Area Context
+jest.mock('react-native-safe-area-context', () => {
+  return {
+    SafeAreaProvider: jest.fn(({ children }) => children),
+    SafeAreaView: jest.fn(({ children }) => children),
+    useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+  };
+});
 
 // Mock AuthContext
 jest.mock('@/contexts/AuthContext', () => ({
@@ -207,14 +218,16 @@ function renderWithSafeArea(component: React.ReactElement) {
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider
-        initialMetrics={{
-          frame: { x: 0, y: 0, width: 390, height: 844 },
-          insets: { top: 47, left: 0, right: 0, bottom: 34 },
-        }}
-      >
-        {children}
-      </SafeAreaProvider>
+      <ThemeProvider>
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 47, left: 0, right: 0, bottom: 34 },
+          }}
+        >
+          <ToastProvider>{children}</ToastProvider>
+        </SafeAreaProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 

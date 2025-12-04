@@ -21,7 +21,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Keyboard,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Layout,
@@ -32,14 +41,16 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import {
-  colors,
   fontSizes,
   fontWeights,
+  type getColors,
+  getModalSpecs,
   lineHeights,
-  modalSpecs,
   spacing,
   springConfig,
+  type ThemeMode,
 } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
 import type { BookMetadata, Testament } from '@/types/bible';
@@ -72,6 +83,9 @@ function BibleNavigationModalComponent({
   onSelectChapter,
   onSelectTopic,
 }: BibleNavigationModalProps) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+
   // State for tab type: 'OT', 'NT', or 'TOPICS'
   type TabType = Testament | 'TOPICS';
   const [selectedTab, setSelectedTab] = useState<TabType>(getTestamentFromBookId(currentBookId));
@@ -258,6 +272,7 @@ function BibleNavigationModalComponent({
   // Handle book selection
   const handleBookSelect = useCallback((book: BookMetadata) => {
     setSelectedBookId((prevId) => (prevId === book.id ? null : book.id));
+    Keyboard.dismiss();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
@@ -348,6 +363,7 @@ function BibleNavigationModalComponent({
         style={styles.testamentTab}
         accessibilityRole="tab"
         accessibilityState={{ selected: selectedTab === 'OT' }}
+        testID="tab-old-testament"
       >
         <Text
           style={[styles.testamentTabText, selectedTab === 'OT' && styles.testamentTabTextActive]}
@@ -361,6 +377,7 @@ function BibleNavigationModalComponent({
         style={styles.testamentTab}
         accessibilityRole="tab"
         accessibilityState={{ selected: selectedTab === 'NT' }}
+        testID="tab-new-testament"
       >
         <Text
           style={[styles.testamentTabText, selectedTab === 'NT' && styles.testamentTabTextActive]}
@@ -374,6 +391,7 @@ function BibleNavigationModalComponent({
         style={styles.testamentTab}
         accessibilityRole="tab"
         accessibilityState={{ selected: selectedTab === 'TOPICS' }}
+        testID="tab-topics"
       >
         <Text
           style={[
@@ -469,7 +487,7 @@ function BibleNavigationModalComponent({
         <TextInput
           style={styles.filterInput}
           placeholder={placeholder}
-          placeholderTextColor={colors.gray300}
+          placeholderTextColor={colors.textTertiary}
           value={currentFilterText}
           onChangeText={onChangeText}
           returnKeyType="search"
@@ -482,7 +500,7 @@ function BibleNavigationModalComponent({
             accessibilityRole="button"
             accessibilityLabel="Clear filter"
           >
-            <Ionicons name="close-circle" size={20} color={colors.gray300} />
+            <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
           </Pressable>
         )}
       </View>
@@ -511,11 +529,11 @@ function BibleNavigationModalComponent({
             <Ionicons
               name="time-outline"
               size={18}
-              color={colors.gray500}
+              color={colors.textTertiary}
               style={styles.clockIcon}
             />
           )}
-          {isSelected && <Ionicons name="checkmark" size={20} color={colors.white} />}
+          {isSelected && <Ionicons name="checkmark" size={20} color={colors.background} />}
         </View>
       </Pressable>
     );
@@ -533,15 +551,57 @@ function BibleNavigationModalComponent({
 
     // Recent books are shown across all testaments (not filtered by current tab)
     const hasRecentBooks = recentBooksFiltered.length > 0 && !filterText.trim();
-    const booksToShow = hasRecentBooks
-      ? [
-          ...recentBooksFiltered,
-          ...filteredBooks.filter((book) => !recentBooksFiltered.some((r) => r.id === book.id)),
-        ]
-      : filteredBooks;
+    const booksToShow = (
+      hasRecentBooks
+        ? [
+            ...recentBooksFiltered,
+            ...filteredBooks.filter((book) => !recentBooksFiltered.some((r) => r.id === book.id)),
+          ]
+        : filteredBooks
+    ).filter((book) => book.id !== currentBookId); // Filter out current book to avoid duplication
 
     return (
-      <ScrollView style={styles.bookList} contentContainerStyle={styles.bookListContent}>
+      <ScrollView
+        style={styles.bookList}
+        contentContainerStyle={styles.bookListContent}
+        keyboardShouldPersistTaps="always"
+      >
+        {/* Current book/chapter display - Clickable to expand */}
+        {!filterText.trim() && allBooks.find((b) => b.id === currentBookId) && (
+          <Animated.View layout={Layout.duration(300)}>
+            <Pressable
+              onPress={() => {
+                const book = allBooks.find((b) => b.id === currentBookId);
+                if (book) handleBookSelect(book);
+              }}
+              style={styles.currentChapterDisplay}
+              accessibilityRole="button"
+              accessibilityLabel={`Current book: ${
+                allBooks.find((b) => b.id === currentBookId)?.name
+              }`}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Text style={styles.currentChapterText}>
+                  {allBooks.find((b) => b.id === currentBookId)?.name}
+                </Text>
+                {selectedBookId === currentBookId ? (
+                  <Ionicons name="chevron-down" size={20} color={colors.gold} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+                )}
+              </View>
+            </Pressable>
+            {/* Show chapter grid if this book is selected */}
+            {selectedBookId === currentBookId && renderChapterGrid()}
+          </Animated.View>
+        )}
+
         {booksToShow.map((book, index) => {
           const isRecent = index < recentBooksFiltered.length && hasRecentBooks;
           const isSelected = book.id === selectedBookId;
@@ -577,7 +637,11 @@ function BibleNavigationModalComponent({
     }
 
     return (
-      <ScrollView style={styles.bookList} contentContainerStyle={styles.bookListContent}>
+      <ScrollView
+        style={styles.bookList}
+        contentContainerStyle={styles.bookListContent}
+        keyboardShouldPersistTaps="always"
+      >
         {filteredTopics.map((topic: TopicListItem) => (
           <Pressable
             key={topic.topic_id}
@@ -595,7 +659,7 @@ function BibleNavigationModalComponent({
                 </Text>
               )}
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.gray500} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </Pressable>
         ))}
       </ScrollView>
@@ -681,203 +745,220 @@ function BibleNavigationModalComponent({
  */
 export const BibleNavigationModal = memo(BibleNavigationModalComponent);
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: modalSpecs.backdropColor,
-    justifyContent: 'flex-end',
-  },
-  backdropTouchable: {
-    flex: 1,
-  },
-  container: {
-    height: modalSpecs.height,
-    backgroundColor: modalSpecs.backgroundColor,
-    borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
-    borderTopRightRadius: modalSpecs.borderTopRightRadius,
-  },
-  handle: {
-    width: modalSpecs.handleWidth,
-    height: modalSpecs.handleHeight,
-    backgroundColor: modalSpecs.handleColor,
-    borderRadius: modalSpecs.handleHeight / 2,
-    alignSelf: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  breadcrumbContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  breadcrumbText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.medium,
-    color: colors.gold,
-    lineHeight: fontSizes.body * lineHeights.ui,
-  },
-  testamentTabsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-    justifyContent: 'space-between',
-  },
-  testamentTab: {
-    paddingVertical: spacing.sm,
-  },
-  testamentTabText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.regular,
-    color: colors.black,
-    lineHeight: fontSizes.body * lineHeights.ui,
-  },
-  testamentTabTextActive: {
-    color: colors.gold,
-    fontWeight: fontWeights.medium,
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  filterInput: {
-    flex: 1,
-    height: 40,
-    backgroundColor: colors.gray50,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    fontSize: fontSizes.body,
-    color: colors.black,
-  },
-  filterClearButton: {
-    position: 'absolute',
-    right: spacing.xl + spacing.md,
-    padding: spacing.xs,
-  },
-  bookList: {
-    flex: 1,
-  },
-  bookListContent: {
-    paddingBottom: spacing.xxl,
-  },
-  bookItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-    minHeight: 56,
-    backgroundColor: colors.white,
-  },
-  bookItemSelected: {
-    backgroundColor: colors.gold,
-  },
-  bookItemText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.regular,
-    color: colors.black,
-    lineHeight: fontSizes.body * lineHeights.ui,
-  },
-  bookItemTextSelected: {
-    color: colors.white,
-    fontWeight: fontWeights.medium,
-  },
-  bookItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  clockIcon: {
-    marginRight: spacing.xs,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xxl,
-  },
-  loadingText: {
-    fontSize: fontSizes.body,
-    color: colors.gray500,
-  },
-  chapterGridContainer: {
-    flex: 1,
-  },
-  chapterGridContent: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    // paddingBottom is removed to avoid double padding with bookListContent
-  },
-  chapterGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  chapterButton: {
-    width: '17.4%', // 5 columns with space-between
-    aspectRatio: 1,
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.gray200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-  },
-  chapterButtonCurrent: {
-    backgroundColor: colors.gold,
-    borderColor: colors.gold,
-  },
-  chapterButtonText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.medium,
-    color: colors.black,
-    textAlign: 'center',
-  },
-  chapterButtonTextCurrent: {
-    color: colors.gray900,
-    fontWeight: fontWeights.semibold,
-  },
-  // Topics styles
-  categoryTabsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-    gap: spacing.lg,
-  },
-  categoryTab: {
-    paddingVertical: spacing.xs,
-  },
-  categoryTabText: {
-    fontSize: fontSizes.bodySmall,
-    fontWeight: fontWeights.regular,
-    color: colors.black,
-    lineHeight: fontSizes.bodySmall * lineHeights.ui,
-  },
-  categoryTabTextActive: {
-    color: colors.gold,
-    fontWeight: fontWeights.medium,
-  },
-  topicItemContent: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  topicDescription: {
-    fontSize: fontSizes.bodySmall,
-    color: colors.gray500,
-    lineHeight: fontSizes.bodySmall * lineHeights.body,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+  const modalSpecs = getModalSpecs(mode);
+
+  return StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: modalSpecs.backdropColor,
+      justifyContent: 'flex-end',
+    },
+    backdropTouchable: {
+      flex: 1,
+    },
+    container: {
+      height: modalSpecs.height,
+      backgroundColor: modalSpecs.backgroundColor,
+      borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
+      borderTopRightRadius: modalSpecs.borderTopRightRadius,
+    },
+    handle: {
+      width: modalSpecs.handleWidth,
+      height: modalSpecs.handleHeight,
+      backgroundColor: modalSpecs.handleColor,
+      borderRadius: modalSpecs.handleHeight / 2,
+      alignSelf: 'center',
+      marginTop: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    breadcrumbContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    breadcrumbText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+      color: colors.gold,
+      lineHeight: fontSizes.body * lineHeights.ui,
+    },
+    testamentTabsContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      justifyContent: 'space-between',
+    },
+    testamentTab: {
+      paddingVertical: spacing.sm,
+    },
+    testamentTabText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.regular,
+      color: colors.textPrimary,
+      lineHeight: fontSizes.body * lineHeights.ui,
+    },
+    testamentTabTextActive: {
+      color: colors.gold,
+      fontWeight: fontWeights.medium,
+    },
+    filterContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    filterInput: {
+      flex: 1,
+      height: 40,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 8,
+      paddingHorizontal: spacing.md,
+      fontSize: fontSizes.body,
+      color: colors.textPrimary,
+    },
+    filterClearButton: {
+      position: 'absolute',
+      right: spacing.xl + spacing.md,
+      padding: spacing.xs,
+    },
+    bookList: {
+      flex: 1,
+    },
+    bookListContent: {
+      paddingBottom: spacing.xxl,
+    },
+    bookItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      minHeight: 56,
+      backgroundColor: modalSpecs.backgroundColor,
+    },
+    bookItemSelected: {
+      backgroundColor: colors.gold,
+    },
+    bookItemText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.regular,
+      color: colors.textPrimary,
+      lineHeight: fontSizes.body * lineHeights.ui,
+    },
+    bookItemTextSelected: {
+      color: colors.background,
+      fontWeight: fontWeights.medium,
+    },
+    bookItemRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    clockIcon: {
+      marginRight: spacing.xs,
+    },
+    loadingContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.xxl,
+    },
+    loadingText: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+    },
+    chapterGridContainer: {
+      flex: 1,
+    },
+    chapterGridContent: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.xl,
+      // paddingBottom is removed to avoid double padding with bookListContent
+    },
+    chapterGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.md,
+    },
+    chapterButton: {
+      width: '17.4%', // 5 columns with space-between
+      aspectRatio: 1,
+      backgroundColor: modalSpecs.backgroundColor,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.sm,
+    },
+    chapterButtonCurrent: {
+      backgroundColor: colors.gold,
+      borderColor: colors.gold,
+    },
+    chapterButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    chapterButtonTextCurrent: {
+      color: colors.gray900,
+      fontWeight: fontWeights.semibold,
+    },
+    // Topics styles
+    categoryTabsContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      gap: spacing.lg,
+    },
+    categoryTab: {
+      paddingVertical: spacing.xs,
+    },
+    categoryTabText: {
+      fontSize: fontSizes.bodySmall,
+      fontWeight: fontWeights.regular,
+      color: colors.textPrimary,
+      lineHeight: fontSizes.bodySmall * lineHeights.ui,
+    },
+    categoryTabTextActive: {
+      color: colors.gold,
+      fontWeight: fontWeights.medium,
+    },
+    topicItemContent: {
+      flex: 1,
+      gap: spacing.xs,
+    },
+    topicDescription: {
+      fontSize: fontSizes.bodySmall,
+      color: colors.textSecondary,
+      lineHeight: fontSizes.bodySmall * lineHeights.body,
+    },
+    currentChapterDisplay: {
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      minHeight: 56,
+      backgroundColor: modalSpecs.backgroundColor,
+    },
+    currentChapterText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.gold,
+    },
+  });
+};

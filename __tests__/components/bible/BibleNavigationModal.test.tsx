@@ -12,7 +12,9 @@
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import * as Haptics from 'expo-haptics';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
 
@@ -66,6 +68,10 @@ const mockBooks = [
   },
 ];
 
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(<ThemeProvider>{component}</ThemeProvider>);
+};
+
 describe('BibleNavigationModal', () => {
   const mockOnClose = jest.fn();
   const mockOnSelectChapter = jest.fn();
@@ -98,7 +104,7 @@ describe('BibleNavigationModal', () => {
   });
 
   it('should render modal with testament tabs and book list when visible', () => {
-    render(
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}
@@ -114,12 +120,13 @@ describe('BibleNavigationModal', () => {
     expect(screen.getAllByText('New Testament').length).toBeGreaterThan(0);
 
     // Should show book list by default (not chapter grid)
-    expect(screen.getByText('Genesis')).toBeTruthy();
-    expect(screen.getByText('Exodus')).toBeTruthy();
+    expect(screen.getAllByText('Genesis')[0]).toBeTruthy();
+    expect(screen.getAllByText('Exodus')[0]).toBeTruthy();
   });
 
   it('should display chapter grid when book is selected', async () => {
-    render(
+    const user = { id: 'test-user' };
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}
@@ -130,22 +137,23 @@ describe('BibleNavigationModal', () => {
     );
 
     // Initially shows book list
-    expect(screen.getByText('Genesis')).toBeTruthy();
+    expect(screen.getAllByText('Genesis')[0]).toBeTruthy();
 
-    // Select Genesis book
-    const genesisButton = screen.getByLabelText('Genesis, 50 chapters');
+    // Select Genesis (Current Book) from sticky header
+    const genesisButton = screen.getByLabelText('Current book: Genesis');
     fireEvent.press(genesisButton);
 
-    // Chapter grid should display for Genesis (50 chapters)
+    // Wait for chapter grid to render
     await waitFor(() => {
-      expect(screen.getByLabelText('Chapter 1')).toBeTruthy();
-      expect(screen.getByLabelText('Chapter 5')).toBeTruthy();
-      expect(screen.getByLabelText('Chapter 50')).toBeTruthy();
+      // With Genesis selected, chapters should be visible
+      // Note: might appear twice (sticky header + list), so use getAll
+      expect(screen.getAllByLabelText('Chapter 1')[0]).toBeTruthy();
+      expect(screen.getAllByLabelText('Chapter 50')[0]).toBeTruthy();
     });
   });
 
   it('should call onSelectChapter when chapter button is pressed', async () => {
-    render(
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}
@@ -155,26 +163,25 @@ describe('BibleNavigationModal', () => {
       />
     );
 
-    // Select Genesis book to show chapter grid
-    const genesisButton = screen.getByLabelText('Genesis, 50 chapters');
+    // Select Genesis
+    const genesisButton = screen.getByLabelText('Current book: Genesis');
     fireEvent.press(genesisButton);
 
     // Wait for chapter grid to render
     await waitFor(() => {
-      expect(screen.getByLabelText('Chapter 5')).toBeTruthy();
+      expect(screen.getAllByLabelText('Chapter 5')[0]).toBeTruthy();
     });
 
     // Press chapter 5
-    const chapter5Button = screen.getByLabelText('Chapter 5');
-    fireEvent.press(chapter5Button);
+    fireEvent.press(screen.getAllByLabelText('Chapter 5')[0]);
 
-    // Should call callbacks
+    expect(Haptics.impactAsync).toHaveBeenCalled();
     expect(mockOnSelectChapter).toHaveBeenCalledWith(1, 5);
     expect(mockOnClose).toHaveBeenCalled();
   });
 
   it('should render filter input', () => {
-    render(
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}
@@ -190,7 +197,7 @@ describe('BibleNavigationModal', () => {
   });
 
   it('should show book list when filter text is entered', async () => {
-    render(
+    renderWithTheme(
       <BibleNavigationModal
         visible={true}
         currentBookId={1}

@@ -14,7 +14,14 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react-native';
+import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ChapterPage } from '@/components/bible/ChapterPage';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
+import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
+import { useHighlights } from '@/hooks/bible/use-highlights';
+import { useNotes } from '@/hooks/bible/use-notes';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -31,6 +38,51 @@ jest.mock('@/src/api/generated/hooks', () => ({
   useBibleDetailed: jest.fn(),
 }));
 
+// Mock useNotes hook
+jest.mock('@/hooks/bible/use-notes', () => ({
+  useNotes: jest.fn(() => ({
+    notes: [],
+    addNote: jest.fn(),
+    updateNote: jest.fn(),
+    deleteNote: jest.fn(),
+    getNotesByChapter: jest.fn(() => []),
+    hasNotes: jest.fn(() => false),
+    isDeletingNote: false,
+  })),
+}));
+
+// Mock highlights hooks
+jest.mock('@/hooks/bible/use-highlights', () => ({
+  useHighlights: jest.fn(() => ({
+    chapterHighlights: [],
+    addHighlight: jest.fn(),
+    updateHighlightColor: jest.fn(),
+    deleteHighlight: jest.fn(),
+  })),
+}));
+
+jest.mock('@/hooks/bible/use-auto-highlights', () => ({
+  useAutoHighlights: jest.fn(() => ({
+    autoHighlights: [],
+  })),
+}));
+
+// Mock AuthContext (used by useNotes implicitly)
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: jest.fn(() => ({
+    isAuthenticated: true,
+    user: { id: 'test-user' },
+    isLoading: false,
+  })),
+}));
+
+// Mock Safe Area Context (used by ToastProvider)
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: jest.fn(({ children }) => children),
+  SafeAreaView: jest.fn(({ children }) => children),
+  useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+}));
+
 // Mock child components
 jest.mock('@/components/bible/SkeletonLoader', () => ({
   SkeletonLoader: () => {
@@ -43,6 +95,32 @@ jest.mock('@/components/bible/ChapterReader', () => ({
   ChapterReader: ({ chapter }: any) => {
     const { Text } = require('react-native');
     return <Text testID="chapter-reader">{chapter.title}</Text>;
+  },
+}));
+
+// Mock modals to avoid complex rendering in ChapterPage tests
+jest.mock('@/components/bible/NotesModal', () => ({
+  NotesModal: ({ visible, children }: any) => {
+    const { Text } = require('react-native');
+    return visible ? <Text>NotesModal</Text> : null;
+  },
+}));
+jest.mock('@/components/bible/NoteViewModal', () => ({
+  NoteViewModal: ({ visible, children }: any) => {
+    const { Text } = require('react-native');
+    return visible ? <Text>NoteViewModal</Text> : null;
+  },
+}));
+jest.mock('@/components/bible/NoteEditModal', () => ({
+  NoteEditModal: ({ visible, children }: any) => {
+    const { Text } = require('react-native');
+    return visible ? <Text>NoteEditModal</Text> : null;
+  },
+}));
+jest.mock('@/components/bible/DeleteConfirmationModal', () => ({
+  DeleteConfirmationModal: ({ visible, children }: any) => {
+    const { Text } = require('react-native');
+    return visible ? <Text>DeleteConfirmationModal</Text> : null;
   },
 }));
 
@@ -92,14 +170,20 @@ describe('ChapterPage', () => {
     activeView: 'bible' | 'explanations' = 'bible'
   ) => {
     return render(
-      <QueryClientProvider client={queryClient}>
-        <ChapterPage
-          bookId={bookId}
-          chapterNumber={chapterNumber}
-          activeTab={activeTab}
-          activeView={activeView}
-        />
-      </QueryClientProvider>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <ToastProvider>
+              <ChapterPage
+                bookId={bookId}
+                chapterNumber={chapterNumber}
+                activeTab={activeTab}
+                activeView={activeView}
+              />
+            </ToastProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
     );
   };
 
@@ -181,9 +265,15 @@ describe('ChapterPage', () => {
 
     // Simulate window shift - props update but key stays same
     rerender(
-      <QueryClientProvider client={queryClient}>
-        <ChapterPage bookId={1} chapterNumber={2} activeTab="summary" activeView="bible" />
-      </QueryClientProvider>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <ToastProvider>
+              <ChapterPage bookId={1} chapterNumber={2} activeTab="summary" activeView="bible" />
+            </ToastProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
     );
 
     // Should have been called with new chapter number

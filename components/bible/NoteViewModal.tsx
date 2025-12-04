@@ -27,15 +27,18 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  colors,
   fontSizes,
   fontWeights,
-  modalSpecs,
+  type getColors,
+  getModalSpecs,
   spacing,
+  type ThemeMode,
 } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
 import type { Note } from '@/types/notes';
 
 /**
@@ -72,6 +75,9 @@ export function NoteViewModal({
   onEdit,
   onDelete,
 }: NoteViewModalProps) {
+  const { colors, mode } = useTheme();
+  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <View style={styles.modalContainer}>
@@ -84,7 +90,7 @@ export function NoteViewModal({
               {bookName} {chapterNumber}
             </Text>
             <Pressable onPress={onClose} style={styles.closeButton} testID="view-close-button">
-              <Ionicons name="close" size={24} color={colors.gray900} />
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
             </Pressable>
           </View>
 
@@ -115,74 +121,78 @@ export function NoteViewModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.backdrop,
-  },
-  modalContent: {
-    height: modalSpecs.height,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
-    borderTopRightRadius: modalSpecs.borderTopRightRadius,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  headerTitle: {
-    fontSize: fontSizes.heading2,
-    fontWeight: fontWeights.semibold,
-    color: colors.gray900,
-    flex: 1,
-  },
-  closeButton: {
-    padding: spacing.xs,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-  },
-  noteContent: {
-    fontSize: fontSizes.body,
-    color: colors.gray900,
-    lineHeight: fontSizes.body * 1.6,
-  },
-  actions: {
-    flexDirection: 'row',
-    padding: spacing.lg,
-    gap: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.gray200,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  editButton: {
-    backgroundColor: colors.gold,
-  },
-  deleteButton: {
-    backgroundColor: colors.error,
-  },
-  actionButtonText: {
-    fontSize: fontSizes.body,
-    fontWeight: fontWeights.semibold,
-    color: colors.white,
-  },
-  deleteButtonText: {
-    color: colors.white,
-  },
-});
+const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+  const modalSpecs = getModalSpecs(mode);
+
+  return StyleSheet.create({
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: modalSpecs.backdropColor,
+    },
+    modalContent: {
+      height: modalSpecs.height,
+      backgroundColor: modalSpecs.backgroundColor,
+      borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
+      borderTopRightRadius: modalSpecs.borderTopRightRadius,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: spacing.lg,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      flex: 1,
+    },
+    closeButton: {
+      padding: spacing.xs,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: spacing.lg,
+    },
+    noteContent: {
+      fontSize: fontSizes.body,
+      color: colors.textPrimary,
+      lineHeight: fontSizes.body * 1.6,
+    },
+    actions: {
+      flexDirection: 'row',
+      padding: spacing.lg,
+      gap: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    actionButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    editButton: {
+      backgroundColor: colors.gold,
+    },
+    deleteButton: {
+      backgroundColor: colors.error,
+    },
+    actionButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.background,
+    },
+    deleteButtonText: {
+      color: colors.white,
+    },
+  });
+};

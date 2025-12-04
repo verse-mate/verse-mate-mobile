@@ -38,8 +38,13 @@ export async function getAutoHighlights(
 ): Promise<GetAutoHighlightsResponse> {
   const queryParams = new URLSearchParams();
 
-  if (options?.themeIds && options.themeIds.length > 0) {
-    queryParams.append('themes', options.themeIds.join(','));
+  if (options?.themeIds !== undefined) {
+    if (options.themeIds.length > 0) {
+      queryParams.append('themes', options.themeIds.join(','));
+    } else {
+      // If themeIds is an empty array, send "themes=" to explicitly tell backend no themes
+      queryParams.append('themes', '');
+    }
   }
 
   if (options?.themeRelevance) {
@@ -104,6 +109,34 @@ export async function getUserThemePreferences(): Promise<GetUserThemePreferences
 
   if (!response.ok) {
     throw new Error(`Failed to fetch user theme preferences: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get global default auto-highlights enabled setting
+ * Public endpoint - no authentication required
+ *
+ * Returns whether auto-highlights are enabled by default for logged-out users.
+ *
+ * @returns Default enabled setting
+ */
+export async function getDefaultAutoHighlightsEnabled(): Promise<{
+  success: boolean;
+  data: { default_enabled: boolean };
+}> {
+  const url = `${BASE_URL}/admin/auto-highlight-settings/default-enabled`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch default enabled setting: ${response.statusText}`);
   }
 
   return response.json();

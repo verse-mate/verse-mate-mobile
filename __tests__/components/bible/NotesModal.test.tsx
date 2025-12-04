@@ -8,12 +8,25 @@
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NotesModal } from '@/components/bible/NotesModal';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useNotes } from '@/hooks/bible/use-notes';
 import type { Note } from '@/types/notes';
 
 // Mock useNotes hook
 jest.mock('@/hooks/bible/use-notes');
+
+// Mock Safe Area Context
+jest.mock('react-native-safe-area-context', () => {
+  return {
+    SafeAreaProvider: jest.fn(({ children }) => children),
+    SafeAreaView: jest.fn(({ children }) => children),
+    useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+  };
+});
 
 // Mock haptics
 jest.mock('expo-haptics', () => ({
@@ -23,12 +36,22 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
+const renderWithTheme = (component: React.ReactElement) => {
+  return render(
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ToastProvider>{component}</ToastProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+};
+
 describe('NotesModal', () => {
   const mockOnClose = jest.fn();
   const mockOnNotePress = jest.fn();
   const mockOnEditNote = jest.fn();
-  const mockOnDeleteNote = jest.fn();
   const mockAddNote = jest.fn().mockResolvedValue(undefined);
+  const mockDeleteNote = jest.fn();
   const mockGetNotesByChapter = jest.fn();
 
   const defaultProps = {
@@ -39,7 +62,6 @@ describe('NotesModal', () => {
     onClose: mockOnClose,
     onNotePress: mockOnNotePress,
     onEditNote: mockOnEditNote,
-    onDeleteNote: mockOnDeleteNote,
   };
 
   beforeEach(() => {
@@ -48,11 +70,12 @@ describe('NotesModal', () => {
       addNote: mockAddNote,
       getNotesByChapter: mockGetNotesByChapter.mockReturnValue([]),
       isAddingNote: false,
+      deleteNote: mockDeleteNote,
     });
   });
 
   it('should display empty state when chapter has no notes', () => {
-    render(<NotesModal {...defaultProps} />);
+    renderWithTheme(<NotesModal {...defaultProps} />);
 
     expect(screen.getByText('Notes for Genesis 1')).toBeTruthy();
     expect(screen.getByText('Existing Notes (0)')).toBeTruthy();
@@ -85,7 +108,7 @@ describe('NotesModal', () => {
 
     mockGetNotesByChapter.mockReturnValue(mockNotes);
 
-    render(<NotesModal {...defaultProps} />);
+    renderWithTheme(<NotesModal {...defaultProps} />);
 
     expect(screen.getByText('Existing Notes (2)')).toBeTruthy();
     expect(screen.getByText(/First note content/)).toBeTruthy();
@@ -93,7 +116,7 @@ describe('NotesModal', () => {
   });
 
   it('should call addNote when Add Note button is pressed', async () => {
-    render(<NotesModal {...defaultProps} />);
+    renderWithTheme(<NotesModal {...defaultProps} />);
 
     const textarea = screen.getByPlaceholderText('Write your note here...');
     const addButton = screen.getByText('Add Note');
@@ -112,7 +135,7 @@ describe('NotesModal', () => {
   });
 
   it('should not call addNote when textarea is empty', async () => {
-    render(<NotesModal {...defaultProps} />);
+    renderWithTheme(<NotesModal {...defaultProps} />);
 
     const addButton = screen.getByText('Add Note');
 
@@ -126,7 +149,7 @@ describe('NotesModal', () => {
   });
 
   it('should display character counter when approaching limit', () => {
-    render(<NotesModal {...defaultProps} />);
+    renderWithTheme(<NotesModal {...defaultProps} />);
 
     const textarea = screen.getByPlaceholderText('Write your note here...');
 
@@ -138,7 +161,7 @@ describe('NotesModal', () => {
   });
 
   it('should call onClose when close button is pressed', () => {
-    render(<NotesModal {...defaultProps} />);
+    renderWithTheme(<NotesModal {...defaultProps} />);
 
     const closeButton = screen.getByTestId('close-button');
     fireEvent.press(closeButton);
@@ -147,7 +170,7 @@ describe('NotesModal', () => {
   });
 
   it('should clear textarea after successful note addition', async () => {
-    render(<NotesModal {...defaultProps} />);
+    renderWithTheme(<NotesModal {...defaultProps} />);
 
     const textarea = screen.getByPlaceholderText('Write your note here...');
     const addButton = screen.getByText('Add Note');

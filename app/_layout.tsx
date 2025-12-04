@@ -10,16 +10,20 @@
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import * as SystemUI from 'expo-system-ui';
+import { useEffect, useRef } from 'react';
+import { InteractionManager, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
 import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
@@ -50,77 +54,141 @@ const queryClient = new QueryClient({
 setupClientInterceptors();
 
 /**
+ * Inner Layout Component
+ *
+ * Handles React Navigation theme and splash screen management.
+ * Must be inside ThemeProvider to access theme context.
+ */
+function RootLayoutInner() {
+  const { mode, colors, isLoading: themeLoading } = useTheme();
+  const hasInitialized = useRef(false);
+
+  // System UI setup for Android
+  // Note: edgeToEdgeEnabled is set in app.json, which makes nav bar transparent automatically
+  useEffect(() => {
+    if (Platform.OS !== 'android' || themeLoading || hasInitialized.current) {
+      return;
+    }
+
+    const applySystemUI = async () => {
+      try {
+        // Update background color to match theme
+        await SystemUI.setBackgroundColorAsync(colors.background);
+        // Update nav bar button style (light buttons on dark theme, dark on light)
+        await NavigationBar.setButtonStyleAsync(mode === 'dark' ? 'light' : 'dark');
+        // Ensure nav bar is visible (reverting hidden state)
+        await NavigationBar.setVisibilityAsync('visible');
+      } catch (error) {
+        console.error('Failed to apply system UI settings:', error);
+      }
+    };
+
+    applySystemUI();
+    hasInitialized.current = true;
+  }, [themeLoading, colors.background, mode]);
+
+  // Hide splash screen with delay to ensure window layout is ready
+  useEffect(() => {
+    if (!themeLoading) {
+      async function hideSplash() {
+        try {
+          // Wait for interactions to complete before hiding splash
+          await new Promise((resolve) => {
+            InteractionManager.runAfterInteractions(() => {
+              setTimeout(resolve, 200);
+            });
+          });
+          await SplashScreen.hideAsync();
+        } catch (err) {
+          console.error('Error hiding splash screen:', err);
+        }
+      }
+      hideSplash();
+    }
+  }, [themeLoading]);
+
+  // Select React Navigation theme based on resolved mode
+  const navigationTheme = mode === 'dark' ? DarkTheme : DefaultTheme;
+
+  return (
+    <AppErrorBoundary>
+      <ThemeProvider value={navigationTheme}>
+        <Stack>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="bible/[bookId]/[chapterNumber]"
+            options={{
+              headerShown: false,
+              animation: 'none', // Disable route animations - PagerView handles swipe animations
+            }}
+          />
+          <Stack.Screen
+            name="topics/[topicId]"
+            options={{
+              headerShown: false,
+              animation: 'none',
+            }}
+          />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          <Stack.Screen
+            name="auth"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="bookmarks"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="highlights"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="settings"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="notes"
+            options={{
+              headerShown: false,
+            }}
+          />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </AppErrorBoundary>
+  );
+}
+
+/**
  * Root Layout Component
  *
  * Handles:
- * - Theme provider setup
+ * - Theme provider setup (custom + React Navigation)
  * - React Query provider setup
  * - Authentication provider setup
  * - PostHog analytics provider setup
  * - Splash screen management
  */
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
-  // Hide splash screen once the layout is ready
-  useEffect(() => {
-    async function hideSplash() {
-      try {
-        await SplashScreen.hideAsync();
-      } catch (err) {
-        console.error('Error hiding splash screen:', err);
-      }
-    }
-    hideSplash();
-  }, []);
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppPostHogProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <AppErrorBoundary>
-              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                <Stack>
-                  <Stack.Screen name="index" options={{ headerShown: false }} />
-                  <Stack.Screen
-                    name="bible/[bookId]/[chapterNumber]"
-                    options={{
-                      headerShown: false,
-                      animation: 'none', // Disable route animations - PagerView handles swipe animations
-                    }}
-                  />
-                  <Stack.Screen
-                    name="topics/[topicId]"
-                    options={{
-                      headerShown: false,
-                      animation: 'none',
-                    }}
-                  />
-                  <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-                  <Stack.Screen
-                    name="auth"
-                    options={{
-                      presentation: 'modal',
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="bookmarks"
-                    options={{
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="settings"
-                    options={{
-                      headerShown: false,
-                    }}
-                  />
-                </Stack>
-                <StatusBar style="auto" />
-              </ThemeProvider>
-            </AppErrorBoundary>
+            <CustomThemeProvider>
+              <ToastProvider>
+                <RootLayoutInner />
+              </ToastProvider>
+            </CustomThemeProvider>
           </AuthProvider>
         </QueryClientProvider>
       </AppPostHogProvider>
