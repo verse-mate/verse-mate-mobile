@@ -67,6 +67,7 @@ describe('BookmarkToggle', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
@@ -171,6 +172,7 @@ describe('BookmarkToggle', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 

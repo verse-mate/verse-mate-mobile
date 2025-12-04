@@ -2,9 +2,11 @@
  * Login Screen
  *
  * User login screen with email and password fields.
+ * Includes SSO buttons for Google and Apple Sign-In.
  * Includes form validation and navigation to signup.
  *
  * @see Task Group 6.4: Create app/auth/login.tsx
+ * @see Task Group 5: SSO Integration
  */
 
 import { router } from 'expo-router';
@@ -18,16 +20,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SSOButtons } from '@/components/auth/SSOButtons';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/ui/TextInput';
 import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSSOLogin } from '@/hooks/auth/useSSOLogin';
 import { useLogin } from '@/hooks/useLogin';
 
 /**
  * Login Screen Component
  *
  * Features:
+ * - SSO buttons (Google, Apple on iOS)
  * - Email field
  * - Password field with visibility toggle
  * - Form validation (email format, password required)
@@ -47,6 +52,14 @@ export default function Login() {
   });
 
   const { mutate: login, isPending, error, isSuccess } = useLogin();
+  const {
+    signInWithGoogle,
+    signInWithApple,
+    isGoogleLoading,
+    isAppleLoading,
+    error: ssoError,
+    resetError: resetSsoError,
+  } = useSSOLogin();
 
   // Dismiss modal on successful login
   useEffect(() => {
@@ -73,6 +86,7 @@ export default function Login() {
       email: '',
       password: '',
     });
+    resetSsoError();
 
     // Validate all fields
     const newErrors = {
@@ -113,6 +127,9 @@ export default function Login() {
     router.dismiss();
   };
 
+  // Combined error from password login or SSO
+  const displayError = error?.message || ssoError;
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -128,6 +145,15 @@ export default function Login() {
 
           {/* Form */}
           <View style={styles.form}>
+            {/* SSO Buttons */}
+            <SSOButtons
+              onGooglePress={signInWithGoogle}
+              onApplePress={signInWithApple}
+              isGoogleLoading={isGoogleLoading}
+              isAppleLoading={isAppleLoading}
+              error={ssoError}
+            />
+
             {/* Email */}
             <TextInput
               label="Email"
@@ -153,7 +179,7 @@ export default function Login() {
             />
 
             {/* Network Error Display */}
-            {error && (
+            {error && !ssoError && (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>
                   {error?.message || 'An error occurred during login. Please try again.'}
@@ -167,7 +193,7 @@ export default function Login() {
               onPress={handleSubmit}
               variant="auth"
               fullWidth
-              disabled={!isFormValid() || isPending}
+              disabled={!isFormValid() || isPending || isGoogleLoading || isAppleLoading}
               testID="login-submit"
             />
 
