@@ -23,6 +23,7 @@ import {
 import type { GetAuthSessionResponse } from '@/src/api/generated/types.gen';
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
+import { usePostHog } from 'posthog-react-native';
 
 /**
  * User type from GetAuthSession response
@@ -109,6 +110,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     (() => void) | null
   >(null);
 
+  // Get PostHog instance for analytics
+  const posthog = usePostHog();
+
   /**
    * Fetch user session from backend
    * @throws Error if session fetch fails
@@ -149,6 +153,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Fetch and update user session
     const userSession = await fetchUserSession();
     setUser(userSession);
+
+    // Identify user in PostHog
+    posthog?.identify(userSession.id, {
+      email: userSession.email,
+      firstName: userSession.firstName,
+      lastName: userSession.lastName,
+    });
   };
 
   /**
@@ -182,6 +193,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Fetch and update user session
     const userSession = await fetchUserSession();
     setUser(userSession);
+
+    // Identify user in PostHog
+    posthog?.identify(userSession.id, {
+      email: userSession.email,
+      firstName: userSession.firstName,
+      lastName: userSession.lastName,
+    });
   };
 
   /**
@@ -196,6 +214,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Clear tokens from storage
     await clearTokens();
+
+    // Reset PostHog identity
+    posthog?.reset();
 
     // Reset state
     setUser(null);
@@ -226,6 +247,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Update state
       setUser(userSession);
+
+      // Identify user in PostHog after session restore
+      posthog?.identify(userSession.id, {
+        email: userSession.email,
+        firstName: userSession.firstName,
+        lastName: userSession.lastName,
+      });
     } catch (error) {
       console.error('Failed to restore session:', error);
       // Clear tokens on error

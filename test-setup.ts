@@ -1,5 +1,6 @@
 import '@testing-library/jest-native/extend-expect';
 import { FormData, fetch, Headers, Request, Response } from 'undici';
+import { resetPostHogMock } from './__tests__/mocks/posthog-mock';
 import { server } from './__tests__/mocks/server';
 
 // Polyfill fetch for Node.js environment (required for MSW v2)
@@ -40,7 +41,10 @@ beforeAll(() => {
     if (
       typeof args[0] === 'string' &&
       (args[0].includes('Warning: ReactDOM.render') ||
-        args[0].includes('Not implemented: HTMLFormElement.prototype.submit'))
+        args[0].includes('Not implemented: HTMLFormElement.prototype.submit') ||
+        args[0].includes('Failed to set up proactive refresh') ||
+        args[0].includes('Failed to restore session') ||
+        args[0].includes('An update to AuthProvider inside a test was not wrapped in act'))
     ) {
       return;
     }
@@ -61,6 +65,8 @@ beforeAll(() => {
 
 afterEach(() => {
   server.resetHandlers();
+  // Reset PostHog mock to ensure test isolation
+  resetPostHogMock();
   // Restore console methods after each test in case tests modify them
   console.error = originalError;
   console.warn = originalWarn;

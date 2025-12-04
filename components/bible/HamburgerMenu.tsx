@@ -137,7 +137,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     } else if (item.action === 'settings') {
       // Navigate to settings screen
       onClose();
-      router.push('/settings');
+      router.push('/settings' as never);
     } else {
       // Other features show "Coming soon" alert
       Alert.alert('Coming Soon', `${item.label} feature is coming soon!`);
