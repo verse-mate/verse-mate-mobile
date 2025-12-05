@@ -100,25 +100,25 @@ jest.mock('@/components/bible/ChapterReader', () => ({
 
 // Mock modals to avoid complex rendering in ChapterPage tests
 jest.mock('@/components/bible/NotesModal', () => ({
-  NotesModal: ({ visible, children }: any) => {
+  NotesModal: ({ visible }: any) => {
     const { Text } = require('react-native');
     return visible ? <Text>NotesModal</Text> : null;
   },
 }));
 jest.mock('@/components/bible/NoteViewModal', () => ({
-  NoteViewModal: ({ visible, children }: any) => {
+  NoteViewModal: ({ visible }: any) => {
     const { Text } = require('react-native');
     return visible ? <Text>NoteViewModal</Text> : null;
   },
 }));
 jest.mock('@/components/bible/NoteEditModal', () => ({
-  NoteEditModal: ({ visible, children }: any) => {
+  NoteEditModal: ({ visible }: any) => {
     const { Text } = require('react-native');
     return visible ? <Text>NoteEditModal</Text> : null;
   },
 }));
 jest.mock('@/components/bible/DeleteConfirmationModal', () => ({
-  DeleteConfirmationModal: ({ visible, children }: any) => {
+  DeleteConfirmationModal: ({ visible }: any) => {
     const { Text } = require('react-native');
     return visible ? <Text>DeleteConfirmationModal</Text> : null;
   },

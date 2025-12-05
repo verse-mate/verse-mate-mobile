@@ -41,7 +41,7 @@ describe('useAppleSignIn', () => {
     // Reset Platform.OS to iOS for most tests
     Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true });
     // Reset process.env
-    delete process.env.EXPO_PUBLIC_APPLE_SSO_ENABLED;
+    process.env.EXPO_PUBLIC_APPLE_SSO_ENABLED = undefined;
   });
 
   afterAll(() => {
@@ -184,7 +184,7 @@ describe('useAppleSignIn', () => {
 
       // Resolve sign-in
       await act(async () => {
-        resolveSignIn!({ identityToken: 'token' });
+        resolveSignIn?.({ identityToken: 'token' });
         await signInPromiseResult;
       });
 

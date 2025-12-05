@@ -127,9 +127,6 @@ export default function Login() {
     router.dismiss();
   };
 
-  // Combined error from password login or SSO
-  const displayError = error?.message || ssoError;
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

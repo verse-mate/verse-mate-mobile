@@ -50,8 +50,7 @@ const validRefreshTokens = new Set<string>();
  * or a JSON-encoded token with user info
  */
 function decodeMockToken(
-  token: string,
-  provider: SSOProvider
+  token: string
 ): { email: string; firstName?: string; lastName?: string } | null {
   // Format 1: mock-{provider}-token-{email}
   const simpleMatch = token.match(/^mock-(google|apple)-token-(.+)$/);
@@ -108,7 +107,7 @@ export const postAuthSsoHandler = http.post(`${API_BASE_URL}/auth/sso`, async ({
   }
 
   // Decode the mock token
-  const tokenData = decodeMockToken(body.token, body.provider);
+  const tokenData = decodeMockToken(body.token);
   if (!tokenData) {
     return new HttpResponse(
       JSON.stringify({
@@ -226,7 +225,7 @@ export const seedSsoTestUser = (
  * Helper to get user by email (for session handler integration)
  */
 export const getSsoUserByEmail = (email: string) => {
-  for (const [key, user] of ssoUsers) {
+  for (const user of ssoUsers.values()) {
     if (user.email === email) {
       return user;
     }
