@@ -14,11 +14,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_POSTHOG_KEY": "",
         "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "false",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
         "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
       }
     },
@@ -36,11 +33,8 @@
       },
       "env": {
         "APP_ENV": "preview",
-        "EXPO_PUBLIC_POSTHOG_KEY": "",
         "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "false",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
         "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
       }
     },
@@ -58,11 +52,8 @@
       },
       "env": {
         "APP_ENV": "production",
-        "EXPO_PUBLIC_POSTHOG_KEY": "",
         "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "true",
-        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "",
         "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
       }
     }
