@@ -117,6 +117,7 @@ describe('SettingsScreen', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
@@ -223,6 +224,7 @@ describe('SettingsScreen', () => {
         login: jest.fn(),
         signup: jest.fn(),
         logout: jest.fn(),
+        loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
       });
 
@@ -240,6 +242,7 @@ describe('SettingsScreen', () => {
         login: jest.fn(),
         signup: jest.fn(),
         logout: jest.fn(),
+        loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
       });
 
@@ -257,6 +260,7 @@ describe('SettingsScreen', () => {
         login: jest.fn(),
         signup: jest.fn(),
         logout: jest.fn(),
+        loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
       });
 
@@ -359,6 +363,7 @@ describe('SettingsScreen', () => {
         login: jest.fn(),
         signup: jest.fn(),
         logout: jest.fn(),
+        loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
       });
 
@@ -392,6 +397,7 @@ describe('SettingsScreen', () => {
         login: jest.fn(),
         signup: jest.fn(),
         logout: mockLogout,
+        loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
       });
 
@@ -455,6 +461,7 @@ describe('SettingsScreen', () => {
         login: jest.fn(),
         signup: jest.fn(),
         logout: jest.fn(),
+        loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
       });
 

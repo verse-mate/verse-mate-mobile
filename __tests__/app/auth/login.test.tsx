@@ -23,6 +23,40 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@/hooks/useLogin');
 
+// Mock SSO dependencies
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn().mockResolvedValue(true),
+    signIn: jest.fn().mockResolvedValue({ data: { idToken: 'mock-id-token' } }),
+  },
+  statusCodes: {
+    SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED',
+    IN_PROGRESS: 'IN_PROGRESS',
+    PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE',
+  },
+}));
+
+jest.mock('expo-apple-authentication', () => ({
+  signInAsync: jest.fn(),
+  isAvailableAsync: jest.fn().mockResolvedValue(false),
+  AppleAuthenticationScope: {
+    FULL_NAME: 0,
+    EMAIL: 1,
+  },
+}));
+
+jest.mock('@/hooks/auth/useSSOLogin', () => ({
+  useSSOLogin: () => ({
+    signInWithGoogle: jest.fn(),
+    signInWithApple: jest.fn(),
+    isGoogleLoading: false,
+    isAppleLoading: false,
+    error: null,
+    resetError: jest.fn(),
+  }),
+}));
+
 describe('Login Screen', () => {
   const mockLogin = jest.fn();
 
