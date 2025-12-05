@@ -85,6 +85,7 @@ describe('Bookmarks Screen', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
@@ -126,6 +127,7 @@ describe('Bookmarks Screen', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
@@ -167,6 +169,7 @@ describe('Bookmarks Screen', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
@@ -203,6 +206,7 @@ describe('Bookmarks Screen', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
@@ -237,6 +241,7 @@ describe('Bookmarks Screen', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
@@ -273,6 +278,7 @@ describe('Bookmarks Screen', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
@@ -307,6 +313,7 @@ describe('Bookmarks Screen', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 

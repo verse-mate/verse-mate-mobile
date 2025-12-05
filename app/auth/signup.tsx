@@ -2,9 +2,11 @@
  * Signup Screen
  *
  * User registration screen with first name, last name, email, and password fields.
+ * Includes SSO buttons for Google and Apple Sign-In.
  * Includes real-time password requirements validation and navigation to login.
  *
  * @see Task Group 6.3: Create app/auth/signup.tsx
+ * @see Task Group 5: SSO Integration
  */
 
 import { router } from 'expo-router';
@@ -19,10 +21,12 @@ import {
   View,
 } from 'react-native';
 import { PasswordRequirements } from '@/components/auth/PasswordRequirements';
+import { SSOButtons } from '@/components/auth/SSOButtons';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/ui/TextInput';
 import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSSOLogin } from '@/hooks/auth/useSSOLogin';
 import { useSignup } from '@/hooks/useSignup';
 import { validatePassword } from '@/lib/auth/password-validation';
 
@@ -30,6 +34,7 @@ import { validatePassword } from '@/lib/auth/password-validation';
  * Signup Screen Component
  *
  * Features:
+ * - SSO buttons (Google, Apple on iOS)
  * - First name and last name fields (side-by-side on tablet/desktop, stacked on mobile)
  * - Email field
  * - Password field with visibility toggle
@@ -55,6 +60,14 @@ export default function Signup() {
   });
 
   const { mutate: signup, isPending, error, isSuccess } = useSignup();
+  const {
+    signInWithGoogle,
+    signInWithApple,
+    isGoogleLoading,
+    isAppleLoading,
+    error: ssoError,
+    resetError: resetSsoError,
+  } = useSSOLogin();
 
   // Dismiss modal on successful signup
   useEffect(() => {
@@ -91,6 +104,7 @@ export default function Signup() {
       email: '',
       password: '',
     });
+    resetSsoError();
 
     // Validate all fields
     const newErrors = {
@@ -164,6 +178,15 @@ export default function Signup() {
 
           {/* Form */}
           <View style={styles.form}>
+            {/* SSO Buttons */}
+            <SSOButtons
+              onGooglePress={signInWithGoogle}
+              onApplePress={signInWithApple}
+              isGoogleLoading={isGoogleLoading}
+              isAppleLoading={isAppleLoading}
+              error={ssoError}
+            />
+
             {/* First Name and Last Name Row */}
             <View style={styles.nameRow}>
               <View style={styles.nameField}>
@@ -218,7 +241,7 @@ export default function Signup() {
             <PasswordRequirements password={password} />
 
             {/* Network Error Display */}
-            {error && (
+            {error && !ssoError && (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>
                   {error?.message || 'An error occurred during signup. Please try again.'}
@@ -232,7 +255,7 @@ export default function Signup() {
               onPress={handleSubmit}
               variant="auth"
               fullWidth
-              disabled={!isFormValid() || isPending}
+              disabled={!isFormValid() || isPending || isGoogleLoading || isAppleLoading}
               testID="signup-submit"
             />
 

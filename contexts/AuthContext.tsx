@@ -2,9 +2,10 @@
  * Authentication Context
  *
  * Provides authentication state and methods throughout the app.
- * Handles login, signup, logout, and session persistence.
+ * Handles login, signup, SSO login, logout, and session persistence.
  *
  * @see Task Group 4: Authentication Context and Hooks
+ * @see Task Group 5: SSO Integration
  */
 
 import {
@@ -29,6 +30,11 @@ import { usePostHog } from 'posthog-react-native';
  * User type from GetAuthSession response
  */
 export type User = GetAuthSessionResponse;
+
+/**
+ * SSO Provider types
+ */
+export type SSOProvider = 'google' | 'apple';
 
 /**
  * Authentication state interface
@@ -70,6 +76,14 @@ export interface AuthMethods {
   ): Promise<void>;
 
   /**
+   * Login with SSO provider (Google or Apple)
+   * @param provider - SSO provider ('google' or 'apple')
+   * @param idToken - ID token from the SSO provider
+   * @throws Error if SSO login fails
+   */
+  loginWithSSO(provider: SSOProvider, idToken: string): Promise<void>;
+
+  /**
    * Logout the current user
    * Clears tokens and resets auth state
    */
@@ -95,6 +109,60 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
  */
 interface AuthProviderProps {
   children: ReactNode;
+}
+
+/**
+ * SSO API Response type
+ */
+interface SSOAuthResponse {
+  accessToken: string;
+  refreshToken?: string;
+  verified?: boolean;
+}
+
+/**
+ * SSO API Error response type
+ */
+interface SSOErrorResponse {
+  message?: string;
+  code?: string;
+  provider?: string;
+}
+
+/**
+ * Call SSO authentication endpoint
+ * Since the endpoint may not be in the generated SDK yet, we call it directly
+ */
+async function postAuthSso(body: {
+  provider: SSOProvider;
+  token: string;
+  platform: 'mobile';
+}): Promise<{ data?: SSOAuthResponse; error?: SSOErrorResponse }> {
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+
+  try {
+    const response = await fetch(`${baseUrl}/auth/sso`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { error: data as SSOErrorResponse };
+    }
+
+    return { data: data as SSOAuthResponse };
+  } catch (err) {
+    return {
+      error: {
+        message: err instanceof Error ? err.message : 'Network error',
+      },
+    };
+  }
 }
 
 /**
@@ -136,8 +204,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     if (error || !data) {
-      console.error('Login failed:', error?.message || error);
-      throw new Error(error?.message || 'Login failed');
+      // Check for SSO-only account error
+      const errorMessage = error?.message || 'Login failed';
+      console.error('Login failed:', errorMessage);
+      throw new Error(errorMessage);
     }
 
     // Store tokens
@@ -199,6 +269,55 @@ export function AuthProvider({ children }: AuthProviderProps) {
       email: userSession.email,
       firstName: userSession.firstName,
       lastName: userSession.lastName,
+    });
+  };
+
+  /**
+   * SSO Login method implementation
+   */
+  const loginWithSSO = async (
+    provider: SSOProvider,
+    idToken: string,
+  ): Promise<void> => {
+    const { data, error } = await postAuthSso({
+      provider,
+      token: idToken,
+      platform: 'mobile',
+    });
+
+    if (error || !data) {
+      // Handle SSO-specific error codes
+      if (error?.code === 'SSO_ACCOUNT_NO_PASSWORD') {
+        const providerName = provider === 'google' ? 'Google' : 'Apple';
+        throw new Error(
+          `This account uses ${providerName} Sign-In. Please use that method to log in.`,
+        );
+      }
+
+      console.error('SSO login failed:', error?.message || error);
+      throw new Error(error?.message || 'SSO login failed');
+    }
+
+    // Store tokens
+    await setAccessToken(data.accessToken);
+    if (data.refreshToken) {
+      await setRefreshToken(data.refreshToken);
+    }
+
+    // Setup proactive refresh
+    const cleanup = setupProactiveRefresh(data.accessToken);
+    setProactiveRefreshCleanup(() => cleanup);
+
+    // Fetch and update user session
+    const userSession = await fetchUserSession();
+    setUser(userSession);
+
+    // Identify user in PostHog with SSO provider info
+    posthog?.identify(userSession.id, {
+      email: userSession.email,
+      firstName: userSession.firstName,
+      lastName: userSession.lastName,
+      ssoProvider: provider,
     });
   };
 
@@ -274,6 +393,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     login,
     signup,
+    loginWithSSO,
     logout,
     restoreSession,
   };

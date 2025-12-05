@@ -9,6 +9,7 @@
  */
 
 import { authHandlers } from './auth';
+import { authSsoHandlers } from './auth-sso';
 import { autoHighlightsHandlers } from './auto-highlights';
 import { bibleHandlers } from './bible.handlers';
 import { bookmarkHandlers } from './bookmarks.handlers';
@@ -25,6 +26,7 @@ import { verseHandlers } from './verses';
 // /bible/book/:bookId/:chapterNumber from matching /bible/book/bookmarks/:user_id, /bible/highlights/:user_id, or /bible/book/notes/:user_id
 export const handlers = [
   ...authHandlers,
+  ...authSsoHandlers,
   ...verseHandlers,
   ...explanationHandlers,
   ...bookmarkHandlers, // Must come before bibleHandlers
@@ -40,6 +42,7 @@ export const handlers = [
 // Export individual handler groups for selective usage
 export {
   authHandlers,
+  authSsoHandlers,
   autoHighlightsHandlers,
   verseHandlers,
   explanationHandlers,

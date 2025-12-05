@@ -105,6 +105,7 @@ describe('ChapterReader - Bookmark Integration', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
@@ -204,6 +205,7 @@ describe('ChapterReader - Bookmark Integration', () => {
       login: jest.fn(),
       signup: jest.fn(),
       logout: jest.fn(),
+      loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
     });
 
