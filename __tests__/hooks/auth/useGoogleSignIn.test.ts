@@ -177,7 +177,7 @@ describe('useGoogleSignIn', () => {
 
       // Resolve sign-in
       await act(async () => {
-        resolveSignIn!({
+        resolveSignIn?.({
           type: 'success',
           data: { idToken: 'token' },
         });

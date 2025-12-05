@@ -125,7 +125,6 @@ describe('BibleNavigationModal', () => {
   });
 
   it('should display chapter grid when book is selected', async () => {
-    const user = { id: 'test-user' };
     renderWithTheme(
       <BibleNavigationModal
         visible={true}

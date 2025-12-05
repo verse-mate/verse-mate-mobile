@@ -143,7 +143,7 @@ describe('useSSOLogin', () => {
 
       // Resolve
       await act(async () => {
-        resolveGoogleSignIn!('token');
+        resolveGoogleSignIn?.('token');
         await signInPromise;
       });
 
