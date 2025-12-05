@@ -30,7 +30,7 @@ export interface UseAppleSignInReturn {
 
 /**
  * Check if Apple Sign-In is enabled via environment variable
- * Defaults to true on iOS, always false on other platforms
+ * Requires explicit opt-in via EXPO_PUBLIC_APPLE_SSO_ENABLED=true
  */
 export function isAppleSignInEnabled(): boolean {
   // Apple Sign-In is iOS only
@@ -38,18 +38,13 @@ export function isAppleSignInEnabled(): boolean {
     return false;
   }
 
-  // Check if explicitly disabled via env var
+  // Require explicit opt-in via env var
   const enabledEnvVar =
     Constants.expoConfig?.extra?.EXPO_PUBLIC_APPLE_SSO_ENABLED ||
     process.env.EXPO_PUBLIC_APPLE_SSO_ENABLED;
 
-  // If env var is explicitly set to 'false', disable
-  if (enabledEnvVar === 'false') {
-    return false;
-  }
-
-  // Default to enabled on iOS
-  return true;
+  // Only enable if explicitly set to 'true'
+  return enabledEnvVar === 'true';
 }
 
 /**
