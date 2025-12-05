@@ -136,12 +136,14 @@ export function SSOButtons({
         </TouchableOpacity>
       )}
 
-      {/* "or" Divider */}
-      <View style={styles.dividerContainer}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>or</Text>
-        <View style={styles.dividerLine} />
-      </View>
+      {/* "or" Divider - only show when at least one SSO button is visible */}
+      {(showGoogleButton || showAppleButton) && (
+        <View style={styles.dividerContainer}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or</Text>
+          <View style={styles.dividerLine} />
+        </View>
+      )}
     </View>
   );
 }

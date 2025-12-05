@@ -136,32 +136,42 @@ export function useAppleSignIn(): UseAppleSignInReturn {
       }
 
       return identityToken;
-    } catch (err) {
+    } catch (err: unknown) {
       // Handle Apple authentication errors
-      if (err instanceof Error) {
-        // Check for cancellation (error code 1001)
-        if (err.message.includes('ERR_REQUEST_CANCELED') || err.message.includes('1001')) {
+      // Prefer structured error codes when available, fall back to message matching
+      const e = err as { code?: string; message?: string };
+
+      if (e?.code) {
+        // Check structured error codes first
+        if (e.code === 'ERR_REQUEST_CANCELED') {
           // User cancelled - not an error state
           return null;
         }
-
-        // Check for invalid response
-        if (err.message.includes('ERR_INVALID_RESPONSE')) {
+        if (e.code === 'ERR_INVALID_RESPONSE') {
           setError('Invalid response from Apple Sign-In');
           return null;
         }
-
-        // Check for system unavailable
-        if (err.message.includes('ERR_REQUEST_NOT_HANDLED')) {
+        if (e.code === 'ERR_REQUEST_NOT_HANDLED') {
           setError('Apple Sign-In is not available on this device');
           return null;
         }
-
-        setError(err.message);
-        return null;
+      } else if (e?.message) {
+        // Fall back to message matching for compatibility
+        if (e.message.includes('ERR_REQUEST_CANCELED') || e.message.includes('1001')) {
+          // User cancelled - not an error state
+          return null;
+        }
+        if (e.message.includes('ERR_INVALID_RESPONSE')) {
+          setError('Invalid response from Apple Sign-In');
+          return null;
+        }
+        if (e.message.includes('ERR_REQUEST_NOT_HANDLED')) {
+          setError('Apple Sign-In is not available on this device');
+          return null;
+        }
       }
 
-      setError('Unknown error occurred during Apple Sign-In');
+      setError(e?.message || 'Unknown error occurred during Apple Sign-In');
       return null;
     } finally {
       setIsLoading(false);
