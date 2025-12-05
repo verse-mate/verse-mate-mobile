@@ -121,6 +121,10 @@ function TabContent({
   const explanationContent = content && 'content' in content ? content : undefined;
   const hasContent = explanationContent && explanationContent.content.trim().length > 0;
 
+  // Only show skeleton on initial load, not when transitioning between chapters
+  // This prevents flicker when swiping between chapters
+  const showSkeleton = isLoading && !chapter && !explanationContent;
+
   return (
     <ScrollView
       style={styles.container}
@@ -140,8 +144,8 @@ function TabContent({
         >
           <Text style={styles.errorText}>Failed to load {activeTab} explanation.</Text>
         </Animated.View>
-      ) : isLoading ? (
-        // Use a fragment of the skeleton loader for a better feel
+      ) : showSkeleton ? (
+        // Only show skeleton on initial load when no content exists yet
         <SkeletonLoader />
       ) : !hasContent ? (
         <Animated.View
@@ -154,11 +158,7 @@ function TabContent({
           </Text>
         </Animated.View>
       ) : (
-        <Animated.View
-          key={activeTab}
-          entering={FadeIn.duration(animations.tabSwitch.duration)}
-          exiting={FadeOut.duration(animations.tabSwitch.duration)}
-        >
+        <View>
           {chapter && (
             <ChapterReader
               chapter={chapter}
@@ -167,7 +167,7 @@ function TabContent({
               explanation={explanationContent}
             />
           )}
-        </Animated.View>
+        </View>
       )}
       <BottomLogo />
     </ScrollView>
@@ -258,9 +258,13 @@ export const ChapterPage = React.memo(function ChapterPage({
   useEffect(() => {
     hasScrolledRef.current = false;
     sectionPositionsRef.current = {};
-    scrollY.value = 0; // Reset scroll animation value
+    // Only reset scroll animation value when in Bible view to avoid triggering
+    // useAnimatedReaction on a null ref (which causes crash in explanation view)
+    if (activeView === 'bible') {
+      scrollY.value = 0;
+    }
     currentScrollYRef.current = 0;
-  }, [bookId, chapterNumber]);
+  }, [bookId, chapterNumber, activeView]);
 
   // Track last scroll position and timestamp for velocity calculation
   const lastScrollY = useRef(0);
@@ -363,11 +367,17 @@ export const ChapterPage = React.memo(function ChapterPage({
     }
   }, [targetVerse, scrollY]);
 
-  // React to shared value changes on UI thread
+  // React to shared value changes on UI thread (only for Bible view)
+  // Note: animatedScrollRef is only valid when Animated.ScrollView is rendered (Bible view)
   useAnimatedReaction(
     () => scrollY.value,
     (currentY) => {
-      scrollTo(animatedScrollRef, 0, currentY, false);
+      'worklet';
+      // Safety check: only scroll if the ref is attached to a valid component
+      // In explanation view, the Animated.ScrollView is not rendered, so ref is invalid
+      if (animatedScrollRef && animatedScrollRef.current) {
+        scrollTo(animatedScrollRef, 0, currentY, false);
+      }
     }
   );
 
