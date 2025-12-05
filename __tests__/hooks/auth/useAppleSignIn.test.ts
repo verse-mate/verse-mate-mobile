@@ -24,7 +24,8 @@ jest.mock('expo-apple-authentication', () => ({
 jest.mock('expo-constants', () => ({
   expoConfig: {
     extra: {
-      // Apple SSO enabled by default (no explicit setting)
+      // Apple SSO requires explicit opt-in
+      EXPO_PUBLIC_APPLE_SSO_ENABLED: 'true',
     },
   },
 }));
@@ -50,11 +51,12 @@ describe('useAppleSignIn', () => {
   });
 
   describe('isAppleSignInEnabled', () => {
-    it('returns true on iOS by default', () => {
+    it('returns true on iOS when explicitly enabled', () => {
+      // expo-constants mock has EXPO_PUBLIC_APPLE_SSO_ENABLED: 'true'
       expect(isAppleSignInEnabled()).toBe(true);
     });
 
-    it('returns false on Android', () => {
+    it('returns false on Android even when enabled', () => {
       Object.defineProperty(Platform, 'OS', { value: 'android', writable: true });
       expect(isAppleSignInEnabled()).toBe(false);
     });
