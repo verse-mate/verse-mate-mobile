@@ -41,10 +41,13 @@ This directory contains comprehensive documentation and scripts for building and
 
 **Preview Build (Local Testing):**
 ```bash
-# Build iOS preview
+# Build iOS preview (default)
 bash .deployment/build-preview.sh
 
-# Submit to TestFlight
+# Build Android preview
+bash .deployment/build-preview.sh android
+
+# Submit iOS to TestFlight
 bash .deployment/submit-testflight.sh <build-id>
 ```
 
@@ -55,7 +58,8 @@ bash .deployment/submit-testflight.sh <build-id>
 # 2. Go to GitHub Actions → "Expo Production Build" → Run workflow
 
 # Via Local Script
-bash .deployment/build-production.sh
+bash .deployment/build-production.sh ios
+bash .deployment/build-production.sh android
 
 # Download for testing
 bash .deployment/download-build.sh <build-id>
@@ -69,29 +73,34 @@ All scripts are located in `.deployment/` directory and are used by both CI/CD a
 
 ### `build-preview.sh`
 
-Triggers an iOS preview build on EAS.
+Triggers a preview build on EAS for iOS or Android.
 
-**Purpose**: Internal testing builds that automatically submit to TestFlight
+**Purpose**: Internal testing builds (iOS auto-submits to TestFlight, Android available for download)
 
 **Usage:**
 ```bash
 export EXPO_TOKEN="your-expo-token"
+
+# iOS (default)
 bash .deployment/build-preview.sh
+
+# Android
+bash .deployment/build-preview.sh android
 ```
 
 **What it does:**
 - Triggers EAS build with `preview` profile
-- Uses `store` distribution for TestFlight compatibility
-- Captures build ID and saves to `build_id.txt`
-- Outputs build ID to stdout and `$GITHUB_OUTPUT` (if in CI)
+- Uses `store` distribution for TestFlight compatibility (iOS)
+- Captures build ID and saves to `build_id_preview_{platform}.txt`
+- Outputs build ID and URL to stdout and `$GITHUB_OUTPUT` (if in CI)
 
 **Output:**
 ```
-Starting iOS preview build...
-Build started successfully!
-Build ID: abc123-def456-ghi789
-View build: https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds/abc123-def456-ghi789
-abc123-def456-ghi789
+==========================================
+Triggering ios Preview Build
+==========================================
+✅ ios Build ID: abc123-def456-ghi789
+🔗 Build URL: https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds/abc123-def456-ghi789
 ```
 
 **Profile:** Uses `preview` profile from eas.json:
@@ -101,21 +110,26 @@ abc123-def456-ghi789
 
 ### `build-production.sh`
 
-Triggers an iOS production build on EAS.
+Triggers a production build on EAS for iOS or Android.
 
-**Purpose**: Production-ready builds for App Store release
+**Purpose**: Production-ready builds for App Store / Play Store release
 
 **Usage:**
 ```bash
 export EXPO_TOKEN="your-expo-token"
-bash .deployment/build-production.sh
+
+# iOS
+bash .deployment/build-production.sh ios
+
+# Android
+bash .deployment/build-production.sh android
 ```
 
 **What it does:**
 - Triggers EAS build with `production` profile
-- Uses `store` distribution for App Store
-- Captures build ID and saves to `build_id_production.txt`
-- Outputs build ID to stdout and `$GITHUB_OUTPUT` (if in CI)
+- Uses `store` distribution for App Store / Play Store
+- Captures build ID and saves to `build_id_production_{platform}.txt`
+- Outputs build ID and URL to stdout and `$GITHUB_OUTPUT` (if in CI)
 
 **Profile:** Uses `production` profile from eas.json:
 - Distribution: `store`
@@ -825,6 +839,12 @@ A: Check [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) and build logs
 ## Changelog
 
 ### Recent Updates
+
+**2025-12-08 - Android Support for Preview Builds**
+- Updated `build-preview.sh` to support both iOS and Android (via platform argument)
+- Updated `expo-preview-build.yml` workflow to use script for Android builds
+- Android builds now capture build ID properly for tracking
+- Added build summary step to preview workflow
 
 **2025-10-27 - Production Build Scripts Added**
 - Added `build-production.sh` for production builds
