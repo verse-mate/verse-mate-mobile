@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["DictionaryModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.dictionary.DictionaryModule"]
+  }
+}
