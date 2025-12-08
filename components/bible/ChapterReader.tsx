@@ -26,6 +26,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
+import { DictionaryModal } from '@/components/bible/DictionaryModal';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
 import type { TextSelection } from '@/components/bible/HighlightedText';
@@ -323,6 +324,10 @@ export function ChapterReader({
     setErrorModalVisible(true);
   };
 
+  // Dictionary modal state
+  const [dictionaryModalVisible, setDictionaryModalVisible] = useState(false);
+  const [dictionaryWord, setDictionaryWord] = useState<string>('');
+
   /**
    * Handle layout of a verse/paragraph
    */
@@ -536,6 +541,29 @@ export function ChapterReader({
   const handleSelectionSheetClose = () => {
     setSelectionSheetVisible(false);
     setSelectionContext(null);
+  };
+
+  /**
+   * Handle Define action from selection sheet
+   * Opens dictionary modal with selected text
+   */
+  const handleDefine = (text: string) => {
+    // Extract the first word from the selected text for dictionary lookup
+    const words = text.trim().split(/\s+/);
+    const firstWord = words[0]?.replace(/[.,;:!?'"()]/g, '') || text;
+    setDictionaryWord(firstWord);
+    setDictionaryModalVisible(true);
+    // Close selection sheet
+    setSelectionSheetVisible(false);
+    setSelectionContext(null);
+  };
+
+  /**
+   * Handle close Dictionary modal
+   */
+  const handleDictionaryClose = () => {
+    setDictionaryModalVisible(false);
+    setDictionaryWord('');
   };
 
   /**
@@ -901,7 +929,9 @@ export function ChapterReader({
             start: selectionContext.verseNumber,
             end: selectionContext.verseNumber,
           }}
+          selectedText={selectionContext.selection.text}
           onColorSelect={handleCreateHighlight}
+          onDefine={handleDefine}
           onClose={handleSelectionSheetClose}
         />
       )}
@@ -970,6 +1000,13 @@ export function ChapterReader({
         visible={errorModalVisible}
         message={errorMessage}
         onClose={() => setErrorModalVisible(false)}
+      />
+
+      {/* Dictionary Modal */}
+      <DictionaryModal
+        visible={dictionaryModalVisible}
+        word={dictionaryWord}
+        onClose={handleDictionaryClose}
       />
     </View>
   );
