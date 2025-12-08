@@ -71,12 +71,8 @@ export interface HighlightSelectionSheetProps {
   visible: boolean;
   /** Verse range being highlighted */
   verseRange: VerseRange;
-  /** Selected text (for dictionary lookup) */
-  selectedText?: string;
   /** Callback when color is selected (creates highlight) */
   onColorSelect: (color: HighlightColor) => void;
-  /** Callback when Define action is selected */
-  onDefine?: (text: string) => void;
   /** Callback when modal is closed */
   onClose: () => void;
 }
@@ -89,9 +85,7 @@ export interface HighlightSelectionSheetProps {
 export function HighlightSelectionSheet({
   visible,
   verseRange,
-  selectedText,
   onColorSelect,
-  onDefine,
   onClose,
 }: HighlightSelectionSheetProps) {
   const { colors, mode } = useTheme();
@@ -132,17 +126,6 @@ export function HighlightSelectionSheet({
     console.log(`Quick action: ${action}`);
   };
 
-  /**
-   * Handle Define action press
-   * Opens dictionary lookup for the selected text
-   */
-  const handleDefine = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (onDefine && selectedText) {
-      onDefine(selectedText);
-    }
-  };
-
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -178,18 +161,6 @@ export function HighlightSelectionSheet({
 
             {/* Quick Actions Section */}
             <View style={styles.quickActions}>
-              {/* Define */}
-              {selectedText && onDefine && (
-                <Pressable
-                  style={styles.quickActionItem}
-                  onPress={handleDefine}
-                  testID="define-button"
-                >
-                  <Ionicons name="book-outline" size={20} color={colors.gold} />
-                  <Text style={styles.quickActionText}>Define</Text>
-                </Pressable>
-              )}
-
               {/* Bookmarked */}
               <Pressable
                 style={styles.quickActionItem}

@@ -134,7 +134,7 @@ export function DictionaryModal({ visible, word, strongsNumber, onClose }: Dicti
           hasNative,
           error: !strongsEntry && !hasNative ? 'No definition available' : null,
         });
-      } catch (error) {
+      } catch {
         setState({
           loading: false,
           strongsEntry: null,
@@ -181,88 +181,90 @@ export function DictionaryModal({ visible, word, strongsNumber, onClose }: Dicti
       >
         <Pressable style={styles.backdrop} onPress={handleClose} testID="dictionary-backdrop" />
 
-        <SafeAreaView style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.wordTitle}>{displayWord}</Text>
-            <Pressable
-              onPress={handleClose}
-              style={styles.closeButton}
-              testID="dictionary-close-button"
-            >
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </Pressable>
-          </View>
-
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            {/* Loading State */}
-            {state.loading && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.gold} />
-                <Text style={styles.loadingText}>Looking up definition...</Text>
-              </View>
-            )}
-
-            {/* Error State */}
-            {!state.loading && state.error && !state.strongsEntry && !state.hasNative && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
-                <Text style={styles.errorText}>{state.error}</Text>
-              </View>
-            )}
-
-            {/* Strong's Definition */}
-            {!state.loading && state.strongsEntry && (
-              <View style={styles.section}>
-                {/* Strong's Number Badge */}
-                {state.strongsNum && (
-                  <View style={styles.strongsBadge}>
-                    <Text style={styles.strongsBadgeText}>{state.strongsNum}</Text>
-                  </View>
-                )}
-
-                {/* Original Word (Lemma) */}
-                <Text style={styles.lemmaText}>{state.strongsEntry.lemma}</Text>
-
-                {/* Definition */}
-                <View style={styles.definitionBox}>
-                  <Text style={styles.definitionText}>{state.strongsEntry.definition}</Text>
-                </View>
-
-                {/* Derivation */}
-                {state.strongsEntry.derivation && (
-                  <View style={styles.derivationContainer}>
-                    <Text style={styles.derivationLabel}>Derivation:</Text>
-                    <Text style={styles.derivationText}>{state.strongsEntry.derivation}</Text>
-                  </View>
-                )}
-
-                {/* KJV Translation */}
-                {state.strongsEntry.kjvTranslation && (
-                  <View style={styles.kjvContainer}>
-                    <Text style={styles.kjvLabel}>KJV:</Text>
-                    <Text style={styles.kjvText}>{state.strongsEntry.kjvTranslation}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Native Dictionary Button */}
-            {!state.loading && state.hasNative && (
+        <View style={styles.modalContent}>
+          <SafeAreaView style={{ flex: 1 }}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.wordTitle}>{displayWord}</Text>
               <Pressable
-                style={styles.nativeDictionaryButton}
-                onPress={handleOpenNative}
-                testID="open-native-dictionary"
+                onPress={handleClose}
+                style={styles.closeButton}
+                testID="dictionary-close-button"
               >
-                <Ionicons name="book" size={20} color={colors.gold} />
-                <Text style={styles.nativeDictionaryText}>
-                  Open in {Platform.OS === 'ios' ? 'iOS' : 'System'} Dictionary
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
               </Pressable>
-            )}
-          </ScrollView>
-        </SafeAreaView>
+            </View>
+
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+              {/* Loading State */}
+              {state.loading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.gold} />
+                  <Text style={styles.loadingText}>Looking up definition...</Text>
+                </View>
+              )}
+
+              {/* Error State */}
+              {!state.loading && state.error && !state.strongsEntry && !state.hasNative && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
+                  <Text style={styles.errorText}>{state.error}</Text>
+                </View>
+              )}
+
+              {/* Strong's Definition */}
+              {!state.loading && state.strongsEntry && (
+                <View style={styles.section}>
+                  {/* Strong's Number Badge */}
+                  {state.strongsNum && (
+                    <View style={styles.strongsBadge}>
+                      <Text style={styles.strongsBadgeText}>{state.strongsNum}</Text>
+                    </View>
+                  )}
+
+                  {/* Original Word (Lemma) */}
+                  <Text style={styles.lemmaText}>{state.strongsEntry.lemma}</Text>
+
+                  {/* Definition */}
+                  <View style={styles.definitionBox}>
+                    <Text style={styles.definitionText}>{state.strongsEntry.definition}</Text>
+                  </View>
+
+                  {/* Derivation */}
+                  {state.strongsEntry.derivation && (
+                    <View style={styles.derivationContainer}>
+                      <Text style={styles.derivationLabel}>Derivation:</Text>
+                      <Text style={styles.derivationText}>{state.strongsEntry.derivation}</Text>
+                    </View>
+                  )}
+
+                  {/* KJV Translation */}
+                  {state.strongsEntry.kjvTranslation && (
+                    <View style={styles.kjvContainer}>
+                      <Text style={styles.kjvLabel}>KJV:</Text>
+                      <Text style={styles.kjvText}>{state.strongsEntry.kjvTranslation}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Native Dictionary Button */}
+              {!state.loading && state.hasNative && (
+                <Pressable
+                  style={styles.nativeDictionaryButton}
+                  onPress={handleOpenNative}
+                  testID="open-native-dictionary"
+                >
+                  <Ionicons name="book" size={20} color={colors.gold} />
+                  <Text style={styles.nativeDictionaryText}>
+                    Open in {Platform.OS === 'ios' ? 'iOS' : 'System'} Dictionary
+                  </Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </Pressable>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -282,6 +284,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     },
     modalContent: {
       maxHeight: '70%',
+      minHeight: 350,
       backgroundColor: modalSpecs.backgroundColor,
       borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
       borderTopRightRadius: modalSpecs.borderTopRightRadius,
