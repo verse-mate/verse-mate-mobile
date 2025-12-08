@@ -80,7 +80,7 @@
   - Multi-viewport screenshots (desktop 1920x1080, tablet 768x1024, mobile 375x667)
   - HTML structure, computed CSS, design tokens
   - Reference markdown with visual documentation
-- **Output:** `.agent-os/references/examples/` and `.agent-os/references/journeys/`
+- **Output:** `agent-os/references/examples/` and `agent-os/references/journeys/`
 - **Rationale:** Ensures mobile app maintains visual consistency with web version. Provides AI-accessible visual context for development decisions.
 
 ### Code Quality Tools

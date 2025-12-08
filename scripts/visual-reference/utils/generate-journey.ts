@@ -90,7 +90,7 @@ function escapeString(str: string): string {
  */
 export function createJourneyDirectory(
   journeyName: string,
-  baseDir: string = '.agent-os/references/journeys'
+  baseDir: string = 'agent-os/references/journeys'
 ): string {
   const journeyDir = path.join(baseDir, journeyName);
   const screenshotsDir = path.join(journeyDir, 'screenshots');

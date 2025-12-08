@@ -194,7 +194,7 @@ async function replayJourney(journey: Journey, outputDir: string): Promise<void>
 async function loadJourney(journeyName: string): Promise<Journey> {
   const journeyPath = path.join(
     process.cwd(),
-    '.agent-os/references/journeys',
+    'agent-os/references/journeys',
     journeyName,
     `${journeyName}.ts`
   );

@@ -89,15 +89,15 @@ The project uses `@hey-api/openapi-ts` to generate TypeScript API client code fr
 **File Structure**:
 - `scripts/visual-reference/` - Core capture utilities and test files
 - `scripts/visual-reference/types/index.ts` - TypeScript type definitions
-- `.agent-os/references/examples/` - Captured page examples (gitignored except examples)
-- `.agent-os/references/journeys/` - Journey definition files (TypeScript)
+- `agent-os/references/examples/` - Captured page examples (gitignored except examples)
+- `agent-os/references/journeys/` - Journey definition files (TypeScript)
 - `playwright.config.ts` - Playwright configuration
 
 **Journey System**:
-- Define user flows as TypeScript files in `.agent-os/references/journeys/`
+- Define user flows as TypeScript files in `agent-os/references/journeys/`
 - Journey format: TypeScript objects with steps (navigate, click, type, scroll)
 - Automated replay captures screenshots at each step
-- See `.agent-os/commands/capture-journey.md` for journey creation guide
+- See `agent-os/commands/capture-journey.md` for journey creation guide
 
 **Use Cases**:
 1. Capture web app pages before implementing mobile equivalent
@@ -105,30 +105,6 @@ The project uses `@hey-api/openapi-ts` to generate TypeScript API client code fr
 3. Extract design tokens and styling information
 4. Document user flows for mobile implementation
 5. Provide visual context to AI during development
-
-### Web Repository Reference
-
-**Purpose**: The main VerseMate web application repository is available as a git submodule for AI reference when implementing mobile features. This allows accurate translation of web features to React Native.
-
-**Location**: `.agent-os/web-repo/` (gitignored, not committed to mobile repo)
-
-**Setup for new developers**:
-```bash
-git submodule update --init
-```
-
-**Update to latest web code**:
-```bash
-git submodule update --remote
-```
-
-**Current web repo version**: The submodule tracks the main branch of [verse-mate/verse-mate](https://github.com/verse-mate/verse-mate)
-
-**Usage**:
-- AI can directly read web implementation code when implementing mobile features
-- Reference web components, hooks, services, and business logic
-- Ensure feature parity between web and mobile versions
-- Web repo is read-only reference - no modifications needed
 
 ## Architecture
 

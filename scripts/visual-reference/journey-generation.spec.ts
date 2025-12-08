@@ -101,9 +101,9 @@ test.describe('Journey File Generation', () => {
 
   test('should validate journey file path structure', () => {
     const journeyName = 'bible-reading-flow';
-    const expectedPath = `.agent-os/references/journeys/${journeyName}/${journeyName}.ts`;
+    const expectedPath = `agent-os/references/journeys/${journeyName}/${journeyName}.ts`;
 
-    expect(expectedPath).toContain('.agent-os/references/journeys');
+    expect(expectedPath).toContain('agent-os/references/journeys');
     expect(expectedPath).toMatch(/\.ts$/);
   });
 
