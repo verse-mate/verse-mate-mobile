@@ -52,14 +52,14 @@ jobs:
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: bash .deployment/build-preview.sh
+        run: bash .deployment/build-preview.sh ios
 
       - name: Build Android Preview
+        id: android_build
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          eas build --platform android --profile preview --non-interactive --no-wait
+        run: bash .deployment/build-preview.sh android
 
       - name: Submit to TestFlight
         if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
@@ -67,10 +67,26 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/submit-testflight.sh "${{ steps.ios_build.outputs.build_id }}"
 
-      - name: Android Build Info
-        if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+      - name: Build Summary
         run: |
-          echo "Android preview build triggered!"
-          echo "Note: Android builds will be available for download from EAS dashboard"
-          echo "Play Store publication is not configured (account inactive)"
-          echo "Visit: https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds"
+          echo "=========================================="
+          echo "Preview Build Summary"
+          echo "=========================================="
+          echo ""
+          if [ "${{ github.event.inputs.platform }}" == "all" ] || [ "${{ github.event.inputs.platform }}" == "ios" ]; then
+            echo "📱 iOS Build:"
+            echo "   Build ID: ${{ steps.ios_build.outputs.build_id }}"
+            echo "   URL: ${{ steps.ios_build.outputs.build_url }}"
+            echo "   Status: Submitted to TestFlight"
+            echo ""
+          fi
+          if [ "${{ github.event.inputs.platform }}" == "all" ] || [ "${{ github.event.inputs.platform }}" == "android" ]; then
+            echo "🤖 Android Build:"
+            echo "   Build ID: ${{ steps.android_build.outputs.build_id }}"
+            echo "   URL: ${{ steps.android_build.outputs.build_url }}"
+            echo "   Status: Available for download from EAS dashboard"
+            echo "   Note: Play Store publication not configured (account inactive)"
+            echo ""
+          fi
+          echo "=========================================="
+          echo "Monitor all builds at: https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds"
