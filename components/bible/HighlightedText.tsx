@@ -9,24 +9,22 @@
  * - Semi-transparent highlight backgrounds (no borders/underlines)
  * - Character-level precision highlighting
  * - Multiple non-overlapping highlights per verse
+ * - Single tap on word to select it (shows floating menu)
  * - Long-press detection on highlighted regions (edit)
  * - Long-press detection on plain text (create new highlight for entire verse)
  * - Theme-aware highlight colors (brighter in dark mode)
- *
- * Note: Native text selection (onSelectionChange) is not reliable in React Native
- * for Text components. We use long-press on plain text to trigger verse highlighting.
  *
  * @see Spec: .agent-os/specs/2025-11-06-highlight-feature/spec.md
  * @see Visual: after-selected-text-popup.png (highlighted text appearance)
  */
 
-import * as Haptics from 'expo-haptics';
-import { useMemo } from 'react';
-import { Text, type TextProps } from 'react-native';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import type { AutoHighlight } from '@/types/auto-highlights';
+import * as Haptics from 'expo-haptics';
+import { useMemo } from 'react';
+import { type GestureResponderEvent, Text, type TextProps } from 'react-native';
 
 /**
  * Opacity value for highlight backgrounds
@@ -70,6 +68,34 @@ export interface TextSelection {
   text: string;
 }
 
+/**
+ * Word tap event data
+ */
+export interface WordTapEvent {
+  /** Verse number containing the word */
+  verseNumber: number;
+  /** The tapped word */
+  word: string;
+  /** Start character position in verse */
+  startChar: number;
+  /** End character position in verse */
+  endChar: number;
+  /** Tap position relative to screen */
+  position: { x: number; y: number };
+}
+
+/**
+ * Active selection to highlight visually
+ */
+export interface ActiveSelection {
+  /** Verse number containing the selection */
+  verseNumber: number;
+  /** Start character position */
+  startChar: number;
+  /** End character position */
+  endChar: number;
+}
+
 export interface HighlightedTextProps extends TextProps {
   /** Full text of the verse */
   text: string;
@@ -89,6 +115,14 @@ export interface HighlightedTextProps extends TextProps {
   onVerseTap?: (verseNumber: number) => void;
   /** Callback when plain text is long-pressed (create new highlight for entire verse) */
   onVerseLongPress?: (verseNumber: number) => void;
+  /** Callback when a word is tapped (for selection menu) */
+  onWordTap?: (event: WordTapEvent) => void;
+  /** Callback when text is tapped (for word selection) */
+  onPress?: (event: GestureResponderEvent) => void;
+  /** Callback when text is long-pressed (for selection menu) */
+  onLongPress?: (event: GestureResponderEvent) => void;
+  /** Active selection to highlight visually (shows blue background) */
+  activeSelection?: ActiveSelection;
   /** Style override for base text */
   style?: TextProps['style'];
 }
@@ -109,11 +143,18 @@ export function HighlightedText({
   onAutoHighlightPress,
   onVerseTap,
   onVerseLongPress,
+  onWordTap: _onWordTap, // Tap handling moved to ChapterReader level
+  onPress,
+  onLongPress,
+  activeSelection,
   style,
   ...textProps
 }: HighlightedTextProps) {
   // Get current theme mode for highlight color selection
-  const { mode } = useTheme();
+  const { colors, mode } = useTheme();
+
+  // Selection highlight color (blue with 25% opacity)
+  const selectionBackgroundColor = `${colors.info}40`;
 
   /**
    * Segment verse text based on highlights and auto-highlights
@@ -295,13 +336,47 @@ export function HighlightedText({
     onVerseLongPress(verseNumber);
   };
 
+  // Determine which long press handler to use
+  // Priority: onLongPress (selection menu) > onVerseLongPress (highlight sheet)
+  const effectiveLongPressHandler = onLongPress
+    ? onLongPress
+    : onVerseLongPress
+      ? handleVerseLongPress
+      : undefined;
+
+  /**
+   * Get the selected portion of a segment's text
+   * Returns { before, selected, after } for splitting
+   */
+  const getSelectionSplit = (
+    segment: TextSegment
+  ): { before: string; selected: string; after: string } | null => {
+    if (!activeSelection || activeSelection.verseNumber !== verseNumber) {
+      return null;
+    }
+
+    const selStart = Math.max(0, activeSelection.startChar - segment.startChar);
+    const selEnd = Math.min(segment.text.length, activeSelection.endChar - segment.startChar);
+
+    if (selStart >= segment.text.length || selEnd <= 0 || selStart >= selEnd) {
+      return null;
+    }
+
+    return {
+      before: segment.text.slice(0, selStart),
+      selected: segment.text.slice(selStart, selEnd),
+      after: segment.text.slice(selEnd),
+    };
+  };
+
   return (
     <Text
       style={style}
       // TODO: Temporary disable - native text selection shows immediately on any touch/scroll
       // Consider building custom text selection UI with 300ms delay to prevent accidental triggers
+      onPress={onPress}
+      onLongPress={effectiveLongPressHandler}
       selectable={false}
-      onLongPress={handleVerseLongPress}
       suppressHighlighting={true}
       {...textProps}
     >
@@ -368,7 +443,23 @@ export function HighlightedText({
           );
         }
 
-        // Plain text segment
+        // Plain text segment - may have selection highlight
+        const selectionSplit = getSelectionSplit(segment);
+
+        if (selectionSplit) {
+          // Render with selection highlighting
+          return (
+            <Text key={segmentKey} suppressHighlighting={true}>
+              {selectionSplit.before && <Text>{selectionSplit.before}</Text>}
+              <Text style={{ backgroundColor: selectionBackgroundColor }}>
+                {selectionSplit.selected}
+              </Text>
+              {selectionSplit.after && <Text>{selectionSplit.after}</Text>}
+            </Text>
+          );
+        }
+
+        // No selection - plain text
         return (
           <Text
             key={segmentKey}

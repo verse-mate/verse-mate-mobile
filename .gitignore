@@ -77,3 +77,6 @@ build_output.json
 bugs.txt
 review.md
 .env
+
+# Ignore android dictionary build
+modules/dictionary/android/build/*

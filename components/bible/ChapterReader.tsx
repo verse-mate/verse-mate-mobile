@@ -21,23 +21,19 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import Markdown from 'react-native-markdown-display';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { DictionaryModal } from '@/components/bible/DictionaryModal';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
-import type { TextSelection } from '@/components/bible/HighlightedText';
+import type { TextSelection, WordTapEvent } from '@/components/bible/HighlightedText';
 import { HighlightedText } from '@/components/bible/HighlightedText';
 import { HighlightSelectionSheet } from '@/components/bible/HighlightSelectionSheet';
 import { ManualHighlightTooltip } from '@/components/bible/ManualHighlightTooltip';
 import { NotesButton } from '@/components/bible/NotesButton';
-import { NotesModal } from '@/components/bible/NotesModal';
-import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { SimpleColorPickerModal } from '@/components/bible/SimpleColorPickerModal';
+import { TextSelectionMenu } from '@/components/bible/TextSelectionMenu';
 import { VerseInsightTooltip } from '@/components/bible/VerseInsightTooltip';
 import {
   fontSizes,
@@ -54,6 +50,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 import { useAuth } from '@/hooks/use-auth';
+import { getWordAtPosition } from '@/hooks/use-text-selection';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import {
@@ -61,6 +58,18 @@ import {
   groupConsecutiveHighlights,
   type HighlightGroup,
 } from '@/utils/bible/groupConsecutiveHighlights';
+import * as Clipboard from 'expo-clipboard';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type GestureResponderEvent,
+  type NativeSyntheticEvent,
+  Share,
+  StyleSheet,
+  Text,
+  type TextLayoutEventData,
+  View,
+} from 'react-native';
+import Markdown from 'react-native-markdown-display';
 
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
@@ -328,6 +337,25 @@ export function ChapterReader({
   const [dictionaryModalVisible, setDictionaryModalVisible] = useState(false);
   const [dictionaryWord, setDictionaryWord] = useState<string>('');
 
+  // Text selection menu state
+  const [selectionMenuVisible, setSelectionMenuVisible] = useState(false);
+  const [selectedWord, setSelectedWord] = useState<WordTapEvent | null>(null);
+
+  // Line layout information for paragraph groups (for accurate tap detection)
+  // Key: groupKey (e.g., "group-1-5"), Value: array of line info
+  const paragraphLineLayoutsRef = useRef<
+    Map<
+      string,
+      {
+        text: string;
+        y: number;
+        height: number;
+        width: number;
+        startCharOffset: number;
+      }[]
+    >
+  >(new Map());
+
   /**
    * Handle layout of a verse/paragraph
    */
@@ -349,27 +377,6 @@ export function ChapterReader({
    */
   const handleNotesPress = () => {
     onOpenNotes?.();
-  };
-
-  /**
-   * Handle long-press on verse for creating new highlight
-   */
-  const handleVerseLongPress = (verseNumber: number) => {
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === verseNumber);
-
-    if (!verse) return;
-
-    setSelectionContext({
-      verseNumber,
-      selection: {
-        start: 0,
-        end: verse.text.length,
-        text: verse.text,
-      },
-    });
-    setSelectionSheetVisible(true);
   };
 
   /**
@@ -544,27 +551,324 @@ export function ChapterReader({
   };
 
   /**
-   * Handle Define action from selection sheet
-   * Opens dictionary modal with selected text
-   */
-  const handleDefine = (text: string) => {
-    // Extract the first word from the selected text for dictionary lookup
-    const words = text.trim().split(/\s+/);
-    const firstWord = words[0]?.replace(/[.,;:!?'"()]/g, '') || text;
-    setDictionaryWord(firstWord);
-    setDictionaryModalVisible(true);
-    // Close selection sheet
-    setSelectionSheetVisible(false);
-    setSelectionContext(null);
-  };
-
-  /**
    * Handle close Dictionary modal
    */
   const handleDictionaryClose = () => {
     setDictionaryModalVisible(false);
     setDictionaryWord('');
   };
+
+  /**
+   * Handle word tap from HighlightedText (legacy - not used in paragraph mode)
+   * Shows the floating selection menu
+   */
+  const handleWordTap = useCallback((event: WordTapEvent) => {
+    setSelectedWord(event);
+    setSelectionMenuVisible(true);
+  }, []);
+
+  /**
+   * Handle text layout event to capture line positions
+   * This is called when the Text component renders and provides line-by-line layout info
+   */
+  const handleTextLayout = useCallback(
+    (groupKey: string, event: NativeSyntheticEvent<TextLayoutEventData>) => {
+      const { lines } = event.nativeEvent;
+
+      // Build line info with cumulative character offsets
+      let charOffset = 0;
+      const lineInfo = lines.map((line) => {
+        const info = {
+          text: line.text,
+          y: line.y,
+          height: line.height,
+          width: line.width,
+          startCharOffset: charOffset,
+        };
+        charOffset += line.text.length;
+        return info;
+      });
+
+      paragraphLineLayoutsRef.current.set(groupKey, lineInfo);
+    },
+    []
+  );
+
+  /**
+   * Handle tap on paragraph to detect which word was tapped
+   * Uses line layout info from onTextLayout to accurately detect which line was tapped
+   */
+  const handleParagraphTap = useCallback(
+    (
+      event: GestureResponderEvent,
+      group: { verseNumber: number; text: string }[],
+      groupKey: string
+    ) => {
+      const { pageX, pageY, locationX, locationY } = event.nativeEvent;
+
+      // Get line layouts for this paragraph group
+      const lineLayouts = paragraphLineLayoutsRef.current.get(groupKey);
+
+      // Build verse offsets map for the entire paragraph
+      // This maps global character positions to verse info
+      let totalOffset = 0;
+      const verseOffsets: {
+        verseNumber: number;
+        text: string;
+        startOffset: number;
+        endOffset: number;
+      }[] = [];
+
+      for (let i = 0; i < group.length; i++) {
+        const verse = group[i];
+        // Account for leading spaces/thin spaces between verses
+        if (i > 0) {
+          // Two thin spaces (prev end + curr start) between verses
+          totalOffset += 2;
+        }
+        // Account for verse number (superscript) and narrow no-break space
+        const verseNumberLength = toSuperscript(verse.verseNumber).length + 1; // +1 for narrow space
+        const verseStart = totalOffset + verseNumberLength;
+        const verseEnd = verseStart + verse.text.length;
+
+        verseOffsets.push({
+          verseNumber: verse.verseNumber,
+          text: verse.text,
+          startOffset: verseStart,
+          endOffset: verseEnd,
+        });
+
+        totalOffset = verseEnd;
+      }
+
+      // Calculate estimated character position using line layouts if available
+      let estimatedCharPos: number;
+
+      if (lineLayouts && lineLayouts.length > 0) {
+        // Find which line was tapped using locationY
+        let tappedLine = lineLayouts[0];
+        for (const line of lineLayouts) {
+          if (locationY >= line.y && locationY < line.y + line.height) {
+            tappedLine = line;
+            break;
+          }
+          // If tap is below this line but there are more lines, continue
+          if (locationY >= line.y + line.height) {
+            tappedLine = line;
+          }
+        }
+
+        // Estimate character position within the tapped line
+        const avgCharWidth = tappedLine.width / Math.max(tappedLine.text.length, 1);
+        const charInLine = Math.floor(locationX / avgCharWidth);
+        const clampedCharInLine = Math.max(0, Math.min(charInLine, tappedLine.text.length - 1));
+
+        // Calculate global character position
+        estimatedCharPos = tappedLine.startCharOffset + clampedCharInLine;
+      } else {
+        // Fallback: use old X-only estimation (less accurate for multi-line)
+        const avgCharWidth = 9;
+        estimatedCharPos = Math.floor(locationX / avgCharWidth);
+      }
+
+      // Find which verse contains this position
+      const verseInfo = verseOffsets.find(
+        (v) => estimatedCharPos >= v.startOffset && estimatedCharPos < v.endOffset
+      );
+
+      if (!verseInfo) {
+        // Fallback: find nearest verse
+        const firstVerse = group[0];
+        if (!firstVerse) return;
+
+        // If position is before first verse text, select first word
+        if (estimatedCharPos < verseOffsets[0].startOffset) {
+          const wordInfo = getWordAtPosition(firstVerse.text, 0);
+          if (!wordInfo) return;
+
+          setSelectedWord({
+            verseNumber: firstVerse.verseNumber,
+            word: wordInfo.word,
+            startChar: wordInfo.start,
+            endChar: wordInfo.end,
+            position: { x: pageX, y: pageY },
+          });
+          setSelectionMenuVisible(true);
+          return;
+        }
+
+        // If position is after last verse, select last word of last verse
+        const lastVerseOffset = verseOffsets[verseOffsets.length - 1];
+        if (lastVerseOffset) {
+          const lastVerse = group[group.length - 1];
+          const wordInfo = getWordAtPosition(lastVerse.text, lastVerse.text.length - 1);
+          if (!wordInfo) return;
+
+          setSelectedWord({
+            verseNumber: lastVerse.verseNumber,
+            word: wordInfo.word,
+            startChar: wordInfo.start,
+            endChar: wordInfo.end,
+            position: { x: pageX, y: pageY },
+          });
+          setSelectionMenuVisible(true);
+          return;
+        }
+
+        return;
+      }
+
+      // Calculate position within verse text
+      const positionInVerse = estimatedCharPos - verseInfo.startOffset;
+      const clampedPosition = Math.max(0, Math.min(positionInVerse, verseInfo.text.length - 1));
+
+      // Find word at that position
+      const wordInfo = getWordAtPosition(verseInfo.text, clampedPosition);
+      if (!wordInfo) return;
+
+      setSelectedWord({
+        verseNumber: verseInfo.verseNumber,
+        word: wordInfo.word,
+        startChar: wordInfo.start,
+        endChar: wordInfo.end,
+        position: { x: pageX, y: pageY },
+      });
+      setSelectionMenuVisible(true);
+    },
+    []
+  );
+
+  /**
+   * Handle tap on single verse (non-paragraph mode)
+   */
+  const handleSingleVerseTap = useCallback(
+    (event: GestureResponderEvent, verse: { verseNumber: number; text: string }) => {
+      const { pageX, pageY, locationX } = event.nativeEvent;
+
+      // Estimate character position from tap X
+      const avgCharWidth = 9;
+      const estimatedCharPos = Math.floor(locationX / avgCharWidth);
+
+      const wordInfo = getWordAtPosition(verse.text, estimatedCharPos);
+      if (!wordInfo) return;
+
+      setSelectedWord({
+        verseNumber: verse.verseNumber,
+        word: wordInfo.word,
+        startChar: wordInfo.start,
+        endChar: wordInfo.end,
+        position: { x: pageX, y: pageY },
+      });
+      setSelectionMenuVisible(true);
+    },
+    []
+  );
+
+  /**
+   * Handle selection menu close
+   */
+  const handleSelectionMenuClose = useCallback(() => {
+    setSelectionMenuVisible(false);
+    setSelectedWord(null);
+  }, []);
+
+  /**
+   * Handle Select Verse action - selects the entire verse text
+   */
+  const handleSelectVerse = useCallback(() => {
+    if (!selectedWord) return;
+
+    // Find the verse
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === selectedWord.verseNumber);
+
+    if (!verse) return;
+
+    // Update selectedWord to reflect full verse selection
+    setSelectedWord({
+      ...selectedWord,
+      startChar: 0,
+      endChar: verse.text.length,
+      word: verse.text,
+    });
+  }, [selectedWord, chapter]);
+
+  /**
+   * Handle Define action from selection menu
+   */
+  const handleSelectionDefine = useCallback(() => {
+    if (!selectedWord) return;
+    setDictionaryWord(selectedWord.word);
+    setDictionaryModalVisible(true);
+    handleSelectionMenuClose();
+  }, [selectedWord, handleSelectionMenuClose]);
+
+  /**
+   * Handle Copy action from selection menu
+   */
+  const handleSelectionCopy = useCallback(async () => {
+    if (!selectedWord) return;
+
+    // Find the verse to include context
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === selectedWord.verseNumber);
+
+    const textToCopy = verse
+      ? `"${selectedWord.word}" - ${chapter.title} ${selectedWord.verseNumber}`
+      : selectedWord.word;
+
+    await Clipboard.setStringAsync(textToCopy);
+    showToast('Copied to clipboard');
+    handleSelectionMenuClose();
+  }, [selectedWord, chapter, showToast, handleSelectionMenuClose]);
+
+  /**
+   * Handle Share action from selection menu
+   */
+  const handleSelectionShare = useCallback(async () => {
+    if (!selectedWord) return;
+
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === selectedWord.verseNumber);
+
+    const textToShare = verse
+      ? `"${verse.text}"\n\n- ${chapter.title} ${selectedWord.verseNumber}`
+      : `"${selectedWord.word}"`;
+
+    await Share.share({
+      message: textToShare,
+    });
+    handleSelectionMenuClose();
+  }, [selectedWord, chapter, handleSelectionMenuClose]);
+
+  /**
+   * Handle Highlight action from selection menu
+   * Opens the highlight selection sheet with the selected word
+   */
+  const handleSelectionHighlight = useCallback(() => {
+    if (!selectedWord) return;
+
+    // Find the verse text
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === selectedWord.verseNumber);
+
+    if (!verse) return;
+
+    setSelectionContext({
+      verseNumber: selectedWord.verseNumber,
+      selection: {
+        start: selectedWord.startChar,
+        end: selectedWord.endChar,
+        text: selectedWord.word,
+      },
+    });
+    setSelectionSheetVisible(true);
+    handleSelectionMenuClose();
+  }, [selectedWord, chapter, handleSelectionMenuClose]);
 
   /**
    * Handle close HighlightEditMenu
@@ -729,7 +1033,11 @@ export function ChapterReader({
                         handleVerseLayout(group[0].verseNumber, e.nativeEvent.layout.y)
                       }
                     >
-                      <Text style={styles.verseTextParagraph}>
+                      <Text
+                        style={styles.verseTextParagraph}
+                        onTextLayout={(e) => handleTextLayout(groupKey, e)}
+                        onLongPress={(e) => handleParagraphTap(e, group, groupKey)}
+                      >
                         {group.map((verse, verseIndex) => {
                           // Determine background color for verse number (from current verse's start)
                           // We calculate this early to use it for the second half of the leading space
@@ -870,7 +1178,16 @@ export function ChapterReader({
                                 onHighlightLongPress={handleHighlightLongPress}
                                 onAutoHighlightPress={handleAutoHighlightPress}
                                 onVerseTap={handleVerseTap}
-                                onVerseLongPress={handleVerseLongPress}
+                                onWordTap={handleWordTap}
+                                activeSelection={
+                                  selectedWord?.verseNumber === verse.verseNumber
+                                    ? {
+                                        verseNumber: selectedWord.verseNumber,
+                                        startChar: selectedWord.startChar,
+                                        endChar: selectedWord.endChar,
+                                      }
+                                    : undefined
+                                }
                                 style={styles.verseText}
                               />
                             </Text>
@@ -901,7 +1218,17 @@ export function ChapterReader({
                       onHighlightLongPress={handleHighlightLongPress}
                       onAutoHighlightPress={handleAutoHighlightPress}
                       onVerseTap={handleVerseTap}
-                      onVerseLongPress={handleVerseLongPress}
+                      onWordTap={handleWordTap}
+                      onLongPress={(e) => handleSingleVerseTap(e, verse)}
+                      activeSelection={
+                        selectedWord?.verseNumber === verse.verseNumber
+                          ? {
+                              verseNumber: selectedWord.verseNumber,
+                              startChar: selectedWord.startChar,
+                              endChar: selectedWord.endChar,
+                            }
+                          : undefined
+                      }
                       style={styles.verseText}
                     />
                   </View>
@@ -929,9 +1256,7 @@ export function ChapterReader({
             start: selectionContext.verseNumber,
             end: selectionContext.verseNumber,
           }}
-          selectedText={selectionContext.selection.text}
           onColorSelect={handleCreateHighlight}
-          onDefine={handleDefine}
           onClose={handleSelectionSheetClose}
         />
       )}
@@ -1008,6 +1333,22 @@ export function ChapterReader({
         word={dictionaryWord}
         onClose={handleDictionaryClose}
       />
+
+      {/* Text Selection Menu (floating above selected text) */}
+      {selectedWord && (
+        <TextSelectionMenu
+          visible={selectionMenuVisible}
+          position={selectedWord.position}
+          selectedText={selectedWord.word}
+          isMultiWord={selectedWord.word.includes(' ')}
+          onDefine={handleSelectionDefine}
+          onCopy={handleSelectionCopy}
+          onShare={handleSelectionShare}
+          onSelectVerse={handleSelectVerse}
+          onMoreOptions={handleSelectionHighlight}
+          onClose={handleSelectionMenuClose}
+        />
+      )}
     </View>
   );
 }

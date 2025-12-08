@@ -116,3 +116,11 @@ jest.mock('@/contexts/ThemeContext', () => ({
     isLoading: false,
   }),
 }));
+
+// Mock Dictionary native module for tests
+// This module uses requireNativeModule which isn't available in Jest
+jest.mock('@/modules/dictionary', () => ({
+  hasDefinition: jest.fn().mockResolvedValue(false),
+  showDefinition: jest.fn().mockResolvedValue(false),
+  isNativeDictionaryAvailable: jest.fn().mockReturnValue(false),
+}));

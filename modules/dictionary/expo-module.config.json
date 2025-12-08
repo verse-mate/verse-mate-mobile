@@ -1,7 +1,8 @@
 {
   "platforms": ["ios", "android"],
   "ios": {
-    "modules": ["DictionaryModule"]
+    "modules": ["DictionaryModule"],
+    "podspecPath": "./ios/Dictionary.podspec"
   },
   "android": {
     "modules": ["expo.modules.dictionary.DictionaryModule"]

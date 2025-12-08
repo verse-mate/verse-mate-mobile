@@ -1,9 +1,4 @@
-import type {
-  LanguageType,
-  LexiconDictionary,
-  LookupResult,
-  StrongsEntry,
-} from '@/types/dictionary';
+import type { LanguageType, LexiconDictionary, LookupResult } from '@/types/dictionary';
 
 // Module-level caches for lazy-loaded lexicon data
 let greekCache: LexiconDictionary | null = null;
