@@ -28,7 +28,7 @@ async function capturePage(options: CaptureOptions): Promise<void> {
     url,
     name,
     baseUrl = 'https://app.versemate.org',
-    outputDir = '.agent-os/references',
+    outputDir = 'agent-os/references',
   } = options;
 
   console.log(`📸 Capturing page: ${url}`);
@@ -134,7 +134,7 @@ function parseArgs(): CaptureOptions {
     console.log('  --url         URL path to capture (required)');
     console.log('  --name        Name for the capture (required)');
     console.log('  --base-url    Base URL (default: https://app.versemate.org)');
-    console.log('  --output      Output directory (default: .agent-os/references)');
+    console.log('  --output      Output directory (default: agent-os/references)');
     process.exit(1);
   }
 

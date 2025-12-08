@@ -48,10 +48,7 @@ playwright-report/
 playwright/.cache/
 
 # Visual Reference Captures
-.agent-os/references/*
-
-# Web repo submodule
-.agent-os/web-repo/*
+agent-os/references/*
 
 app-example
 
