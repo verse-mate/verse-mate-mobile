@@ -27,7 +27,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
 import type { ContentTabType } from '@/types/bible';
@@ -163,28 +163,22 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
 
     /**
      * Calculate which topic should display at a given window position
+     *
+     * Returns null for out-of-bounds positions instead of clamping.
+     * This allows us to render empty placeholders at boundaries and
+     * detect when user swipes past the edge.
      */
     const getTopicForPosition = useCallback(
       (windowPosition: number): TopicListItem | null => {
         const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
-        const result = getTopicFromIndex(absoluteIndex, sortedTopics);
 
-        // Return valid topic or clamp to boundaries
-        if (result) {
-          return result;
+        // Return null for out-of-bounds - don't clamp to boundaries
+        // This prevents showing duplicate content when at first/last topic
+        if (absoluteIndex < 0 || absoluteIndex >= sortedTopics.length) {
+          return null;
         }
 
-        // Clamp to first topic if before start
-        if (absoluteIndex < 0) {
-          return getTopicFromIndex(0, sortedTopics);
-        }
-
-        // Clamp to last topic if after end
-        if (sortedTopics.length > 0) {
-          return getTopicFromIndex(sortedTopics.length - 1, sortedTopics);
-        }
-
-        return null;
+        return getTopicFromIndex(absoluteIndex, sortedTopics);
       },
       [currentAbsoluteIndex, sortedTopics]
     );
@@ -215,15 +209,23 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => {
         const topic = getTopicForPosition(windowPosition);
 
-        // Fallback to initial topic if no valid topic found
-        const topicId = topic?.topic_id || initialTopicId;
-        const topicCategory = (topic?.category as TopicCategory) || category;
+        // Render empty placeholder for out-of-bounds pages
+        // This prevents showing duplicate content at category boundaries
+        if (!topic) {
+          return (
+            <View
+              key={`page-${windowPosition}`}
+              style={styles.emptyPage}
+              testID={`topic-page-empty-${windowPosition}`}
+            />
+          );
+        }
 
         return (
           <TopicPage
             key={`page-${windowPosition}`} // STABLE KEY: never changes
-            topicId={topicId} // DYNAMIC PROP: updates when window shifts
-            category={topicCategory} // DYNAMIC PROP: updates when window shifts
+            topicId={topic.topic_id} // DYNAMIC PROP: updates when window shifts
+            category={(topic.category as TopicCategory) || category} // DYNAMIC PROP: updates when window shifts
             activeTab={activeTab}
             activeView={activeView}
             onScroll={onScroll}
@@ -255,6 +257,9 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
      *
      * IMPORTANT: Adds 75ms delay before calling onPageChange to prevent double animation.
      * PagerView handles the visual animation, router.replace() should only update URL silently.
+     *
+     * BOUNDARY HANDLING: When user swipes to an out-of-bounds page (empty placeholder),
+     * snap back to center immediately. This prevents navigation past category boundaries.
      */
     const handlePageSelected = useCallback(
       (event: { nativeEvent: OnPageSelectedEventData }) => {
@@ -265,12 +270,27 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
           clearTimeout(routeUpdateTimeoutRef.current);
         }
 
+        // Calculate would-be absolute index for this page
+        const offset = selectedPosition - CENTER_INDEX;
+        const newAbsoluteIndex = currentAbsoluteIndex + offset;
+
+        // Check if swipe would go out of bounds (to an empty placeholder page)
+        const isOutOfBounds = newAbsoluteIndex < 0 || newAbsoluteIndex >= sortedTopics.length;
+
+        if (isOutOfBounds) {
+          // Snap back to center - user tried to swipe past category boundary
+          requestAnimationFrame(() => {
+            pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+          });
+          // Don't update route or state - stay on current topic
+          return;
+        }
+
         // Check if user reached edge positions (0 or 4)
         const isAtEdge = selectedPosition === 0 || selectedPosition === WINDOW_SIZE - 1;
 
         if (isAtEdge) {
-          // Calculate new absolute index based on edge position
-          const newAbsoluteIndex = currentAbsoluteIndex + (selectedPosition - CENTER_INDEX);
+          // Update state to new absolute index
           setCurrentAbsoluteIndex(newAbsoluteIndex);
 
           // Re-center to middle page without animation
@@ -290,8 +310,6 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
           // User swiped one position away from center (to index 1 or 3)
           // DON'T update currentAbsoluteIndex yet to avoid flickering
           // Let the route update trigger useEffect which will re-center properly
-          const offset = selectedPosition - CENTER_INDEX;
-          const newAbsoluteIndex = currentAbsoluteIndex + offset;
 
           // Delay route update by 75ms to prevent double animation
           const topic = getTopicFromIndex(newAbsoluteIndex, sortedTopics);
@@ -325,6 +343,9 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
 
 const styles = StyleSheet.create({
   pagerView: {
+    flex: 1,
+  },
+  emptyPage: {
     flex: 1,
   },
 });
