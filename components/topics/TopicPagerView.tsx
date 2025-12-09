@@ -27,9 +27,10 @@ import {
   useRef,
   useState,
 } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
+import { SwipeBoundaryPage } from '@/components/ui/SwipeBoundaryPage';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
 import { getTopicFromIndex, getTopicIndexInCategory } from '@/utils/topics/topic-index-utils';
@@ -208,15 +209,18 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
 
       return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => {
         const topic = getTopicForPosition(windowPosition);
+        const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
-        // Render empty placeholder for out-of-bounds pages
-        // This prevents showing duplicate content at category boundaries
+        // Render boundary indicator for out-of-bounds pages
+        // This shows a helpful message instead of duplicate content at category boundaries
         if (!topic) {
+          const direction = absoluteIndex < 0 ? 'start' : 'end';
           return (
-            <View
+            <SwipeBoundaryPage
               key={`page-${windowPosition}`}
-              style={styles.emptyPage}
-              testID={`topic-page-empty-${windowPosition}`}
+              direction={direction}
+              contentType="topic"
+              testID={`topic-page-boundary-${windowPosition}`}
             />
           );
         }
@@ -237,6 +241,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       activeTab,
       activeView,
       category,
+      currentAbsoluteIndex,
       getTopicForPosition,
       initialTopicId,
       onScroll,
@@ -343,9 +348,6 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
 
 const styles = StyleSheet.create({
   pagerView: {
-    flex: 1,
-  },
-  emptyPage: {
     flex: 1,
   },
 });
