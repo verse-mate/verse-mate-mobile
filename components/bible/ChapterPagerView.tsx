@@ -26,9 +26,14 @@ import {
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
+import { SwipeBoundaryPage } from '@/components/ui/SwipeBoundaryPage';
 import { useBibleTestaments } from '@/src/api/generated/hooks';
 import type { ContentTabType } from '@/types/bible';
-import { getAbsolutePageIndex, getChapterFromPageIndex } from '@/utils/bible/chapter-index-utils';
+import {
+  getAbsolutePageIndex,
+  getChapterFromPageIndex,
+  getMaxPageIndex,
+} from '@/utils/bible/chapter-index-utils';
 import { ChapterPage } from './ChapterPage';
 
 /**
@@ -161,24 +166,27 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
 
     /**
      * Calculate which chapter should display at a given window position
+     *
+     * Returns null for out-of-bounds positions instead of clamping.
+     * This allows us to render boundary indicators at Genesis 1 (start)
+     * and Revelation 22 (end).
      */
     const getChapterForPosition = useCallback(
-      (windowPosition: number) => {
+      (windowPosition: number): { bookId: number; chapterNumber: number } | null => {
         const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
-        const result = getChapterFromPageIndex(absoluteIndex, booksMetadata);
 
-        // Return a valid chapter or fallback to Genesis 1 for out-of-bounds
-        if (result) {
-          return result;
-        }
-
-        // Fallback for out-of-bounds (before Genesis 1 or after Revelation 22)
+        // Return null for out-of-bounds - don't clamp to boundaries
+        // This prevents showing duplicate content at Bible boundaries
         if (absoluteIndex < 0) {
-          return { bookId: 1, chapterNumber: 1 }; // Genesis 1
+          return null;
         }
 
-        // After Revelation 22, return Revelation 22
-        return { bookId: 66, chapterNumber: 22 };
+        const maxIndex = getMaxPageIndex(booksMetadata);
+        if (absoluteIndex > maxIndex) {
+          return null;
+        }
+
+        return getChapterFromPageIndex(absoluteIndex, booksMetadata);
       },
       [currentAbsoluteIndex, booksMetadata]
     );
@@ -207,7 +215,24 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       }
 
       return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => {
-        const { bookId, chapterNumber } = getChapterForPosition(windowPosition);
+        const chapter = getChapterForPosition(windowPosition);
+        const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
+
+        // Render boundary indicator for out-of-bounds pages
+        // This shows a helpful message instead of duplicate content at Bible boundaries
+        if (!chapter) {
+          const direction = absoluteIndex < 0 ? 'start' : 'end';
+          return (
+            <SwipeBoundaryPage
+              key={`page-${windowPosition}`}
+              direction={direction}
+              contentType="chapter"
+              testID={`chapter-page-boundary-${windowPosition}`}
+            />
+          );
+        }
+
+        const { bookId, chapterNumber } = chapter;
 
         // Only pass targetVerse if this page matches the requested chapter
         const isTargetChapter = bookId === initialBookId && chapterNumber === initialChapter;
@@ -229,6 +254,7 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       activeTab,
       activeView,
       booksMetadata,
+      currentAbsoluteIndex,
       getChapterForPosition,
       onScroll,
       onTap,
@@ -250,6 +276,9 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
      *
      * IMPORTANT: Adds 75ms delay before calling onPageChange to prevent double animation.
      * PagerView handles the visual animation, router.replace() should only update URL silently.
+     *
+     * BOUNDARY HANDLING: When user swipes to an out-of-bounds page (boundary indicator),
+     * snap back to center immediately. This prevents navigation past Bible boundaries.
      */
     const handlePageSelected = useCallback(
       (event: { nativeEvent: OnPageSelectedEventData }) => {
@@ -260,12 +289,28 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
           clearTimeout(routeUpdateTimeoutRef.current);
         }
 
+        // Calculate would-be absolute index for this page
+        const offset = selectedPosition - CENTER_INDEX;
+        const newAbsoluteIndex = currentAbsoluteIndex + offset;
+
+        // Check if swipe would go out of bounds (to a boundary indicator page)
+        const maxIndex = getMaxPageIndex(booksMetadata);
+        const isOutOfBounds = newAbsoluteIndex < 0 || newAbsoluteIndex > maxIndex;
+
+        if (isOutOfBounds) {
+          // Snap back to center - user tried to swipe past Bible boundary
+          requestAnimationFrame(() => {
+            pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+          });
+          // Don't update route or state - stay on current chapter
+          return;
+        }
+
         // Check if user reached edge positions (0 or 4)
         const isAtEdge = selectedPosition === 0 || selectedPosition === WINDOW_SIZE - 1;
 
         if (isAtEdge) {
-          // Calculate new absolute index based on edge position
-          const newAbsoluteIndex = currentAbsoluteIndex + (selectedPosition - CENTER_INDEX);
+          // Update state to new absolute index
           setCurrentAbsoluteIndex(newAbsoluteIndex);
 
           // Re-center to middle page without animation
@@ -289,8 +334,6 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
           // User swiped one position away from center (to index 1 or 3)
           // DON'T update currentAbsoluteIndex yet to avoid flickering
           // Let the route update trigger useEffect which will re-center properly
-          const offset = selectedPosition - CENTER_INDEX;
-          const newAbsoluteIndex = currentAbsoluteIndex + offset;
 
           // Delay route update by 75ms to prevent double animation
           const { bookId, chapterNumber } = getChapterFromPageIndex(
