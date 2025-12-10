@@ -35,16 +35,20 @@ import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-
  * Props for ShareButton component
  */
 export interface ShareButtonProps {
-  /** Book ID (1-66) */
-  bookId: number;
-  /** Chapter number (1-based) */
-  chapterNumber: number;
-  /** Book name for share message (e.g., "Genesis", "John") */
-  bookName: string;
+  /** Book ID (1-66) - optional if onShare is provided */
+  bookId?: number;
+  /** Chapter number (1-based) - optional if onShare is provided */
+  chapterNumber?: number;
+  /** Book name for share message (e.g., "Genesis", "John") - optional if onShare is provided */
+  bookName?: string;
+  /** Custom share handler (for topics or custom sharing logic) */
+  onShare?: () => void | Promise<void>;
   /** Icon size in pixels (default: 24px from headerSpecs.iconSize) */
   size?: number;
   /** Icon color (default: theme-aware textPrimary) */
   color?: string;
+  /** Test ID for testing */
+  testID?: string;
 }
 
 /**
@@ -66,7 +70,15 @@ export interface ShareButtonProps {
  * - accessibilityRole="button"
  * - accessibilityLabel for screen readers
  */
-export function ShareButton({ bookId, chapterNumber, bookName, size, color }: ShareButtonProps) {
+export function ShareButton({
+  bookId,
+  chapterNumber,
+  bookName,
+  size,
+  color,
+  onShare,
+  testID,
+}: ShareButtonProps) {
   const { mode, colors } = useTheme();
   const specs = getHeaderSpecs(mode);
 
@@ -78,11 +90,18 @@ export function ShareButton({ bookId, chapterNumber, bookName, size, color }: Sh
    *
    * Flow:
    * 1. Trigger haptic feedback immediately
-   * 2. Generate shareable URL
+   * 2. Generate shareable URL or use custom handler
    * 3. Open system share sheet
    * 4. Handle success/error cases
    */
   const handlePress = async () => {
+    // If custom onShare handler is provided, use it
+    if (onShare) {
+      await onShare();
+      return;
+    }
+
+    // Default chapter sharing logic
     // TODO: Track analytics - share_chapter_initiated with { bookId, chapterNumber, source: 'chapter_reader' }
 
     try {
@@ -90,7 +109,7 @@ export function ShareButton({ bookId, chapterNumber, bookName, size, color }: Sh
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // Generate shareable URL
-      const shareUrl = generateChapterShareUrl(bookId, chapterNumber);
+      const shareUrl = generateChapterShareUrl(bookId!, chapterNumber!);
 
       // Format share message
       const message = `Check out ${bookName} ${chapterNumber} on VerseMate: ${shareUrl}`;
@@ -124,9 +143,11 @@ export function ShareButton({ bookId, chapterNumber, bookName, size, color }: Sh
     <Pressable
       onPress={handlePress}
       style={styles.iconButton}
-      accessibilityLabel={`Share ${bookName} ${chapterNumber}`}
+      accessibilityLabel={
+        bookName && chapterNumber ? `Share ${bookName} ${chapterNumber}` : 'Share'
+      }
       accessibilityRole="button"
-      testID="share-button"
+      testID={testID || 'share-button'}
     >
       <Ionicons name="share-outline" size={iconSize} color={iconColor} />
     </Pressable>

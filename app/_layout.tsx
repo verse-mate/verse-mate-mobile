@@ -31,6 +31,7 @@ import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
 import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
+import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
 
 // Keep the splash screen visible while we fetch last read position
 SplashScreen.preventAutoHideAsync();
@@ -79,18 +80,47 @@ function RootLayoutInner() {
     /**
      * Process a deep link URL
      *
+     * Handles both Bible chapter and topic deep links:
+     * - Bible chapters: /bible/{bookSlug|bookId}/{chapterNumber}
+     * - Topics: /topic/{category-slug}/{topic-slug}
+     *
      * @param url - The incoming deep link URL
      */
-    const handleDeepLink = (url: string | null) => {
+    const handleDeepLink = async (url: string | null) => {
       if (!url) return;
 
       try {
-        // TODO: Track analytics - deep_link_opened with { bookId, chapterNumber, source: url }
+        // Try parsing as topic URL first
+        const topicParsed = parseTopicShareUrl(url);
 
-        // Parse the URL to extract bookId and chapterNumber
-        const parsed = parseChapterShareUrl(url);
+        if (topicParsed) {
+          // TODO: Track analytics - deep_link_opened with { category, slug, source: url }
 
-        if (!parsed) {
+          const { category, slug } = topicParsed;
+
+          // For topics, we need to fetch the topic by category and slug to get the topicId
+          // Since we don't have the topicId in the URL, we'll need to make an API call
+          // For now, navigate to the first topic in that category as a fallback
+          // TODO: Implement API call to get topicId by category+slug
+
+          console.log('Topic deep link detected:', { category, slug });
+
+          // Temporary: Navigate to topics screen (will be enhanced with API lookup)
+          // In a future update, we should:
+          // 1. Call API: GET /topics/search?category={category}&slug={slug}
+          // 2. Extract topicId from response
+          // 3. Navigate to /topics/{topicId}
+
+          // For now, just fallback to Bible (topics require API lookup)
+          console.warn('Topic deep links require API implementation - falling back to Bible');
+          router.replace('/bible/1/1');
+          return;
+        }
+
+        // Try parsing as Bible chapter URL
+        const chapterParsed = parseChapterShareUrl(url);
+
+        if (!chapterParsed) {
           // TODO: Track analytics - deep_link_failed with { url, error: 'invalid_format' }
           console.warn('Failed to parse deep link URL:', url);
           // Fallback to Genesis 1
@@ -98,7 +128,7 @@ function RootLayoutInner() {
           return;
         }
 
-        const { bookId, chapterNumber } = parsed;
+        const { bookId, chapterNumber } = chapterParsed;
 
         // Validate bookId (parser already validates 1-66 range)
         if (bookId < 1 || bookId > 66) {
