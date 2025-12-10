@@ -173,8 +173,8 @@ describe('ChapterReader Share Functionality', () => {
     // Wait for async share call
     await waitFor(() => {
       expect(mockShare).toHaveBeenCalledWith({
-        message: 'Check out John 3 on VerseMate: https://app.versemate.org/bible/43/3',
-        url: 'https://app.versemate.org/bible/43/3',
+        message: 'Check out John 3 on VerseMate: https://app.versemate.org/bible/john/3',
+        url: 'https://app.versemate.org/bible/john/3',
       });
     });
 
@@ -250,8 +250,8 @@ describe('ChapterReader Share Functionality', () => {
 
     await waitFor(() => {
       expect(mockShare).toHaveBeenCalledWith({
-        message: 'Check out Genesis 1 on VerseMate: https://app.versemate.org/bible/1/1',
-        url: 'https://app.versemate.org/bible/1/1',
+        message: 'Check out Genesis 1 on VerseMate: https://app.versemate.org/bible/genesis/1',
+        url: 'https://app.versemate.org/bible/genesis/1',
       });
     });
   });
