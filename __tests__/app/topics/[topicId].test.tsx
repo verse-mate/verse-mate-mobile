@@ -5,9 +5,12 @@
  * - Topic detail rendering
  * - References and explanations display
  * - Tab switching (summary, byline, detailed)
- * - Navigation (previous/next topic)
+ * - Navigation (previous/next topic via pager)
  * - Loading states
  * - Error states
+ *
+ * Note: With TopicPagerView integration, navigation tests now verify pagerRef.setPage
+ * is called instead of router.push, as the pager handles the animation.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -69,6 +72,38 @@ jest.mock('@react-native-community/netinfo', () => ({
   addEventListener: jest.fn(() => jest.fn()),
   fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
 }));
+
+// Mock TopicPagerView to track ref usage
+const mockSetPage = jest.fn();
+
+jest.mock('@/components/topics/TopicPagerView', () => {
+  const React = require('react');
+
+  const MockTopicPagerView = React.forwardRef((props: any, ref: any) => {
+    const { View, Text } = require('react-native');
+
+    React.useImperativeHandle(ref, () => ({
+      setPage: mockSetPage,
+    }));
+
+    // Render content based on activeView for content tests
+    const { activeView, activeTab, initialTopicId } = props;
+
+    return (
+      <View testID="topic-pager-view">
+        <Text>Mock TopicPagerView - {initialTopicId}</Text>
+        <Text>View: {activeView}</Text>
+        <Text>Tab: {activeTab}</Text>
+      </View>
+    );
+  });
+
+  MockTopicPagerView.displayName = 'TopicPagerView';
+
+  return {
+    TopicPagerView: MockTopicPagerView,
+  };
+});
 
 // Mock topic data - matches the /topics/:id endpoint response structure
 const mockTopicData = {
@@ -228,17 +263,68 @@ describe('TopicDetailScreen', () => {
   });
 
   describe('Topic Rendering', () => {
-    it('should render topic title and description', async () => {
+    it('should render topic title in header', async () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getAllByText('The Creation').length).toBeGreaterThan(0);
-        expect(screen.getByText('God creates the heavens and the earth')).toBeTruthy();
+        expect(screen.getByText('The Creation')).toBeTruthy();
       });
     });
 
-    it('should render Bible references section when in Bible view', async () => {
-      // Override to Bible view
+    it('should render TopicPagerView with correct props', async () => {
+      renderWithProviders(<TopicDetailScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('topic-pager-view')).toBeTruthy();
+        expect(screen.getByText('Mock TopicPagerView - event-1')).toBeTruthy();
+      });
+    });
+
+    it('should pass activeView to TopicPagerView', async () => {
+      renderWithProviders(<TopicDetailScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('View: explanations')).toBeTruthy();
+      });
+    });
+
+    it('should pass activeTab to TopicPagerView', async () => {
+      renderWithProviders(<TopicDetailScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Tab: summary')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('View Mode Switching', () => {
+    it('should render Bible view icon and Explanations view icon', async () => {
+      renderWithProviders(<TopicDetailScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('bible-view-icon')).toBeTruthy();
+        expect(screen.getByTestId('explanations-view-icon')).toBeTruthy();
+      });
+    });
+
+    it('should show content tabs only in Explanations view', async () => {
+      // Explanations view shows tabs
+      (useActiveView as jest.Mock).mockReturnValue({
+        activeView: 'explanations',
+        setActiveView: jest.fn(),
+        isLoading: false,
+        error: null,
+      });
+
+      const { getByTestId, rerender } = renderWithProviders(<TopicDetailScreen />);
+
+      await waitFor(() => {
+        expect(getByTestId('chapter-content-tabs')).toBeTruthy();
+      });
+    });
+
+    it('should hide content tabs in Bible view', async () => {
+      // Bible view hides tabs
       (useActiveView as jest.Mock).mockReturnValue({
         activeView: 'bible',
         setActiveView: jest.fn(),
@@ -246,104 +332,52 @@ describe('TopicDetailScreen', () => {
         error: null,
       });
 
-      renderWithProviders(<TopicDetailScreen />);
+      const { queryByTestId } = renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(
-          screen.getByText('In the beginning God created the heavens and the earth.')
-        ).toBeTruthy();
-      });
-    });
-
-    it('should render summary explanation by default in Explanations view', async () => {
-      renderWithProviders(<TopicDetailScreen />);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(
-            'The Creation account describes how God created the universe in six days and rested on the seventh.'
-          )
-        ).toBeTruthy();
+        expect(queryByTestId('chapter-content-tabs')).toBeNull();
       });
     });
   });
 
-  describe('Tab Switching', () => {
-    it('should switch to byline explanation when byline tab is selected', async () => {
-      const mockSetActiveTab = jest.fn();
-      (useActiveTab as jest.Mock).mockReturnValue({
-        activeTab: 'byline',
-        setActiveTab: mockSetActiveTab,
-        isLoading: false,
-        error: null,
-      });
-
+  describe('Navigation via TopicPagerView', () => {
+    it('should call pagerRef.setPage when previous button is pressed', async () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Day 1:.*Light/i)).toBeTruthy();
-      });
-    });
-
-    it('should switch to detailed explanation when detailed tab is selected', async () => {
-      const mockSetActiveTab = jest.fn();
-      (useActiveTab as jest.Mock).mockReturnValue({
-        activeTab: 'detailed',
-        setActiveTab: mockSetActiveTab,
-        isLoading: false,
-        error: null,
+        expect(screen.getByText('The Creation')).toBeTruthy();
       });
 
-      renderWithProviders(<TopicDetailScreen />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/The Creation Account/i)).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Navigation', () => {
-    it('should navigate to previous topic when previous button is pressed', async () => {
-      renderWithProviders(<TopicDetailScreen />);
-
-      await waitFor(() => {
-        expect(screen.getAllByText('The Creation').length).toBeGreaterThan(0);
-      });
-
-      // Find and press previous button (uses "Previous chapter" label from FloatingActionButtons)
+      // Find and press previous button
       const prevButton = screen.getByLabelText('Previous chapter');
       fireEvent.press(prevButton);
 
-      // Should navigate to previous topic
-      expect(router.push).toHaveBeenCalledWith({
-        pathname: '/topics/[topicId]',
-        params: { topicId: 'event-0', category: 'EVENT' },
-      });
+      // With TopicPagerView, navigation uses setPage instead of router.push
+      // CENTER_INDEX - 1 = 2 - 1 = 1
+      expect(mockSetPage).toHaveBeenCalledWith(1);
     });
 
-    it('should navigate to next topic when next button is pressed', async () => {
+    it('should call pagerRef.setPage when next button is pressed', async () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getAllByText('The Creation').length).toBeGreaterThan(0);
+        expect(screen.getByText('The Creation')).toBeTruthy();
       });
 
-      // Find and press next button (uses "Next chapter" label from FloatingActionButtons)
+      // Find and press next button
       const nextButton = screen.getByLabelText('Next chapter');
       fireEvent.press(nextButton);
 
-      // Should navigate to next topic
-      expect(router.push).toHaveBeenCalledWith({
-        pathname: '/topics/[topicId]',
-        params: { topicId: 'event-2', category: 'EVENT' },
-      });
+      // With TopicPagerView, navigation uses setPage instead of router.push
+      // CENTER_INDEX + 1 = 2 + 1 = 3
+      expect(mockSetPage).toHaveBeenCalledWith(3);
     });
 
     it('should have navigation menu accessible', async () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getAllByText('The Creation').length).toBeGreaterThan(0);
+        expect(screen.getByText('The Creation')).toBeTruthy();
       });
 
       // Find and press hamburger menu button
@@ -416,31 +450,6 @@ describe('TopicDetailScreen', () => {
       fireEvent.press(goBackButton);
       expect(router.back).toHaveBeenCalled();
     });
-
-    it('should show empty state when explanation is not available', async () => {
-      // Mock topic data without explanations
-      (useTopicById as jest.Mock).mockReturnValue({
-        data: {
-          topic: mockTopicData.topic,
-          references: mockTopicData.references,
-          explanation: {
-            summary: '',
-            byline: '',
-            detailed: '',
-          },
-        },
-        isLoading: false,
-        error: null,
-      });
-
-      renderWithProviders(<TopicDetailScreen />);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('No summary explanation available for this topic yet.')
-        ).toBeTruthy();
-      });
-    });
   });
 
   describe('Edge Cases', () => {
@@ -464,11 +473,8 @@ describe('TopicDetailScreen', () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getAllByText('The Creation').length).toBeGreaterThan(0);
+        expect(screen.getByText('The Creation')).toBeTruthy();
       });
-
-      // Description should not be rendered
-      expect(screen.queryByText('God creates the heavens and the earth')).toBeNull();
     });
 
     it('should disable previous button when on first topic', async () => {
@@ -496,7 +502,7 @@ describe('TopicDetailScreen', () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getAllByText('Previous Topic').length).toBeGreaterThan(0);
+        expect(screen.getByText('Previous Topic')).toBeTruthy();
       });
 
       // Previous button should be disabled
@@ -529,7 +535,7 @@ describe('TopicDetailScreen', () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getAllByText('The Flood').length).toBeGreaterThan(0);
+        expect(screen.getByText('The Flood')).toBeTruthy();
       });
 
       // Next button should be disabled
@@ -544,20 +550,6 @@ describe('TopicDetailScreen', () => {
 
       // Verify useTopicById was called with bible_version parameter
       expect(useTopicById).toHaveBeenCalledWith('event-1', 'NASB1995');
-    });
-
-    it('should fetch all explanation types in single API call', () => {
-      // Mock all three tab states to ensure all explanations are accessible
-      renderWithProviders(<TopicDetailScreen />);
-
-      // useTopicById should be called once with bible_version, returning all explanation types
-      expect(useTopicById).toHaveBeenCalledTimes(1);
-      expect(useTopicById).toHaveBeenCalledWith('event-1', 'NASB1995');
-
-      // The mock data should contain all three explanation types
-      expect(mockTopicData.explanation.summary).toBeTruthy();
-      expect(mockTopicData.explanation.byline).toBeTruthy();
-      expect(mockTopicData.explanation.detailed).toBeTruthy();
     });
   });
 });

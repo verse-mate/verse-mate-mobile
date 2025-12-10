@@ -1,5 +1,5 @@
 /**
- * ChapterPagerView Component
+ * TopicPagerView Component
  *
  * Wraps react-native-pager-view with a fixed 5-page sliding window.
  * Uses STABLE POSITIONAL KEYS to prevent "infinite swipe" bug.
@@ -9,9 +9,13 @@
  * - Keys: ["page-0", "page-1", "page-2", "page-3", "page-4"] - NEVER CHANGE
  * - Center at index 2
  * - Re-center only when reaching edges (index 0 or 4)
- * - Pass chapter data as props that update when window shifts
+ * - Pass topic data as props that update when window shifts
  *
- * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 103-218)
+ * Unlike Bible chapters which use cumulative indices across all books,
+ * topics are scoped to a single category and use simple array positions.
+ *
+ * @see Spec: agent-os/specs/2025-12-08-topic-swipe-navigation/spec.md
+ * @see components/bible/ChapterPagerView.tsx - Reference implementation
  */
 
 import {
@@ -27,14 +31,10 @@ import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
 import { SwipeBoundaryPage } from '@/components/ui/SwipeBoundaryPage';
-import { useBibleTestaments } from '@/src/api/generated/hooks';
 import type { ContentTabType } from '@/types/bible';
-import {
-  getAbsolutePageIndex,
-  getChapterFromPageIndex,
-  getMaxPageIndex,
-} from '@/utils/bible/chapter-index-utils';
-import { ChapterPage } from './ChapterPage';
+import type { TopicCategory, TopicListItem } from '@/types/topics';
+import { getTopicFromIndex, getTopicIndexInCategory } from '@/utils/topics/topic-index-utils';
+import { TopicPage } from './TopicPage';
 
 /**
  * Constants for 5-page fixed window
@@ -49,30 +49,30 @@ const CENTER_INDEX = 2;
 const ROUTE_UPDATE_DELAY_MS = 75;
 
 /**
- * Imperative handle interface for ChapterPagerView
+ * Imperative handle interface for TopicPagerView
  * Allows parent components to programmatically trigger page changes
  */
-export interface ChapterPagerViewRef {
+export interface TopicPagerViewRef {
   /** Programmatically navigate to a page index with animation */
   setPage: (pageIndex: number) => void;
 }
 
 /**
- * Props for ChapterPagerView component
+ * Props for TopicPagerView component
  */
-export interface ChapterPagerViewProps {
-  /** Initial book ID to display (1-66) */
-  initialBookId: number;
-  /** Initial chapter number to display (1-based) */
-  initialChapter: number;
+export interface TopicPagerViewProps {
+  /** Initial topic ID (UUID) to display */
+  initialTopicId: string;
+  /** Topic category (navigation is scoped to single category) */
+  category: TopicCategory;
+  /** Sorted array of topics in the category */
+  sortedTopics: TopicListItem[];
   /** Active reading mode tab */
   activeTab: ContentTabType;
   /** Current view mode (bible or explanations) */
   activeView: 'bible' | 'explanations';
-  /** Target verse to scroll to (optional) */
-  targetVerse?: number;
   /** Callback when page changes (after swipe completes) */
-  onPageChange: (bookId: number, chapterNumber: number) => void;
+  onPageChange: (topicId: string, category: TopicCategory) => void;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
@@ -80,26 +80,27 @@ export interface ChapterPagerViewProps {
 }
 
 /**
- * ChapterPagerView Component
+ * TopicPagerView Component
  *
  * Implements 5-page fixed window with stable positional keys.
- * Prevents "infinite swipe restarting at Genesis 1" bug by:
+ * Prevents "infinite swipe restarting at first topic" bug by:
  * - Using stable keys based on window POSITION, not content
- * - Passing bookId/chapterNumber as PROPS that update
+ * - Passing topicId as PROPS that update
  * - Re-centering only at edges using setPageWithoutAnimation
  *
  * @example
  * ```tsx
- * const pagerRef = useRef<ChapterPagerViewRef>(null);
+ * const pagerRef = useRef<TopicPagerViewRef>(null);
  *
- * <ChapterPagerView
+ * <TopicPagerView
  *   ref={pagerRef}
- *   initialBookId={1}
- *   initialChapter={5}
+ *   initialTopicId="topic-uuid-003"
+ *   category="EVENT"
+ *   sortedTopics={sortedTopics}
  *   activeTab="summary"
  *   activeView="bible"
- *   onPageChange={(bookId, chapter) => {
- *     router.replace(`/bible/${bookId}/${chapter}`);
+ *   onPageChange={(topicId, category) => {
+ *     router.replace(`/topics/${topicId}?category=${category}`);
  *   }}
  * />
  *
@@ -107,14 +108,14 @@ export interface ChapterPagerViewProps {
  * pagerRef.current?.setPage(3);
  * ```
  */
-export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerViewProps>(
-  function ChapterPagerView(
+export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>(
+  function TopicPagerView(
     {
-      initialBookId,
-      initialChapter,
+      initialTopicId,
+      category,
+      sortedTopics,
       activeTab,
       activeView,
-      targetVerse,
       onPageChange,
       onScroll,
       onTap,
@@ -124,12 +125,9 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
     const pagerRef = useRef<PagerView>(null);
     const routeUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Fetch books metadata for navigation calculations
-    const { data: booksMetadata } = useBibleTestaments();
-
-    // Track current absolute index (which chapter is at center)
+    // Track current absolute index (which topic is at center)
     const [currentAbsoluteIndex, setCurrentAbsoluteIndex] = useState(() =>
-      getAbsolutePageIndex(initialBookId, initialChapter, booksMetadata)
+      getTopicIndexInCategory(initialTopicId, sortedTopics)
     );
 
     // Expose imperative methods to parent component
@@ -152,60 +150,55 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       };
     }, []);
 
-    // Update absolute index if initialBookId/initialChapter changes externally
+    // Update absolute index if initialTopicId changes externally
     // Note: Intentionally excludes currentAbsoluteIndex from deps to prevent race condition
     // when swipe updates state before route updates (75ms delay)
     useEffect(() => {
-      const newIndex = getAbsolutePageIndex(initialBookId, initialChapter, booksMetadata);
+      const newIndex = getTopicIndexInCategory(initialTopicId, sortedTopics);
       if (newIndex !== -1 && newIndex !== currentAbsoluteIndex) {
         setCurrentAbsoluteIndex(newIndex);
         // Also update pager position for external navigation (e.g., from modal)
         pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
       }
-    }, [initialBookId, initialChapter, booksMetadata, currentAbsoluteIndex]);
+    }, [initialTopicId, sortedTopics, currentAbsoluteIndex]);
 
     /**
-     * Calculate which chapter should display at a given window position
+     * Calculate which topic should display at a given window position
      *
      * Returns null for out-of-bounds positions instead of clamping.
-     * This allows us to render boundary indicators at Genesis 1 (start)
-     * and Revelation 22 (end).
+     * This allows us to render empty placeholders at boundaries and
+     * detect when user swipes past the edge.
      */
-    const getChapterForPosition = useCallback(
-      (windowPosition: number): { bookId: number; chapterNumber: number } | null => {
+    const getTopicForPosition = useCallback(
+      (windowPosition: number): TopicListItem | null => {
         const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
         // Return null for out-of-bounds - don't clamp to boundaries
-        // This prevents showing duplicate content at Bible boundaries
-        if (absoluteIndex < 0) {
+        // This prevents showing duplicate content when at first/last topic
+        if (absoluteIndex < 0 || absoluteIndex >= sortedTopics.length) {
           return null;
         }
 
-        const maxIndex = getMaxPageIndex(booksMetadata);
-        if (absoluteIndex > maxIndex) {
-          return null;
-        }
-
-        return getChapterFromPageIndex(absoluteIndex, booksMetadata);
+        return getTopicFromIndex(absoluteIndex, sortedTopics);
       },
-      [currentAbsoluteIndex, booksMetadata]
+      [currentAbsoluteIndex, sortedTopics]
     );
 
     /**
      * Generate exactly 5 pages with STABLE POSITIONAL KEYS
      *
      * Keys never change - they're based on window position (0-4), not content.
-     * Chapter data is passed as props that update when window shifts.
+     * Topic data is passed as props that update when window shifts.
      */
     const pages = useMemo(() => {
-      // Handle case when books metadata not loaded yet
-      if (!booksMetadata || booksMetadata.length === 0) {
-        // Return placeholder pages with Genesis 1
+      // Handle case when topics not loaded yet
+      if (!sortedTopics || sortedTopics.length === 0) {
+        // Return placeholder pages with first topic (or fallback)
         return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => (
-          <ChapterPage
+          <TopicPage
             key={`page-${windowPosition}`}
-            bookId={1}
-            chapterNumber={1}
+            topicId={initialTopicId}
+            category={category}
             activeTab={activeTab}
             activeView={activeView}
             onScroll={onScroll}
@@ -215,36 +208,30 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       }
 
       return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => {
-        const chapter = getChapterForPosition(windowPosition);
+        const topic = getTopicForPosition(windowPosition);
         const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
         // Render boundary indicator for out-of-bounds pages
-        // This shows a helpful message instead of duplicate content at Bible boundaries
-        if (!chapter) {
+        // This shows a helpful message instead of duplicate content at category boundaries
+        if (!topic) {
           const direction = absoluteIndex < 0 ? 'start' : 'end';
           return (
             <SwipeBoundaryPage
               key={`page-${windowPosition}`}
               direction={direction}
-              contentType="chapter"
-              testID={`chapter-page-boundary-${windowPosition}`}
+              contentType="topic"
+              testID={`topic-page-boundary-${windowPosition}`}
             />
           );
         }
 
-        const { bookId, chapterNumber } = chapter;
-
-        // Only pass targetVerse if this page matches the requested chapter
-        const isTargetChapter = bookId === initialBookId && chapterNumber === initialChapter;
-
         return (
-          <ChapterPage
+          <TopicPage
             key={`page-${windowPosition}`} // STABLE KEY: never changes
-            bookId={bookId} // DYNAMIC PROP: updates when window shifts
-            chapterNumber={chapterNumber} // DYNAMIC PROP: updates when window shifts
+            topicId={topic.topic_id} // DYNAMIC PROP: updates when window shifts
+            category={(topic.category as TopicCategory) || category} // DYNAMIC PROP: updates when window shifts
             activeTab={activeTab}
             activeView={activeView}
-            targetVerse={isTargetChapter ? targetVerse : undefined}
             onScroll={onScroll}
             onTap={onTap}
           />
@@ -253,32 +240,31 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
     }, [
       activeTab,
       activeView,
-      booksMetadata,
+      category,
       currentAbsoluteIndex,
-      getChapterForPosition,
+      getTopicForPosition,
+      initialTopicId,
       onScroll,
       onTap,
-      initialBookId,
-      initialChapter,
-      targetVerse,
+      sortedTopics,
     ]);
 
     /**
      * Handle page selection events
      *
-     * Re-centering strategy (spec lines 212-218):
-     * 1. Initial: Genesis 1 at index 2: [none, none, Gen 1, Gen 2, Gen 3]
-     * 2. Swipe right once: Position 3 (Genesis 2) - NO re-center, just update absolute index
-     * 3. Swipe right again: Position 4 (Genesis 3 - EDGE!) - Re-center to index 2
-     * 4. Result: [Gen 1, Gen 2, Gen 3, Gen 4, Gen 5] - User can continue swiping
+     * Re-centering strategy:
+     * 1. Initial: Topic 3 at index 2: [1, 2, 3, 4, 5]
+     * 2. Swipe right once: Position 3 (Topic 4) - NO re-center, just update absolute index
+     * 3. Swipe right again: Position 4 (Topic 5 - EDGE!) - Re-center to index 2
+     * 4. Result: [3, 4, 5, 6, 7] - User can continue swiping
      *
      * User can swipe once without jarring re-center. Re-center only at edges.
      *
      * IMPORTANT: Adds 75ms delay before calling onPageChange to prevent double animation.
      * PagerView handles the visual animation, router.replace() should only update URL silently.
      *
-     * BOUNDARY HANDLING: When user swipes to an out-of-bounds page (boundary indicator),
-     * snap back to center immediately. This prevents navigation past Bible boundaries.
+     * BOUNDARY HANDLING: When user swipes to an out-of-bounds page (empty placeholder),
+     * snap back to center immediately. This prevents navigation past category boundaries.
      */
     const handlePageSelected = useCallback(
       (event: { nativeEvent: OnPageSelectedEventData }) => {
@@ -293,16 +279,15 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
         const offset = selectedPosition - CENTER_INDEX;
         const newAbsoluteIndex = currentAbsoluteIndex + offset;
 
-        // Check if swipe would go out of bounds (to a boundary indicator page)
-        const maxIndex = getMaxPageIndex(booksMetadata);
-        const isOutOfBounds = newAbsoluteIndex < 0 || newAbsoluteIndex > maxIndex;
+        // Check if swipe would go out of bounds (to an empty placeholder page)
+        const isOutOfBounds = newAbsoluteIndex < 0 || newAbsoluteIndex >= sortedTopics.length;
 
         if (isOutOfBounds) {
-          // Snap back to center - user tried to swipe past Bible boundary
+          // Snap back to center - user tried to swipe past category boundary
           requestAnimationFrame(() => {
             pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
           });
-          // Don't update route or state - stay on current chapter
+          // Don't update route or state - stay on current topic
           return;
         }
 
@@ -319,37 +304,29 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
           });
 
           // Delay route update by 75ms to prevent double animation
-          const { bookId, chapterNumber } = getChapterFromPageIndex(
-            newAbsoluteIndex,
-            booksMetadata
-          ) || {
-            bookId: initialBookId,
-            chapterNumber: initialChapter,
-          };
+          const topic = getTopicFromIndex(newAbsoluteIndex, sortedTopics);
 
-          routeUpdateTimeoutRef.current = setTimeout(() => {
-            onPageChange(bookId, chapterNumber);
-          }, ROUTE_UPDATE_DELAY_MS);
+          if (topic) {
+            routeUpdateTimeoutRef.current = setTimeout(() => {
+              onPageChange(topic.topic_id, category);
+            }, ROUTE_UPDATE_DELAY_MS);
+          }
         } else if (selectedPosition !== CENTER_INDEX) {
           // User swiped one position away from center (to index 1 or 3)
           // DON'T update currentAbsoluteIndex yet to avoid flickering
           // Let the route update trigger useEffect which will re-center properly
 
           // Delay route update by 75ms to prevent double animation
-          const { bookId, chapterNumber } = getChapterFromPageIndex(
-            newAbsoluteIndex,
-            booksMetadata
-          ) || {
-            bookId: initialBookId,
-            chapterNumber: initialChapter,
-          };
+          const topic = getTopicFromIndex(newAbsoluteIndex, sortedTopics);
 
-          routeUpdateTimeoutRef.current = setTimeout(() => {
-            onPageChange(bookId, chapterNumber);
-          }, ROUTE_UPDATE_DELAY_MS);
+          if (topic) {
+            routeUpdateTimeoutRef.current = setTimeout(() => {
+              onPageChange(topic.topic_id, category);
+            }, ROUTE_UPDATE_DELAY_MS);
+          }
         }
       },
-      [currentAbsoluteIndex, booksMetadata, initialBookId, initialChapter, onPageChange]
+      [currentAbsoluteIndex, sortedTopics, category, onPageChange]
     );
 
     return (
@@ -358,7 +335,7 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
         style={styles.pagerView}
         initialPage={CENTER_INDEX}
         onPageSelected={handlePageSelected}
-        testID="chapter-pager-view"
+        testID="topic-pager-view"
         removeClippedSubviews={false}
         offscreenPageLimit={4}
         overScrollMode="never"
