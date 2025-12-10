@@ -29,6 +29,7 @@ import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/Theme
 import { ToastProvider } from '@/contexts/ToastContext';
 import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
 import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
+import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
@@ -94,26 +95,48 @@ function RootLayoutInner() {
         const topicParsed = parseTopicShareUrl(url);
 
         if (topicParsed) {
-          // TODO: Track analytics - deep_link_opened with { category, slug, source: url }
+          // Track analytics - deep_link_opened with { category, slug, source: url }
 
           const { category, slug } = topicParsed;
 
-          // For topics, we need to fetch the topic by category and slug to get the topicId
-          // Since we don't have the topicId in the URL, we'll need to make an API call
-          // For now, navigate to the first topic in that category as a fallback
-          // TODO: Implement API call to get topicId by category+slug
-
           console.log('Topic deep link detected:', { category, slug });
 
-          // Temporary: Navigate to topics screen (will be enhanced with API lookup)
-          // In a future update, we should:
-          // 1. Call API: GET /topics/search?category={category}&slug={slug}
-          // 2. Extract topicId from response
-          // 3. Navigate to /topics/{topicId}
+          try {
+            const baseUrl = process.env.EXPO_PUBLIC_API_URL;
+            if (!baseUrl) {
+              throw new Error('EXPO_PUBLIC_API_URL is not configured');
+            }
 
-          // For now, just fallback to Bible (topics require API lookup)
-          console.warn('Topic deep links require API implementation - falling back to Bible');
-          router.replace('/bible/1/1');
+            // Fetch topic details to get topic_id
+            const response = await authenticatedFetch(
+              `${baseUrl}/topics/by-slug?category=${category}&slug=${slug}`
+            );
+
+            if (!response.ok) {
+              if (response.status === 404) {
+                console.warn('Topic deep link not found:', { category, slug });
+              } else {
+                console.error('Topic deep link API error:', response.status);
+              }
+              // Fallback to Bible
+              router.replace('/bible/1/1');
+              return;
+            }
+
+            const topicData = await response.json();
+
+            if (topicData && topicData.topic_id) {
+              // Navigate to the topic
+              router.replace(`/topics/${topicData.topic_id}`);
+            } else {
+              console.error('Invalid topic response data:', topicData);
+              router.replace('/bible/1/1');
+            }
+          } catch (error) {
+            console.error('Error handling topic deep link:', error);
+            // Fallback to Bible on network or other errors
+            router.replace('/bible/1/1');
+          }
           return;
         }
 
