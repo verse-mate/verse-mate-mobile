@@ -23,19 +23,28 @@ describe('generateChapterShareUrl', () => {
     process.env.EXPO_PUBLIC_WEB_URL = originalEnv;
   });
 
-  it('generates correct URL for Genesis 1', () => {
+  it('generates slug-based URL for Genesis 1', () => {
     const url = generateChapterShareUrl(1, 1);
-    expect(url).toBe('https://app.versemate.org/bible/1/1');
+    expect(url).toBe('https://app.versemate.org/bible/genesis/1');
   });
 
-  it('generates correct URL for John 3', () => {
+  it('generates slug-based URL for John 3', () => {
     const url = generateChapterShareUrl(43, 3);
-    expect(url).toBe('https://app.versemate.org/bible/43/3');
+    expect(url).toBe('https://app.versemate.org/bible/john/3');
   });
 
-  it('generates correct URL for Revelation 22', () => {
+  it('generates slug-based URL for Revelation 22', () => {
     const url = generateChapterShareUrl(66, 22);
-    expect(url).toBe('https://app.versemate.org/bible/66/22');
+    expect(url).toBe('https://app.versemate.org/bible/revelation/22');
+  });
+
+  it('generates slug-based URL for 1 Samuel 17', () => {
+    const url = generateChapterShareUrl(9, 17);
+    expect(url).toBe('https://app.versemate.org/bible/1-samuel/17');
+  });
+
+  it('throws error for invalid bookId', () => {
+    expect(() => generateChapterShareUrl(99, 1)).toThrow('Invalid bookId: 99');
   });
 });
 
@@ -63,12 +72,27 @@ describe('parseChapterShareUrl', () => {
     process.env.EXPO_PUBLIC_WEB_URL = originalEnv;
   });
 
-  it('parses valid Genesis 1 URL', () => {
+  it('parses slug-based Genesis 1 URL', () => {
+    const result = parseChapterShareUrl('https://app.versemate.org/bible/genesis/1');
+    expect(result).toEqual({ bookId: 1, chapterNumber: 1 });
+  });
+
+  it('parses slug-based John 3 URL', () => {
+    const result = parseChapterShareUrl('https://app.versemate.org/bible/john/3');
+    expect(result).toEqual({ bookId: 43, chapterNumber: 3 });
+  });
+
+  it('parses slug-based 1 Samuel 17 URL', () => {
+    const result = parseChapterShareUrl('https://app.versemate.org/bible/1-samuel/17');
+    expect(result).toEqual({ bookId: 9, chapterNumber: 17 });
+  });
+
+  it('parses numeric Genesis 1 URL (backward compatible)', () => {
     const result = parseChapterShareUrl('https://app.versemate.org/bible/1/1');
     expect(result).toEqual({ bookId: 1, chapterNumber: 1 });
   });
 
-  it('parses valid John 3 URL', () => {
+  it('parses numeric John 3 URL (backward compatible)', () => {
     const result = parseChapterShareUrl('https://app.versemate.org/bible/43/3');
     expect(result).toEqual({ bookId: 43, chapterNumber: 3 });
   });
@@ -88,8 +112,8 @@ describe('parseChapterShareUrl', () => {
     expect(result).toBeNull();
   });
 
-  it('returns null for non-numeric bookId', () => {
-    const result = parseChapterShareUrl('https://app.versemate.org/bible/john/3');
+  it('returns null for invalid book slug', () => {
+    const result = parseChapterShareUrl('https://app.versemate.org/bible/invalid-book/3');
     expect(result).toBeNull();
   });
 
