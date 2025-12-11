@@ -316,7 +316,7 @@ describe('TopicDetailScreen', () => {
         error: null,
       });
 
-      const { getByTestId, rerender } = renderWithProviders(<TopicDetailScreen />);
+      const { getByTestId } = renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
         expect(getByTestId('chapter-content-tabs')).toBeTruthy();
