@@ -1,16 +1,20 @@
 /**
- * AutoHighlightTooltip Component
+ * ManualHighlightTooltip Component
  *
- * Displays information about an AI-generated auto-highlight.
- * Shows theme name, relevance score, and option to save as user highlight.
+ * Displays information about a grouped manual highlight (consecutive verses with same color).
+ * Shown when user taps on a highlighted verse that's part of a consecutive group.
  *
- * Shown as a bottom sheet modal when user taps on an auto-highlighted verse.
+ * Features:
+ * - Shows verse range reference as title
+ * - Displays type, verse range, and color
+ * - Expandable "View Verse Insight" section
+ * - Remove button to delete all highlights in group
+ * - Identical animations/UX to AutoHighlightTooltip
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   Modal,
@@ -23,49 +27,46 @@ import {
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
-import type { HighlightColor } from '@/constants/highlight-colors';
+import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleByLine } from '@/src/api/generated/hooks';
-import type { AutoHighlight } from '@/types/auto-highlights';
-import {
-  extractVerseTextFromByLine,
-  parseByLineExplanation,
-} from '@/utils/bible/parseByLineExplanation';
+import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
+import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
 
-interface AutoHighlightTooltipProps {
-  /** Auto-highlight to display info for */
-  autoHighlight: AutoHighlight | null;
+interface ManualHighlightTooltipProps {
+  /** Highlight group to display info for */
+  highlightGroup: HighlightGroup | null;
+  /** Book ID */
+  bookId: number;
+  /** Chapter number */
+  chapterNumber: number;
+  /** Book name for title */
+  bookName: string;
   /** Whether modal is visible */
   visible: boolean;
   /** Callback to close modal */
   onClose: () => void;
-  /** Callback to save auto-highlight as user highlight */
-  onSaveAsUserHighlight: (
-    color: HighlightColor,
-    verseRange: { start: number; end: number },
-    selectedText?: string
-  ) => void;
-  /** Callback when save is successful */
-  onSaveSuccess?: () => void;
-  /** Whether user is logged in */
-  isLoggedIn: boolean;
+  /** Callback to remove highlight group */
+  onRemove: (group: HighlightGroup) => void;
 }
 
 /**
- * AutoHighlightTooltip Component
+ * ManualHighlightTooltip Component
  *
- * Bottom sheet modal showing auto-highlight details and actions.
+ * Bottom sheet modal showing grouped manual highlight details and actions.
  */
-export function AutoHighlightTooltip({
-  autoHighlight,
+export function ManualHighlightTooltip({
+  highlightGroup,
+  bookId,
+  chapterNumber,
+  bookName,
   visible,
   onClose,
-  onSaveAsUserHighlight,
-  onSaveSuccess,
-  isLoggedIn,
-}: AutoHighlightTooltipProps) {
-  const { colors } = useTheme();
+  onRemove,
+}: ManualHighlightTooltipProps) {
+  const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const { styles, markdownStyles } = useMemo(
     () => createStyles(colors, insets.bottom),
@@ -78,6 +79,9 @@ export function AutoHighlightTooltip({
   // State for showing verse insight (expanded view)
   const [expanded, setExpanded] = useState(false);
 
+  // State for delete confirmation modal
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+
   // Get screen height to start modal completely off-screen
   const screenHeight = Dimensions.get('window').height;
 
@@ -88,24 +92,24 @@ export function AutoHighlightTooltip({
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
-    autoHighlight?.book_id || 0,
-    autoHighlight?.chapter_number || 0,
+    bookId,
+    chapterNumber,
     undefined,
-    { enabled: !!autoHighlight && visible }
+    { enabled: !!highlightGroup && visible }
   );
 
   // Parse the insight for the specific verses
   const insightText = useMemo(() => {
-    if (!byLineData?.content || !autoHighlight) return null;
+    if (!byLineData?.content || !highlightGroup) return null;
 
     return parseByLineExplanation(
       byLineData.content,
       '',
-      autoHighlight.chapter_number,
-      autoHighlight.start_verse,
-      autoHighlight.end_verse
+      chapterNumber,
+      highlightGroup.startVerse,
+      highlightGroup.endVerse
     );
-  }, [byLineData, autoHighlight]);
+  }, [byLineData, chapterNumber, highlightGroup]);
 
   // Helper to animate open
   const animateOpen = useCallback(() => {
@@ -146,7 +150,6 @@ export function AutoHighlightTooltip({
       ]).start();
 
       // Force cleanup after 150ms to prevent "spring tail" blocking the UI
-      // This ensures the modal unmounts deterministically, fixing the double-click bug
       setTimeout(() => {
         setInternalVisible(false);
         setExpanded(false); // Reset expansion state
@@ -180,6 +183,21 @@ export function AutoHighlightTooltip({
   const handleDismiss = () => {
     animateClose(() => {
       onClose();
+    });
+  };
+
+  // Handle remove button press - show confirmation
+  const handleRemove = () => {
+    setShowDeleteConfirmation(true);
+  };
+
+  // Handle confirmed deletion
+  const handleConfirmDelete = () => {
+    setShowDeleteConfirmation(false);
+    if (!highlightGroup) return;
+
+    animateClose(() => {
+      onRemove(highlightGroup);
     });
   };
 
@@ -229,51 +247,29 @@ export function AutoHighlightTooltip({
     })
   ).current;
 
-  // Don't render anything if we have no data (unless animating out, handled by internalVisible/Modal)
-  if (!autoHighlight && !internalVisible) return null;
-  if (!autoHighlight) return null;
+  // Don't render anything if we have no data
+  if (!highlightGroup && !internalVisible) return null;
+  if (!highlightGroup) return null;
 
-  const handleSave = () => {
-    if (!isLoggedIn) {
-      Alert.alert('Sign In Required', 'Please sign in to save highlights to your collection.', [
-        { text: 'OK' },
-      ]);
-      return;
-    }
-
-    // Extract verse text for the highlight
-    const verseText =
-      byLineData?.content && autoHighlight
-        ? extractVerseTextFromByLine(
-            byLineData.content,
-            autoHighlight.chapter_number,
-            autoHighlight.start_verse,
-            autoHighlight.end_verse
-          )
-        : undefined;
-
-    onSaveAsUserHighlight(
-      autoHighlight.theme_color,
-      {
-        start: autoHighlight.start_verse,
-        end: autoHighlight.end_verse, // Use end_verse for multi-verse highlights
-      },
-      verseText || undefined
-    );
-    onSaveSuccess?.();
-    handleDismiss();
-  };
+  // Build verse reference title
+  const verseReference =
+    highlightGroup.startVerse === highlightGroup.endVerse
+      ? `${bookName} ${chapterNumber}:${highlightGroup.startVerse}`
+      : `${bookName} ${chapterNumber}:${highlightGroup.startVerse}-${highlightGroup.endVerse}`;
 
   // Interpolate values for expansion animation
   const insightMaxHeight = expansionAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 400], // Expand to a reasonable max height
+    outputRange: [0, 400],
   });
 
   const insightOpacity = expansionAnim.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: [0, 0, 1],
   });
+
+  // Get color for display
+  const highlightColorHex = getHighlightColor(highlightGroup.color, mode);
 
   return (
     <Modal
@@ -284,7 +280,7 @@ export function AutoHighlightTooltip({
     >
       {/* Main Container - positions content at bottom */}
       <View style={styles.overlay}>
-        {/* Animated Backdrop - Absolute positioned behind content */}
+        {/* Animated Backdrop */}
         <Animated.View
           style={[styles.backdrop, { opacity: backdropOpacity }]}
           pointerEvents="box-none"
@@ -307,26 +303,34 @@ export function AutoHighlightTooltip({
             <View style={styles.scrollContainer}>
               <View {...panResponder.panHandlers}>
                 {/* Title */}
-                <Text style={styles.title}>{autoHighlight.theme_name}</Text>
+                <Text style={styles.title}>{verseReference}</Text>
 
                 <View style={styles.infoContainer}>
                   <View style={styles.infoRow}>
-                    <Text style={styles.label}>Relevance:</Text>
-                    <Text style={styles.value}>{autoHighlight.relevance_score} / 5</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
                     <Text style={styles.label}>Type:</Text>
-                    <Text style={styles.value}>Auto-generated highlight</Text>
+                    <Text style={styles.value}>Manual Highlight</Text>
                   </View>
 
                   <View style={styles.infoRow}>
                     <Text style={styles.label}>Verse Range:</Text>
                     <Text style={styles.value}>
-                      {autoHighlight.start_verse === autoHighlight.end_verse
-                        ? `Verse ${autoHighlight.start_verse}`
-                        : `Verses ${autoHighlight.start_verse}-${autoHighlight.end_verse}`}
+                      {highlightGroup.startVerse === highlightGroup.endVerse
+                        ? `Verse ${highlightGroup.startVerse}`
+                        : `Verses ${highlightGroup.startVerse}-${highlightGroup.endVerse}`}
                     </Text>
+                  </View>
+
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Color:</Text>
+                    <View style={styles.colorRow}>
+                      <View
+                        style={[styles.colorIndicator, { backgroundColor: highlightColorHex }]}
+                      />
+                      <Text style={styles.value}>
+                        {highlightGroup.color.charAt(0).toUpperCase() +
+                          highlightGroup.color.slice(1)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -365,7 +369,7 @@ export function AutoHighlightTooltip({
                   ) : (
                     <View style={styles.emptyInsightContainer}>
                       <Text style={styles.insightEmptyText}>
-                        No specific insight available for this verse.
+                        No specific insight available for these verses.
                       </Text>
                     </View>
                   )}
@@ -375,33 +379,37 @@ export function AutoHighlightTooltip({
 
             {/* Actions Footer */}
             <View style={styles.actionsContainer}>
-              {isLoggedIn ? (
-                <>
-                  <Pressable style={styles.primaryButton} onPress={handleSave}>
-                    <Text style={styles.primaryButtonText}>Save as My Highlight</Text>
-                  </Pressable>
-                  <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
-                    <Text style={styles.secondaryButtonText}>Cancel</Text>
-                  </Pressable>
-                </>
-              ) : (
-                <View style={styles.loginPrompt}>
-                  <Text style={styles.loginPromptText}>
-                    Sign in to save this highlight to your collection
-                  </Text>
-                </View>
-              )}
+              <Pressable style={styles.removeButton} onPress={handleRemove}>
+                <Text style={styles.removeButtonText}>Remove Highlight</Text>
+              </Pressable>
+              <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
             </View>
           </View>
         </Animated.View>
       </View>
+
+      {/* Delete Confirmation Modal */}
+      {highlightGroup && (
+        <DeleteConfirmationModal
+          visible={showDeleteConfirmation}
+          onCancel={() => setShowDeleteConfirmation(false)}
+          onConfirm={handleConfirmDelete}
+          title="Remove Highlight Group"
+          message={`This will delete ${highlightGroup.highlights.length} highlighted ${highlightGroup.highlights.length === 1 ? 'verse' : 'verses'} (${
+            highlightGroup.startVerse === highlightGroup.endVerse
+              ? `verse ${highlightGroup.startVerse}`
+              : `verses ${highlightGroup.startVerse}-${highlightGroup.endVerse}`
+          }). To delete a single verse, long-press on the specific verse.`}
+        />
+      )}
     </Modal>
   );
 }
 
 /**
- * Creates all styles for AutoHighlightTooltip component
- * Returns both component styles and markdown styles in a single factory
+ * Creates all styles for ManualHighlightTooltip component
  */
 const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number) => {
   const styles = StyleSheet.create({
@@ -423,10 +431,10 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     contentContainer: {
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
-      flexShrink: 1, // Ensure container shrinks if max height is reached
+      flexShrink: 1,
     },
     scrollContainer: {
-      flexShrink: 1, // Allow ScrollView to shrink to accommodate footer
+      flexShrink: 1,
     },
     header: {
       alignItems: 'center',
@@ -454,6 +462,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       paddingVertical: spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: colors.divider,
+      alignItems: 'center',
     },
     label: {
       fontSize: fontSizes.body,
@@ -465,24 +474,36 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       color: colors.textPrimary,
       fontWeight: fontWeights.medium,
     },
+    colorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    colorIndicator: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
     actionsContainer: {
       gap: spacing.sm,
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
-      paddingBottom: spacing.xl, // Bottom padding for safe area/aesthetics
+      paddingBottom: spacing.xl,
       borderTopWidth: 1,
-      borderTopColor: colors.divider, // Optional separator
-      backgroundColor: colors.backgroundElevated, // Ensure opaque background
+      borderTopColor: colors.divider,
+      backgroundColor: colors.backgroundElevated,
     },
-    primaryButton: {
-      backgroundColor: colors.gold,
+    removeButton: {
+      backgroundColor: colors.error,
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,
       borderRadius: 8,
       alignItems: 'center',
     },
-    primaryButtonText: {
-      color: colors.background,
+    removeButtonText: {
+      color: colors.white,
       fontSize: fontSizes.body,
       fontWeight: fontWeights.semibold,
     },
@@ -500,24 +521,13 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       fontSize: fontSizes.body,
       fontWeight: fontWeights.medium,
     },
-    loginPrompt: {
-      padding: spacing.lg,
-      backgroundColor: colors.background,
-      borderRadius: 8,
-      alignItems: 'center',
-    },
-    loginPromptText: {
-      fontSize: fontSizes.body,
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
     insightContainer: {
       marginBottom: spacing.lg,
       borderTopWidth: 1,
       borderTopColor: colors.divider,
       paddingTop: spacing.md,
-      flexShrink: 1, // Allow container to shrink
-      minHeight: 0, // Necessary for flex shrink to work in some cases
+      flexShrink: 1,
+      minHeight: 0,
     },
     insightToggle: {
       paddingVertical: spacing.sm,
@@ -533,7 +543,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     },
     insightContentWrapper: {
       overflow: 'hidden',
-      flexShrink: 1, // Allow wrapper to shrink
+      flexShrink: 1,
     },
     insightScroll: {
       backgroundColor: colors.background,
@@ -565,16 +575,15 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
 
   /**
    * Markdown Styles
-   * Adapts standard markdown styling for the tooltip context (smaller fonts)
    */
   const markdownStyles = StyleSheet.create({
     body: {
-      fontSize: fontSizes.body, // 16px
+      fontSize: fontSizes.body,
       lineHeight: fontSizes.body * 1.5,
       color: colors.textPrimary,
     },
     heading1: {
-      fontSize: fontSizes.heading3, // Smaller than main view
+      fontSize: fontSizes.heading3,
       fontWeight: fontWeights.bold,
       color: colors.textPrimary,
       marginBottom: spacing.xs,
