@@ -13,13 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
+import { ShareButton } from '@/components/bible/ShareButton';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { TopicPagerView, type TopicPagerViewRef } from '@/components/topics/TopicPagerView';
 import {
@@ -37,6 +38,7 @@ import { useTopicNavigation } from '@/hooks/topics/use-topic-navigation';
 import { useTopicById, useTopicsSearch } from '@/src/api/generated';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
+import { generateTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
 
 /**
  * View mode type for Topic reading interface
@@ -209,6 +211,36 @@ export default function TopicDetailScreen() {
     }
   }, [nextTopic]);
 
+  // Handle share topic
+  const handleShare = useCallback(async () => {
+    // Extract topic from topicData
+    const currentTopic =
+      topicData?.topic && typeof topicData.topic === 'object' && 'name' in topicData.topic
+        ? (topicData.topic as { name: string; topic_id: string; category: string })
+        : null;
+
+    if (!currentTopic) return;
+
+    try {
+      // Trigger haptic feedback for share action
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      const url = generateTopicShareUrl(category, currentTopic.name);
+      const message = `Check out ${currentTopic.name} on VerseMate: ${url}`;
+
+      await Share.share({
+        message,
+        url,
+      });
+    } catch (error) {
+      console.error('Share failed:', error);
+      // Show error alert
+      Alert.alert('Share Failed', 'Unable to share this topic. Please try again.');
+      // Trigger error haptic feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }, [topicData, category]);
+
   /**
    * Handle scroll events from TopicPage for FAB visibility
    */
@@ -239,6 +271,7 @@ export default function TopicDetailScreen() {
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
+          onShare={() => {}}
           onMenuPress={() => {}}
         />
         <SkeletonLoader />
@@ -255,6 +288,7 @@ export default function TopicDetailScreen() {
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
+          onShare={() => {}}
           onMenuPress={() => {}}
         />
         <View style={styles.errorContainer}>
@@ -275,6 +309,7 @@ export default function TopicDetailScreen() {
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
+          onShare={() => {}}
           onMenuPress={() => {}}
         />
         <View style={styles.errorContainer}>
@@ -295,6 +330,7 @@ export default function TopicDetailScreen() {
         activeView={activeView}
         onNavigationPress={() => setIsNavigationModalOpen(true)}
         onViewChange={handleViewChange}
+        onShare={handleShare}
         onMenuPress={() => setIsMenuOpen(true)}
       />
 
@@ -360,6 +396,7 @@ interface TopicHeaderProps {
   activeView: ViewMode;
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
+  onShare: () => void;
   onMenuPress: () => void;
 }
 
@@ -368,6 +405,7 @@ function TopicHeader({
   activeView,
   onNavigationPress,
   onViewChange,
+  onShare,
   onMenuPress,
 }: TopicHeaderProps) {
   // Get theme directly inside TopicHeader (no props drilling)
@@ -431,6 +469,9 @@ function TopicHeader({
 
         {/* Offline Indicator */}
         <OfflineIndicator />
+
+        {/* Share Button */}
+        <ShareButton onShare={onShare} testID="share-button-topic" />
 
         {/* Hamburger Menu Icon */}
         <Pressable

@@ -79,10 +79,14 @@ export interface HighlightedTextProps extends TextProps {
   highlights?: Highlight[];
   /** Auto-highlights that apply to this verse (AI-generated) */
   autoHighlights?: AutoHighlight[];
+  /** Callback when highlighted text is tapped (show grouped/single tooltip) */
+  onHighlightTap?: (highlightId: number) => void;
   /** Callback when highlighted text is long-pressed (edit highlight) */
-  onHighlightPress?: (highlightId: number) => void;
+  onHighlightLongPress?: (highlightId: number) => void;
   /** Callback when auto-highlight is pressed (show info tooltip) */
   onAutoHighlightPress?: (autoHighlight: AutoHighlight) => void;
+  /** Callback when plain text is tapped (show verse insight tooltip) */
+  onVerseTap?: (verseNumber: number) => void;
   /** Callback when plain text is long-pressed (create new highlight for entire verse) */
   onVerseLongPress?: (verseNumber: number) => void;
   /** Style override for base text */
@@ -100,8 +104,10 @@ export function HighlightedText({
   verseNumber,
   highlights = [],
   autoHighlights = [],
-  onHighlightPress,
+  onHighlightTap,
+  onHighlightLongPress,
   onAutoHighlightPress,
+  onVerseTap,
   onVerseLongPress,
   style,
   ...textProps
@@ -240,19 +246,43 @@ export function HighlightedText({
   }, [text, highlights, autoHighlights, verseNumber]);
 
   /**
-   * Handle tap on a text segment
-   * Different behavior for user highlights vs auto-highlights
+   * Handle tap on a user highlight segment
+   * Shows grouped/single highlight tooltip
    */
-  const handleSegmentPress = (segment: TextSegment) => {
-    if (segment.highlight && onHighlightPress) {
-      // Haptic feedback on highlighted text tap
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onHighlightPress(segment.highlight.highlight_id);
-    } else if (segment.autoHighlight && onAutoHighlightPress) {
-      // Haptic feedback on auto-highlight tap
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onAutoHighlightPress(segment.autoHighlight);
-    }
+  const handleHighlightTap = (highlightId: number) => {
+    if (!onHighlightTap) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onHighlightTap(highlightId);
+  };
+
+  /**
+   * Handle long-press on a user highlight segment
+   * Opens quick edit menu
+   */
+  const handleHighlightLongPress = (highlightId: number) => {
+    if (!onHighlightLongPress) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onHighlightLongPress(highlightId);
+  };
+
+  /**
+   * Handle tap on auto-highlight segment
+   * Shows auto-highlight tooltip
+   */
+  const handleAutoHighlightPress = (autoHighlight: AutoHighlight) => {
+    if (!onAutoHighlightPress) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onAutoHighlightPress(autoHighlight);
+  };
+
+  /**
+   * Handle tap on plain text
+   * Shows verse insight tooltip
+   */
+  const handleVerseTap = async () => {
+    if (!onVerseTap) return;
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onVerseTap(verseNumber);
   };
 
   /**
@@ -261,7 +291,6 @@ export function HighlightedText({
    */
   const handleVerseLongPress = async () => {
     if (!onVerseLongPress) return;
-
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onVerseLongPress(verseNumber);
   };
@@ -269,10 +298,10 @@ export function HighlightedText({
   return (
     <Text
       style={style}
-      onLongPress={handleVerseLongPress}
       // TODO: Temporary disable - native text selection shows immediately on any touch/scroll
       // Consider building custom text selection UI with 300ms delay to prevent accidental triggers
       selectable={false}
+      onLongPress={handleVerseLongPress}
       suppressHighlighting={true}
       {...textProps}
     >
@@ -300,7 +329,8 @@ export function HighlightedText({
             <Text
               key={segmentKey}
               style={highlightStyle}
-              onLongPress={() => handleSegmentPress(segment)}
+              onPress={() => handleHighlightTap(segment.highlight!.highlight_id)}
+              onLongPress={() => handleHighlightLongPress(segment.highlight!.highlight_id)}
               suppressHighlighting={true}
             >
               {segment.text}
@@ -330,7 +360,7 @@ export function HighlightedText({
             <Text
               key={segmentKey}
               style={autoHighlightStyle}
-              onPress={() => handleSegmentPress(segment)}
+              onPress={() => handleAutoHighlightPress(segment.autoHighlight!)}
               suppressHighlighting={true}
             >
               {segment.text}
@@ -340,7 +370,12 @@ export function HighlightedText({
 
         // Plain text segment
         return (
-          <Text key={segmentKey} suppressHighlighting={true}>
+          <Text
+            key={segmentKey}
+            onPress={handleVerseTap}
+            onLongPress={handleVerseLongPress}
+            suppressHighlighting={true}
+          >
             {segment.text}
           </Text>
         );

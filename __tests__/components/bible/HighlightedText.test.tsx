@@ -166,15 +166,15 @@ describe('HighlightedText', () => {
     expect(greenSegment).toBeTruthy();
   });
 
-  it('should trigger onHighlightPress when long-pressing highlighted text', () => {
-    const mockOnHighlightPress = jest.fn();
+  it('should trigger onHighlightLongPress when long-pressing highlighted text', () => {
+    const mockOnHighlightLongPress = jest.fn();
 
     const { root } = render(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
         highlights={[mockHighlight]}
-        onHighlightPress={mockOnHighlightPress}
+        onHighlightLongPress={mockOnHighlightLongPress}
       />
     );
 
@@ -191,10 +191,10 @@ describe('HighlightedText', () => {
     }
 
     // Verify callback was called with highlight_id
-    expect(mockOnHighlightPress).toHaveBeenCalledWith(1);
+    expect(mockOnHighlightLongPress).toHaveBeenCalledWith(1);
 
     // Verify haptic feedback
-    expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
+    expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
   });
 
   it('should handle multiple non-overlapping highlights in same verse', () => {

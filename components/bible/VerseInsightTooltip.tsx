@@ -1,16 +1,20 @@
 /**
- * AutoHighlightTooltip Component
+ * VerseInsightTooltip Component
  *
- * Displays information about an AI-generated auto-highlight.
- * Shows theme name, relevance score, and option to save as user highlight.
+ * Displays verse insight (by-line explanation) for any Bible verse.
+ * Shown when user taps on a plain (non-highlighted) verse.
  *
- * Shown as a bottom sheet modal when user taps on an auto-highlighted verse.
+ * Features:
+ * - Bottom sheet modal with slide-up animation
+ * - Shows verse reference as title (e.g., "Genesis 1:1")
+ * - Displays verse insight (always expanded)
+ * - "Save as My Highlight" button -> opens color picker
+ * - Identical animations/UX to AutoHighlightTooltip
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   Modal,
@@ -24,47 +28,44 @@ import {
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
-import type { HighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleByLine } from '@/src/api/generated/hooks';
-import type { AutoHighlight } from '@/types/auto-highlights';
-import {
-  extractVerseTextFromByLine,
-  parseByLineExplanation,
-} from '@/utils/bible/parseByLineExplanation';
+import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
 
-interface AutoHighlightTooltipProps {
-  /** Auto-highlight to display info for */
-  autoHighlight: AutoHighlight | null;
+interface VerseInsightTooltipProps {
+  /** Verse number to display insight for */
+  verseNumber: number | null;
+  /** Book ID */
+  bookId: number;
+  /** Chapter number */
+  chapterNumber: number;
+  /** Book name for title */
+  bookName: string;
   /** Whether modal is visible */
   visible: boolean;
   /** Callback to close modal */
   onClose: () => void;
-  /** Callback to save auto-highlight as user highlight */
-  onSaveAsUserHighlight: (
-    color: HighlightColor,
-    verseRange: { start: number; end: number },
-    selectedText?: string
-  ) => void;
-  /** Callback when save is successful */
-  onSaveSuccess?: () => void;
+  /** Callback when user wants to save as highlight (triggers color picker) */
+  onSaveAsHighlight: () => void;
   /** Whether user is logged in */
   isLoggedIn: boolean;
 }
 
 /**
- * AutoHighlightTooltip Component
+ * VerseInsightTooltip Component
  *
- * Bottom sheet modal showing auto-highlight details and actions.
+ * Bottom sheet modal showing verse insight and option to save as highlight.
  */
-export function AutoHighlightTooltip({
-  autoHighlight,
+export function VerseInsightTooltip({
+  verseNumber,
+  bookId,
+  chapterNumber,
+  bookName,
   visible,
   onClose,
-  onSaveAsUserHighlight,
-  onSaveSuccess,
+  onSaveAsHighlight,
   isLoggedIn,
-}: AutoHighlightTooltipProps) {
+}: VerseInsightTooltipProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { styles, markdownStyles } = useMemo(
@@ -75,37 +76,27 @@ export function AutoHighlightTooltip({
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
 
-  // State for showing verse insight (expanded view)
-  const [expanded, setExpanded] = useState(false);
-
   // Get screen height to start modal completely off-screen
   const screenHeight = Dimensions.get('window').height;
 
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(0)).current; // 0: collapsed, 1: expanded
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
-    autoHighlight?.book_id || 0,
-    autoHighlight?.chapter_number || 0,
+    bookId,
+    chapterNumber,
     undefined,
-    { enabled: !!autoHighlight && visible }
+    { enabled: !!verseNumber && visible }
   );
 
-  // Parse the insight for the specific verses
+  // Parse the insight for the specific verse
   const insightText = useMemo(() => {
-    if (!byLineData?.content || !autoHighlight) return null;
+    if (!byLineData?.content || !verseNumber) return null;
 
-    return parseByLineExplanation(
-      byLineData.content,
-      '',
-      autoHighlight.chapter_number,
-      autoHighlight.start_verse,
-      autoHighlight.end_verse
-    );
-  }, [byLineData, autoHighlight]);
+    return parseByLineExplanation(byLineData.content, '', chapterNumber, verseNumber, verseNumber);
+  }, [byLineData, chapterNumber, verseNumber]);
 
   // Helper to animate open
   const animateOpen = useCallback(() => {
@@ -146,26 +137,13 @@ export function AutoHighlightTooltip({
       ]).start();
 
       // Force cleanup after 150ms to prevent "spring tail" blocking the UI
-      // This ensures the modal unmounts deterministically, fixing the double-click bug
       setTimeout(() => {
         setInternalVisible(false);
-        setExpanded(false); // Reset expansion state
-        expansionAnim.setValue(0);
         if (callback) callback();
       }, 150);
     },
-    [backdropOpacity, slideAnim, screenHeight, expansionAnim]
+    [backdropOpacity, slideAnim, screenHeight]
   );
-
-  // Handle expansion animation
-  useEffect(() => {
-    Animated.spring(expansionAnim, {
-      toValue: expanded ? 1 : 0,
-      useNativeDriver: false, // Height animation requires false
-      damping: 20,
-      stiffness: 90,
-    }).start();
-  }, [expanded, expansionAnim]);
 
   // Watch for prop changes to trigger animations
   useEffect(() => {
@@ -183,18 +161,20 @@ export function AutoHighlightTooltip({
     });
   };
 
+  // Handle save as highlight
+  const handleSave = () => {
+    animateClose(() => {
+      onSaveAsHighlight();
+    });
+  };
+
   // Keep refs for PanResponder closure
   const dismissRef = useRef(handleDismiss);
-  const expandRef = useRef((val: boolean) => setExpanded(val));
-  const isExpandedRef = useRef(expanded);
-
   useEffect(() => {
     dismissRef.current = handleDismiss;
-    expandRef.current = setExpanded;
-    isExpandedRef.current = expanded;
   });
 
-  // Pan responder for swipe-to-dismiss AND expand
+  // Pan responder for swipe-to-dismiss
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -208,12 +188,8 @@ export function AutoHighlightTooltip({
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        // Swipe Up -> Expand (if not already)
-        if (gestureState.dy < -50 && !isExpandedRef.current) {
-          expandRef.current(true);
-        }
         // Swipe Down -> Dismiss
-        else if (gestureState.dy > 70) {
+        if (gestureState.dy > 70) {
           dismissRef.current();
         }
         // Snap back if dragged down but not enough
@@ -229,51 +205,12 @@ export function AutoHighlightTooltip({
     })
   ).current;
 
-  // Don't render anything if we have no data (unless animating out, handled by internalVisible/Modal)
-  if (!autoHighlight && !internalVisible) return null;
-  if (!autoHighlight) return null;
+  // Don't render anything if we have no data
+  if (!verseNumber && !internalVisible) return null;
+  if (!verseNumber) return null;
 
-  const handleSave = () => {
-    if (!isLoggedIn) {
-      Alert.alert('Sign In Required', 'Please sign in to save highlights to your collection.', [
-        { text: 'OK' },
-      ]);
-      return;
-    }
-
-    // Extract verse text for the highlight
-    const verseText =
-      byLineData?.content && autoHighlight
-        ? extractVerseTextFromByLine(
-            byLineData.content,
-            autoHighlight.chapter_number,
-            autoHighlight.start_verse,
-            autoHighlight.end_verse
-          )
-        : undefined;
-
-    onSaveAsUserHighlight(
-      autoHighlight.theme_color,
-      {
-        start: autoHighlight.start_verse,
-        end: autoHighlight.end_verse, // Use end_verse for multi-verse highlights
-      },
-      verseText || undefined
-    );
-    onSaveSuccess?.();
-    handleDismiss();
-  };
-
-  // Interpolate values for expansion animation
-  const insightMaxHeight = expansionAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 400], // Expand to a reasonable max height
-  });
-
-  const insightOpacity = expansionAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 0, 1],
-  });
+  // Build verse reference title (e.g., "Genesis 1:1")
+  const verseReference = `${bookName} ${chapterNumber}:${verseNumber}`;
 
   return (
     <Modal
@@ -284,7 +221,7 @@ export function AutoHighlightTooltip({
     >
       {/* Main Container - positions content at bottom */}
       <View style={styles.overlay}>
-        {/* Animated Backdrop - Absolute positioned behind content */}
+        {/* Animated Backdrop */}
         <Animated.View
           style={[styles.backdrop, { opacity: backdropOpacity }]}
           pointerEvents="box-none"
@@ -306,70 +243,31 @@ export function AutoHighlightTooltip({
           <View style={styles.contentContainer}>
             <View style={styles.scrollContainer}>
               <View {...panResponder.panHandlers}>
-                {/* Title */}
-                <Text style={styles.title}>{autoHighlight.theme_name}</Text>
-
-                <View style={styles.infoContainer}>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.label}>Relevance:</Text>
-                    <Text style={styles.value}>{autoHighlight.relevance_score} / 5</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <Text style={styles.label}>Type:</Text>
-                    <Text style={styles.value}>Auto-generated highlight</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <Text style={styles.label}>Verse Range:</Text>
-                    <Text style={styles.value}>
-                      {autoHighlight.start_verse === autoHighlight.end_verse
-                        ? `Verse ${autoHighlight.start_verse}`
-                        : `Verses ${autoHighlight.start_verse}-${autoHighlight.end_verse}`}
-                    </Text>
-                  </View>
-                </View>
+                {/* Title - Verse Reference */}
+                <Text style={styles.title}>{verseReference}</Text>
               </View>
 
-              {/* Insight Section (Expandable) */}
+              {/* Insight Section (Always Visible) */}
               <View style={styles.insightContainer}>
-                <Pressable
-                  style={styles.insightToggle}
-                  onPress={() => setExpanded(!expanded)}
-                  hitSlop={10}
-                  {...panResponder.panHandlers}
-                >
-                  <Text style={styles.insightToggleText}>
-                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
-                  </Text>
-                </Pressable>
-
-                <Animated.View
-                  style={[
-                    styles.insightContentWrapper,
-                    { maxHeight: insightMaxHeight, opacity: insightOpacity },
-                  ]}
-                >
-                  {isByLineLoading ? (
-                    <View style={styles.loadingContainer}>
-                      <ActivityIndicator size="small" color={colors.gold} />
-                    </View>
-                  ) : insightText ? (
-                    <ScrollView
-                      style={styles.insightScroll}
-                      contentContainerStyle={styles.insightScrollContent}
-                      showsVerticalScrollIndicator={false}
-                    >
-                      <Markdown style={markdownStyles}>{insightText}</Markdown>
-                    </ScrollView>
-                  ) : (
-                    <View style={styles.emptyInsightContainer}>
-                      <Text style={styles.insightEmptyText}>
-                        No specific insight available for this verse.
-                      </Text>
-                    </View>
-                  )}
-                </Animated.View>
+                {isByLineLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={colors.gold} />
+                  </View>
+                ) : insightText ? (
+                  <ScrollView
+                    style={styles.insightScroll}
+                    contentContainerStyle={styles.insightScrollContent}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <Markdown style={markdownStyles}>{insightText}</Markdown>
+                  </ScrollView>
+                ) : (
+                  <View style={styles.emptyInsightContainer}>
+                    <Text style={styles.insightEmptyText}>
+                      No specific insight available for this verse.
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -387,7 +285,7 @@ export function AutoHighlightTooltip({
               ) : (
                 <View style={styles.loginPrompt}>
                   <Text style={styles.loginPromptText}>
-                    Sign in to save this highlight to your collection
+                    Sign in to save this verse to your collection
                   </Text>
                 </View>
               )}
@@ -400,7 +298,7 @@ export function AutoHighlightTooltip({
 }
 
 /**
- * Creates all styles for AutoHighlightTooltip component
+ * Creates all styles for VerseInsightTooltip component
  * Returns both component styles and markdown styles in a single factory
  */
 const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number) => {
@@ -423,10 +321,10 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     contentContainer: {
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
-      flexShrink: 1, // Ensure container shrinks if max height is reached
+      flexShrink: 1,
     },
     scrollContainer: {
-      flexShrink: 1, // Allow ScrollView to shrink to accommodate footer
+      flexShrink: 1,
     },
     header: {
       alignItems: 'center',
@@ -445,34 +343,14 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       color: colors.textPrimary,
       marginBottom: spacing.lg,
     },
-    infoContainer: {
-      marginBottom: spacing.lg,
-    },
-    infoRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
-    },
-    label: {
-      fontSize: fontSizes.body,
-      color: colors.textSecondary,
-      fontWeight: fontWeights.regular,
-    },
-    value: {
-      fontSize: fontSizes.body,
-      color: colors.textPrimary,
-      fontWeight: fontWeights.medium,
-    },
     actionsContainer: {
       gap: spacing.sm,
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
-      paddingBottom: spacing.xl, // Bottom padding for safe area/aesthetics
+      paddingBottom: spacing.xl,
       borderTopWidth: 1,
-      borderTopColor: colors.divider, // Optional separator
-      backgroundColor: colors.backgroundElevated, // Ensure opaque background
+      borderTopColor: colors.divider,
+      backgroundColor: colors.backgroundElevated,
     },
     primaryButton: {
       backgroundColor: colors.gold,
@@ -513,33 +391,15 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     },
     insightContainer: {
       marginBottom: spacing.lg,
-      borderTopWidth: 1,
-      borderTopColor: colors.divider,
-      paddingTop: spacing.md,
-      flexShrink: 1, // Allow container to shrink
-      minHeight: 0, // Necessary for flex shrink to work in some cases
-    },
-    insightToggle: {
-      paddingVertical: spacing.sm,
-      alignItems: 'center',
-      marginBottom: spacing.xs,
-    },
-    insightToggleText: {
-      fontSize: fontSizes.bodySmall,
-      color: colors.gold,
-      fontWeight: fontWeights.semibold,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    insightContentWrapper: {
-      overflow: 'hidden',
-      flexShrink: 1, // Allow wrapper to shrink
+      flexShrink: 1,
+      minHeight: 0,
     },
     insightScroll: {
       backgroundColor: colors.background,
       borderRadius: 8,
       borderWidth: 1,
       borderColor: colors.border,
+      maxHeight: 400,
     },
     insightScrollContent: {
       padding: spacing.md,
@@ -565,16 +425,16 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
 
   /**
    * Markdown Styles
-   * Adapts standard markdown styling for the tooltip context (smaller fonts)
+   * Adapts standard markdown styling for the tooltip context
    */
   const markdownStyles = StyleSheet.create({
     body: {
-      fontSize: fontSizes.body, // 16px
+      fontSize: fontSizes.body,
       lineHeight: fontSizes.body * 1.5,
       color: colors.textPrimary,
     },
     heading1: {
-      fontSize: fontSizes.heading3, // Smaller than main view
+      fontSize: fontSizes.heading3,
       fontWeight: fontWeights.bold,
       color: colors.textPrimary,
       marginBottom: spacing.xs,
