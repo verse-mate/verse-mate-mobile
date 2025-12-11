@@ -76,3 +76,4 @@ build_output.json
 .deployment/build_id_production_*.txt
 bugs.txt
 review.md
+.env
