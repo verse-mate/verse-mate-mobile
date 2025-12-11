@@ -22,6 +22,7 @@ import {
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -65,7 +66,11 @@ export function AutoHighlightTooltip({
   isLoggedIn,
 }: AutoHighlightTooltipProps) {
   const { colors } = useTheme();
-  const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  const { styles, markdownStyles } = useMemo(
+    () => createStyles(colors, insets.bottom),
+    [colors, insets.bottom]
+  );
 
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
@@ -282,13 +287,16 @@ export function AutoHighlightTooltip({
         {/* Animated Backdrop - Absolute positioned behind content */}
         <Animated.View
           style={[styles.backdrop, { opacity: backdropOpacity }]}
-          {...panResponder.panHandlers}
+          pointerEvents="box-none"
         >
           <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
         </Animated.View>
 
         {/* Animated Modal Content */}
-        <Animated.View style={[styles.container, { transform: [{ translateY: slideAnim }] }]}>
+        <Animated.View
+          style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
+          pointerEvents="auto"
+        >
           {/* Header with pan responder for swipe */}
           <View style={styles.header} {...panResponder.panHandlers}>
             <View style={styles.handle} />
@@ -366,7 +374,7 @@ export function AutoHighlightTooltip({
             </View>
 
             {/* Actions Footer */}
-            <View style={styles.actionsContainer} {...panResponder.panHandlers}>
+            <View style={styles.actionsContainer}>
               {isLoggedIn ? (
                 <>
                   <Pressable style={styles.primaryButton} onPress={handleSave}>
@@ -395,7 +403,7 @@ export function AutoHighlightTooltip({
  * Creates all styles for AutoHighlightTooltip component
  * Returns both component styles and markdown styles in a single factory
  */
-const createStyles = (colors: ReturnType<typeof getColors>) => {
+const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
@@ -410,6 +418,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) => {
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       maxHeight: '80%',
+      paddingBottom: bottomInset, // Extend into safe area
     },
     contentContainer: {
       paddingHorizontal: spacing.lg,

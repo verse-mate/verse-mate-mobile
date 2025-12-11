@@ -1,9 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { colors } from '@/constants/bible-design-tokens';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { AutoHighlight } from '@/types/auto-highlights';
+
+// Mock safe area insets
+jest.mock('react-native-safe-area-context', () => ({
+  ...jest.requireActual('react-native-safe-area-context'),
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
 
 // Mock the hook
 jest.mock('@/src/api/generated/hooks', () => ({
@@ -50,6 +56,14 @@ describe('AutoHighlightTooltip', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Use fake timers to control animations
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    // Restore real timers
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
   });
 
   it('renders correctly when visible', () => {
@@ -62,6 +76,11 @@ describe('AutoHighlightTooltip', () => {
         isLoggedIn={true}
       />
     );
+
+    // Advance timers to complete animations
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
 
     expect(screen.getByText('Gods Love')).toBeTruthy();
     expect(screen.getByText('Auto-generated highlight')).toBeTruthy();
@@ -95,6 +114,11 @@ describe('AutoHighlightTooltip', () => {
       />
     );
 
+    // Advance timers to complete animations
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
     const saveButton = screen.getByText('Save as My Highlight');
     fireEvent.press(saveButton);
 
@@ -117,11 +141,16 @@ describe('AutoHighlightTooltip', () => {
       />
     );
 
+    // Advance timers to complete animations
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
     expect(screen.queryByText('Save as My Highlight')).toBeNull();
     expect(screen.getByText('Sign in to save this highlight to your collection')).toBeTruthy();
   });
 
-  it('shows parsed insight when toggle is clicked', async () => {
+  it('shows parsed insight when toggle is clicked', () => {
     renderWithProviders(
       <AutoHighlightTooltip
         autoHighlight={mockAutoHighlight}
@@ -132,12 +161,20 @@ describe('AutoHighlightTooltip', () => {
       />
     );
 
-    const toggleButton = screen.getByText('View Verse Insight');
-    fireEvent.press(toggleButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Hide Verse Insight')).toBeTruthy();
-      expect(screen.getByText(/God loved the world so much/)).toBeTruthy();
+    // Advance timers to complete animations
+    act(() => {
+      jest.advanceTimersByTime(500);
     });
+
+    const toggleButton = screen.getByText('View Verse Insight');
+
+    act(() => {
+      fireEvent.press(toggleButton);
+      // Advance timers for expansion animation
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(screen.getByText('Hide Verse Insight')).toBeTruthy();
+    expect(screen.getByText(/God loved the world so much/)).toBeTruthy();
   });
 });

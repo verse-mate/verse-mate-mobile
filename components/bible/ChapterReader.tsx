@@ -5,20 +5,24 @@
  * Supports three reading modes via activeTab prop: summary, byline, detailed.
  *
  * Features:
- * - Chapter title (displayMedium: 32px, bold) with bookmark and notes buttons on the right
+ * - Chapter title (displayMedium: 32px, bold) with bookmark, notes, and share buttons on the right
  * - Section subtitles (heading2: 20px, semibold)
  * - Verse range captions (caption: 12px, gray500)
  * - Bible text with superscript verse numbers
  * - Markdown rendering for explanation content
  * - Text highlighting with character-level precision
+ * - Notes management via modals
+ * - Share functionality for chapter links
  *
  * @see Spec lines 778-821 (Markdown rendering)
  * @see Task Group 4: Add Bookmark Toggle to Chapter Reading Screen
  * @see Task Group 5: Chapter View Highlight Integration
+ * @see Task Group 6: Screen Integration - NotesButton and Modals
+ * @see Task Group 3: Share Button and UI Integration
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
@@ -27,7 +31,13 @@ import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
 import type { TextSelection } from '@/components/bible/HighlightedText';
 import { HighlightedText } from '@/components/bible/HighlightedText';
 import { HighlightSelectionSheet } from '@/components/bible/HighlightSelectionSheet';
+import { ManualHighlightTooltip } from '@/components/bible/ManualHighlightTooltip';
 import { NotesButton } from '@/components/bible/NotesButton';
+import { NotesModal } from '@/components/bible/NotesModal';
+import { NoteViewModal } from '@/components/bible/NoteViewModal';
+import { ShareButton } from '@/components/bible/ShareButton';
+import { SimpleColorPickerModal } from '@/components/bible/SimpleColorPickerModal';
+import { VerseInsightTooltip } from '@/components/bible/VerseInsightTooltip';
 import {
   fontSizes,
   fontWeights,
@@ -45,6 +55,11 @@ import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 import { useAuth } from '@/hooks/use-auth';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
+import {
+  findGroupByHighlightId,
+  groupConsecutiveHighlights,
+  type HighlightGroup,
+} from '@/utils/bible/groupConsecutiveHighlights';
 
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
@@ -286,6 +301,27 @@ export function ChapterReader({
   const [autoHighlightTooltipVisible, setAutoHighlightTooltipVisible] = useState(false);
   const [selectedAutoHighlight, setSelectedAutoHighlight] = useState<AutoHighlight | null>(null);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('An error occurred. Please try again.');
+
+  // New tooltip modal state
+  const [verseInsightTooltipVisible, setVerseInsightTooltipVisible] = useState(false);
+  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
+  const [manualHighlightTooltipVisible, setManualHighlightTooltipVisible] = useState(false);
+  const [selectedHighlightGroup, setSelectedHighlightGroup] = useState<HighlightGroup | null>(null);
+  const [colorPickerModalVisible, setColorPickerModalVisible] = useState(false);
+
+  // Group consecutive manual highlights
+  const highlightGroups = useMemo(() => {
+    return groupConsecutiveHighlights(chapterHighlights);
+  }, [chapterHighlights]);
+
+  /**
+   * Show error modal with custom message
+   */
+  const showError = (message: string) => {
+    setErrorMessage(message);
+    setErrorModalVisible(true);
+  };
 
   /**
    * Handle layout of a verse/paragraph
@@ -339,6 +375,14 @@ export function ChapterReader({
 
     const { verseNumber, selection } = selectionContext;
 
+    // Get the verse to check if this is a full-verse highlight
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === verseNumber);
+
+    // Check if selection covers the entire verse
+    const isFullVerse = verse && selection.start === 0 && selection.end === verse.text.length;
+
     try {
       await addHighlight({
         bookId: chapter.bookId,
@@ -346,9 +390,14 @@ export function ChapterReader({
         startVerse: verseNumber,
         endVerse: verseNumber,
         color,
-        startChar: selection.start,
-        endChar: selection.end,
-        selectedText: selection.text,
+        // Only include startChar/endChar for partial verse highlights
+        ...(isFullVerse
+          ? { selectedText: selection.text }
+          : {
+              startChar: selection.start,
+              endChar: selection.end,
+              selectedText: selection.text,
+            }),
       });
 
       setSelectionSheetVisible(false);
@@ -356,27 +405,65 @@ export function ChapterReader({
     } catch (error) {
       console.error('Failed to create highlight:', error);
 
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.toLowerCase().includes('overlap')) {
-        Alert.alert(
-          'Highlight Overlap',
-          'This text overlaps with an existing highlight. Please delete the existing highlight first or select different text.',
-          [{ text: 'OK', style: 'default' }]
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.toLowerCase().includes('overlap')) {
+        showError(
+          'This text overlaps with an existing highlight. Please delete the existing highlight first or select different text.'
         );
       } else {
-        Alert.alert('Error', 'Failed to create highlight. Please try again.', [
-          { text: 'OK', style: 'default' },
-        ]);
+        showError('Failed to create highlight. Please try again.');
       }
     }
   };
 
   /**
    * Handle tap on highlighted text
+   * Shows grouped tooltip if part of consecutive group, otherwise shows tooltip for single highlight
    */
-  const handleHighlightPress = (highlightId: number) => {
+  const handleHighlightTap = (highlightId: number) => {
+    // Try to find in grouped highlights first (full-verse highlights only)
+    let group = findGroupByHighlightId(highlightGroups, highlightId);
+
+    // If not found, it's a character-level highlight - create a single-item group for it
+    if (!group) {
+      const highlight = chapterHighlights.find((h) => h.highlight_id === highlightId);
+      if (highlight) {
+        group = {
+          highlights: [highlight],
+          startVerse: highlight.start_verse,
+          endVerse: highlight.end_verse,
+          color: highlight.color,
+          isGrouped: false,
+        };
+      }
+    }
+
+    if (group) {
+      setSelectedHighlightGroup(group);
+      setManualHighlightTooltipVisible(true);
+    } else {
+      // Fallback: open edit menu for robustness (e.g. stale ID or failed grouping)
+      setSelectedHighlightId(highlightId);
+      setEditMenuVisible(true);
+    }
+  };
+
+  /**
+   * Handle long-press on highlighted text
+   * Shows quick edit menu
+   */
+  const handleHighlightLongPress = (highlightId: number) => {
     setSelectedHighlightId(highlightId);
     setEditMenuVisible(true);
+  };
+
+  /**
+   * Handle tap on plain text
+   * Shows verse insight tooltip
+   */
+  const handleVerseTap = (verseNumber: number) => {
+    setSelectedVerse(verseNumber);
+    setVerseInsightTooltipVisible(true);
   };
 
   /**
@@ -423,9 +510,7 @@ export function ChapterReader({
       setSelectedHighlightId(null);
     } catch (error) {
       console.error('Failed to update highlight color:', error);
-      Alert.alert('Error', 'Failed to update highlight color. Please try again.', [
-        { text: 'OK', style: 'default' },
-      ]);
+      showError('Failed to update highlight color. Please try again.');
     }
   };
 
@@ -441,9 +526,7 @@ export function ChapterReader({
       setSelectedHighlightId(null);
     } catch (error) {
       console.error('Failed to delete highlight:', error);
-      Alert.alert('Error', 'Failed to delete highlight. Please try again.', [
-        { text: 'OK', style: 'default' },
-      ]);
+      showError('Failed to delete highlight. Please try again.');
     }
   };
 
@@ -463,12 +546,92 @@ export function ChapterReader({
     setSelectedHighlightId(null);
   };
 
+  /**
+   * Handle remove grouped highlights
+   */
+  const handleRemoveHighlightGroup = async (group: HighlightGroup) => {
+    // Close modal immediately to prevent re-opening after highlights are deleted
+    setManualHighlightTooltipVisible(false);
+    setSelectedHighlightGroup(null);
+
+    try {
+      // Delete all highlights in the group
+      await Promise.all(group.highlights.map((h) => deleteHighlight(h.highlight_id)));
+      showToast('Highlight group removed');
+    } catch (error) {
+      console.error('Failed to remove highlight group:', error);
+      showError('Failed to remove highlight group. Please try again.');
+    }
+  };
+
+  /**
+   * Handle save from verse insight tooltip
+   * Opens color picker modal
+   */
+  const handleSaveFromVerseInsight = () => {
+    // Close verse insight tooltip and open color picker
+    setVerseInsightTooltipVisible(false);
+    setColorPickerModalVisible(true);
+  };
+
+  /**
+   * Handle color selection from SimpleColorPickerModal
+   * Creates highlight for the selected verse
+   */
+  const handleColorPickerSave = async (color: HighlightColor) => {
+    if (!selectedVerse) return;
+
+    // Store verse number locally before resetting state
+    const verseNumber = selectedVerse;
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === verseNumber);
+
+    if (!verse) return;
+
+    // Close modal and reset state immediately to prevent re-opening
+    setColorPickerModalVisible(false);
+    setSelectedVerse(null);
+
+    try {
+      await addHighlight({
+        bookId: chapter.bookId,
+        chapterNumber: chapter.chapterNumber,
+        startVerse: verseNumber,
+        endVerse: verseNumber,
+        color,
+        selectedText: verse.text,
+      });
+
+      showToast('Highlight saved!');
+    } catch (error) {
+      console.error('Failed to create highlight from verse insight:', error);
+
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.toLowerCase().includes('overlap')) {
+        showError(
+          'This verse already has a highlight. Please delete the existing highlight first.'
+        );
+      } else {
+        showError('Failed to create highlight. Please try again.');
+      }
+    }
+  };
+
+  /**
+   * Handle close color picker modal
+   */
+  const handleColorPickerClose = () => {
+    setColorPickerModalVisible(false);
+    setSelectedVerse(null);
+  };
+
   const currentHighlight = chapterHighlights.find((h) => h.highlight_id === selectedHighlightId);
   const currentHighlightColor = currentHighlight?.color || 'yellow';
 
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Chapter Title Row with Bookmark and Notes buttons */}
+      {/* Chapter Title Row with Bookmark, Notes, and Share buttons */}
       <View style={styles.titleRow} collapsable={false}>
         <Text style={styles.chapterTitle} accessibilityRole="header">
           {chapter.title}
@@ -484,6 +647,13 @@ export function ChapterReader({
             bookId={chapter.bookId}
             chapterNumber={chapter.chapterNumber}
             onPress={handleNotesPress}
+            size={specs.iconSize}
+            color={colors.textPrimary}
+          />
+          <ShareButton
+            bookId={chapter.bookId}
+            chapterNumber={chapter.chapterNumber}
+            bookName={chapter.bookName}
             size={specs.iconSize}
             color={colors.textPrimary}
           />
@@ -668,8 +838,10 @@ export function ChapterReader({
                                 verseNumber={verse.verseNumber}
                                 highlights={chapterHighlights}
                                 autoHighlights={autoHighlights}
-                                onHighlightPress={handleHighlightPress}
+                                onHighlightTap={handleHighlightTap}
+                                onHighlightLongPress={handleHighlightLongPress}
                                 onAutoHighlightPress={handleAutoHighlightPress}
+                                onVerseTap={handleVerseTap}
                                 onVerseLongPress={handleVerseLongPress}
                                 style={styles.verseText}
                               />
@@ -697,8 +869,10 @@ export function ChapterReader({
                       verseNumber={verse.verseNumber}
                       highlights={chapterHighlights}
                       autoHighlights={autoHighlights}
-                      onHighlightPress={handleHighlightPress}
+                      onHighlightTap={handleHighlightTap}
+                      onHighlightLongPress={handleHighlightLongPress}
                       onAutoHighlightPress={handleAutoHighlightPress}
+                      onVerseTap={handleVerseTap}
                       onVerseLongPress={handleVerseLongPress}
                       style={styles.verseText}
                     />
@@ -755,10 +929,46 @@ export function ChapterReader({
         isLoggedIn={!!user}
       />
 
+      {/* Verse Insight Tooltip */}
+      <VerseInsightTooltip
+        verseNumber={selectedVerse}
+        bookId={chapter.bookId}
+        chapterNumber={chapter.chapterNumber}
+        bookName={chapter.bookName}
+        visible={verseInsightTooltipVisible}
+        onClose={() => {
+          setVerseInsightTooltipVisible(false);
+          setSelectedVerse(null);
+        }}
+        onSaveAsHighlight={handleSaveFromVerseInsight}
+        isLoggedIn={!!user}
+      />
+
+      {/* Manual Highlight Tooltip (Grouped) */}
+      <ManualHighlightTooltip
+        highlightGroup={selectedHighlightGroup}
+        bookId={chapter.bookId}
+        chapterNumber={chapter.chapterNumber}
+        bookName={chapter.bookName}
+        visible={manualHighlightTooltipVisible}
+        onClose={() => {
+          setManualHighlightTooltipVisible(false);
+          setSelectedHighlightGroup(null);
+        }}
+        onRemove={handleRemoveHighlightGroup}
+      />
+
+      {/* Simple Color Picker Modal */}
+      <SimpleColorPickerModal
+        visible={colorPickerModalVisible}
+        onClose={handleColorPickerClose}
+        onSave={handleColorPickerSave}
+      />
+
       {/* Error Modal */}
       <ErrorModal
         visible={errorModalVisible}
-        message="Failed to save highlight. Please try again."
+        message={errorMessage}
         onClose={() => setErrorModalVisible(false)}
       />
     </View>
