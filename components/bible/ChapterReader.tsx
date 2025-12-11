@@ -441,6 +441,10 @@ export function ChapterReader({
     if (group) {
       setSelectedHighlightGroup(group);
       setManualHighlightTooltipVisible(true);
+    } else {
+      // Fallback: open edit menu for robustness (e.g. stale ID or failed grouping)
+      setSelectedHighlightId(highlightId);
+      setEditMenuVisible(true);
     }
   };
 

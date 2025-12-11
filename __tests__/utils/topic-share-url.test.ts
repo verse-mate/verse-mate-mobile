@@ -78,29 +78,29 @@ describe('generateTopicShareUrl', () => {
 describe('parseTopicShareUrl', () => {
   it('parses slug-based EVENT topic URL', () => {
     const result = parseTopicShareUrl('https://app.versemate.org/topic/events/the-resurrection');
-    expect(result).toEqual({ category: 'EVENTS', slug: 'the-resurrection' });
+    expect(result).toEqual({ category: 'EVENT', slug: 'the-resurrection' });
   });
 
   it('parses slug-based PROPHECY topic URL', () => {
     const result = parseTopicShareUrl('https://app.versemate.org/topic/prophecies/the-messiah');
-    expect(result).toEqual({ category: 'PROPHECIES', slug: 'the-messiah' });
+    expect(result).toEqual({ category: 'PROPHECY', slug: 'the-messiah' });
   });
 
   it('parses slug-based PARABLE topic URL', () => {
     const result = parseTopicShareUrl(
       'https://app.versemate.org/topic/parables/the-good-samaritan'
     );
-    expect(result).toEqual({ category: 'PARABLES', slug: 'the-good-samaritan' });
+    expect(result).toEqual({ category: 'PARABLE', slug: 'the-good-samaritan' });
   });
 
   it('parses slug-based THEME topic URL', () => {
     const result = parseTopicShareUrl('https://app.versemate.org/topic/themes/faith-and-hope');
-    expect(result).toEqual({ category: 'THEMES', slug: 'faith-and-hope' });
+    expect(result).toEqual({ category: 'THEME', slug: 'faith-and-hope' });
   });
 
   it('normalizes slug to lowercase', () => {
     const result = parseTopicShareUrl('https://app.versemate.org/topic/events/The-Resurrection');
-    expect(result).toEqual({ category: 'EVENTS', slug: 'the-resurrection' });
+    expect(result).toEqual({ category: 'EVENT', slug: 'the-resurrection' });
   });
 
   it('returns null for malformed URL', () => {

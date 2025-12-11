@@ -189,16 +189,24 @@ function RootLayoutInner() {
     };
 
     // Handle URLs while app is running
-    const subscription = Linking.addEventListener('url', (event) => {
+    const listener = (event: { url: string }) => {
       handleDeepLink(event.url);
-    });
+    };
+
+    const subscription = Linking.addEventListener('url', listener);
 
     // Get initial URL
     getInitialURL();
 
     // Cleanup subscription on unmount
     return () => {
-      subscription.remove();
+      // Robust cleanup that handles different SDK versions
+      if (subscription && typeof subscription.remove === 'function') {
+        subscription.remove();
+      } else if (typeof (Linking as any).removeEventListener === 'function') {
+        // legacy API support
+        (Linking as any).removeEventListener('url', listener);
+      }
     };
   }, [router]);
 
