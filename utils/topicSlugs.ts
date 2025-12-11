@@ -23,16 +23,14 @@ export const TOPIC_CATEGORY_SLUGS: Record<string, string> = {
 
 /**
  * Reverse mapping: URL slug → frontend category
+ * Explicitly defined to ensure canonical singular keys are used (EVENT, not EVENTS)
  */
-export const SLUG_TO_TOPIC_CATEGORY: Record<string, string> = Object.entries(
-  TOPIC_CATEGORY_SLUGS
-).reduce(
-  (acc, [category, slug]) => {
-    acc[slug] = category;
-    return acc;
-  },
-  {} as Record<string, string>
-);
+export const SLUG_TO_TOPIC_CATEGORY: Record<string, string> = {
+  events: 'EVENT',
+  prophecies: 'PROPHECY',
+  parables: 'PARABLE',
+  themes: 'THEME',
+};
 
 /**
  * Get the URL slug for a topic category
@@ -64,14 +62,17 @@ export function isValidCategorySlug(slug: string): boolean {
 /**
  * Generate a URL-friendly slug from a topic title
  * Converts "The Resurrection" → "the-resurrection"
+ * Uses NFKD normalization to handle accents/diacritics gracefully
  * @param title - Topic title
  * @returns URL slug
  */
 export function generateTopicSlug(title: string): string {
-  return title
+  const normalized = title.normalize('NFKD').replace(/[\u0300-\u036f]/g, ''); // remove diacritics
+
+  return normalized
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/[^a-z0-9\s-]/g, '') // ASCII letters/digits/spaces/hyphens only
     .replace(/\s+/g, '-') // Replace spaces with hyphens
     .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
     .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens

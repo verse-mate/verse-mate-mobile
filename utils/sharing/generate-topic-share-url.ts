@@ -74,13 +74,23 @@ export function parseTopicShareUrl(url: string): { category: string; slug: strin
     const urlObj = new URL(url);
     const baseUrlObj = new URL(baseUrl);
 
-    // Verify the URL matches our base URL (host must match)
-    if (urlObj.host !== baseUrlObj.host) {
+    // Verify scheme and host match expected base URL
+    if (urlObj.protocol !== baseUrlObj.protocol || urlObj.host !== baseUrlObj.host) {
       return null;
     }
 
+    // If base URL has a path prefix, ensure it matches and remove it
+    let pathname = urlObj.pathname;
+    const basePath = baseUrlObj.pathname.replace(/\/+$/, '');
+    if (basePath && basePath !== '/') {
+      if (!pathname.startsWith(basePath + '/') && pathname !== basePath) {
+        return null;
+      }
+      pathname = pathname.slice(basePath.length) || '/';
+    }
+
     // Extract path components: /topic/{category-slug}/{topic-slug}
-    const pathParts = urlObj.pathname.split('/').filter(Boolean);
+    const pathParts = pathname.split('/').filter(Boolean);
 
     // Validate path structure
     if (pathParts.length !== 3 || pathParts[0] !== 'topic') {

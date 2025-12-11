@@ -301,6 +301,7 @@ export function HighlightedText({
       // TODO: Temporary disable - native text selection shows immediately on any touch/scroll
       // Consider building custom text selection UI with 300ms delay to prevent accidental triggers
       selectable={false}
+      onLongPress={handleVerseLongPress}
       suppressHighlighting={true}
       {...textProps}
     >
