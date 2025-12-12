@@ -1,0 +1,9 @@
+{
+  "name": "@versemate/dictionary",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "types": "index.ts",
+  "description": "Native dictionary module for VerseMate",
+  "license": "MIT",
+  "author": "VerseMate"
+}
