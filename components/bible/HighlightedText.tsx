@@ -18,13 +18,13 @@
  * @see Visual: after-selected-text-popup.png (highlighted text appearance)
  */
 
+import * as Haptics from 'expo-haptics';
+import { useMemo } from 'react';
+import { type GestureResponderEvent, Text, type TextProps } from 'react-native';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import type { AutoHighlight } from '@/types/auto-highlights';
-import * as Haptics from 'expo-haptics';
-import { useMemo } from 'react';
-import { type GestureResponderEvent, Text, type TextProps } from 'react-native';
 
 /**
  * Opacity value for highlight backgrounds
