@@ -380,6 +380,27 @@ export function ChapterReader({
   };
 
   /**
+   * Handle long-press on verse for creating new highlight
+   */
+  const handleVerseLongPress = (verseNumber: number) => {
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === verseNumber);
+
+    if (!verse) return;
+
+    setSelectionContext({
+      verseNumber,
+      selection: {
+        start: 0,
+        end: verse.text.length,
+        text: verse.text,
+      },
+    });
+    setSelectionSheetVisible(true);
+  };
+
+  /**
    * Handle color selection from HighlightSelectionSheet
    */
   const handleCreateHighlight = async (color: HighlightColor) => {
@@ -1042,7 +1063,7 @@ export function ChapterReader({
                       <Text
                         style={styles.verseTextParagraph}
                         onTextLayout={(e) => handleTextLayout(groupKey, e)}
-                        onLongPress={(e) => handleParagraphTap(e, group, groupKey)}
+                        onPress={(e) => handleParagraphTap(e, group, groupKey)}
                       >
                         {group.map((verse, verseIndex) => {
                           // Determine background color for verse number (from current verse's start)
@@ -1184,6 +1205,7 @@ export function ChapterReader({
                                 onHighlightLongPress={handleHighlightLongPress}
                                 onAutoHighlightPress={handleAutoHighlightPress}
                                 onVerseTap={handleVerseTap}
+                                onVerseLongPress={handleVerseLongPress}
                                 onWordTap={handleWordTap}
                                 activeSelection={
                                   selectedWord?.verseNumber === verse.verseNumber
@@ -1224,8 +1246,9 @@ export function ChapterReader({
                       onHighlightLongPress={handleHighlightLongPress}
                       onAutoHighlightPress={handleAutoHighlightPress}
                       onVerseTap={handleVerseTap}
+                      onVerseLongPress={handleVerseLongPress}
                       onWordTap={handleWordTap}
-                      onLongPress={(e) => handleSingleVerseTap(e, verse)}
+                      onPress={(e) => handleSingleVerseTap(e, verse)}
                       activeSelection={
                         selectedWord?.verseNumber === verse.verseNumber
                           ? {
