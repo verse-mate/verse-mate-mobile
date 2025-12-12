@@ -5,9 +5,18 @@ interface DictionaryModuleInterface {
   showDefinition(word: string): Promise<boolean>;
 }
 
-// Will be null on platforms that don't have a native dictionary (web)
-const DictionaryModule: DictionaryModuleInterface | null =
-  Platform.OS !== 'web' ? requireNativeModule('Dictionary') : null;
+// Will be null on platforms that don't have a native dictionary (web, Expo Go)
+let DictionaryModule: DictionaryModuleInterface | null = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    DictionaryModule = requireNativeModule('Dictionary');
+  } catch (error) {
+    // Native module not available (e.g., running in Expo Go)
+    // This is expected and the module will gracefully degrade
+    console.log('Dictionary native module not available - running in Expo Go or development build without native modules');
+  }
+}
 
 /**
  * Check if the native dictionary has a definition for a word.
