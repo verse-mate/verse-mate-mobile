@@ -21,6 +21,18 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
+import * as Clipboard from 'expo-clipboard';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type GestureResponderEvent,
+  type NativeSyntheticEvent,
+  Share,
+  StyleSheet,
+  Text,
+  type TextLayoutEventData,
+  View,
+} from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { DictionaryModal } from '@/components/bible/DictionaryModal';
@@ -58,18 +70,6 @@ import {
   groupConsecutiveHighlights,
   type HighlightGroup,
 } from '@/utils/bible/groupConsecutiveHighlights';
-import * as Clipboard from 'expo-clipboard';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  type GestureResponderEvent,
-  type NativeSyntheticEvent,
-  Share,
-  StyleSheet,
-  Text,
-  type TextLayoutEventData,
-  View,
-} from 'react-native';
-import Markdown from 'react-native-markdown-display';
 
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
@@ -810,16 +810,22 @@ export function ChapterReader({
   const handleSelectionCopy = useCallback(async () => {
     if (!selectedWord) return;
 
-    // Find the verse to include context
     const verse = chapter.sections
       .flatMap((section) => section.verses)
       .find((v) => v.verseNumber === selectedWord.verseNumber);
 
-    const textToCopy = verse
-      ? `"${selectedWord.word}" - ${chapter.title} ${selectedWord.verseNumber}`
-      : selectedWord.word;
+    let payload = selectedWord.word;
 
-    await Clipboard.setStringAsync(textToCopy);
+    if (verse) {
+      // Prefer exact slice from verse to capture true selection
+      const start = Math.max(0, Math.min(selectedWord.startChar, verse.text.length));
+      const end = Math.max(start, Math.min(selectedWord.endChar, verse.text.length));
+      const selectedSlice = verse.text.slice(start, end) || selectedWord.word;
+
+      payload = `"${selectedSlice}" - ${chapter.title} ${selectedWord.verseNumber}`;
+    }
+
+    await Clipboard.setStringAsync(payload);
     showToast('Copied to clipboard');
     handleSelectionMenuClose();
   }, [selectedWord, chapter, showToast, handleSelectionMenuClose]);

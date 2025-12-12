@@ -21,11 +21,15 @@ public class DictionaryModule: Module {
 
         let referenceVC = UIReferenceLibraryViewController(term: word)
 
-        guard let rootViewController = UIApplication.shared.keyWindow?.rootViewController else {
+        guard
+          let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+          let rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController
+        else {
           return false
         }
 
-        // Find the topmost presented view controller
         var topController = rootViewController
         while let presentedVC = topController.presentedViewController {
           topController = presentedVC
