@@ -452,7 +452,7 @@ function ChapterHeader({
   // Get theme directly inside ChapterHeader (no props drilling)
   const { colors, mode } = useTheme();
   const headerSpecs = getHeaderSpecs(mode);
-  const styles = useMemo(() => createHeaderStyles(headerSpecs), [headerSpecs]);
+  const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
 
   return (
@@ -476,37 +476,38 @@ function ChapterHeader({
 
       {/* Action Icons */}
       <View style={styles.headerActions}>
-        {/* Bible View Icon */}
-        <Pressable
-          onPress={() => onViewChange('bible')}
-          style={styles.iconButton}
-          accessibilityLabel="Bible reading view"
-          accessibilityRole="button"
-          accessibilityState={{ selected: activeView === 'bible' }}
-          testID="bible-view-icon"
-        >
-          <Ionicons
-            name="book-outline"
-            size={headerSpecs.iconSize}
-            color={activeView === 'bible' ? colors.gold : headerSpecs.iconColor}
-          />
-        </Pressable>
-
-        {/* Explanations View Icon */}
-        <Pressable
-          onPress={() => onViewChange('explanations')}
-          style={styles.iconButton}
-          accessibilityLabel="Explanations view"
-          accessibilityRole="button"
-          accessibilityState={{ selected: activeView === 'explanations' }}
-          testID="explanations-view-icon"
-        >
-          <Ionicons
-            name="reader-outline"
-            size={headerSpecs.iconSize}
-            color={activeView === 'explanations' ? colors.gold : headerSpecs.iconColor}
-          />
-        </Pressable>
+        {/* Bible/Commentary Toggle (Figma pill-style) */}
+        <View style={styles.toggleContainer}>
+          <Pressable
+            onPress={() => onViewChange('bible')}
+            style={[styles.toggleButton, activeView === 'bible' && styles.toggleButtonActive]}
+            accessibilityLabel="Bible reading view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'bible' }}
+            testID="bible-view-toggle"
+          >
+            <Text style={[styles.toggleText, activeView === 'bible' && styles.toggleTextActive]}>
+              Bible
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onViewChange('explanations')}
+            style={[
+              styles.toggleButton,
+              activeView === 'explanations' && styles.toggleButtonActive,
+            ]}
+            accessibilityLabel="Commentary view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'explanations' }}
+            testID="commentary-view-toggle"
+          >
+            <Text
+              style={[styles.toggleText, activeView === 'explanations' && styles.toggleTextActive]}
+            >
+              Insight
+            </Text>
+          </Pressable>
+        </View>
 
         {/* Offline Indicator (Task 8.6) */}
         <OfflineIndicator />
@@ -529,7 +530,10 @@ function ChapterHeader({
 /**
  * Creates styles for ChapterHeader component
  */
-const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
+const createHeaderStyles = (
+  headerSpecs: ReturnType<typeof getHeaderSpecs>,
+  themeColors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>
+) =>
   StyleSheet.create({
     header: {
       minHeight: headerSpecs.height,
@@ -562,6 +566,33 @@ const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
       padding: spacing.xs,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    // Figma pill-style toggle
+    toggleContainer: {
+      backgroundColor: '#323232',
+      borderRadius: 100,
+      padding: 4,
+      flexDirection: 'row',
+      gap: 4,
+    },
+    toggleButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 2,
+      borderRadius: 100,
+      minHeight: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    toggleButtonActive: {
+      backgroundColor: themeColors.gold,
+    },
+    toggleText: {
+      fontSize: 14,
+      color: headerSpecs.titleColor,
+      fontWeight: '400',
+    },
+    toggleTextActive: {
+      color: themeColors.black,
     },
   });
 

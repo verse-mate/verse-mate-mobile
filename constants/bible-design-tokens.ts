@@ -57,6 +57,10 @@ export const colors = {
     /** Nearly white for input backgrounds and quote blocks - Contrast ratio: 1.07:1 on white */
     gray50: '#f5f5f5',
 
+    // Figma-specific colors
+    /** Book background - warm cream from Figma design */
+    bookBackground: '#f6f3ec',
+
     // Semantic Colors
     /** Success green - Contrast ratio: 4.76:1 on white (WCAG AA) */
     success: '#4caf50',
@@ -101,12 +105,12 @@ export const colors = {
   },
   dark: {
     // Brand/Accent Colors (adjusted for dark backgrounds)
-    /** Primary gold color - Contrast ratio: 5.2:1 on #121212 (WCAG AA compliant) */
-    gold: '#D4A574',
+    /** Primary gold color - Matches Figma design - Contrast ratio: 4.52:1 on #1b1b1b (WCAG AA compliant) */
+    gold: '#b09a6d',
     /** Light gold for hover states - Contrast ratio: 6.1:1 on #121212 (WCAG AA compliant) */
     goldLight: '#E0B890',
     /** Dark gold for pressed states - Contrast ratio: 4.5:1 on #121212 (WCAG AA compliant) */
-    goldDark: '#B8946B',
+    goldDark: '#9d8759',
 
     // Neutrals (Material Design 3 dark theme)
     /** Pure white for icons on dark backgrounds */
@@ -127,6 +131,12 @@ export const colors = {
     gray100: '#2A2A2A',
     /** Input/card background color */
     gray50: '#1E1E1E',
+
+    // Figma-specific colors
+    /** Header background - from Figma design */
+    darkGrey: '#1b1b1b',
+    /** Secondary grey - from Figma design */
+    grey: '#818990',
 
     // Semantic Colors (adjusted for dark backgrounds)
     /** Success green - Contrast ratio: 4.8:1 on #121212 (WCAG AA) */
@@ -426,12 +436,12 @@ export const headerSpecs = {
   },
   dark: {
     height: 56,
-    backgroundColor: colors.dark.backgroundElevated,
+    backgroundColor: colors.dark.darkGrey,
     titleFontSize: 17,
     titleFontWeight: fontWeights.medium,
-    titleColor: colors.dark.textPrimary,
+    titleColor: colors.dark.white,
     iconSize: 24,
-    iconColor: colors.dark.textPrimary,
+    iconColor: colors.dark.white,
     padding: spacing.lg,
   },
 } as const;
