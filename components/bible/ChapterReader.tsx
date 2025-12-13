@@ -271,7 +271,7 @@ export function ChapterReader({
 }: ChapterReaderProps) {
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, explanationsOnly), [colors, explanationsOnly]);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -990,34 +990,36 @@ export function ChapterReader({
 
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Chapter Title Row with Bookmark, Notes, and Share buttons */}
-      <View style={styles.titleRow} collapsable={false}>
-        <Text style={styles.chapterTitle} accessibilityRole="header">
-          {chapter.title}
-        </Text>
-        <View style={styles.iconButtons}>
-          <BookmarkToggle
-            bookId={chapter.bookId}
-            chapterNumber={chapter.chapterNumber}
-            size={specs.iconSize}
-            color={colors.textPrimary}
-          />
-          <NotesButton
-            bookId={chapter.bookId}
-            chapterNumber={chapter.chapterNumber}
-            onPress={handleNotesPress}
-            size={specs.iconSize}
-            color={colors.textPrimary}
-          />
-          <ShareButton
-            bookId={chapter.bookId}
-            chapterNumber={chapter.chapterNumber}
-            bookName={chapter.bookName}
-            size={specs.iconSize}
-            color={colors.textPrimary}
-          />
+      {/* Chapter Title Row with Bookmark, Notes, and Share buttons - Only show in Bible view */}
+      {!explanationsOnly && (
+        <View style={styles.titleRow} collapsable={false}>
+          <Text style={styles.chapterTitle} accessibilityRole="header">
+            {chapter.title}
+          </Text>
+          <View style={styles.iconButtons}>
+            <BookmarkToggle
+              bookId={chapter.bookId}
+              chapterNumber={chapter.chapterNumber}
+              size={specs.iconSize}
+              color={colors.textPrimary}
+            />
+            <NotesButton
+              bookId={chapter.bookId}
+              chapterNumber={chapter.chapterNumber}
+              onPress={handleNotesPress}
+              size={specs.iconSize}
+              color={colors.textPrimary}
+            />
+            <ShareButton
+              bookId={chapter.bookId}
+              chapterNumber={chapter.chapterNumber}
+              bookName={chapter.bookName}
+              size={specs.iconSize}
+              color={colors.textPrimary}
+            />
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Render Bible verses (only in Bible view) */}
       {!explanationsOnly &&
@@ -1382,7 +1384,7 @@ export function ChapterReader({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>) =>
+const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -1456,9 +1458,9 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       marginBottom: spacing.md,
     },
     explanationContainer: {
-      marginTop: spacing.xxxl,
-      paddingTop: spacing.xxl,
-      borderTopWidth: 1,
+      marginTop: explanationsOnly ? 0 : spacing.xxxl,
+      paddingTop: explanationsOnly ? 0 : spacing.xxl,
+      borderTopWidth: explanationsOnly ? 0 : 1,
       borderTopColor: colors.border,
     },
   });

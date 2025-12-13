@@ -119,30 +119,35 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
 
   return StyleSheet.create({
     container: {
-      backgroundColor: colors.background,
-      paddingVertical: spacing.md,
+      backgroundColor: mode === 'dark' ? '#1b1b1b' : colors.background,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
       paddingHorizontal: spacing.lg,
       borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
+      borderBottomColor: colors.gold,
     },
     tabsRow: {
+      backgroundColor: '#323232',
+      borderRadius: 100,
+      padding: 4,
       flexDirection: 'row',
-      gap: specs.gap,
-      justifyContent: 'flex-start',
+      gap: 4,
+      justifyContent: 'space-between',
     },
     tab: {
-      borderRadius: specs.borderRadius,
-      paddingVertical: specs.paddingVertical,
-      paddingHorizontal: specs.paddingHorizontal,
+      flex: 1,
+      borderRadius: 100,
+      paddingVertical: 2,
+      paddingHorizontal: spacing.lg,
       justifyContent: 'center',
       alignItems: 'center',
-      minWidth: 80, // Ensure consistent sizing
+      minHeight: 28,
     },
     tabActive: {
       backgroundColor: specs.active.backgroundColor,
     },
     tabInactive: {
-      backgroundColor: specs.inactive.backgroundColor,
+      backgroundColor: 'transparent',
     },
     tabPressed: {
       opacity: 0.8, // Visual feedback on press
@@ -152,8 +157,8 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     },
     tabText: {
       fontSize: 14,
-      fontWeight: '600',
-      letterSpacing: 0.25,
+      fontWeight: '400',
+      letterSpacing: 0,
     },
     tabTextActive: {
       color: specs.active.textColor,
