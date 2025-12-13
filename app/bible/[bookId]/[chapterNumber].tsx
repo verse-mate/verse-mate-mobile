@@ -496,7 +496,7 @@ function ChapterHeader({
               styles.toggleButton,
               activeView === 'explanations' && styles.toggleButtonActive,
             ]}
-            accessibilityLabel="Commentary view"
+            accessibilityLabel="Insight view"
             accessibilityRole="button"
             accessibilityState={{ selected: activeView === 'explanations' }}
             testID="commentary-view-toggle"
@@ -542,7 +542,7 @@ const createHeaderStyles = (
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: headerSpecs.padding,
-      paddingBottom: spacing.md,
+      paddingBottom: spacing.sm,
     },
     chapterButton: {
       padding: spacing.xs,
