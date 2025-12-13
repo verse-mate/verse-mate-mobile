@@ -454,69 +454,91 @@ function BibleNavigationModalComponent({
   // Render topic category tabs
   const renderTopicCategoryTabs = () => (
     <View style={styles.categoryTabsContainer}>
-      <Pressable
-        onPress={() => handleTopicCategoryChange('EVENT')}
-        style={styles.categoryTab}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: selectedTopicCategory === 'EVENT' }}
-      >
-        <Text
+      <View style={styles.categoryTabsRow}>
+        <Pressable
+          onPress={() => handleTopicCategoryChange('EVENT')}
           style={[
-            styles.categoryTabText,
-            selectedTopicCategory === 'EVENT' && styles.categoryTabTextActive,
+            styles.categoryTab,
+            selectedTopicCategory === 'EVENT' && styles.categoryTabActive,
           ]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selectedTopicCategory === 'EVENT' }}
         >
-          Events
-        </Text>
-      </Pressable>
+          <Text
+            style={[
+              styles.categoryTabText,
+              selectedTopicCategory === 'EVENT' && styles.categoryTabTextActive,
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            Events
+          </Text>
+        </Pressable>
 
-      <Pressable
-        onPress={() => handleTopicCategoryChange('PROPHECY')}
-        style={styles.categoryTab}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: selectedTopicCategory === 'PROPHECY' }}
-      >
-        <Text
+        <Pressable
+          onPress={() => handleTopicCategoryChange('PROPHECY')}
           style={[
-            styles.categoryTabText,
-            selectedTopicCategory === 'PROPHECY' && styles.categoryTabTextActive,
+            styles.categoryTab,
+            selectedTopicCategory === 'PROPHECY' && styles.categoryTabActive,
           ]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selectedTopicCategory === 'PROPHECY' }}
         >
-          Prophecies
-        </Text>
-      </Pressable>
+          <Text
+            style={[
+              styles.categoryTabText,
+              selectedTopicCategory === 'PROPHECY' && styles.categoryTabTextActive,
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            Prophecies
+          </Text>
+        </Pressable>
 
-      <Pressable
-        onPress={() => handleTopicCategoryChange('PARABLE')}
-        style={styles.categoryTab}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: selectedTopicCategory === 'PARABLE' }}
-      >
-        <Text
+        <Pressable
+          onPress={() => handleTopicCategoryChange('PARABLE')}
           style={[
-            styles.categoryTabText,
-            selectedTopicCategory === 'PARABLE' && styles.categoryTabTextActive,
+            styles.categoryTab,
+            selectedTopicCategory === 'PARABLE' && styles.categoryTabActive,
           ]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selectedTopicCategory === 'PARABLE' }}
         >
-          Parables
-        </Text>
-      </Pressable>
+          <Text
+            style={[
+              styles.categoryTabText,
+              selectedTopicCategory === 'PARABLE' && styles.categoryTabTextActive,
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            Parables
+          </Text>
+        </Pressable>
 
-      <Pressable
-        onPress={() => handleTopicCategoryChange('THEME')}
-        style={styles.categoryTab}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: selectedTopicCategory === 'THEME' }}
-      >
-        <Text
+        <Pressable
+          onPress={() => handleTopicCategoryChange('THEME')}
           style={[
-            styles.categoryTabText,
-            selectedTopicCategory === 'THEME' && styles.categoryTabTextActive,
+            styles.categoryTab,
+            selectedTopicCategory === 'THEME' && styles.categoryTabActive,
           ]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selectedTopicCategory === 'THEME' }}
         >
-          Themes
-        </Text>
-      </Pressable>
+          <Text
+            style={[
+              styles.categoryTabText,
+              selectedTopicCategory === 'THEME' && styles.categoryTabTextActive,
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            Themes
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 
@@ -847,7 +869,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
       borderBottomLeftRadius: 30,
       borderBottomRightRadius: 30,
       paddingTop: spacing.lg + topInset,
-      gap: spacing.md,
+      gap: spacing.lg,
     },
     handleContainer: {
       width: '100%',
@@ -1035,24 +1057,35 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
     },
     // Topics styles
     categoryTabsContainer: {
+      paddingHorizontal: spacing.lg,
+    },
+    categoryTabsRow: {
+      backgroundColor: '#323232',
+      borderRadius: 100,
+      padding: 4,
       flexDirection: 'row',
-      paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      gap: spacing.lg,
+      justifyContent: 'space-between',
+      gap: 4, // Add gap for spacing between pills
     },
     categoryTab: {
-      paddingVertical: spacing.xs,
+      flex: 1,
+      paddingHorizontal: 4, // Reduced padding to fit 4 items
+      paddingVertical: 2,
+      borderRadius: 100,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 28,
+    },
+    categoryTabActive: {
+      backgroundColor: colors.gold,
     },
     categoryTabText: {
-      fontSize: fontSizes.bodySmall,
-      fontWeight: fontWeights.regular,
-      color: colors.textPrimary,
-      lineHeight: fontSizes.bodySmall * lineHeights.ui,
+      fontSize: 13, // Slightly smaller to fit "Prophecies"
+      fontWeight: '400',
+      color: colors.white,
     },
     categoryTabTextActive: {
-      color: colors.gold,
+      color: colors.black,
       fontWeight: fontWeights.medium,
     },
     topicItemContent: {
