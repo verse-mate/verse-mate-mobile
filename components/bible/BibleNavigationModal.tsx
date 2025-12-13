@@ -31,15 +31,28 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+  type GestureStateChangeEvent,
+  type GestureUpdateEvent,
+  type PanGestureHandlerEventPayload,
+} from 'react-native-gesture-handler';
 import Animated, {
+  Extrapolation,
+  interpolate,
   Layout,
   runOnJS,
+  type SharedValue,
+  useAnimatedReaction,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   fontSizes,
   fontWeights,
@@ -70,7 +83,13 @@ interface BibleNavigationModalProps {
   onSelectChapter: (bookId: number, chapter: number) => void;
   /** Callback when user selects a topic */
   onSelectTopic?: (topicId: string, category: TopicCategory) => void;
+  /** Whether to use the native Modal component (default: true) */
+  useModalComponent?: boolean;
+  /** Optional shared value for vertical translation (for external gesture control) */
+  customTranslateY?: SharedValue<number>;
 }
+
+// ... (Interface remains same)
 
 /**
  * BibleNavigationModal - Bottom sheet for book/chapter selection
@@ -82,9 +101,12 @@ function BibleNavigationModalComponent({
   onClose,
   onSelectChapter,
   onSelectTopic,
+  useModalComponent = true,
+  customTranslateY,
 }: BibleNavigationModalProps) {
   const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, mode, insets.top), [colors, mode, insets.top]);
 
   // State for tab type: 'OT', 'NT', or 'TOPICS'
   type TabType = Testament | 'TOPICS';
@@ -101,14 +123,33 @@ function BibleNavigationModalComponent({
   const [selectedTopicCategory, setSelectedTopicCategory] = useState<TopicCategory>('EVENT');
   const [topicFilterText, setTopicFilterText] = useState('');
 
-  // Fetch books and recent books - only when modal is visible
+  // Track if modal is effectively open (visible prop OR dragging down)
+  const [isOpenOrDragging, setIsOpenOrDragging] = useState(visible);
+
+  // Animation values for swipe-to-dismiss
+  const localTranslateY = useSharedValue(-1000);
+  const translateY = customTranslateY || localTranslateY;
+
+  // React to shared value changes to update state for data fetching
+  useAnimatedReaction(
+    () => translateY.value > -900,
+    (isDragging, prevIsDragging) => {
+      if (isDragging !== prevIsDragging) {
+        runOnJS(setIsOpenOrDragging)(isDragging || visible);
+      }
+    },
+    [visible]
+  );
+
+  // Fetch books and recent books - when modal is visible or being dragged
+  const shouldFetchData = visible || isOpenOrDragging;
   const { data: allBooks = [], isLoading: isBooksLoading } = useBibleTestaments(undefined, {
-    enabled: visible,
+    enabled: !!shouldFetchData,
   });
   const { recentBooks } = useRecentBooks();
 
   // Fetch topics data - only when modal is visible and Topics tab is selected
-  const shouldFetchTopics = visible && selectedTab === 'TOPICS';
+  const shouldFetchTopics = !!shouldFetchData && selectedTab === 'TOPICS';
   const hasSearchText = topicFilterText.trim().length > 0;
 
   // When searching, fetch all categories; otherwise fetch only selected category
@@ -158,25 +199,48 @@ function BibleNavigationModalComponent({
     hasSearchText,
   ]);
 
-  // Animation values for swipe-to-dismiss
-  const translateY = useSharedValue(0);
-  const backdropOpacity = useSharedValue(0);
+  const backdropOpacity = useDerivedValue(() => {
+    return interpolate(translateY.value, [-1000, 0], [0, 1], Extrapolation.CLAMP);
+  });
+  const [internalVisible, setInternalVisible] = useState(visible);
 
-  // Reset state when modal becomes visible
+  // Gesture for handling scroll events within the lists
+  const scrollGesture = Gesture.Native();
+
+  // Tap gesture for backdrop to close modal
+  const backdropTapGesture = Gesture.Tap().onEnd(() => {
+    runOnJS(handleClose)();
+  });
+
+  // Handle closing with animation
+  const handleClose = useCallback(() => {
+    translateY.value = withTiming(-1000, { duration: 250 }, (finished) => {
+      if (finished) {
+        runOnJS(onClose)();
+      }
+    });
+  }, [onClose, translateY]);
+
+  // Reset state when modal becomes visible and animate from top (simple slide, no spring)
   useEffect(() => {
     if (visible) {
+      setInternalVisible(true);
       const testament = getTestamentFromBookId(currentBookId);
       setSelectedTab(testament);
       setSelectedTestament(testament);
       setSelectedBookId(null); // Start with book list, not chapter grid
       setFilterText('');
       setTopicFilterText('');
-      translateY.value = 0;
-      backdropOpacity.value = withTiming(1, { duration: 300 });
-    } else {
-      backdropOpacity.value = withTiming(0, { duration: 200 });
+      translateY.value = withTiming(0, { duration: 300 });
+    } else if (!customTranslateY) {
+      // If visible prop becomes false (e.g. parent closed it), animate out
+      translateY.value = withTiming(-1000, { duration: 250 }, (finished) => {
+        if (finished) {
+          runOnJS(setInternalVisible)(false);
+        }
+      });
     }
-  }, [visible, currentBookId, translateY, backdropOpacity]);
+  }, [visible, currentBookId, translateY, customTranslateY]);
 
   // Filter books by testament and filter text
   const filteredBooks = useMemo(() => {
@@ -282,10 +346,10 @@ function BibleNavigationModalComponent({
       if (selectedBookId) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onSelectChapter(selectedBookId, chapter);
-        onClose();
+        handleClose();
       }
     },
-    [selectedBookId, onSelectChapter, onClose]
+    [selectedBookId, onSelectChapter, handleClose]
   );
 
   // Handle topic selection
@@ -294,33 +358,28 @@ function BibleNavigationModalComponent({
       if (onSelectTopic) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onSelectTopic(topicId, selectedTopicCategory);
-        onClose();
+        handleClose();
       }
     },
-    [onSelectTopic, selectedTopicCategory, onClose]
+    [onSelectTopic, selectedTopicCategory, handleClose]
   );
 
   // Swipe-to-dismiss gesture
   const panGesture = Gesture.Pan()
-    .onUpdate((e) => {
-      // Only allow downward swipe
-      if (e.translationY > 0) {
-        translateY.value = e.translationY;
-        // Fade backdrop as user swipes down
-        backdropOpacity.value = Math.max(0, 1 - e.translationY / 300);
-      }
+    .onUpdate((e: GestureUpdateEvent<PanGestureHandlerEventPayload>) => {
+      // Apply resistance when dragging down (positive Y)
+      // For a top sheet, we want to resist moving it further down into the screen
+      translateY.value = e.translationY > 0 ? e.translationY * 0.5 : e.translationY;
     })
-    .onEnd((e) => {
-      if (e.translationY > 100) {
-        // Swipe distance threshold met - close modal
-        runOnJS(onClose)();
+    .onEnd((e: GestureStateChangeEvent<PanGestureHandlerEventPayload>) => {
+      // Close if dragged up significantly or flicked up
+      if (e.translationY < -100 || e.velocityY < -500) {
+        runOnJS(handleClose)();
       } else {
-        // Snap back to original position
+        // Snap back
         translateY.value = withSpring(0, springConfig);
-        backdropOpacity.value = withTiming(1, { duration: 200 });
       }
     });
-
   const animatedModalStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
@@ -329,79 +388,66 @@ function BibleNavigationModalComponent({
     opacity: backdropOpacity.value,
   }));
 
-  // Render breadcrumb
-  const renderBreadcrumb = () => {
-    let breadcrumb = '';
-
-    if (selectedTab === 'TOPICS') {
-      const categoryName =
-        selectedTopicCategory === 'EVENT'
-          ? 'Events'
-          : selectedTopicCategory === 'PROPHECY'
-            ? 'Prophecies'
-            : 'Parables';
-      breadcrumb = `Topics, ${categoryName}`;
-    } else {
-      const testamentName = selectedTestament === 'OT' ? 'Old Testament' : 'New Testament';
-      const bookName = selectedBook?.name ?? '';
-      breadcrumb = bookName ? `${testamentName}, ${bookName}, ${currentChapter}` : testamentName;
-    }
-
+  // Render title
+  const renderTitle = () => {
     return (
-      <View style={styles.breadcrumbContainer}>
-        <Text style={styles.breadcrumbText}>{breadcrumb}</Text>
-        <Ionicons name="chevron-down" size={20} color={colors.gold} />
-      </View>
+      <GestureDetector gesture={panGesture}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.titleText}>Search</Text>
+        </View>
+      </GestureDetector>
     );
   };
 
   // Render main tabs (OT, NT, Topics)
   const renderMainTabs = () => (
     <View style={styles.testamentTabsContainer}>
-      <Pressable
-        onPress={() => handleTabChange('OT')}
-        style={styles.testamentTab}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: selectedTab === 'OT' }}
-        testID="tab-old-testament"
-      >
-        <Text
-          style={[styles.testamentTabText, selectedTab === 'OT' && styles.testamentTabTextActive]}
+      <View style={styles.tabsRow}>
+        <Pressable
+          onPress={() => handleTabChange('OT')}
+          style={[styles.testamentTab, selectedTab === 'OT' && styles.testamentTabActive]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selectedTab === 'OT' }}
+          testID="tab-old-testament"
         >
-          Old Testament
-        </Text>
-      </Pressable>
+          <Text
+            style={[styles.testamentTabText, selectedTab === 'OT' && styles.testamentTabTextActive]}
+          >
+            Old Testament
+          </Text>
+        </Pressable>
 
-      <Pressable
-        onPress={() => handleTabChange('NT')}
-        style={styles.testamentTab}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: selectedTab === 'NT' }}
-        testID="tab-new-testament"
-      >
-        <Text
-          style={[styles.testamentTabText, selectedTab === 'NT' && styles.testamentTabTextActive]}
+        <Pressable
+          onPress={() => handleTabChange('NT')}
+          style={[styles.testamentTab, selectedTab === 'NT' && styles.testamentTabActive]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selectedTab === 'NT' }}
+          testID="tab-new-testament"
         >
-          New Testament
-        </Text>
-      </Pressable>
+          <Text
+            style={[styles.testamentTabText, selectedTab === 'NT' && styles.testamentTabTextActive]}
+          >
+            New Testament
+          </Text>
+        </Pressable>
 
-      <Pressable
-        onPress={() => handleTabChange('TOPICS')}
-        style={styles.testamentTab}
-        accessibilityRole="tab"
-        accessibilityState={{ selected: selectedTab === 'TOPICS' }}
-        testID="tab-topics"
-      >
-        <Text
-          style={[
-            styles.testamentTabText,
-            selectedTab === 'TOPICS' && styles.testamentTabTextActive,
-          ]}
+        <Pressable
+          onPress={() => handleTabChange('TOPICS')}
+          style={[styles.testamentTab, selectedTab === 'TOPICS' && styles.testamentTabActive]}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selectedTab === 'TOPICS' }}
+          testID="tab-topics"
         >
-          Topics
-        </Text>
-      </Pressable>
+          <Text
+            style={[
+              styles.testamentTabText,
+              selectedTab === 'TOPICS' && styles.testamentTabTextActive,
+            ]}
+          >
+            Topics
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 
@@ -480,29 +526,21 @@ function BibleNavigationModalComponent({
     const currentFilterText = isTopicsMode ? topicFilterText : filterText;
     const placeholder = isTopicsMode ? 'Filter topics...' : 'Filter books...';
     const onChangeText = isTopicsMode ? setTopicFilterText : setFilterText;
-    const onClear = isTopicsMode ? () => setTopicFilterText('') : () => setFilterText('');
 
     return (
       <View style={styles.filterContainer}>
-        <TextInput
-          style={styles.filterInput}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textTertiary}
-          value={currentFilterText}
-          onChangeText={onChangeText}
-          returnKeyType="search"
-          accessibilityLabel={placeholder}
-        />
-        {currentFilterText.length > 0 && (
-          <Pressable
-            onPress={onClear}
-            style={styles.filterClearButton}
-            accessibilityRole="button"
-            accessibilityLabel="Clear filter"
-          >
-            <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
-          </Pressable>
-        )}
+        <View style={styles.filterInputWrapper}>
+          <Ionicons name="search" size={24} color="#818990" />
+          <TextInput
+            style={styles.filterInput}
+            placeholder={placeholder}
+            placeholderTextColor="#818990"
+            value={currentFilterText}
+            onChangeText={onChangeText}
+            returnKeyType="search"
+            accessibilityLabel={placeholder}
+          />
+        </View>
       </View>
     );
   };
@@ -561,60 +599,62 @@ function BibleNavigationModalComponent({
     ).filter((book) => book.id !== currentBookId); // Filter out current book to avoid duplication
 
     return (
-      <ScrollView
-        style={styles.bookList}
-        contentContainerStyle={styles.bookListContent}
-        keyboardShouldPersistTaps="always"
-      >
-        {/* Current book/chapter display - Clickable to expand */}
-        {!filterText.trim() && allBooks.find((b) => b.id === currentBookId) && (
-          <Animated.View layout={Layout.duration(300)}>
-            <Pressable
-              onPress={() => {
-                const book = allBooks.find((b) => b.id === currentBookId);
-                if (book) handleBookSelect(book);
-              }}
-              style={styles.currentChapterDisplay}
-              accessibilityRole="button"
-              accessibilityLabel={`Current book: ${
-                allBooks.find((b) => b.id === currentBookId)?.name
-              }`}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
+      <GestureDetector gesture={scrollGesture}>
+        <ScrollView
+          style={styles.bookList}
+          contentContainerStyle={styles.bookListContent}
+          keyboardShouldPersistTaps="always"
+        >
+          {/* Current book/chapter display - Clickable to expand */}
+          {!filterText.trim() && allBooks.find((b) => b.id === currentBookId) && (
+            <Animated.View layout={Layout.duration(300)}>
+              <Pressable
+                onPress={() => {
+                  const book = allBooks.find((b) => b.id === currentBookId);
+                  if (book) handleBookSelect(book);
                 }}
+                style={styles.currentChapterDisplay}
+                accessibilityRole="button"
+                accessibilityLabel={`Current book: ${
+                  allBooks.find((b) => b.id === currentBookId)?.name
+                }`}
               >
-                <Text style={styles.currentChapterText}>
-                  {allBooks.find((b) => b.id === currentBookId)?.name}
-                </Text>
-                {selectedBookId === currentBookId ? (
-                  <Ionicons name="chevron-down" size={20} color={colors.gold} />
-                ) : (
-                  <Ionicons name="chevron-forward" size={20} color={colors.gold} />
-                )}
-              </View>
-            </Pressable>
-            {/* Show chapter grid if this book is selected */}
-            {selectedBookId === currentBookId && renderChapterGrid()}
-          </Animated.View>
-        )}
-
-        {booksToShow.map((book, index) => {
-          const isRecent = index < recentBooksFiltered.length && hasRecentBooks;
-          const isSelected = book.id === selectedBookId;
-
-          return (
-            // Use React.Fragment to render book item and conditionally the chapter grid
-            <Animated.View key={book.id} layout={Layout.duration(300)}>
-              {renderBookItem(book, isRecent)}
-              {isSelected && renderChapterGrid()}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text style={styles.currentChapterText}>
+                    {allBooks.find((b) => b.id === currentBookId)?.name}
+                  </Text>
+                  {selectedBookId === currentBookId ? (
+                    <Ionicons name="chevron-down" size={20} color={colors.gold} />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+                  )}
+                </View>
+              </Pressable>
+              {/* Show chapter grid if this book is selected */}
+              {selectedBookId === currentBookId && renderChapterGrid()}
             </Animated.View>
-          );
-        })}
-      </ScrollView>
+          )}
+
+          {booksToShow.map((book, index) => {
+            const isRecent = index < recentBooksFiltered.length && hasRecentBooks;
+            const isSelected = book.id === selectedBookId;
+
+            return (
+              // Use React.Fragment to render book item and conditionally the chapter grid
+              <Animated.View key={book.id} layout={Layout.duration(300)}>
+                {renderBookItem(book, isRecent)}
+                {isSelected && renderChapterGrid()}
+              </Animated.View>
+            );
+          })}
+        </ScrollView>
+      </GestureDetector>
     );
   };
 
@@ -637,32 +677,34 @@ function BibleNavigationModalComponent({
     }
 
     return (
-      <ScrollView
-        style={styles.bookList}
-        contentContainerStyle={styles.bookListContent}
-        keyboardShouldPersistTaps="always"
-      >
-        {filteredTopics.map((topic: TopicListItem) => (
-          <Pressable
-            key={topic.topic_id}
-            onPress={() => handleTopicSelect(topic.topic_id)}
-            style={styles.bookItem}
-            accessibilityRole="button"
-            accessibilityLabel={topic.name}
-            testID={`topic-item-${topic.name.toLowerCase().replace(/\s+/g, '-')}`}
-          >
-            <View style={styles.topicItemContent}>
-              <Text style={styles.bookItemText}>{topic.name}</Text>
-              {typeof topic.description === 'string' && topic.description && (
-                <Text style={styles.topicDescription} numberOfLines={2}>
-                  {topic.description}
-                </Text>
-              )}
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </Pressable>
-        ))}
-      </ScrollView>
+      <GestureDetector gesture={scrollGesture}>
+        <ScrollView
+          style={styles.bookList}
+          contentContainerStyle={styles.bookListContent}
+          keyboardShouldPersistTaps="always"
+        >
+          {filteredTopics.map((topic: TopicListItem) => (
+            <Pressable
+              key={topic.topic_id}
+              onPress={() => handleTopicSelect(topic.topic_id)}
+              style={styles.bookItem}
+              accessibilityRole="button"
+              accessibilityLabel={topic.name}
+              testID={`topic-item-${topic.name.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              <View style={styles.topicItemContent}>
+                <Text style={styles.bookItemText}>{topic.name}</Text>
+                {typeof topic.description === 'string' && topic.description && (
+                  <Text style={styles.topicDescription} numberOfLines={2}>
+                    {topic.description}
+                  </Text>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </Pressable>
+          ))}
+        </ScrollView>
+      </GestureDetector>
     );
   };
 
@@ -705,36 +747,78 @@ function BibleNavigationModalComponent({
     );
   };
 
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Animated.View style={[styles.backdrop, animatedBackdropStyle]}>
-        <Pressable style={styles.backdropTouchable} onPress={onClose} />
+  const ModalContent = (
+    <GestureHandlerRootView style={{ flex: 1, zIndex: 9999 }}>
+      <Animated.View
+        style={[
+          styles.backdrop,
+          animatedBackdropStyle,
+          // Ensure touches pass through when hidden/closed if using custom gesture
+          customTranslateY ? { pointerEvents: internalVisible ? 'auto' : 'none' } : undefined,
+        ]}
+      >
+        <Animated.View
+          style={[styles.container, animatedModalStyle]}
+          testID="bible-navigation-modal"
+        >
+          {/* Visual extension to cover gap when dragging down */}
+          <View
+            style={{
+              position: 'absolute',
+              top: -1000,
+              left: 0,
+              right: 0,
+              height: 1000,
+              backgroundColor: '#1e1e1e', // Match container background
+            }}
+          />
 
-        <GestureDetector gesture={panGesture}>
-          <Animated.View
-            style={[styles.container, animatedModalStyle]}
-            testID="bible-navigation-modal"
-          >
-            {/* Swipe handle */}
-            <View style={styles.handle} />
+          {/* Title */}
+          {renderTitle()}
 
-            {/* Breadcrumb */}
-            {renderBreadcrumb()}
+          {/* Main tabs (OT, NT, Topics) */}
+          {renderMainTabs()}
 
-            {/* Main tabs (OT, NT, Topics) */}
-            {!filterText.trim() && renderMainTabs()}
+          {/* Topic category tabs (only when Topics tab is active) */}
+          {selectedTab === 'TOPICS' && renderTopicCategoryTabs()}
 
-            {/* Topic category tabs (only when Topics tab is active) */}
-            {selectedTab === 'TOPICS' && renderTopicCategoryTabs()}
+          {/* Filter input */}
+          {renderFilterInput()}
 
-            {/* Filter input */}
-            {renderFilterInput()}
+          {/* Content area */}
+          {selectedTab === 'TOPICS' ? renderTopicsList() : renderBookList()}
 
-            {/* Content area */}
-            {selectedTab === 'TOPICS' ? renderTopicsList() : renderBookList()}
-          </Animated.View>
+          {/* Swipe handle at bottom */}
+          <GestureDetector gesture={panGesture}>
+            <View style={styles.handleContainer}>
+              <View style={styles.handle} />
+            </View>
+          </GestureDetector>
+        </Animated.View>
+        {/* Backdrop that handles both tap to close and swipe to dismiss */}
+        <GestureDetector gesture={Gesture.Exclusive(panGesture, backdropTapGesture)}>
+          <Animated.View style={styles.backdropTouchable} />
         </GestureDetector>
       </Animated.View>
+    </GestureHandlerRootView>
+  );
+
+  if (!useModalComponent) {
+    // If not using Modal, we return the view directly (absolute positioned by parent or styles)
+    // We wrap it in a View with absolute positioning to simulate the Modal overlay behavior
+    return (
+      <View
+        style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]}
+        pointerEvents="box-none"
+      >
+        {ModalContent}
+      </View>
+    );
+  }
+
+  return (
+    <Modal visible={internalVisible} transparent animationType="none" onRequestClose={handleClose}>
+      {ModalContent}
     </Modal>
   );
 }
@@ -745,32 +829,48 @@ function BibleNavigationModalComponent({
  */
 export const BibleNavigationModal = memo(BibleNavigationModalComponent);
 
-const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, topInset: number) => {
   const modalSpecs = getModalSpecs(mode);
 
   return StyleSheet.create({
     backdrop: {
       flex: 1,
       backgroundColor: modalSpecs.backdropColor,
-      justifyContent: 'flex-end',
+      justifyContent: 'flex-start',
     },
     backdropTouchable: {
       flex: 1,
     },
     container: {
       height: modalSpecs.height,
-      backgroundColor: modalSpecs.backgroundColor,
-      borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
-      borderTopRightRadius: modalSpecs.borderTopRightRadius,
+      backgroundColor: '#1e1e1e',
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
+      paddingTop: spacing.lg + topInset,
+      gap: spacing.md,
+    },
+    handleContainer: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.lg,
     },
     handle: {
-      width: modalSpecs.handleWidth,
-      height: modalSpecs.handleHeight,
-      backgroundColor: modalSpecs.handleColor,
-      borderRadius: modalSpecs.handleHeight / 2,
-      alignSelf: 'center',
-      marginTop: spacing.md,
-      marginBottom: spacing.lg,
+      width: 72,
+      height: 4,
+      backgroundColor: '#3a3a3a',
+      borderRadius: 100,
+    },
+    titleContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    titleText: {
+      fontSize: 24,
+      fontWeight: fontWeights.medium,
+      color: '#e8e8e8',
+      lineHeight: 32,
     },
     breadcrumbContainer: {
       flexDirection: 'row',
@@ -788,42 +888,57 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       lineHeight: fontSizes.body * lineHeights.ui,
     },
     testamentTabsContainer: {
+      paddingHorizontal: spacing.lg,
+    },
+    tabsRow: {
+      backgroundColor: '#323232',
+      borderRadius: 100,
+      padding: 4,
       flexDirection: 'row',
-      paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
       justifyContent: 'space-between',
     },
     testamentTab: {
-      paddingVertical: spacing.sm,
+      flex: 1,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 2,
+      borderRadius: 100,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 28,
+    },
+    testamentTabActive: {
+      backgroundColor: colors.gold,
     },
     testamentTabText: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.regular,
-      color: colors.textPrimary,
-      lineHeight: fontSizes.body * lineHeights.ui,
+      fontSize: 14,
+      fontWeight: '400',
+      color: colors.white,
     },
     testamentTabTextActive: {
-      color: colors.gold,
-      fontWeight: fontWeights.medium,
+      color: colors.black,
     },
     filterContainer: {
+      paddingHorizontal: spacing.lg,
+    },
+    filterInputWrapper: {
+      backgroundColor: '#323232',
+      borderRadius: 100,
+      height: 36,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 4,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      gap: 4,
     },
     filterInput: {
       flex: 1,
-      height: 40,
-      backgroundColor: colors.backgroundElevated,
-      borderRadius: 8,
-      paddingHorizontal: spacing.md,
-      fontSize: fontSizes.body,
-      color: colors.textPrimary,
+      fontSize: 14,
+      color: colors.white,
+      padding: 0,
+    },
+    searchIcon: {
+      width: 24,
+      height: 24,
     },
     filterClearButton: {
       position: 'absolute',
@@ -840,12 +955,14 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.lg,
+      paddingLeft: spacing.lg,
+      paddingRight: spacing.sm,
+      paddingVertical: spacing.sm,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      minHeight: 56,
-      backgroundColor: modalSpecs.backgroundColor,
+      borderBottomColor: 'rgba(62,70,77,0.5)',
+      minHeight: 48,
+      backgroundColor: '#1e1e1e',
+      gap: spacing.lg,
     },
     bookItemSelected: {
       backgroundColor: colors.gold,

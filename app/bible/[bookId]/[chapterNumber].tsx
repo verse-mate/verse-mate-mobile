@@ -21,6 +21,8 @@ import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
@@ -31,7 +33,7 @@ import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
+import { getHeaderSpecs, spacing, springConfig } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useActiveTab, useActiveView, useBookProgress, useLastReadPosition } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
@@ -91,6 +93,36 @@ export default function ChapterScreen() {
 
   // Navigation modal state (Task 7.9)
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
+  const modalTranslateY = useSharedValue(-1000);
+
+  // Gesture to open modal by dragging down from header
+  const headerGesture = Gesture.Pan()
+    .activeOffsetY([10, 1000]) // Only activate on downward drag to allow taps on buttons
+    .onStart(() => {
+      runOnJS(setIsNavigationModalOpen)(true);
+      // Ensure starting position is correct
+      modalTranslateY.value = -1000;
+    })
+    .onUpdate((e) => {
+      // Dragging down from -1000 towards 0
+      const nextPos = -1000 + e.translationY;
+      // Clamp to max 0 (open), apply resistance if dragging past 0
+      modalTranslateY.value = nextPos > 0 ? nextPos * 0.2 : nextPos;
+    })
+    .onEnd((e) => {
+      if (e.translationY > 50 && e.velocityY > 0) {
+        // Snap to Open
+        modalTranslateY.value = withSpring(0, springConfig);
+        runOnJS(setIsNavigationModalOpen)(true);
+      } else {
+        // Snap back to Closed
+        modalTranslateY.value = withTiming(-1000, { duration: 250 }, (finished) => {
+          if (finished) {
+            runOnJS(setIsNavigationModalOpen)(false);
+          }
+        });
+      }
+    });
 
   // Hamburger menu state (Task 8.5)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -352,18 +384,23 @@ export default function ChapterScreen() {
   return (
     <View style={styles.container}>
       {/* Fixed Header (Task 8.6 - includes OfflineIndicator) */}
-      <ChapterHeader
-        bookName={chapter.bookName}
-        chapterNumber={chapter.chapterNumber}
-        activeView={activeView}
-        onNavigationPress={() => {
-          setIsNavigationModalOpen(true); // Task 7.9
-        }}
-        onViewChange={handleViewChange}
-        onMenuPress={() => {
-          setIsMenuOpen(true); // Task 8.5
-        }}
-      />
+      <GestureDetector gesture={headerGesture}>
+        <View>
+          <ChapterHeader
+            bookName={chapter.bookName}
+            chapterNumber={chapter.chapterNumber}
+            activeView={activeView}
+            onNavigationPress={() => {
+              setIsNavigationModalOpen(true); // Task 7.9
+              modalTranslateY.value = withSpring(0, springConfig);
+            }}
+            onViewChange={handleViewChange}
+            onMenuPress={() => {
+              setIsMenuOpen(true); // Task 8.5
+            }}
+          />
+        </View>
+      </GestureDetector>
 
       {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
       {activeView === 'explanations' && (
@@ -395,24 +432,31 @@ export default function ChapterScreen() {
       {/* Progress Bar (Task 8.4) */}
       <ProgressBar percentage={progress.percentage} />
 
-      {/* Navigation Modal (Task 7.9) - Only render when needed to prevent Android flash */}
-      {isNavigationModalOpen && (
-        <BibleNavigationModal
-          visible={isNavigationModalOpen}
-          onClose={() => setIsNavigationModalOpen(false)}
-          currentBookId={validBookId}
-          currentChapter={validChapter}
-          onSelectChapter={(bookId, chapter) => {
-            router.replace(`/bible/${bookId}/${chapter}` as never);
-          }}
-          onSelectTopic={(topicId, category) => {
-            router.push({
-              pathname: '/topics/[topicId]',
-              params: { topicId, category },
-            });
-          }}
-        />
-      )}
+      {/* Navigation Modal (Task 7.9) - Always rendered for gesture support, controlled by shared value */}
+      <BibleNavigationModal
+        visible={isNavigationModalOpen}
+        useModalComponent={false}
+        customTranslateY={modalTranslateY}
+        onClose={() => {
+          // Animate closing
+          modalTranslateY.value = withTiming(-1000, { duration: 250 }, (finished) => {
+            if (finished) {
+              runOnJS(setIsNavigationModalOpen)(false);
+            }
+          });
+        }}
+        currentBookId={validBookId}
+        currentChapter={validChapter}
+        onSelectChapter={(bookId, chapter) => {
+          router.replace(`/bible/${bookId}/${chapter}` as never);
+        }}
+        onSelectTopic={(topicId, category) => {
+          router.push({
+            pathname: '/topics/[topicId]',
+            params: { topicId, category },
+          });
+        }}
+      />
 
       {/* Hamburger Menu (Task 8.5) */}
       <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />

@@ -383,7 +383,7 @@ export const animationDurations = {
  */
 export const springConfig = {
   /** Damping coefficient - higher = less bouncy */
-  damping: 15,
+  damping: 30,
   /** Stiffness coefficient - higher = faster */
   stiffness: 150,
 } as const;
