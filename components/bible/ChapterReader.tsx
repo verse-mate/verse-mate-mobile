@@ -382,23 +382,11 @@ export function ChapterReader({
 
   /**
    * Handle long-press on verse for creating new highlight
+   * DISABLED: No longer opens highlight options modal
    */
   const handleVerseLongPress = (verseNumber: number) => {
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === verseNumber);
-
-    if (!verse) return;
-
-    setSelectionContext({
-      verseNumber,
-      selection: {
-        start: 0,
-        end: verse.text.length,
-        text: verse.text,
-      },
-    });
-    setSelectionSheetVisible(true);
+    // Disabled - long press on verse no longer opens highlight modal
+    return;
   };
 
   /**
