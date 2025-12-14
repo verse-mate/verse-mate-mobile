@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { LayoutChangeEvent } from 'react-native';
 import { Alert, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
@@ -20,7 +21,6 @@ import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
-import { ShareButton } from '@/components/bible/ShareButton';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { TopicPagerView, type TopicPagerViewRef } from '@/components/topics/TopicPagerView';
 import {
@@ -270,7 +270,6 @@ export default function TopicDetailScreen() {
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
-          onShare={() => {}}
           onMenuPress={() => {}}
         />
         <SkeletonLoader />
@@ -287,7 +286,6 @@ export default function TopicDetailScreen() {
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
-          onShare={() => {}}
           onMenuPress={() => {}}
         />
         <View style={styles.errorContainer}>
@@ -308,7 +306,6 @@ export default function TopicDetailScreen() {
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
-          onShare={() => {}}
           onMenuPress={() => {}}
         />
         <View style={styles.errorContainer}>
@@ -329,7 +326,6 @@ export default function TopicDetailScreen() {
         activeView={activeView}
         onNavigationPress={() => setIsNavigationModalOpen(true)}
         onViewChange={handleViewChange}
-        onShare={handleShare}
         onMenuPress={() => setIsMenuOpen(true)}
       />
 
@@ -349,6 +345,7 @@ export default function TopicDetailScreen() {
         onPageChange={handlePageChange}
         onScroll={handleScroll}
         onTap={handleTap}
+        onShare={handleShare}
       />
 
       {/* Floating Action Buttons for Topic Navigation */}
@@ -397,7 +394,6 @@ interface TopicHeaderProps {
   activeView: ViewMode;
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
-  onShare: () => void;
   onMenuPress: () => void;
 }
 
@@ -406,27 +402,42 @@ function TopicHeader({
   activeView,
   onNavigationPress,
   onViewChange,
-  onShare,
   onMenuPress,
 }: TopicHeaderProps) {
   // Get theme directly inside TopicHeader (no props drilling)
   const { colors, mode } = useTheme();
   const headerSpecs = getHeaderSpecs(mode);
-  const styles = useMemo(() => createHeaderStyles(headerSpecs), [headerSpecs]);
+  const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
 
-  // Animation for sliding view indicator
-  const viewSlideAnim = useRef(new Animated.Value(activeView === 'bible' ? 0 : 1)).current;
+  // Animation for sliding toggle indicator
+  const toggleSlideAnim = useRef(new Animated.Value(activeView === 'bible' ? 0 : 1)).current;
+  const [buttonWidth, setButtonWidth] = useState(0);
 
-  // Animate indicator when activeView changes
+  // Animate toggle indicator when activeView changes
   useEffect(() => {
-    Animated.spring(viewSlideAnim, {
+    Animated.spring(toggleSlideAnim, {
       toValue: activeView === 'bible' ? 0 : 1,
       useNativeDriver: true,
       friction: 8,
       tension: 50,
     }).start();
-  }, [activeView, viewSlideAnim]);
+  }, [activeView, toggleSlideAnim]);
+
+  // Measure button container to calculate proper button widths
+  const handleToggleLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    // Each button width = (containerWidth - padding - gap) / 2
+    // containerWidth - 8 (padding) - 4 (gap) = containerWidth - 12
+    const singleButtonWidth = (width - 12) / 2;
+    setButtonWidth(singleButtonWidth);
+  };
+
+  // Calculate translateX for sliding indicator
+  const indicatorTranslateX = toggleSlideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, buttonWidth + 3], // Add gap (4px) + extra left padding (3px) for Insight
+  });
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="topic-header">
@@ -449,62 +460,56 @@ function TopicHeader({
 
       {/* Action Icons */}
       <View style={styles.headerActions}>
-        {/* View icon buttons with sliding highlight */}
-        <View style={styles.viewIconsContainer}>
-          {/* Sliding highlight indicator */}
+        {/* Bible/Insight Toggle (pill-style matching Bible page) */}
+        <View style={styles.toggleContainer} onLayout={handleToggleLayout}>
+          {/* Sliding indicator background */}
           <Animated.View
             style={[
-              styles.viewIconHighlight,
+              styles.toggleIndicator,
               {
+                width: buttonWidth,
                 transform: [
                   {
-                    translateX: viewSlideAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, 40], // Approximate width of icon + padding
-                    }),
+                    translateX: indicatorTranslateX,
                   },
                 ],
               },
             ]}
           />
-          {/* Bible View Icon */}
           <Pressable
             onPress={() => onViewChange('bible')}
-            style={styles.iconButton}
-            accessibilityLabel="Bible references view"
+            style={styles.toggleButton}
+            accessibilityLabel="Bible reading view"
             accessibilityRole="button"
             accessibilityState={{ selected: activeView === 'bible' }}
-            testID="bible-view-icon"
+            testID="bible-view-toggle"
           >
-            <Ionicons
-              name="book-outline"
-              size={headerSpecs.iconSize}
-              color={activeView === 'bible' ? colors.gold : headerSpecs.iconColor}
-            />
+            <Text style={[styles.toggleText, activeView === 'bible' && styles.toggleTextActive]}>
+              Bible
+            </Text>
           </Pressable>
-
-          {/* Explanations View Icon */}
           <Pressable
             onPress={() => onViewChange('explanations')}
-            style={styles.iconButton}
-            accessibilityLabel="Explanations view"
+            style={styles.toggleButton}
+            accessibilityLabel="Insight view"
             accessibilityRole="button"
             accessibilityState={{ selected: activeView === 'explanations' }}
-            testID="explanations-view-icon"
+            testID="insight-view-toggle"
           >
-            <Ionicons
-              name="reader-outline"
-              size={headerSpecs.iconSize}
-              color={activeView === 'explanations' ? colors.gold : headerSpecs.iconColor}
-            />
+            <Text
+              style={[
+                styles.toggleText,
+                activeView === 'explanations' && styles.toggleTextActive,
+                { paddingLeft: 5 },
+              ]}
+            >
+              Insight
+            </Text>
           </Pressable>
         </View>
 
         {/* Offline Indicator */}
         <OfflineIndicator />
-
-        {/* Share Button */}
-        <ShareButton onShare={onShare} testID="share-button-topic" />
 
         {/* Hamburger Menu Icon */}
         <Pressable
@@ -524,7 +529,10 @@ function TopicHeader({
 /**
  * Creates styles for TopicHeader component
  */
-const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
+const createHeaderStyles = (
+  headerSpecs: ReturnType<typeof getHeaderSpecs>,
+  themeColors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>
+) =>
   StyleSheet.create({
     header: {
       minHeight: headerSpecs.height,
@@ -556,28 +564,47 @@ const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
       alignItems: 'center',
       gap: spacing.lg,
     },
-    viewIconsContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      position: 'relative',
+    toggleContainer: {
       backgroundColor: '#323232',
       borderRadius: 100,
       padding: 4,
+      flexDirection: 'row',
       gap: 4,
+      position: 'relative',
     },
-    viewIconHighlight: {
+    toggleIndicator: {
       position: 'absolute',
-      width: 32,
-      height: 32,
-      backgroundColor: 'rgba(176, 154, 109, 0.3)',
+      height: 28,
+      backgroundColor: themeColors.gold,
       borderRadius: 100,
+      top: 4,
       left: 4,
+    },
+    toggleButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 2,
+      borderRadius: 100,
+      minHeight: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      zIndex: 1,
+    },
+    toggleButtonActive: {
+      backgroundColor: 'transparent',
+    },
+    toggleText: {
+      fontSize: 14,
+      color: headerSpecs.titleColor,
+      fontWeight: '400',
+    },
+    toggleTextActive: {
+      color: themeColors.black,
     },
     iconButton: {
       padding: spacing.xs,
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 1,
     },
   });
 
