@@ -25,6 +25,7 @@ import type { LayoutChangeEvent } from 'react-native';
 import {
   Keyboard,
   Modal,
+  Platform,
   Pressable,
   Animated as RNAnimated,
   ScrollView,
@@ -132,8 +133,8 @@ function BibleNavigationModalComponent({
   const [topicFilterText, setTopicFilterText] = useState('');
 
   // Animation state for sliding indicators
-  const [mainTabWidth, setMainTabWidth] = useState(0);
-  const [categoryTabWidth, setCategoryTabWidth] = useState(0);
+  const [singleMeasuredTabWidth, setSingleMeasuredTabWidth] = useState(0);
+  const [singleMeasuredCategoryTabWidth, setSingleMeasuredCategoryTabWidth] = useState(0);
   const mainTabSlideAnim = useRef(
     new RNAnimated.Value(selectedTab === 'OT' ? 0 : selectedTab === 'NT' ? 1 : 2)
   ).current;
@@ -457,29 +458,26 @@ function BibleNavigationModalComponent({
     );
   };
 
-  // Handle layout for main tabs
-  const handleMainTabLayout = useCallback((event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    const singleTabWidth = (width - 12) / 3; // 3 tabs, 8px padding, 4px gaps
-    setMainTabWidth(singleTabWidth);
-  }, []);
-
   // Calculate translateX for main tab indicator
   const mainTabTranslateX = mainTabSlideAnim.interpolate({
     inputRange: [0, 1, 2],
-    outputRange: [0, mainTabWidth + 4, (mainTabWidth + 4) * 2],
+    outputRange: [
+      0,
+      singleMeasuredTabWidth + spacing.xs,
+      (singleMeasuredTabWidth + spacing.xs) * 2,
+    ],
   });
 
   // Render main tabs (OT, NT, Topics)
   const renderMainTabs = () => (
     <View style={styles.testamentTabsContainer}>
-      <View style={styles.tabsRow} onLayout={handleMainTabLayout}>
+      <View style={styles.tabsRow}>
         {/* Sliding indicator for main tabs */}
         <RNAnimated.View
           style={[
             styles.mainTabIndicator,
             {
-              width: mainTabWidth,
+              width: singleMeasuredTabWidth, // Use measured width
               transform: [{ translateX: mainTabTranslateX }],
             },
           ]}
@@ -490,9 +488,18 @@ function BibleNavigationModalComponent({
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTab === 'OT' }}
           testID="tab-old-testament"
+          onLayout={(event) => {
+            // Set the measured width of a single tab only once
+            if (singleMeasuredTabWidth === 0) {
+              setSingleMeasuredTabWidth(event.nativeEvent.layout.width);
+            }
+          }}
         >
           <Text
             style={[styles.testamentTabText, selectedTab === 'OT' && styles.testamentTabTextActive]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={Platform.OS === 'ios'}
+            minimumFontScale={0.8}
           >
             Old Testament
           </Text>
@@ -507,6 +514,9 @@ function BibleNavigationModalComponent({
         >
           <Text
             style={[styles.testamentTabText, selectedTab === 'NT' && styles.testamentTabTextActive]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={Platform.OS === 'ios'}
+            minimumFontScale={0.8}
           >
             New Testament
           </Text>
@@ -524,6 +534,9 @@ function BibleNavigationModalComponent({
               styles.testamentTabText,
               selectedTab === 'TOPICS' && styles.testamentTabTextActive,
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit={Platform.OS === 'ios'}
+            minimumFontScale={0.8}
           >
             Topics
           </Text>
@@ -532,29 +545,27 @@ function BibleNavigationModalComponent({
     </View>
   );
 
-  // Handle layout for category tabs
-  const handleCategoryTabLayout = useCallback((event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    const singleTabWidth = (width - 16) / 4; // 4 tabs, 8px padding, 12px gaps (3 gaps of 4px)
-    setCategoryTabWidth(singleTabWidth);
-  }, []);
-
   // Calculate translateX for category tab indicator
   const categoryTabTranslateX = categoryTabSlideAnim.interpolate({
     inputRange: [0, 1, 2, 3],
-    outputRange: [0, categoryTabWidth + 4, (categoryTabWidth + 4) * 2, (categoryTabWidth + 4) * 3],
+    outputRange: [
+      0,
+      singleMeasuredCategoryTabWidth + spacing.xs,
+      (singleMeasuredCategoryTabWidth + spacing.xs) * 2,
+      (singleMeasuredCategoryTabWidth + spacing.xs) * 3,
+    ],
   });
 
   // Render topic category tabs
   const renderTopicCategoryTabs = () => (
     <View style={styles.categoryTabsContainer}>
-      <View style={styles.categoryTabsRow} onLayout={handleCategoryTabLayout}>
+      <View style={styles.categoryTabsRow}>
         {/* Sliding indicator for category tabs */}
         <RNAnimated.View
           style={[
             styles.categoryTabIndicator,
             {
-              width: categoryTabWidth,
+              width: singleMeasuredCategoryTabWidth, // Use measured width
               transform: [{ translateX: categoryTabTranslateX }],
             },
           ]}
@@ -564,6 +575,12 @@ function BibleNavigationModalComponent({
           style={styles.categoryTab}
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTopicCategory === 'EVENT' }}
+          onLayout={(event) => {
+            if (singleMeasuredCategoryTabWidth === 0) {
+              // Only set once
+              setSingleMeasuredCategoryTabWidth(event.nativeEvent.layout.width);
+            }
+          }}
         >
           <Text
             style={[
@@ -1040,6 +1057,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
       fontSize: 14,
       fontWeight: '400',
       color: colors.white,
+      ...(Platform.OS === 'ios' && { includeFontPadding: false }),
     },
     testamentTabTextActive: {
       color: colors.black,

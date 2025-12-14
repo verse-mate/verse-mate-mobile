@@ -298,12 +298,12 @@ describe('TopicDetailScreen', () => {
   });
 
   describe('View Mode Switching', () => {
-    it('should render Bible view icon and Explanations view icon', async () => {
+    it('should render Bible view toggle and Insight view toggle', async () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('bible-view-icon')).toBeTruthy();
-        expect(screen.getByTestId('explanations-view-icon')).toBeTruthy();
+        expect(screen.getByTestId('bible-view-toggle')).toBeTruthy();
+        expect(screen.getByTestId('insight-view-toggle')).toBeTruthy();
       });
     });
 

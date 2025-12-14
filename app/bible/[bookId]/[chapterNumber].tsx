@@ -482,7 +482,7 @@ function ChapterHeader({
   // Calculate translateX for sliding indicator
   const indicatorTranslateX = toggleSlideAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, buttonWidth + 4], // Add gap (4px) between buttons
+    outputRange: [0, buttonWidth + 3], // Add gap (4px) + extra left padding (3px) for Insight
   });
 
   return (
@@ -543,7 +543,11 @@ function ChapterHeader({
             testID="commentary-view-toggle"
           >
             <Text
-              style={[styles.toggleText, activeView === 'explanations' && styles.toggleTextActive]}
+              style={[
+                styles.toggleText,
+                activeView === 'explanations' && styles.toggleTextActive,
+                { paddingLeft: 5 },
+              ]}
             >
               Insight
             </Text>

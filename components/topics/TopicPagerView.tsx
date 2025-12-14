@@ -77,6 +77,8 @@ export interface TopicPagerViewProps {
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
   onTap?: () => void;
+  /** Callback when user wants to share current topic */
+  onShare?: () => void;
 }
 
 /**
@@ -119,6 +121,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       onPageChange,
       onScroll,
       onTap,
+      onShare,
     },
     ref
   ) {
@@ -203,6 +206,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
             activeView={activeView}
             onScroll={onScroll}
             onTap={onTap}
+            onShare={onShare}
           />
         ));
       }
@@ -234,6 +238,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
             activeView={activeView}
             onScroll={onScroll}
             onTap={onTap}
+            onShare={onShare}
           />
         );
       });

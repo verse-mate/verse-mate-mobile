@@ -23,6 +23,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { BottomLogo } from '@/components/bible/BottomLogo';
+import { ShareButton } from '@/components/bible/ShareButton';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { TopicText } from '@/components/topics/TopicText';
 import {
@@ -101,6 +102,8 @@ export interface TopicPageProps {
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
   onTap?: () => void;
+  /** Callback when user wants to share current topic */
+  onShare?: () => void;
 }
 
 /**
@@ -132,6 +135,7 @@ export const TopicPage = React.memo(function TopicPage({
   activeView,
   onScroll,
   onTap,
+  onShare,
 }: TopicPageProps) {
   const { colors } = useTheme();
   const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
@@ -284,13 +288,24 @@ export const TopicPage = React.memo(function TopicPage({
             // Use TopicText if content has structured format (## subtitles)
             // Otherwise fall back to existing Markdown renderer
             references.content.includes('## ') ? (
-              <TopicText topicName={topic.name} markdownContent={references.content} />
+              <TopicText
+                topicName={topic.name}
+                markdownContent={references.content}
+                onShare={onShare}
+              />
             ) : (
               <>
-                {/* Topic Title (only shown for non-structured content) */}
-                <Text style={styles.topicTitle} accessibilityRole="header">
-                  {topic.name}
-                </Text>
+                {/* Topic Title Row with Share button */}
+                <View style={styles.titleRow}>
+                  <Text style={styles.topicTitle} accessibilityRole="header">
+                    {topic.name}
+                  </Text>
+                  {onShare && (
+                    <View style={styles.iconButtons}>
+                      <ShareButton onShare={onShare} />
+                    </View>
+                  )}
+                </View>
 
                 {/* Topic Description */}
                 {topicDescription ? (
@@ -312,10 +327,17 @@ export const TopicPage = React.memo(function TopicPage({
             )
           ) : (
             <>
-              {/* Topic Title (shown in empty state) */}
-              <Text style={styles.topicTitle} accessibilityRole="header">
-                {topic.name}
-              </Text>
+              {/* Topic Title Row with Share button */}
+              <View style={styles.titleRow}>
+                <Text style={styles.topicTitle} accessibilityRole="header">
+                  {topic.name}
+                </Text>
+                {onShare && (
+                  <View style={styles.iconButtons}>
+                    <ShareButton onShare={onShare} />
+                  </View>
+                )}
+              </View>
 
               {/* Topic Description */}
               {topicDescription ? (
@@ -379,12 +401,24 @@ const createStyles = (colors: ReturnType<typeof getColors>) => {
       // Add bottom padding to account for floating action buttons
       paddingBottom: 60,
     },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xxl,
+    },
     topicTitle: {
+      flex: 1,
       fontSize: fontSizes.displayMedium,
       fontWeight: fontWeights.bold,
       lineHeight: fontSizes.displayMedium * lineHeights.display,
       color: colors.textPrimary,
-      marginBottom: spacing.lg,
+      marginRight: spacing.md,
+    },
+    iconButtons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
     },
     topicDescription: {
       fontSize: fontSizes.body,
