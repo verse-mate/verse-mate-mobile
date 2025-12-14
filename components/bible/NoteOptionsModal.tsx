@@ -373,7 +373,7 @@ export function NoteOptionsModal({
         // Small delay to allow close animation before opening edit modal
         setTimeout(() => {
           onEdit();
-        }, 300);
+        }, 500);
         break;
       default:
         setStatusMessage(`Action "${action}" is not recognized.`);
