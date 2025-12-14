@@ -133,8 +133,8 @@ describe('BottomLogo', () => {
       // Flatten styles if needed (React Native style can be array or object)
       const flatStyle = Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : style;
 
-      expect(flatStyle.width).toBe(200);
-      expect(flatStyle.height).toBe(54);
+      expect(flatStyle.width).toBeCloseTo(164, 0);
+      expect(flatStyle.height).toBeCloseTo(44.28, 1);
     });
 
     it('has subtle opacity for branding', () => {

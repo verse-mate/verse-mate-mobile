@@ -242,6 +242,8 @@ export const ChapterPage = React.memo(function ChapterPage({
   const hasScrolledRef = useRef(false);
   // Track current scroll position manually for distance calc (JS side)
   const currentScrollYRef = useRef(0);
+  // Track active animation timer to cancel when user switches views
+  const animationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Note Modals State
   const [notesModalVisible, setNotesModalVisible] = useState(false);
@@ -253,18 +255,29 @@ export const ChapterPage = React.memo(function ChapterPage({
 
   const { deleteNote, isDeletingNote } = useNotes();
 
-  // Reset scroll state when book/chapter changes
+  // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
   useEffect(() => {
     hasScrolledRef.current = false;
     sectionPositionsRef.current = {};
-    // Only reset scroll animation value when in Bible view to avoid triggering
-    // useAnimatedReaction on a null ref (which causes crash in explanation view)
-    if (activeView === 'bible') {
-      scrollY.value = 0;
-    }
+    scrollY.value = 0;
     currentScrollYRef.current = 0;
-  }, [bookId, chapterNumber, activeView]);
+    // Clear any active animation timer
+    if (animationTimerRef.current) {
+      clearInterval(animationTimerRef.current);
+      animationTimerRef.current = null;
+    }
+  }, [bookId, chapterNumber]);
+
+  // Stop animation when user switches to explanations view
+  useEffect(() => {
+    if (activeView !== 'bible' && animationTimerRef.current) {
+      clearInterval(animationTimerRef.current);
+      animationTimerRef.current = null;
+      // Mark as scrolled so animation doesn't restart when returning to Bible
+      hasScrolledRef.current = true;
+    }
+  }, [activeView]);
 
   // Track last scroll position and timestamp for velocity calculation
   const lastScrollY = useRef(0);
@@ -345,12 +358,6 @@ export const ChapterPage = React.memo(function ChapterPage({
     }
 
     if (targetSectionStartVerse !== -1) {
-      console.log(
-        '[ScrollDebug] targetVerse',
-        targetVerse,
-        'sectionStart',
-        targetSectionStartVerse
-      );
       const targetY = sectionPositionsRef.current[targetSectionStartVerse];
       if (targetY !== undefined) {
         // Adjust for top padding so target verse appears near the top
@@ -368,16 +375,6 @@ export const ChapterPage = React.memo(function ChapterPage({
         scrollY.value = startY;
 
         // Drive animation on UI thread
-        console.log(
-          '[ScrollDebug] animating to',
-          targetYAdjusted,
-          'from',
-          startY,
-          'distance',
-          distance,
-          'duration',
-          duration
-        );
         scrollY.value = withTiming(targetYAdjusted, {
           duration: duration,
           // Very gentle ease-in-out for slower start/stop
@@ -403,14 +400,16 @@ export const ChapterPage = React.memo(function ChapterPage({
           } catch {}
           if (t >= 1) {
             clearInterval(timer);
+            animationTimerRef.current = null;
           }
         }, tweenInterval);
+
+        // Store timer ref so we can cancel if user switches views
+        animationTimerRef.current = timer;
 
         // Removed immediate JS-thread imperative fallback; it could override timing
 
         hasScrolledRef.current = true;
-      } else {
-        console.log('[ScrollDebug] targetY undefined for section', targetSectionStartVerse);
       }
     }
   }, [activeView, targetVerse, scrollY]);
@@ -436,7 +435,6 @@ export const ChapterPage = React.memo(function ChapterPage({
   const handleContentLayout = useCallback(
     (positions: Record<number, number>) => {
       sectionPositionsRef.current = positions;
-      console.log('[ScrollDebug] content layout positions keys', Object.keys(positions));
       attemptScrollToVerse();
     },
     [attemptScrollToVerse]
