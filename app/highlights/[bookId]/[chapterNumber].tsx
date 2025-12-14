@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HighlightOptionsModal } from '@/components/bible/HighlightOptionsModal';
@@ -76,6 +76,23 @@ export default function ChapterHighlightsScreen() {
       showToast('Copied to clipboard');
     }
   };
+
+  // Track if we've loaded data at least once
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFetchingHighlights && chapterHighlights.length > 0) {
+      hasLoadedRef.current = true;
+    }
+  }, [isFetchingHighlights, chapterHighlights.length]);
+
+  // Navigate back if all highlights are deleted
+  useEffect(() => {
+    if (hasLoadedRef.current && !isFetchingHighlights && chapterHighlights.length === 0) {
+      // All highlights deleted, navigate back to main highlights page
+      router.back();
+    }
+  }, [chapterHighlights.length, isFetchingHighlights]);
 
   if (isFetchingHighlights && chapterHighlights.length === 0) {
     return (
