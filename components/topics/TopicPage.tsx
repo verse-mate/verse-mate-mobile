@@ -156,9 +156,6 @@ export const TopicPage = React.memo(function TopicPage({
   const { data: topicData, isLoading: isTopicLoading } = useTopicById(topicId, bibleVersion);
   const { data: references } = useTopicReferences(topicId);
 
-  // Extract the specific explanation type from the full topic response
-  const explanation = topicData?.explanation?.[activeTab];
-
   /**
    * Handle touch start - record time and position
    */
@@ -350,7 +347,7 @@ export const TopicPage = React.memo(function TopicPage({
             </>
           ))}
 
-        {/* Explanations View */}
+        {/* Explanations View - Pre-render all tabs but only show active */}
         {activeView === 'explanations' && (
           <>
             {/* Topic Title */}
@@ -363,19 +360,63 @@ export const TopicPage = React.memo(function TopicPage({
               <Text style={styles.topicDescription}>{topicDescription}</Text>
             ) : null}
 
-            {explanation && typeof explanation === 'string' ? (
-              <View style={styles.explanationContainer}>
+            {/* Pre-render all explanation types to ensure instant tab switching */}
+            {/* Summary explanation */}
+            <View
+              style={[styles.explanationContainer, activeTab !== 'summary' && { display: 'none' }]}
+              testID="topic-explanation-summary"
+            >
+              {topicData?.explanation?.summary &&
+              typeof topicData.explanation.summary === 'string' ? (
                 <Markdown style={markdownStyles} rules={markdownRules}>
-                  {explanation.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+                  {topicData.explanation.summary.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
                 </Markdown>
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>
-                  No {activeTab} explanation available for this topic yet.
-                </Text>
-              </View>
-            )}
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    No summary explanation available for this topic yet.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Byline explanation */}
+            <View
+              style={[styles.explanationContainer, activeTab !== 'byline' && { display: 'none' }]}
+              testID="topic-explanation-byline"
+            >
+              {topicData?.explanation?.byline &&
+              typeof topicData.explanation.byline === 'string' ? (
+                <Markdown style={markdownStyles} rules={markdownRules}>
+                  {topicData.explanation.byline.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+                </Markdown>
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    No byline explanation available for this topic yet.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Detailed explanation */}
+            <View
+              style={[styles.explanationContainer, activeTab !== 'detailed' && { display: 'none' }]}
+              testID="topic-explanation-detailed"
+            >
+              {topicData?.explanation?.detailed &&
+              typeof topicData.explanation.detailed === 'string' ? (
+                <Markdown style={markdownStyles} rules={markdownRules}>
+                  {topicData.explanation.detailed.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+                </Markdown>
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    No detailed explanation available for this topic yet.
+                  </Text>
+                </View>
+              )}
+            </View>
           </>
         )}
         <BottomLogo />

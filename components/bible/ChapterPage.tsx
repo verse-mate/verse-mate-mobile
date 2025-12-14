@@ -116,8 +116,6 @@ function TabContent({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]); // Use local createStyles for TabContent
 
-  if (!visible) return null;
-
   // Determine content for the reader
   const explanationContent = content && 'content' in content ? content : undefined;
   const hasContent = explanationContent && explanationContent.content.trim().length > 0;
@@ -126,16 +124,19 @@ function TabContent({
   // This prevents flicker when swiping between chapters
   const showSkeleton = isLoading && !chapter && !explanationContent;
 
+  // Keep all tabs mounted for pre-rendering (eliminates freeze on switch)
+  // Use absolute positioning + pointerEvents to hide inactive tabs
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, !visible && { position: 'absolute', width: 0, height: 0 }]}
       contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={true}
+      showsVerticalScrollIndicator={visible}
       testID={testID}
-      onScroll={onScroll}
+      onScroll={visible ? onScroll : undefined}
       scrollEventThrottle={16}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
+      pointerEvents={visible ? 'auto' : 'none'}
     >
       {error ? (
         <Animated.View
@@ -319,24 +320,25 @@ export const ChapterPage = React.memo(function ChapterPage({
   const { data: chapter } = useBibleChapter(bookId, chapterNumber, undefined);
 
   // Fetch explanations for each tab
-  // Queries are ALWAYS enabled to maintain cache during route transitions
+  // All three are ALWAYS enabled and load in parallel to ensure instant tab switching
+  // This eliminates the freeze when switching between summary/byline/detailed tabs
   const {
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
-  } = useBibleSummary(bookId, chapterNumber, undefined);
+  } = useBibleSummary(bookId, chapterNumber, undefined, { enabled: true });
 
   const {
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
-  } = useBibleByLine(bookId, chapterNumber, undefined);
+  } = useBibleByLine(bookId, chapterNumber, undefined, { enabled: true });
 
   const {
     data: detailedData,
     isLoading: isDetailedLoading,
     error: detailedError,
-  } = useBibleDetailed(bookId, chapterNumber, undefined);
+  } = useBibleDetailed(bookId, chapterNumber, undefined, { enabled: true });
 
   /**
    * Attempt to scroll to target verse using Reanimated for smoothness
