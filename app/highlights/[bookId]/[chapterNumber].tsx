@@ -226,7 +226,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     headerTitle: {
       flex: 1,
-      fontSize: fontSizes.heading3,
+      fontSize: fontSizes.heading3 * 0.88,
       fontWeight: fontWeights.bold,
       color: colors.textPrimary,
       textAlign: 'center',
