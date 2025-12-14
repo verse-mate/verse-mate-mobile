@@ -20,11 +20,13 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { LayoutChangeEvent } from 'react-native';
 import {
   Keyboard,
   Modal,
   Pressable,
+  Animated as RNAnimated,
   ScrollView,
   StyleSheet,
   Text,
@@ -123,8 +125,45 @@ function BibleNavigationModalComponent({
   const [selectedTopicCategory, setSelectedTopicCategory] = useState<TopicCategory>('EVENT');
   const [topicFilterText, setTopicFilterText] = useState('');
 
+  // Animation state for sliding indicators
+  const [mainTabWidth, setMainTabWidth] = useState(0);
+  const [categoryTabWidth, setCategoryTabWidth] = useState(0);
+  const mainTabSlideAnim = useRef(
+    new RNAnimated.Value(selectedTab === 'OT' ? 0 : selectedTab === 'NT' ? 1 : 2)
+  ).current;
+  const categoryTabSlideAnim = useRef(new RNAnimated.Value(0)).current;
+
   // Track if modal is effectively open (visible prop OR dragging down)
   const [isOpenOrDragging, setIsOpenOrDragging] = useState(visible);
+
+  // Animate main tab indicator when selectedTab changes
+  useEffect(() => {
+    const tabIndex = selectedTab === 'OT' ? 0 : selectedTab === 'NT' ? 1 : 2;
+    RNAnimated.spring(mainTabSlideAnim, {
+      toValue: tabIndex,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 50,
+    }).start();
+  }, [selectedTab, mainTabSlideAnim]);
+
+  // Animate category tab indicator when selectedTopicCategory changes
+  useEffect(() => {
+    const categoryIndex =
+      selectedTopicCategory === 'EVENT'
+        ? 0
+        : selectedTopicCategory === 'PROPHECY'
+          ? 1
+          : selectedTopicCategory === 'PARABLE'
+            ? 2
+            : 3;
+    RNAnimated.spring(categoryTabSlideAnim, {
+      toValue: categoryIndex,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 50,
+    }).start();
+  }, [selectedTopicCategory, categoryTabSlideAnim]);
 
   // Animation values for swipe-to-dismiss
   const localTranslateY = useSharedValue(-1000);
@@ -399,13 +438,36 @@ function BibleNavigationModalComponent({
     );
   };
 
+  // Handle layout for main tabs
+  const handleMainTabLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    const singleTabWidth = (width - 12) / 3; // 3 tabs, 8px padding, 4px gaps
+    setMainTabWidth(singleTabWidth);
+  }, []);
+
+  // Calculate translateX for main tab indicator
+  const mainTabTranslateX = mainTabSlideAnim.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: [0, mainTabWidth + 4, (mainTabWidth + 4) * 2],
+  });
+
   // Render main tabs (OT, NT, Topics)
   const renderMainTabs = () => (
     <View style={styles.testamentTabsContainer}>
-      <View style={styles.tabsRow}>
+      <View style={styles.tabsRow} onLayout={handleMainTabLayout}>
+        {/* Sliding indicator for main tabs */}
+        <RNAnimated.View
+          style={[
+            styles.mainTabIndicator,
+            {
+              width: mainTabWidth,
+              transform: [{ translateX: mainTabTranslateX }],
+            },
+          ]}
+        />
         <Pressable
           onPress={() => handleTabChange('OT')}
-          style={[styles.testamentTab, selectedTab === 'OT' && styles.testamentTabActive]}
+          style={styles.testamentTab}
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTab === 'OT' }}
           testID="tab-old-testament"
@@ -419,7 +481,7 @@ function BibleNavigationModalComponent({
 
         <Pressable
           onPress={() => handleTabChange('NT')}
-          style={[styles.testamentTab, selectedTab === 'NT' && styles.testamentTabActive]}
+          style={styles.testamentTab}
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTab === 'NT' }}
           testID="tab-new-testament"
@@ -433,7 +495,7 @@ function BibleNavigationModalComponent({
 
         <Pressable
           onPress={() => handleTabChange('TOPICS')}
-          style={[styles.testamentTab, selectedTab === 'TOPICS' && styles.testamentTabActive]}
+          style={styles.testamentTab}
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTab === 'TOPICS' }}
           testID="tab-topics"
@@ -451,16 +513,36 @@ function BibleNavigationModalComponent({
     </View>
   );
 
+  // Handle layout for category tabs
+  const handleCategoryTabLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    const singleTabWidth = (width - 16) / 4; // 4 tabs, 8px padding, 12px gaps (3 gaps of 4px)
+    setCategoryTabWidth(singleTabWidth);
+  }, []);
+
+  // Calculate translateX for category tab indicator
+  const categoryTabTranslateX = categoryTabSlideAnim.interpolate({
+    inputRange: [0, 1, 2, 3],
+    outputRange: [0, categoryTabWidth + 4, (categoryTabWidth + 4) * 2, (categoryTabWidth + 4) * 3],
+  });
+
   // Render topic category tabs
   const renderTopicCategoryTabs = () => (
     <View style={styles.categoryTabsContainer}>
-      <View style={styles.categoryTabsRow}>
+      <View style={styles.categoryTabsRow} onLayout={handleCategoryTabLayout}>
+        {/* Sliding indicator for category tabs */}
+        <RNAnimated.View
+          style={[
+            styles.categoryTabIndicator,
+            {
+              width: categoryTabWidth,
+              transform: [{ translateX: categoryTabTranslateX }],
+            },
+          ]}
+        />
         <Pressable
           onPress={() => handleTopicCategoryChange('EVENT')}
-          style={[
-            styles.categoryTab,
-            selectedTopicCategory === 'EVENT' && styles.categoryTabActive,
-          ]}
+          style={styles.categoryTab}
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTopicCategory === 'EVENT' }}
         >
@@ -478,10 +560,7 @@ function BibleNavigationModalComponent({
 
         <Pressable
           onPress={() => handleTopicCategoryChange('PROPHECY')}
-          style={[
-            styles.categoryTab,
-            selectedTopicCategory === 'PROPHECY' && styles.categoryTabActive,
-          ]}
+          style={styles.categoryTab}
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTopicCategory === 'PROPHECY' }}
         >
@@ -499,10 +578,7 @@ function BibleNavigationModalComponent({
 
         <Pressable
           onPress={() => handleTopicCategoryChange('PARABLE')}
-          style={[
-            styles.categoryTab,
-            selectedTopicCategory === 'PARABLE' && styles.categoryTabActive,
-          ]}
+          style={styles.categoryTab}
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTopicCategory === 'PARABLE' }}
         >
@@ -520,10 +596,7 @@ function BibleNavigationModalComponent({
 
         <Pressable
           onPress={() => handleTopicCategoryChange('THEME')}
-          style={[
-            styles.categoryTab,
-            selectedTopicCategory === 'THEME' && styles.categoryTabActive,
-          ]}
+          style={styles.categoryTab}
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTopicCategory === 'THEME' }}
         >
@@ -918,6 +991,17 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
       padding: 4,
       flexDirection: 'row',
       justifyContent: 'space-between',
+      position: 'relative',
+      gap: 4,
+      minHeight: 36,
+    },
+    mainTabIndicator: {
+      position: 'absolute',
+      height: 28,
+      backgroundColor: colors.gold,
+      borderRadius: 100,
+      top: 4,
+      left: 4,
     },
     testamentTab: {
       flex: 1,
@@ -927,9 +1011,11 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: 28,
+      backgroundColor: 'transparent',
+      zIndex: 1,
     },
     testamentTabActive: {
-      backgroundColor: colors.gold,
+      backgroundColor: 'transparent',
     },
     testamentTabText: {
       fontSize: 14,
@@ -1065,19 +1151,31 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
       padding: 4,
       flexDirection: 'row',
       justifyContent: 'space-between',
-      gap: 4, // Add gap for spacing between pills
+      gap: 4,
+      position: 'relative',
+      minHeight: 36,
+    },
+    categoryTabIndicator: {
+      position: 'absolute',
+      height: 28,
+      backgroundColor: colors.gold,
+      borderRadius: 100,
+      top: 4,
+      left: 4,
     },
     categoryTab: {
       flex: 1,
-      paddingHorizontal: 4, // Reduced padding to fit 4 items
+      paddingHorizontal: 4,
       paddingVertical: 2,
       borderRadius: 100,
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: 28,
+      backgroundColor: 'transparent',
+      zIndex: 1,
     },
     categoryTabActive: {
-      backgroundColor: colors.gold,
+      backgroundColor: 'transparent',
     },
     categoryTabText: {
       fontSize: 13, // Slightly smaller to fit "Prophecies"

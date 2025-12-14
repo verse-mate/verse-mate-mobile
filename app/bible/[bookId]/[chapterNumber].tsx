@@ -20,7 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
@@ -455,6 +456,35 @@ function ChapterHeader({
   const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
 
+  // Animation for sliding toggle indicator
+  const toggleSlideAnim = useRef(new Animated.Value(activeView === 'bible' ? 0 : 1)).current;
+  const [buttonWidth, setButtonWidth] = useState(0);
+
+  // Animate toggle indicator when activeView changes
+  useEffect(() => {
+    Animated.spring(toggleSlideAnim, {
+      toValue: activeView === 'bible' ? 0 : 1,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 50,
+    }).start();
+  }, [activeView, toggleSlideAnim]);
+
+  // Measure button container to calculate proper button widths
+  const handleToggleLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    // Each button width = (containerWidth - padding - gap) / 2
+    // containerWidth - 8 (padding) - 4 (gap) = containerWidth - 12
+    const singleButtonWidth = (width - 12) / 2;
+    setButtonWidth(singleButtonWidth);
+  };
+
+  // Calculate translateX for sliding indicator
+  const indicatorTranslateX = toggleSlideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, buttonWidth + 4], // Add gap (4px) between buttons
+  });
+
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="chapter-header">
       {/* Chapter Title Button (clickable to open navigation) */}
@@ -477,10 +507,24 @@ function ChapterHeader({
       {/* Action Icons */}
       <View style={styles.headerActions}>
         {/* Bible/Commentary Toggle (Figma pill-style) */}
-        <View style={styles.toggleContainer}>
+        <View style={styles.toggleContainer} onLayout={handleToggleLayout}>
+          {/* Sliding indicator background */}
+          <Animated.View
+            style={[
+              styles.toggleIndicator,
+              {
+                width: buttonWidth,
+                transform: [
+                  {
+                    translateX: indicatorTranslateX,
+                  },
+                ],
+              },
+            ]}
+          />
           <Pressable
             onPress={() => onViewChange('bible')}
-            style={[styles.toggleButton, activeView === 'bible' && styles.toggleButtonActive]}
+            style={styles.toggleButton}
             accessibilityLabel="Bible reading view"
             accessibilityRole="button"
             accessibilityState={{ selected: activeView === 'bible' }}
@@ -492,10 +536,7 @@ function ChapterHeader({
           </Pressable>
           <Pressable
             onPress={() => onViewChange('explanations')}
-            style={[
-              styles.toggleButton,
-              activeView === 'explanations' && styles.toggleButtonActive,
-            ]}
+            style={styles.toggleButton}
             accessibilityLabel="Insight view"
             accessibilityRole="button"
             accessibilityState={{ selected: activeView === 'explanations' }}
@@ -574,6 +615,15 @@ const createHeaderStyles = (
       padding: 4,
       flexDirection: 'row',
       gap: 4,
+      position: 'relative',
+    },
+    toggleIndicator: {
+      position: 'absolute',
+      height: 28,
+      backgroundColor: themeColors.gold,
+      borderRadius: 100,
+      top: 4,
+      left: 4,
     },
     toggleButton: {
       paddingHorizontal: 10,
@@ -582,9 +632,11 @@ const createHeaderStyles = (
       minHeight: 28,
       justifyContent: 'center',
       alignItems: 'center',
+      backgroundColor: 'transparent',
+      zIndex: 1,
     },
     toggleButtonActive: {
-      backgroundColor: themeColors.gold,
+      backgroundColor: 'transparent',
     },
     toggleText: {
       fontSize: 14,
