@@ -268,7 +268,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     headerTitle: {
       flex: 1,
-      fontSize: fontSizes.displayMedium,
+      fontSize: fontSizes.displayMedium * 0.88,
       fontWeight: fontWeights.bold,
       color: colors.textPrimary,
     },
