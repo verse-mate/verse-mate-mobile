@@ -7,7 +7,7 @@
  * Features:
  * - Slides in from right (300ms animation)
  * - White background, full height
- * - Menu items with icons: Bookmarks, Favorites, Notes, Highlights, Settings
+ * - Menu items with icons: Bookmarks, Notes, Highlights, Settings
  * - Close button (X) in header
  * - Tap backdrop or X to close
  * - Bookmarks item navigates to /bookmarks screen
@@ -66,7 +66,6 @@ const authMenuItems: MenuItem[] = [
 
 const regularMenuItems: MenuItem[] = [
   { id: 'bookmarks', label: 'Bookmarks', icon: 'bookmark-outline', action: 'bookmarks' },
-  { id: 'favorites', label: 'Favorites', icon: 'heart-outline' },
   { id: 'notes', label: 'Notes', icon: 'document-text-outline', action: 'notes' },
   { id: 'highlights', label: 'Highlights', icon: 'color-wand-outline', action: 'highlights' },
   { id: 'settings', label: 'Settings', icon: 'settings-outline', action: 'settings' },
