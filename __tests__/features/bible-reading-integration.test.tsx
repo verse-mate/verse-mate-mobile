@@ -365,7 +365,8 @@ describe('Bible Reading Interface - Integration Tests', () => {
     });
 
     // 3. Switch to Explanations view (tabs are only visible in Explanations view)
-    const explanationsIcon = getByTestId('explanations-view-icon');
+    // 3. Switch to Explanations view (tabs are only visible in Explanations view)
+    const explanationsIcon = getByTestId('commentary-view-toggle');
     fireEvent.press(explanationsIcon);
 
     await waitFor(() => {
@@ -626,7 +627,8 @@ describe('Bible Reading Interface - Integration Tests', () => {
     });
 
     // Switch to Explanations view to see tabs
-    const explanationsIcon = getByTestId('explanations-view-icon');
+    // 3. Switch to Explanations view (tabs are only visible in Explanations view)
+    const explanationsIcon = getByTestId('commentary-view-toggle');
     fireEvent.press(explanationsIcon);
 
     await waitFor(() => {

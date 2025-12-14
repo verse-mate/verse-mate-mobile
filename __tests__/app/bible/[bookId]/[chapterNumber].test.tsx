@@ -25,6 +25,29 @@ import {
   useSaveLastRead,
 } from '@/src/api/generated';
 
+// Mock specific hooks to avoid side effects and act() warnings
+jest.mock('@/hooks/bible/use-recent-books', () => ({
+  useRecentBooks: jest.fn(() => ({
+    recentBooks: [],
+    addRecentBook: jest.fn(),
+    isLoading: false,
+    error: null,
+  })),
+}));
+
+jest.mock('@/hooks/bible/use-fab-visibility', () => ({
+  useFABVisibility: jest.fn(() => ({
+    visible: true,
+    handleScroll: jest.fn(),
+    handleTap: jest.fn(),
+  })),
+}));
+
+// Mock OfflineIndicator to avoid network state updates
+jest.mock('@/components/bible/OfflineIndicator', () => ({
+  OfflineIndicator: () => null,
+}));
+
 // Mock dependencies
 jest.mock('expo-router', () => ({
   useNavigation: jest.fn(() => ({})),
@@ -203,7 +226,6 @@ describe('ChapterScreen - PagerView Integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
 
     mockSaveLastRead = jest.fn();
     mockPrefetchNext = jest.fn();
@@ -293,7 +315,7 @@ describe('ChapterScreen - PagerView Integration', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    // jest.useRealTimers();
   });
 
   /**
@@ -328,8 +350,8 @@ describe('ChapterScreen - PagerView Integration', () => {
   it('opens navigation modal when chapter selector button is pressed', async () => {
     const { getByTestId, queryByTestId } = renderWithSafeArea(<ChapterScreen />);
 
-    // Modal should not be visible initially
-    expect(queryByTestId('bible-navigation-modal')).toBeNull();
+    // Modal should not be visible initially (it's always rendered but hidden with opacity/transform)
+    expect(getByTestId('bible-navigation-modal')).not.toBeVisible();
 
     await waitFor(() => {
       const selectorButton = getByTestId('chapter-selector-button');
@@ -372,6 +394,7 @@ describe('ChapterScreen - PagerView Integration', () => {
    * Test 6: Prefetching triggered after chapter loads with delay
    */
   it('prefetches adjacent chapters after 1 second delay', async () => {
+    jest.useFakeTimers();
     renderWithSafeArea(<ChapterScreen />);
 
     // Initially, prefetch should not be called
@@ -386,6 +409,7 @@ describe('ChapterScreen - PagerView Integration', () => {
       expect(mockPrefetchNext).toHaveBeenCalled();
       expect(mockPrefetchPrevious).toHaveBeenCalled();
     });
+    jest.useRealTimers();
   });
 
   /**
@@ -407,7 +431,7 @@ describe('ChapterScreen - PagerView Integration', () => {
 
     // Switch to explanations view
     await waitFor(() => {
-      const explanationsIcon = getByTestId('explanations-view-icon');
+      const explanationsIcon = getByTestId('commentary-view-toggle');
       fireEvent.press(explanationsIcon);
     });
 
@@ -427,8 +451,8 @@ describe('ChapterScreen - PagerView Integration', () => {
     // Initially in Bible view, tabs should NOT be visible
     expect(queryByTestId('chapter-content-tabs')).toBeNull();
 
-    const bibleIcon = getByTestId('bible-view-icon');
-    const explanationsIcon = getByTestId('explanations-view-icon');
+    const bibleIcon = getByTestId('bible-view-toggle');
+    const explanationsIcon = getByTestId('commentary-view-toggle');
 
     // Switch to explanations view
     fireEvent.press(explanationsIcon);

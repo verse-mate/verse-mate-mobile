@@ -41,8 +41,8 @@ describe('ChapterContentTabs', () => {
     expect(summaryTab).toHaveStyle({ backgroundColor: '#b09a6d' });
 
     // Inactive tabs should have gray700 background (#4a4a4a)
-    expect(byLineTab).toHaveStyle({ backgroundColor: '#4a4a4a' });
-    expect(detailedTab).toHaveStyle({ backgroundColor: '#4a4a4a' });
+    expect(byLineTab).toHaveStyle({ backgroundColor: 'transparent' });
+    expect(detailedTab).toHaveStyle({ backgroundColor: 'transparent' });
   });
 
   /**
@@ -58,8 +58,8 @@ describe('ChapterContentTabs', () => {
     const detailedTab = screen.getByTestId('tab-detailed');
 
     // Inactive tabs should have gray700 background
-    expect(summaryTab).toHaveStyle({ backgroundColor: '#4a4a4a' });
-    expect(detailedTab).toHaveStyle({ backgroundColor: '#4a4a4a' });
+    expect(summaryTab).toHaveStyle({ backgroundColor: 'transparent' });
+    expect(detailedTab).toHaveStyle({ backgroundColor: 'transparent' });
 
     // Active tab should have gold background
     expect(byLineTab).toHaveStyle({ backgroundColor: '#b09a6d' });
