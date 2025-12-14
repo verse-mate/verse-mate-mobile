@@ -38,8 +38,8 @@ const styles = StyleSheet.create({
     paddingBottom: 0, // No bottom padding - uses the ScrollView's paddingBottom
   },
   logo: {
-    width: 200, // Scaled down from 297px for mobile
-    height: 54, // Maintains aspect ratio (297:80 ≈ 3.7:1)
+    width: 200 * 0.82, // ~18% smaller
+    height: 54 * 0.82, // maintain aspect ratio
     opacity: 0.6, // Subtle appearance
   },
 });
