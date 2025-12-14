@@ -327,6 +327,7 @@ export const ChapterPage = React.memo(function ChapterPage({
    * Attempt to scroll to target verse using Reanimated for smoothness
    */
   const attemptScrollToVerse = useCallback(() => {
+    if (activeView !== 'bible') return;
     if (!targetVerse || hasScrolledRef.current) return;
 
     // Find the section that contains the target verse
@@ -344,28 +345,75 @@ export const ChapterPage = React.memo(function ChapterPage({
     }
 
     if (targetSectionStartVerse !== -1) {
+      console.log(
+        '[ScrollDebug] targetVerse',
+        targetVerse,
+        'sectionStart',
+        targetSectionStartVerse
+      );
       const targetY = sectionPositionsRef.current[targetSectionStartVerse];
       if (targetY !== undefined) {
+        // Adjust for top padding so target verse appears near the top
+        const topPadding = spacing.xxl;
+        const targetYAdjusted = Math.max(0, targetY - topPadding);
         const startY = currentScrollYRef.current;
-        const distance = Math.abs(targetY - startY);
+        const distance = Math.abs(targetYAdjusted - startY);
 
-        // Dynamic duration calculation
-        // 500ms base + 0.3ms per pixel, max 2000ms
-        const duration = Math.min(2000, 500 + distance * 0.3);
+        // Balanced duration: smooth but not too slow
+        // Base 800ms + 0.5ms per pixel, clamped 1000ms–2500ms
+        const rawDuration = 800 + distance * 0.5;
+        const duration = Math.max(1000, Math.min(2500, rawDuration));
 
         // Sync shared value to current position first (to be safe)
         scrollY.value = startY;
 
         // Drive animation on UI thread
-        scrollY.value = withTiming(targetY, {
+        console.log(
+          '[ScrollDebug] animating to',
+          targetYAdjusted,
+          'from',
+          startY,
+          'distance',
+          distance,
+          'duration',
+          duration
+        );
+        scrollY.value = withTiming(targetYAdjusted, {
           duration: duration,
-          easing: Easing.inOut(Easing.cubic),
+          // Very gentle ease-in-out for slower start/stop
+          easing: Easing.bezier(0.2, 0.0, 0.0, 1),
         });
 
+        // JS-thread fallback tween: if Reanimated doesn't move, tween scroll over the same duration
+        const startTime = Date.now();
+        const startPos = startY;
+        const endPos = targetYAdjusted;
+        const tweenInterval = 16; // ~60fps
+        const easeInOut = (t: number) => {
+          // cubic ease-in-out approximation
+          return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+        };
+        const timer = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const t = Math.min(1, elapsed / duration);
+          const eased = easeInOut(t);
+          const y = startPos + (endPos - startPos) * eased;
+          try {
+            animatedScrollRef.current?.scrollTo?.({ y, animated: false });
+          } catch {}
+          if (t >= 1) {
+            clearInterval(timer);
+          }
+        }, tweenInterval);
+
+        // Removed immediate JS-thread imperative fallback; it could override timing
+
         hasScrolledRef.current = true;
+      } else {
+        console.log('[ScrollDebug] targetY undefined for section', targetSectionStartVerse);
       }
     }
-  }, [targetVerse, scrollY]);
+  }, [activeView, targetVerse, scrollY]);
 
   // React to shared value changes on UI thread (only for Bible view)
   // Note: animatedScrollRef is only valid when Animated.ScrollView is rendered (Bible view)
@@ -376,7 +424,8 @@ export const ChapterPage = React.memo(function ChapterPage({
       // Safety check: only scroll if the ref is attached to a valid component
       // In explanation view, the Animated.ScrollView is not rendered, so ref is invalid
       if (animatedScrollRef && animatedScrollRef.current) {
-        scrollTo(animatedScrollRef, 0, currentY, false);
+        // Use animated=true to ensure native animated scrolling
+        scrollTo(animatedScrollRef, 0, currentY, true);
       }
     }
   );
@@ -387,6 +436,7 @@ export const ChapterPage = React.memo(function ChapterPage({
   const handleContentLayout = useCallback(
     (positions: Record<number, number>) => {
       sectionPositionsRef.current = positions;
+      console.log('[ScrollDebug] content layout positions keys', Object.keys(positions));
       attemptScrollToVerse();
     },
     [attemptScrollToVerse]
@@ -398,6 +448,31 @@ export const ChapterPage = React.memo(function ChapterPage({
       attemptScrollToVerse();
     }
   }, [targetVerse, attemptScrollToVerse]);
+
+  // Fallback: if initial layout was late, retry after mount
+  useEffect(() => {
+    // Quick one-shot retry
+    const timeout = setTimeout(() => {
+      attemptScrollToVerse();
+    }, 300);
+
+    // Short polling until positions available or 2s elapsed
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const havePositions = Object.keys(sectionPositionsRef.current).length > 0;
+      if (havePositions) {
+        attemptScrollToVerse();
+        clearInterval(interval);
+      } else if (Date.now() - start > 2000) {
+        clearInterval(interval);
+      }
+    }, 150);
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [attemptScrollToVerse]);
 
   /**
    * Handle scroll events - calculate velocity and detect bottom
