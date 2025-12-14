@@ -85,6 +85,10 @@ interface BibleNavigationModalProps {
   onSelectChapter: (bookId: number, chapter: number) => void;
   /** Callback when user selects a topic */
   onSelectTopic?: (topicId: string, category: TopicCategory) => void;
+  /** Initial tab to open (defaults to testament of currentBookId) */
+  initialTab?: 'OT' | 'NT' | 'TOPICS';
+  /** Initial topic category to open when initialTab is TOPICS (defaults to EVENT) */
+  initialTopicCategory?: TopicCategory;
   /** Whether to use the native Modal component (default: true) */
   useModalComponent?: boolean;
   /** Optional shared value for vertical translation (for external gesture control) */
@@ -103,6 +107,8 @@ function BibleNavigationModalComponent({
   onClose,
   onSelectChapter,
   onSelectTopic,
+  initialTab,
+  initialTopicCategory,
   useModalComponent = true,
   customTranslateY,
 }: BibleNavigationModalProps) {
@@ -264,9 +270,22 @@ function BibleNavigationModalComponent({
   useEffect(() => {
     if (visible) {
       setInternalVisible(true);
-      const testament = getTestamentFromBookId(currentBookId);
-      setSelectedTab(testament);
-      setSelectedTestament(testament);
+      // Use initialTab if provided, otherwise default to testament from currentBookId
+      const defaultTab = initialTab || getTestamentFromBookId(currentBookId);
+      setSelectedTab(defaultTab);
+
+      // Only set testament if not opening to TOPICS tab
+      if (defaultTab !== 'TOPICS') {
+        setSelectedTestament(defaultTab);
+      } else {
+        // When opening TOPICS tab, set testament based on currentBookId for potential switching
+        setSelectedTestament(getTestamentFromBookId(currentBookId));
+        // Set the initial topic category if provided
+        if (initialTopicCategory) {
+          setSelectedTopicCategory(initialTopicCategory);
+        }
+      }
+
       setSelectedBookId(null); // Start with book list, not chapter grid
       setFilterText('');
       setTopicFilterText('');
@@ -279,7 +298,7 @@ function BibleNavigationModalComponent({
         }
       });
     }
-  }, [visible, currentBookId, translateY, customTranslateY]);
+  }, [visible, currentBookId, initialTab, initialTopicCategory, translateY, customTranslateY]);
 
   // Filter books by testament and filter text
   const filteredBooks = useMemo(() => {

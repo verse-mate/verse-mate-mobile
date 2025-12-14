@@ -366,6 +366,8 @@ export default function TopicDetailScreen() {
           visible={isNavigationModalOpen}
           currentBookId={1} // Default to Genesis
           currentChapter={1}
+          initialTab="TOPICS"
+          initialTopicCategory={category}
           onClose={() => setIsNavigationModalOpen(false)}
           onSelectChapter={handleSelectChapter}
           onSelectTopic={handleSelectTopic}
