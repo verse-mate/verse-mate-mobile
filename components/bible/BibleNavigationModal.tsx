@@ -249,14 +249,6 @@ function BibleNavigationModalComponent({
   });
   const [internalVisible, setInternalVisible] = useState(visible);
 
-  // Gesture for handling scroll events within the lists
-  const scrollGesture = Gesture.Native();
-
-  // Tap gesture for backdrop to close modal
-  const backdropTapGesture = Gesture.Tap().onEnd(() => {
-    runOnJS(handleClose)();
-  });
-
   // Handle closing with animation
   const handleClose = useCallback(() => {
     translateY.value = withTiming(-1000, { duration: 250 }, (finished) => {
@@ -265,6 +257,14 @@ function BibleNavigationModalComponent({
       }
     });
   }, [onClose, translateY]);
+
+  // Gesture for handling scroll events within the lists
+  const scrollGesture = Gesture.Native();
+
+  // Tap gesture for backdrop to close modal
+  const backdropTapGesture = Gesture.Tap().onEnd(() => {
+    runOnJS(handleClose)();
+  });
 
   // Reset state when modal becomes visible and animate from top (simple slide, no spring)
   useEffect(() => {
