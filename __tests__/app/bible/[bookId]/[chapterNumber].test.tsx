@@ -350,8 +350,8 @@ describe('ChapterScreen - PagerView Integration', () => {
   it('opens navigation modal when chapter selector button is pressed', async () => {
     const { getByTestId, queryByTestId } = renderWithSafeArea(<ChapterScreen />);
 
-    // Modal should not be visible initially (it's always rendered but hidden with opacity/transform)
-    expect(getByTestId('bible-navigation-modal')).not.toBeVisible();
+    // Modal should not be visible initially
+    expect(queryByTestId('bible-navigation-modal')).toBeNull();
 
     await waitFor(() => {
       const selectorButton = getByTestId('chapter-selector-button');
