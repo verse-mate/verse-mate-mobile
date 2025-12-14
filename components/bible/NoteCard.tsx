@@ -49,6 +49,12 @@ export interface NoteCardProps {
   onMenuPress: (note: Note) => void;
   /** Content truncation length (default: 100 from NOTES_CONFIG) */
   truncateLength?: number;
+  /** Whether the card is expanded to show full content */
+  isExpanded?: boolean;
+  /** Callback for edit action (when expanded) */
+  onEdit?: (note: Note) => void;
+  /** Callback for delete action (when expanded) */
+  onDelete?: (note: Note) => void;
 }
 
 /**
@@ -68,13 +74,16 @@ export function NoteCard({
   onPress,
   onMenuPress,
   truncateLength = NOTES_CONFIG.PREVIEW_TRUNCATE_LENGTH,
+  isExpanded = false,
+  onEdit,
+  onDelete,
 }: NoteCardProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  // Truncate content if needed
+  // Truncate content if needed (only when not expanded)
   const displayContent =
-    note.content.length > truncateLength
+    !isExpanded && note.content.length > truncateLength
       ? `${note.content.substring(0, truncateLength)}...`
       : note.content;
 
@@ -85,23 +94,39 @@ export function NoteCard({
       testID={`note-card-${note.note_id}`}
     >
       <View style={styles.content}>
-        <Text style={styles.text} numberOfLines={3}>
+        <Text style={styles.text} numberOfLines={isExpanded ? undefined : 3}>
           {displayContent}
         </Text>
       </View>
 
       <View style={styles.actions}>
-        <Pressable
-          onPress={(e) => {
-            e?.stopPropagation?.();
-            onMenuPress(note);
-          }}
-          style={styles.actionButton}
-          testID={`note-menu-${note.note_id}`}
-          hitSlop={12}
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
-        </Pressable>
+        {isExpanded ? (
+          <View style={styles.expandedActions}>
+            <Pressable
+              onPress={(e) => {
+                e?.stopPropagation?.();
+                onMenuPress(note);
+              }}
+              style={styles.actionButton}
+              testID={`note-menu-${note.note_id}`}
+              hitSlop={12}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              onMenuPress(note);
+            }}
+            style={styles.actionButton}
+            testID={`note-menu-${note.note_id}`}
+            hitSlop={12}
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
+          </Pressable>
+        )}
       </View>
     </Pressable>
   );
@@ -138,6 +163,10 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       alignItems: 'flex-end',
       alignSelf: 'flex-end',
       gap: spacing.sm,
+    },
+    expandedActions: {
+      flexDirection: 'row',
+      gap: spacing.md,
     },
     actionButton: {
       padding: spacing.xs,

@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NoteCard } from '@/components/bible/NoteCard';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
-import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -37,19 +36,19 @@ export default function ChapterNotesScreen() {
   );
 
   // Modal State
-  const [viewModalVisible, setViewModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [optionsModalVisible, setOptionsModalVisible] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
 
   const handleBackPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
   };
 
-  const handleNotePress = (note: Note) => {
-    setSelectedNote(note);
-    setViewModalVisible(true);
+  const handleNotePress = async (note: Note) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setExpandedNoteId((prevId) => (prevId === note.note_id ? null : note.note_id));
   };
 
   const handleMenuPress = async (note: Note) => {
@@ -62,28 +61,6 @@ export default function ChapterNotesScreen() {
   const handleEditNote = () => {
     // Options modal closes itself before calling this
     setEditModalVisible(true);
-  };
-
-  // Passed to View Modal -> triggers Edit Modal
-  const handleEditFromView = (note: Note) => {
-    setViewModalVisible(false);
-    setSelectedNote(note);
-    setTimeout(() => setEditModalVisible(true), 100);
-  };
-
-  // Passed to View Modal -> triggers Delete (using Hook directly as ViewModal doesn't use OptionsModal yet)
-  // Or we could open OptionsModal from ViewModal too?
-  // For now, ViewModal has its own delete button. We'll leave it or refactor it later.
-  // But user asked for "same 3 dots actions menu". Maybe on ViewModal too?
-  // Let's stick to the list items for now.
-  const handleDeleteFromView = async (note: Note) => {
-    try {
-      await deleteNote(note.note_id);
-      setViewModalVisible(false);
-      setSelectedNote(null);
-    } catch (error) {
-      console.error('Failed to delete note:', error);
-    }
   };
 
   const handleNoteSave = () => {
@@ -179,13 +156,14 @@ export default function ChapterNotesScreen() {
                 note={note}
                 onPress={handleNotePress}
                 onMenuPress={handleMenuPress}
+                isExpanded={expandedNoteId === note.note_id}
               />
             ))}
           </View>
         )}
       </ScrollView>
 
-      {/* Note Options Modal */}
+      {/* Note Options Modal (kept for menu button) */}
       <NoteOptionsModal
         visible={optionsModalVisible}
         onClose={() => setOptionsModalVisible(false)}
@@ -194,22 +172,6 @@ export default function ChapterNotesScreen() {
         onEdit={handleEditNote}
         onActionComplete={handleActionComplete}
       />
-
-      {/* View Modal */}
-      {selectedNote && (
-        <NoteViewModal
-          visible={viewModalVisible}
-          note={selectedNote}
-          bookName={selectedNote.book_name}
-          chapterNumber={selectedNote.chapter_number}
-          onClose={() => {
-            setViewModalVisible(false);
-            setSelectedNote(null);
-          }}
-          onEdit={handleEditFromView}
-          onDelete={handleDeleteFromView}
-        />
-      )}
 
       {/* Edit Modal */}
       {selectedNote && (
