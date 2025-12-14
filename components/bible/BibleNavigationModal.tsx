@@ -114,7 +114,11 @@ function BibleNavigationModalComponent({
 }: BibleNavigationModalProps) {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const styles = useMemo(() => createStyles(colors, mode, insets.top), [colors, mode, insets.top]);
+  const modalSpecs = useMemo(() => getModalSpecs(mode), [mode]); // Define modalSpecs here
+  const styles = useMemo(
+    () => createStyles(colors, mode, insets.top, modalSpecs),
+    [colors, mode, insets.top, modalSpecs]
+  );
 
   // State for tab type: 'OT', 'NT', or 'TOPICS'
   type TabType = Testament | 'TOPICS';
@@ -660,11 +664,11 @@ function BibleNavigationModalComponent({
     return (
       <View style={styles.filterContainer}>
         <View style={styles.filterInputWrapper}>
-          <Ionicons name="search" size={24} color="#818990" />
+          <Ionicons name="search" size={24} color={colors.textTertiary} />
           <TextInput
             style={styles.filterInput}
             placeholder={placeholder}
-            placeholderTextColor="#818990"
+            placeholderTextColor={colors.textTertiary}
             value={currentFilterText}
             onChangeText={onChangeText}
             returnKeyType="search"
@@ -899,7 +903,7 @@ function BibleNavigationModalComponent({
               left: 0,
               right: 0,
               height: 1000,
-              backgroundColor: '#1e1e1e', // Match container background
+              backgroundColor: modalSpecs.backgroundColor, // Match container background
             }}
           />
 
@@ -959,9 +963,12 @@ function BibleNavigationModalComponent({
  */
 export const BibleNavigationModal = memo(BibleNavigationModalComponent);
 
-const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, topInset: number) => {
-  const modalSpecs = getModalSpecs(mode);
-
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  mode: ThemeMode,
+  topInset: number,
+  modalSpecs: ReturnType<typeof getModalSpecs>
+) => {
   return StyleSheet.create({
     backdrop: {
       flex: 1,
@@ -973,7 +980,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
     },
     container: {
       height: modalSpecs.height,
-      backgroundColor: '#1e1e1e',
+      backgroundColor: modalSpecs.backgroundColor,
       borderBottomLeftRadius: 30,
       borderBottomRightRadius: 30,
       paddingTop: spacing.lg + topInset,
@@ -988,7 +995,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
     handle: {
       width: 72,
       height: 4,
-      backgroundColor: '#3a3a3a',
+      backgroundColor: modalSpecs.handleColor,
       borderRadius: 100,
     },
     titleContainer: {
@@ -999,7 +1006,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
     titleText: {
       fontSize: 24,
       fontWeight: fontWeights.medium,
-      color: '#e8e8e8',
+      color: colors.textPrimary,
       lineHeight: 32,
     },
     breadcrumbContainer: {
@@ -1021,7 +1028,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
       paddingHorizontal: spacing.lg,
     },
     tabsRow: {
-      backgroundColor: '#323232',
+      backgroundColor: mode === 'dark' ? colors.gray200 : colors.gray50,
       borderRadius: 100,
       padding: 4,
       flexDirection: 'row',
@@ -1055,7 +1062,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
     testamentTabText: {
       fontSize: 14,
       fontWeight: '400',
-      color: colors.white,
+      color: colors.textPrimary,
       ...(Platform.OS === 'ios' && { includeFontPadding: false }),
     },
     testamentTabTextActive: {
@@ -1065,7 +1072,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
       paddingHorizontal: spacing.lg,
     },
     filterInputWrapper: {
-      backgroundColor: '#323232',
+      backgroundColor: mode === 'dark' ? colors.gray200 : colors.gray50,
       borderRadius: 100,
       height: 36,
       paddingHorizontal: spacing.lg,
@@ -1077,7 +1084,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
     filterInput: {
       flex: 1,
       fontSize: 14,
-      color: colors.white,
+      color: colors.textPrimary,
       padding: 0,
     },
     searchIcon: {
@@ -1103,9 +1110,9 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
       paddingRight: spacing.sm,
       paddingVertical: spacing.sm,
       borderBottomWidth: 1,
-      borderBottomColor: 'rgba(62,70,77,0.5)',
+      borderBottomColor: colors.border,
       minHeight: 48,
-      backgroundColor: '#1e1e1e',
+      backgroundColor: modalSpecs.backgroundColor,
       gap: spacing.lg,
     },
     bookItemSelected: {
@@ -1182,7 +1189,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
       paddingHorizontal: spacing.lg,
     },
     categoryTabsRow: {
-      backgroundColor: '#323232',
+      backgroundColor: mode === 'dark' ? colors.gray200 : colors.gray50,
       borderRadius: 100,
       padding: 4,
       flexDirection: 'row',
@@ -1216,7 +1223,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode, top
     categoryTabText: {
       fontSize: 13, // Slightly smaller to fit "Prophecies"
       fontWeight: '400',
-      color: colors.white,
+      color: colors.textPrimary,
     },
     categoryTabTextActive: {
       color: colors.black,
