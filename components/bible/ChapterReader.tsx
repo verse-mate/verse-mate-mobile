@@ -42,7 +42,6 @@ import type { TextSelection, WordTapEvent } from '@/components/bible/Highlighted
 import { HighlightedText } from '@/components/bible/HighlightedText';
 import { HighlightSelectionSheet } from '@/components/bible/HighlightSelectionSheet';
 import { NotesButton } from '@/components/bible/NotesButton';
-import { ShareButton } from '@/components/bible/ShareButton';
 import { SimpleColorPickerModal } from '@/components/bible/SimpleColorPickerModal';
 import { TextSelectionMenu } from '@/components/bible/TextSelectionMenu';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
@@ -1086,13 +1085,6 @@ export function ChapterReader({
               bookId={chapter.bookId}
               chapterNumber={chapter.chapterNumber}
               onPress={handleNotesPress}
-              size={specs.iconSize}
-              color={colors.textPrimary}
-            />
-            <ShareButton
-              bookId={chapter.bookId}
-              chapterNumber={chapter.chapterNumber}
-              bookName={chapter.bookName}
               size={specs.iconSize}
               color={colors.textPrimary}
             />

@@ -556,8 +556,6 @@ export const ChapterPage = React.memo(function ChapterPage({
         chapterNumber={chapterNumber}
         bookName={chapter?.title.split(' ')[0] || ''}
         onClose={() => setNotesModalVisible(false)}
-        onNotePress={handleNotePress}
-        onEditNote={handleEditNote}
       />
 
       {selectedNote && (

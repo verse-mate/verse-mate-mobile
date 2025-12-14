@@ -18,11 +18,13 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -34,8 +36,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CharacterCounter } from '@/components/bible/CharacterCounter';
-import { NoteCard } from '@/components/bible/NoteCard';
-import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import {
   fontSizes,
   fontWeights,
@@ -48,7 +48,6 @@ import { NOTES_CONFIG } from '@/constants/notes';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useNotes } from '@/hooks/bible/use-notes';
-import type { Note } from '@/types/notes';
 
 /**
  * Props for NotesModal component
@@ -64,10 +63,6 @@ export interface NotesModalProps {
   bookName: string;
   /** Callback when modal is closed */
   onClose: () => void;
-  /** Callback when note card is pressed (to view full note) */
-  onNotePress: (note: Note) => void;
-  /** Callback when edit button is pressed */
-  onEditNote: (note: Note) => void;
 }
 
 /**
@@ -75,38 +70,110 @@ export interface NotesModalProps {
  *
  * Displays modal for managing chapter notes with add form and existing notes list.
  */
-export function NotesModal({
-  visible,
-  bookId,
-  chapterNumber,
-  bookName,
-  onClose,
-  onNotePress,
-  onEditNote,
-}: NotesModalProps) {
+export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }: NotesModalProps) {
   const { colors, mode } = useTheme();
   const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
-  const { addNote, getNotesByChapter, isAddingNote, deleteNote } = useNotes();
+  const { addNote, isAddingNote } = useNotes();
   const { showToast } = useToast();
   const [newNoteContent, setNewNoteContent] = useState('');
   const textInputRef = useRef<TextInput>(null);
 
-  // Options Modal State
-  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
-  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  // Animation state for swipe-to-dismiss
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const [internalVisible, setInternalVisible] = useState(false);
 
-  // Get notes for this chapter
-  const chapterNotes = getNotesByChapter(bookId, chapterNumber);
-
-  // Auto-focus textarea when modal opens and chapter has no notes
+  // Auto-focus textarea when modal opens
   useEffect(() => {
-    if (visible && chapterNotes.length === 0) {
+    if (visible) {
       // Delay to ensure modal animation completes
       setTimeout(() => {
         textInputRef.current?.focus();
       }, 300);
     }
-  }, [visible, chapterNotes.length]);
+  }, [visible]);
+
+  // Animate open/close
+  const animateOpen = useCallback(() => {
+    setInternalVisible(true);
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+      }),
+    ]).start();
+  }, [backdropOpacity, slideAnim]);
+
+  const animateClose = useCallback(
+    (callback?: () => void) => {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 600,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 90,
+        }),
+      ]).start();
+      setTimeout(() => {
+        setInternalVisible(false);
+        if (callback) callback();
+      }, 300);
+    },
+    [backdropOpacity, slideAnim]
+  );
+
+  useEffect(() => {
+    if (visible && !internalVisible) {
+      animateOpen();
+    } else if (!visible && internalVisible) {
+      animateClose();
+    }
+  }, [visible, internalVisible, animateOpen, animateClose]);
+
+  const handleDismiss = () => {
+    animateClose(() => {
+      onClose();
+    });
+  };
+
+  // Pan responder for swipe-to-dismiss
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 70) {
+          handleDismiss();
+        } else if (gestureState.dy > 0) {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 90,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  if (!internalVisible) return null;
 
   /**
    * Handle add note button press
@@ -139,24 +206,6 @@ export function NotesModal({
     });
   };
 
-  const handleMenuPress = async (note: Note) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedNote(note);
-    setOptionsModalVisible(true);
-  };
-
-  const handleEditFromMenu = () => {
-    if (selectedNote) {
-      onEditNote(selectedNote);
-    }
-  };
-
-  const handleActionComplete = (action: string) => {
-    if (action === 'copy') {
-      showToast('Note copied to clipboard');
-    }
-  };
-
   /**
    * Check if Add Note button should be disabled
    */
@@ -166,16 +215,23 @@ export function NotesModal({
     isAddingNote;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+    <Modal visible={true} animationType="none" transparent={true} onRequestClose={handleDismiss}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.modalContainer}
       >
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
+        </Animated.View>
 
-        <Pressable style={styles.modalContent} onPress={(e) => e?.stopPropagation?.()}>
+        <Animated.View style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}>
           <SafeAreaView style={{ flex: 1 }}>
-            {/* Header */}
+            {/* Header with handle */}
+            <View {...panResponder.panHandlers}>
+              <View style={styles.handleContainer}>
+                <View style={styles.handle} />
+              </View>
+            </View>
             <View style={styles.header}>
               <Text style={styles.headerTitle}>
                 Notes for {bookName} {chapterNumber}
@@ -230,44 +286,9 @@ export function NotesModal({
                   </TouchableOpacity>
                 </View>
               </View>
-
-              {/* Existing Notes Section */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Existing Notes ({chapterNotes.length})</Text>
-
-                {chapterNotes.length === 0 ? (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateText}>No notes yet</Text>
-                    <Text style={styles.emptyStateSubtext}>
-                      Add your first note for this chapter above.
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.notesList}>
-                    {chapterNotes.map((note) => (
-                      <NoteCard
-                        key={note.note_id}
-                        note={note}
-                        onPress={onNotePress}
-                        onMenuPress={handleMenuPress}
-                      />
-                    ))}
-                  </View>
-                )}
-              </View>
             </ScrollView>
           </SafeAreaView>
-        </Pressable>
-
-        {/* Note Options Modal */}
-        <NoteOptionsModal
-          visible={optionsModalVisible}
-          onClose={() => setOptionsModalVisible(false)}
-          note={selectedNote}
-          deleteNote={deleteNote} // Use deleteNote from hook directly
-          onEdit={handleEditFromMenu}
-          onActionComplete={handleActionComplete}
-        />
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -290,6 +311,17 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       backgroundColor: modalSpecs.backgroundColor,
       borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
       borderTopRightRadius: modalSpecs.borderTopRightRadius,
+    },
+    handleContainer: {
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.textTertiary,
+      opacity: 0.3,
     },
     header: {
       flexDirection: 'row',
