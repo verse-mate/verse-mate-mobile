@@ -90,6 +90,13 @@ export default function ChapterScreen() {
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
 
+  // Ensure deep-linked verse jumps use Bible view so scroll-to-verse can run
+  useEffect(() => {
+    if (targetVerse && activeView !== 'bible') {
+      setActiveView('bible');
+    }
+  }, [targetVerse, activeView, setActiveView]);
+
   // Navigation modal state (Task 7.9)
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
 
