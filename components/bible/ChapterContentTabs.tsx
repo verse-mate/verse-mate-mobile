@@ -166,7 +166,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
 
   return StyleSheet.create({
     container: {
-      backgroundColor: mode === 'dark' ? '#1b1b1b' : colors.background,
+      backgroundColor: colors.background,
       paddingTop: spacing.sm,
       paddingBottom: spacing.md,
       paddingHorizontal: spacing.lg,
@@ -174,7 +174,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       borderBottomColor: colors.gold,
     },
     tabsRow: {
-      backgroundColor: '#323232',
+      backgroundColor: colors.backgroundElevated,
       borderRadius: 100,
       padding: 4,
       flexDirection: 'row',

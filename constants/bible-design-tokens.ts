@@ -491,7 +491,7 @@ export const tabSpecs = {
     },
     inactive: {
       backgroundColor: colors.light.gray700,
-      textColor: colors.light.white,
+      textColor: colors.light.textSecondary,
     },
     borderRadius: 20,
     paddingVertical: spacing.sm,
