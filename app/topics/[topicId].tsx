@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
@@ -28,7 +28,6 @@ import {
   fontWeights,
   type getColors,
   getHeaderSpecs,
-  lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -414,6 +413,19 @@ function TopicHeader({
   const styles = useMemo(() => createHeaderStyles(headerSpecs), [headerSpecs]);
   const insets = useSafeAreaInsets();
 
+  // Animation for sliding view indicator
+  const viewSlideAnim = useRef(new Animated.Value(activeView === 'bible' ? 0 : 1)).current;
+
+  // Animate indicator when activeView changes
+  useEffect(() => {
+    Animated.spring(viewSlideAnim, {
+      toValue: activeView === 'bible' ? 0 : 1,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 50,
+    }).start();
+  }, [activeView, viewSlideAnim]);
+
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="topic-header">
       {/* Topic Title Button (clickable to open navigation) */}
@@ -435,37 +447,56 @@ function TopicHeader({
 
       {/* Action Icons */}
       <View style={styles.headerActions}>
-        {/* Bible View Icon */}
-        <Pressable
-          onPress={() => onViewChange('bible')}
-          style={styles.iconButton}
-          accessibilityLabel="Bible references view"
-          accessibilityRole="button"
-          accessibilityState={{ selected: activeView === 'bible' }}
-          testID="bible-view-icon"
-        >
-          <Ionicons
-            name="book-outline"
-            size={headerSpecs.iconSize}
-            color={activeView === 'bible' ? colors.gold : headerSpecs.iconColor}
+        {/* View icon buttons with sliding highlight */}
+        <View style={styles.viewIconsContainer}>
+          {/* Sliding highlight indicator */}
+          <Animated.View
+            style={[
+              styles.viewIconHighlight,
+              {
+                transform: [
+                  {
+                    translateX: viewSlideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 40], // Approximate width of icon + padding
+                    }),
+                  },
+                ],
+              },
+            ]}
           />
-        </Pressable>
+          {/* Bible View Icon */}
+          <Pressable
+            onPress={() => onViewChange('bible')}
+            style={styles.iconButton}
+            accessibilityLabel="Bible references view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'bible' }}
+            testID="bible-view-icon"
+          >
+            <Ionicons
+              name="book-outline"
+              size={headerSpecs.iconSize}
+              color={activeView === 'bible' ? colors.gold : headerSpecs.iconColor}
+            />
+          </Pressable>
 
-        {/* Explanations View Icon */}
-        <Pressable
-          onPress={() => onViewChange('explanations')}
-          style={styles.iconButton}
-          accessibilityLabel="Explanations view"
-          accessibilityRole="button"
-          accessibilityState={{ selected: activeView === 'explanations' }}
-          testID="explanations-view-icon"
-        >
-          <Ionicons
-            name="reader-outline"
-            size={headerSpecs.iconSize}
-            color={activeView === 'explanations' ? colors.gold : headerSpecs.iconColor}
-          />
-        </Pressable>
+          {/* Explanations View Icon */}
+          <Pressable
+            onPress={() => onViewChange('explanations')}
+            style={styles.iconButton}
+            accessibilityLabel="Explanations view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'explanations' }}
+            testID="explanations-view-icon"
+          >
+            <Ionicons
+              name="reader-outline"
+              size={headerSpecs.iconSize}
+              color={activeView === 'explanations' ? colors.gold : headerSpecs.iconColor}
+            />
+          </Pressable>
+        </View>
 
         {/* Offline Indicator */}
         <OfflineIndicator />
@@ -523,10 +554,28 @@ const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
       alignItems: 'center',
       gap: spacing.lg,
     },
+    viewIconsContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      position: 'relative',
+      backgroundColor: '#323232',
+      borderRadius: 100,
+      padding: 4,
+      gap: 4,
+    },
+    viewIconHighlight: {
+      position: 'absolute',
+      width: 32,
+      height: 32,
+      backgroundColor: 'rgba(176, 154, 109, 0.3)',
+      borderRadius: 100,
+      left: 4,
+    },
     iconButton: {
       padding: spacing.xs,
       justifyContent: 'center',
       alignItems: 'center',
+      zIndex: 1,
     },
   });
 
