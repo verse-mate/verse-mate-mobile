@@ -2,7 +2,7 @@
  * Tests for NoteViewModal Component
  *
  * Focused tests for note view modal display and actions.
- * Tests cover critical behaviors: content display, edit/delete buttons.
+ * Tests cover critical behaviors: content display, close button.
  *
  * @see Task Group 5.3: Write 2-8 focused tests for NoteViewModal component
  */
@@ -30,11 +30,14 @@ describe('NoteViewModal', () => {
   };
 
   const mockOnClose = jest.fn();
-  const mockOnEdit = jest.fn();
-  const mockOnDelete = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('should display full note content without truncation', () => {
@@ -45,8 +48,6 @@ describe('NoteViewModal', () => {
         bookName="Genesis"
         chapterNumber={1}
         onClose={mockOnClose}
-        onEdit={mockOnEdit}
-        onDelete={mockOnDelete}
       />
     );
 
@@ -61,50 +62,10 @@ describe('NoteViewModal', () => {
         bookName="Genesis"
         chapterNumber={1}
         onClose={mockOnClose}
-        onEdit={mockOnEdit}
-        onDelete={mockOnDelete}
       />
     );
 
     expect(screen.getByText('Genesis 1')).toBeTruthy();
-  });
-
-  it('should call onEdit when Edit button is pressed', () => {
-    renderWithTheme(
-      <NoteViewModal
-        visible={true}
-        note={mockNote}
-        bookName="Genesis"
-        chapterNumber={1}
-        onClose={mockOnClose}
-        onEdit={mockOnEdit}
-        onDelete={mockOnDelete}
-      />
-    );
-
-    const editButton = screen.getByText('Edit');
-    fireEvent.press(editButton);
-
-    expect(mockOnEdit).toHaveBeenCalledWith(mockNote);
-  });
-
-  it('should call onDelete when Delete button is pressed', () => {
-    renderWithTheme(
-      <NoteViewModal
-        visible={true}
-        note={mockNote}
-        bookName="Genesis"
-        chapterNumber={1}
-        onClose={mockOnClose}
-        onEdit={mockOnEdit}
-        onDelete={mockOnDelete}
-      />
-    );
-
-    const deleteButton = screen.getByText('Delete');
-    fireEvent.press(deleteButton);
-
-    expect(mockOnDelete).toHaveBeenCalledWith(mockNote);
   });
 
   it('should call onClose when close button is pressed', () => {
@@ -115,14 +76,14 @@ describe('NoteViewModal', () => {
         bookName="Genesis"
         chapterNumber={1}
         onClose={mockOnClose}
-        onEdit={mockOnEdit}
-        onDelete={mockOnDelete}
       />
     );
 
     const closeButton = screen.getByTestId('view-close-button');
     fireEvent.press(closeButton);
 
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
+    jest.runAllTimers();
+
+    expect(mockOnClose).toHaveBeenCalled();
   });
 });

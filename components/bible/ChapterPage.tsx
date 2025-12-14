@@ -32,6 +32,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
+import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
@@ -248,6 +249,7 @@ export const ChapterPage = React.memo(function ChapterPage({
   // Note Modals State
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -519,12 +521,19 @@ export const ChapterPage = React.memo(function ChapterPage({
     setSelectedNote(note);
     setNotesModalVisible(false); // Close notes list
     setViewModalVisible(false); // Close view modal if open
+    setOptionsModalVisible(false); // Close options modal if open
     setTimeout(() => setEditModalVisible(true), 100);
   };
 
-  // Called from NoteViewModal (which doesn't use OptionsModal internally yet)
+  // Handler for closing the options modal
+  const handleOptionsModalClose = () => {
+    setOptionsModalVisible(false);
+  };
+
+  // Called when delete is confirmed via options modal
   const handleDeleteNote = (note: Note) => {
     setNoteToDelete(note);
+    setOptionsModalVisible(false);
     setDeleteConfirmVisible(true);
   };
 
@@ -641,8 +650,21 @@ export const ChapterPage = React.memo(function ChapterPage({
             setViewModalVisible(false);
             setSelectedNote(null);
           }}
-          onEdit={handleEditNote}
-          onDelete={handleDeleteNote}
+        />
+      )}
+
+      {selectedNote && (
+        <NoteOptionsModal
+          visible={optionsModalVisible}
+          note={selectedNote}
+          onClose={handleOptionsModalClose}
+          deleteNote={async (noteId) => {
+            await deleteNote(noteId);
+            setOptionsModalVisible(false);
+            setViewModalVisible(false);
+            setSelectedNote(null);
+          }}
+          onEdit={() => handleEditNote(selectedNote)}
         />
       )}
 
