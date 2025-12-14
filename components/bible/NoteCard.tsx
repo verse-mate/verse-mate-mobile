@@ -135,10 +135,12 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     actions: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-end',
+      alignSelf: 'flex-end',
       gap: spacing.sm,
     },
     actionButton: {
       padding: spacing.xs,
+      marginTop: spacing.xs,
     },
   });

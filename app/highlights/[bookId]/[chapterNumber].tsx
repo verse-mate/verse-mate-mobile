@@ -175,11 +175,11 @@ export default function ChapterHighlightsScreen() {
                   </Text>
                 </View>
 
-                <Text style={styles.cardText} numberOfLines={5} ellipsizeMode="tail">
-                  {String(highlight.selected_text || 'No content')}
-                </Text>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardText} numberOfLines={5} ellipsizeMode="tail">
+                    {String(highlight.selected_text || 'No content')}
+                  </Text>
 
-                <View style={styles.cardFooter}>
                   <Pressable
                     onPress={() => handleMenuPress(highlight)}
                     hitSlop={12}
@@ -274,19 +274,23 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
+    cardBody: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
     cardText: {
+      flex: 1,
       fontSize: fontSizes.body,
       color: colors.textPrimary,
       lineHeight: 24,
-      marginBottom: spacing.sm,
-    },
-    cardFooter: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      marginTop: spacing.xs,
+      marginBottom: 0,
     },
     menuButton: {
       padding: spacing.xs,
+      marginLeft: spacing.sm,
+      alignSelf: 'flex-end', // keep the 3-dots at bottom-right without creating a new row
     },
     emptyState: {
       alignItems: 'center',
