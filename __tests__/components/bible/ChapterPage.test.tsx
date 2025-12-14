@@ -318,7 +318,10 @@ describe('ChapterPage', () => {
     renderChapterPage(1, 1, 'detailed', 'explanations');
 
     await waitFor(() => {
-      expect(screen.getByTestId('chapter-reader')).toBeTruthy();
+      // With dual-view rendering, both Bible and Explanations views might render a ChapterReader
+      // We just need to verify at least one is present
+      const readers = screen.getAllByTestId('chapter-reader');
+      expect(readers.length).toBeGreaterThan(0);
     });
 
     // Note: In actual implementation, ChapterReader would receive these props

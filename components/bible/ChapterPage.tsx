@@ -97,6 +97,7 @@ function TabContent({
   isLoading,
   error,
   visible,
+  shouldRenderHidden,
   testID,
   onScroll,
   onTouchStart,
@@ -108,6 +109,7 @@ function TabContent({
   isLoading: boolean;
   error: Error | null;
   visible: boolean;
+  shouldRenderHidden?: boolean;
   testID: string;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onTouchStart?: (event: GestureResponderEvent) => void;
@@ -115,6 +117,9 @@ function TabContent({
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]); // Use local createStyles for TabContent
+
+  const isHidden = !visible;
+  if (isHidden && !shouldRenderHidden) return null;
 
   // Determine content for the reader
   const explanationContent = content && 'content' in content ? content : undefined;
@@ -128,7 +133,18 @@ function TabContent({
   // Use absolute positioning + pointerEvents to hide inactive tabs
   return (
     <ScrollView
-      style={[styles.container, !visible && { position: 'absolute', width: 0, height: 0 }]}
+      style={[
+        styles.container,
+        isHidden && {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: 0,
+          zIndex: -1,
+        },
+      ]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={visible}
       testID={testID}
@@ -256,7 +272,30 @@ export const ChapterPage = React.memo(function ChapterPage({
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
 
+  // Staggered rendering state to prevent UI freeze (waterfall loading)
+  // 0: Initial (only active view)
+  // 1: Mount Explanations container (active tab renders)
+  // 2: Mount Summary tab (if hidden)
+  // 3: Mount Byline tab (if hidden)
+  // 4: Mount Detailed tab (if hidden)
+  const [delayedRenderStage, setDelayedRenderStage] = useState(0);
+
   const { deleteNote, isDeletingNote } = useNotes();
+
+  // Trigger staggered delayed render
+  useEffect(() => {
+    const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
+    const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
+    const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
+    const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, []);
 
   // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
@@ -564,8 +603,24 @@ export const ChapterPage = React.memo(function ChapterPage({
 
   return (
     <View style={styles.container} collapsable={false}>
-      {activeView === 'explanations' ? (
-        <View style={styles.container} collapsable={false}>
+      {/* Explanations View - Render if active OR if delayed render stage >= 1 */}
+      {(activeView === 'explanations' || delayedRenderStage >= 1) && (
+        <View
+          style={[
+            styles.container,
+            activeView !== 'explanations' && {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0,
+              zIndex: -1,
+            },
+          ]}
+          collapsable={false}
+          pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
+        >
           <TabContent
             chapter={chapter}
             activeTab="summary"
@@ -573,6 +628,7 @@ export const ChapterPage = React.memo(function ChapterPage({
             isLoading={isSummaryLoading}
             error={summaryError}
             visible={activeTab === 'summary'}
+            shouldRenderHidden={delayedRenderStage >= 2}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
@@ -585,6 +641,7 @@ export const ChapterPage = React.memo(function ChapterPage({
             isLoading={isByLineLoading}
             error={byLineError}
             visible={activeTab === 'byline'}
+            shouldRenderHidden={delayedRenderStage >= 3}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
@@ -597,41 +654,54 @@ export const ChapterPage = React.memo(function ChapterPage({
             isLoading={isDetailedLoading}
             error={detailedError}
             visible={activeTab === 'detailed'}
+            shouldRenderHidden={delayedRenderStage >= 4}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           />
         </View>
-      ) : (
-        // Bible reading view (no explanations)
-        <Animated.ScrollView
-          ref={animatedScrollRef}
-          style={styles.container}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={true}
-          testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          <View style={styles.readerContainer} collapsable={false}>
-            {chapter ? (
-              <ChapterReader
-                chapter={chapter}
-                activeTab={activeTab}
-                explanationsOnly={false}
-                onContentLayout={handleContentLayout}
-                onOpenNotes={handleOpenNotes}
-              />
-            ) : (
-              <SkeletonLoader />
-            )}
-          </View>
-          <BottomLogo />
-        </Animated.ScrollView>
       )}
+
+      {/* Bible reading view (no explanations) - Always rendered but hidden if inactive */}
+      <Animated.ScrollView
+        ref={animatedScrollRef}
+        style={[
+          styles.container,
+          activeView !== 'bible' && {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            opacity: 0,
+            zIndex: -1,
+          },
+        ]}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={true}
+        testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
+      >
+        <View style={styles.readerContainer} collapsable={false}>
+          {chapter ? (
+            <ChapterReader
+              chapter={chapter}
+              activeTab={activeTab}
+              explanationsOnly={false}
+              onContentLayout={handleContentLayout}
+              onOpenNotes={handleOpenNotes}
+            />
+          ) : (
+            <SkeletonLoader />
+          )}
+        </View>
+        <BottomLogo />
+      </Animated.ScrollView>
 
       {/* Note Modals - Rendered OUTSIDE ScrollView */}
       <NotesModal

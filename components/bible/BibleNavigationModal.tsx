@@ -193,27 +193,25 @@ function BibleNavigationModalComponent({
   });
   const { recentBooks } = useRecentBooks();
 
-  // Fetch topics data - always fetch all categories when modal is visible to ensure instant tab switching
-  // This preloads all topic data so switching to Topics tab is instant
-  const shouldFetchTopics = !!shouldFetchData;
+  // Fetch topics data - only when modal is visible and Topics tab is selected
+  const shouldFetchTopics = !!shouldFetchData && selectedTab === 'TOPICS';
   const hasSearchText = topicFilterText.trim().length > 0;
 
-  // Always fetch all categories in parallel when modal is open (not just when Topics tab is selected)
-  // This ensures data is cached and ready for instant tab switching
+  // When searching, fetch all categories; otherwise fetch only selected category
   const { data: eventTopics = [], isLoading: isEventsLoading } = useTopicsSearch('EVENT', {
-    enabled: shouldFetchTopics,
+    enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'EVENT'),
   });
   const { data: prophecyTopics = [], isLoading: isPropheciesLoading } = useTopicsSearch(
     'PROPHECY',
     {
-      enabled: shouldFetchTopics,
+      enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'PROPHECY'),
     }
   );
   const { data: parableTopics = [], isLoading: isParablesLoading } = useTopicsSearch('PARABLE', {
-    enabled: shouldFetchTopics,
+    enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'PARABLE'),
   });
   const { data: themeTopics = [], isLoading: isThemesLoading } = useTopicsSearch('THEME', {
-    enabled: shouldFetchTopics,
+    enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'THEME'),
   });
 
   // Combine loading states
