@@ -170,6 +170,12 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     [menuWidth, onClose, translateX]
   );
 
+  const handleProfilePress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onClose();
+    router.push('/settings' as never);
+  };
+
   return (
     <Modal
       visible={visible}
@@ -212,7 +218,12 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
 
               {/* User Info Section (if authenticated) */}
               {isAuthenticated && user && (
-                <View style={styles.userSection}>
+                <Pressable
+                  onPress={handleProfilePress}
+                  style={({ pressed }) => [styles.userSection, pressed && styles.menuItemPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="User Profile"
+                >
                   <View style={styles.userInfo}>
                     <Ionicons name="person-circle-outline" size={48} color={colors.textSecondary} />
                     <View style={styles.userDetails}>
@@ -222,7 +233,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                       <Text style={styles.userEmail}>{user.email}</Text>
                     </View>
                   </View>
-                </View>
+                </Pressable>
               )}
 
               {/* Auth buttons (if not authenticated) */}
