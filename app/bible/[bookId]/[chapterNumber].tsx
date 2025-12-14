@@ -91,11 +91,16 @@ export default function ChapterScreen() {
   const { activeView, setActiveView } = useActiveView();
 
   // Ensure deep-linked verse jumps use Bible view so scroll-to-verse can run
+  // Only force on initial mount, not when user switches tabs manually
+  const hasSetInitialView = useRef(false);
   useEffect(() => {
-    if (targetVerse && activeView !== 'bible') {
-      setActiveView('bible');
+    if (targetVerse && !hasSetInitialView.current) {
+      hasSetInitialView.current = true;
+      if (activeView !== 'bible') {
+        setActiveView('bible');
+      }
     }
-  }, [targetVerse, activeView, setActiveView]);
+  }, []);
 
   // Navigation modal state (Task 7.9)
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
