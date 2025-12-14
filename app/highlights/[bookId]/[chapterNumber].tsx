@@ -198,6 +198,8 @@ export default function ChapterHighlightsScreen() {
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         highlight={selectedHighlight}
+        bookName={bookName || ''}
+        chapterNumber={parsedChapterNumber}
         deleteHighlight={deleteHighlight}
         onActionComplete={handleActionComplete}
       />
