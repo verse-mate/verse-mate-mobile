@@ -137,10 +137,10 @@ describe('TopicPage', () => {
     );
 
     await waitFor(() => {
-      expect(getByTestId('topic-page-scroll-topic-uuid-001')).toBeTruthy();
+      expect(getByTestId('topic-page-scroll-topic-uuid-001-bible')).toBeTruthy();
     });
 
-    const scrollView = getByTestId('topic-page-scroll-topic-uuid-001');
+    const scrollView = getByTestId('topic-page-scroll-topic-uuid-001-bible');
 
     // Simulate scroll event
     fireEvent.scroll(scrollView, {
@@ -172,10 +172,10 @@ describe('TopicPage', () => {
     );
 
     await waitFor(() => {
-      expect(getByTestId('topic-page-scroll-topic-uuid-001')).toBeTruthy();
+      expect(getByTestId('topic-page-scroll-topic-uuid-001-bible')).toBeTruthy();
     });
 
-    const scrollView = getByTestId('topic-page-scroll-topic-uuid-001');
+    const scrollView = getByTestId('topic-page-scroll-topic-uuid-001-bible');
 
     // Simulate quick tap (touchStart + touchEnd with minimal movement)
     fireEvent(scrollView, 'touchStart', {
@@ -282,10 +282,10 @@ describe('TopicPage', () => {
     );
 
     await waitFor(() => {
-      expect(getByTestId('topic-page-scroll-topic-uuid-001')).toBeTruthy();
+      expect(getByTestId('topic-page-scroll-topic-uuid-001-bible')).toBeTruthy();
     });
 
-    const scrollView = getByTestId('topic-page-scroll-topic-uuid-001');
+    const scrollView = getByTestId('topic-page-scroll-topic-uuid-001-bible');
 
     // Simulate touch with large movement (scroll gesture)
     fireEvent(scrollView, 'touchStart', {

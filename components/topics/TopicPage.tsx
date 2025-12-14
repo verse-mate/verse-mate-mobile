@@ -17,7 +17,7 @@
  * @see Spec: agent-os/specs/2025-12-08-topic-swipe-navigation/spec.md
  */
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
@@ -152,6 +152,29 @@ export const TopicPage = React.memo(function TopicPage({
   const touchStartTime = useRef(0);
   const touchStartY = useRef(0);
 
+  // Staggered rendering state to prevent UI freeze (waterfall loading)
+  // 0: Initial (only active view)
+  // 1: Mount Explanations container
+  // 2: Mount Summary tab (if hidden)
+  // 3: Mount Byline tab (if hidden)
+  // 4: Mount Detailed tab (if hidden)
+  const [delayedRenderStage, setDelayedRenderStage] = useState(0);
+
+  // Trigger staggered delayed render
+  useEffect(() => {
+    const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
+    const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
+    const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
+    const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, []);
+
   // Fetch topic data with verse replacement
   const { data: topicData, isLoading: isTopicLoading } = useTopicById(topicId, bibleVersion);
   const { data: references } = useTopicReferences(topicId);
@@ -266,62 +289,41 @@ export const TopicPage = React.memo(function TopicPage({
 
   return (
     <View style={styles.container} testID={`topic-page-${topicId}`}>
+      {/* Bible References View */}
       <ScrollView
-        style={styles.container}
+        style={[
+          styles.container,
+          activeView !== 'bible' && {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            opacity: 0,
+            zIndex: -1,
+          },
+        ]}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={true}
-        testID={`topic-page-scroll-${topicId}`}
+        testID={`topic-page-scroll-${topicId}-bible`}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
       >
-        {/* Bible References View */}
-        {activeView === 'bible' &&
-          (references &&
-          typeof references === 'object' &&
-          'content' in references &&
-          typeof references.content === 'string' ? (
-            // Use TopicText if content has structured format (## subtitles)
-            // Otherwise fall back to existing Markdown renderer
-            references.content.includes('## ') ? (
-              <TopicText
-                topicName={topic.name}
-                markdownContent={references.content}
-                onShare={onShare}
-              />
-            ) : (
-              <>
-                {/* Topic Title Row with Share button */}
-                <View style={styles.titleRow}>
-                  <Text style={styles.topicTitle} accessibilityRole="header">
-                    {topic.name}
-                  </Text>
-                  {onShare && (
-                    <View style={styles.iconButtons}>
-                      <ShareButton onShare={onShare} />
-                    </View>
-                  )}
-                </View>
-
-                {/* Topic Description */}
-                {topicDescription ? (
-                  <Text style={styles.topicDescription}>{topicDescription}</Text>
-                ) : null}
-
-                <View style={styles.referencesContainer}>
-                  <Markdown style={markdownStyles} rules={markdownRules}>
-                    {
-                      // First format verse numbers, THEN process newlines
-                      formatVerseNumbers(references.content)
-                        .replace(/\n\n/g, '___PARAGRAPH___')
-                        .replace(/\n/g, ' ')
-                        .replace(/___PARAGRAPH___/g, '\n\n')
-                    }
-                  </Markdown>
-                </View>
-              </>
-            )
+        {references &&
+        typeof references === 'object' &&
+        'content' in references &&
+        typeof references.content === 'string' ? (
+          // Use TopicText if content has structured format (## subtitles)
+          // Otherwise fall back to existing Markdown renderer
+          references.content.includes('## ') ? (
+            <TopicText
+              topicName={topic.name}
+              markdownContent={references.content}
+              onShare={onShare}
+            />
           ) : (
             <>
               {/* Topic Title Row with Share button */}
@@ -341,27 +343,83 @@ export const TopicPage = React.memo(function TopicPage({
                 <Text style={styles.topicDescription}>{topicDescription}</Text>
               ) : null}
 
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No Bible references available for this topic.</Text>
+              <View style={styles.referencesContainer}>
+                <Markdown style={markdownStyles} rules={markdownRules}>
+                  {
+                    // First format verse numbers, THEN process newlines
+                    formatVerseNumbers(references.content)
+                      .replace(/\n\n/g, '___PARAGRAPH___')
+                      .replace(/\n/g, ' ')
+                      .replace(/___PARAGRAPH___/g, '\n\n')
+                  }
+                </Markdown>
               </View>
             </>
-          ))}
-
-        {/* Explanations View - Pre-render all tabs but only show active */}
-        {activeView === 'explanations' && (
+          )
+        ) : (
           <>
-            {/* Topic Title */}
-            <Text style={styles.topicTitle} accessibilityRole="header">
-              {topic.name}
-            </Text>
+            {/* Topic Title Row with Share button */}
+            <View style={styles.titleRow}>
+              <Text style={styles.topicTitle} accessibilityRole="header">
+                {topic.name}
+              </Text>
+              {onShare && (
+                <View style={styles.iconButtons}>
+                  <ShareButton onShare={onShare} />
+                </View>
+              )}
+            </View>
 
             {/* Topic Description */}
             {topicDescription ? (
               <Text style={styles.topicDescription}>{topicDescription}</Text>
             ) : null}
 
-            {/* Pre-render all explanation types to ensure instant tab switching */}
-            {/* Summary explanation */}
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No Bible references available for this topic.</Text>
+            </View>
+          </>
+        )}
+        <BottomLogo />
+      </ScrollView>
+
+      {/* Explanations View - Pre-render all tabs but only show active */}
+      {(activeView === 'explanations' || delayedRenderStage >= 1) && (
+        <ScrollView
+          style={[
+            styles.container,
+            activeView !== 'explanations' && {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0,
+              zIndex: -1,
+            },
+          ]}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={true}
+          testID={`topic-page-scroll-${topicId}-explanations`}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
+        >
+          {/* Topic Title */}
+          <Text style={styles.topicTitle} accessibilityRole="header">
+            {topic.name}
+          </Text>
+
+          {/* Topic Description */}
+          {topicDescription ? (
+            <Text style={styles.topicDescription}>{topicDescription}</Text>
+          ) : null}
+
+          {/* Render active explanation type */}
+          {/* Summary explanation */}
+          {(activeTab === 'summary' || delayedRenderStage >= 2) && (
             <View
               style={[styles.explanationContainer, activeTab !== 'summary' && { display: 'none' }]}
               testID="topic-explanation-summary"
@@ -379,8 +437,10 @@ export const TopicPage = React.memo(function TopicPage({
                 </View>
               )}
             </View>
+          )}
 
-            {/* Byline explanation */}
+          {/* Byline explanation */}
+          {(activeTab === 'byline' || delayedRenderStage >= 3) && (
             <View
               style={[styles.explanationContainer, activeTab !== 'byline' && { display: 'none' }]}
               testID="topic-explanation-byline"
@@ -398,8 +458,10 @@ export const TopicPage = React.memo(function TopicPage({
                 </View>
               )}
             </View>
+          )}
 
-            {/* Detailed explanation */}
+          {/* Detailed explanation */}
+          {(activeTab === 'detailed' || delayedRenderStage >= 4) && (
             <View
               style={[styles.explanationContainer, activeTab !== 'detailed' && { display: 'none' }]}
               testID="topic-explanation-detailed"
@@ -417,10 +479,10 @@ export const TopicPage = React.memo(function TopicPage({
                 </View>
               )}
             </View>
-          </>
-        )}
-        <BottomLogo />
-      </ScrollView>
+          )}
+          <BottomLogo />
+        </ScrollView>
+      )}
     </View>
   );
 });
