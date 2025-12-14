@@ -7,6 +7,7 @@ import {
   Dimensions,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -51,7 +52,12 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       borderTopRightRadius: 24,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
-      paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.md : spacing.lg,
+      paddingBottom:
+        Platform.OS === 'android'
+          ? spacing.md
+          : insets.bottom > 0
+            ? insets.bottom + spacing.md
+            : spacing.lg,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -2 },
       shadowOpacity: 0.1,
@@ -427,7 +433,7 @@ export function HighlightOptionsModal({
         {/* Backdrop (animated opacity) */}
         <Animated.View
           style={[styles.backdrop, { opacity: backdropOpacity }]}
-          pointerEvents={isDialogActive ? 'auto' : 'none'} // Backdrop should only handle presses if dialog is active
+          pointerEvents="box-none"
         >
           {/* Pressable on backdrop to dismiss - only active when menu is shown */}
           {!isDialogActive && (
