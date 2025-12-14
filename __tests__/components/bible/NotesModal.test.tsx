@@ -74,15 +74,17 @@ describe('NotesModal', () => {
     });
   });
 
-  it('should display empty state when chapter has no notes', () => {
+  it('should show add-only UI when chapter has no notes', () => {
     renderWithTheme(<NotesModal {...defaultProps} />);
 
     expect(screen.getByText('Notes for Genesis 1')).toBeTruthy();
-    expect(screen.getByText('Existing Notes (0)')).toBeTruthy();
-    expect(screen.getByText('No notes yet')).toBeTruthy();
+    // Simplified modal no longer shows existing notes header or empty state list
+    expect(screen.queryByText(/Existing Notes/)).toBeNull();
+    expect(screen.getByText('Add New Note')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Write your note here...')).toBeTruthy();
   });
 
-  it('should display existing notes when chapter has notes', () => {
+  it('should not render existing notes list anymore', () => {
     const mockNotes: Note[] = [
       {
         note_id: 'note-1',
@@ -110,9 +112,9 @@ describe('NotesModal', () => {
 
     renderWithTheme(<NotesModal {...defaultProps} />);
 
-    expect(screen.getByText('Existing Notes (2)')).toBeTruthy();
-    expect(screen.getByText(/First note content/)).toBeTruthy();
-    expect(screen.getByText(/Second note content/)).toBeTruthy();
+    // Existing notes section has been removed in simplified modal
+    expect(screen.queryByText(/Existing Notes/)).toBeNull();
+    expect(screen.getByText('Add New Note')).toBeTruthy();
   });
 
   it('should call addNote when Add Note button is pressed', async () => {
