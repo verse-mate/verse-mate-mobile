@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NoteCard } from '@/components/bible/NoteCard';
@@ -96,6 +96,23 @@ export default function ChapterNotesScreen() {
       showToast('Note copied to clipboard');
     }
   };
+
+  // Track if we've loaded data at least once
+  const hasLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFetchingNotes && chapterNotes.length > 0) {
+      hasLoadedRef.current = true;
+    }
+  }, [isFetchingNotes, chapterNotes.length]);
+
+  // Navigate back if all notes are deleted
+  useEffect(() => {
+    if (hasLoadedRef.current && !isFetchingNotes && chapterNotes.length === 0) {
+      // All notes deleted, navigate back to main notes page
+      router.back();
+    }
+  }, [chapterNotes.length, isFetchingNotes]);
 
   if (isFetchingNotes && chapterNotes.length === 0) {
     return (
