@@ -36,7 +36,7 @@ export const BREAKPOINTS = {
   /** Minimum width for iPad detection (points) */
   IPAD_MIN_WIDTH: 768,
   /** Minimum width for enabling split view (dp) */
-  SPLIT_VIEW_MIN_WIDTH: 900,
+  SPLIT_VIEW_MIN_WIDTH: 1024,
   /** Comfortable width for split view (dp) */
   SPLIT_VIEW_COMFORTABLE_WIDTH: 1024,
   /** Maximum panel width in split view (dp) */
