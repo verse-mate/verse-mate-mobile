@@ -477,32 +477,48 @@ function ChapterHeader({
 
   // Animation for sliding toggle indicator
   const toggleSlideAnim = useRef(new Animated.Value(activeView === 'bible' ? 0 : 1)).current;
-  const [buttonWidth, setButtonWidth] = useState(0);
+  const [bibleButtonWidth, setBibleButtonWidth] = useState(0);
+  const [insightButtonWidth, setInsightButtonWidth] = useState(0);
 
   // Animate toggle indicator when activeView changes
   useEffect(() => {
     Animated.spring(toggleSlideAnim, {
       toValue: activeView === 'bible' ? 0 : 1,
-      useNativeDriver: true,
+      useNativeDriver: false, // Changed to false to allow width animation
       friction: 8,
       tension: 50,
     }).start();
   }, [activeView, toggleSlideAnim]);
 
-  // Measure button container to calculate proper button widths
-  const handleToggleLayout = (event: LayoutChangeEvent) => {
+  // Measure individual button widths
+  const handleBibleLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
-    // Each button width = (containerWidth - padding - gap) / 2
-    // containerWidth - 8 (padding) - 4 (gap) = containerWidth - 12
-    const singleButtonWidth = (width - 12) / 2;
-    setButtonWidth(singleButtonWidth);
+    setBibleButtonWidth(width);
   };
 
-  // Calculate translateX for sliding indicator
-  const indicatorTranslateX = toggleSlideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, buttonWidth + 3], // Add gap (4px) + extra left padding (3px) for Insight
-  });
+  const handleInsightLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setInsightButtonWidth(width);
+  };
+
+  // Memoize interpolations to prevent recreating on every render
+  const indicatorTranslateX = useMemo(
+    () =>
+      toggleSlideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, bibleButtonWidth + 4], // Move to insight position (Bible width + gap)
+      }),
+    [toggleSlideAnim, bibleButtonWidth]
+  );
+
+  const indicatorWidth = useMemo(
+    () =>
+      toggleSlideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [bibleButtonWidth, insightButtonWidth],
+      }),
+    [toggleSlideAnim, bibleButtonWidth, insightButtonWidth]
+  );
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="chapter-header">
@@ -526,13 +542,13 @@ function ChapterHeader({
       {/* Action Icons */}
       <View style={styles.headerActions}>
         {/* Bible/Commentary Toggle (Figma pill-style) */}
-        <View style={styles.toggleContainer} onLayout={handleToggleLayout}>
+        <View style={styles.toggleContainer}>
           {/* Sliding indicator background */}
           <Animated.View
             style={[
               styles.toggleIndicator,
               {
-                width: buttonWidth,
+                width: indicatorWidth,
                 transform: [
                   {
                     translateX: indicatorTranslateX,
@@ -544,6 +560,7 @@ function ChapterHeader({
           <Pressable
             onPress={() => onViewChange('bible')}
             style={styles.toggleButton}
+            onLayout={handleBibleLayout}
             accessibilityLabel="Bible reading view"
             accessibilityRole="button"
             accessibilityState={{ selected: activeView === 'bible' }}
@@ -556,17 +573,14 @@ function ChapterHeader({
           <Pressable
             onPress={() => onViewChange('explanations')}
             style={styles.toggleButton}
+            onLayout={handleInsightLayout}
             accessibilityLabel="Insight view"
             accessibilityRole="button"
             accessibilityState={{ selected: activeView === 'explanations' }}
             testID="commentary-view-toggle"
           >
             <Text
-              style={[
-                styles.toggleText,
-                activeView === 'explanations' && styles.toggleTextActive,
-                { paddingLeft: 5 },
-              ]}
+              style={[styles.toggleText, activeView === 'explanations' && styles.toggleTextActive]}
             >
               Insight
             </Text>
