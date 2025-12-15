@@ -77,6 +77,8 @@ export interface TopicPagerViewProps {
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
   onTap?: () => void;
+  /** Callback when user wants to share current topic */
+  onShare?: () => void;
 }
 
 /**
@@ -119,6 +121,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       onPageChange,
       onScroll,
       onTap,
+      onShare,
     },
     ref
   ) {
@@ -196,13 +199,15 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
         // Return placeholder pages with first topic (or fallback)
         return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => (
           <TopicPage
-            key={`page-${windowPosition}`}
+            key={
+              /* biome-ignore lint/suspicious/noArrayIndexKey: This is a stable positional key for a fixed-window PagerView. */ `page-${windowPosition}`
+            }
             topicId={initialTopicId}
-            category={category}
             activeTab={activeTab}
             activeView={activeView}
             onScroll={onScroll}
             onTap={onTap}
+            onShare={onShare}
           />
         ));
       }
@@ -217,7 +222,9 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
           const direction = absoluteIndex < 0 ? 'start' : 'end';
           return (
             <SwipeBoundaryPage
-              key={`page-${windowPosition}`}
+              key={
+                /* biome-ignore lint/suspicious/noArrayIndexKey: This is a stable positional key for a fixed-window PagerView. */ `page-${windowPosition}`
+              }
               direction={direction}
               contentType="topic"
               testID={`topic-page-boundary-${windowPosition}`}
@@ -227,26 +234,28 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
 
         return (
           <TopicPage
-            key={`page-${windowPosition}`} // STABLE KEY: never changes
+            key={
+              /* biome-ignore lint/suspicious/noArrayIndexKey: This is a stable positional key for a fixed-window PagerView. */ `page-${windowPosition}`
+            }
             topicId={topic.topic_id} // DYNAMIC PROP: updates when window shifts
-            category={(topic.category as TopicCategory) || category} // DYNAMIC PROP: updates when window shifts
             activeTab={activeTab}
             activeView={activeView}
             onScroll={onScroll}
             onTap={onTap}
+            onShare={onShare}
           />
         );
       });
     }, [
       activeTab,
       activeView,
-      category,
       currentAbsoluteIndex,
       getTopicForPosition,
       initialTopicId,
       onScroll,
       onTap,
       sortedTopics,
+      onShare,
     ]);
 
     /**

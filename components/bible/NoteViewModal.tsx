@@ -1,12 +1,13 @@
 /**
  * NoteViewModal Component
  *
- * Read-only modal for viewing full note content with edit and delete actions.
+ * Read-only modal for viewing full note content with a close button.
  *
  * Features:
  * - Full note content display (no truncation)
- * - Edit and Delete action buttons
- * - Close button returns to previous screen
+ * - Close button in header
+ * - Swipe-to-dismiss gesture
+ * - Animated slide-in/out transitions
  * - Modal stacking support (can appear over NotesModal)
  *
  * @see Spec: agent-os/specs/2025-11-05-notes-functionality/spec.md (lines 37-44)
@@ -20,15 +21,24 @@
  *   bookName="Genesis"
  *   chapterNumber={1}
  *   onClose={handleClose}
- *   onEdit={handleEdit}
- *   onDelete={handleDelete}
+ *   onMenuPress={handleMenuPress}
  * />
  * ```
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   fontSizes,
@@ -55,16 +65,16 @@ export interface NoteViewModalProps {
   chapterNumber: number;
   /** Callback when modal is closed */
   onClose: () => void;
-  /** Callback when edit button is pressed */
-  onEdit: (note: Note) => void;
-  /** Callback when delete button is pressed */
-  onDelete: (note: Note) => void;
+  /** Optional edit callback (currently unused in UI) */
+  onEdit?: (note: Note) => void | Promise<void>;
+  /** Optional delete callback (currently unused in UI) */
+  onDelete?: (note: Note) => void | Promise<void>;
 }
 
 /**
  * NoteViewModal Component
  *
- * Displays read-only note content with action buttons.
+ * Displays read-only note content with swipe-to-dismiss and menu button.
  */
 export function NoteViewModal({
   visible,
@@ -72,50 +82,146 @@ export function NoteViewModal({
   bookName,
   chapterNumber,
   onClose,
-  onEdit,
-  onDelete,
 }: NoteViewModalProps) {
   const { colors, mode } = useTheme();
   const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
 
+  // Animation state for swipe-to-dismiss
+  const screenHeight = Dimensions.get('window').height;
+  const slideAnim = useRef(new Animated.Value(screenHeight)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const [internalVisible, setInternalVisible] = useState(false);
+
+  // Animate open/close
+  const animateOpen = useCallback(() => {
+    setInternalVisible(true);
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+      }),
+    ]).start();
+  }, [backdropOpacity, slideAnim]);
+
+  const animateClose = useCallback(
+    (callback?: () => void) => {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: screenHeight,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 90,
+          overshootClamping: true,
+          restDisplacementThreshold: 40,
+          restSpeedThreshold: 40,
+        }),
+      ]).start();
+      setTimeout(() => {
+        setInternalVisible(false);
+        if (callback) callback();
+      }, 300);
+    },
+    [backdropOpacity, slideAnim, screenHeight]
+  );
+
+  useEffect(() => {
+    if (visible && !internalVisible) {
+      animateOpen();
+    } else if (!visible && internalVisible) {
+      animateClose();
+    }
+  }, [visible, internalVisible, animateOpen, animateClose]);
+
+  const handleDismiss = useCallback(() => {
+    animateClose(() => {
+      onClose();
+    });
+  }, [animateClose, onClose]);
+
+  // Pan responder for swipe-to-dismiss – matches tooltip/menus behavior
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 100) {
+          handleDismiss();
+        } else if (gestureState.dy > 0) {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 90,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  if (!internalVisible) return null;
+
   return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+    <Modal visible={true} animationType="none" transparent={true} onRequestClose={handleDismiss}>
       <View style={styles.modalContainer}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
+        </Animated.View>
 
-        <SafeAreaView style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>
-              {bookName} {chapterNumber}
-            </Text>
-            <Pressable onPress={onClose} style={styles.closeButton} testID="view-close-button">
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </Pressable>
-          </View>
+        <Animated.View
+          style={[styles.modalContent, { transform: [{ translateY: slideAnim }] }]}
+          {...panResponder.panHandlers}
+        >
+          <SafeAreaView style={{ flex: 1 }}>
+            {/* Handle for visual swipe indicator */}
+            <View style={styles.handleContainer}>
+              <View style={styles.handle} />
+            </View>
 
-          {/* Content */}
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            <Text style={styles.noteContent}>{note.content}</Text>
-          </ScrollView>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>
+                {bookName} {chapterNumber}
+              </Text>
+              <Pressable
+                onPress={handleDismiss}
+                style={styles.menuButton}
+                testID="view-close-button"
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </Pressable>
+            </View>
 
-          {/* Actions */}
-          <View style={styles.actions}>
-            <Pressable
-              onPress={() => onEdit(note)}
-              style={[styles.actionButton, styles.editButton]}
+            {/* Content */}
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              scrollEventThrottle={16}
+              onScrollBeginDrag={() => {
+                // Disable pan responder when user is scrolling content
+              }}
             >
-              <Text style={styles.actionButtonText}>Edit</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => onDelete(note)}
-              style={[styles.actionButton, styles.deleteButton]}
-            >
-              <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Delete</Text>
-            </Pressable>
-          </View>
-        </SafeAreaView>
+              <Text style={styles.noteContent}>{note.content}</Text>
+            </ScrollView>
+          </SafeAreaView>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -139,6 +245,17 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
       borderTopRightRadius: modalSpecs.borderTopRightRadius,
     },
+    handleContainer: {
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    handle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.textTertiary,
+      opacity: 0.3,
+    },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -153,7 +270,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       color: colors.textPrimary,
       flex: 1,
     },
-    closeButton: {
+    menuButton: {
       padding: spacing.xs,
     },
     scrollView: {
@@ -166,33 +283,6 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       fontSize: fontSizes.body,
       color: colors.textPrimary,
       lineHeight: fontSizes.body * 1.6,
-    },
-    actions: {
-      flexDirection: 'row',
-      padding: spacing.lg,
-      gap: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    actionButton: {
-      flex: 1,
-      paddingVertical: spacing.md,
-      borderRadius: 8,
-      alignItems: 'center',
-    },
-    editButton: {
-      backgroundColor: colors.gold,
-    },
-    deleteButton: {
-      backgroundColor: colors.error,
-    },
-    actionButtonText: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.semibold,
-      color: colors.background,
-    },
-    deleteButtonText: {
-      color: colors.white,
     },
   });
 };

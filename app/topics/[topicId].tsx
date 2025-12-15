@@ -13,14 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
+import { Alert, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
-import { ShareButton } from '@/components/bible/ShareButton';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { TopicPagerView, type TopicPagerViewRef } from '@/components/topics/TopicPagerView';
 import {
@@ -28,7 +28,6 @@ import {
   fontWeights,
   type getColors,
   getHeaderSpecs,
-  lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -271,7 +270,6 @@ export default function TopicDetailScreen() {
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
-          onShare={() => {}}
           onMenuPress={() => {}}
         />
         <SkeletonLoader />
@@ -288,7 +286,6 @@ export default function TopicDetailScreen() {
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
-          onShare={() => {}}
           onMenuPress={() => {}}
         />
         <View style={styles.errorContainer}>
@@ -309,7 +306,6 @@ export default function TopicDetailScreen() {
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
-          onShare={() => {}}
           onMenuPress={() => {}}
         />
         <View style={styles.errorContainer}>
@@ -330,7 +326,6 @@ export default function TopicDetailScreen() {
         activeView={activeView}
         onNavigationPress={() => setIsNavigationModalOpen(true)}
         onViewChange={handleViewChange}
-        onShare={handleShare}
         onMenuPress={() => setIsMenuOpen(true)}
       />
 
@@ -350,6 +345,7 @@ export default function TopicDetailScreen() {
         onPageChange={handlePageChange}
         onScroll={handleScroll}
         onTap={handleTap}
+        onShare={handleShare}
       />
 
       {/* Floating Action Buttons for Topic Navigation */}
@@ -367,6 +363,8 @@ export default function TopicDetailScreen() {
           visible={isNavigationModalOpen}
           currentBookId={1} // Default to Genesis
           currentChapter={1}
+          initialTab="TOPICS"
+          initialTopicCategory={category}
           onClose={() => setIsNavigationModalOpen(false)}
           onSelectChapter={handleSelectChapter}
           onSelectTopic={handleSelectTopic}
@@ -396,7 +394,6 @@ interface TopicHeaderProps {
   activeView: ViewMode;
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
-  onShare: () => void;
   onMenuPress: () => void;
 }
 
@@ -405,14 +402,58 @@ function TopicHeader({
   activeView,
   onNavigationPress,
   onViewChange,
-  onShare,
   onMenuPress,
 }: TopicHeaderProps) {
   // Get theme directly inside TopicHeader (no props drilling)
   const { colors, mode } = useTheme();
   const headerSpecs = getHeaderSpecs(mode);
-  const styles = useMemo(() => createHeaderStyles(headerSpecs), [headerSpecs]);
+  const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
+
+  // Animation for sliding toggle indicator
+  const toggleSlideAnim = useRef(new Animated.Value(activeView === 'bible' ? 0 : 1)).current;
+  const [bibleButtonWidth, setBibleButtonWidth] = useState(0);
+  const [insightButtonWidth, setInsightButtonWidth] = useState(0);
+
+  // Animate toggle indicator when activeView changes
+  useEffect(() => {
+    Animated.spring(toggleSlideAnim, {
+      toValue: activeView === 'bible' ? 0 : 1,
+      useNativeDriver: false, // Changed to false to allow width animation
+      friction: 8,
+      tension: 50,
+    }).start();
+  }, [activeView, toggleSlideAnim]);
+
+  // Measure individual button widths
+  const handleBibleLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setBibleButtonWidth(width);
+  };
+
+  const handleInsightLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setInsightButtonWidth(width);
+  };
+
+  // Memoize interpolations to prevent recreating on every render
+  const indicatorTranslateX = useMemo(
+    () =>
+      toggleSlideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, bibleButtonWidth + 4], // Move to insight position (Bible width + gap)
+      }),
+    [toggleSlideAnim, bibleButtonWidth]
+  );
+
+  const indicatorWidth = useMemo(
+    () =>
+      toggleSlideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [bibleButtonWidth, insightButtonWidth],
+      }),
+    [toggleSlideAnim, bibleButtonWidth, insightButtonWidth]
+  );
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="topic-header">
@@ -435,43 +476,54 @@ function TopicHeader({
 
       {/* Action Icons */}
       <View style={styles.headerActions}>
-        {/* Bible View Icon */}
-        <Pressable
-          onPress={() => onViewChange('bible')}
-          style={styles.iconButton}
-          accessibilityLabel="Bible references view"
-          accessibilityRole="button"
-          accessibilityState={{ selected: activeView === 'bible' }}
-          testID="bible-view-icon"
-        >
-          <Ionicons
-            name="book-outline"
-            size={headerSpecs.iconSize}
-            color={activeView === 'bible' ? colors.gold : headerSpecs.iconColor}
+        {/* Bible/Insight Toggle (pill-style matching Bible page) */}
+        <View style={styles.toggleContainer}>
+          {/* Sliding indicator background */}
+          <Animated.View
+            style={[
+              styles.toggleIndicator,
+              {
+                width: indicatorWidth,
+                transform: [
+                  {
+                    translateX: indicatorTranslateX,
+                  },
+                ],
+              },
+            ]}
           />
-        </Pressable>
-
-        {/* Explanations View Icon */}
-        <Pressable
-          onPress={() => onViewChange('explanations')}
-          style={styles.iconButton}
-          accessibilityLabel="Explanations view"
-          accessibilityRole="button"
-          accessibilityState={{ selected: activeView === 'explanations' }}
-          testID="explanations-view-icon"
-        >
-          <Ionicons
-            name="reader-outline"
-            size={headerSpecs.iconSize}
-            color={activeView === 'explanations' ? colors.gold : headerSpecs.iconColor}
-          />
-        </Pressable>
+          <Pressable
+            onPress={() => onViewChange('bible')}
+            style={styles.toggleButton}
+            onLayout={handleBibleLayout}
+            accessibilityLabel="Bible reading view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'bible' }}
+            testID="bible-view-toggle"
+          >
+            <Text style={[styles.toggleText, activeView === 'bible' && styles.toggleTextActive]}>
+              Bible
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onViewChange('explanations')}
+            style={styles.toggleButton}
+            onLayout={handleInsightLayout}
+            accessibilityLabel="Insight view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'explanations' }}
+            testID="insight-view-toggle"
+          >
+            <Text
+              style={[styles.toggleText, activeView === 'explanations' && styles.toggleTextActive]}
+            >
+              Insight
+            </Text>
+          </Pressable>
+        </View>
 
         {/* Offline Indicator */}
         <OfflineIndicator />
-
-        {/* Share Button */}
-        <ShareButton onShare={onShare} testID="share-button-topic" />
 
         {/* Hamburger Menu Icon */}
         <Pressable
@@ -491,7 +543,10 @@ function TopicHeader({
 /**
  * Creates styles for TopicHeader component
  */
-const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
+const createHeaderStyles = (
+  headerSpecs: ReturnType<typeof getHeaderSpecs>,
+  themeColors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>
+) =>
   StyleSheet.create({
     header: {
       minHeight: headerSpecs.height,
@@ -522,6 +577,43 @@ const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.lg,
+    },
+    toggleContainer: {
+      backgroundColor: '#323232',
+      borderRadius: 100,
+      padding: 4,
+      flexDirection: 'row',
+      gap: 4,
+      position: 'relative',
+    },
+    toggleIndicator: {
+      position: 'absolute',
+      height: 28,
+      backgroundColor: themeColors.gold,
+      borderRadius: 100,
+      top: 4,
+      left: 4,
+    },
+    toggleButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 2,
+      borderRadius: 100,
+      minHeight: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      zIndex: 1,
+    },
+    toggleButtonActive: {
+      backgroundColor: 'transparent',
+    },
+    toggleText: {
+      fontSize: 14,
+      color: headerSpecs.titleColor,
+      fontWeight: '400',
+    },
+    toggleTextActive: {
+      color: themeColors.black,
     },
     iconButton: {
       padding: spacing.xs,

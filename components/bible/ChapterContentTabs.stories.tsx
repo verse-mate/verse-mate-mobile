@@ -91,7 +91,7 @@ export const Interactive: Story = {
     activeTab: 'summary',
     onTabChange: () => {},
   },
-  render: (args) => {
+  render: (args: Story['args']) => {
     const [activeTab, setActiveTab] = useState<ContentTabType>(args.activeTab);
 
     return (

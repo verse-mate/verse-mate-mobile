@@ -80,3 +80,5 @@ review.md
 
 # Ignore android dictionary build
 modules/dictionary/android/build/*
+
+crash_logs

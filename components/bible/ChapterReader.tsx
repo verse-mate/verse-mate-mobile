@@ -41,12 +41,10 @@ import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
 import type { TextSelection, WordTapEvent } from '@/components/bible/HighlightedText';
 import { HighlightedText } from '@/components/bible/HighlightedText';
 import { HighlightSelectionSheet } from '@/components/bible/HighlightSelectionSheet';
-import { ManualHighlightTooltip } from '@/components/bible/ManualHighlightTooltip';
 import { NotesButton } from '@/components/bible/NotesButton';
-import { ShareButton } from '@/components/bible/ShareButton';
 import { SimpleColorPickerModal } from '@/components/bible/SimpleColorPickerModal';
 import { TextSelectionMenu } from '@/components/bible/TextSelectionMenu';
-import { VerseInsightTooltip } from '@/components/bible/VerseInsightTooltip';
+import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import {
   fontSizes,
   fontWeights,
@@ -271,7 +269,7 @@ export function ChapterReader({
 }: ChapterReaderProps) {
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, explanationsOnly), [colors, explanationsOnly]);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -306,6 +304,8 @@ export function ChapterReader({
   const [editMenuVisible, setEditMenuVisible] = useState(false);
   const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null);
   const [selectedHighlightId, setSelectedHighlightId] = useState<number | null>(null);
+  const [selectedHighlightGroupForEdit, setSelectedHighlightGroupForEdit] =
+    useState<HighlightGroup | null>(null);
 
   // Auto-highlight modal state
   const [autoHighlightTooltipVisible, setAutoHighlightTooltipVisible] = useState(false);
@@ -381,23 +381,11 @@ export function ChapterReader({
 
   /**
    * Handle long-press on verse for creating new highlight
+   * DISABLED: No longer opens highlight options modal
    */
-  const handleVerseLongPress = (verseNumber: number) => {
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === verseNumber);
-
-    if (!verse) return;
-
-    setSelectionContext({
-      verseNumber,
-      selection: {
-        start: 0,
-        end: verse.text.length,
-        text: verse.text,
-      },
-    });
-    setSelectionSheetVisible(true);
+  const handleVerseLongPress = (_verseNumber: number) => {
+    // Disabled - long press on verse no longer opens highlight modal
+    return;
   };
 
   /**
@@ -535,6 +523,26 @@ export function ChapterReader({
    * Handle color change from HighlightEditMenu
    */
   const handleUpdateHighlightColor = async (color: HighlightColor) => {
+    // If we have a group to edit, update all highlights in the group
+    if (selectedHighlightGroupForEdit) {
+      try {
+        // Update all highlights in the group
+        await Promise.all(
+          selectedHighlightGroupForEdit.highlights.map((h) =>
+            updateHighlightColor(h.highlight_id, color)
+          )
+        );
+        setEditMenuVisible(false);
+        setSelectedHighlightId(null);
+        setSelectedHighlightGroupForEdit(null);
+      } catch (error) {
+        console.error('Failed to update highlight colors:', error);
+        showError('Failed to update highlight colors. Please try again.');
+      }
+      return;
+    }
+
+    // Fallback to single highlight update
     if (!selectedHighlightId) return;
 
     try {
@@ -557,6 +565,7 @@ export function ChapterReader({
       await deleteHighlight(selectedHighlightId);
       setEditMenuVisible(false);
       setSelectedHighlightId(null);
+      setSelectedHighlightGroupForEdit(null);
     } catch (error) {
       console.error('Failed to delete highlight:', error);
       showError('Failed to delete highlight. Please try again.');
@@ -903,6 +912,7 @@ export function ChapterReader({
   const handleEditMenuClose = () => {
     setEditMenuVisible(false);
     setSelectedHighlightId(null);
+    setSelectedHighlightGroupForEdit(null);
   };
 
   /**
@@ -985,39 +995,102 @@ export function ChapterReader({
     setSelectedVerse(null);
   };
 
+  /**
+   * Handle change color from VerseMate tooltip
+   * Opens the HighlightEditMenu to change color for all highlights in the group
+   */
+  const handleChangeColorFromTooltip = (group: HighlightGroup) => {
+    // Close tooltip and open edit menu for the entire group
+    setManualHighlightTooltipVisible(false);
+    setSelectedHighlightGroup(null);
+
+    // Store the group for batch color updates
+    setSelectedHighlightGroupForEdit(group);
+
+    // Open edit menu with the first highlight's color as the current color
+    const firstHighlight = group.highlights[0];
+    if (firstHighlight) {
+      setSelectedHighlightId(firstHighlight.highlight_id);
+      setEditMenuVisible(true);
+    }
+  };
+
+  /**
+   * Handle add note from VerseMate tooltip
+   * Opens the chapter notes modal
+   */
+  const handleAddNoteFromTooltip = () => {
+    // Close tooltip and clear all modal states
+    setVerseInsightTooltipVisible(false);
+    setManualHighlightTooltipVisible(false);
+    setAutoHighlightTooltipVisible(false);
+    setSelectedVerse(null);
+    setSelectedHighlightGroup(null);
+    setSelectedAutoHighlight(null);
+
+    // Open chapter notes modal
+    onOpenNotes?.();
+  };
+
+  /**
+   * Handle copy from VerseMate tooltip
+   * Shows toast message after verse is copied and clears states
+   */
+  const handleCopyFromTooltip = () => {
+    // Clear all modal states to prevent reopening
+    setVerseInsightTooltipVisible(false);
+    setManualHighlightTooltipVisible(false);
+    setAutoHighlightTooltipVisible(false);
+    setSelectedVerse(null);
+    setSelectedHighlightGroup(null);
+    setSelectedAutoHighlight(null);
+
+    // Show success toast
+    showToast('Verse copied to clipboard');
+  };
+
+  /**
+   * Get verse text for VerseMate tooltip
+   */
+  const getVerseTextForTooltip = (): string | undefined => {
+    const verseNum = selectedVerse ?? selectedHighlightGroup?.startVerse;
+    if (!verseNum) return undefined;
+
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === verseNum);
+
+    return verse?.text;
+  };
+
   const currentHighlight = chapterHighlights.find((h) => h.highlight_id === selectedHighlightId);
   const currentHighlightColor = currentHighlight?.color || 'yellow';
 
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Chapter Title Row with Bookmark, Notes, and Share buttons */}
-      <View style={styles.titleRow} collapsable={false}>
-        <Text style={styles.chapterTitle} accessibilityRole="header">
-          {chapter.title}
-        </Text>
-        <View style={styles.iconButtons}>
-          <BookmarkToggle
-            bookId={chapter.bookId}
-            chapterNumber={chapter.chapterNumber}
-            size={specs.iconSize}
-            color={colors.textPrimary}
-          />
-          <NotesButton
-            bookId={chapter.bookId}
-            chapterNumber={chapter.chapterNumber}
-            onPress={handleNotesPress}
-            size={specs.iconSize}
-            color={colors.textPrimary}
-          />
-          <ShareButton
-            bookId={chapter.bookId}
-            chapterNumber={chapter.chapterNumber}
-            bookName={chapter.bookName}
-            size={specs.iconSize}
-            color={colors.textPrimary}
-          />
+      {/* Chapter Title Row with Bookmark, Notes, and Share buttons - Only show in Bible view */}
+      {!explanationsOnly && (
+        <View style={styles.titleRow} collapsable={false}>
+          <Text style={styles.chapterTitle} accessibilityRole="header">
+            {chapter.title}
+          </Text>
+          <View style={styles.iconButtons}>
+            <BookmarkToggle
+              bookId={chapter.bookId}
+              chapterNumber={chapter.chapterNumber}
+              size={specs.iconSize}
+              color={colors.textPrimary}
+            />
+            <NotesButton
+              bookId={chapter.bookId}
+              chapterNumber={chapter.chapterNumber}
+              onPress={handleNotesPress}
+              size={specs.iconSize}
+              color={colors.textPrimary}
+            />
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Render Bible verses (only in Bible view) */}
       {!explanationsOnly &&
@@ -1310,36 +1383,33 @@ export function ChapterReader({
           setSelectedAutoHighlight(null);
         }}
         onSaveAsUserHighlight={handleSaveAutoHighlightAsUserHighlight}
-        isLoggedIn={!!user}
-      />
-
-      {/* Verse Insight Tooltip */}
-      <VerseInsightTooltip
-        verseNumber={selectedVerse}
-        bookId={chapter.bookId}
-        chapterNumber={chapter.chapterNumber}
+        onCopy={handleCopyFromTooltip}
+        onAddNote={handleAddNoteFromTooltip}
         bookName={chapter.bookName}
-        visible={verseInsightTooltipVisible}
-        onClose={() => {
-          setVerseInsightTooltipVisible(false);
-          setSelectedVerse(null);
-        }}
-        onSaveAsHighlight={handleSaveFromVerseInsight}
         isLoggedIn={!!user}
       />
 
-      {/* Manual Highlight Tooltip (Grouped) */}
-      <ManualHighlightTooltip
+      {/* VerseMate Tooltip - Unified for both plain and highlighted verses */}
+      <VerseMateTooltip
+        verseNumber={selectedVerse}
         highlightGroup={selectedHighlightGroup}
         bookId={chapter.bookId}
         chapterNumber={chapter.chapterNumber}
         bookName={chapter.bookName}
-        visible={manualHighlightTooltipVisible}
+        visible={verseInsightTooltipVisible || manualHighlightTooltipVisible}
         onClose={() => {
+          setVerseInsightTooltipVisible(false);
           setManualHighlightTooltipVisible(false);
+          setSelectedVerse(null);
           setSelectedHighlightGroup(null);
         }}
-        onRemove={handleRemoveHighlightGroup}
+        onSaveAsHighlight={handleSaveFromVerseInsight}
+        onRemoveHighlight={handleRemoveHighlightGroup}
+        onChangeColor={handleChangeColorFromTooltip}
+        onAddNote={handleAddNoteFromTooltip}
+        onCopy={handleCopyFromTooltip}
+        verseText={getVerseTextForTooltip()}
+        isLoggedIn={!!user}
       />
 
       {/* Simple Color Picker Modal */}
@@ -1382,7 +1452,7 @@ export function ChapterReader({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>) =>
+const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -1456,9 +1526,9 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       marginBottom: spacing.md,
     },
     explanationContainer: {
-      marginTop: spacing.xxxl,
-      paddingTop: spacing.xxl,
-      borderTopWidth: 1,
+      marginTop: explanationsOnly ? 0 : spacing.xxxl,
+      paddingTop: explanationsOnly ? 0 : spacing.xxl,
+      borderTopWidth: explanationsOnly ? 0 : 1,
       borderTopColor: colors.border,
     },
   });

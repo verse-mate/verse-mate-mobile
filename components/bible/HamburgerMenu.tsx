@@ -7,7 +7,7 @@
  * Features:
  * - Slides in from right (300ms animation)
  * - White background, full height
- * - Menu items with icons: Bookmarks, Favorites, Notes, Highlights, Settings
+ * - Menu items with icons: Bookmarks, Notes, Highlights, Settings
  * - Close button (X) in header
  * - Tap backdrop or X to close
  * - Bookmarks item navigates to /bookmarks screen
@@ -66,7 +66,6 @@ const authMenuItems: MenuItem[] = [
 
 const regularMenuItems: MenuItem[] = [
   { id: 'bookmarks', label: 'Bookmarks', icon: 'bookmark-outline', action: 'bookmarks' },
-  { id: 'favorites', label: 'Favorites', icon: 'heart-outline' },
   { id: 'notes', label: 'Notes', icon: 'document-text-outline', action: 'notes' },
   { id: 'highlights', label: 'Highlights', icon: 'color-wand-outline', action: 'highlights' },
   { id: 'settings', label: 'Settings', icon: 'settings-outline', action: 'settings' },
@@ -171,6 +170,12 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     [menuWidth, onClose, translateX]
   );
 
+  const handleProfilePress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onClose();
+    router.push('/settings' as never);
+  };
+
   return (
     <Modal
       visible={visible}
@@ -213,7 +218,12 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
 
               {/* User Info Section (if authenticated) */}
               {isAuthenticated && user && (
-                <View style={styles.userSection}>
+                <Pressable
+                  onPress={handleProfilePress}
+                  style={({ pressed }) => [styles.userSection, pressed && styles.menuItemPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="User Profile"
+                >
                   <View style={styles.userInfo}>
                     <Ionicons name="person-circle-outline" size={48} color={colors.textSecondary} />
                     <View style={styles.userDetails}>
@@ -223,7 +233,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                       <Text style={styles.userEmail}>{user.email}</Text>
                     </View>
                   </View>
-                </View>
+                </Pressable>
               )}
 
               {/* Auth buttons (if not authenticated) */}

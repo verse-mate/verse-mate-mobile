@@ -20,21 +20,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeOut,
-  scrollTo,
-  useAnimatedReaction,
-  useAnimatedRef,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
+import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
+import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useNotes } from '@/hooks/bible/use-notes';
@@ -96,6 +90,7 @@ function TabContent({
   isLoading,
   error,
   visible,
+  shouldRenderHidden,
   testID,
   onScroll,
   onTouchStart,
@@ -107,6 +102,7 @@ function TabContent({
   isLoading: boolean;
   error: Error | null;
   visible: boolean;
+  shouldRenderHidden?: boolean;
   testID: string;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onTouchStart?: (event: GestureResponderEvent) => void;
@@ -115,7 +111,8 @@ function TabContent({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]); // Use local createStyles for TabContent
 
-  if (!visible) return null;
+  const isHidden = !visible;
+  if (isHidden && !shouldRenderHidden) return null;
 
   // Determine content for the reader
   const explanationContent = content && 'content' in content ? content : undefined;
@@ -125,16 +122,30 @@ function TabContent({
   // This prevents flicker when swiping between chapters
   const showSkeleton = isLoading && !chapter && !explanationContent;
 
+  // Keep all tabs mounted for pre-rendering (eliminates freeze on switch)
+  // Use absolute positioning + pointerEvents to hide inactive tabs
   return (
     <ScrollView
-      style={styles.container}
+      style={[
+        styles.container,
+        isHidden && {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: 0,
+          zIndex: -1,
+        },
+      ]}
       contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={true}
+      showsVerticalScrollIndicator={visible}
       testID={testID}
-      onScroll={onScroll}
+      onScroll={visible ? onScroll : undefined}
       scrollEventThrottle={16}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
+      pointerEvents={visible ? 'auto' : 'none'}
     >
       {error ? (
         <Animated.View
@@ -191,6 +202,8 @@ export interface ChapterPageProps {
   activeView: 'bible' | 'explanations';
   /** Target verse to scroll to (optional) */
   targetVerse?: number;
+  /** Target end verse for multi-verse highlights (optional) */
+  targetEndVerse?: number;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
@@ -226,15 +239,15 @@ export const ChapterPage = React.memo(function ChapterPage({
   activeTab,
   activeView,
   targetVerse,
+  targetEndVerse,
   onScroll,
   onTap,
 }: ChapterPageProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]); // Use local createStyles for ChapterPage
 
-  // Use Reanimated ref and shared value for smooth scrolling on UI thread
+  // Use Reanimated ref for the animated ScrollView
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
-  const scrollY = useSharedValue(0);
 
   const sectionPositionsRef = useRef<Record<number, number>>({});
 
@@ -246,25 +259,64 @@ export const ChapterPage = React.memo(function ChapterPage({
   // Note Modals State
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [optionsModalVisible, setOptionsModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
 
+  // Verse tooltip state - shown after scroll animation completes
+  const [verseTooltipVisible, setVerseTooltipVisible] = useState(false);
+  const verseTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { isAuthenticated } = useAuth();
+
+  // Staggered rendering state to prevent UI freeze (waterfall loading)
+  // 0: Initial (only active view)
+  // 1: Mount Explanations container (active tab renders)
+  // 2: Mount Summary tab (if hidden)
+  // 3: Mount Byline tab (if hidden)
+  // 4: Mount Detailed tab (if hidden)
+  const [delayedRenderStage, setDelayedRenderStage] = useState(0);
+
   const { deleteNote, isDeletingNote } = useNotes();
 
-  // Reset scroll state when book/chapter changes
+  // Trigger staggered delayed render
+  useEffect(() => {
+    const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
+    const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
+    const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
+    const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, []);
+
+  // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
   useEffect(() => {
     hasScrolledRef.current = false;
     sectionPositionsRef.current = {};
-    // Only reset scroll animation value when in Bible view to avoid triggering
-    // useAnimatedReaction on a null ref (which causes crash in explanation view)
-    if (activeView === 'bible') {
-      scrollY.value = 0;
-    }
     currentScrollYRef.current = 0;
-  }, [bookId, chapterNumber, activeView]);
+    // Close tooltip and clear timer when changing book/chapter
+    setVerseTooltipVisible(false);
+    if (verseTooltipTimerRef.current) {
+      clearTimeout(verseTooltipTimerRef.current);
+      verseTooltipTimerRef.current = null;
+    }
+  }, [bookId, chapterNumber]);
+
+  // Mark as scrolled when user switches to explanations view
+  // This prevents animation from restarting when returning to Bible
+  useEffect(() => {
+    if (activeView !== 'bible') {
+      hasScrolledRef.current = true;
+    }
+  }, [activeView]);
 
   // Track last scroll position and timestamp for velocity calculation
   const lastScrollY = useRef(0);
@@ -304,29 +356,31 @@ export const ChapterPage = React.memo(function ChapterPage({
   const { data: chapter } = useBibleChapter(bookId, chapterNumber, undefined);
 
   // Fetch explanations for each tab
-  // Queries are ALWAYS enabled to maintain cache during route transitions
+  // All three are ALWAYS enabled and load in parallel to ensure instant tab switching
+  // This eliminates the freeze when switching between summary/byline/detailed tabs
   const {
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
-  } = useBibleSummary(bookId, chapterNumber, undefined);
+  } = useBibleSummary(bookId, chapterNumber, undefined, { enabled: true });
 
   const {
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
-  } = useBibleByLine(bookId, chapterNumber, undefined);
+  } = useBibleByLine(bookId, chapterNumber, undefined, { enabled: true });
 
   const {
     data: detailedData,
     isLoading: isDetailedLoading,
     error: detailedError,
-  } = useBibleDetailed(bookId, chapterNumber, undefined);
+  } = useBibleDetailed(bookId, chapterNumber, undefined, { enabled: true });
 
   /**
    * Attempt to scroll to target verse using Reanimated for smoothness
    */
   const attemptScrollToVerse = useCallback(() => {
+    if (activeView !== 'bible') return;
     if (!targetVerse || hasScrolledRef.current) return;
 
     // Find the section that contains the target verse
@@ -346,40 +400,33 @@ export const ChapterPage = React.memo(function ChapterPage({
     if (targetSectionStartVerse !== -1) {
       const targetY = sectionPositionsRef.current[targetSectionStartVerse];
       if (targetY !== undefined) {
-        const startY = currentScrollYRef.current;
-        const distance = Math.abs(targetY - startY);
+        // Adjust for top padding so target verse appears near the top
+        const topPadding = spacing.xxl;
+        const targetYAdjusted = Math.max(0, targetY - topPadding);
 
-        // Dynamic duration calculation
-        // 500ms base + 0.3ms per pixel, max 2000ms
-        const duration = Math.min(2000, 500 + distance * 0.3);
-
-        // Sync shared value to current position first (to be safe)
-        scrollY.value = startY;
-
-        // Drive animation on UI thread
-        scrollY.value = withTiming(targetY, {
-          duration: duration,
-          easing: Easing.inOut(Easing.cubic),
+        // Use native animated scroll - runs on native thread, smooth and reliable
+        // This is simpler and more reliable than Reanimated's scrollTo worklet
+        animatedScrollRef.current?.scrollTo({
+          y: targetYAdjusted,
+          animated: true,
         });
+
+        // Show verse tooltip after animation completes
+        // Clear any existing timer first
+        if (verseTooltipTimerRef.current) {
+          clearTimeout(verseTooltipTimerRef.current);
+        }
+        // Show tooltip much sooner - don't wait the full scroll duration
+        // Actual animation typically completes in ~1s, so show tooltip after ~600ms
+        // This feels immediate while letting the scroll settle
+        verseTooltipTimerRef.current = setTimeout(() => {
+          setVerseTooltipVisible(true);
+        }, 600);
 
         hasScrolledRef.current = true;
       }
     }
-  }, [targetVerse, scrollY]);
-
-  // React to shared value changes on UI thread (only for Bible view)
-  // Note: animatedScrollRef is only valid when Animated.ScrollView is rendered (Bible view)
-  useAnimatedReaction(
-    () => scrollY.value,
-    (currentY) => {
-      'worklet';
-      // Safety check: only scroll if the ref is attached to a valid component
-      // In explanation view, the Animated.ScrollView is not rendered, so ref is invalid
-      if (animatedScrollRef && animatedScrollRef.current) {
-        scrollTo(animatedScrollRef, 0, currentY, false);
-      }
-    }
-  );
+  }, [activeView, targetVerse, animatedScrollRef]);
 
   /**
    * Handle content layout report from ChapterReader
@@ -398,6 +445,31 @@ export const ChapterPage = React.memo(function ChapterPage({
       attemptScrollToVerse();
     }
   }, [targetVerse, attemptScrollToVerse]);
+
+  // Fallback: if initial layout was late, retry after mount
+  useEffect(() => {
+    // Quick one-shot retry
+    const timeout = setTimeout(() => {
+      attemptScrollToVerse();
+    }, 300);
+
+    // Short polling until positions available or 2s elapsed
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const havePositions = Object.keys(sectionPositionsRef.current).length > 0;
+      if (havePositions) {
+        attemptScrollToVerse();
+        clearInterval(interval);
+      } else if (Date.now() - start > 2000) {
+        clearInterval(interval);
+      }
+    }, 150);
+
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
+  }, [attemptScrollToVerse]);
 
   /**
    * Handle scroll events - calculate velocity and detect bottom
@@ -436,7 +508,7 @@ export const ChapterPage = React.memo(function ChapterPage({
     setNotesModalVisible(true);
   };
 
-  const handleNotePress = (note: Note) => {
+  const _handleNotePress = (note: Note) => {
     setSelectedNote(note);
     setNotesModalVisible(false);
     setTimeout(() => setViewModalVisible(true), 100);
@@ -446,12 +518,19 @@ export const ChapterPage = React.memo(function ChapterPage({
     setSelectedNote(note);
     setNotesModalVisible(false); // Close notes list
     setViewModalVisible(false); // Close view modal if open
+    setOptionsModalVisible(false); // Close options modal if open
     setTimeout(() => setEditModalVisible(true), 100);
   };
 
-  // Called from NoteViewModal (which doesn't use OptionsModal internally yet)
-  const handleDeleteNote = (note: Note) => {
+  // Handler for closing the options modal
+  const handleOptionsModalClose = () => {
+    setOptionsModalVisible(false);
+  };
+
+  // Called when delete is confirmed via options modal
+  const _handleDeleteNote = (note: Note) => {
     setNoteToDelete(note);
+    setOptionsModalVisible(false);
     setDeleteConfirmVisible(true);
   };
 
@@ -480,8 +559,24 @@ export const ChapterPage = React.memo(function ChapterPage({
 
   return (
     <View style={styles.container} collapsable={false}>
-      {activeView === 'explanations' ? (
-        <View style={styles.container} collapsable={false}>
+      {/* Explanations View - Render if active OR if delayed render stage >= 1 */}
+      {(activeView === 'explanations' || delayedRenderStage >= 1) && (
+        <View
+          style={[
+            styles.container,
+            activeView !== 'explanations' && {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0,
+              zIndex: -1,
+            },
+          ]}
+          collapsable={false}
+          pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
+        >
           <TabContent
             chapter={chapter}
             activeTab="summary"
@@ -489,6 +584,7 @@ export const ChapterPage = React.memo(function ChapterPage({
             isLoading={isSummaryLoading}
             error={summaryError}
             visible={activeTab === 'summary'}
+            shouldRenderHidden={delayedRenderStage >= 2}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
@@ -501,6 +597,7 @@ export const ChapterPage = React.memo(function ChapterPage({
             isLoading={isByLineLoading}
             error={byLineError}
             visible={activeTab === 'byline'}
+            shouldRenderHidden={delayedRenderStage >= 3}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
@@ -513,41 +610,54 @@ export const ChapterPage = React.memo(function ChapterPage({
             isLoading={isDetailedLoading}
             error={detailedError}
             visible={activeTab === 'detailed'}
+            shouldRenderHidden={delayedRenderStage >= 4}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           />
         </View>
-      ) : (
-        // Bible reading view (no explanations)
-        <Animated.ScrollView
-          ref={animatedScrollRef}
-          style={styles.container}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={true}
-          testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          <View style={styles.readerContainer} collapsable={false}>
-            {chapter ? (
-              <ChapterReader
-                chapter={chapter}
-                activeTab={activeTab}
-                explanationsOnly={false}
-                onContentLayout={handleContentLayout}
-                onOpenNotes={handleOpenNotes}
-              />
-            ) : (
-              <SkeletonLoader />
-            )}
-          </View>
-          <BottomLogo />
-        </Animated.ScrollView>
       )}
+
+      {/* Bible reading view (no explanations) - Always rendered but hidden if inactive */}
+      <Animated.ScrollView
+        ref={animatedScrollRef}
+        style={[
+          styles.container,
+          activeView !== 'bible' && {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            opacity: 0,
+            zIndex: -1,
+          },
+        ]}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={true}
+        testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
+      >
+        <View style={styles.readerContainer} collapsable={false}>
+          {chapter ? (
+            <ChapterReader
+              chapter={chapter}
+              activeTab={activeTab}
+              explanationsOnly={false}
+              onContentLayout={handleContentLayout}
+              onOpenNotes={handleOpenNotes}
+            />
+          ) : (
+            <SkeletonLoader />
+          )}
+        </View>
+        <BottomLogo />
+      </Animated.ScrollView>
 
       {/* Note Modals - Rendered OUTSIDE ScrollView */}
       <NotesModal
@@ -556,8 +666,6 @@ export const ChapterPage = React.memo(function ChapterPage({
         chapterNumber={chapterNumber}
         bookName={chapter?.title.split(' ')[0] || ''}
         onClose={() => setNotesModalVisible(false)}
-        onNotePress={handleNotePress}
-        onEditNote={handleEditNote}
       />
 
       {selectedNote && (
@@ -570,8 +678,21 @@ export const ChapterPage = React.memo(function ChapterPage({
             setViewModalVisible(false);
             setSelectedNote(null);
           }}
-          onEdit={handleEditNote}
-          onDelete={handleDeleteNote}
+        />
+      )}
+
+      {selectedNote && (
+        <NoteOptionsModal
+          visible={optionsModalVisible}
+          note={selectedNote}
+          onClose={handleOptionsModalClose}
+          deleteNote={async (noteId) => {
+            await deleteNote(noteId);
+            setOptionsModalVisible(false);
+            setViewModalVisible(false);
+            setSelectedNote(null);
+          }}
+          onEdit={() => handleEditNote(selectedNote)}
         />
       )}
 
@@ -597,6 +718,30 @@ export const ChapterPage = React.memo(function ChapterPage({
         title="Delete Note"
         message="Are you sure you want to delete this note?"
       />
+
+      {/* Verse Tooltip - shown after scroll animation completes */}
+      {targetVerse && (
+        <VerseMateTooltip
+          verseNumber={!targetEndVerse || targetEndVerse === targetVerse ? targetVerse : null}
+          highlightGroup={
+            targetEndVerse && targetEndVerse > targetVerse
+              ? {
+                  color: 'yellow',
+                  startVerse: targetVerse,
+                  endVerse: targetEndVerse,
+                  highlights: [],
+                  isGrouped: true,
+                }
+              : null
+          }
+          bookId={bookId}
+          chapterNumber={chapterNumber}
+          bookName={chapter?.title.split(' ')[0] || ''}
+          visible={verseTooltipVisible}
+          onClose={() => setVerseTooltipVisible(false)}
+          isLoggedIn={isAuthenticated}
+        />
+      )}
     </View>
   );
 });

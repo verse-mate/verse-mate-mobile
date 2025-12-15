@@ -65,7 +65,7 @@ describe('generateTopicShareUrl', () => {
 
   it('throws error when EXPO_PUBLIC_WEB_URL is not set', () => {
     const originalUrl = process.env.EXPO_PUBLIC_WEB_URL;
-    delete process.env.EXPO_PUBLIC_WEB_URL;
+    process.env.EXPO_PUBLIC_WEB_URL = undefined;
 
     expect(() => generateTopicShareUrl('EVENT', 'The Resurrection')).toThrow(
       'EXPO_PUBLIC_WEB_URL is not configured'
@@ -137,7 +137,7 @@ describe('parseTopicShareUrl', () => {
 
   it('returns null when EXPO_PUBLIC_WEB_URL is not set', () => {
     const originalUrl = process.env.EXPO_PUBLIC_WEB_URL;
-    delete process.env.EXPO_PUBLIC_WEB_URL;
+    process.env.EXPO_PUBLIC_WEB_URL = undefined;
 
     const result = parseTopicShareUrl('https://app.versemate.org/topic/events/the-resurrection');
     expect(result).toBeNull();

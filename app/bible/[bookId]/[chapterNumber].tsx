@@ -20,7 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
@@ -74,10 +75,16 @@ const CENTER_INDEX = 2;
  */
 export default function ChapterScreen() {
   // Extract and validate route params
-  const params = useLocalSearchParams<{ bookId: string; chapterNumber: string; verse?: string }>();
+  const params = useLocalSearchParams<{
+    bookId: string;
+    chapterNumber: string;
+    verse?: string;
+    endVerse?: string;
+  }>();
   const bookId = Number(params.bookId);
   const chapterNumber = Number(params.chapterNumber);
   const targetVerse = params.verse ? Number(params.verse) : undefined;
+  const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
 
   // Theme
   const { colors, mode } = useTheme();
@@ -88,6 +95,18 @@ export default function ChapterScreen() {
 
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
+
+  // Ensure deep-linked verse jumps use Bible view so scroll-to-verse can run
+  // Only force on initial mount, not when user switches tabs manually
+  const hasSetInitialView = useRef(false);
+  useEffect(() => {
+    if (targetVerse && !hasSetInitialView.current) {
+      hasSetInitialView.current = true;
+      if (activeView !== 'bible') {
+        setActiveView('bible');
+      }
+    }
+  }, [targetVerse, activeView, setActiveView]);
 
   // Navigation modal state (Task 7.9)
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
@@ -378,6 +397,7 @@ export default function ChapterScreen() {
         activeTab={activeTab}
         activeView={activeView}
         targetVerse={targetVerse}
+        targetEndVerse={targetEndVerse}
         onPageChange={handlePageChange}
         onScroll={handleScroll}
         onTap={handleTap}
@@ -452,8 +472,53 @@ function ChapterHeader({
   // Get theme directly inside ChapterHeader (no props drilling)
   const { colors, mode } = useTheme();
   const headerSpecs = getHeaderSpecs(mode);
-  const styles = useMemo(() => createHeaderStyles(headerSpecs), [headerSpecs]);
+  const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
+
+  // Animation for sliding toggle indicator
+  const toggleSlideAnim = useRef(new Animated.Value(activeView === 'bible' ? 0 : 1)).current;
+  const [bibleButtonWidth, setBibleButtonWidth] = useState(0);
+  const [insightButtonWidth, setInsightButtonWidth] = useState(0);
+
+  // Animate toggle indicator when activeView changes
+  useEffect(() => {
+    Animated.spring(toggleSlideAnim, {
+      toValue: activeView === 'bible' ? 0 : 1,
+      useNativeDriver: false, // Changed to false to allow width animation
+      friction: 8,
+      tension: 50,
+    }).start();
+  }, [activeView, toggleSlideAnim]);
+
+  // Measure individual button widths
+  const handleBibleLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setBibleButtonWidth(width);
+  };
+
+  const handleInsightLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setInsightButtonWidth(width);
+  };
+
+  // Memoize interpolations to prevent recreating on every render
+  const indicatorTranslateX = useMemo(
+    () =>
+      toggleSlideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, bibleButtonWidth + 4], // Move to insight position (Bible width + gap)
+      }),
+    [toggleSlideAnim, bibleButtonWidth]
+  );
+
+  const indicatorWidth = useMemo(
+    () =>
+      toggleSlideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [bibleButtonWidth, insightButtonWidth],
+      }),
+    [toggleSlideAnim, bibleButtonWidth, insightButtonWidth]
+  );
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="chapter-header">
@@ -476,37 +541,51 @@ function ChapterHeader({
 
       {/* Action Icons */}
       <View style={styles.headerActions}>
-        {/* Bible View Icon */}
-        <Pressable
-          onPress={() => onViewChange('bible')}
-          style={styles.iconButton}
-          accessibilityLabel="Bible reading view"
-          accessibilityRole="button"
-          accessibilityState={{ selected: activeView === 'bible' }}
-          testID="bible-view-icon"
-        >
-          <Ionicons
-            name="book-outline"
-            size={headerSpecs.iconSize}
-            color={activeView === 'bible' ? colors.gold : headerSpecs.iconColor}
+        {/* Bible/Commentary Toggle (Figma pill-style) */}
+        <View style={styles.toggleContainer}>
+          {/* Sliding indicator background */}
+          <Animated.View
+            style={[
+              styles.toggleIndicator,
+              {
+                width: indicatorWidth,
+                transform: [
+                  {
+                    translateX: indicatorTranslateX,
+                  },
+                ],
+              },
+            ]}
           />
-        </Pressable>
-
-        {/* Explanations View Icon */}
-        <Pressable
-          onPress={() => onViewChange('explanations')}
-          style={styles.iconButton}
-          accessibilityLabel="Explanations view"
-          accessibilityRole="button"
-          accessibilityState={{ selected: activeView === 'explanations' }}
-          testID="explanations-view-icon"
-        >
-          <Ionicons
-            name="reader-outline"
-            size={headerSpecs.iconSize}
-            color={activeView === 'explanations' ? colors.gold : headerSpecs.iconColor}
-          />
-        </Pressable>
+          <Pressable
+            onPress={() => onViewChange('bible')}
+            style={styles.toggleButton}
+            onLayout={handleBibleLayout}
+            accessibilityLabel="Bible reading view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'bible' }}
+            testID="bible-view-toggle"
+          >
+            <Text style={[styles.toggleText, activeView === 'bible' && styles.toggleTextActive]}>
+              Bible
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onViewChange('explanations')}
+            style={styles.toggleButton}
+            onLayout={handleInsightLayout}
+            accessibilityLabel="Insight view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'explanations' }}
+            testID="commentary-view-toggle"
+          >
+            <Text
+              style={[styles.toggleText, activeView === 'explanations' && styles.toggleTextActive]}
+            >
+              Insight
+            </Text>
+          </Pressable>
+        </View>
 
         {/* Offline Indicator (Task 8.6) */}
         <OfflineIndicator />
@@ -529,7 +608,10 @@ function ChapterHeader({
 /**
  * Creates styles for ChapterHeader component
  */
-const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
+const createHeaderStyles = (
+  headerSpecs: ReturnType<typeof getHeaderSpecs>,
+  themeColors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>
+) =>
   StyleSheet.create({
     header: {
       minHeight: headerSpecs.height,
@@ -538,7 +620,7 @@ const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: headerSpecs.padding,
-      paddingBottom: spacing.md,
+      paddingBottom: spacing.sm,
     },
     chapterButton: {
       padding: spacing.xs,
@@ -562,6 +644,44 @@ const createHeaderStyles = (headerSpecs: ReturnType<typeof getHeaderSpecs>) =>
       padding: spacing.xs,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    // Figma pill-style toggle
+    toggleContainer: {
+      backgroundColor: '#323232',
+      borderRadius: 100,
+      padding: 4,
+      flexDirection: 'row',
+      gap: 4,
+      position: 'relative',
+    },
+    toggleIndicator: {
+      position: 'absolute',
+      height: 28,
+      backgroundColor: themeColors.gold,
+      borderRadius: 100,
+      top: 4,
+      left: 4,
+    },
+    toggleButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 2,
+      borderRadius: 100,
+      minHeight: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'transparent',
+      zIndex: 1,
+    },
+    toggleButtonActive: {
+      backgroundColor: 'transparent',
+    },
+    toggleText: {
+      fontSize: 14,
+      color: headerSpecs.titleColor,
+      fontWeight: '400',
+    },
+    toggleTextActive: {
+      color: themeColors.black,
     },
   });
 

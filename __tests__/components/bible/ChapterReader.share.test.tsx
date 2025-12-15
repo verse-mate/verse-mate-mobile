@@ -6,9 +6,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import * as Haptics from 'expo-haptics';
-import { Alert, Share } from 'react-native';
+import { render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { useAuth } from '@/contexts/AuthContext';
@@ -61,7 +59,7 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </SafeAreaProvider>
 );
 
-describe('ChapterReader Share Functionality', () => {
+describe('ChapterReader Share Functionality (removed)', () => {
   const mockChapter: ChapterContent = {
     bookId: 43,
     bookName: 'John',
@@ -146,113 +144,15 @@ describe('ChapterReader Share Functionality', () => {
     });
   });
 
-  it('renders share button in ChapterReader', () => {
+  it('does not render share button in ChapterReader', () => {
     render(
       <TestWrapper>
         <ChapterReader chapter={mockChapter} activeTab="summary" />
       </TestWrapper>
     );
 
-    // Share button should be present (icon button with testID)
-    const shareButton = screen.getByTestId('share-button');
-    expect(shareButton).toBeTruthy();
+    // Share button has been removed per product decision
+    expect(screen.queryByTestId('share-button')).toBeNull();
   });
-
-  it('calls Share API with correct message when share button pressed', async () => {
-    const mockShare = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
-
-    render(
-      <TestWrapper>
-        <ChapterReader chapter={mockChapter} activeTab="summary" />
-      </TestWrapper>
-    );
-
-    const shareButton = screen.getByTestId('share-button');
-    fireEvent.press(shareButton);
-
-    // Wait for async share call
-    await waitFor(() => {
-      expect(mockShare).toHaveBeenCalledWith({
-        message: 'Check out John 3 on VerseMate: https://app.versemate.org/bible/john/3',
-        url: 'https://app.versemate.org/bible/john/3',
-      });
-    });
-
-    // Should trigger haptic feedback
-    expect(Haptics.impactAsync).toHaveBeenCalled();
-  });
-
-  it('handles Share API dismissal gracefully', async () => {
-    const mockShare = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'dismissedAction' });
-
-    render(
-      <TestWrapper>
-        <ChapterReader chapter={mockChapter} activeTab="summary" />
-      </TestWrapper>
-    );
-
-    const shareButton = screen.getByTestId('share-button');
-    fireEvent.press(shareButton);
-
-    await waitFor(() => {
-      expect(mockShare).toHaveBeenCalled();
-    });
-
-    // Should not throw error or show alert
-    // Dismissal is normal user behavior
-  });
-
-  it('shows alert when Share API fails', async () => {
-    jest.spyOn(Share, 'share').mockRejectedValue(new Error('Share failed'));
-    const mockAlert = jest.spyOn(Alert, 'alert');
-
-    render(
-      <TestWrapper>
-        <ChapterReader chapter={mockChapter} activeTab="summary" />
-      </TestWrapper>
-    );
-
-    const shareButton = screen.getByTestId('share-button');
-    fireEvent.press(shareButton);
-
-    // Wait for error handling
-    await waitFor(() => {
-      expect(mockAlert).toHaveBeenCalledWith(
-        'Share Failed',
-        'Unable to share this chapter. Please try again.'
-      );
-    });
-
-    // Should trigger error haptic feedback
-    expect(Haptics.notificationAsync).toHaveBeenCalled();
-  });
-
-  it('generates correct share URL for different chapters', async () => {
-    const mockShare = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
-
-    const genesisChapter: ChapterContent = {
-      ...mockChapter,
-      bookId: 1,
-      bookName: 'Genesis',
-      chapterNumber: 1,
-      title: 'Genesis 1',
-      testament: 'OT',
-    };
-
-    render(
-      <TestWrapper>
-        <ChapterReader chapter={genesisChapter} activeTab="summary" />
-      </TestWrapper>
-    );
-
-    const shareButton = screen.getByTestId('share-button');
-    fireEvent.press(shareButton);
-
-    await waitFor(() => {
-      expect(mockShare).toHaveBeenCalledWith({
-        message: 'Check out Genesis 1 on VerseMate: https://app.versemate.org/bible/genesis/1',
-        url: 'https://app.versemate.org/bible/genesis/1',
-      });
-    });
-  });
+  // Share-related behaviors are deprecated; remaining tests assert absence only.
 });

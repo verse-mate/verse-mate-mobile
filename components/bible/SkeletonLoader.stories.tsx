@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-native';
+import type { Meta, StoryFn, StoryObj } from '@storybook/react-native';
 import { StyleSheet, View } from 'react-native';
 import { SkeletonLoader } from './SkeletonLoader';
 
@@ -15,10 +15,8 @@ const meta = {
   title: 'Bible/SkeletonLoader',
   component: SkeletonLoader,
   decorators: [
-    (Story) => (
-      <View style={styles.decorator}>
-        <Story />
-      </View>
+    (Story: StoryFn, context) => (
+      <View style={styles.decorator}>{Story(context.args, context)}</View>
     ),
   ],
 } satisfies Meta<typeof SkeletonLoader>;
@@ -39,10 +37,8 @@ export const Default: Story = {};
  */
 export const MobileView: Story = {
   decorators: [
-    (Story) => (
-      <View style={styles.mobileDecorator}>
-        <Story />
-      </View>
+    (Story: StoryFn, context) => (
+      <View style={styles.mobileDecorator}>{Story(context.args, context)}</View>
     ),
   ],
 };
@@ -53,10 +49,8 @@ export const MobileView: Story = {
  */
 export const TabletView: Story = {
   decorators: [
-    (Story) => (
-      <View style={styles.tabletDecorator}>
-        <Story />
-      </View>
+    (Story: StoryFn, context) => (
+      <View style={styles.tabletDecorator}>{Story(context.args, context)}</View>
     ),
   ],
 };
@@ -67,13 +61,13 @@ export const TabletView: Story = {
  */
 export const MultipleSkeletons: Story = {
   decorators: [
-    (Story) => (
+    (Story: StoryFn, context) => (
       <View style={styles.decorator}>
-        <Story />
+        {Story(context.args, context)}
         <View style={styles.spacer} />
-        <Story />
+        {Story(context.args, context)}
         <View style={styles.spacer} />
-        <Story />
+        {Story(context.args, context)}
       </View>
     ),
   ],

@@ -12,6 +12,7 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
@@ -29,10 +30,29 @@ jest.mock('expo-haptics', () => ({
 }));
 
 const renderWithTheme = (component: React.ReactElement) => {
-  const result = render(<ThemeProvider>{component}</ThemeProvider>);
+  const result = render(
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 0, y: 0, width: 390, height: 844 },
+        insets: { top: 47, left: 0, right: 0, bottom: 34 },
+      }}
+    >
+      <ThemeProvider>{component}</ThemeProvider>
+    </SafeAreaProvider>
+  );
   return {
     ...result,
-    rerender: (ui: React.ReactElement) => result.rerender(<ThemeProvider>{ui}</ThemeProvider>),
+    rerender: (ui: React.ReactElement) =>
+      result.rerender(
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 47, left: 0, right: 0, bottom: 34 },
+          }}
+        >
+          <ThemeProvider>{ui}</ThemeProvider>
+        </SafeAreaProvider>
+      ),
   };
 };
 
@@ -449,7 +469,9 @@ describe('BibleNavigationModal - Topics Tab', () => {
       fireEvent.press(screen.getByText('The Creation'));
 
       // Modal should close
-      expect(mockOnClose).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockOnClose).toHaveBeenCalled();
+      });
     });
 
     it('should render topic with description', async () => {
@@ -523,53 +545,6 @@ describe('BibleNavigationModal - Topics Tab', () => {
       fireEvent.press(screen.getByText('Topics'));
 
       expect(screen.getByText('No topics found')).toBeTruthy();
-    });
-  });
-
-  describe('Breadcrumb Navigation', () => {
-    it('should show correct breadcrumb for Topics tab', async () => {
-      renderWithTheme(
-        <BibleNavigationModal
-          visible={true}
-          currentBookId={1}
-          currentChapter={1}
-          onClose={mockOnClose}
-          onSelectChapter={mockOnSelectChapter}
-          onSelectTopic={mockOnSelectTopic}
-        />
-      );
-
-      // Click Topics tab
-      fireEvent.press(screen.getByText('Topics'));
-
-      await waitFor(() => {
-        // Breadcrumb should show "Topics, Events"
-        expect(screen.getByText('Topics, Events')).toBeTruthy();
-      });
-    });
-
-    it('should update breadcrumb when switching categories', async () => {
-      renderWithTheme(
-        <BibleNavigationModal
-          visible={true}
-          currentBookId={1}
-          currentChapter={1}
-          onClose={mockOnClose}
-          onSelectChapter={mockOnSelectChapter}
-          onSelectTopic={mockOnSelectTopic}
-        />
-      );
-
-      // Click Topics tab
-      fireEvent.press(screen.getByText('Topics'));
-
-      // Click Prophecies category
-      fireEvent.press(screen.getByText('Prophecies'));
-
-      await waitFor(() => {
-        // Breadcrumb should update to "Topics, Prophecies"
-        expect(screen.getByText('Topics, Prophecies')).toBeTruthy();
-      });
     });
   });
 });

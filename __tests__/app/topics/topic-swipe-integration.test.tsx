@@ -8,14 +8,14 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TopicDetailScreen from '@/app/topics/[topicId]';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
+import { useActiveTab, useLastReadPosition } from '@/hooks/bible';
 import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api/generated';
 
 // Mock dependencies
@@ -85,7 +85,7 @@ jest.mock('expo-haptics', () => ({
 const mockSetPage = jest.fn();
 
 // Center index constant from TopicPagerView (5-page window)
-const CENTER_INDEX = 2;
+const _CENTER_INDEX = 2;
 
 jest.mock('@/components/topics/TopicPagerView', () => {
   const React = require('react');
@@ -377,11 +377,11 @@ describe('TopicDetailScreen - PagerView Integration', () => {
       // Initially in Bible view, tabs should NOT be visible
       expect(queryByTestId('chapter-content-tabs')).toBeNull();
 
-      const bibleIcon = getByTestId('bible-view-icon');
-      const explanationsIcon = getByTestId('explanations-view-icon');
+      const bibleToggle = getByTestId('bible-view-toggle');
+      const insightToggle = getByTestId('insight-view-toggle');
 
       // Switch to explanations view
-      fireEvent.press(explanationsIcon);
+      fireEvent.press(insightToggle);
 
       // Tabs should appear
       await waitFor(() => {
@@ -389,7 +389,7 @@ describe('TopicDetailScreen - PagerView Integration', () => {
       });
 
       // Switch back to Bible view
-      fireEvent.press(bibleIcon);
+      fireEvent.press(bibleToggle);
 
       // Tabs should not be visible
       await waitFor(() => {

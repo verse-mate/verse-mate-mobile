@@ -9,6 +9,7 @@ import {
   PanResponder,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -22,6 +23,8 @@ interface HighlightOptionsModalProps {
   visible: boolean;
   onClose: () => void;
   highlight: Highlight | null;
+  bookName: string;
+  chapterNumber: number;
   deleteHighlight: (highlightId: number) => Promise<void>;
   onActionComplete?: (action: string) => void;
 }
@@ -224,6 +227,8 @@ export function HighlightOptionsModal({
   visible,
   onClose,
   highlight,
+  bookName,
+  chapterNumber,
   deleteHighlight,
   onActionComplete,
 }: HighlightOptionsModalProps) {
@@ -367,12 +372,27 @@ export function HighlightOptionsModal({
         setIsConfirmDeleteVisible(true); // Show confirmation dialog (this is central, not part of sheet)
         break;
       case 'share':
-        setStatusMessage('"Share" feature is coming soon!');
-        setIsErrorVisible(true);
-        break;
-      case 'edit':
-        setStatusMessage('"Edit Highlight" feature is coming soon!');
-        setIsErrorVisible(true);
+        if (highlight.selected_text) {
+          try {
+            const verseRange =
+              highlight.start_verse === highlight.end_verse
+                ? `${highlight.start_verse}`
+                : `${highlight.start_verse}-${highlight.end_verse}`;
+            const message = `"${highlight.selected_text}"\n\n${bookName} ${chapterNumber}:${verseRange}`;
+
+            await Share.share({
+              message,
+            });
+            handleDismiss();
+          } catch (error) {
+            console.error('Error sharing highlight:', error);
+            setStatusMessage('Failed to share highlight.');
+            setIsErrorVisible(true);
+          }
+        } else {
+          setStatusMessage('No content to share.');
+          setIsErrorVisible(true);
+        }
         break;
       default:
         setStatusMessage(`Action "${action}" is not recognized.`);
@@ -427,7 +447,7 @@ export function HighlightOptionsModal({
         {/* Backdrop (animated opacity) */}
         <Animated.View
           style={[styles.backdrop, { opacity: backdropOpacity }]}
-          pointerEvents={isDialogActive ? 'auto' : 'none'} // Backdrop should only handle presses if dialog is active
+          pointerEvents="box-none"
         >
           {/* Pressable on backdrop to dismiss - only active when menu is shown */}
           {!isDialogActive && (
@@ -464,12 +484,6 @@ export function HighlightOptionsModal({
                   icon="share-social-outline"
                   label="Share"
                   onPress={() => handleAction('share')}
-                  colors={colors}
-                />
-                <OptionItem
-                  icon="create-outline"
-                  label="Edit Highlight"
-                  onPress={() => handleAction('edit')}
                   colors={colors}
                 />
                 <View style={styles.separator} />
