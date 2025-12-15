@@ -446,6 +446,11 @@ export function VerseMateTooltip({
                     </Pressable>
                   )}
                 </View>
+
+                {/* Verse Text (Single verse only) */}
+                {verseText && !isMultiVerse && (
+                  <Text style={styles.verseText}>{`"${verseText}"`}</Text>
+                )}
               </View>
 
               {/* Insight Section (Always Expandable) */}
@@ -639,6 +644,14 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       fontWeight: fontWeights.medium,
       color: colors.textPrimary,
       flex: 1,
+    },
+    verseText: {
+      fontSize: fontSizes.body,
+      fontStyle: 'italic',
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+      marginBottom: spacing.sm,
+      lineHeight: fontSizes.body * 1.5,
     },
     colorBadge: {
       flexDirection: 'row',
