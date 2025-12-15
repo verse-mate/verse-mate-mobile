@@ -7,7 +7,6 @@ import {
   Dimensions,
   Modal,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -50,12 +49,7 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       borderTopRightRadius: 24,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
-      paddingBottom:
-        Platform.OS === 'android'
-          ? spacing.md
-          : insets.bottom > 0
-            ? insets.bottom + spacing.md
-            : spacing.lg,
+      paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.md : spacing.lg,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -2 },
       shadowOpacity: 0.1,

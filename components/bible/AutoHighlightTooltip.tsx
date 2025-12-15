@@ -18,7 +18,6 @@ import {
   Dimensions,
   Modal,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -571,7 +570,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       maxHeight: '80%',
-      paddingBottom: Platform.OS === 'android' ? spacing.xs : bottomInset, // Minimal on Android, safe area on iOS
+      paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {
       paddingHorizontal: spacing.lg,
@@ -659,7 +658,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       gap: spacing.sm,
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.lg,
-      paddingBottom: Platform.OS === 'android' ? spacing.xs : bottomInset,
+      paddingBottom: bottomInset > 0 ? bottomInset + spacing.sm : spacing.xl,
       borderTopWidth: 1,
       borderTopColor: colors.divider,
       backgroundColor: colors.backgroundElevated,

@@ -403,13 +403,6 @@ export const ChapterPage = React.memo(function ChapterPage({
         // Adjust for top padding so target verse appears near the top
         const topPadding = spacing.xxl;
         const targetYAdjusted = Math.max(0, targetY - topPadding);
-        const startY = currentScrollYRef.current;
-        const distance = Math.abs(targetYAdjusted - startY);
-
-        // Balanced duration: smooth but not too slow
-        // Base 800ms + 0.5ms per pixel, clamped 1000ms–2500ms
-        const rawDuration = 800 + distance * 0.5;
-        const duration = Math.max(1000, Math.min(2500, rawDuration));
 
         // Use native animated scroll - runs on native thread, smooth and reliable
         // This is simpler and more reliable than Reanimated's scrollTo worklet
@@ -433,7 +426,7 @@ export const ChapterPage = React.memo(function ChapterPage({
         hasScrolledRef.current = true;
       }
     }
-  }, [activeView, targetVerse]);
+  }, [activeView, targetVerse, animatedScrollRef]);
 
   /**
    * Handle content layout report from ChapterReader

@@ -25,7 +25,6 @@ import {
   Dimensions,
   Modal,
   PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -603,7 +602,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       maxHeight: '80%',
-      paddingBottom: Platform.OS === 'android' ? spacing.xs : bottomInset, // Minimal on Android, safe area on iOS
+      paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {
       paddingHorizontal: spacing.lg,

@@ -276,8 +276,9 @@ export function NoteEditModal({
       onRequestClose={handleDismiss}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {/* Backdrop */}
         <Animated.View
@@ -395,7 +396,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       maxHeight: '85%',
-      paddingBottom: Platform.OS === 'android' ? spacing.xs : bottomInset,
+      paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     header: {
       alignItems: 'center',
