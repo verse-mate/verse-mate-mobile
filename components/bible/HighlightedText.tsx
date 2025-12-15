@@ -404,8 +404,16 @@ export function HighlightedText({
             <Text
               key={segmentKey}
               style={highlightStyle}
-              onPress={() => handleHighlightTap(segment.highlight!.highlight_id)}
-              onLongPress={() => handleHighlightLongPress(segment.highlight!.highlight_id)}
+              onPress={() => {
+                if (segment.highlight?.highlight_id !== undefined) {
+                  handleHighlightTap(segment.highlight.highlight_id);
+                }
+              }}
+              onLongPress={() => {
+                if (segment.highlight?.highlight_id !== undefined) {
+                  handleHighlightLongPress(segment.highlight.highlight_id);
+                }
+              }}
               suppressHighlighting={true}
             >
               {segment.text}
@@ -435,7 +443,10 @@ export function HighlightedText({
             <Text
               key={segmentKey}
               style={autoHighlightStyle}
-              onPress={() => handleAutoHighlightPress(segment.autoHighlight!)}
+              onPress={
+                /* biome-ignore lint/style/noNonNullAssertion: Guarded by if (segment.autoHighlight) check */ () =>
+                  handleAutoHighlightPress(segment.autoHighlight!)
+              }
               suppressHighlighting={true}
             >
               {segment.text}

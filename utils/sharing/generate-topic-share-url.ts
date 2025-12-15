@@ -83,7 +83,7 @@ export function parseTopicShareUrl(url: string): { category: string; slug: strin
     let pathname = urlObj.pathname;
     const basePath = baseUrlObj.pathname.replace(/\/+$/, '');
     if (basePath && basePath !== '/') {
-      if (!pathname.startsWith(basePath + '/') && pathname !== basePath) {
+      if (!pathname.startsWith(`${basePath}/`) && pathname !== basePath) {
         return null;
       }
       pathname = pathname.slice(basePath.length) || '/';

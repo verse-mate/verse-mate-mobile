@@ -455,7 +455,7 @@ export const ChapterPage = React.memo(function ChapterPage({
         hasScrolledRef.current = true;
       }
     }
-  }, [activeView, targetVerse, scrollY]);
+  }, [activeView, targetVerse, scrollY, animatedScrollRef.current?.scrollTo]);
 
   // React to shared value changes on UI thread (only for Bible view)
   // Note: animatedScrollRef is only valid when Animated.ScrollView is rendered (Bible view)
@@ -465,7 +465,7 @@ export const ChapterPage = React.memo(function ChapterPage({
       'worklet';
       // Safety check: only scroll if the ref is attached to a valid component
       // In explanation view, the Animated.ScrollView is not rendered, so ref is invalid
-      if (animatedScrollRef && animatedScrollRef.current) {
+      if (animatedScrollRef?.current) {
         // Use animated=true to ensure native animated scrolling
         scrollTo(animatedScrollRef, 0, currentY, true);
       }
@@ -552,7 +552,7 @@ export const ChapterPage = React.memo(function ChapterPage({
     setNotesModalVisible(true);
   };
 
-  const handleNotePress = (note: Note) => {
+  const _handleNotePress = (note: Note) => {
     setSelectedNote(note);
     setNotesModalVisible(false);
     setTimeout(() => setViewModalVisible(true), 100);
@@ -572,7 +572,7 @@ export const ChapterPage = React.memo(function ChapterPage({
   };
 
   // Called when delete is confirmed via options modal
-  const handleDeleteNote = (note: Note) => {
+  const _handleDeleteNote = (note: Note) => {
     setNoteToDelete(note);
     setOptionsModalVisible(false);
     setDeleteConfirmVisible(true);

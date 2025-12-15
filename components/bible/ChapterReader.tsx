@@ -383,7 +383,7 @@ export function ChapterReader({
    * Handle long-press on verse for creating new highlight
    * DISABLED: No longer opens highlight options modal
    */
-  const handleVerseLongPress = (verseNumber: number) => {
+  const handleVerseLongPress = (_verseNumber: number) => {
     // Disabled - long press on verse no longer opens highlight modal
     return;
   };

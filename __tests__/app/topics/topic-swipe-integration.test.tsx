@@ -85,7 +85,7 @@ jest.mock('expo-haptics', () => ({
 const mockSetPage = jest.fn();
 
 // Center index constant from TopicPagerView (5-page window)
-const CENTER_INDEX = 2;
+const _CENTER_INDEX = 2;
 
 jest.mock('@/components/topics/TopicPagerView', () => {
   const React = require('react');

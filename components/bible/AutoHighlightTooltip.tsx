@@ -87,11 +87,16 @@ export function AutoHighlightTooltip({
     [colors, insets.bottom]
   );
 
+  // Determine if this is a multi-verse highlight
+  const isMultiVerse = autoHighlight
+    ? autoHighlight.start_verse !== autoHighlight.end_verse
+    : false;
+
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
 
-  // State for showing verse insight (expanded view)
-  const [expanded, setExpanded] = useState(false);
+  // State for showing verse insight (expanded view) - start expanded for single verses
+  const [expanded, setExpanded] = useState(!isMultiVerse);
 
   // Get screen height to start modal completely off-screen
   const screenHeight = Dimensions.get('window').height;
@@ -99,7 +104,7 @@ export function AutoHighlightTooltip({
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(0)).current; // 0: collapsed, 1: expanded
+  const expansionAnim = useRef(new Animated.Value(!isMultiVerse ? 1 : 0)).current; // 0: collapsed, 1: expanded
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
@@ -164,12 +169,12 @@ export function AutoHighlightTooltip({
       // This ensures the modal unmounts deterministically, fixing the double-click bug
       setTimeout(() => {
         setInternalVisible(false);
-        setExpanded(false); // Reset expansion state
-        expansionAnim.setValue(0);
+        setExpanded(!isMultiVerse); // Reset expansion state
+        expansionAnim.setValue(!isMultiVerse ? 1 : 0);
         if (callback) callback();
       }, 150);
     },
-    [backdropOpacity, slideAnim, screenHeight, expansionAnim]
+    [backdropOpacity, slideAnim, screenHeight, expansionAnim, isMultiVerse]
   );
 
   // Handle expansion animation
@@ -185,11 +190,15 @@ export function AutoHighlightTooltip({
   // Watch for prop changes to trigger animations
   useEffect(() => {
     if (visible) {
+      // Reset expansion state based on multi-verse status
+      const shouldBeExpanded = !isMultiVerse;
+      setExpanded(shouldBeExpanded);
+      expansionAnim.setValue(shouldBeExpanded ? 1 : 0);
       animateOpen();
     } else if (internalVisible) {
       animateClose();
     }
-  }, [visible, animateOpen, animateClose, internalVisible]);
+  }, [visible, animateOpen, animateClose, internalVisible, isMultiVerse, expansionAnim]);
 
   // Handle explicit dismiss (user action)
   const handleDismiss = () => {
@@ -269,7 +278,20 @@ export function AutoHighlightTooltip({
 
     if (!verseText) return;
 
-    const payload = `"${verseText}"\\n\\n- ${verseReference}`;
+    let payload = `"${verseText}"\\n\\n- ${verseReference}`;
+
+    if (insightText) {
+      // Strip markdown syntax for better readability in plain text
+      const plainInsight = insightText
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+        .replace(/\*(.*?)\*/g, '$1') // Italic
+        .replace(/^###\s/gm, '') // H3 headers
+        .replace(/^##\s/gm, '') // H2 headers
+        .trim();
+
+      payload += `\n\nAnalysis:\n${plainInsight}`;
+    }
+
     await Clipboard.setStringAsync(payload);
 
     // Close modal and trigger callback
@@ -293,8 +315,22 @@ export function AutoHighlightTooltip({
 
     if (!verseText) return;
 
+    let message = `"${verseText}"\n\n- ${verseReference}`;
+
+    if (insightText) {
+      // Strip markdown syntax for better readability in plain text share
+      const plainInsight = insightText
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+        .replace(/\*(.*?)\*/g, '$1') // Italic
+        .replace(/^###\s/gm, '') // H3 headers
+        .replace(/^##\s/gm, '') // H2 headers
+        .trim();
+
+      message += `\n\nAnalysis:\n${plainInsight}`;
+    }
+
     await Share.share({
-      message: `"${verseText}"\\n\\n- ${verseReference}`,
+      message,
     });
   };
 
@@ -373,7 +409,7 @@ export function AutoHighlightTooltip({
           {/* Header with pan responder for swipe */}
           <View style={styles.header} {...panResponder.panHandlers}>
             <View style={styles.handle} />
-            <Text style={styles.verseMateHeader}>VerseMate</Text>
+            <Text style={styles.verseMateHeader}>Verse Insight</Text>
           </View>
 
           {/* Content */}
@@ -423,22 +459,24 @@ export function AutoHighlightTooltip({
 
               {/* Insight Section (Expandable) */}
               <View style={styles.insightContainer}>
-                <Pressable
-                  style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
-                  onPress={() => setExpanded(!expanded)}
-                  hitSlop={10}
-                  {...panResponder.panHandlers}
-                >
-                  <Ionicons
-                    name={expanded ? 'chevron-down' : 'chevron-up'}
-                    size={16}
-                    color={colors.gold}
-                    style={{ marginRight: spacing.xs }}
-                  />
-                  <Text style={styles.insightToggleText}>
-                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
-                  </Text>
-                </Pressable>
+                {isMultiVerse && (
+                  <Pressable
+                    style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
+                    onPress={() => setExpanded(!expanded)}
+                    hitSlop={10}
+                    {...panResponder.panHandlers}
+                  >
+                    <Ionicons
+                      name={expanded ? 'chevron-down' : 'chevron-up'}
+                      size={16}
+                      color={colors.gold}
+                      style={{ marginRight: spacing.xs }}
+                    />
+                    <Text style={styles.insightToggleText}>
+                      {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
+                    </Text>
+                  </Pressable>
+                )}
 
                 <Animated.View
                   style={[
@@ -451,13 +489,16 @@ export function AutoHighlightTooltip({
                       <ActivityIndicator size="small" color={colors.gold} />
                     </View>
                   ) : insightText ? (
-                    <ScrollView
-                      style={styles.insightScroll}
-                      contentContainerStyle={styles.insightScrollContent}
-                      showsVerticalScrollIndicator={false}
-                    >
-                      <Markdown style={markdownStyles}>{insightText}</Markdown>
-                    </ScrollView>
+                    <>
+                      <Text style={styles.analysisTitle}>Analysis</Text>
+                      <ScrollView
+                        style={styles.insightScroll}
+                        contentContainerStyle={styles.insightScrollContent}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        <Markdown style={markdownStyles}>{insightText}</Markdown>
+                      </ScrollView>
+                    </>
                   ) : (
                     <View style={styles.emptyInsightContainer}>
                       <Text style={styles.insightEmptyText}>
@@ -720,6 +761,13 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       fontWeight: fontWeights.semibold,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
+    },
+    analysisTitle: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+      marginTop: spacing.xs,
     },
     insightContentWrapper: {
       overflow: 'hidden',
