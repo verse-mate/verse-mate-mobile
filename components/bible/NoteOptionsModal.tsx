@@ -10,6 +10,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -18,6 +19,7 @@ import { type EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-conte
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Note } from '@/types/notes';
+import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 
 interface NoteOptionsModalProps {
   visible: boolean;
@@ -364,8 +366,26 @@ export function NoteOptionsModal({
         setIsConfirmDeleteVisible(true);
         break;
       case 'share':
-        setStatusMessage('"Share" feature is coming soon!');
-        setIsErrorVisible(true);
+        try {
+          const message = `Note on ${note.book_name} ${note.chapter_number}:\n\n"${note.content}"`;
+
+          let url: string | undefined;
+          try {
+            url = generateChapterShareUrl(note.book_id, note.chapter_number);
+          } catch {}
+
+          await Share.share({
+            message,
+            url,
+            title: `Note: ${note.book_name} ${note.chapter_number}`,
+          });
+          // Don't close modal after sharing - user might want to do more actions
+          onActionComplete?.('share');
+        } catch (error) {
+          console.error('Failed to share note:', error);
+          setStatusMessage('Failed to share note.');
+          setIsErrorVisible(true);
+        }
         break;
       case 'edit':
         // For edit, we close this modal and trigger parent callback
