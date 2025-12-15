@@ -437,16 +437,6 @@ export function AutoHighlightTooltip({
 
                 <View style={styles.infoContainer}>
                   <View style={styles.infoRow}>
-                    <Text style={styles.label}>Relevance:</Text>
-                    <Text style={styles.value}>{autoHighlight.relevance_score} / 5</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <Text style={styles.label}>Type:</Text>
-                    <Text style={styles.value}>Auto-generated highlight</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
                     <Text style={styles.label}>Verse Range:</Text>
                     <Text style={styles.value}>
                       {autoHighlight.start_verse === autoHighlight.end_verse
