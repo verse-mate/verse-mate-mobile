@@ -28,15 +28,17 @@ import { buildTopicUrl, parseTopicUrl } from '../topicSlugs';
  * // Returns: "https://app.versemate.org/topic/events/the-resurrection"
  */
 export function generateTopicShareUrl(category: string, topicTitle: string): string {
-  const baseUrl = process.env.EXPO_PUBLIC_WEB_URL;
+  const baseUrl = process.env.EXPO_PUBLIC_WEB_URL?.trim();
 
-  if (!baseUrl) {
+  // Treat undefined/null strings as missing
+  if (!baseUrl || baseUrl === 'undefined' || baseUrl === 'null') {
     console.error('EXPO_PUBLIC_WEB_URL environment variable is not set');
     throw new Error('EXPO_PUBLIC_WEB_URL is not configured');
   }
 
   const topicPath = buildTopicUrl(category, topicTitle);
-  return `${baseUrl}${topicPath}`;
+  const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
+  return `${normalizedBaseUrl}${topicPath}`;
 }
 
 /**
@@ -63,9 +65,10 @@ export function generateTopicShareUrl(category: string, topicTitle: string): str
  * // Returns: null
  */
 export function parseTopicShareUrl(url: string): { category: string; slug: string } | null {
-  const baseUrl = process.env.EXPO_PUBLIC_WEB_URL;
+  const baseUrl = process.env.EXPO_PUBLIC_WEB_URL?.trim();
 
-  if (!baseUrl) {
+  // Treat undefined/null strings as missing
+  if (!baseUrl || baseUrl === 'undefined' || baseUrl === 'null') {
     console.warn('EXPO_PUBLIC_WEB_URL environment variable is not set - cannot parse deep link');
     return null;
   }
