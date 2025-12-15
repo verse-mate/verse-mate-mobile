@@ -13,6 +13,8 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
+import type React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
@@ -69,7 +71,16 @@ const mockBooks = [
 ];
 
 const renderWithTheme = (component: React.ReactElement) => {
-  return render(<ThemeProvider>{component}</ThemeProvider>);
+  return render(
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 0, y: 0, width: 390, height: 844 },
+        insets: { top: 47, left: 0, right: 0, bottom: 34 },
+      }}
+    >
+      <ThemeProvider>{component}</ThemeProvider>
+    </SafeAreaProvider>
+  );
 };
 
 describe('BibleNavigationModal', () => {
@@ -176,7 +187,9 @@ describe('BibleNavigationModal', () => {
 
     expect(Haptics.impactAsync).toHaveBeenCalled();
     expect(mockOnSelectChapter).toHaveBeenCalledWith(1, 5);
-    expect(mockOnClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 
   it('should render filter input', () => {

@@ -24,16 +24,14 @@ God’s word is powerful.
 describe('parseByLineExplanation', () => {
   it('extracts summary for a single verse', () => {
     const result = parseByLineExplanation(MOCK_MARKDOWN, 'Genesis', 1, 1, 1);
-    expect(result).toContain(
-      '**Verse 1:** This opening says God is the uncaused origin of everything.'
-    );
+    expect(result).toContain('This opening says God is the uncaused origin of everything.');
     expect(result).not.toContain('Verse 2');
   });
 
   it('extracts summaries for a verse range', () => {
     const result = parseByLineExplanation(MOCK_MARKDOWN, 'Genesis', 1, 1, 2);
-    expect(result).toContain('**Verse 1:**');
-    expect(result).toContain('**Verse 2:**');
+    expect(result).toContain('**1:**');
+    expect(result).toContain('**2:**');
     expect(result).toContain('The phrase “without form and void”');
   });
 

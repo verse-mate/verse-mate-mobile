@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
-import { colors } from '@/constants/bible-design-tokens';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
@@ -83,10 +82,9 @@ describe('AutoHighlightTooltip', () => {
     });
 
     expect(screen.getByText('Gods Love')).toBeTruthy();
-    expect(screen.getByText('Auto-generated highlight')).toBeTruthy();
     expect(screen.getByText('Verse 16')).toBeTruthy();
-    // Toggle button should be visible
-    expect(screen.getByText('View Verse Insight')).toBeTruthy();
+    // Toggle button is hidden for single-verse highlights
+    expect(screen.queryByText('View Verse Insight')).toBeNull();
   });
 
   it('does not render when autoHighlight is null', () => {
@@ -150,10 +148,12 @@ describe('AutoHighlightTooltip', () => {
     expect(screen.getByText('Sign in to save this highlight to your collection')).toBeTruthy();
   });
 
-  it('shows parsed insight when toggle is clicked', () => {
+  it('shows parsed insight when toggle is clicked for multi-verse highlight', () => {
+    const multiVerseHighlight = { ...mockAutoHighlight, end_verse: 17 };
+
     renderWithProviders(
       <AutoHighlightTooltip
-        autoHighlight={mockAutoHighlight}
+        autoHighlight={multiVerseHighlight}
         visible={true}
         onClose={mockOnClose}
         onSaveAsUserHighlight={mockOnSave}

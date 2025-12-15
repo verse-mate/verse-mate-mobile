@@ -11,6 +11,7 @@
 
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { ShareButton } from '@/components/bible/ShareButton';
 import {
   fontSizes,
   fontWeights,
@@ -25,6 +26,7 @@ import { parseTopicMarkdown } from '@/utils/parseTopicMarkdown';
 interface TopicTextProps {
   topicName: string;
   markdownContent: string;
+  onShare?: () => void;
 }
 
 /**
@@ -52,7 +54,7 @@ function toSuperscript(num: number): string {
     .join('');
 }
 
-export function TopicText({ topicName, markdownContent }: TopicTextProps) {
+export function TopicText({ topicName, markdownContent, onShare }: TopicTextProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -75,9 +77,14 @@ export function TopicText({ topicName, markdownContent }: TopicTextProps) {
 
   return (
     <View style={styles.contentBox}>
-      {/* Topic title */}
+      {/* Topic title with share button */}
       <View style={styles.titleContainer}>
         <Text style={styles.title}>{topicName}</Text>
+        {onShare && (
+          <View style={styles.iconButtons}>
+            <ShareButton onShare={onShare} />
+          </View>
+        )}
       </View>
 
       {/* Render each subtitle section */}
@@ -135,11 +142,18 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       gap: spacing.md,
     },
     title: {
+      flex: 1,
       fontFamily: 'System',
       fontWeight: fontWeights.bold as '700',
       fontSize: fontSizes.displayMedium,
       lineHeight: fontSizes.displayMedium * lineHeights.display,
       color: colors.textPrimary,
+      marginRight: spacing.md,
+    },
+    iconButtons: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
     },
     textBox: {
       flexDirection: 'column',

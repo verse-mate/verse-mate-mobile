@@ -27,7 +27,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Alert, Pressable, Share, StyleSheet } from 'react-native';
-import { getColors, getHeaderSpecs } from '@/constants/bible-design-tokens';
+import { getHeaderSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 
@@ -108,8 +108,18 @@ export function ShareButton({
       // Trigger haptic feedback (non-blocking)
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+      // Validate bookId and chapterNumber before generating URL
+      if (bookId === undefined || chapterNumber === undefined) {
+        console.error(
+          'ShareButton: bookId or chapterNumber is undefined when onShare is not provided.'
+        );
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('Share Failed', 'Missing chapter information to share.');
+        return;
+      }
+
       // Generate shareable URL
-      const shareUrl = generateChapterShareUrl(bookId!, chapterNumber!);
+      const shareUrl = generateChapterShareUrl(bookId, chapterNumber);
 
       // Format share message
       const message = `Check out ${bookName} ${chapterNumber} on VerseMate: ${shareUrl}`;

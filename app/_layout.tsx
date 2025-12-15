@@ -125,7 +125,7 @@ function RootLayoutInner() {
 
             const topicData = await response.json();
 
-            if (topicData && topicData.topic_id) {
+            if (topicData?.topic_id) {
               // Navigate to the topic
               router.replace(`/topics/${topicData.topic_id}`);
             } else {
@@ -203,8 +203,11 @@ function RootLayoutInner() {
       // Robust cleanup that handles different SDK versions
       if (subscription && typeof subscription.remove === 'function') {
         subscription.remove();
-      } else if (typeof (Linking as any).removeEventListener === 'function') {
+      }
+      // biome-ignore lint/suspicious/noExplicitAny: legacy API support for older Expo SDK versions
+      else if (typeof (Linking as any).removeEventListener === 'function') {
         // legacy API support
+        // biome-ignore lint/suspicious/noExplicitAny: legacy API support for older Expo SDK versions
         (Linking as any).removeEventListener('url', listener);
       }
     };

@@ -71,6 +71,8 @@ export interface ChapterPagerViewProps {
   activeView: 'bible' | 'explanations';
   /** Target verse to scroll to (optional) */
   targetVerse?: number;
+  /** Target end verse for multi-verse highlights (optional) */
+  targetEndVerse?: number;
   /** Callback when page changes (after swipe completes) */
   onPageChange: (bookId: number, chapterNumber: number) => void;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
@@ -115,6 +117,7 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       activeTab,
       activeView,
       targetVerse,
+      targetEndVerse,
       onPageChange,
       onScroll,
       onTap,
@@ -245,6 +248,7 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
             activeTab={activeTab}
             activeView={activeView}
             targetVerse={isTargetChapter ? targetVerse : undefined}
+            targetEndVerse={isTargetChapter ? targetEndVerse : undefined}
             onScroll={onScroll}
             onTap={onTap}
           />
@@ -261,6 +265,7 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       initialBookId,
       initialChapter,
       targetVerse,
+      targetEndVerse,
     ]);
 
     /**

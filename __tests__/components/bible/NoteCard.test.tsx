@@ -24,6 +24,7 @@ describe('NoteCard', () => {
   };
 
   const mockOnPress = jest.fn();
+  const mockOnEdit = jest.fn();
   const mockOnMenuPress = jest.fn();
 
   beforeEach(() => {
@@ -31,7 +32,14 @@ describe('NoteCard', () => {
   });
 
   it('should render note content', () => {
-    render(<NoteCard note={mockNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />);
+    render(
+      <NoteCard
+        note={mockNote}
+        onPress={mockOnPress}
+        onEdit={mockOnEdit}
+        onMenuPress={mockOnMenuPress}
+      />
+    );
 
     expect(screen.getByText(/This is a test note/)).toBeTruthy();
   });
@@ -43,7 +51,12 @@ describe('NoteCard', () => {
     };
 
     const { getByText } = render(
-      <NoteCard note={longNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />
+      <NoteCard
+        note={longNote}
+        onPress={mockOnPress}
+        onEdit={mockOnEdit}
+        onMenuPress={mockOnMenuPress}
+      />
     );
 
     // Should show first 100 characters plus ellipsis
@@ -61,6 +74,7 @@ describe('NoteCard', () => {
       <NoteCard
         note={longNote}
         onPress={mockOnPress}
+        onEdit={mockOnEdit}
         onMenuPress={mockOnMenuPress}
         truncateLength={50}
       />
@@ -71,17 +85,79 @@ describe('NoteCard', () => {
     expect(displayedText).toBeTruthy();
   });
 
-  it('should call onPress when card is pressed', () => {
-    render(<NoteCard note={mockNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />);
+  it('should call onEdit when short note is pressed', () => {
+    // Note length is ~75 chars, default truncate is 100. So it is short.
+    render(
+      <NoteCard
+        note={mockNote}
+        onPress={mockOnPress}
+        onEdit={mockOnEdit}
+        onMenuPress={mockOnMenuPress}
+      />
+    );
 
     const card = screen.getByTestId('note-card-note-123');
     fireEvent.press(card);
 
-    expect(mockOnPress).toHaveBeenCalledWith(mockNote);
+    expect(mockOnEdit).toHaveBeenCalledWith(mockNote);
+    expect(mockOnPress).not.toHaveBeenCalled();
+  });
+
+  it('should call onPress (expand) when long note is pressed (collapsed)', () => {
+    const longNote: Note = {
+      ...mockNote,
+      content: 'A'.repeat(150),
+    };
+
+    render(
+      <NoteCard
+        note={longNote}
+        onPress={mockOnPress}
+        onEdit={mockOnEdit}
+        onMenuPress={mockOnMenuPress}
+        isExpanded={false}
+      />
+    );
+
+    const card = screen.getByTestId('note-card-note-123');
+    fireEvent.press(card);
+
+    expect(mockOnPress).toHaveBeenCalledWith(longNote);
+    expect(mockOnEdit).not.toHaveBeenCalled();
+  });
+
+  it('should call onEdit when long note is pressed (expanded)', () => {
+    const longNote: Note = {
+      ...mockNote,
+      content: 'A'.repeat(150),
+    };
+
+    render(
+      <NoteCard
+        note={longNote}
+        onPress={mockOnPress}
+        onEdit={mockOnEdit}
+        onMenuPress={mockOnMenuPress}
+        isExpanded={true}
+      />
+    );
+
+    const card = screen.getByTestId('note-card-note-123');
+    fireEvent.press(card);
+
+    expect(mockOnEdit).toHaveBeenCalledWith(longNote);
+    expect(mockOnPress).not.toHaveBeenCalled();
   });
 
   it('should call onMenuPress when menu button is pressed', () => {
-    render(<NoteCard note={mockNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />);
+    render(
+      <NoteCard
+        note={mockNote}
+        onPress={mockOnPress}
+        onEdit={mockOnEdit}
+        onMenuPress={mockOnMenuPress}
+      />
+    );
 
     const menuButton = screen.getByTestId('note-menu-note-123');
     fireEvent.press(menuButton);
@@ -96,7 +172,12 @@ describe('NoteCard', () => {
     };
 
     const { getByText, queryByText } = render(
-      <NoteCard note={shortNote} onPress={mockOnPress} onMenuPress={mockOnMenuPress} />
+      <NoteCard
+        note={shortNote}
+        onPress={mockOnPress}
+        onEdit={mockOnEdit}
+        onMenuPress={mockOnMenuPress}
+      />
     );
 
     // Should show full content without ellipsis

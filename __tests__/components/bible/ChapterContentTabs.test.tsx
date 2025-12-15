@@ -37,18 +37,16 @@ describe('ChapterContentTabs', () => {
     const byLineTab = screen.getByTestId('tab-byline');
     const detailedTab = screen.getByTestId('tab-detailed');
 
-    // Active tab should have gold background (#b09a6d)
-    expect(summaryTab).toHaveStyle({ backgroundColor: '#b09a6d' });
-
-    // Inactive tabs should have gray700 background (#4a4a4a)
-    expect(byLineTab).toHaveStyle({ backgroundColor: '#4a4a4a' });
-    expect(detailedTab).toHaveStyle({ backgroundColor: '#4a4a4a' });
+    // All tabs should have transparent background (sliding indicator shows active state)
+    expect(summaryTab).toHaveStyle({ backgroundColor: 'transparent' });
+    expect(byLineTab).toHaveStyle({ backgroundColor: 'transparent' });
+    expect(detailedTab).toHaveStyle({ backgroundColor: 'transparent' });
   });
 
   /**
-   * Test 2: Inactive tabs show gray background
+   * Test 2: All tabs use transparent background with sliding indicator
    */
-  it('should show inactive tabs with gray background', () => {
+  it('should show all tabs with transparent background', () => {
     const activeTab: ContentTabType = 'byline';
 
     renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
@@ -57,12 +55,10 @@ describe('ChapterContentTabs', () => {
     const byLineTab = screen.getByTestId('tab-byline');
     const detailedTab = screen.getByTestId('tab-detailed');
 
-    // Inactive tabs should have gray700 background
-    expect(summaryTab).toHaveStyle({ backgroundColor: '#4a4a4a' });
-    expect(detailedTab).toHaveStyle({ backgroundColor: '#4a4a4a' });
-
-    // Active tab should have gold background
-    expect(byLineTab).toHaveStyle({ backgroundColor: '#b09a6d' });
+    // All tabs should have transparent background (sliding indicator shows active state)
+    expect(summaryTab).toHaveStyle({ backgroundColor: 'transparent' });
+    expect(byLineTab).toHaveStyle({ backgroundColor: 'transparent' });
+    expect(detailedTab).toHaveStyle({ backgroundColor: 'transparent' });
   });
 
   /**

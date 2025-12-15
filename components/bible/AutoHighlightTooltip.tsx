@@ -7,6 +7,9 @@
  * Shown as a bottom sheet modal when user taps on an auto-highlighted verse.
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +20,7 @@ import {
   PanResponder,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -25,6 +29,7 @@ import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
+import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleByLine } from '@/src/api/generated/hooks';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -48,6 +53,12 @@ interface AutoHighlightTooltipProps {
   ) => void;
   /** Callback when save is successful */
   onSaveSuccess?: () => void;
+  /** Callback when verse is copied */
+  onCopy?: () => void;
+  /** Callback when note button is pressed */
+  onAddNote?: () => void;
+  /** Book name for verse reference */
+  bookName?: string;
   /** Whether user is logged in */
   isLoggedIn: boolean;
 }
@@ -63,20 +74,28 @@ export function AutoHighlightTooltip({
   onClose,
   onSaveAsUserHighlight,
   onSaveSuccess,
+  onCopy,
+  onAddNote,
+  bookName,
   isLoggedIn,
 }: AutoHighlightTooltipProps) {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const { styles, markdownStyles } = useMemo(
     () => createStyles(colors, insets.bottom),
     [colors, insets.bottom]
   );
 
+  // Determine if this is a multi-verse highlight
+  const isMultiVerse = autoHighlight
+    ? autoHighlight.start_verse !== autoHighlight.end_verse
+    : false;
+
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
 
-  // State for showing verse insight (expanded view)
-  const [expanded, setExpanded] = useState(false);
+  // State for showing verse insight (expanded view) - start expanded for single verses
+  const [expanded, setExpanded] = useState(!isMultiVerse);
 
   // Get screen height to start modal completely off-screen
   const screenHeight = Dimensions.get('window').height;
@@ -84,7 +103,7 @@ export function AutoHighlightTooltip({
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(0)).current; // 0: collapsed, 1: expanded
+  const expansionAnim = useRef(new Animated.Value(!isMultiVerse ? 1 : 0)).current; // 0: collapsed, 1: expanded
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
@@ -149,12 +168,12 @@ export function AutoHighlightTooltip({
       // This ensures the modal unmounts deterministically, fixing the double-click bug
       setTimeout(() => {
         setInternalVisible(false);
-        setExpanded(false); // Reset expansion state
-        expansionAnim.setValue(0);
+        setExpanded(!isMultiVerse); // Reset expansion state
+        expansionAnim.setValue(!isMultiVerse ? 1 : 0);
         if (callback) callback();
       }, 150);
     },
-    [backdropOpacity, slideAnim, screenHeight, expansionAnim]
+    [backdropOpacity, slideAnim, screenHeight, expansionAnim, isMultiVerse]
   );
 
   // Handle expansion animation
@@ -170,11 +189,15 @@ export function AutoHighlightTooltip({
   // Watch for prop changes to trigger animations
   useEffect(() => {
     if (visible) {
+      // Reset expansion state based on multi-verse status
+      const shouldBeExpanded = !isMultiVerse;
+      setExpanded(shouldBeExpanded);
+      expansionAnim.setValue(shouldBeExpanded ? 1 : 0);
       animateOpen();
     } else if (internalVisible) {
       animateClose();
     }
-  }, [visible, animateOpen, animateClose, internalVisible]);
+  }, [visible, animateOpen, animateClose, internalVisible, isMultiVerse, expansionAnim]);
 
   // Handle explicit dismiss (user action)
   const handleDismiss = () => {
@@ -232,6 +255,91 @@ export function AutoHighlightTooltip({
   // Don't render anything if we have no data (unless animating out, handled by internalVisible/Modal)
   if (!autoHighlight && !internalVisible) return null;
   if (!autoHighlight) return null;
+
+  // Build verse reference
+  const verseReference =
+    autoHighlight.start_verse === autoHighlight.end_verse
+      ? `${bookName || 'Bible'} ${autoHighlight.chapter_number}:${autoHighlight.start_verse}`
+      : `${bookName || 'Bible'} ${autoHighlight.chapter_number}:${autoHighlight.start_verse}-${autoHighlight.end_verse}`;
+
+  // Handle copy verse
+  const handleCopy = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const verseText = byLineData?.content
+      ? extractVerseTextFromByLine(
+          byLineData.content,
+          autoHighlight.chapter_number,
+          autoHighlight.start_verse,
+          autoHighlight.end_verse
+        )
+      : undefined;
+
+    if (!verseText) return;
+
+    let payload = `"${verseText}"\\n\\n- ${verseReference}`;
+
+    if (insightText) {
+      // Strip markdown syntax for better readability in plain text
+      const plainInsight = insightText
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+        .replace(/\*(.*?)\*/g, '$1') // Italic
+        .replace(/^###\s/gm, '') // H3 headers
+        .replace(/^##\s/gm, '') // H2 headers
+        .trim();
+
+      payload += `\n\nAnalysis:\n${plainInsight}`;
+    }
+
+    await Clipboard.setStringAsync(payload);
+
+    // Close modal and trigger callback
+    animateClose(() => {
+      onCopy?.();
+    });
+  };
+
+  // Handle share verse
+  const handleShare = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const verseText = byLineData?.content
+      ? extractVerseTextFromByLine(
+          byLineData.content,
+          autoHighlight.chapter_number,
+          autoHighlight.start_verse,
+          autoHighlight.end_verse
+        )
+      : undefined;
+
+    if (!verseText) return;
+
+    let message = `"${verseText}"\n\n- ${verseReference}`;
+
+    if (insightText) {
+      // Strip markdown syntax for better readability in plain text share
+      const plainInsight = insightText
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+        .replace(/\*(.*?)\*/g, '$1') // Italic
+        .replace(/^###\s/gm, '') // H3 headers
+        .replace(/^##\s/gm, '') // H2 headers
+        .trim();
+
+      message += `\n\nAnalysis:\n${plainInsight}`;
+    }
+
+    await Share.share({
+      message,
+    });
+  };
+
+  // Handle add note
+  const handleAddNote = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    animateClose(() => {
+      onAddNote?.();
+    });
+  };
 
   const handleSave = () => {
     if (!isLoggedIn) {
@@ -300,26 +408,33 @@ export function AutoHighlightTooltip({
           {/* Header with pan responder for swipe */}
           <View style={styles.header} {...panResponder.panHandlers}>
             <View style={styles.handle} />
+            <Text style={styles.verseMateHeader}>Verse Insight</Text>
           </View>
 
           {/* Content */}
           <View style={styles.contentContainer}>
             <View style={styles.scrollContainer}>
               <View {...panResponder.panHandlers}>
-                {/* Title */}
-                <Text style={styles.title}>{autoHighlight.theme_name}</Text>
+                {/* Title with optional color indicator */}
+                <View style={styles.titleRow}>
+                  <Text style={styles.title}>{autoHighlight.theme_name}</Text>
+                  {autoHighlight && (
+                    <View style={styles.colorBadge}>
+                      <View
+                        style={[
+                          styles.colorIndicator,
+                          { backgroundColor: getHighlightColor(autoHighlight.theme_color, mode) },
+                        ]}
+                      />
+                      <Text style={styles.colorText}>
+                        {autoHighlight.theme_color.charAt(0).toUpperCase() +
+                          autoHighlight.theme_color.slice(1)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
                 <View style={styles.infoContainer}>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.label}>Relevance:</Text>
-                    <Text style={styles.value}>{autoHighlight.relevance_score} / 5</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <Text style={styles.label}>Type:</Text>
-                    <Text style={styles.value}>Auto-generated highlight</Text>
-                  </View>
-
                   <View style={styles.infoRow}>
                     <Text style={styles.label}>Verse Range:</Text>
                     <Text style={styles.value}>
@@ -333,16 +448,24 @@ export function AutoHighlightTooltip({
 
               {/* Insight Section (Expandable) */}
               <View style={styles.insightContainer}>
-                <Pressable
-                  style={styles.insightToggle}
-                  onPress={() => setExpanded(!expanded)}
-                  hitSlop={10}
-                  {...panResponder.panHandlers}
-                >
-                  <Text style={styles.insightToggleText}>
-                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
-                  </Text>
-                </Pressable>
+                {isMultiVerse && (
+                  <Pressable
+                    style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
+                    onPress={() => setExpanded(!expanded)}
+                    hitSlop={10}
+                    {...panResponder.panHandlers}
+                  >
+                    <Ionicons
+                      name={expanded ? 'chevron-down' : 'chevron-up'}
+                      size={16}
+                      color={colors.gold}
+                      style={{ marginRight: spacing.xs }}
+                    />
+                    <Text style={styles.insightToggleText}>
+                      {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
+                    </Text>
+                  </Pressable>
+                )}
 
                 <Animated.View
                   style={[
@@ -355,13 +478,16 @@ export function AutoHighlightTooltip({
                       <ActivityIndicator size="small" color={colors.gold} />
                     </View>
                   ) : insightText ? (
-                    <ScrollView
-                      style={styles.insightScroll}
-                      contentContainerStyle={styles.insightScrollContent}
-                      showsVerticalScrollIndicator={false}
-                    >
-                      <Markdown style={markdownStyles}>{insightText}</Markdown>
-                    </ScrollView>
+                    <>
+                      <Text style={styles.analysisTitle}>Analysis</Text>
+                      <ScrollView
+                        style={styles.insightScroll}
+                        contentContainerStyle={styles.insightScrollContent}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        <Markdown style={markdownStyles}>{insightText}</Markdown>
+                      </ScrollView>
+                    </>
                   ) : (
                     <View style={styles.emptyInsightContainer}>
                       <Text style={styles.insightEmptyText}>
@@ -375,9 +501,35 @@ export function AutoHighlightTooltip({
 
             {/* Actions Footer */}
             <View style={styles.actionsContainer}>
+              {/* Action Buttons Row */}
+              <View style={styles.actionButtonsRow}>
+                <Pressable style={styles.actionButton} onPress={handleCopy}>
+                  <Ionicons name="copy-outline" size={20} color={colors.textPrimary} />
+                  <Text style={styles.actionButtonText}>Copy</Text>
+                </Pressable>
+
+                <Pressable style={styles.actionButton} onPress={handleShare}>
+                  <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
+                  <Text style={styles.actionButtonText}>Share</Text>
+                </Pressable>
+
+                {onAddNote && (
+                  <Pressable style={styles.actionButton} onPress={handleAddNote}>
+                    <Ionicons name="create-outline" size={20} color={colors.textPrimary} />
+                    <Text style={styles.actionButtonText}>Note</Text>
+                  </Pressable>
+                )}
+              </View>
+
               {isLoggedIn ? (
                 <>
                   <Pressable style={styles.primaryButton} onPress={handleSave}>
+                    <Ionicons
+                      name="bookmark-outline"
+                      size={20}
+                      color={colors.background}
+                      style={{ marginRight: spacing.xs }}
+                    />
                     <Text style={styles.primaryButtonText}>Save as My Highlight</Text>
                   </Pressable>
                   <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
@@ -418,7 +570,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       maxHeight: '80%',
-      paddingBottom: bottomInset, // Extend into safe area
+      paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {
       paddingHorizontal: spacing.lg,
@@ -439,14 +591,28 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       backgroundColor: colors.border,
       borderRadius: 2,
     },
+    verseMateHeader: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.medium,
+      color: colors.gold,
+      letterSpacing: 0.5,
+      marginTop: spacing.sm,
+    },
     title: {
       fontSize: fontSizes.heading2,
       fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
-      marginBottom: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+      gap: spacing.sm,
     },
     infoContainer: {
-      marginBottom: spacing.lg,
+      marginBottom: 0,
     },
     infoRow: {
       flexDirection: 'row',
@@ -465,21 +631,69 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       color: colors.textPrimary,
       fontWeight: fontWeights.medium,
     },
+    colorBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+      backgroundColor: 'transparent',
+      borderRadius: 0,
+      borderWidth: 0,
+      borderColor: 'transparent',
+    },
+    colorIndicator: {
+      width: 16,
+      height: 16,
+      borderRadius: 3,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    colorText: {
+      fontSize: fontSizes.bodySmall,
+      color: colors.textPrimary,
+      fontWeight: fontWeights.medium,
+    },
     actionsContainer: {
       gap: spacing.sm,
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.xl, // Bottom padding for safe area/aesthetics
+      paddingTop: spacing.lg,
+      paddingBottom: bottomInset > 0 ? bottomInset + spacing.sm : spacing.xl,
       borderTopWidth: 1,
-      borderTopColor: colors.divider, // Optional separator
-      backgroundColor: colors.backgroundElevated, // Ensure opaque background
+      borderTopColor: colors.divider,
+      backgroundColor: colors.backgroundElevated,
+    },
+    actionButtonsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      gap: spacing.xs,
+      marginBottom: spacing.sm,
+    },
+    actionButton: {
+      flex: 1,
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      paddingVertical: spacing.sm,
+      borderRadius: 8,
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    actionButtonText: {
+      fontSize: fontSizes.caption,
+      color: colors.textPrimary,
+      fontWeight: fontWeights.medium,
     },
     primaryButton: {
+      flexDirection: 'row',
       backgroundColor: colors.gold,
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,
       borderRadius: 8,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     primaryButtonText: {
       color: colors.background,
@@ -515,14 +729,20 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       marginBottom: spacing.lg,
       borderTopWidth: 1,
       borderTopColor: colors.divider,
-      paddingTop: spacing.md,
-      flexShrink: 1, // Allow container to shrink
-      minHeight: 0, // Necessary for flex shrink to work in some cases
+      paddingTop: spacing.lg,
+      flexShrink: 1,
+      minHeight: 0,
     },
     insightToggle: {
+      flexDirection: 'row',
       paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
       alignItems: 'center',
-      marginBottom: spacing.xs,
+      justifyContent: 'center',
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: 'transparent',
     },
     insightToggleText: {
       fontSize: fontSizes.bodySmall,
@@ -530,6 +750,13 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       fontWeight: fontWeights.semibold,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
+    },
+    analysisTitle: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+      marginTop: spacing.xs,
     },
     insightContentWrapper: {
       overflow: 'hidden',

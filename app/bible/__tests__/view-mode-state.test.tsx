@@ -62,18 +62,15 @@ jest.mock('@/src/api/generated', () => ({
   useTopicsSearch: jest.fn(),
 }));
 
-// Mock custom hooks
+// Mock custom hooks from '@/hooks/bible'
 jest.mock('@/hooks/bible', () => {
-  const React = require('react');
+  const original = jest.requireActual('@/hooks/bible');
   return {
+    ...original,
     useActiveTab: jest.fn(),
-    useActiveView: jest.fn(() => {
-      const [activeView, setActiveView] = React.useState('bible');
-      return { activeView, setActiveView, isLoading: false, error: null };
-    }),
     useBookProgress: jest.fn(),
-    useRecentBooks: jest.fn(),
     useLastReadPosition: jest.fn(),
+    useRecentBooks: jest.fn(),
   };
 });
 
@@ -98,25 +95,6 @@ jest.mock('@react-native-community/netinfo', () => ({
   addEventListener: jest.fn(() => jest.fn()),
   fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
 }));
-
-// Mock react-native-gesture-handler
-jest.mock('react-native-gesture-handler', () => {
-  const mockGesture = {
-    activeOffsetX: jest.fn().mockReturnThis(),
-    onEnd: jest.fn().mockReturnThis(),
-    onUpdate: jest.fn().mockReturnThis(),
-    onChange: jest.fn().mockReturnThis(),
-    onStart: jest.fn().mockReturnThis(),
-    onFinalize: jest.fn().mockReturnThis(),
-  };
-
-  return {
-    Gesture: {
-      Pan: jest.fn(() => mockGesture),
-    },
-    GestureDetector: ({ children }: { children: React.ReactNode }) => children,
-  };
-});
 
 // Mock chapter data
 const mockChapterData = {
@@ -258,7 +236,7 @@ describe('ChapterScreen - View Mode State', () => {
     });
 
     // Bible view icon should be gold (active)
-    const bibleIcon = screen.queryByTestId('bible-view-icon');
+    const bibleIcon = screen.queryByTestId('bible-view-toggle');
     expect(bibleIcon).toBeTruthy();
 
     // Tabs should NOT be visible in bible view
@@ -274,7 +252,7 @@ describe('ChapterScreen - View Mode State', () => {
     });
 
     // Find and press explanations view icon
-    const explanationsIcon = screen.getByTestId('explanations-view-icon');
+    const explanationsIcon = screen.getByTestId('commentary-view-toggle');
     fireEvent.press(explanationsIcon);
 
     // Wait for state update
@@ -292,7 +270,7 @@ describe('ChapterScreen - View Mode State', () => {
     });
 
     // Switch to explanations first
-    const explanationsIcon = screen.getByTestId('explanations-view-icon');
+    const explanationsIcon = screen.getByTestId('commentary-view-toggle');
     fireEvent.press(explanationsIcon);
 
     await waitFor(() => {
@@ -300,7 +278,7 @@ describe('ChapterScreen - View Mode State', () => {
     });
 
     // Switch back to bible view
-    const bibleIcon = screen.getByTestId('bible-view-icon');
+    const bibleIcon = screen.getByTestId('bible-view-toggle');
     fireEvent.press(bibleIcon);
 
     await waitFor(() => {
@@ -317,7 +295,7 @@ describe('ChapterScreen - View Mode State', () => {
     });
 
     // Switch to explanations
-    const explanationsIcon = screen.getByTestId('explanations-view-icon');
+    const explanationsIcon = screen.getByTestId('commentary-view-toggle');
     fireEvent.press(explanationsIcon);
 
     await waitFor(() => {
@@ -332,7 +310,7 @@ describe('ChapterScreen - View Mode State', () => {
     expect(screen.queryByTestId('chapter-content-tabs')).toBeTruthy();
 
     // Switch back to bible view
-    const bibleIcon = screen.getByTestId('bible-view-icon');
+    const bibleIcon = screen.getByTestId('bible-view-toggle');
     fireEvent.press(bibleIcon);
 
     await waitFor(() => {
