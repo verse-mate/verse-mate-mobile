@@ -20,16 +20,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeOut,
-  scrollTo,
-  useAnimatedReaction,
-  useAnimatedRef,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
@@ -250,9 +241,8 @@ export const ChapterPage = React.memo(function ChapterPage({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]); // Use local createStyles for ChapterPage
 
-  // Use Reanimated ref and shared value for smooth scrolling on UI thread
+  // Use Reanimated ref for the animated ScrollView
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
-  const scrollY = useSharedValue(0);
 
   const sectionPositionsRef = useRef<Record<number, number>>({});
 
@@ -260,8 +250,6 @@ export const ChapterPage = React.memo(function ChapterPage({
   const hasScrolledRef = useRef(false);
   // Track current scroll position manually for distance calc (JS side)
   const currentScrollYRef = useRef(0);
-  // Track active animation timer to cancel when user switches views
-  const animationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Note Modals State
   const [notesModalVisible, setNotesModalVisible] = useState(false);
@@ -302,21 +290,13 @@ export const ChapterPage = React.memo(function ChapterPage({
   useEffect(() => {
     hasScrolledRef.current = false;
     sectionPositionsRef.current = {};
-    scrollY.value = 0;
     currentScrollYRef.current = 0;
-    // Clear any active animation timer
-    if (animationTimerRef.current) {
-      clearInterval(animationTimerRef.current);
-      animationTimerRef.current = null;
-    }
   }, [bookId, chapterNumber]);
 
-  // Stop animation when user switches to explanations view
+  // Mark as scrolled when user switches to explanations view
+  // This prevents animation from restarting when returning to Bible
   useEffect(() => {
-    if (activeView !== 'bible' && animationTimerRef.current) {
-      clearInterval(animationTimerRef.current);
-      animationTimerRef.current = null;
-      // Mark as scrolled so animation doesn't restart when returning to Bible
+    if (activeView !== 'bible') {
       hasScrolledRef.current = true;
     }
   }, [activeView]);
@@ -414,63 +394,17 @@ export const ChapterPage = React.memo(function ChapterPage({
         const rawDuration = 800 + distance * 0.5;
         const duration = Math.max(1000, Math.min(2500, rawDuration));
 
-        // Sync shared value to current position first (to be safe)
-        scrollY.value = startY;
-
-        // Drive animation on UI thread
-        scrollY.value = withTiming(targetYAdjusted, {
-          duration: duration,
-          // Very gentle ease-in-out for slower start/stop
-          easing: Easing.bezier(0.2, 0.0, 0.0, 1),
+        // Use native animated scroll - runs on native thread, smooth and reliable
+        // This is simpler and more reliable than Reanimated's scrollTo worklet
+        animatedScrollRef.current?.scrollTo({
+          y: targetYAdjusted,
+          animated: true,
         });
-
-        // JS-thread fallback tween: if Reanimated doesn't move, tween scroll over the same duration
-        const startTime = Date.now();
-        const startPos = startY;
-        const endPos = targetYAdjusted;
-        const tweenInterval = 16; // ~60fps
-        const easeInOut = (t: number) => {
-          // cubic ease-in-out approximation
-          return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-        };
-        const timer = setInterval(() => {
-          const elapsed = Date.now() - startTime;
-          const t = Math.min(1, elapsed / duration);
-          const eased = easeInOut(t);
-          const y = startPos + (endPos - startPos) * eased;
-          try {
-            animatedScrollRef.current?.scrollTo?.({ y, animated: false });
-          } catch {}
-          if (t >= 1) {
-            clearInterval(timer);
-            animationTimerRef.current = null;
-          }
-        }, tweenInterval);
-
-        // Store timer ref so we can cancel if user switches views
-        animationTimerRef.current = timer;
-
-        // Removed immediate JS-thread imperative fallback; it could override timing
 
         hasScrolledRef.current = true;
       }
     }
-  }, [activeView, targetVerse, scrollY, animatedScrollRef.current?.scrollTo]);
-
-  // React to shared value changes on UI thread (only for Bible view)
-  // Note: animatedScrollRef is only valid when Animated.ScrollView is rendered (Bible view)
-  useAnimatedReaction(
-    () => scrollY.value,
-    (currentY) => {
-      'worklet';
-      // Safety check: only scroll if the ref is attached to a valid component
-      // In explanation view, the Animated.ScrollView is not rendered, so ref is invalid
-      if (animatedScrollRef?.current) {
-        // Use animated=true to ensure native animated scrolling
-        scrollTo(animatedScrollRef, 0, currentY, true);
-      }
-    }
-  );
+  }, [activeView, targetVerse]);
 
   /**
    * Handle content layout report from ChapterReader
