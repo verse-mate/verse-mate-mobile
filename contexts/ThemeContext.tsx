@@ -6,6 +6,8 @@
  * colors from bible-design-tokens.
  *
  * Pattern based on useBibleVersion hook for AsyncStorage persistence.
+ *
+ * @see Task 4.4 - Analytics tracking for theme_preference
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,6 +20,7 @@ import { Platform, useColorScheme } from 'react-native';
 import SunCalc from 'suncalc';
 
 import { getColors, type ThemeMode } from '@/constants/bible-design-tokens';
+import { getPostHogInstance } from '@/lib/analytics/posthog-provider';
 
 // ============================================================================
 // Types
@@ -225,6 +228,18 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
       // Persist to AsyncStorage
       await AsyncStorage.setItem(THEME_PREFERENCE_KEY, newPreference);
+
+      // Track analytics: Update user property for theme_preference (Task 4.4)
+      // Use PostHog's capture with $set to update person properties for anonymous users
+      // This ensures the property is set even if user is not logged in
+      const posthog = getPostHogInstance();
+      if (posthog) {
+        // Use capture with $set to update person properties
+        // This works for both anonymous and identified users
+        posthog.capture('$set', {
+          $set: { theme_preference: newPreference },
+        });
+      }
     } catch (error) {
       console.error('Failed to save theme preference:', error);
 
