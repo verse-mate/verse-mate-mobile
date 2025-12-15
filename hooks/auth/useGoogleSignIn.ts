@@ -7,14 +7,29 @@
  * @see Task Group 2: Google Sign-In Hook Implementation
  */
 
-import {
-  GoogleSignin,
-  isErrorWithCode,
-  isSuccessResponse,
-  statusCodes,
-} from '@react-native-google-signin/google-signin';
 import Constants from 'expo-constants';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+// Safely import Google Sign-In module to prevent crashes in Expo Go
+// biome-ignore lint/suspicious/noExplicitAny: Dynamic import for optional native module
+let GoogleSignin: any;
+// biome-ignore lint/suspicious/noExplicitAny: Dynamic import for optional native module
+let statusCodes: any;
+// biome-ignore lint/suspicious/noExplicitAny: Dynamic import for optional native module
+let isSuccessResponse: any;
+// biome-ignore lint/suspicious/noExplicitAny: Dynamic import for optional native module
+let isErrorWithCode: any;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const googleSigninModule = require('@react-native-google-signin/google-signin');
+  GoogleSignin = googleSigninModule.GoogleSignin;
+  statusCodes = googleSigninModule.statusCodes;
+  isSuccessResponse = googleSigninModule.isSuccessResponse;
+  isErrorWithCode = googleSigninModule.isErrorWithCode;
+} catch (_e) {
+  console.log('Google Sign-In native module not found (running in Expo Go?)');
+}
 
 /**
  * Google Sign-In hook return type
@@ -88,6 +103,12 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
 
   // Initialize Google Sign-In on mount
   useEffect(() => {
+    // If native module is missing, disable
+    if (!GoogleSignin) {
+      setIsAvailable(false);
+      return;
+    }
+
     const config = getGoogleConfig();
 
     // Check if Google Sign-In is configured
@@ -124,6 +145,11 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
    * @returns ID token on success, null on failure or cancellation
    */
   const signIn = useCallback(async (): Promise<string | null> => {
+    if (!GoogleSignin) {
+      setError('Google Sign-In is not supported in this environment');
+      return null;
+    }
+
     if (!isConfigured.current) {
       setError('Google Sign-In is not configured');
       return null;
@@ -153,9 +179,11 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
       setError('Google Sign-In failed');
       return null;
     } catch (err) {
-      // Handle specific Google Sign-In errors
-      if (isErrorWithCode(err)) {
-        switch (err.code) {
+      // Handle specific Google Sign-In errors if module is available
+      if (isErrorWithCode && statusCodes && isErrorWithCode(err)) {
+        // biome-ignore lint/suspicious/noExplicitAny: Google Error type
+        const googleError = err as any;
+        switch (googleError.code) {
           case statusCodes.SIGN_IN_CANCELLED:
             // User cancelled - not an error state
             return null;
@@ -169,7 +197,8 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
             return null;
 
           default:
-            setError(err.message || 'Google Sign-In failed');
+            // biome-ignore lint/suspicious/noExplicitAny: Error type is unknown
+            setError((err as any).message || 'Google Sign-In failed');
             return null;
         }
       }
