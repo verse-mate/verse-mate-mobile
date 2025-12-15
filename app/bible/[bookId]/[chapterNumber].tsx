@@ -38,6 +38,8 @@ import { useActiveTab, useActiveView, useBookProgress, useLastReadPosition } fro
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
+import { useBibleVersion } from '@/hooks/use-bible-version';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   useBibleChapter,
   useBibleTestaments,
@@ -72,6 +74,7 @@ const CENTER_INDEX = 2;
  * - Hamburger menu (Task 8.5)
  * - Offline indicator (Task 8.6)
  * - View mode switching (Bible vs Explanations)
+ * - Analytics tracking for CHAPTER_VIEWED (Task 4.2)
  */
 export default function ChapterScreen() {
   // Extract and validate route params
@@ -89,6 +92,9 @@ export default function ChapterScreen() {
   // Theme
   const { colors, mode } = useTheme();
   const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+
+  // Bible version for analytics
+  const { bibleVersion } = useBibleVersion();
 
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
@@ -224,6 +230,19 @@ export default function ChapterScreen() {
     // Only add to recent books when bookId changes (not on every chapter change within the same book)
     addRecentBook(validBookId);
   }, [validBookId]);
+
+  // Track CHAPTER_VIEWED analytics event (Task 4.2)
+  // Fires once per chapter navigation, not on re-renders
+  useEffect(() => {
+    // Only track when we have valid params
+    if (validBookId >= 1 && validBookId <= 66 && validChapter >= 1) {
+      analytics.track(AnalyticsEvent.CHAPTER_VIEWED, {
+        bookId: validBookId,
+        chapterNumber: validChapter,
+        bibleVersion,
+      });
+    }
+  }, [validBookId, validChapter, bibleVersion]);
 
   // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5, 4.6)
   useEffect(() => {

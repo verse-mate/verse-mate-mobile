@@ -41,6 +41,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   deleteBibleBookNoteRemoveMutation,
   getBibleBookNotesByUserIdOptions,
@@ -180,7 +181,15 @@ export function useNotes(): UseNotesResult {
       }
       console.error('Failed to add note:', error);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Track analytics: NOTE_CREATED event (never track note content)
+      if (variables.body) {
+        analytics.track(AnalyticsEvent.NOTE_CREATED, {
+          bookId: variables.body.book_id,
+          chapterNumber: variables.body.chapter_number,
+        });
+      }
+
       // Refetch to get accurate server data (with correct note_id and book_name)
       queryClient.invalidateQueries({ queryKey: notesQueryKey });
     },
@@ -224,7 +233,14 @@ export function useNotes(): UseNotesResult {
       }
       console.error('Failed to update note:', error);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Track analytics: NOTE_EDITED event (never track note content)
+      if (variables.body) {
+        analytics.track(AnalyticsEvent.NOTE_EDITED, {
+          noteId: variables.body.note_id,
+        });
+      }
+
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: notesQueryKey });
     },
@@ -260,7 +276,14 @@ export function useNotes(): UseNotesResult {
       }
       console.error('Failed to delete note:', error);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Track analytics: NOTE_DELETED event
+      if (variables.query) {
+        analytics.track(AnalyticsEvent.NOTE_DELETED, {
+          noteId: variables.query.note_id,
+        });
+      }
+
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: notesQueryKey });
     },

@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { getUserThemePreferences, updateUserThemePreference } from '@/lib/api/auto-highlights';
 
 interface HighlightTheme {
@@ -113,7 +114,7 @@ export function AutoHighlightSettings({
     }
   };
 
-  const handleToggleTheme = async (themeId: number, currentStatus: boolean) => {
+  const handleToggleTheme = async (themeId: number, themeName: string, currentStatus: boolean) => {
     if (!isLoggedIn) return;
 
     const newStatus = !currentStatus;
@@ -127,6 +128,12 @@ export function AutoHighlightSettings({
 
     try {
       await updatePreference(themeId, { is_enabled: newStatus });
+
+      // Track analytics: AUTO_HIGHLIGHT_SETTING_CHANGED event
+      analytics.track(AnalyticsEvent.AUTO_HIGHLIGHT_SETTING_CHANGED, {
+        settingId: themeName.toLowerCase().replace(/\s+/g, '-'),
+        enabled: newStatus,
+      });
     } catch {
       // Revert on error
       setThemes((prev) =>
@@ -147,6 +154,12 @@ export function AutoHighlightSettings({
       await Promise.all(
         themes.map((theme) => updatePreference(theme.theme_id, { is_enabled: enable }))
       );
+
+      // Track analytics: AUTO_HIGHLIGHT_SETTING_CHANGED event for master toggle
+      analytics.track(AnalyticsEvent.AUTO_HIGHLIGHT_SETTING_CHANGED, {
+        settingId: 'all-themes',
+        enabled: enable,
+      });
     } catch {
       Alert.alert('Error', `Failed to ${enable ? 'enable' : 'disable'} all themes`);
       // Revert on error
@@ -243,7 +256,9 @@ export function AutoHighlightSettings({
                       </View>
                       <Switch
                         value={theme.is_enabled}
-                        onValueChange={() => handleToggleTheme(theme.theme_id, theme.is_enabled)}
+                        onValueChange={() =>
+                          handleToggleTheme(theme.theme_id, theme.theme_name, theme.is_enabled)
+                        }
                         trackColor={{ false: colors.border, true: colors.gold }}
                         thumbColor={colors.background}
                         testID={`theme-switch-${theme.theme_id}`}
