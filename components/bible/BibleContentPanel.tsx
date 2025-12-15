@@ -13,6 +13,11 @@
  * @see Spec: agent-os/specs/landscape-tablet-optimization/plan.md
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useCallback, useMemo, useRef } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
 import {
   fontSizes,
@@ -23,11 +28,6 @@ import {
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBookProgress } from '@/hooks/bible';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { useCallback, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ChapterPagerViewRef } from './ChapterPagerView';
 import { ChapterPagerView } from './ChapterPagerView';
 

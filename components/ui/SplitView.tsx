@@ -15,9 +15,6 @@
  * @see Figma: https://www.figma.com/design/GOiiI0yRby5mWqCji8e4pp/VerseMate?node-id=3367-16156
  */
 
-import { getSplitViewSpecs } from '@/constants/bible-design-tokens';
-import { useTheme } from '@/contexts/ThemeContext';
-import { BREAKPOINTS, calculatePanelWidths } from '@/utils/device-detection';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -30,6 +27,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getSplitViewSpecs } from '@/constants/bible-design-tokens';
+import { useTheme } from '@/contexts/ThemeContext';
+import { BREAKPOINTS, calculatePanelWidths } from '@/utils/device-detection';
 
 /**
  * Props for SplitView component

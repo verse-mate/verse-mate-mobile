@@ -13,6 +13,12 @@
  * @see Spec: agent-os/specs/landscape-tablet-optimization/plan.md
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { RenderRules } from 'react-native-markdown-display';
+import Markdown from 'react-native-markdown-display';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import { TopicText } from '@/components/topics/TopicText';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
@@ -26,12 +32,6 @@ import {
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTopicReferences } from '@/src/api/generated';
-import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { RenderRules } from 'react-native-markdown-display';
-import Markdown from 'react-native-markdown-display';
 
 /**
  * Convert a number to Unicode superscript characters

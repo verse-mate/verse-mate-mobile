@@ -4,9 +4,9 @@
  * Tests for the shared split view layout component.
  */
 
-import { SplitView } from '@/components/ui/SplitView';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { Text, View } from 'react-native';
+import { SplitView } from '@/components/ui/SplitView';
 
 // Mock dependencies
 jest.mock('@/contexts/ThemeContext', () => ({

@@ -16,6 +16,13 @@
  * @see Task Group 9.3 - Add deep link validation in chapter screen
  */
 
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { LayoutChangeEvent } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleContentPanel } from '@/components/bible/BibleContentPanel';
 import { BibleExplanationsPanel } from '@/components/bible/BibleExplanationsPanel';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
@@ -42,13 +49,6 @@ import {
   usePrefetchPreviousChapter,
   useSaveLastRead,
 } from '@/src/api/generated';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { LayoutChangeEvent } from 'react-native';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
  * View mode type for Bible reading interface

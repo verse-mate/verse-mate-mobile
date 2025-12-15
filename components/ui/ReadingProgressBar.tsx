@@ -9,6 +9,8 @@
  * @see Spec: agent-os/specs/landscape-tablet-optimization/plan.md
  */
 
+import { useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import {
   fontSizes,
   fontWeights,
@@ -16,8 +18,6 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 
 /**
  * Props for ReadingProgressBar
