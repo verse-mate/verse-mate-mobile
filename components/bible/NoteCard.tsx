@@ -43,8 +43,10 @@ import type { Note } from '@/types/notes';
 export interface NoteCardProps {
   /** Note object to display */
   note: Note;
-  /** Callback when card is pressed (to view full note) */
+  /** Callback when card needs to expand/collapse */
   onPress: (note: Note) => void;
+  /** Callback when card is clicked to edit (short note or expanded long note) */
+  onEdit: (note: Note) => void;
   /** Callback when menu button is pressed */
   onMenuPress: (note: Note) => void;
   /** Content truncation length (default: 100 from NOTES_CONFIG) */
@@ -60,14 +62,16 @@ export interface NoteCardProps {
  *
  * Behavior:
  * - Truncates content if exceeds truncateLength
- * - Shows "..." if content is truncated
- * - Displays up to 3 lines of text in preview
- * - Visual feedback on press (backgroundColor change)
- * - Menu button on right side
+ * - Click behavior:
+ *   - If short (< truncateLength): Opens edit modal
+ *   - If long (> truncateLength):
+ *     - Collapsed: Expands card
+ *     - Expanded: Opens edit modal
  */
 export function NoteCard({
   note,
   onPress,
+  onEdit,
   onMenuPress,
   truncateLength = NOTES_CONFIG.PREVIEW_TRUNCATE_LENGTH,
   isExpanded = false,
@@ -75,15 +79,28 @@ export function NoteCard({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  const isTruncated = note.content.length > truncateLength;
+
   // Truncate content if needed (only when not expanded)
   const displayContent =
-    !isExpanded && note.content.length > truncateLength
-      ? `${note.content.substring(0, truncateLength)}...`
-      : note.content;
+    !isExpanded && isTruncated ? `${note.content.substring(0, truncateLength)}...` : note.content;
+
+  const handlePress = () => {
+    if (!isTruncated) {
+      // Short note: always edit
+      onEdit(note);
+    } else if (isExpanded) {
+      // Long note & Already expanded: edit
+      onEdit(note);
+    } else {
+      // Long note & Collapsed: expand
+      onPress(note);
+    }
+  };
 
   return (
     <Pressable
-      onPress={() => onPress(note)}
+      onPress={handlePress}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       testID={`note-card-${note.note_id}`}
     >

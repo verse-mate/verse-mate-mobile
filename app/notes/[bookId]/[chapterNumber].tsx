@@ -155,6 +155,10 @@ export default function ChapterNotesScreen() {
                 key={note.note_id}
                 note={note}
                 onPress={handleNotePress}
+                onEdit={(n) => {
+                  setSelectedNote(n);
+                  setEditModalVisible(true);
+                }}
                 onMenuPress={handleMenuPress}
                 isExpanded={expandedNoteId === note.note_id}
               />
@@ -185,6 +189,7 @@ export default function ChapterNotesScreen() {
             setSelectedNote(null);
           }}
           onSave={handleNoteSave}
+          onDelete={deleteNote}
         />
       )}
     </View>
