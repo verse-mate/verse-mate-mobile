@@ -135,6 +135,7 @@ export default function ChapterHighlightsScreen() {
         bookId: parsedBookId,
         chapterNumber: parsedChapterNumber,
         verse: highlight.start_verse,
+        endVerse: highlight.end_verse,
       },
     });
   };

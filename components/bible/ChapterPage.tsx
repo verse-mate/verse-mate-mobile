@@ -26,7 +26,9 @@ import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
+import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useNotes } from '@/hooks/bible/use-notes';
@@ -200,6 +202,8 @@ export interface ChapterPageProps {
   activeView: 'bible' | 'explanations';
   /** Target verse to scroll to (optional) */
   targetVerse?: number;
+  /** Target end verse for multi-verse highlights (optional) */
+  targetEndVerse?: number;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
@@ -235,6 +239,7 @@ export const ChapterPage = React.memo(function ChapterPage({
   activeTab,
   activeView,
   targetVerse,
+  targetEndVerse,
   onScroll,
   onTap,
 }: ChapterPageProps) {
@@ -259,6 +264,12 @@ export const ChapterPage = React.memo(function ChapterPage({
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+
+  // Verse tooltip state - shown after scroll animation completes
+  const [verseTooltipVisible, setVerseTooltipVisible] = useState(false);
+  const verseTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { isAuthenticated } = useAuth();
 
   // Staggered rendering state to prevent UI freeze (waterfall loading)
   // 0: Initial (only active view)
@@ -291,6 +302,12 @@ export const ChapterPage = React.memo(function ChapterPage({
     hasScrolledRef.current = false;
     sectionPositionsRef.current = {};
     currentScrollYRef.current = 0;
+    // Close tooltip and clear timer when changing book/chapter
+    setVerseTooltipVisible(false);
+    if (verseTooltipTimerRef.current) {
+      clearTimeout(verseTooltipTimerRef.current);
+      verseTooltipTimerRef.current = null;
+    }
   }, [bookId, chapterNumber]);
 
   // Mark as scrolled when user switches to explanations view
@@ -400,6 +417,18 @@ export const ChapterPage = React.memo(function ChapterPage({
           y: targetYAdjusted,
           animated: true,
         });
+
+        // Show verse tooltip after animation completes
+        // Clear any existing timer first
+        if (verseTooltipTimerRef.current) {
+          clearTimeout(verseTooltipTimerRef.current);
+        }
+        // Show tooltip much sooner - don't wait the full scroll duration
+        // Actual animation typically completes in ~1s, so show tooltip after ~600ms
+        // This feels immediate while letting the scroll settle
+        verseTooltipTimerRef.current = setTimeout(() => {
+          setVerseTooltipVisible(true);
+        }, 600);
 
         hasScrolledRef.current = true;
       }
@@ -696,6 +725,30 @@ export const ChapterPage = React.memo(function ChapterPage({
         title="Delete Note"
         message="Are you sure you want to delete this note?"
       />
+
+      {/* Verse Tooltip - shown after scroll animation completes */}
+      {targetVerse && (
+        <VerseMateTooltip
+          verseNumber={!targetEndVerse || targetEndVerse === targetVerse ? targetVerse : null}
+          highlightGroup={
+            targetEndVerse && targetEndVerse > targetVerse
+              ? {
+                  color: 'yellow',
+                  startVerse: targetVerse,
+                  endVerse: targetEndVerse,
+                  highlights: [],
+                  isGrouped: true,
+                }
+              : null
+          }
+          bookId={bookId}
+          chapterNumber={chapterNumber}
+          bookName={chapter?.title.split(' ')[0] || ''}
+          visible={verseTooltipVisible}
+          onClose={() => setVerseTooltipVisible(false)}
+          isLoggedIn={isAuthenticated}
+        />
+      )}
     </View>
   );
 });
