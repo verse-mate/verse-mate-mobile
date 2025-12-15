@@ -100,7 +100,7 @@ export default function ChapterScreen() {
         setActiveView('bible');
       }
     }
-  }, []);
+  }, [targetVerse, activeView, setActiveView]);
 
   // Navigation modal state (Task 7.9)
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);

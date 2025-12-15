@@ -71,7 +71,11 @@ export function parseByLineExplanation(
       if (currentVerse !== null && inSummarySection && versesToFind.has(currentVerse)) {
         const summaryText = currentSummaryBuffer.join('\n').trim();
         if (summaryText) {
-          summaries.push(`**Verse ${currentVerse}:** ${summaryText}`);
+          if (startVerse === endVerse) {
+            summaries.push(summaryText);
+          } else {
+            summaries.push(`**${currentVerse}:** ${summaryText}`);
+          }
         }
       }
 
@@ -110,7 +114,11 @@ export function parseByLineExplanation(
       if (currentVerse !== null && inSummarySection && versesToFind.has(currentVerse)) {
         const summaryText = currentSummaryBuffer.join('\n').trim();
         if (summaryText) {
-          summaries.push(`**Verse ${currentVerse}:** ${summaryText}`);
+          if (startVerse === endVerse) {
+            summaries.push(summaryText);
+          } else {
+            summaries.push(`**${currentVerse}:** ${summaryText}`);
+          }
         }
       }
       currentVerse = null;
@@ -132,7 +140,11 @@ export function parseByLineExplanation(
   if (currentVerse !== null && inSummarySection && versesToFind.has(currentVerse)) {
     const summaryText = currentSummaryBuffer.join('\n').trim();
     if (summaryText) {
-      summaries.push(`**Verse ${currentVerse}:** ${summaryText}`);
+      if (startVerse === endVerse) {
+        summaries.push(summaryText);
+      } else {
+        summaries.push(`**${currentVerse}:** ${summaryText}`);
+      }
     }
   }
 

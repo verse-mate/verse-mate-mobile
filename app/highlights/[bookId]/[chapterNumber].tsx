@@ -72,7 +72,7 @@ function groupHighlights(highlights: Highlight[]): GroupedHighlight[] {
         if (currentSelectedText) {
           // Avoid duplicating if currentSelectedText already contains newSelectedText
           if (!currentSelectedText.includes(newSelectedText)) {
-            current.selected_text = currentSelectedText + ' ' + newSelectedText;
+            current.selected_text = `${currentSelectedText} ${newSelectedText}`;
           }
         } else {
           // If current text is empty/null/undefined, just assign new text

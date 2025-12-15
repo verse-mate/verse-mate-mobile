@@ -39,9 +39,11 @@ import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationMo
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useBibleByLine } from '@/src/api/generated/hooks';
 import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
+import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 
 interface VerseMateTooltipProps {
   /** Verse number (for plain verses) or null */
@@ -96,11 +98,14 @@ export function VerseMateTooltip({
   isLoggedIn,
 }: VerseMateTooltipProps) {
   const { colors, mode } = useTheme();
+  const { bibleVersion } = useBibleVersion();
   const insets = useSafeAreaInsets();
   const { styles, markdownStyles } = useMemo(
     () => createStyles(colors, insets.bottom),
     [colors, insets.bottom]
   );
+
+  // ... (rest of the component state and hooks)
 
   // Determine if this is a highlighted verse or plain verse
   const isHighlighted = !!highlightGroup;
@@ -242,12 +247,44 @@ export function VerseMateTooltip({
     });
   };
 
+  // Build verse reference title
+  const verseReference =
+    startVerse === endVerse
+      ? `${bookName} ${chapterNumber}:${startVerse}`
+      : `${bookName} ${chapterNumber}:${startVerse}-${endVerse}`;
+
+  // Helper to get share content
+  const getShareContent = () => {
+    let content = `"${verseText}"\n\n- ${verseReference} ${bibleVersion}`;
+
+    if (insightText) {
+      // Strip markdown syntax for better readability in plain text
+      const plainInsight = insightText
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+        .replace(/\*(.*?)\*/g, '$1') // Italic
+        .replace(/^###\s/gm, '') // H3 headers
+        .replace(/^##\s/gm, '') // H2 headers
+        .trim();
+
+      content += `\n\nAnalysis:\n${plainInsight}`;
+    }
+
+    try {
+      const url = generateChapterShareUrl(bookId, chapterNumber);
+      content += `\n\n${url}`;
+    } catch (_e) {
+      // Ignore if URL gen fails (e.g. env var missing)
+    }
+
+    return content;
+  };
+
   // Handle copy verse
   const handleCopy = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!verseText) return;
 
-    const payload = `"${verseText}"\n\n- ${verseReference}`;
+    const payload = getShareContent();
     await Clipboard.setStringAsync(payload);
 
     // Close modal and trigger callback (for showing toast)
@@ -261,8 +298,19 @@ export function VerseMateTooltip({
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!verseText) return;
 
+    const message = getShareContent();
+
+    // For iOS, providing url separately might trigger rich link preview better in some apps
+    // But message often takes precedence.
+    let url: string | undefined;
+    try {
+      url = generateChapterShareUrl(bookId, chapterNumber);
+    } catch {}
+
     await Share.share({
-      message: `"${verseText}"\n\n- ${verseReference}`,
+      message,
+      url, // iOS only
+      title: `${verseReference} ${bibleVersion}`, // Android dialog title
     });
     // Don't dismiss - user might want to do more actions
   };
@@ -335,12 +383,6 @@ export function VerseMateTooltip({
   if (!targetVerseNumber && !internalVisible) return null;
   if (!targetVerseNumber) return null;
 
-  // Build verse reference title
-  const verseReference =
-    startVerse === endVerse
-      ? `${bookName} ${chapterNumber}:${startVerse}`
-      : `${bookName} ${chapterNumber}:${startVerse}-${endVerse}`;
-
   // Interpolate values for expansion animation
   const insightMaxHeight = expansionAnim.interpolate({
     inputRange: [0, 1],
@@ -382,7 +424,7 @@ export function VerseMateTooltip({
           {/* Header with pan responder for swipe */}
           <View style={styles.header} {...panResponder.panHandlers}>
             <View style={styles.handle} />
-            <Text style={styles.verseMateHeader}>VerseMate</Text>
+            <Text style={styles.verseMateHeader}>Verse Insight</Text>
           </View>
 
           {/* Content */}
@@ -408,22 +450,24 @@ export function VerseMateTooltip({
 
               {/* Insight Section (Always Expandable) */}
               <View style={styles.insightContainer}>
-                <Pressable
-                  style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
-                  onPress={() => setExpanded(!expanded)}
-                  hitSlop={10}
-                  {...panResponder.panHandlers}
-                >
-                  <Ionicons
-                    name={expanded ? 'chevron-down' : 'chevron-up'}
-                    size={16}
-                    color={colors.gold}
-                    style={{ marginRight: spacing.xs }}
-                  />
-                  <Text style={styles.insightToggleText}>
-                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
-                  </Text>
-                </Pressable>
+                {isMultiVerse && (
+                  <Pressable
+                    style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
+                    onPress={() => setExpanded(!expanded)}
+                    hitSlop={10}
+                    {...panResponder.panHandlers}
+                  >
+                    <Ionicons
+                      name={expanded ? 'chevron-down' : 'chevron-up'}
+                      size={16}
+                      color={colors.gold}
+                      style={{ marginRight: spacing.xs }}
+                    />
+                    <Text style={styles.insightToggleText}>
+                      {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
+                    </Text>
+                  </Pressable>
+                )}
 
                 <Animated.View
                   style={[
@@ -436,13 +480,16 @@ export function VerseMateTooltip({
                       <ActivityIndicator size="small" color={colors.gold} />
                     </View>
                   ) : insightText ? (
-                    <ScrollView
-                      style={styles.insightScroll}
-                      contentContainerStyle={styles.insightScrollContent}
-                      showsVerticalScrollIndicator={false}
-                    >
-                      <Markdown style={markdownStyles}>{insightText}</Markdown>
-                    </ScrollView>
+                    <>
+                      <Text style={styles.analysisTitle}>Analysis</Text>
+                      <ScrollView
+                        style={styles.insightScroll}
+                        contentContainerStyle={styles.insightScrollContent}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        <Markdown style={markdownStyles}>{insightText}</Markdown>
+                      </ScrollView>
+                    </>
                   ) : (
                     <View style={styles.emptyInsightContainer}>
                       <Text style={styles.insightEmptyText}>
@@ -731,6 +778,13 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       fontWeight: fontWeights.semibold,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
+    },
+    analysisTitle: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+      marginTop: spacing.xs,
     },
     insightContentWrapper: {
       overflow: 'hidden',

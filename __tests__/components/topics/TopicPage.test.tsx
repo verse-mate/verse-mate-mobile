@@ -111,7 +111,7 @@ describe('TopicPage', () => {
 
   it('renders topic content with correct topicId prop', async () => {
     const { getByTestId } = renderWithProviders(
-      <TopicPage topicId="topic-uuid-001" category="EVENT" activeTab="summary" activeView="bible" />
+      <TopicPage topicId="topic-uuid-001" activeTab="summary" activeView="bible" />
     );
 
     // Should render the container
@@ -129,7 +129,6 @@ describe('TopicPage', () => {
     const { getByTestId } = renderWithProviders(
       <TopicPage
         topicId="topic-uuid-001"
-        category="EVENT"
         activeTab="summary"
         activeView="bible"
         onScroll={onScroll}
@@ -162,13 +161,7 @@ describe('TopicPage', () => {
     const onTap = jest.fn();
 
     const { getByTestId } = renderWithProviders(
-      <TopicPage
-        topicId="topic-uuid-001"
-        category="EVENT"
-        activeTab="summary"
-        activeView="bible"
-        onTap={onTap}
-      />
+      <TopicPage topicId="topic-uuid-001" activeTab="summary" activeView="bible" onTap={onTap} />
     );
 
     await waitFor(() => {
@@ -196,7 +189,7 @@ describe('TopicPage', () => {
   it('handles both view modes (bible references and explanations)', async () => {
     // Test Bible view
     const { getByTestId, rerender } = renderWithProviders(
-      <TopicPage topicId="topic-uuid-001" category="EVENT" activeTab="summary" activeView="bible" />
+      <TopicPage topicId="topic-uuid-001" activeTab="summary" activeView="bible" />
     );
 
     await waitFor(() => {
@@ -227,14 +220,7 @@ describe('TopicPage', () => {
     } as any);
 
     // Component should render with either view mode without crashing
-    rerender(
-      <TopicPage
-        topicId="topic-uuid-001"
-        category="EVENT"
-        activeTab="summary"
-        activeView="explanations"
-      />
-    );
+    rerender(<TopicPage topicId="topic-uuid-001" activeTab="summary" activeView="explanations" />);
 
     await waitFor(() => {
       expect(getByTestId('topic-page-topic-uuid-001')).toBeTruthy();
@@ -259,7 +245,7 @@ describe('TopicPage', () => {
     } as any);
 
     const { getByTestId } = renderWithProviders(
-      <TopicPage topicId="topic-uuid-001" category="EVENT" activeTab="summary" activeView="bible" />
+      <TopicPage topicId="topic-uuid-001" activeTab="summary" activeView="bible" />
     );
 
     // Should show skeleton loader while loading
@@ -272,13 +258,7 @@ describe('TopicPage', () => {
     const onTap = jest.fn();
 
     const { getByTestId } = renderWithProviders(
-      <TopicPage
-        topicId="topic-uuid-001"
-        category="EVENT"
-        activeTab="summary"
-        activeView="bible"
-        onTap={onTap}
-      />
+      <TopicPage topicId="topic-uuid-001" activeTab="summary" activeView="bible" onTap={onTap} />
     );
 
     await waitFor(() => {

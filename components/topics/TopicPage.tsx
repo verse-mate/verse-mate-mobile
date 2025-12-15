@@ -37,7 +37,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useTopicById, useTopicReferences } from '@/src/api/generated';
 import type { ContentTabType } from '@/types/bible';
-import type { TopicCategory } from '@/types/topics';
 
 /**
  * Convert a number to Unicode superscript characters
@@ -92,8 +91,7 @@ const markdownRules: RenderRules = {};
 export interface TopicPageProps {
   /** Topic UUID - DYNAMIC prop, updates on window shift */
   topicId: string;
-  /** Topic category - DYNAMIC prop, updates on window shift */
-  category: TopicCategory;
+
   /** Active reading mode tab */
   activeTab: ContentTabType;
   /** Current view mode (bible or explanations) */
@@ -130,7 +128,6 @@ export interface TopicPageProps {
  */
 export const TopicPage = React.memo(function TopicPage({
   topicId,
-  category,
   activeTab,
   activeView,
   onScroll,

@@ -51,10 +51,6 @@ export interface NoteCardProps {
   truncateLength?: number;
   /** Whether the card is expanded to show full content */
   isExpanded?: boolean;
-  /** Callback for edit action (when expanded) */
-  onEdit?: (note: Note) => void;
-  /** Callback for delete action (when expanded) */
-  onDelete?: (note: Note) => void;
 }
 
 /**
@@ -75,8 +71,6 @@ export function NoteCard({
   onMenuPress,
   truncateLength = NOTES_CONFIG.PREVIEW_TRUNCATE_LENGTH,
   isExpanded = false,
-  onEdit,
-  onDelete,
 }: NoteCardProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
