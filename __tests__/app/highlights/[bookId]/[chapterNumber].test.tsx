@@ -156,7 +156,7 @@ describe('ChapterHighlightsScreen', () => {
     });
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/bible/[bookId]/[chapterNumber]',
-      params: { bookId: 1, chapterNumber: 1, verse: 1 },
+      params: { bookId: 1, chapterNumber: 1, verse: 1, endVerse: 1 },
     });
   });
 
