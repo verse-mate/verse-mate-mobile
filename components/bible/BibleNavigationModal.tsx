@@ -67,7 +67,7 @@ import {
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
-import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
+import { useBibleTestaments, useTopicsSearch } from '@/src/api';
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';

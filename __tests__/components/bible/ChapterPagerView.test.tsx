@@ -23,7 +23,7 @@ import React, { useRef } from 'react';
 import type { ChapterPagerViewRef } from '@/components/bible/ChapterPagerView';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { useBibleTestaments } from '@/src/api/generated/hooks';
+import { useBibleTestaments } from '@/src/api/hooks';
 import type { ContentTabType } from '@/types/bible';
 import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
 
@@ -78,7 +78,7 @@ jest.mock('@/components/bible/ChapterPage', () => ({
 }));
 
 // Mock useBibleTestaments hook
-jest.mock('@/src/api/generated/hooks', () => ({
+jest.mock('@/src/api/hooks', () => ({
   useBibleTestaments: jest.fn(),
 }));
 

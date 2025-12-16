@@ -37,7 +37,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   getUserRecentlyViewedBooksOptions,
   postUserRecentlyViewedBooksSyncMutation,
-} from '@/src/api/generated/hooks';
+} from '@/src/api/hooks';
 import type { RecentBook, UseRecentBooksResult } from '@/types/bible';
 import { MAX_RECENT_BOOKS, RECENT_BOOKS_EXPIRY_DAYS, STORAGE_KEYS } from '@/types/bible';
 

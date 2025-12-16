@@ -22,7 +22,7 @@ import {
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
   useSaveLastRead,
-} from '@/src/api/generated';
+} from '@/src/api';
 import ChapterScreen from '../[bookId]/[chapterNumber]';
 
 // Mock expo-router
@@ -35,7 +35,7 @@ jest.mock('expo-router', () => ({
 }));
 
 // Mock API hooks
-jest.mock('@/src/api/generated', () => ({
+jest.mock('@/src/api', () => ({
   useBibleChapter: jest.fn(),
   useSaveLastRead: jest.fn(),
   useBibleTestaments: jest.fn(),

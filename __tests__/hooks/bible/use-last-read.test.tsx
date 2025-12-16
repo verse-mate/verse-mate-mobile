@@ -9,7 +9,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
-import { useLastRead } from '@/src/api/generated';
+import { useLastRead } from '@/src/api';
 import {
   clearMockLastReadPosition,
   setMockLastReadPosition,

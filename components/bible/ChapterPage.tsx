@@ -37,7 +37,7 @@ import {
   useBibleChapter,
   useBibleDetailed,
   useBibleSummary,
-} from '@/src/api/generated/hooks';
+} from '@/src/api/hooks';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 import { BottomLogo } from './BottomLogo';

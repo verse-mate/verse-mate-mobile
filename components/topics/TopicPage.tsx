@@ -35,7 +35,7 @@ import {
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
-import { useTopicById, useTopicReferences } from '@/src/api/generated';
+import { useTopicById, useTopicReferences } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 
 /**

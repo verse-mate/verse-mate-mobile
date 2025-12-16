@@ -17,7 +17,7 @@ import type {
   PostAuthRefreshResponse,
   PostAuthSignupData,
   PostAuthSignupResponse,
-} from '../../../src/api/generated';
+} from '../../../src/api';
 
 // API Base URL - matches the generated SDK default
 const API_BASE_URL = 'https://api.verse-mate.apegro.dev';

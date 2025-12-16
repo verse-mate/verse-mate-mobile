@@ -27,11 +27,11 @@ import {
   useBibleChapter,
   useBibleDetailed,
   useBibleSummary,
-} from '@/src/api/generated/hooks';
+} from '@/src/api/hooks';
 import type { ContentTabType } from '@/types/bible';
 
 // Mock the Bible hooks
-jest.mock('@/src/api/generated/hooks', () => ({
+jest.mock('@/src/api/hooks', () => ({
   useBibleChapter: jest.fn(),
   useBibleSummary: jest.fn(),
   useBibleByLine: jest.fn(),

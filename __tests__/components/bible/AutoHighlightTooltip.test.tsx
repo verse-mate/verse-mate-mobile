@@ -11,7 +11,7 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 // Mock the hook
-jest.mock('@/src/api/generated/hooks', () => ({
+jest.mock('@/src/api/hooks', () => ({
   useBibleByLine: jest.fn(() => ({
     data: {
       content:
