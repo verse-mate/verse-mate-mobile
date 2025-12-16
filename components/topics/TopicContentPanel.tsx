@@ -19,6 +19,7 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import { TopicText } from '@/components/topics/TopicText';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
@@ -125,6 +126,7 @@ export function TopicContentPanel({
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = useMemo(() => createStyles(specs, colors), [specs, colors]);
+  const insets = useSafeAreaInsets();
 
   // Reading progress state
   const [progress, setProgress] = useState(0);
@@ -154,7 +156,7 @@ export function TopicContentPanel({
   const hasStructuredContent = hasContent && contentString.includes('## ');
 
   return (
-    <View style={styles.container} testID={testID}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>
       {/* Header Bar */}
       <Pressable style={styles.header} onPress={onHeaderPress} testID={`${testID}-header`}>
         <View style={styles.headerContent}>

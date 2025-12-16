@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import {
   fontSizes,
@@ -87,6 +88,7 @@ export function TopicExplanationsPanel({
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = useMemo(() => createStyles(specs, colors), [specs, colors]);
+  const insets = useSafeAreaInsets();
 
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -96,7 +98,7 @@ export function TopicExplanationsPanel({
     []
   );
   const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
-  const [_tabWidth, _setTabWidth] = useState(0);
+  const [tabWidth, setTabWidth] = useState(0);
 
   // Animate indicator when active tab changes
   useEffect(() => {
@@ -113,8 +115,8 @@ export function TopicExplanationsPanel({
   const bibleVersion = 'NASB1995';
   const { data: topicData } = useTopicById(topicId, bibleVersion);
 
-  // Handle tab press
-  const _handleTabPress = useCallback(
+  // Handle tab press with haptic feedback
+  const handleTabPress = useCallback(
     (tab: ContentTabType) => {
       if (tab !== activeTab) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -146,10 +148,10 @@ export function TopicExplanationsPanel({
   const hasContent = explanationContent && typeof explanationContent === 'string';
 
   return (
-    <View style={styles.container} testID={testID}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>
       {/* Header Bar */}
       <View style={styles.header} testID={`${testID}-header`}>
-        <Text style={styles.headerTitle}>{topicName}</Text>
+        <Text style={styles.headerTitle}>{topicName} Insights</Text>
 
         {/* Menu Button */}
         <Pressable
@@ -161,6 +163,56 @@ export function TopicExplanationsPanel({
         >
           <Ionicons name="menu" size={24} color={specs.headerTextColor} />
         </Pressable>
+      </View>
+
+      {/* Tab Selector */}
+      <View style={styles.tabContainer}>
+        <View
+          style={styles.tabsRow}
+          onLayout={(event) => {
+            const { width } = event.nativeEvent.layout;
+            const singleTabWidth = (width - 16) / 3;
+            setTabWidth(singleTabWidth);
+          }}
+        >
+          {/* Sliding active indicator */}
+          <Animated.View
+            style={[
+              styles.slidingIndicator,
+              {
+                width: tabWidth,
+                transform: [
+                  {
+                    translateX: slideAnim.interpolate({
+                      inputRange: [0, 1, 2],
+                      outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+
+          {TAB_OPTIONS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                style={styles.tab}
+                onPress={() => handleTabPress(tab.id)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                testID={`${testID}-tab-${tab.id}`}
+              >
+                <Text
+                  style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {/* Content Area */}
@@ -220,7 +272,7 @@ function createStyles(
     tabContainer: {
       backgroundColor: colors.background,
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.lg,
     },
     tabsRow: {
       backgroundColor: colors.backgroundElevated,
@@ -230,6 +282,7 @@ function createStyles(
       gap: 4,
       position: 'relative',
       minHeight: 36,
+      alignSelf: 'flex-start',
     },
     slidingIndicator: {
       position: 'absolute',
@@ -240,7 +293,7 @@ function createStyles(
       left: 4,
     },
     tab: {
-      flex: 1,
+      width: 100,
       borderRadius: 100,
       paddingVertical: 2,
       paddingHorizontal: spacing.sm,
@@ -272,20 +325,14 @@ function createStyles(
       paddingVertical: spacing.xxl,
       paddingBottom: 60,
     },
-    title: {
-      fontSize: fontSizes.displayMedium,
-      fontWeight: fontWeights.bold,
-      fontStyle: 'italic',
-      lineHeight: fontSizes.displayMedium * lineHeights.display,
-      color: colors.textPrimary,
-      marginBottom: spacing.xxl,
-    },
     explanationContainer: {
       flex: 1,
     },
     emptyContainer: {
-      padding: spacing.xxl,
+      flex: 1,
+      justifyContent: 'center',
       alignItems: 'center',
+      padding: spacing.xxl,
     },
     emptyText: {
       fontSize: fontSizes.body,
@@ -297,13 +344,12 @@ function createStyles(
   const markdownStyles = StyleSheet.create({
     body: {
       fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      lineHeight: fontSizes.bodyLarge * lineHeights.body,
       color: colors.textPrimary,
     },
     heading1: {
       fontSize: fontSizes.heading1,
       fontWeight: fontWeights.bold,
-      fontStyle: 'italic',
       lineHeight: fontSizes.heading1 * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xxl,
@@ -312,30 +358,28 @@ function createStyles(
     heading2: {
       fontSize: fontSizes.heading2,
       fontWeight: fontWeights.semibold,
-      fontStyle: 'italic',
       lineHeight: fontSizes.heading2 * lineHeights.heading,
       color: colors.textPrimary,
-      marginTop: 64,
+      marginTop: spacing.xl,
       marginBottom: spacing.sm,
     },
     heading3: {
       fontSize: fontSizes.heading3,
       fontWeight: fontWeights.semibold,
-      fontStyle: 'italic',
       lineHeight: fontSizes.heading3 * lineHeights.heading,
       color: colors.textPrimary,
-      marginTop: 48,
+      marginTop: spacing.lg,
       marginBottom: spacing.sm,
     },
     paragraph: {
       fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
-      color: colors.textSecondary,
+      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      color: colors.textPrimary,
       marginBottom: spacing.md,
     },
     list_item: {
       fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      lineHeight: fontSizes.bodyLarge * lineHeights.body,
       color: colors.textSecondary,
       marginBottom: spacing.xs,
     },
@@ -356,6 +400,19 @@ function createStyles(
       backgroundColor: colors.border,
       height: 1,
       marginVertical: spacing.xxl,
+    },
+    blockquote: {
+      backgroundColor: colors.backgroundElevated,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.gold,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    blockquote_text: {
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      color: colors.textPrimary,
     },
   });
 

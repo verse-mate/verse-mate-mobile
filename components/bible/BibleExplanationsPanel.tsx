@@ -155,7 +155,7 @@ export function BibleExplanationsPanel({
   }, [currentData]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]} testID={testID}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>
       {/* Header Bar */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
@@ -279,7 +279,7 @@ function createStyles(
     tabContainer: {
       backgroundColor: colors.background,
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.lg,
     },
     tabsRow: {
       backgroundColor: colors.backgroundElevated,
@@ -289,6 +289,7 @@ function createStyles(
       gap: 4,
       position: 'relative',
       minHeight: 36,
+      alignSelf: 'flex-start',
     },
     slidingIndicator: {
       position: 'absolute',
@@ -299,7 +300,7 @@ function createStyles(
       left: 4,
     },
     tab: {
-      flex: 1,
+      width: 100,
       borderRadius: 100,
       paddingVertical: 2,
       paddingHorizontal: spacing.sm,
@@ -368,6 +369,19 @@ function createStyles(
       lineHeight: fontSizes.bodyLarge * lineHeights.body,
       color: colors.textPrimary,
       marginBottom: spacing.md,
+    },
+    blockquote: {
+      backgroundColor: colors.backgroundElevated,
+      borderLeftWidth: 4,
+      borderLeftColor: colors.gold,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    blockquote_text: {
+      fontSize: fontSizes.bodyLarge,
+      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      color: colors.textPrimary,
     },
   });
 
