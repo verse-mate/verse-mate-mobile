@@ -296,6 +296,7 @@ describe('AuthContext', () => {
     mockPostAuthLogin.mockResolvedValue({
       data: undefined,
       error: {
+        error: 'Invalid credentials',
         message: 'Invalid credentials',
         data: null,
       },

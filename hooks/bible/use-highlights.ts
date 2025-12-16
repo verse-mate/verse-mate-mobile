@@ -500,14 +500,9 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         return;
       }
 
-      // Call mutation
-      // Note: chapter_id is calculated as bookId * 1000 + chapterNumber for the database
-      const chapterId = params.bookId * 1000 + params.chapterNumber;
-
       await addMutation.mutateAsync({
         body: {
           user_id: user.id,
-          chapter_id: chapterId,
           book_id: params.bookId,
           chapter_number: params.chapterNumber,
           start_verse: params.startVerse,
@@ -517,7 +512,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           end_char: params.endChar,
           selected_text: params.selectedText,
         },
-      } as PostBibleHighlightAddData);
+      });
     },
     [isAuthenticated, user?.id, addMutation]
   );

@@ -321,6 +321,7 @@ describe('SettingsScreen', () => {
       mockPutAuthProfile.mockResolvedValue({
         data: undefined,
         error: {
+          error: 'EMAIL_ALREADY_EXISTS',
           message: 'EMAIL_ALREADY_EXISTS',
           data: { value: { message: 'EMAIL_ALREADY_EXISTS' } },
         },
