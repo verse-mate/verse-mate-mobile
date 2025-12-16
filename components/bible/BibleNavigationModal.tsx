@@ -115,11 +115,11 @@ function BibleNavigationModalComponent({
 }: BibleNavigationModalProps) {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { useSplitView } = useDeviceInfo();
+  const { useSplitView, isTablet } = useDeviceInfo();
   const modalSpecs = useMemo(() => getModalSpecs(mode), [mode]); // Define modalSpecs here
   const styles = useMemo(
-    () => createStyles(colors, mode, insets.top, modalSpecs, useSplitView),
-    [colors, mode, insets.top, modalSpecs, useSplitView]
+    () => createStyles(colors, mode, insets.top, modalSpecs, useSplitView, isTablet),
+    [colors, mode, insets.top, modalSpecs, useSplitView, isTablet]
   );
 
   // State for tab type: 'OT', 'NT', or 'TOPICS'
@@ -970,7 +970,8 @@ const createStyles = (
   mode: ThemeMode,
   topInset: number,
   modalSpecs: ReturnType<typeof getModalSpecs>,
-  useSplitView: boolean
+  useSplitView: boolean,
+  isTablet: boolean
 ) => {
   return StyleSheet.create({
     backdrop: {
@@ -1165,7 +1166,7 @@ const createStyles = (
       gap: spacing.md,
     },
     chapterButton: {
-      width: useSplitView ? 75 : '17.4%', // Smaller fixed width in landscape, 5 columns in portrait
+      width: isTablet ? 75 : '17.4%', // Smaller fixed width on tablets (both portrait & landscape), 5 columns on phones
       aspectRatio: 1,
       backgroundColor: modalSpecs.backgroundColor,
       borderRadius: 8,
