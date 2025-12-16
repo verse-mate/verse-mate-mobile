@@ -23,7 +23,7 @@ import {
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
   useSaveLastRead,
-} from '@/src/api/hooks';
+} from '@/src/api';
 
 // Centralized mocks - see hooks/bible/__mocks__/index.ts and __tests__/mocks/
 jest.mock('@/hooks/bible');

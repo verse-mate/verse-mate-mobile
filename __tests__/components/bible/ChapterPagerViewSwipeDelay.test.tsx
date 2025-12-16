@@ -14,7 +14,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react-native';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { useBibleTestaments } from '@/src/api/hooks';
+import { useBibleTestaments } from '@/src/api';
 import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
 
 // Mock dependencies

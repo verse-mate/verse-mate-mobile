@@ -154,6 +154,28 @@ export const apiHooksMock = {
     isLoading: false,
     error: null,
   })),
+
+  // Recently viewed books hooks
+  getUserRecentlyViewedBooksOptions: jest.fn(() => ({
+    queryKey: ['user', 'recently-viewed-books'],
+    queryFn: jest.fn().mockResolvedValue({ bookIds: [] }),
+  })),
+  postUserRecentlyViewedBooksSyncMutation: jest.fn(() => ({
+    mutationFn: jest.fn().mockResolvedValue({ bookIds: [] }),
+  })),
+
+  // Bible keys object for query key generation
+  bibleKeys: {
+    testaments: jest.fn(() => ['bible', 'testaments']),
+    books: jest.fn(() => ['bible', 'books']),
+    chapter: jest.fn(() => ['bible', 'chapter']),
+    explanation: jest.fn(() => ['bible', 'explanation']),
+    chapterId: jest.fn(() => ['bible', 'chapterId']),
+    bookmarks: jest.fn(() => ['bible', 'bookmarks']),
+    notes: jest.fn(() => ['bible', 'notes']),
+    highlights: jest.fn(() => ['bible', 'highlights']),
+    chapterHighlights: jest.fn(() => ['bible', 'chapterHighlights']),
+  },
 };
 
 // Default export for use in jest.mock factory

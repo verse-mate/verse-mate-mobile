@@ -43,7 +43,7 @@ import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { useBibleByLine } from '@/src/api/hooks';
+import { useBibleByLine } from '@/src/api';
 import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
