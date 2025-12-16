@@ -60,6 +60,13 @@ jest.mock('@/src/api', () => ({
   usePrefetchNextChapter: jest.fn(),
   usePrefetchPreviousChapter: jest.fn(),
   useTopicsSearch: jest.fn(),
+  getUserRecentlyViewedBooksOptions: jest.fn(() => ({
+    queryKey: ['user', 'recently-viewed-books'],
+    queryFn: jest.fn().mockResolvedValue({ bookIds: [] }),
+  })),
+  postUserRecentlyViewedBooksSyncMutation: jest.fn(() => ({
+    mutationFn: jest.fn().mockResolvedValue({ bookIds: [] }),
+  })),
 }));
 
 // Mock custom hooks from '@/hooks/bible'
