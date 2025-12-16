@@ -6,6 +6,7 @@
  *
  * @see Task 4.5 - Language and country settings on app launch
  * @see Task 4.6 - Platform super property and is_registered tracking
+ * @see Time-Based Analytics Spec - Phase 1: Lifecycle events and user properties
  */
 
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
@@ -64,6 +65,7 @@ function getLocaleInfo(): { language: string; country: string | undefined } {
  * - Registering platform super property (Task 4.6)
  * - Setting language and country user properties (Task 4.5)
  * - Setting is_registered: false for anonymous users (Task 4.6)
+ * - Setting first_seen_at ($set_once) and last_seen_at ($set) (Time-Based Analytics Phase 1)
  */
 function PostHogInitializer({ children }: { children: ReactNode }) {
   const posthog = usePostHog();
@@ -98,14 +100,23 @@ function PostHogInitializer({ children }: { children: ReactNode }) {
     // Get device locale information (Task 4.5)
     const { language, country } = getLocaleInfo();
 
-    // Set user properties for language and country (Task 4.5)
-    // Also set is_registered: false for anonymous users (Task 4.6)
-    // Use $set to update person properties for both anonymous and identified users
+    // Get current timestamp for session tracking (Time-Based Analytics Phase 1)
+    const now = new Date().toISOString();
+
+    // Set user properties for language, country, and time-based tracking
+    // Uses both $set (updates existing) and $set_once (only sets if not already set)
+    // - first_seen_at: Only set on first app launch (never overwritten)
+    // - last_seen_at: Updated on every app session
+    // - is_registered: false for anonymous users (Task 4.6)
     posthog.capture('$set', {
+      $set_once: {
+        first_seen_at: now, // Only sets if not already set (first app launch)
+      },
       $set: {
         language_setting: language,
         ...(country && { country }),
         is_registered: false, // Will be updated to true on login/signup
+        last_seen_at: now, // Updated on every session
       },
     });
   }, [posthog]);
@@ -130,8 +141,10 @@ export function AppPostHogProvider({ children }: { children: ReactNode }) {
         host: posthogHost,
         // Enable session replay based on environment variable
         enableSessionReplay: sessionReplayEnabled,
-        // Note: captureScreens is not a valid option in current PostHog SDK
-        // Screen tracking is enabled by default with Expo Router
+        // Enable automatic app lifecycle events tracking (Time-Based Analytics Phase 1)
+        // This automatically captures: Application Installed, Application Updated,
+        // Application Opened, Application Became Active, Application Backgrounded
+        captureAppLifecycleEvents: true,
       }}
     >
       <PostHogInitializer>{children}</PostHogInitializer>
