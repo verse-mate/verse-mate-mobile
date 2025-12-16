@@ -5,6 +5,7 @@
  * All event names use UPPER_SNAKE_CASE convention.
  *
  * @see Spec: agent-os/specs/2025-12-15-posthog-product-analytics/spec.md
+ * @see Spec: agent-os/specs/time-based-analytics/spec.md
  */
 
 /**
@@ -39,6 +40,12 @@ export enum AnalyticsEvent {
   SIGNUP_COMPLETED = 'SIGNUP_COMPLETED',
   LOGIN_COMPLETED = 'LOGIN_COMPLETED',
   LOGOUT = 'LOGOUT',
+
+  // Time-Based Analytics Events (Phase 2-3)
+  CHAPTER_READING_DURATION = 'CHAPTER_READING_DURATION',
+  VIEW_MODE_DURATION = 'VIEW_MODE_DURATION',
+  TOOLTIP_READING_DURATION = 'TOOLTIP_READING_DURATION',
+  CHAPTER_SCROLL_DEPTH = 'CHAPTER_SCROLL_DEPTH',
 }
 
 // ============================================================================
@@ -170,6 +177,72 @@ export interface LoginCompletedProperties {
 export type LogoutProperties = Record<string, never>;
 
 // ============================================================================
+// Time-Based Analytics Event Properties (Phase 2-3)
+// ============================================================================
+
+/**
+ * Chapter Reading Duration Event Properties
+ * Fired when user exits a chapter, tracks total reading time
+ */
+export interface ChapterReadingDurationProperties {
+  /** Total reading time in seconds */
+  duration_seconds: number;
+  /** Book ID (1-66) */
+  bookId: number;
+  /** Chapter number */
+  chapterNumber: number;
+  /** Bible version (e.g., 'NASB1995') */
+  bibleVersion: string;
+}
+
+/**
+ * View Mode Duration Event Properties
+ * Fired when user switches view mode or exits chapter
+ */
+export interface ViewModeDurationProperties {
+  /** View mode that was active ('bible' | 'explanations') */
+  viewMode: 'bible' | 'explanations';
+  /** Time spent in this mode in seconds */
+  duration_seconds: number;
+  /** Book ID (1-66) */
+  bookId: number;
+  /** Chapter number */
+  chapterNumber: number;
+  /** Bible version (e.g., 'NASB1995') */
+  bibleVersion: string;
+}
+
+/**
+ * Tooltip Reading Duration Event Properties
+ * Fired when tooltip closes (with 3-second minimum threshold)
+ */
+export interface TooltipReadingDurationProperties {
+  /** Time tooltip was open in seconds */
+  duration_seconds: number;
+  /** Book ID */
+  bookId: number;
+  /** Chapter number */
+  chapterNumber: number;
+  /** Verse number */
+  verseNumber: number;
+}
+
+/**
+ * Chapter Scroll Depth Event Properties
+ * Fired on chapter exit with maximum scroll depth reached
+ */
+export interface ChapterScrollDepthProperties {
+  /** Maximum scroll depth as percentage (0-100) */
+  maxScrollDepthPercent: number;
+  /** Book ID */
+  bookId: number;
+  /** Chapter number */
+  chapterNumber: number;
+  /** Bible version (e.g., 'NASB1995') */
+  bibleVersion: string;
+}
+
+// ============================================================================
 // Event Properties Type Map
 // ============================================================================
 
@@ -198,6 +271,11 @@ export interface EventProperties {
   [AnalyticsEvent.SIGNUP_COMPLETED]: SignupCompletedProperties;
   [AnalyticsEvent.LOGIN_COMPLETED]: LoginCompletedProperties;
   [AnalyticsEvent.LOGOUT]: LogoutProperties;
+  // Time-Based Analytics Events
+  [AnalyticsEvent.CHAPTER_READING_DURATION]: ChapterReadingDurationProperties;
+  [AnalyticsEvent.VIEW_MODE_DURATION]: ViewModeDurationProperties;
+  [AnalyticsEvent.TOOLTIP_READING_DURATION]: TooltipReadingDurationProperties;
+  [AnalyticsEvent.CHAPTER_SCROLL_DEPTH]: ChapterScrollDepthProperties;
 }
 
 // ============================================================================
@@ -227,4 +305,46 @@ export interface UserProperties {
   firstName?: string;
   /** Last name */
   lastName?: string;
+
+  // ============================================================================
+  // Time-Based User Properties (Phase 1)
+  // ============================================================================
+
+  /**
+   * Timestamp of user's last login (ISO 8601 format)
+   * Set on login(), loginWithSSO() - NOT on restoreSession()
+   * @example '2025-12-15T10:30:00.000Z'
+   */
+  last_login_at?: string;
+
+  /**
+   * Timestamp of when user was first seen (ISO 8601 format)
+   * Set using $set_once on first app launch - never overwritten
+   * @example '2025-12-01T00:00:00.000Z'
+   */
+  first_seen_at?: string;
+
+  /**
+   * Timestamp of when user was last seen (ISO 8601 format)
+   * Updated on every app session
+   * @example '2025-12-15T10:30:00.000Z'
+   */
+  last_seen_at?: string;
+
+  // ============================================================================
+  // Streak Tracking User Properties (Phase 3)
+  // ============================================================================
+
+  /**
+   * Number of consecutive days the user has opened the app
+   * Increments when app opened on consecutive day, resets to 1 if gap
+   */
+  current_streak?: number;
+
+  /**
+   * Date of last app activity (YYYY-MM-DD format)
+   * Used to calculate streak continuity
+   * @example '2025-12-15'
+   */
+  last_active_date?: string;
 }

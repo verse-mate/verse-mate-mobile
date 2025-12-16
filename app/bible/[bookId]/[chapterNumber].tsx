@@ -14,6 +14,7 @@
  * @see Task Group 4 - Integration with ChapterPagerView (native page-based swipe navigation)
  * @see Task Group 8.4 - Integrate ProgressBar with chapter screen
  * @see Task Group 9.3 - Add deep link validation in chapter screen
+ * @see Time-Based Analytics - Chapter reading duration tracking
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -34,7 +35,14 @@ import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useActiveTab, useActiveView, useBookProgress, useLastReadPosition } from '@/hooks/bible';
+import {
+  useActiveTab,
+  useActiveView,
+  useBookProgress,
+  useChapterReadingDuration,
+  useLastReadPosition,
+  useViewModeDuration,
+} from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
@@ -75,6 +83,7 @@ const CENTER_INDEX = 2;
  * - Offline indicator (Task 8.6)
  * - View mode switching (Bible vs Explanations)
  * - Analytics tracking for CHAPTER_VIEWED (Task 4.2)
+ * - Chapter reading duration tracking (Time-Based Analytics)
  */
 export default function ChapterScreen() {
   // Extract and validate route params
@@ -101,6 +110,18 @@ export default function ChapterScreen() {
 
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
+
+  // Use validated params for API calls (defined early for hooks)
+  const validBookId = Math.max(1, Math.min(66, bookId));
+  const validChapter = Math.max(1, chapterNumber);
+
+  // Track chapter reading duration (Time-Based Analytics)
+  // Hook fires CHAPTER_READING_DURATION event on unmount with AppState awareness
+  useChapterReadingDuration(validBookId, validChapter, bibleVersion);
+
+  // Track view mode duration (Time-Based Analytics)
+  // Hook fires VIEW_MODE_DURATION event when view mode changes or on unmount
+  useViewModeDuration(activeView, validBookId, validChapter, bibleVersion);
 
   // Ensure deep-linked verse jumps use Bible view so scroll-to-verse can run
   // Only force on initial mount, not when user switches tabs manually
@@ -170,10 +191,6 @@ export default function ChapterScreen() {
     }
     // Note: router is stable and doesn't need to be in dependencies
   }, [bookId, chapterNumber, bookMetadata]);
-
-  // Use validated params for API calls
-  const validBookId = Math.max(1, Math.min(66, bookId));
-  const validChapter = Math.max(1, chapterNumber);
 
   // Calculate progress percentage (Task 8.4)
   const { progress } = useBookProgress(validBookId, validChapter, totalChapters);

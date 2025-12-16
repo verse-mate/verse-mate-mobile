@@ -25,16 +25,16 @@ import {
   useSaveLastRead,
 } from '@/src/api/generated';
 
-// Mock specific hooks to avoid side effects and act() warnings
-jest.mock('@/hooks/bible/use-recent-books', () => ({
-  useRecentBooks: jest.fn(() => ({
-    recentBooks: [],
-    addRecentBook: jest.fn(),
-    isLoading: false,
-    error: null,
-  })),
+// Centralized mocks - see hooks/bible/__mocks__/index.ts and __tests__/mocks/
+jest.mock('@/hooks/bible');
+jest.mock('@/src/api/generated', () => require('../../../mocks/api-hooks.mock').default);
+jest.mock('expo-router', () => require('../../../mocks/expo-router.mock').default);
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
 }));
 
+// Component-specific mocks
 jest.mock('@/hooks/bible/use-fab-visibility', () => ({
   useFABVisibility: jest.fn(() => ({
     visible: true,
@@ -42,23 +42,9 @@ jest.mock('@/hooks/bible/use-fab-visibility', () => ({
     handleTap: jest.fn(),
   })),
 }));
-
-// Mock OfflineIndicator to avoid network state updates
 jest.mock('@/components/bible/OfflineIndicator', () => ({
   OfflineIndicator: () => null,
 }));
-
-// Mock dependencies
-jest.mock('expo-router', () => ({
-  useNavigation: jest.fn(() => ({})),
-  useLocalSearchParams: jest.fn(),
-  router: {
-    push: jest.fn(),
-    replace: jest.fn(),
-  },
-}));
-
-// Mock AuthContext
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(() => ({
     isAuthenticated: false,
@@ -68,37 +54,6 @@ jest.mock('@/contexts/AuthContext', () => ({
     logout: jest.fn(),
     signup: jest.fn(),
   })),
-}));
-
-jest.mock('@/src/api/generated', () => ({
-  useBibleChapter: jest.fn(),
-  useSaveLastRead: jest.fn(),
-  useBibleTestaments: jest.fn(),
-  useBibleSummary: jest.fn(),
-  useBibleByLine: jest.fn(),
-  useBibleDetailed: jest.fn(),
-  usePrefetchNextChapter: jest.fn(),
-  usePrefetchPreviousChapter: jest.fn(),
-  useTopicsSearch: jest.fn(),
-}));
-
-jest.mock('@/hooks/bible', () => {
-  const React = require('react');
-  return {
-    useActiveTab: jest.fn(),
-    useBookProgress: jest.fn(),
-    useRecentBooks: jest.fn(),
-    useLastReadPosition: jest.fn(),
-    useActiveView: jest.fn(() => {
-      const [activeView, setActiveView] = React.useState('bible');
-      return { activeView, setActiveView };
-    }),
-  };
-});
-
-jest.mock('@react-native-community/netinfo', () => ({
-  addEventListener: jest.fn(() => jest.fn()), // Return unsubscribe function
-  fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
 }));
 
 // Mock haptics

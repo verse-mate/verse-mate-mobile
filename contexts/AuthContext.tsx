@@ -6,6 +6,7 @@
  *
  * @see Task Group 4: Authentication Context and Hooks
  * @see Task Group 5: SSO Integration
+ * @see Time-Based Analytics Spec - Phase 1: last_login_at user property
  */
 
 import {
@@ -199,6 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * Login method implementation
+   * Sets last_login_at timestamp for time-based analytics tracking
    */
   const login = async (email: string, password: string): Promise<void> => {
     const { data, error } = await postAuthLogin({
@@ -233,13 +235,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       lastName: userSession.lastName,
     });
 
-    // Track analytics: identify with account_type and fire LOGIN_COMPLETED event
+    // Track analytics: identify with account_type, last_login_at, and fire LOGIN_COMPLETED event
+    // last_login_at is set here (new login) but NOT on restoreSession() (Time-Based Analytics Phase 1)
     analytics.identify(userSession.id, {
       email: userSession.email,
       firstName: userSession.firstName,
       lastName: userSession.lastName,
       account_type: 'email',
       is_registered: true,
+      last_login_at: new Date().toISOString(),
     });
     analytics.track(AnalyticsEvent.LOGIN_COMPLETED, { method: 'email' });
   };
@@ -296,6 +300,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * SSO Login method implementation
+   * Sets last_login_at timestamp for time-based analytics tracking
    */
   const loginWithSSO = async (
     provider: SSOProvider,
@@ -342,13 +347,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       ssoProvider: provider,
     });
 
-    // Track analytics: identify with account_type and fire appropriate event
+    // Track analytics: identify with account_type, last_login_at, and fire appropriate event
+    // last_login_at is set here (new login) but NOT on restoreSession() (Time-Based Analytics Phase 1)
     analytics.identify(userSession.id, {
       email: userSession.email,
       firstName: userSession.firstName,
       lastName: userSession.lastName,
       account_type: provider,
       is_registered: true,
+      last_login_at: new Date().toISOString(),
     });
 
     // For SSO, we track LOGIN_COMPLETED. If backend indicates new user, also track SIGNUP_COMPLETED
@@ -383,6 +390,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * Restore session method implementation
+   * Note: Does NOT set last_login_at as session restore is not a new login
+   * (Time-Based Analytics Phase 1)
    */
   const restoreSession = async (): Promise<void> => {
     try {
@@ -415,6 +424,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
 
       // Track analytics: identify user on session restore (no LOGIN event - just restoring existing session)
+      // Note: last_login_at is intentionally NOT set here (Time-Based Analytics Phase 1)
+      // Session restore is not a login - last_login_at should only be updated on actual login
       analytics.identify(userSession.id, {
         email: userSession.email,
         firstName: userSession.firstName,

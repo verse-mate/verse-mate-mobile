@@ -25,7 +25,16 @@ import {
   useSaveLastRead,
 } from '@/src/api/generated';
 
-// Mock highlights hooks
+// Centralized mocks - see hooks/bible/__mocks__/index.ts and __tests__/mocks/
+jest.mock('@/hooks/bible');
+jest.mock('@/src/api/generated', () => require('../../mocks/api-hooks.mock').default);
+jest.mock('expo-router', () => require('../../mocks/expo-router.mock').default);
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
+}));
+
+// Component-specific mocks
 jest.mock('@/hooks/bible/use-highlights', () => ({
   useHighlights: jest.fn(() => ({
     chapterHighlights: [],
@@ -34,23 +43,11 @@ jest.mock('@/hooks/bible/use-highlights', () => ({
     deleteHighlight: jest.fn(),
   })),
 }));
-
 jest.mock('@/hooks/bible/use-auto-highlights', () => ({
   useAutoHighlights: jest.fn(() => ({
     autoHighlights: [],
   })),
 }));
-
-// Mock dependencies
-jest.mock('expo-router', () => ({
-  useLocalSearchParams: jest.fn(),
-  router: {
-    push: jest.fn(),
-    replace: jest.fn(),
-  },
-}));
-
-// Mock AuthContext
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(() => ({
     isAuthenticated: false,
@@ -60,37 +57,6 @@ jest.mock('@/contexts/AuthContext', () => ({
     logout: jest.fn(),
     signup: jest.fn(),
   })),
-}));
-
-jest.mock('@/src/api/generated', () => ({
-  useBibleChapter: jest.fn(),
-  useSaveLastRead: jest.fn(),
-  useBibleTestaments: jest.fn(),
-  useBibleSummary: jest.fn(),
-  useBibleByLine: jest.fn(),
-  useBibleDetailed: jest.fn(),
-  usePrefetchNextChapter: jest.fn(),
-  usePrefetchPreviousChapter: jest.fn(),
-  useTopicsSearch: jest.fn(),
-}));
-
-jest.mock('@/hooks/bible', () => {
-  const React = require('react');
-  return {
-    useActiveTab: jest.fn(),
-    useActiveView: jest.fn(() => {
-      const [activeView, setActiveView] = React.useState('bible');
-      return { activeView, setActiveView, isLoading: false, error: null };
-    }),
-    useBookProgress: jest.fn(),
-    useRecentBooks: jest.fn(),
-    useLastReadPosition: jest.fn(),
-  };
-});
-
-jest.mock('@react-native-community/netinfo', () => ({
-  addEventListener: jest.fn(() => jest.fn()), // Return unsubscribe function
-  fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
 }));
 
 // Mock chapter data

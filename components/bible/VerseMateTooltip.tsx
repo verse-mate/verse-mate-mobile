@@ -15,6 +15,7 @@
  * - Swipe up to expand, swipe down to dismiss
  *
  * @see Task 4.7 - Analytics tracking for VERSEMATE_TOOLTIP_OPENED
+ * @see Time-Based Analytics - TOOLTIP_READING_DURATION tracking (3-second threshold)
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -46,6 +47,12 @@ import { useBibleByLine } from '@/src/api/generated/hooks';
 import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
+
+/**
+ * Minimum duration in seconds for tooltip reading to be tracked
+ * Filters out accidental taps or brief views
+ */
+const TOOLTIP_DURATION_THRESHOLD_SECONDS = 3;
 
 interface VerseMateTooltipProps {
   /** Verse number (for plain verses) or null */
@@ -128,6 +135,9 @@ export function VerseMateTooltip({
   // Ref to track if analytics event has been fired for this tooltip open
   const hasTrackedOpen = useRef(false);
 
+  // Ref to track when tooltip was opened (for duration tracking)
+  const openTimestampRef = useRef<number | null>(null);
+
   // Get screen height to start modal completely off-screen
   const screenHeight = Dimensions.get('window').height;
 
@@ -154,6 +164,9 @@ export function VerseMateTooltip({
   // Helper to animate open
   const animateOpen = useCallback(() => {
     setInternalVisible(true);
+    // Record the open timestamp for duration tracking
+    openTimestampRef.current = Date.now();
+
     Animated.parallel([
       Animated.timing(backdropOpacity, {
         toValue: 1,
@@ -172,6 +185,22 @@ export function VerseMateTooltip({
   // Helper to animate close
   const animateClose = useCallback(
     (callback?: () => void) => {
+      // Calculate and track duration (Time-Based Analytics)
+      if (openTimestampRef.current && targetVerseNumber) {
+        const durationMs = Date.now() - openTimestampRef.current;
+        const durationSeconds = Math.floor(durationMs / 1000);
+
+        // Only track if tooltip was open for >= 3 seconds (filter accidental taps)
+        if (durationSeconds >= TOOLTIP_DURATION_THRESHOLD_SECONDS) {
+          analytics.track(AnalyticsEvent.TOOLTIP_READING_DURATION, {
+            duration_seconds: durationSeconds,
+            bookId,
+            chapterNumber,
+            verseNumber: targetVerseNumber,
+          });
+        }
+      }
+
       Animated.parallel([
         Animated.timing(backdropOpacity, {
           toValue: 0,
@@ -195,10 +224,20 @@ export function VerseMateTooltip({
         setExpanded(!isMultiVerse); // Reset to default state
         expansionAnim.setValue(!isMultiVerse ? 1 : 0);
         hasTrackedOpen.current = false; // Reset tracking flag
+        openTimestampRef.current = null; // Reset open timestamp
         if (callback) callback();
       }, 150);
     },
-    [backdropOpacity, slideAnim, screenHeight, expansionAnim, isMultiVerse]
+    [
+      backdropOpacity,
+      slideAnim,
+      screenHeight,
+      expansionAnim,
+      isMultiVerse,
+      bookId,
+      chapterNumber,
+      targetVerseNumber,
+    ]
   );
 
   // Handle expansion animation
