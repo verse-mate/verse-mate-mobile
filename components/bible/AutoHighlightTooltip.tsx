@@ -31,6 +31,7 @@ import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bib
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useBibleByLine } from '@/src/api/generated/hooks';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import {
@@ -81,9 +82,10 @@ export function AutoHighlightTooltip({
 }: AutoHighlightTooltipProps) {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
+  const { isTablet } = useDeviceInfo();
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom),
-    [colors, insets.bottom]
+    () => createStyles(colors, insets.bottom, isTablet),
+    [colors, insets.bottom, isTablet]
   );
 
   // Determine if this is a multi-verse highlight
@@ -555,11 +557,16 @@ export function AutoHighlightTooltip({
  * Creates all styles for AutoHighlightTooltip component
  * Returns both component styles and markdown styles in a single factory
  */
-const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number) => {
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  bottomInset: number,
+  isTablet: boolean
+) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
+      alignItems: isTablet ? 'center' : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -570,6 +577,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       maxHeight: '80%',
+      width: isTablet ? '60%' : '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {

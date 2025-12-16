@@ -39,6 +39,7 @@ import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bib
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useBibleByLine } from '@/src/api/generated/hooks';
 import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
@@ -99,9 +100,10 @@ export function VerseMateTooltip({
   const { colors, mode } = useTheme();
   const { bibleVersion } = useBibleVersion();
   const insets = useSafeAreaInsets();
+  const { isTablet } = useDeviceInfo();
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom),
-    [colors, insets.bottom]
+    () => createStyles(colors, insets.bottom, isTablet),
+    [colors, insets.bottom, isTablet]
   );
 
   // ... (rest of the component state and hooks)
@@ -587,11 +589,16 @@ export function VerseMateTooltip({
 /**
  * Creates all styles for VerseMateTooltip component
  */
-const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number) => {
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  bottomInset: number,
+  isTablet: boolean
+) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
+      alignItems: isTablet ? 'center' : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -602,6 +609,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       maxHeight: '80%',
+      width: isTablet ? '60%' : '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {
