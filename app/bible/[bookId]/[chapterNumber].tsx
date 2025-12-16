@@ -54,7 +54,7 @@ import {
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
   useSaveLastRead,
-} from '@/src/api/generated';
+} from '@/src/api';
 
 /**
  * View mode type for Bible reading interface

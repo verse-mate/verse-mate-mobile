@@ -16,10 +16,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
-import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
+import { useBibleTestaments, useTopicsSearch } from '@/src/api';
 
 // Mock dependencies
-jest.mock('@/src/api/generated');
+jest.mock('@/src/api');
 jest.mock('@/hooks/bible/use-recent-books');
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),

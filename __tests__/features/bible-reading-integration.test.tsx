@@ -27,11 +27,11 @@ import {
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
   useSaveLastRead,
-} from '@/src/api/generated';
+} from '@/src/api';
 
 // Centralized mocks - see hooks/bible/__mocks__/index.ts and __tests__/mocks/
 jest.mock('@/hooks/bible');
-jest.mock('@/src/api/generated', () => require('../mocks/api-hooks.mock').default);
+jest.mock('@/src/api', () => require('../mocks/api-hooks.mock').default);
 jest.mock('expo-router', () => require('../mocks/expo-router.mock').default);
 jest.mock('@react-native-community/netinfo', () => ({
   addEventListener: jest.fn(() => jest.fn()),
@@ -286,7 +286,7 @@ describe('Bible Reading Interface - Integration Tests', () => {
     (usePrefetchNextChapter as jest.Mock).mockReturnValue(jest.fn());
     (usePrefetchPreviousChapter as jest.Mock).mockReturnValue(jest.fn());
 
-    const { useTopicsSearch } = require('@/src/api/generated');
+    const { useTopicsSearch } = require('@/src/api');
     (useTopicsSearch as jest.Mock).mockReturnValue({
       data: [],
       isLoading: false,

@@ -27,7 +27,7 @@
  */
 
 import { useMemo } from 'react';
-import type { TestamentBook } from '@/src/api/generated';
+import type { TestamentBook } from '@/src/api';
 
 /**
  * Chapter location reference

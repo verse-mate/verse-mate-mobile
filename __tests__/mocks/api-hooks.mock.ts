@@ -1,14 +1,14 @@
 /**
- * Default mock configuration for @/src/api/generated hooks
+ * Default mock configuration for @/src/api hooks
  *
  * Usage in test files:
  * ```typescript
- * jest.mock('@/src/api/generated', () => require('../../mocks/api-hooks.mock').apiHooksMock);
+ * jest.mock('@/src/api', () => require('../../mocks/api-hooks.mock').apiHooksMock);
  * ```
  *
  * Then customize in beforeEach:
  * ```typescript
- * import { useBibleChapter } from '@/src/api/generated';
+ * import { useBibleChapter } from '@/src/api';
  * beforeEach(() => {
  *   (useBibleChapter as jest.Mock).mockReturnValue({ data: mockData, isLoading: false });
  * });

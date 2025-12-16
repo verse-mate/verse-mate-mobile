@@ -20,10 +20,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TopicPage } from '@/components/topics/TopicPage';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
-import { useTopicById, useTopicReferences } from '@/src/api/generated';
+import { useTopicById, useTopicReferences } from '@/src/api';
 
 // Mock the API hooks
-jest.mock('@/src/api/generated', () => ({
+jest.mock('@/src/api', () => ({
   useTopicById: jest.fn(),
   useTopicReferences: jest.fn(),
 }));

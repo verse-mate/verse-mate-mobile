@@ -25,7 +25,7 @@ import {
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
   useSaveLastRead,
-} from '@/src/api/generated';
+} from '@/src/api';
 import ChapterScreen from '../[bookId]/[chapterNumber]';
 
 // Mock expo-router
@@ -50,7 +50,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 }));
 
 // Mock API hooks
-jest.mock('@/src/api/generated', () => ({
+jest.mock('@/src/api', () => ({
   useBibleChapter: jest.fn(),
   useSaveLastRead: jest.fn(),
   useBibleTestaments: jest.fn(),
@@ -219,7 +219,7 @@ describe('ChapterScreen - View Mode State', () => {
     (usePrefetchNextChapter as jest.Mock).mockReturnValue(jest.fn());
     (usePrefetchPreviousChapter as jest.Mock).mockReturnValue(jest.fn());
 
-    const { useTopicsSearch } = require('@/src/api/generated');
+    const { useTopicsSearch } = require('@/src/api');
     (useTopicsSearch as jest.Mock).mockReturnValue({
       data: [],
       isLoading: false,

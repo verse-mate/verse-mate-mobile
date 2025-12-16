@@ -35,7 +35,7 @@ import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible'
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useTopicNavigation } from '@/hooks/topics/use-topic-navigation';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { useTopicById, useTopicsSearch } from '@/src/api/generated';
+import { useTopicById, useTopicsSearch } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
 import { generateTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
