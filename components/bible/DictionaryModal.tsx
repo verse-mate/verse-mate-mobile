@@ -48,6 +48,7 @@ import {
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNativeDictionary } from '@/hooks/use-native-dictionary';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { isValidStrongsNumber, lookup } from '@/services/lexicon-service';
 import { getStrongsNumber, hasStrongsNumber } from '@/services/word-mapping-service';
 import type { StrongsEntry } from '@/types/dictionary';
@@ -118,6 +119,13 @@ export function DictionaryModal({ visible, word, strongsNumber, onClose }: Dicti
           const result = await lookup(strongsNum);
           if (result.found && result.entry) {
             strongsEntry = result.entry;
+
+            // Track analytics: DICTIONARY_LOOKUP event on successful lookup
+            const language = strongsNum.startsWith('G') ? 'greek' : 'hebrew';
+            analytics.track(AnalyticsEvent.DICTIONARY_LOOKUP, {
+              strongsNumber: strongsNum,
+              language: language as 'greek' | 'hebrew',
+            });
           }
         }
 

@@ -16,6 +16,7 @@ import {
   setRefreshToken,
 } from '@/lib/auth/token-storage';
 import { setupProactiveRefresh } from '@/lib/auth/token-refresh';
+import { analytics, AnalyticsEvent } from '@/lib/analytics';
 import {
   getAuthSession,
   postAuthLogin,
@@ -118,6 +119,7 @@ interface SSOAuthResponse {
   accessToken: string;
   refreshToken?: string;
   verified?: boolean;
+  isNewUser?: boolean;
 }
 
 /**
@@ -230,6 +232,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       firstName: userSession.firstName,
       lastName: userSession.lastName,
     });
+
+    // Track analytics: identify with account_type and fire LOGIN_COMPLETED event
+    analytics.identify(userSession.id, {
+      email: userSession.email,
+      firstName: userSession.firstName,
+      lastName: userSession.lastName,
+      account_type: 'email',
+      is_registered: true,
+    });
+    analytics.track(AnalyticsEvent.LOGIN_COMPLETED, { method: 'email' });
   };
 
   /**
@@ -270,6 +282,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       firstName: userSession.firstName,
       lastName: userSession.lastName,
     });
+
+    // Track analytics: identify with account_type and fire SIGNUP_COMPLETED event
+    analytics.identify(userSession.id, {
+      email: userSession.email,
+      firstName: userSession.firstName,
+      lastName: userSession.lastName,
+      account_type: 'email',
+      is_registered: true,
+    });
+    analytics.track(AnalyticsEvent.SIGNUP_COMPLETED, { method: 'email' });
   };
 
   /**
@@ -319,6 +341,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
       lastName: userSession.lastName,
       ssoProvider: provider,
     });
+
+    // Track analytics: identify with account_type and fire appropriate event
+    analytics.identify(userSession.id, {
+      email: userSession.email,
+      firstName: userSession.firstName,
+      lastName: userSession.lastName,
+      account_type: provider,
+      is_registered: true,
+    });
+
+    // For SSO, we track LOGIN_COMPLETED. If backend indicates new user, also track SIGNUP_COMPLETED
+    if (data.isNewUser) {
+      analytics.track(AnalyticsEvent.SIGNUP_COMPLETED, { method: provider });
+    }
+    analytics.track(AnalyticsEvent.LOGIN_COMPLETED, { method: provider });
   };
 
   /**
@@ -330,6 +367,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       proactiveRefreshCleanup();
       setProactiveRefreshCleanup(null);
     }
+
+    // Track analytics: fire LOGOUT event before resetting identity
+    analytics.track(AnalyticsEvent.LOGOUT, {});
 
     // Clear tokens from storage
     await clearTokens();
@@ -372,6 +412,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         email: userSession.email,
         firstName: userSession.firstName,
         lastName: userSession.lastName,
+      });
+
+      // Track analytics: identify user on session restore (no LOGIN event - just restoring existing session)
+      analytics.identify(userSession.id, {
+        email: userSession.email,
+        firstName: userSession.firstName,
+        lastName: userSession.lastName,
+        is_registered: true,
       });
     } catch (error) {
       console.error('Failed to restore session:', error);

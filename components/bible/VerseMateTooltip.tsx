@@ -10,9 +10,11 @@
  * - Single verse: starts expanded
  * - Multi-verse: starts collapsed
  * - Context-aware actions:
- *   - Plain verse → "Save as My Highlight" (opens color picker)
- *   - Highlighted verse → Shows color info + "Remove Highlight" (red)
+ *   - Plain verse -> "Save as My Highlight" (opens color picker)
+ *   - Highlighted verse -> Shows color info + "Remove Highlight" (red)
  * - Swipe up to expand, swipe down to dismiss
+ *
+ * @see Task 4.7 - Analytics tracking for VERSEMATE_TOOLTIP_OPENED
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +41,7 @@ import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bib
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useBibleByLine } from '@/src/api/generated/hooks';
 import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
@@ -122,6 +125,9 @@ export function VerseMateTooltip({
   // State for delete confirmation modal
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
+  // Ref to track if analytics event has been fired for this tooltip open
+  const hasTrackedOpen = useRef(false);
+
   // Get screen height to start modal completely off-screen
   const screenHeight = Dimensions.get('window').height;
 
@@ -188,6 +194,7 @@ export function VerseMateTooltip({
         setInternalVisible(false);
         setExpanded(!isMultiVerse); // Reset to default state
         expansionAnim.setValue(!isMultiVerse ? 1 : 0);
+        hasTrackedOpen.current = false; // Reset tracking flag
         if (callback) callback();
       }, 150);
     },
@@ -212,10 +219,31 @@ export function VerseMateTooltip({
       setExpanded(shouldBeExpanded);
       expansionAnim.setValue(shouldBeExpanded ? 1 : 0); // Set immediately without animation
       animateOpen();
+
+      // Track analytics: VERSEMATE_TOOLTIP_OPENED (Task 4.7)
+      // Only track once per tooltip open, not on re-renders
+      if (!hasTrackedOpen.current && targetVerseNumber) {
+        hasTrackedOpen.current = true;
+        analytics.track(AnalyticsEvent.VERSEMATE_TOOLTIP_OPENED, {
+          bookId,
+          chapterNumber,
+          verseNumber: targetVerseNumber,
+        });
+      }
     } else if (internalVisible) {
       animateClose();
     }
-  }, [visible, animateOpen, animateClose, internalVisible, isMultiVerse, expansionAnim]);
+  }, [
+    visible,
+    animateOpen,
+    animateClose,
+    internalVisible,
+    isMultiVerse,
+    expansionAnim,
+    bookId,
+    chapterNumber,
+    targetVerseNumber,
+  ]);
 
   // Handle explicit dismiss (user action)
   const handleDismiss = () => {
