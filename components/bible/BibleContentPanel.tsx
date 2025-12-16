@@ -15,11 +15,13 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
 import {
+  animationDurations,
   fontSizes,
   fontWeights,
   type getColors,
@@ -77,6 +79,9 @@ export interface BibleContentPanelProps {
   /** Target end verse for multi-verse highlights */
   targetEndVerse?: number;
 
+  /** Whether navigation buttons should be visible (fades in/out based on user interaction) */
+  visible?: boolean;
+
   /** Test ID for testing */
   testID?: string;
 }
@@ -102,6 +107,7 @@ export function BibleContentPanel({
   onTap,
   targetVerse,
   targetEndVerse,
+  visible = true,
   testID = 'bible-content-panel',
 }: BibleContentPanelProps) {
   const { mode, colors } = useTheme();
@@ -114,6 +120,16 @@ export function BibleContentPanel({
 
   // Calculate progress percentage
   const { progress } = useBookProgress(bookId, chapterNumber, totalChapters);
+
+  // Animated opacity value for fade in/out
+  const opacity = useSharedValue(visible ? 1 : 0);
+
+  // Update opacity when visibility changes
+  useEffect(() => {
+    opacity.value = withTiming(visible ? 1 : 0, {
+      duration: animationDurations.normal,
+    });
+  }, [visible, opacity]);
 
   // Handle previous navigation
   const handlePrevious = useCallback(() => {
@@ -136,6 +152,11 @@ export function BibleContentPanel({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   }, [canGoNext, onNavigateNext]);
+
+  // Animated style for fade in/out
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>
@@ -169,7 +190,7 @@ export function BibleContentPanel({
       <ReadingProgressBar progress={progress.percentage} />
 
       {/* Floating Navigation Buttons */}
-      <View style={styles.navButtonsContainer} pointerEvents="box-none">
+      <Animated.View style={[styles.navButtonsContainer, animatedStyle]} pointerEvents="box-none">
         {/* Previous Button */}
         <Pressable
           style={[styles.navButton, !canGoPrevious && styles.navButtonDisabled]}
@@ -201,7 +222,7 @@ export function BibleContentPanel({
             color={canGoNext ? specs.navButtonIconColor : 'rgba(255,255,255,0.3)'}
           />
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -240,7 +261,7 @@ function createStyles(
     },
     navButtonsContainer: {
       position: 'absolute',
-      top: '50%',
+      top: '50%', // Stay centered - don't move up
       left: 0,
       right: 0,
       flexDirection: 'row',
