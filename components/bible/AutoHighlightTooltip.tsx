@@ -34,7 +34,7 @@ import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { useBibleByLine } from '@/src/api/generated/hooks';
+import { useBibleByLine } from '@/src/api';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import {
   extractVerseTextFromByLine,

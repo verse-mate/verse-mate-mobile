@@ -46,6 +46,7 @@ export function useChapterReadingDuration(
     chapterInfoRef.current = { bookId, chapterNumber, bibleVersion };
   }, [bookId, chapterNumber, bibleVersion]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We need to force this
   useEffect(() => {
     // Reset tracking when chapter changes
     accumulatedTimeRef.current = 0;

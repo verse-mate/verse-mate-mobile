@@ -16,7 +16,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TopicDetailScreen from '@/app/topics/[topicId]';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useActiveTab, useLastReadPosition } from '@/hooks/bible';
-import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api/generated';
+import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api';
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -42,7 +42,7 @@ jest.mock('@/contexts/AuthContext', () => ({
   })),
 }));
 
-jest.mock('@/src/api/generated', () => ({
+jest.mock('@/src/api', () => ({
   useTopicById: jest.fn(),
   useTopicReferences: jest.fn(),
   useTopicsSearch: jest.fn(),

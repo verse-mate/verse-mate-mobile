@@ -27,7 +27,7 @@ import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
 import { SwipeBoundaryPage } from '@/components/ui/SwipeBoundaryPage';
-import { useBibleTestaments } from '@/src/api/generated/hooks';
+import { useBibleTestaments } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import {
   getAbsolutePageIndex,
