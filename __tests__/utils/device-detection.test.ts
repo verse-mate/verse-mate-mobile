@@ -120,18 +120,18 @@ describe('device-detection', () => {
     });
 
     it('should return true for large phone in landscape (wide enough)', () => {
-      (Dimensions.get as jest.Mock).mockReturnValue({ width: 926, height: 428 });
+      (Dimensions.get as jest.Mock).mockReturnValue({ width: 1024, height: 428 });
 
       expect(shouldUseSplitView()).toBe(true);
     });
 
     it('should use SPLIT_VIEW_MIN_WIDTH breakpoint', () => {
       // Just under the threshold
-      (Dimensions.get as jest.Mock).mockReturnValue({ width: 899, height: 500 });
+      (Dimensions.get as jest.Mock).mockReturnValue({ width: 1023, height: 500 });
       expect(shouldUseSplitView()).toBe(false);
 
       // At the threshold
-      (Dimensions.get as jest.Mock).mockReturnValue({ width: 900, height: 500 });
+      (Dimensions.get as jest.Mock).mockReturnValue({ width: 1024, height: 500 });
       expect(shouldUseSplitView()).toBe(true);
     });
   });
@@ -190,7 +190,7 @@ describe('device-detection', () => {
     it('should have valid breakpoint values', () => {
       expect(BREAKPOINTS.TABLET_MIN_WIDTH).toBe(600);
       expect(BREAKPOINTS.IPAD_MIN_WIDTH).toBe(768);
-      expect(BREAKPOINTS.SPLIT_VIEW_MIN_WIDTH).toBe(900);
+      expect(BREAKPOINTS.SPLIT_VIEW_MIN_WIDTH).toBe(1024);
       expect(BREAKPOINTS.SPLIT_VIEW_COMFORTABLE_WIDTH).toBe(1024);
       expect(BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH).toBe(320);
       expect(BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH).toBe(700);
