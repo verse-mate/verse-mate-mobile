@@ -14,8 +14,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomLogo } from '@/components/bible/BottomLogo';
@@ -85,6 +85,22 @@ export function BibleExplanationsPanel({
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = useMemo(() => createStyles(specs, colors), [specs, colors]);
   const insets = useSafeAreaInsets();
+
+  // Animation for sliding tab indicator
+  const getTabIndex = useCallback((tab: ContentTabType) => TABS.findIndex((t) => t.id === tab), []);
+  const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
+  const [tabWidth, setTabWidth] = useState(0);
+
+  // Animate indicator when active tab changes
+  useEffect(() => {
+    const targetIndex = getTabIndex(activeTab);
+    Animated.spring(slideAnim, {
+      toValue: targetIndex,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 50,
+    }).start();
+  }, [activeTab, slideAnim, getTabIndex]);
 
   // Fetch explanations based on active tab
   const { data: summaryData, isLoading: summaryLoading } = useBibleSummary(bookId, chapterNumber, {
@@ -160,20 +176,52 @@ export function BibleExplanationsPanel({
 
       {/* Tab Selector */}
       <View style={styles.tabContainer}>
-        {TABS.map((tab) => (
-          <Pressable
-            key={tab.id}
-            style={[styles.tab, activeTab === tab.id && styles.tabActive]}
-            onPress={() => handleTabChange(tab.id)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === tab.id }}
-            testID={`${testID}-tab-${tab.id}`}
-          >
-            <Text style={[styles.tabText, activeTab === tab.id && styles.tabTextActive]}>
-              {tab.label}
-            </Text>
-          </Pressable>
-        ))}
+        <View
+          style={styles.tabsRow}
+          onLayout={(event) => {
+            const { width } = event.nativeEvent.layout;
+            const singleTabWidth = (width - 16) / 3;
+            setTabWidth(singleTabWidth);
+          }}
+        >
+          {/* Sliding active indicator */}
+          <Animated.View
+            style={[
+              styles.slidingIndicator,
+              {
+                width: tabWidth,
+                transform: [
+                  {
+                    translateX: slideAnim.interpolate({
+                      inputRange: [0, 1, 2],
+                      outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <Pressable
+                key={tab.id}
+                style={styles.tab}
+                onPress={() => handleTabChange(tab.id)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                testID={`${testID}-tab-${tab.id}`}
+              >
+                <Text
+                  style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {/* Content Area */}
@@ -229,29 +277,47 @@ function createStyles(
       padding: spacing.xs,
     },
     tabContainer: {
-      flexDirection: 'row',
-      backgroundColor: colors.backgroundElevated,
-      paddingHorizontal: spacing.md,
+      backgroundColor: colors.background,
+      paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm,
-      gap: spacing.sm,
+    },
+    tabsRow: {
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 100,
+      padding: 4,
+      flexDirection: 'row',
+      gap: 4,
+      position: 'relative',
+      minHeight: 36,
+    },
+    slidingIndicator: {
+      position: 'absolute',
+      height: 28,
+      backgroundColor: specs.activeTabBackground,
+      borderRadius: 100,
+      top: 4,
+      left: 4,
     },
     tab: {
       flex: 1,
-      paddingVertical: spacing.sm,
-      borderRadius: 8,
+      borderRadius: 100,
+      paddingVertical: 2,
+      paddingHorizontal: spacing.sm,
+      justifyContent: 'center',
       alignItems: 'center',
+      minHeight: 28,
       backgroundColor: 'transparent',
-    },
-    tabActive: {
-      backgroundColor: specs.activeTabBackground,
+      zIndex: 1,
     },
     tabText: {
-      fontSize: fontSizes.bodySmall,
-      fontWeight: fontWeights.medium,
-      color: specs.inactiveTabTextColor,
+      fontSize: 14,
+      fontWeight: '400',
     },
     tabTextActive: {
       color: specs.activeTabTextColor,
+    },
+    tabTextInactive: {
+      color: specs.inactiveTabTextColor,
     },
     scrollView: {
       flex: 1,

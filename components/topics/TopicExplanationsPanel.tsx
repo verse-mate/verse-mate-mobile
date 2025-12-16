@@ -15,8 +15,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useMemo, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { BottomLogo } from '@/components/bible/BottomLogo';
@@ -90,12 +90,31 @@ export function TopicExplanationsPanel({
 
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Animation for sliding tab indicator
+  const getTabIndex = useCallback(
+    (tab: ContentTabType) => TAB_OPTIONS.findIndex((t) => t.id === tab),
+    []
+  );
+  const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
+  const [_tabWidth, _setTabWidth] = useState(0);
+
+  // Animate indicator when active tab changes
+  useEffect(() => {
+    const targetIndex = getTabIndex(activeTab);
+    Animated.spring(slideAnim, {
+      toValue: targetIndex,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 50,
+    }).start();
+  }, [activeTab, slideAnim, getTabIndex]);
+
   // Fetch topic data with explanations
   const bibleVersion = 'NASB1995';
   const { data: topicData } = useTopicById(topicId, bibleVersion);
 
   // Handle tab press
-  const handleTabPress = useCallback(
+  const _handleTabPress = useCallback(
     (tab: ContentTabType) => {
       if (tab !== activeTab) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -128,25 +147,9 @@ export function TopicExplanationsPanel({
 
   return (
     <View style={styles.container} testID={testID}>
-      {/* Header Bar with Tabs */}
+      {/* Header Bar */}
       <View style={styles.header} testID={`${testID}-header`}>
-        {/* Tab Selector */}
-        <View style={styles.tabContainer}>
-          {TAB_OPTIONS.map((tab) => (
-            <Pressable
-              key={tab.id}
-              style={[styles.tab, activeTab === tab.id && styles.tabActive]}
-              onPress={() => handleTabPress(tab.id)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === tab.id }}
-              testID={`${testID}-tab-${tab.id}`}
-            >
-              <Text style={[styles.tabText, activeTab === tab.id && styles.tabTextActive]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <Text style={styles.headerTitle}>{topicName}</Text>
 
         {/* Menu Button */}
         <Pressable
@@ -168,11 +171,6 @@ export function TopicExplanationsPanel({
         showsVerticalScrollIndicator={true}
         testID={`${testID}-scroll`}
       >
-        {/* Title */}
-        <Text style={styles.title} accessibilityRole="header">
-          {topicName}
-        </Text>
-
         {/* Explanation Content */}
         {hasContent ? (
           <View style={styles.explanationContainer}>
@@ -214,27 +212,53 @@ function createStyles(
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
     },
+    headerTitle: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+      color: specs.headerTextColor,
+    },
     tabContainer: {
+      backgroundColor: colors.background,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    tabsRow: {
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 100,
+      padding: 4,
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
+      gap: 4,
+      position: 'relative',
+      minHeight: 36,
+    },
+    slidingIndicator: {
+      position: 'absolute',
+      height: 28,
+      backgroundColor: specs.activeTabBackground,
+      borderRadius: 100,
+      top: 4,
+      left: 4,
     },
     tab: {
-      paddingVertical: spacing.xs,
-      paddingHorizontal: spacing.sm,
+      flex: 1,
       borderRadius: 100,
-      backgroundColor: specs.inactiveTabBackground,
-    },
-    tabActive: {
-      backgroundColor: specs.activeTabBackground,
+      paddingVertical: 2,
+      paddingHorizontal: spacing.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: 28,
+      backgroundColor: 'transparent',
+      zIndex: 1,
     },
     tabText: {
-      fontSize: fontSizes.bodySmall,
-      fontWeight: fontWeights.medium,
-      color: specs.inactiveTabTextColor,
+      fontSize: 14,
+      fontWeight: '400',
     },
     tabTextActive: {
       color: specs.activeTabTextColor,
+    },
+    tabTextInactive: {
+      color: specs.inactiveTabTextColor,
     },
     menuButton: {
       padding: spacing.xs,
