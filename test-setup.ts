@@ -61,7 +61,7 @@ beforeAll(() => {
         args[0].includes('Not implemented: HTMLFormElement.prototype.submit') ||
         args[0].includes('Failed to set up proactive refresh') ||
         args[0].includes('Failed to restore session') ||
-        args[0].includes('inside a test was not wrapped in act') ||
+        args[0].includes('was not wrapped in act') ||
         args[0].includes('Cannot update a component') ||
         args[0].includes('while rendering a different component'))
     ) {

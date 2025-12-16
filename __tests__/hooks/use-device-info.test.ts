@@ -4,10 +4,13 @@
  * Tests for the device info hook used for split view layout decisions.
  */
 
+// Unmock the hook for this test file to test the actual implementation
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useDeviceInfo, useOrientation } from '@/hooks/use-device-info';
 import { DEFAULT_SPLIT_RATIO, SPLIT_RATIO_STORAGE_KEY } from '@/utils/device-detection';
+
+jest.unmock('@/hooks/use-device-info');
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
