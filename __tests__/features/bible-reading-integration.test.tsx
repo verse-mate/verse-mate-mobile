@@ -80,6 +80,13 @@ jest.mock('@/hooks/bible', () => {
     }),
     useBookProgress: jest.fn(),
     useLastReadPosition: jest.fn(),
+    // Time-based analytics hooks (no-op mocks)
+    useChapterReadingDuration: jest.fn(),
+    useViewModeDuration: jest.fn(),
+    useScrollDepthTracking: jest.fn(() => ({
+      maxScrollDepth: 0,
+      handleScroll: jest.fn(),
+    })),
   };
 });
 jest.mock('@/hooks/bible/use-recent-books');

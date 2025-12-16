@@ -93,6 +93,13 @@ jest.mock('@/hooks/bible', () => {
       const [activeView, setActiveView] = React.useState('bible');
       return { activeView, setActiveView };
     }),
+    // Time-based analytics hooks (no-op mocks)
+    useChapterReadingDuration: jest.fn(),
+    useViewModeDuration: jest.fn(),
+    useScrollDepthTracking: jest.fn(() => ({
+      maxScrollDepth: 0,
+      handleScroll: jest.fn(),
+    })),
   };
 });
 
