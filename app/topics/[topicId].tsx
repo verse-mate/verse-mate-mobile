@@ -433,7 +433,7 @@ export default function TopicDetailScreen() {
             onShare={handleShare}
           />
 
-          {/* Floating Action Buttons for Topic Navigation */}
+          {/* Floating Action Buttons for Topic Navigation - Same fade behavior as portrait */}
           <FloatingActionButtons
             onPrevious={handlePrevious}
             onNext={handleNext}

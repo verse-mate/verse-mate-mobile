@@ -35,7 +35,7 @@ import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { SplitView } from '@/components/ui/SplitView';
+import { SplitView, type SplitViewMode } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -147,6 +147,9 @@ export default function ChapterScreen() {
 
   // Hamburger menu state (Task 8.5)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Split view mode state for landscape/tablet fullscreen modes
+  const [splitViewMode, setSplitViewMode] = useState<SplitViewMode>('split');
 
   // FAB visibility state - manages auto-hide/show based on user interaction
   const {
@@ -419,6 +422,8 @@ export default function ChapterScreen() {
           <SplitView
             splitRatio={splitRatio}
             onSplitRatioChange={setSplitRatio}
+            viewMode={splitViewMode}
+            onViewModeChange={setSplitViewMode}
             leftContent={
               <BibleContentPanel
                 bookId={validBookId}
@@ -435,6 +440,7 @@ export default function ChapterScreen() {
                 onTap={handleTap}
                 targetVerse={targetVerse}
                 targetEndVerse={targetEndVerse}
+                visible={fabVisible}
               />
             }
             rightContent={
@@ -506,7 +512,7 @@ export default function ChapterScreen() {
             onTap={handleTap}
           />
 
-          {/* Floating Action Buttons (Task 6.2, 6.4, 4.5) */}
+          {/* Floating Action Buttons (Task 6.2, 6.4, 4.5) - Same fade behavior as portrait */}
           <FloatingActionButtons
             onPrevious={handlePrevious}
             onNext={handleNext}
