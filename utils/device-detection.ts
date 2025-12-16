@@ -101,9 +101,9 @@ export function getDeviceInfo(): DeviceInfo {
  * @example
  * ```tsx
  * if (shouldUseSplitView()) {
- *   return <TopicSplitView />;
+ *   return <SplitView leftContent={...} rightContent={...} />;
  * } else {
- *   return <TopicPagerView />;
+ *   return <PagerView />;
  * }
  * ```
  */

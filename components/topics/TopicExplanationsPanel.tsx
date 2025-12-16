@@ -30,6 +30,7 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useTopicById } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 
@@ -111,8 +112,10 @@ export function TopicExplanationsPanel({
     }).start();
   }, [activeTab, slideAnim, getTabIndex]);
 
+  // Get Bible version from settings
+  const { bibleVersion } = useBibleVersion();
+
   // Fetch topic data with explanations
-  const bibleVersion = 'NASB1995';
   const { data: topicData } = useTopicById(topicId, bibleVersion);
 
   // Handle tab press with haptic feedback
