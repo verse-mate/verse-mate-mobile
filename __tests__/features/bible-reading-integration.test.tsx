@@ -549,10 +549,11 @@ describe('Bible Reading Interface - Integration Tests', () => {
       { timeout: 10000 }
     );
 
-    // Verify Matthew 5 content loads
+    // Verify Matthew 5 content loads (multiple instances may exist due to ChapterPagerView)
     await waitFor(
       () => {
-        expect(screen.getByText('The Beatitudes')).toBeTruthy();
+        const beatitudesElements = screen.getAllByText('The Beatitudes');
+        expect(beatitudesElements.length).toBeGreaterThan(0);
       },
       { timeout: 10000 }
     );
