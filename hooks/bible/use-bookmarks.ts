@@ -32,6 +32,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   deleteBibleBookBookmarkRemoveMutation,
   getBibleBookBookmarksByUserIdOptions,
@@ -161,7 +162,15 @@ export function useBookmarks(): UseBookmarksResult {
       }
       console.error('Failed to add bookmark:', error);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Track analytics: BOOKMARK_ADDED event
+      if (variables.body) {
+        analytics.track(AnalyticsEvent.BOOKMARK_ADDED, {
+          bookId: variables.body.book_id,
+          chapterNumber: variables.body.chapter_number,
+        });
+      }
+
       // Refetch to get accurate server data (with correct favorite_id and book_name)
       queryClient.invalidateQueries({ queryKey: bookmarksQueryKey });
     },
@@ -201,7 +210,15 @@ export function useBookmarks(): UseBookmarksResult {
       }
       console.error('Failed to remove bookmark:', error);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Track analytics: BOOKMARK_REMOVED event
+      if (variables.query) {
+        analytics.track(AnalyticsEvent.BOOKMARK_REMOVED, {
+          bookId: Number(variables.query.book_id),
+          chapterNumber: Number(variables.query.chapter_number),
+        });
+      }
+
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: bookmarksQueryKey });
     },
