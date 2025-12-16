@@ -14,6 +14,7 @@
  * @see Task Group 4 - Integration with ChapterPagerView (native page-based swipe navigation)
  * @see Task Group 8.4 - Integrate ProgressBar with chapter screen
  * @see Task Group 9.3 - Add deep link validation in chapter screen
+ * @see Time-Based Analytics - Chapter reading duration tracking
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -37,18 +38,27 @@ import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { SplitView } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useActiveTab, useActiveView, useBookProgress, useLastReadPosition } from '@/hooks/bible';
+import {
+  useActiveTab,
+  useActiveView,
+  useBookProgress,
+  useChapterReadingDuration,
+  useLastReadPosition,
+  useViewModeDuration,
+} from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   useBibleChapter,
   useBibleTestaments,
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
   useSaveLastRead,
-} from '@/src/api/generated';
+} from '@/src/api';
 
 /**
  * View mode type for Bible reading interface
@@ -76,6 +86,8 @@ const CENTER_INDEX = 2;
  * - Hamburger menu (Task 8.5)
  * - Offline indicator (Task 8.6)
  * - View mode switching (Bible vs Explanations)
+ * - Analytics tracking for CHAPTER_VIEWED (Task 4.2)
+ * - Chapter reading duration tracking (Time-Based Analytics)
  */
 export default function ChapterScreen() {
   // Extract and validate route params
@@ -97,11 +109,26 @@ export default function ChapterScreen() {
   // Device info for split view detection
   const { useSplitView, splitRatio, setSplitRatio } = useDeviceInfo();
 
+  // Bible version for analytics
+  const { bibleVersion } = useBibleVersion();
+
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
 
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
+
+  // Use validated params for API calls (defined early for hooks)
+  const validBookId = Math.max(1, Math.min(66, bookId));
+  const validChapter = Math.max(1, chapterNumber);
+
+  // Track chapter reading duration (Time-Based Analytics)
+  // Hook fires CHAPTER_READING_DURATION event on unmount with AppState awareness
+  useChapterReadingDuration(validBookId, validChapter, bibleVersion);
+
+  // Track view mode duration (Time-Based Analytics)
+  // Hook fires VIEW_MODE_DURATION event when view mode changes or on unmount
+  useViewModeDuration(activeView, validBookId, validChapter, bibleVersion);
 
   // Ensure deep-linked verse jumps use Bible view so scroll-to-verse can run
   // Only force on initial mount, not when user switches tabs manually
@@ -172,10 +199,6 @@ export default function ChapterScreen() {
     // Note: router is stable and doesn't need to be in dependencies
   }, [bookId, chapterNumber, bookMetadata]);
 
-  // Use validated params for API calls
-  const validBookId = Math.max(1, Math.min(66, bookId));
-  const validChapter = Math.max(1, chapterNumber);
-
   // Calculate progress percentage (Task 8.4)
   const { progress } = useBookProgress(validBookId, validChapter, totalChapters);
 
@@ -231,6 +254,19 @@ export default function ChapterScreen() {
     // Only add to recent books when bookId changes (not on every chapter change within the same book)
     addRecentBook(validBookId);
   }, [validBookId]);
+
+  // Track CHAPTER_VIEWED analytics event (Task 4.2)
+  // Fires once per chapter navigation, not on re-renders
+  useEffect(() => {
+    // Only track when we have valid params
+    if (validBookId >= 1 && validBookId <= 66 && validChapter >= 1) {
+      analytics.track(AnalyticsEvent.CHAPTER_VIEWED, {
+        bookId: validBookId,
+        chapterNumber: validChapter,
+        bibleVersion,
+      });
+    }
+  }, [validBookId, validChapter, bibleVersion]);
 
   // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5, 4.6)
   useEffect(() => {

@@ -48,6 +48,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   deleteBibleHighlightByHighlightIdMutation,
   getBibleHighlightsByUserIdByBookIdByChapterNumberOptions,
@@ -61,7 +62,6 @@ import type {
   DeleteBibleHighlightByHighlightIdData,
   GetBibleHighlightsByUserIdByBookIdByChapterNumberResponse,
   GetBibleHighlightsByUserIdResponse,
-  PostBibleHighlightAddData,
   PutBibleHighlightByHighlightIdData,
 } from '@/src/api/generated/types.gen';
 
@@ -299,7 +299,16 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       // Re-throw error for component to handle (especially overlap errors)
       throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Track analytics: HIGHLIGHT_CREATED event
+      if (variables.body) {
+        analytics.track(AnalyticsEvent.HIGHLIGHT_CREATED, {
+          bookId: variables.body.book_id,
+          chapterNumber: variables.body.chapter_number,
+          color: variables.body.color || 'yellow',
+        });
+      }
+
       // Refetch to get accurate server data (with correct highlight_id and chapter_id)
       queryClient.invalidateQueries({ queryKey: allHighlightsQueryKey });
       queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
@@ -366,7 +375,15 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       }
       console.error('Failed to update highlight color:', error);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Track analytics: HIGHLIGHT_EDITED event
+      if (variables.body && variables.path) {
+        analytics.track(AnalyticsEvent.HIGHLIGHT_EDITED, {
+          highlightId: variables.path.highlight_id,
+          color: variables.body.color || 'yellow',
+        });
+      }
+
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: allHighlightsQueryKey });
       queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
@@ -428,7 +445,14 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       }
       console.error('Failed to delete highlight:', error);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Track analytics: HIGHLIGHT_DELETED event
+      if (variables.path) {
+        analytics.track(AnalyticsEvent.HIGHLIGHT_DELETED, {
+          highlightId: variables.path.highlight_id,
+        });
+      }
+
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: allHighlightsQueryKey });
       queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
@@ -475,14 +499,9 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         return;
       }
 
-      // Call mutation
-      // Note: chapter_id is calculated as bookId * 1000 + chapterNumber for the database
-      const chapterId = params.bookId * 1000 + params.chapterNumber;
-
       await addMutation.mutateAsync({
         body: {
           user_id: user.id,
-          chapter_id: chapterId,
           book_id: params.bookId,
           chapter_number: params.chapterNumber,
           start_verse: params.startVerse,
@@ -492,7 +511,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           end_char: params.endChar,
           selected_text: params.selectedText,
         },
-      } as PostBibleHighlightAddData);
+      });
     },
     [isAuthenticated, user?.id, addMutation]
   );

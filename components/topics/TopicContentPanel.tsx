@@ -32,7 +32,7 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useTopicReferences } from '@/src/api/generated';
+import { useTopicReferences } from '@/src/api';
 
 /**
  * Convert a number to Unicode superscript characters

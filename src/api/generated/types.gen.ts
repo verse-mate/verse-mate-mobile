@@ -16,15 +16,28 @@ export type GetAuthUserErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -56,15 +69,28 @@ export type PostAuthChangePasswordErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -93,15 +119,28 @@ export type PostAuthLogoutErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -128,15 +167,28 @@ export type PostAuthLogoutAllErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -163,15 +215,28 @@ export type PostAuthSendEmailVerificationErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -198,15 +263,28 @@ export type PostAuthVerifyEmailErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -237,15 +315,28 @@ export type GetAuthSessionErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -283,15 +374,28 @@ export type PutAuthProfileErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -330,15 +434,28 @@ export type PostAuthSignupErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -372,15 +489,28 @@ export type PostAuthLoginErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -413,15 +543,28 @@ export type PostAuthRefreshErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -454,15 +597,28 @@ export type PostAuthForgotPasswordErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -494,15 +650,28 @@ export type PostAuthResetPasswordErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -533,15 +702,28 @@ export type GetAuthResetPasswordVerifyErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -558,6 +740,273 @@ export type GetAuthResetPasswordVerifyResponses = {
 
 export type GetAuthResetPasswordVerifyResponse = GetAuthResetPasswordVerifyResponses[keyof GetAuthResetPasswordVerifyResponses];
 
+export type PostAuthSsoData = {
+    body: {
+        provider: 'google' | 'apple';
+        token: string;
+        platform: 'web' | 'mobile';
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/sso';
+};
+
+export type PostAuthSsoErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAuthSsoError = PostAuthSsoErrors[keyof PostAuthSsoErrors];
+
+export type PostAuthSsoResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        accessToken: string;
+        refreshToken?: string;
+        verified: boolean;
+    };
+};
+
+export type PostAuthSsoResponse = PostAuthSsoResponses[keyof PostAuthSsoResponses];
+
+export type GetAuthSsoGoogleRedirectData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/sso/google/redirect';
+};
+
+export type GetAuthSsoGoogleRedirectErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAuthSsoGoogleRedirectError = GetAuthSsoGoogleRedirectErrors[keyof GetAuthSsoGoogleRedirectErrors];
+
+export type GetAuthSsoGoogleCallbackData = {
+    body?: never;
+    path?: never;
+    query?: {
+        state?: string;
+        code?: string;
+        error?: string;
+        error_description?: string;
+    };
+    url: '/auth/sso/google/callback';
+};
+
+export type GetAuthSsoGoogleCallbackErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAuthSsoGoogleCallbackError = GetAuthSsoGoogleCallbackErrors[keyof GetAuthSsoGoogleCallbackErrors];
+
+export type GetAuthSsoAppleRedirectData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/sso/apple/redirect';
+};
+
+export type GetAuthSsoAppleRedirectErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAuthSsoAppleRedirectError = GetAuthSsoAppleRedirectErrors[keyof GetAuthSsoAppleRedirectErrors];
+
+export type GetAuthSsoAppleCallbackData = {
+    body?: never;
+    path?: never;
+    query?: {
+        state?: string;
+        code?: string;
+        error?: string;
+        error_description?: string;
+    };
+    url: '/auth/sso/apple/callback';
+};
+
+export type GetAuthSsoAppleCallbackErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAuthSsoAppleCallbackError = GetAuthSsoAppleCallbackErrors[keyof GetAuthSsoAppleCallbackErrors];
+
+export type PostAuthSsoAppleCallbackData = {
+    body: {
+        state?: string;
+        code?: string;
+        id_token?: string;
+        error?: string;
+        user?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/sso/apple/callback';
+};
+
+export type PostAuthSsoAppleCallbackErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAuthSsoAppleCallbackError = PostAuthSsoAppleCallbackErrors[keyof PostAuthSsoAppleCallbackErrors];
+
 export type GetUserData = {
     body?: never;
     path?: never;
@@ -570,15 +1019,28 @@ export type GetUserErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -614,15 +1076,28 @@ export type GetUserMeErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -667,15 +1142,28 @@ export type PostUserUpdateErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -702,15 +1190,28 @@ export type GetUserRecentlyViewedBooksErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -756,15 +1257,28 @@ export type PostUserRecentlyViewedBooksSyncErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -796,15 +1310,28 @@ export type GetBibleBooksErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -853,15 +1380,28 @@ export type GetBibleLanguagesErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -898,15 +1438,28 @@ export type GetBibleBookByBookIdByChapterNumberErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -946,6 +1499,113 @@ export type GetBibleBookByBookIdByChapterNumberResponses = {
 
 export type GetBibleBookByBookIdByChapterNumberResponse = GetBibleBookByBookIdByChapterNumberResponses[keyof GetBibleBookByBookIdByChapterNumberResponses];
 
+export type GetBibleBookByBookIdIntroductionData = {
+    body?: never;
+    path: {
+        bookId: string | string | number;
+    };
+    query?: {
+        languageCode?: string;
+    };
+    url: '/bible/book/{bookId}/introduction';
+};
+
+export type GetBibleBookByBookIdIntroductionErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleBookByBookIdIntroductionError = GetBibleBookByBookIdIntroductionErrors[keyof GetBibleBookByBookIdIntroductionErrors];
+
+export type GetBibleBookByBookIdIntroductionResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        introduction: unknown;
+        hasViewed: boolean;
+    };
+};
+
+export type GetBibleBookByBookIdIntroductionResponse = GetBibleBookByBookIdIntroductionResponses[keyof GetBibleBookByBookIdIntroductionResponses];
+
+export type PostBibleBookByBookIdIntroductionMarkViewedData = {
+    body?: never;
+    path: {
+        bookId: string | number;
+    };
+    query?: never;
+    url: '/bible/book/{bookId}/introduction/mark-viewed';
+};
+
+export type PostBibleBookByBookIdIntroductionMarkViewedErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostBibleBookByBookIdIntroductionMarkViewedError = PostBibleBookByBookIdIntroductionMarkViewedErrors[keyof PostBibleBookByBookIdIntroductionMarkViewedErrors];
+
+export type PostBibleBookByBookIdIntroductionMarkViewedResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type PostBibleBookByBookIdIntroductionMarkViewedResponse = PostBibleBookByBookIdIntroductionMarkViewedResponses[keyof PostBibleBookByBookIdIntroductionMarkViewedResponses];
+
 export type GetBibleBookExplanationByBookIdByChapterNumberData = {
     body?: never;
     path: {
@@ -964,15 +1624,28 @@ export type GetBibleBookExplanationByBookIdByChapterNumberErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1008,15 +1681,28 @@ export type GetBibleTestamentsErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1054,15 +1740,28 @@ export type GetBibleChapterIdByBookIdByChapterNumberErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1095,15 +1794,28 @@ export type PostBibleBookConversationsHistoryErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1214,15 +1926,28 @@ export type PostBibleBookMessagesHistoryErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1261,15 +1986,28 @@ export type PostBibleBookConversationExistsErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1304,15 +2042,28 @@ export type PostBibleBookNewConversationErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1337,14 +2088,10 @@ export type PostBibleBookExplanationSaveRatingData = {
     body: {
         book_id: number;
         chapter_number: number;
-    } & {
         user: {
             id: string;
         };
         rating: number;
-    } & {
-        [key: string]: unknown;
-    } & {
         explanation_id: number;
     };
     path?: never;
@@ -1357,15 +2104,28 @@ export type PostBibleBookExplanationSaveRatingErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1388,14 +2148,10 @@ export type PutBibleBookExplanationUpdateRatingData = {
     body: {
         book_id: number;
         chapter_number: number;
-    } & {
         user: {
             id: string;
         };
         rating: number;
-    } & {
-        [key: string]: unknown;
-    } & {
         explanation_id: number;
     };
     path?: never;
@@ -1408,15 +2164,28 @@ export type PutBibleBookExplanationUpdateRatingErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1439,13 +2208,9 @@ export type PostBibleBookExplanationRatingsData = {
     body: {
         book_id: number;
         chapter_number: number;
-    } & {
         user: {
             id: string;
         };
-    } & {
-        [key: string]: unknown;
-    } & {
         explanation_id: number;
     };
     path?: never;
@@ -1458,15 +2223,28 @@ export type PostBibleBookExplanationRatingsErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1501,15 +2279,28 @@ export type PostBibleBookChapterSaveLastReadErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1542,15 +2333,28 @@ export type PostBibleBookChapterLastReadErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1594,15 +2398,28 @@ export type PostBibleBookAskVerseMateSaveUserMessageErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1643,15 +2460,28 @@ export type PostBibleBookAskVerseMateSaveAiMessageErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1688,15 +2518,28 @@ export type DeleteBibleBookDeleteChatByConversationIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1727,15 +2570,28 @@ export type GetBibleBookBookmarksByUserIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1771,15 +2627,28 @@ export type GetBibleBookNotesByUserIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1823,15 +2692,28 @@ export type PostBibleBookNoteAddErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1872,15 +2754,28 @@ export type PutBibleBookNoteUpdateErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1911,15 +2806,28 @@ export type DeleteBibleBookNoteRemoveErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1952,15 +2860,28 @@ export type PostBibleBookBookmarkAddErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -1993,15 +2914,28 @@ export type DeleteBibleBookBookmarkRemoveErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2034,15 +2968,28 @@ export type PostBibleBookBookmarkRemoveErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2073,15 +3020,28 @@ export type GetBibleHighlightsByUserIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2100,7 +3060,7 @@ export type GetBibleHighlightsByUserIdResponses = {
             chapter_number: number;
             start_verse: number;
             end_verse: number;
-            color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange';
+            color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange' | 'red' | 'teal' | 'brown';
             start_char: number | unknown;
             end_char: number | unknown;
             selected_text: string | unknown;
@@ -2116,8 +3076,8 @@ export type GetBibleHighlightsByUserIdByBookIdByChapterNumberData = {
     body?: never;
     path: {
         user_id: string;
-        book_id: string | number;
-        chapter_number: string | number;
+        book_id: string | string | number;
+        chapter_number: string | string | number;
     };
     query?: never;
     url: '/bible/highlights/{user_id}/{book_id}/{chapter_number}';
@@ -2128,15 +3088,28 @@ export type GetBibleHighlightsByUserIdByBookIdByChapterNumberErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2155,7 +3128,7 @@ export type GetBibleHighlightsByUserIdByBookIdByChapterNumberResponses = {
             chapter_number: number;
             start_verse: number;
             end_verse: number;
-            color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange';
+            color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange' | 'red' | 'teal' | 'brown';
             start_char: number | unknown;
             end_char: number | unknown;
             selected_text: string | unknown;
@@ -2170,12 +3143,11 @@ export type GetBibleHighlightsByUserIdByBookIdByChapterNumberResponse = GetBible
 export type PostBibleHighlightAddData = {
     body: {
         user_id: string;
-        chapter_id: number;
         book_id: number;
         chapter_number: number;
         start_verse: number;
         end_verse: number;
-        color?: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange';
+        color?: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange' | 'red' | 'teal' | 'brown';
         start_char?: number;
         end_char?: number;
         selected_text?: string;
@@ -2190,15 +3162,28 @@ export type PostBibleHighlightAddErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2248,15 +3233,28 @@ export type DeleteBibleHighlightByHighlightIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2276,7 +3274,7 @@ export type DeleteBibleHighlightByHighlightIdResponse = DeleteBibleHighlightByHi
 export type PutBibleHighlightByHighlightIdData = {
     body: {
         user_id: string;
-        color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange';
+        color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange' | 'red' | 'teal' | 'brown';
     };
     path: {
         highlight_id: number;
@@ -2290,15 +3288,28 @@ export type PutBibleHighlightByHighlightIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2329,6 +3340,48 @@ export type PutBibleHighlightByHighlightIdResponses = {
 };
 
 export type PutBibleHighlightByHighlightIdResponse = PutBibleHighlightByHighlightIdResponses[keyof PutBibleHighlightByHighlightIdResponses];
+
+export type GetBibleAutoHighlightsByBookIdByChapterNumberData = {
+    body?: never;
+    path: {
+        book_id: string;
+        chapter_number: string;
+    };
+    query?: {
+        themes?: string;
+        theme_relevance?: string;
+        min_relevance?: string;
+    };
+    url: '/bible/auto-highlights/{book_id}/{chapter_number}';
+};
+
+export type GetBibleHighlightThemesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/bible/highlight-themes';
+};
+
+export type GetBibleUserThemePreferencesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/bible/user/theme-preferences';
+};
+
+export type PatchBibleUserThemePreferencesByThemeIdData = {
+    body: {
+        is_enabled?: boolean;
+        custom_color?: string;
+        relevance_threshold?: number;
+        admin_override?: boolean;
+    };
+    path: {
+        theme_id: string;
+    };
+    query?: never;
+    url: '/bible/user/theme-preferences/{theme_id}';
+};
 
 export type GetTopicsCategoriesData = {
     body?: never;
@@ -2374,6 +3427,56 @@ export type GetTopicsSearchResponses = {
 };
 
 export type GetTopicsSearchResponse = GetTopicsSearchResponses[keyof GetTopicsSearchResponses];
+
+export type GetTopicsBySlugData = {
+    body?: never;
+    path?: never;
+    query: {
+        category: string;
+        slug: string;
+    };
+    url: '/topics/by-slug';
+};
+
+export type GetTopicsBySlugErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+    };
+};
+
+export type GetTopicsBySlugError = GetTopicsBySlugErrors[keyof GetTopicsBySlugErrors];
+
+export type GetTopicsBySlugResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        topic_id: string;
+        name: string;
+        description: string | unknown;
+        category: string;
+        slug: string;
+        sort_order: number | unknown;
+        is_translated?: boolean;
+    };
+};
+
+export type GetTopicsBySlugResponse = GetTopicsBySlugResponses[keyof GetTopicsBySlugResponses];
 
 export type GetTopicsByIdData = {
     body?: never;
@@ -2499,15 +3602,28 @@ export type PatchUserPreferencesErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2537,15 +3653,28 @@ export type GetAdminExplanationsLanguagesErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2577,15 +3706,28 @@ export type PostAdminExplanationsRefreshLanguageStatsErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2610,15 +3752,28 @@ export type GetAdminUsersErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2640,6 +3795,22 @@ export type GetAdminUsersResponses = {
 
 export type GetAdminUsersResponse = GetAdminUsersResponses[keyof GetAdminUsersResponses];
 
+export type GetAdminAutoHighlightSettingsDefaultEnabledData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/auto-highlight-settings/default-enabled';
+};
+
+export type PatchAdminAutoHighlightSettingsDefaultEnabledData = {
+    body: {
+        default_enabled: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/auto-highlight-settings/default-enabled';
+};
+
 export type PatchAdminUserByIdAdminStatusData = {
     body: {
         is_admin: boolean;
@@ -2656,15 +3827,28 @@ export type PatchAdminUserByIdAdminStatusErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2703,15 +3887,28 @@ export type PostAdminBatchExplanationsErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2730,6 +3927,7 @@ export type PostAdminBatchTopicReferencesData = {
         effort?: 'low' | 'medium' | 'high';
         category?: string;
         topicId?: string;
+        skipExisting?: boolean;
     };
     path?: never;
     query?: never;
@@ -2765,15 +3963,28 @@ export type PostAdminBatchRephraseErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2794,6 +4005,9 @@ export type PostAdminBatchTopicExplanationsData = {
         effort?: 'low' | 'medium' | 'high';
         category?: string;
         topicId?: string;
+        includeReferencesInSummary?: boolean;
+        includeReferencesInDetailed?: boolean;
+        skipExisting?: boolean;
     };
     path?: never;
     query?: never;
@@ -2821,15 +4035,28 @@ export type PostAdminBatchTranslateErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2856,15 +4083,28 @@ export type DeleteAdminBatchByBatchJobIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2896,15 +4136,28 @@ export type GetAdminBatchByBatchJobIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2942,15 +4195,28 @@ export type GetAdminBatchHistoryErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -2977,15 +4243,28 @@ export type GetAdminBatchChildrenByParentIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3012,15 +4291,28 @@ export type PostAdminMonitorBibleBatchByParentIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3045,15 +4337,28 @@ export type PostAdminBatchesMonitorAllErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3065,6 +4370,60 @@ export type PostAdminBatchesMonitorAllResponses = {
      */
     200: unknown;
 };
+
+export type PostAdminBatchRetrieveErrorsByBatchIdData = {
+    body?: never;
+    path: {
+        batchId: string;
+    };
+    query?: never;
+    url: '/admin/batch-retrieve-errors/{batchId}';
+};
+
+export type PostAdminBatchRetrieveErrorsByBatchIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAdminBatchRetrieveErrorsByBatchIdError = PostAdminBatchRetrieveErrorsByBatchIdErrors[keyof PostAdminBatchRetrieveErrorsByBatchIdErrors];
+
+export type PostAdminBatchRetrieveErrorsByBatchIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        success: boolean;
+        message: string;
+        errorContent?: string;
+    };
+};
+
+export type PostAdminBatchRetrieveErrorsByBatchIdResponse = PostAdminBatchRetrieveErrorsByBatchIdResponses[keyof PostAdminBatchRetrieveErrorsByBatchIdResponses];
 
 export type GetAdminBatchSummaryByParentIdData = {
     body?: never;
@@ -3080,15 +4439,28 @@ export type GetAdminBatchSummaryByParentIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3115,15 +4487,28 @@ export type DeleteAdminExplanationByIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3153,15 +4538,28 @@ export type PostAdminExplanationRegenerateErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3194,15 +4592,28 @@ export type PostAdminExplanationRegenerateByRegenerationIdGenerateErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3229,15 +4640,28 @@ export type GetAdminExplanationRegenerateByRegenerationIdComparisonErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3266,15 +4690,28 @@ export type PostAdminExplanationRegenerateByRegenerationIdChooseErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3307,15 +4744,28 @@ export type DeleteAdminExplanationsBulkErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3345,15 +4795,28 @@ export type PostAdminExplanationsSetActiveAsDefaultErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3383,15 +4846,28 @@ export type PostAdminExplanationsSetDefaultsActiveErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3422,15 +4898,28 @@ export type PostAdminExplanationsSetSpecificVersionActiveErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3460,15 +4949,28 @@ export type DeleteAdminExplanationsInactiveErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3495,15 +4997,28 @@ export type GetAdminExplanationByIdHistoryErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3535,15 +5050,28 @@ export type GetAdminExplanationsErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3568,15 +5096,28 @@ export type GetAdminStatsErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3601,15 +5142,28 @@ export type GetAdminPromptsSystemErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3636,15 +5190,28 @@ export type PostAdminPromptsSystemErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3669,15 +5236,28 @@ export type GetAdminPromptsUserErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3706,15 +5286,28 @@ export type PostAdminPromptsUserErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3739,15 +5332,28 @@ export type GetAdminPromptsExplanationTypesErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3774,15 +5380,28 @@ export type DeleteAdminPromptsSystemByIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3811,15 +5430,28 @@ export type PutAdminPromptsSystemByIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3846,15 +5478,28 @@ export type DeleteAdminPromptsUserByIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3883,15 +5528,28 @@ export type PutAdminPromptsUserByIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3920,15 +5578,28 @@ export type PutAdminPromptsSystemByIdStatusErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3957,15 +5628,28 @@ export type PutAdminPromptsUserByIdStatusErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -3990,15 +5674,28 @@ export type PostAdminPromptsRestoreDefaultsErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -4032,15 +5729,28 @@ export type PostAdminPromptsPlaygroundErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -4070,15 +5780,28 @@ export type GetAdminPromptsExplanationExistingErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -4103,6 +5826,7 @@ export type PostAdminTopicsData = {
         name: string;
         description?: string;
         category: string;
+        slug?: string;
         sort_order?: number;
         is_active?: boolean;
     };
@@ -4125,6 +5849,7 @@ export type PutAdminTopicsByIdData = {
         name?: string;
         description?: string;
         category?: string;
+        slug?: string;
         sort_order?: number;
         is_active?: boolean;
     };
@@ -4191,6 +5916,77 @@ export type PostAdminTopicsTranslateAllData = {
     url: '/admin/topics/translate-all';
 };
 
+export type PostAdminBatchAutoHighlightsData = {
+    body: {
+        type: 'bible' | 'book';
+        model: string;
+        effort: 'low' | 'medium' | 'high';
+        bookName?: string;
+        skipExisting?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/batch-auto-highlights';
+};
+
+export type GetAdminHighlightThemesAllData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/highlight-themes/all';
+};
+
+export type PatchAdminHighlightThemesByThemeIdData = {
+    body: {
+        is_active?: boolean;
+        default_relevance_threshold?: number;
+    };
+    path: {
+        theme_id: string;
+    };
+    query?: never;
+    url: '/admin/highlight-themes/{theme_id}';
+};
+
+export type GetAdminAutoHighlightSettingsDefaultRelevanceData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/auto-highlight-settings/default-relevance';
+};
+
+export type PatchAdminAutoHighlightSettingsDefaultRelevanceData = {
+    body: {
+        default_relevance: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/auto-highlight-settings/default-relevance';
+};
+
+export type GetAdminUserThemePreferencesByUserIdData = {
+    body?: never;
+    path: {
+        user_id: string;
+    };
+    query?: never;
+    url: '/admin/user-theme-preferences/{user_id}';
+};
+
+export type PatchAdminUserThemePreferencesByUserIdByThemeIdData = {
+    body: {
+        is_enabled?: boolean;
+        relevance_threshold?: number;
+        admin_override?: boolean;
+    };
+    path: {
+        user_id: string;
+        theme_id: string;
+    };
+    query?: never;
+    url: '/admin/user-theme-preferences/{user_id}/{theme_id}';
+};
+
 export type GetAdminCommentaryGradesData = {
     body?: never;
     path?: never;
@@ -4203,15 +5999,28 @@ export type GetAdminCommentaryGradesErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -4249,15 +6058,28 @@ export type PostAdminCommentaryGradeErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
     };
     /**
      * Response for status 500
      */
     500: {
+        error: string;
         message: string;
-        data: unknown;
+        retryAfter?: number;
+        data?: unknown;
     };
 };
 
@@ -4275,3 +6097,170 @@ export type PostAdminCommentaryGradeResponses = {
 };
 
 export type PostAdminCommentaryGradeResponse = PostAdminCommentaryGradeResponses[keyof PostAdminCommentaryGradeResponses];
+
+export type GetHealthData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health';
+};
+
+export type GetHealthDatabaseData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health/database';
+};
+
+export type GetHealthDatabaseErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetHealthDatabaseError = GetHealthDatabaseErrors[keyof GetHealthDatabaseErrors];
+
+export type GetHealthDatabaseResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        status: 'ok' | 'fail';
+        message: string;
+    };
+};
+
+export type GetHealthDatabaseResponse = GetHealthDatabaseResponses[keyof GetHealthDatabaseResponses];
+
+export type GetHealthCacheData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health/cache';
+};
+
+export type GetHealthCacheErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetHealthCacheError = GetHealthCacheErrors[keyof GetHealthCacheErrors];
+
+export type GetHealthCacheResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        status: 'ok' | 'fail';
+        message: string;
+    };
+};
+
+export type GetHealthCacheResponse = GetHealthCacheResponses[keyof GetHealthCacheResponses];
+
+export type GetHealthAllData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health/all';
+};
+
+export type GetHealthAllErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetHealthAllError = GetHealthAllErrors[keyof GetHealthAllErrors];
+
+export type GetHealthAllResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        status: 'ok' | 'fail';
+        database: {
+            status: 'ok' | 'fail';
+            message: string;
+        };
+        cache: {
+            status: 'ok' | 'fail';
+            message: string;
+        };
+    };
+};
+
+export type GetHealthAllResponse = GetHealthAllResponses[keyof GetHealthAllResponses];

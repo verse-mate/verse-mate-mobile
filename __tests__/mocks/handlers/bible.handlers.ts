@@ -12,7 +12,7 @@ import type {
   GetLastReadRequest,
   GetLastReadResponse,
   SaveLastReadRequest,
-} from '../../../src/api/generated';
+} from '../../../src/api';
 import { mockTestamentBooks } from '../data/bible-books.data';
 import { mockGenesis1Response, mockGenesis1Summary } from '../data/genesis-1.data';
 import { mockMatthew5Response } from '../data/matthew-5.data';

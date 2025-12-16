@@ -21,6 +21,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { UseActiveViewResult, ViewModeType } from '@/types/bible';
 import { isViewModeType, STORAGE_KEYS } from '@/types/bible';
 
@@ -93,6 +94,11 @@ export function useActiveView(): UseActiveViewResult {
       // Update state and cache immediately
       setActiveViewState(view);
       inMemoryCache = view;
+
+      // Track analytics: VIEW_MODE_SWITCHED event
+      analytics.track(AnalyticsEvent.VIEW_MODE_SWITCHED, {
+        mode: view,
+      });
 
       // Persist to storage
       await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_VIEW, view);

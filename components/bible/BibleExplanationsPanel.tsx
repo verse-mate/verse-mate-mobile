@@ -29,7 +29,7 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api/generated/hooks';
+import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 
 /**

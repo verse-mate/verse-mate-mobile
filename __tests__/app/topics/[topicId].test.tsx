@@ -22,7 +22,7 @@ import TopicDetailScreen from '@/app/topics/[topicId]';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useActiveTab, useActiveView } from '@/hooks/bible';
-import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api/generated';
+import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api';
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -35,7 +35,7 @@ jest.mock('expo-router', () => ({
   },
 }));
 
-jest.mock('@/src/api/generated', () => ({
+jest.mock('@/src/api', () => ({
   useTopicById: jest.fn(),
   useTopicReferences: jest.fn(),
   useTopicsSearch: jest.fn(),
@@ -244,7 +244,7 @@ describe('TopicDetailScreen', () => {
     });
 
     // Mock useBibleTestaments for BibleNavigationModal
-    const { useBibleTestaments } = require('@/src/api/generated');
+    const { useBibleTestaments } = require('@/src/api');
     (useBibleTestaments as jest.Mock).mockReturnValue({
       data: [],
       isLoading: false,

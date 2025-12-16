@@ -5,6 +5,8 @@
  * Shows theme name, relevance score, and option to save as user highlight.
  *
  * Shown as a bottom sheet modal when user taps on an auto-highlighted verse.
+ *
+ * @see Task 4.7 - Analytics tracking for AUTO_HIGHLIGHT_TOOLTIP_VIEWED
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -32,7 +34,8 @@ import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDeviceInfo } from '@/hooks/use-device-info';
-import { useBibleByLine } from '@/src/api/generated/hooks';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { useBibleByLine } from '@/src/api';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import {
   extractVerseTextFromByLine,
@@ -98,6 +101,9 @@ export function AutoHighlightTooltip({
 
   // State for showing verse insight (expanded view) - start expanded for single verses
   const [expanded, setExpanded] = useState(!isMultiVerse);
+
+  // Ref to track if analytics event has been fired for this tooltip open
+  const hasTrackedOpen = useRef(false);
 
   // Get screen height to start modal completely off-screen
   const screenHeight = Dimensions.get('window').height;
@@ -172,6 +178,7 @@ export function AutoHighlightTooltip({
         setInternalVisible(false);
         setExpanded(!isMultiVerse); // Reset expansion state
         expansionAnim.setValue(!isMultiVerse ? 1 : 0);
+        hasTrackedOpen.current = false; // Reset tracking flag
         if (callback) callback();
       }, 150);
     },
@@ -196,10 +203,28 @@ export function AutoHighlightTooltip({
       setExpanded(shouldBeExpanded);
       expansionAnim.setValue(shouldBeExpanded ? 1 : 0);
       animateOpen();
+
+      // Track analytics: AUTO_HIGHLIGHT_TOOLTIP_VIEWED (Task 4.7)
+      // Only track once per tooltip open, not on re-renders
+      if (!hasTrackedOpen.current && autoHighlight) {
+        hasTrackedOpen.current = true;
+        analytics.track(AnalyticsEvent.AUTO_HIGHLIGHT_TOOLTIP_VIEWED, {
+          bookId: autoHighlight.book_id,
+          chapterNumber: autoHighlight.chapter_number,
+        });
+      }
     } else if (internalVisible) {
       animateClose();
     }
-  }, [visible, animateOpen, animateClose, internalVisible, isMultiVerse, expansionAnim]);
+  }, [
+    visible,
+    animateOpen,
+    animateClose,
+    internalVisible,
+    isMultiVerse,
+    expansionAnim,
+    autoHighlight,
+  ]);
 
   // Handle explicit dismiss (user action)
   const handleDismiss = () => {

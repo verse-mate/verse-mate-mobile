@@ -10,9 +10,12 @@
  * - Single verse: starts expanded
  * - Multi-verse: starts collapsed
  * - Context-aware actions:
- *   - Plain verse → "Save as My Highlight" (opens color picker)
- *   - Highlighted verse → Shows color info + "Remove Highlight" (red)
+ *   - Plain verse -> "Save as My Highlight" (opens color picker)
+ *   - Highlighted verse -> Shows color info + "Remove Highlight" (red)
  * - Swipe up to expand, swipe down to dismiss
+ *
+ * @see Task 4.7 - Analytics tracking for VERSEMATE_TOOLTIP_OPENED
+ * @see Time-Based Analytics - TOOLTIP_READING_DURATION tracking (3-second threshold)
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -40,10 +43,17 @@ import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
-import { useBibleByLine } from '@/src/api/generated/hooks';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { useBibleByLine } from '@/src/api';
 import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
+
+/**
+ * Minimum duration in seconds for tooltip reading to be tracked
+ * Filters out accidental taps or brief views
+ */
+const TOOLTIP_DURATION_THRESHOLD_SECONDS = 3;
 
 interface VerseMateTooltipProps {
   /** Verse number (for plain verses) or null */
@@ -124,6 +134,12 @@ export function VerseMateTooltip({
   // State for delete confirmation modal
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
+  // Ref to track if analytics event has been fired for this tooltip open
+  const hasTrackedOpen = useRef(false);
+
+  // Ref to track when tooltip was opened (for duration tracking)
+  const openTimestampRef = useRef<number | null>(null);
+
   // Get screen height to start modal completely off-screen
   const screenHeight = Dimensions.get('window').height;
 
@@ -150,6 +166,9 @@ export function VerseMateTooltip({
   // Helper to animate open
   const animateOpen = useCallback(() => {
     setInternalVisible(true);
+    // Record the open timestamp for duration tracking
+    openTimestampRef.current = Date.now();
+
     Animated.parallel([
       Animated.timing(backdropOpacity, {
         toValue: 1,
@@ -168,6 +187,22 @@ export function VerseMateTooltip({
   // Helper to animate close
   const animateClose = useCallback(
     (callback?: () => void) => {
+      // Calculate and track duration (Time-Based Analytics)
+      if (openTimestampRef.current && targetVerseNumber) {
+        const durationMs = Date.now() - openTimestampRef.current;
+        const durationSeconds = Math.floor(durationMs / 1000);
+
+        // Only track if tooltip was open for >= 3 seconds (filter accidental taps)
+        if (durationSeconds >= TOOLTIP_DURATION_THRESHOLD_SECONDS) {
+          analytics.track(AnalyticsEvent.TOOLTIP_READING_DURATION, {
+            duration_seconds: durationSeconds,
+            bookId,
+            chapterNumber,
+            verseNumber: targetVerseNumber,
+          });
+        }
+      }
+
       Animated.parallel([
         Animated.timing(backdropOpacity, {
           toValue: 0,
@@ -190,10 +225,21 @@ export function VerseMateTooltip({
         setInternalVisible(false);
         setExpanded(!isMultiVerse); // Reset to default state
         expansionAnim.setValue(!isMultiVerse ? 1 : 0);
+        hasTrackedOpen.current = false; // Reset tracking flag
+        openTimestampRef.current = null; // Reset open timestamp
         if (callback) callback();
       }, 150);
     },
-    [backdropOpacity, slideAnim, screenHeight, expansionAnim, isMultiVerse]
+    [
+      backdropOpacity,
+      slideAnim,
+      screenHeight,
+      expansionAnim,
+      isMultiVerse,
+      bookId,
+      chapterNumber,
+      targetVerseNumber,
+    ]
   );
 
   // Handle expansion animation
@@ -214,10 +260,31 @@ export function VerseMateTooltip({
       setExpanded(shouldBeExpanded);
       expansionAnim.setValue(shouldBeExpanded ? 1 : 0); // Set immediately without animation
       animateOpen();
+
+      // Track analytics: VERSEMATE_TOOLTIP_OPENED (Task 4.7)
+      // Only track once per tooltip open, not on re-renders
+      if (!hasTrackedOpen.current && targetVerseNumber) {
+        hasTrackedOpen.current = true;
+        analytics.track(AnalyticsEvent.VERSEMATE_TOOLTIP_OPENED, {
+          bookId,
+          chapterNumber,
+          verseNumber: targetVerseNumber,
+        });
+      }
     } else if (internalVisible) {
       animateClose();
     }
-  }, [visible, animateOpen, animateClose, internalVisible, isMultiVerse, expansionAnim]);
+  }, [
+    visible,
+    animateOpen,
+    animateClose,
+    internalVisible,
+    isMultiVerse,
+    expansionAnim,
+    bookId,
+    chapterNumber,
+    targetVerseNumber,
+  ]);
 
   // Handle explicit dismiss (user action)
   const handleDismiss = () => {

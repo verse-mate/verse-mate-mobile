@@ -8,7 +8,7 @@ import {
 	transformExplanationResponse,
 	type ChapterContent,
 	type ExplanationContent,
-} from '../bible/types';
+} from './bible/types';
 import type {
 	GetBibleTestamentsData,
 	GetBibleBooksData,
@@ -34,8 +34,8 @@ import type {
 	GetTopicsByIdData,
 	GetTopicsByIdReferencesData,
 	GetTopicsByIdExplanationData,
-} from './types.gen';
-import type { Options } from './sdk.gen';
+} from './generated/types.gen';
+import type { Options } from './generated/sdk.gen';
 
 import {
 	getBibleTestamentsOptions,
@@ -62,7 +62,7 @@ import {
 	getTopicsByIdOptions,
 	getTopicsByIdReferencesOptions,
 	getTopicsByIdExplanationOptions,
-} from './@tanstack/react-query.gen';
+} from './generated/@tanstack/react-query.gen';
 
 // Note: Options type is already exported from sdk.gen via index.ts
 

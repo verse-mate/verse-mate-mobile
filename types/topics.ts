@@ -2,7 +2,7 @@
  * Shared Type Definitions for Topics Feature
  *
  * This file contains type definitions specific to the Topics UI components.
- * It extends and complements the API types from src/api/generated/types.gen.ts.
+ * It extends and complements the API types from src/api/types.gen.ts.
  *
  * Topics are categorized Bible content (Events, Prophecies, Parables) with
  * AI-generated explanations and Bible verse references.

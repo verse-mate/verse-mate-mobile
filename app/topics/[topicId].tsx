@@ -38,10 +38,12 @@ import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible'
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useTopicNavigation } from '@/hooks/topics/use-topic-navigation';
 import { useDeviceInfo } from '@/hooks/use-device-info';
-import { useTopicById, useTopicsSearch } from '@/src/api/generated';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { useTopicById, useTopicsSearch } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
 import { generateTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
+import { generateTopicSlug } from '@/utils/topicSlugs';
 
 /**
  * View mode type for Topic reading interface
@@ -251,10 +253,19 @@ export default function TopicDetailScreen() {
       const url = generateTopicShareUrl(category, currentTopic.name);
       const message = `Check out ${currentTopic.name} on VerseMate: ${url}`;
 
-      await Share.share({
+      const result = await Share.share({
         message,
         url,
       });
+
+      if (result.action === Share.sharedAction) {
+        // Track analytics: TOPIC_SHARED event on successful share
+        const topicSlug = generateTopicSlug(currentTopic.name);
+        analytics.track(AnalyticsEvent.TOPIC_SHARED, {
+          category,
+          topicSlug,
+        });
+      }
     } catch (error) {
       console.error('Share failed:', error);
       // Show error alert
