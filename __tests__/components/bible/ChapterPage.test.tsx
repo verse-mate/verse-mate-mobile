@@ -22,12 +22,7 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
-import {
-  useBibleByLine,
-  useBibleChapter,
-  useBibleDetailed,
-  useBibleSummary,
-} from '@/src/api/hooks';
+import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 
 // Mock the Bible hooks

@@ -14,7 +14,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import type React from 'react';
-import { usePrefetchNextChapter, usePrefetchPreviousChapter } from '@/src/api/hooks';
+import { usePrefetchNextChapter, usePrefetchPreviousChapter } from '@/src/api';
 
 /**
  * Create a wrapper with QueryClientProvider for testing hooks
