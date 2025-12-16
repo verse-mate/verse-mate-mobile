@@ -55,6 +55,7 @@ export function useScrollDepthTracking(
   }, [bookId, chapterNumber, bibleVersion]);
 
   // Reset max depth when chapter changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We need to force this
   useEffect(() => {
     maxScrollDepthRef.current = 0;
   }, [bookId, chapterNumber]);

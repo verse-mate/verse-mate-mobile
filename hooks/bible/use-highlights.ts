@@ -62,7 +62,6 @@ import type {
   DeleteBibleHighlightByHighlightIdData,
   GetBibleHighlightsByUserIdByBookIdByChapterNumberResponse,
   GetBibleHighlightsByUserIdResponse,
-  PostBibleHighlightAddData,
   PutBibleHighlightByHighlightIdData,
 } from '@/src/api/generated/types.gen';
 
