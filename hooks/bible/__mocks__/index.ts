@@ -13,7 +13,7 @@
  * ```
  */
 
-const React = require('react');
+import React from 'react';
 
 // Active tab persistence hook
 export const useActiveTab = jest.fn(() => ({

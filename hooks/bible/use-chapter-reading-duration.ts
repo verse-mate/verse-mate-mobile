@@ -94,5 +94,5 @@ export function useChapterReadingDuration(
         bibleVersion: chapterInfoRef.current.bibleVersion,
       });
     };
-  }, [bookId, chapterNumber, bibleVersion]);
+  }, []);
 }
