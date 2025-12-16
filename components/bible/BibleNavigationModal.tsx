@@ -67,6 +67,7 @@ import {
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useBibleTestaments, useTopicsSearch } from '@/src/api/generated';
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId } from '@/types/bible';
@@ -114,10 +115,11 @@ function BibleNavigationModalComponent({
 }: BibleNavigationModalProps) {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
+  const { useSplitView } = useDeviceInfo();
   const modalSpecs = useMemo(() => getModalSpecs(mode), [mode]); // Define modalSpecs here
   const styles = useMemo(
-    () => createStyles(colors, mode, insets.top, modalSpecs),
-    [colors, mode, insets.top, modalSpecs]
+    () => createStyles(colors, mode, insets.top, modalSpecs, useSplitView),
+    [colors, mode, insets.top, modalSpecs, useSplitView]
   );
 
   // State for tab type: 'OT', 'NT', or 'TOPICS'
@@ -967,19 +969,22 @@ const createStyles = (
   colors: ReturnType<typeof getColors>,
   mode: ThemeMode,
   topInset: number,
-  modalSpecs: ReturnType<typeof getModalSpecs>
+  modalSpecs: ReturnType<typeof getModalSpecs>,
+  useSplitView: boolean
 ) => {
   return StyleSheet.create({
     backdrop: {
       flex: 1,
       backgroundColor: modalSpecs.backdropColor,
       justifyContent: 'flex-start',
+      alignItems: useSplitView ? 'center' : 'stretch',
     },
     backdropTouchable: {
       flex: 1,
     },
     container: {
       height: modalSpecs.height,
+      width: useSplitView ? '60%' : '100%',
       backgroundColor: modalSpecs.backgroundColor,
       borderBottomLeftRadius: 30,
       borderBottomRightRadius: 30,
@@ -1160,7 +1165,7 @@ const createStyles = (
       gap: spacing.md,
     },
     chapterButton: {
-      width: '17.4%', // 5 columns with space-between
+      width: useSplitView ? 75 : '17.4%', // Smaller fixed width in landscape, 5 columns in portrait
       aspectRatio: 1,
       backgroundColor: modalSpecs.backgroundColor,
       borderRadius: 8,
