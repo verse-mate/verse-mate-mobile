@@ -4,7 +4,7 @@
  * Simplified list of all 66 Bible books for testing
  */
 
-import type { TestamentBook } from '../../../src/api/generated';
+import type { TestamentBook } from '../../../src/api';
 
 /**
  * All 66 Bible books with metadata

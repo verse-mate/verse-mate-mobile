@@ -61,7 +61,7 @@ jest.mock('@/components/bible/ChapterContentTabs', () => ({
 }));
 
 // Mock the API hooks
-jest.mock('@/src/api/generated/hooks', () => ({
+jest.mock('@/src/api/hooks', () => ({
   useBibleTestaments: jest.fn(() => ({
     data: mockTestamentBooks,
     isLoading: false,
@@ -334,7 +334,7 @@ describe('Cross-Book Navigation', () => {
    */
   it('handles metadata loading gracefully (shows loading state until booksMetadata available)', async () => {
     // Mock useBibleTestaments to return undefined initially
-    const { useBibleTestaments } = require('@/src/api/generated/hooks');
+    const { useBibleTestaments } = require('@/src/api/hooks');
     useBibleTestaments.mockReturnValueOnce({
       data: undefined,
       isLoading: true,

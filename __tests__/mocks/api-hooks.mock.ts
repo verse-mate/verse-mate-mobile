@@ -1,14 +1,14 @@
 /**
- * Default mock configuration for @/src/api/generated hooks
+ * Default mock configuration for @/src/api hooks
  *
  * Usage in test files:
  * ```typescript
- * jest.mock('@/src/api/generated', () => require('../../mocks/api-hooks.mock').apiHooksMock);
+ * jest.mock('@/src/api', () => require('../../mocks/api-hooks.mock').apiHooksMock);
  * ```
  *
  * Then customize in beforeEach:
  * ```typescript
- * import { useBibleChapter } from '@/src/api/generated';
+ * import { useBibleChapter } from '@/src/api';
  * beforeEach(() => {
  *   (useBibleChapter as jest.Mock).mockReturnValue({ data: mockData, isLoading: false });
  * });
@@ -154,6 +154,28 @@ export const apiHooksMock = {
     isLoading: false,
     error: null,
   })),
+
+  // Recently viewed books hooks
+  getUserRecentlyViewedBooksOptions: jest.fn(() => ({
+    queryKey: ['user', 'recently-viewed-books'],
+    queryFn: jest.fn().mockResolvedValue({ bookIds: [] }),
+  })),
+  postUserRecentlyViewedBooksSyncMutation: jest.fn(() => ({
+    mutationFn: jest.fn().mockResolvedValue({ bookIds: [] }),
+  })),
+
+  // Bible keys object for query key generation
+  bibleKeys: {
+    testaments: jest.fn(() => ['bible', 'testaments']),
+    books: jest.fn(() => ['bible', 'books']),
+    chapter: jest.fn(() => ['bible', 'chapter']),
+    explanation: jest.fn(() => ['bible', 'explanation']),
+    chapterId: jest.fn(() => ['bible', 'chapterId']),
+    bookmarks: jest.fn(() => ['bible', 'bookmarks']),
+    notes: jest.fn(() => ['bible', 'notes']),
+    highlights: jest.fn(() => ['bible', 'highlights']),
+    chapterHighlights: jest.fn(() => ['bible', 'chapterHighlights']),
+  },
 };
 
 // Default export for use in jest.mock factory

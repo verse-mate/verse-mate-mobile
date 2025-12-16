@@ -4,7 +4,7 @@
  * Sample data for testing New Testament content
  */
 
-import type { GetBibleChapterResponse } from '../../../src/api/generated';
+import type { GetBibleChapterResponse } from '../../../src/api';
 
 export const mockMatthew5Response: GetBibleChapterResponse = {
   book: {
