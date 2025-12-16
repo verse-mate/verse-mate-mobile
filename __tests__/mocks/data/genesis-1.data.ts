@@ -4,7 +4,7 @@
  * Real API response from GET /bible/book/1/1
  */
 
-import type { GetBibleChapterResponse } from '../../../src/api/generated';
+import type { GetBibleChapterResponse } from '../../../src/api';
 
 export const mockGenesis1Response: GetBibleChapterResponse = {
   book: {

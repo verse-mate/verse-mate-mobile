@@ -23,6 +23,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { ContentTabType, UseActiveTabResult } from '@/types/bible';
 import { isContentTabType, STORAGE_KEYS } from '@/types/bible';
 
@@ -96,6 +97,12 @@ export function useActiveTab(): UseActiveTabResult {
       }
       setActiveTabState(tab);
       inMemoryCache = tab;
+
+      // Track analytics: EXPLANATION_TAB_CHANGED event
+      analytics.track(AnalyticsEvent.EXPLANATION_TAB_CHANGED, {
+        tab: tab,
+      });
+
       await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_TAB, tab);
       setError(null);
     } catch (err) {

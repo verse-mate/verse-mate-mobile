@@ -32,12 +32,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useNotes } from '@/hooks/bible/use-notes';
-import {
-  useBibleByLine,
-  useBibleChapter,
-  useBibleDetailed,
-  useBibleSummary,
-} from '@/src/api/generated/hooks';
+import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 import { BottomLogo } from './BottomLogo';

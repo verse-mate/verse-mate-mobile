@@ -13,6 +13,8 @@ export { useActiveView } from './use-active-view';
 export { useBookProgress } from './use-book-progress';
 // Bookmarks management hook
 export { useBookmarks } from './use-bookmarks';
+// Chapter reading duration tracking hook (Time-Based Analytics)
+export { useChapterReadingDuration } from './use-chapter-reading-duration';
 // Last read position hook (wraps API hook)
 export { useLastRead } from './use-last-read';
 // Last read position persistence hook (for app launch continuity)
@@ -23,3 +25,7 @@ export { useOfflineStatus } from './use-offline-status';
 export { useReadingPosition } from './use-reading-position';
 // Recent books tracking hook
 export { useRecentBooks } from './use-recent-books';
+// Scroll depth tracking hook (Time-Based Analytics)
+export { useScrollDepthTracking } from './use-scroll-depth-tracking';
+// View mode duration tracking hook (Time-Based Analytics)
+export { useViewModeDuration } from './use-view-mode-duration';

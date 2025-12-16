@@ -29,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import { Alert, Pressable, Share, StyleSheet } from 'react-native';
 import { getHeaderSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 
 /**
@@ -102,8 +103,6 @@ export function ShareButton({
     }
 
     // Default chapter sharing logic
-    // TODO: Track analytics - share_chapter_initiated with { bookId, chapterNumber, source: 'chapter_reader' }
-
     try {
       // Trigger haptic feedback (non-blocking)
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -131,14 +130,17 @@ export function ShareButton({
       });
 
       if (result.action === Share.sharedAction) {
-        // TODO: Track analytics - share_chapter_completed with { platform: result.activityType, successful: true }
+        // Track analytics: CHAPTER_SHARED event on successful share
+        analytics.track(AnalyticsEvent.CHAPTER_SHARED, {
+          bookId,
+          chapterNumber,
+        });
         console.log('Chapter shared successfully');
       } else if (result.action === Share.dismissedAction) {
         // User dismissed share sheet - no action needed
         console.log('Share dismissed');
       }
     } catch (error) {
-      // TODO: Track analytics - share_chapter_failed with { error: error.message }
       console.error('Failed to share chapter:', error);
 
       // Trigger error haptic feedback

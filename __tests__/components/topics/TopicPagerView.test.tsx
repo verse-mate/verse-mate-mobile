@@ -81,7 +81,7 @@ jest.mock('@/components/topics/TopicPage', () => ({
 }));
 
 // Mock API hooks
-jest.mock('@/src/api/generated', () => ({
+jest.mock('@/src/api', () => ({
   useTopicById: jest.fn(() => ({ data: null, isLoading: false, error: null })),
   useTopicReferences: jest.fn(() => ({ data: null, isLoading: false, error: null })),
 }));

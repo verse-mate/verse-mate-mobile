@@ -15,7 +15,7 @@ import {
   useBibleTestaments,
   useLastRead,
   useSaveLastRead,
-} from '../../src/api/generated';
+} from '../../src/api';
 import {
   clearMockLastReadPosition,
   setMockLastReadPosition,

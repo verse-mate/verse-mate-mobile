@@ -26,7 +26,7 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md
  */
 
-import type { TestamentBook } from '@/src/api/generated';
+import type { TestamentBook } from '@/src/api';
 
 /**
  * Chapter location reference (bookId + chapterNumber)

@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteAdminBatchByBatchJobIdData, DeleteAdminBatchByBatchJobIdErrors, DeleteAdminBatchByBatchJobIdResponses, DeleteAdminExplanationByIdData, DeleteAdminExplanationByIdErrors, DeleteAdminExplanationByIdResponses, DeleteAdminExplanationsBulkData, DeleteAdminExplanationsBulkErrors, DeleteAdminExplanationsBulkResponses, DeleteAdminExplanationsInactiveData, DeleteAdminExplanationsInactiveErrors, DeleteAdminExplanationsInactiveResponses, DeleteAdminPromptsSystemByIdData, DeleteAdminPromptsSystemByIdErrors, DeleteAdminPromptsSystemByIdResponses, DeleteAdminPromptsUserByIdData, DeleteAdminPromptsUserByIdErrors, DeleteAdminPromptsUserByIdResponses, DeleteAdminTopicsByIdData, DeleteBibleBookBookmarkRemoveData, DeleteBibleBookBookmarkRemoveErrors, DeleteBibleBookBookmarkRemoveResponses, DeleteBibleBookDeleteChatByConversationIdData, DeleteBibleBookDeleteChatByConversationIdErrors, DeleteBibleBookDeleteChatByConversationIdResponses, DeleteBibleBookNoteRemoveData, DeleteBibleBookNoteRemoveErrors, DeleteBibleBookNoteRemoveResponses, DeleteBibleHighlightByHighlightIdData, DeleteBibleHighlightByHighlightIdErrors, DeleteBibleHighlightByHighlightIdResponses, GetAdminBatchByBatchJobIdData, GetAdminBatchByBatchJobIdErrors, GetAdminBatchByBatchJobIdResponses, GetAdminBatchChildrenByParentIdData, GetAdminBatchChildrenByParentIdErrors, GetAdminBatchChildrenByParentIdResponses, GetAdminBatchHistoryData, GetAdminBatchHistoryErrors, GetAdminBatchHistoryResponses, GetAdminBatchSummaryByParentIdData, GetAdminBatchSummaryByParentIdErrors, GetAdminBatchSummaryByParentIdResponses, GetAdminCommentaryGradesData, GetAdminCommentaryGradesErrors, GetAdminCommentaryGradesResponses, GetAdminExplanationByIdHistoryData, GetAdminExplanationByIdHistoryErrors, GetAdminExplanationByIdHistoryResponses, GetAdminExplanationRegenerateByRegenerationIdComparisonData, GetAdminExplanationRegenerateByRegenerationIdComparisonErrors, GetAdminExplanationRegenerateByRegenerationIdComparisonResponses, GetAdminExplanationsData, GetAdminExplanationsErrors, GetAdminExplanationsLanguagesData, GetAdminExplanationsLanguagesErrors, GetAdminExplanationsLanguagesResponses, GetAdminExplanationsResponses, GetAdminPromptsExplanationExistingData, GetAdminPromptsExplanationExistingErrors, GetAdminPromptsExplanationExistingResponses, GetAdminPromptsExplanationTypesData, GetAdminPromptsExplanationTypesErrors, GetAdminPromptsExplanationTypesResponses, GetAdminPromptsSystemData, GetAdminPromptsSystemErrors, GetAdminPromptsSystemResponses, GetAdminPromptsUserData, GetAdminPromptsUserErrors, GetAdminPromptsUserResponses, GetAdminStatsData, GetAdminStatsErrors, GetAdminStatsResponses, GetAdminTopicsData, GetAdminUsersData, GetAdminUsersErrors, GetAdminUsersResponses, GetAuthResetPasswordVerifyData, GetAuthResetPasswordVerifyErrors, GetAuthResetPasswordVerifyResponses, GetAuthSessionData, GetAuthSessionErrors, GetAuthSessionResponses, GetAuthUserData, GetAuthUserErrors, GetAuthUserResponses, GetBibleBookBookmarksByUserIdData, GetBibleBookBookmarksByUserIdErrors, GetBibleBookBookmarksByUserIdResponses, GetBibleBookByBookIdByChapterNumberData, GetBibleBookByBookIdByChapterNumberErrors, GetBibleBookByBookIdByChapterNumberResponses, GetBibleBookExplanationByBookIdByChapterNumberData, GetBibleBookExplanationByBookIdByChapterNumberErrors, GetBibleBookExplanationByBookIdByChapterNumberResponses, GetBibleBookNotesByUserIdData, GetBibleBookNotesByUserIdErrors, GetBibleBookNotesByUserIdResponses, GetBibleBooksData, GetBibleBooksErrors, GetBibleBooksResponses, GetBibleChapterIdByBookIdByChapterNumberData, GetBibleChapterIdByBookIdByChapterNumberErrors, GetBibleChapterIdByBookIdByChapterNumberResponses, GetBibleHighlightsByUserIdByBookIdByChapterNumberData, GetBibleHighlightsByUserIdByBookIdByChapterNumberErrors, GetBibleHighlightsByUserIdByBookIdByChapterNumberResponses, GetBibleHighlightsByUserIdData, GetBibleHighlightsByUserIdErrors, GetBibleHighlightsByUserIdResponses, GetBibleLanguagesData, GetBibleLanguagesErrors, GetBibleLanguagesResponses, GetBibleTestamentsData, GetBibleTestamentsErrors, GetBibleTestamentsResponses, GetTopicsByIdData, GetTopicsByIdExplanationData, GetTopicsByIdExplanationResponses, GetTopicsByIdReferencesData, GetTopicsByIdReferencesResponses, GetTopicsByIdResponses, GetTopicsCategoriesData, GetTopicsCategoriesResponses, GetTopicsSearchData, GetTopicsSearchResponses, GetUserData, GetUserErrors, GetUserMeData, GetUserMeErrors, GetUserMeResponses, GetUserRecentlyViewedBooksData, GetUserRecentlyViewedBooksErrors, GetUserRecentlyViewedBooksResponses, GetUserResponses, PatchAdminUserByIdAdminStatusData, PatchAdminUserByIdAdminStatusErrors, PatchAdminUserByIdAdminStatusResponses, PatchUserPreferencesData, PatchUserPreferencesErrors, PatchUserPreferencesResponses, PostAdminBatchesMonitorAllData, PostAdminBatchesMonitorAllErrors, PostAdminBatchesMonitorAllResponses, PostAdminBatchExplanationsData, PostAdminBatchExplanationsErrors, PostAdminBatchExplanationsResponses, PostAdminBatchRephraseData, PostAdminBatchRephraseErrors, PostAdminBatchRephraseResponses, PostAdminBatchTopicDiscoveryData, PostAdminBatchTopicExplanationsData, PostAdminBatchTopicReferencesData, PostAdminBatchTranslateData, PostAdminBatchTranslateErrors, PostAdminBatchTranslateResponses, PostAdminCommentaryGradeData, PostAdminCommentaryGradeErrors, PostAdminCommentaryGradeResponses, PostAdminExplanationRegenerateByRegenerationIdChooseData, PostAdminExplanationRegenerateByRegenerationIdChooseErrors, PostAdminExplanationRegenerateByRegenerationIdChooseResponses, PostAdminExplanationRegenerateByRegenerationIdGenerateData, PostAdminExplanationRegenerateByRegenerationIdGenerateErrors, PostAdminExplanationRegenerateByRegenerationIdGenerateResponses, PostAdminExplanationRegenerateData, PostAdminExplanationRegenerateErrors, PostAdminExplanationRegenerateResponses, PostAdminExplanationsRefreshLanguageStatsData, PostAdminExplanationsRefreshLanguageStatsErrors, PostAdminExplanationsRefreshLanguageStatsResponses, PostAdminExplanationsSetActiveAsDefaultData, PostAdminExplanationsSetActiveAsDefaultErrors, PostAdminExplanationsSetActiveAsDefaultResponses, PostAdminExplanationsSetDefaultsActiveData, PostAdminExplanationsSetDefaultsActiveErrors, PostAdminExplanationsSetDefaultsActiveResponses, PostAdminExplanationsSetSpecificVersionActiveData, PostAdminExplanationsSetSpecificVersionActiveErrors, PostAdminExplanationsSetSpecificVersionActiveResponses, PostAdminMonitorBibleBatchByParentIdData, PostAdminMonitorBibleBatchByParentIdErrors, PostAdminMonitorBibleBatchByParentIdResponses, PostAdminPromptsPlaygroundData, PostAdminPromptsPlaygroundErrors, PostAdminPromptsPlaygroundResponses, PostAdminPromptsRestoreDefaultsData, PostAdminPromptsRestoreDefaultsErrors, PostAdminPromptsRestoreDefaultsResponses, PostAdminPromptsSystemData, PostAdminPromptsSystemErrors, PostAdminPromptsSystemResponses, PostAdminPromptsUserData, PostAdminPromptsUserErrors, PostAdminPromptsUserResponses, PostAdminTopicsData, PostAdminTopicsSortChronologicallyData, PostAdminTopicsTranslateAllData, PostAdminTopicsTranslateExplanationsData, PostAdminTopicsTranslateNamesData, PostAuthChangePasswordData, PostAuthChangePasswordErrors, PostAuthChangePasswordResponses, PostAuthForgotPasswordData, PostAuthForgotPasswordErrors, PostAuthForgotPasswordResponses, PostAuthLoginData, PostAuthLoginErrors, PostAuthLoginResponses, PostAuthLogoutAllData, PostAuthLogoutAllErrors, PostAuthLogoutAllResponses, PostAuthLogoutData, PostAuthLogoutErrors, PostAuthLogoutResponses, PostAuthRefreshData, PostAuthRefreshErrors, PostAuthRefreshResponses, PostAuthResetPasswordData, PostAuthResetPasswordErrors, PostAuthResetPasswordResponses, PostAuthSendEmailVerificationData, PostAuthSendEmailVerificationErrors, PostAuthSendEmailVerificationResponses, PostAuthSignupData, PostAuthSignupErrors, PostAuthSignupResponses, PostAuthVerifyEmailData, PostAuthVerifyEmailErrors, PostAuthVerifyEmailResponses, PostBibleBookAskVerseMateSaveAiMessageData, PostBibleBookAskVerseMateSaveAiMessageErrors, PostBibleBookAskVerseMateSaveAiMessageResponses, PostBibleBookAskVerseMateSaveUserMessageData, PostBibleBookAskVerseMateSaveUserMessageErrors, PostBibleBookAskVerseMateSaveUserMessageResponses, PostBibleBookBookmarkAddData, PostBibleBookBookmarkAddErrors, PostBibleBookBookmarkAddResponses, PostBibleBookBookmarkRemoveData, PostBibleBookBookmarkRemoveErrors, PostBibleBookBookmarkRemoveResponses, PostBibleBookChapterLastReadData, PostBibleBookChapterLastReadErrors, PostBibleBookChapterLastReadResponses, PostBibleBookChapterSaveLastReadData, PostBibleBookChapterSaveLastReadErrors, PostBibleBookChapterSaveLastReadResponses, PostBibleBookConversationExistsData, PostBibleBookConversationExistsErrors, PostBibleBookConversationExistsResponses, PostBibleBookConversationsHistoryData, PostBibleBookConversationsHistoryErrors, PostBibleBookConversationsHistoryResponses, PostBibleBookExplanationRatingsData, PostBibleBookExplanationRatingsErrors, PostBibleBookExplanationRatingsResponses, PostBibleBookExplanationSaveRatingData, PostBibleBookExplanationSaveRatingErrors, PostBibleBookExplanationSaveRatingResponses, PostBibleBookMessagesHistoryData, PostBibleBookMessagesHistoryErrors, PostBibleBookMessagesHistoryResponses, PostBibleBookNewConversationData, PostBibleBookNewConversationErrors, PostBibleBookNewConversationResponses, PostBibleBookNoteAddData, PostBibleBookNoteAddErrors, PostBibleBookNoteAddResponses, PostBibleHighlightAddData, PostBibleHighlightAddErrors, PostBibleHighlightAddResponses, PostTopicsParseReferencesData, PostTopicsParseReferencesResponses, PostUserRecentlyViewedBooksSyncData, PostUserRecentlyViewedBooksSyncErrors, PostUserRecentlyViewedBooksSyncResponses, PostUserUpdateData, PostUserUpdateErrors, PostUserUpdateResponses, PutAdminPromptsSystemByIdData, PutAdminPromptsSystemByIdErrors, PutAdminPromptsSystemByIdResponses, PutAdminPromptsSystemByIdStatusData, PutAdminPromptsSystemByIdStatusErrors, PutAdminPromptsSystemByIdStatusResponses, PutAdminPromptsUserByIdData, PutAdminPromptsUserByIdErrors, PutAdminPromptsUserByIdResponses, PutAdminPromptsUserByIdStatusData, PutAdminPromptsUserByIdStatusErrors, PutAdminPromptsUserByIdStatusResponses, PutAdminTopicsByIdData, PutAuthProfileData, PutAuthProfileErrors, PutAuthProfileResponses, PutBibleBookExplanationUpdateRatingData, PutBibleBookExplanationUpdateRatingErrors, PutBibleBookExplanationUpdateRatingResponses, PutBibleBookNoteUpdateData, PutBibleBookNoteUpdateErrors, PutBibleBookNoteUpdateResponses, PutBibleHighlightByHighlightIdData, PutBibleHighlightByHighlightIdErrors, PutBibleHighlightByHighlightIdResponses } from './types.gen';
+import type { DeleteAdminBatchByBatchJobIdData, DeleteAdminBatchByBatchJobIdErrors, DeleteAdminBatchByBatchJobIdResponses, DeleteAdminExplanationByIdData, DeleteAdminExplanationByIdErrors, DeleteAdminExplanationByIdResponses, DeleteAdminExplanationsBulkData, DeleteAdminExplanationsBulkErrors, DeleteAdminExplanationsBulkResponses, DeleteAdminExplanationsInactiveData, DeleteAdminExplanationsInactiveErrors, DeleteAdminExplanationsInactiveResponses, DeleteAdminPromptsSystemByIdData, DeleteAdminPromptsSystemByIdErrors, DeleteAdminPromptsSystemByIdResponses, DeleteAdminPromptsUserByIdData, DeleteAdminPromptsUserByIdErrors, DeleteAdminPromptsUserByIdResponses, DeleteAdminTopicsByIdData, DeleteBibleBookBookmarkRemoveData, DeleteBibleBookBookmarkRemoveErrors, DeleteBibleBookBookmarkRemoveResponses, DeleteBibleBookDeleteChatByConversationIdData, DeleteBibleBookDeleteChatByConversationIdErrors, DeleteBibleBookDeleteChatByConversationIdResponses, DeleteBibleBookNoteRemoveData, DeleteBibleBookNoteRemoveErrors, DeleteBibleBookNoteRemoveResponses, DeleteBibleHighlightByHighlightIdData, DeleteBibleHighlightByHighlightIdErrors, DeleteBibleHighlightByHighlightIdResponses, GetAdminAutoHighlightSettingsDefaultEnabledData, GetAdminAutoHighlightSettingsDefaultRelevanceData, GetAdminBatchByBatchJobIdData, GetAdminBatchByBatchJobIdErrors, GetAdminBatchByBatchJobIdResponses, GetAdminBatchChildrenByParentIdData, GetAdminBatchChildrenByParentIdErrors, GetAdminBatchChildrenByParentIdResponses, GetAdminBatchHistoryData, GetAdminBatchHistoryErrors, GetAdminBatchHistoryResponses, GetAdminBatchSummaryByParentIdData, GetAdminBatchSummaryByParentIdErrors, GetAdminBatchSummaryByParentIdResponses, GetAdminCommentaryGradesData, GetAdminCommentaryGradesErrors, GetAdminCommentaryGradesResponses, GetAdminExplanationByIdHistoryData, GetAdminExplanationByIdHistoryErrors, GetAdminExplanationByIdHistoryResponses, GetAdminExplanationRegenerateByRegenerationIdComparisonData, GetAdminExplanationRegenerateByRegenerationIdComparisonErrors, GetAdminExplanationRegenerateByRegenerationIdComparisonResponses, GetAdminExplanationsData, GetAdminExplanationsErrors, GetAdminExplanationsLanguagesData, GetAdminExplanationsLanguagesErrors, GetAdminExplanationsLanguagesResponses, GetAdminExplanationsResponses, GetAdminHighlightThemesAllData, GetAdminPromptsExplanationExistingData, GetAdminPromptsExplanationExistingErrors, GetAdminPromptsExplanationExistingResponses, GetAdminPromptsExplanationTypesData, GetAdminPromptsExplanationTypesErrors, GetAdminPromptsExplanationTypesResponses, GetAdminPromptsSystemData, GetAdminPromptsSystemErrors, GetAdminPromptsSystemResponses, GetAdminPromptsUserData, GetAdminPromptsUserErrors, GetAdminPromptsUserResponses, GetAdminStatsData, GetAdminStatsErrors, GetAdminStatsResponses, GetAdminTopicsData, GetAdminUsersData, GetAdminUsersErrors, GetAdminUsersResponses, GetAdminUserThemePreferencesByUserIdData, GetAuthResetPasswordVerifyData, GetAuthResetPasswordVerifyErrors, GetAuthResetPasswordVerifyResponses, GetAuthSessionData, GetAuthSessionErrors, GetAuthSessionResponses, GetAuthSsoAppleCallbackData, GetAuthSsoAppleCallbackErrors, GetAuthSsoAppleRedirectData, GetAuthSsoAppleRedirectErrors, GetAuthSsoGoogleCallbackData, GetAuthSsoGoogleCallbackErrors, GetAuthSsoGoogleRedirectData, GetAuthSsoGoogleRedirectErrors, GetAuthUserData, GetAuthUserErrors, GetAuthUserResponses, GetBibleAutoHighlightsByBookIdByChapterNumberData, GetBibleBookBookmarksByUserIdData, GetBibleBookBookmarksByUserIdErrors, GetBibleBookBookmarksByUserIdResponses, GetBibleBookByBookIdByChapterNumberData, GetBibleBookByBookIdByChapterNumberErrors, GetBibleBookByBookIdByChapterNumberResponses, GetBibleBookByBookIdIntroductionData, GetBibleBookByBookIdIntroductionErrors, GetBibleBookByBookIdIntroductionResponses, GetBibleBookExplanationByBookIdByChapterNumberData, GetBibleBookExplanationByBookIdByChapterNumberErrors, GetBibleBookExplanationByBookIdByChapterNumberResponses, GetBibleBookNotesByUserIdData, GetBibleBookNotesByUserIdErrors, GetBibleBookNotesByUserIdResponses, GetBibleBooksData, GetBibleBooksErrors, GetBibleBooksResponses, GetBibleChapterIdByBookIdByChapterNumberData, GetBibleChapterIdByBookIdByChapterNumberErrors, GetBibleChapterIdByBookIdByChapterNumberResponses, GetBibleHighlightsByUserIdByBookIdByChapterNumberData, GetBibleHighlightsByUserIdByBookIdByChapterNumberErrors, GetBibleHighlightsByUserIdByBookIdByChapterNumberResponses, GetBibleHighlightsByUserIdData, GetBibleHighlightsByUserIdErrors, GetBibleHighlightsByUserIdResponses, GetBibleHighlightThemesData, GetBibleLanguagesData, GetBibleLanguagesErrors, GetBibleLanguagesResponses, GetBibleTestamentsData, GetBibleTestamentsErrors, GetBibleTestamentsResponses, GetBibleUserThemePreferencesData, GetHealthAllData, GetHealthAllErrors, GetHealthAllResponses, GetHealthCacheData, GetHealthCacheErrors, GetHealthCacheResponses, GetHealthData, GetHealthDatabaseData, GetHealthDatabaseErrors, GetHealthDatabaseResponses, GetTopicsByIdData, GetTopicsByIdExplanationData, GetTopicsByIdExplanationResponses, GetTopicsByIdReferencesData, GetTopicsByIdReferencesResponses, GetTopicsByIdResponses, GetTopicsBySlugData, GetTopicsBySlugErrors, GetTopicsBySlugResponses, GetTopicsCategoriesData, GetTopicsCategoriesResponses, GetTopicsSearchData, GetTopicsSearchResponses, GetUserData, GetUserErrors, GetUserMeData, GetUserMeErrors, GetUserMeResponses, GetUserRecentlyViewedBooksData, GetUserRecentlyViewedBooksErrors, GetUserRecentlyViewedBooksResponses, GetUserResponses, PatchAdminAutoHighlightSettingsDefaultEnabledData, PatchAdminAutoHighlightSettingsDefaultRelevanceData, PatchAdminHighlightThemesByThemeIdData, PatchAdminUserByIdAdminStatusData, PatchAdminUserByIdAdminStatusErrors, PatchAdminUserByIdAdminStatusResponses, PatchAdminUserThemePreferencesByUserIdByThemeIdData, PatchBibleUserThemePreferencesByThemeIdData, PatchUserPreferencesData, PatchUserPreferencesErrors, PatchUserPreferencesResponses, PostAdminBatchAutoHighlightsData, PostAdminBatchesMonitorAllData, PostAdminBatchesMonitorAllErrors, PostAdminBatchesMonitorAllResponses, PostAdminBatchExplanationsData, PostAdminBatchExplanationsErrors, PostAdminBatchExplanationsResponses, PostAdminBatchRephraseData, PostAdminBatchRephraseErrors, PostAdminBatchRephraseResponses, PostAdminBatchRetrieveErrorsByBatchIdData, PostAdminBatchRetrieveErrorsByBatchIdErrors, PostAdminBatchRetrieveErrorsByBatchIdResponses, PostAdminBatchTopicDiscoveryData, PostAdminBatchTopicExplanationsData, PostAdminBatchTopicReferencesData, PostAdminBatchTranslateData, PostAdminBatchTranslateErrors, PostAdminBatchTranslateResponses, PostAdminCommentaryGradeData, PostAdminCommentaryGradeErrors, PostAdminCommentaryGradeResponses, PostAdminExplanationRegenerateByRegenerationIdChooseData, PostAdminExplanationRegenerateByRegenerationIdChooseErrors, PostAdminExplanationRegenerateByRegenerationIdChooseResponses, PostAdminExplanationRegenerateByRegenerationIdGenerateData, PostAdminExplanationRegenerateByRegenerationIdGenerateErrors, PostAdminExplanationRegenerateByRegenerationIdGenerateResponses, PostAdminExplanationRegenerateData, PostAdminExplanationRegenerateErrors, PostAdminExplanationRegenerateResponses, PostAdminExplanationsRefreshLanguageStatsData, PostAdminExplanationsRefreshLanguageStatsErrors, PostAdminExplanationsRefreshLanguageStatsResponses, PostAdminExplanationsSetActiveAsDefaultData, PostAdminExplanationsSetActiveAsDefaultErrors, PostAdminExplanationsSetActiveAsDefaultResponses, PostAdminExplanationsSetDefaultsActiveData, PostAdminExplanationsSetDefaultsActiveErrors, PostAdminExplanationsSetDefaultsActiveResponses, PostAdminExplanationsSetSpecificVersionActiveData, PostAdminExplanationsSetSpecificVersionActiveErrors, PostAdminExplanationsSetSpecificVersionActiveResponses, PostAdminMonitorBibleBatchByParentIdData, PostAdminMonitorBibleBatchByParentIdErrors, PostAdminMonitorBibleBatchByParentIdResponses, PostAdminPromptsPlaygroundData, PostAdminPromptsPlaygroundErrors, PostAdminPromptsPlaygroundResponses, PostAdminPromptsRestoreDefaultsData, PostAdminPromptsRestoreDefaultsErrors, PostAdminPromptsRestoreDefaultsResponses, PostAdminPromptsSystemData, PostAdminPromptsSystemErrors, PostAdminPromptsSystemResponses, PostAdminPromptsUserData, PostAdminPromptsUserErrors, PostAdminPromptsUserResponses, PostAdminTopicsData, PostAdminTopicsSortChronologicallyData, PostAdminTopicsTranslateAllData, PostAdminTopicsTranslateExplanationsData, PostAdminTopicsTranslateNamesData, PostAuthChangePasswordData, PostAuthChangePasswordErrors, PostAuthChangePasswordResponses, PostAuthForgotPasswordData, PostAuthForgotPasswordErrors, PostAuthForgotPasswordResponses, PostAuthLoginData, PostAuthLoginErrors, PostAuthLoginResponses, PostAuthLogoutAllData, PostAuthLogoutAllErrors, PostAuthLogoutAllResponses, PostAuthLogoutData, PostAuthLogoutErrors, PostAuthLogoutResponses, PostAuthRefreshData, PostAuthRefreshErrors, PostAuthRefreshResponses, PostAuthResetPasswordData, PostAuthResetPasswordErrors, PostAuthResetPasswordResponses, PostAuthSendEmailVerificationData, PostAuthSendEmailVerificationErrors, PostAuthSendEmailVerificationResponses, PostAuthSignupData, PostAuthSignupErrors, PostAuthSignupResponses, PostAuthSsoAppleCallbackData, PostAuthSsoAppleCallbackErrors, PostAuthSsoData, PostAuthSsoErrors, PostAuthSsoResponses, PostAuthVerifyEmailData, PostAuthVerifyEmailErrors, PostAuthVerifyEmailResponses, PostBibleBookAskVerseMateSaveAiMessageData, PostBibleBookAskVerseMateSaveAiMessageErrors, PostBibleBookAskVerseMateSaveAiMessageResponses, PostBibleBookAskVerseMateSaveUserMessageData, PostBibleBookAskVerseMateSaveUserMessageErrors, PostBibleBookAskVerseMateSaveUserMessageResponses, PostBibleBookBookmarkAddData, PostBibleBookBookmarkAddErrors, PostBibleBookBookmarkAddResponses, PostBibleBookBookmarkRemoveData, PostBibleBookBookmarkRemoveErrors, PostBibleBookBookmarkRemoveResponses, PostBibleBookByBookIdIntroductionMarkViewedData, PostBibleBookByBookIdIntroductionMarkViewedErrors, PostBibleBookByBookIdIntroductionMarkViewedResponses, PostBibleBookChapterLastReadData, PostBibleBookChapterLastReadErrors, PostBibleBookChapterLastReadResponses, PostBibleBookChapterSaveLastReadData, PostBibleBookChapterSaveLastReadErrors, PostBibleBookChapterSaveLastReadResponses, PostBibleBookConversationExistsData, PostBibleBookConversationExistsErrors, PostBibleBookConversationExistsResponses, PostBibleBookConversationsHistoryData, PostBibleBookConversationsHistoryErrors, PostBibleBookConversationsHistoryResponses, PostBibleBookExplanationRatingsData, PostBibleBookExplanationRatingsErrors, PostBibleBookExplanationRatingsResponses, PostBibleBookExplanationSaveRatingData, PostBibleBookExplanationSaveRatingErrors, PostBibleBookExplanationSaveRatingResponses, PostBibleBookMessagesHistoryData, PostBibleBookMessagesHistoryErrors, PostBibleBookMessagesHistoryResponses, PostBibleBookNewConversationData, PostBibleBookNewConversationErrors, PostBibleBookNewConversationResponses, PostBibleBookNoteAddData, PostBibleBookNoteAddErrors, PostBibleBookNoteAddResponses, PostBibleHighlightAddData, PostBibleHighlightAddErrors, PostBibleHighlightAddResponses, PostTopicsParseReferencesData, PostTopicsParseReferencesResponses, PostUserRecentlyViewedBooksSyncData, PostUserRecentlyViewedBooksSyncErrors, PostUserRecentlyViewedBooksSyncResponses, PostUserUpdateData, PostUserUpdateErrors, PostUserUpdateResponses, PutAdminPromptsSystemByIdData, PutAdminPromptsSystemByIdErrors, PutAdminPromptsSystemByIdResponses, PutAdminPromptsSystemByIdStatusData, PutAdminPromptsSystemByIdStatusErrors, PutAdminPromptsSystemByIdStatusResponses, PutAdminPromptsUserByIdData, PutAdminPromptsUserByIdErrors, PutAdminPromptsUserByIdResponses, PutAdminPromptsUserByIdStatusData, PutAdminPromptsUserByIdStatusErrors, PutAdminPromptsUserByIdStatusResponses, PutAdminTopicsByIdData, PutAuthProfileData, PutAuthProfileErrors, PutAuthProfileResponses, PutBibleBookExplanationUpdateRatingData, PutBibleBookExplanationUpdateRatingErrors, PutBibleBookExplanationUpdateRatingResponses, PutBibleBookNoteUpdateData, PutBibleBookNoteUpdateErrors, PutBibleBookNoteUpdateResponses, PutBibleHighlightByHighlightIdData, PutBibleHighlightByHighlightIdErrors, PutBibleHighlightByHighlightIdResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -152,6 +152,56 @@ export const getAuthResetPasswordVerify = <ThrowOnError extends boolean = false>
     });
 };
 
+export const postAuthSso = <ThrowOnError extends boolean = false>(options: Options<PostAuthSsoData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostAuthSsoResponses, PostAuthSsoErrors, ThrowOnError>({
+        url: '/auth/sso',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+export const getAuthSsoGoogleRedirect = <ThrowOnError extends boolean = false>(options?: Options<GetAuthSsoGoogleRedirectData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, GetAuthSsoGoogleRedirectErrors, ThrowOnError>({
+        url: '/auth/sso/google/redirect',
+        ...options
+    });
+};
+
+export const getAuthSsoGoogleCallback = <ThrowOnError extends boolean = false>(options?: Options<GetAuthSsoGoogleCallbackData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, GetAuthSsoGoogleCallbackErrors, ThrowOnError>({
+        url: '/auth/sso/google/callback',
+        ...options
+    });
+};
+
+export const getAuthSsoAppleRedirect = <ThrowOnError extends boolean = false>(options?: Options<GetAuthSsoAppleRedirectData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, GetAuthSsoAppleRedirectErrors, ThrowOnError>({
+        url: '/auth/sso/apple/redirect',
+        ...options
+    });
+};
+
+export const getAuthSsoAppleCallback = <ThrowOnError extends boolean = false>(options?: Options<GetAuthSsoAppleCallbackData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, GetAuthSsoAppleCallbackErrors, ThrowOnError>({
+        url: '/auth/sso/apple/callback',
+        ...options
+    });
+};
+
+export const postAuthSsoAppleCallback = <ThrowOnError extends boolean = false>(options: Options<PostAuthSsoAppleCallbackData, ThrowOnError>) => {
+    return (options.client ?? client).post<unknown, PostAuthSsoAppleCallbackErrors, ThrowOnError>({
+        url: '/auth/sso/apple/callback',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
 /**
  * Get all users
  * Retrieve a list of all registered users
@@ -228,6 +278,20 @@ export const getBibleLanguages = <ThrowOnError extends boolean = false>(options?
 export const getBibleBookByBookIdByChapterNumber = <ThrowOnError extends boolean = false>(options: Options<GetBibleBookByBookIdByChapterNumberData, ThrowOnError>) => {
     return (options.client ?? client).get<GetBibleBookByBookIdByChapterNumberResponses, GetBibleBookByBookIdByChapterNumberErrors, ThrowOnError>({
         url: '/bible/book/{bookId}/{chapterNumber}',
+        ...options
+    });
+};
+
+export const getBibleBookByBookIdIntroduction = <ThrowOnError extends boolean = false>(options: Options<GetBibleBookByBookIdIntroductionData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetBibleBookByBookIdIntroductionResponses, GetBibleBookByBookIdIntroductionErrors, ThrowOnError>({
+        url: '/bible/book/{bookId}/introduction',
+        ...options
+    });
+};
+
+export const postBibleBookByBookIdIntroductionMarkViewed = <ThrowOnError extends boolean = false>(options: Options<PostBibleBookByBookIdIntroductionMarkViewedData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostBibleBookByBookIdIntroductionMarkViewedResponses, PostBibleBookByBookIdIntroductionMarkViewedErrors, ThrowOnError>({
+        url: '/bible/book/{bookId}/introduction/mark-viewed',
         ...options
     });
 };
@@ -496,6 +560,38 @@ export const putBibleHighlightByHighlightId = <ThrowOnError extends boolean = fa
     });
 };
 
+export const getBibleAutoHighlightsByBookIdByChapterNumber = <ThrowOnError extends boolean = false>(options: Options<GetBibleAutoHighlightsByBookIdByChapterNumberData, ThrowOnError>) => {
+    return (options.client ?? client).get<unknown, unknown, ThrowOnError>({
+        url: '/bible/auto-highlights/{book_id}/{chapter_number}',
+        ...options
+    });
+};
+
+export const getBibleHighlightThemes = <ThrowOnError extends boolean = false>(options?: Options<GetBibleHighlightThemesData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, unknown, ThrowOnError>({
+        url: '/bible/highlight-themes',
+        ...options
+    });
+};
+
+export const getBibleUserThemePreferences = <ThrowOnError extends boolean = false>(options?: Options<GetBibleUserThemePreferencesData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, unknown, ThrowOnError>({
+        url: '/bible/user/theme-preferences',
+        ...options
+    });
+};
+
+export const patchBibleUserThemePreferencesByThemeId = <ThrowOnError extends boolean = false>(options: Options<PatchBibleUserThemePreferencesByThemeIdData, ThrowOnError>) => {
+    return (options.client ?? client).patch<unknown, unknown, ThrowOnError>({
+        url: '/bible/user/theme-preferences/{theme_id}',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
 export const getTopicsCategories = <ThrowOnError extends boolean = false>(options?: Options<GetTopicsCategoriesData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetTopicsCategoriesResponses, unknown, ThrowOnError>({
         url: '/topics/categories',
@@ -506,6 +602,17 @@ export const getTopicsCategories = <ThrowOnError extends boolean = false>(option
 export const getTopicsSearch = <ThrowOnError extends boolean = false>(options: Options<GetTopicsSearchData, ThrowOnError>) => {
     return (options.client ?? client).get<GetTopicsSearchResponses, unknown, ThrowOnError>({
         url: '/topics/search',
+        ...options
+    });
+};
+
+/**
+ * Get topic by category and slug
+ * Lookup topic using URL-friendly category and slug (for deep linking)
+ */
+export const getTopicsBySlug = <ThrowOnError extends boolean = false>(options: Options<GetTopicsBySlugData, ThrowOnError>) => {
+    return (options.client ?? client).get<GetTopicsBySlugResponses, GetTopicsBySlugErrors, ThrowOnError>({
+        url: '/topics/by-slug',
         ...options
     });
 };
@@ -571,6 +678,24 @@ export const getAdminUsers = <ThrowOnError extends boolean = false>(options?: Op
     return (options?.client ?? client).get<GetAdminUsersResponses, GetAdminUsersErrors, ThrowOnError>({
         url: '/admin/users',
         ...options
+    });
+};
+
+export const getAdminAutoHighlightSettingsDefaultEnabled = <ThrowOnError extends boolean = false>(options?: Options<GetAdminAutoHighlightSettingsDefaultEnabledData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, unknown, ThrowOnError>({
+        url: '/admin/auto-highlight-settings/default-enabled',
+        ...options
+    });
+};
+
+export const patchAdminAutoHighlightSettingsDefaultEnabled = <ThrowOnError extends boolean = false>(options: Options<PatchAdminAutoHighlightSettingsDefaultEnabledData, ThrowOnError>) => {
+    return (options.client ?? client).patch<unknown, unknown, ThrowOnError>({
+        url: '/admin/auto-highlight-settings/default-enabled',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
     });
 };
 
@@ -689,6 +814,13 @@ export const postAdminMonitorBibleBatchByParentId = <ThrowOnError extends boolea
 export const postAdminBatchesMonitorAll = <ThrowOnError extends boolean = false>(options?: Options<PostAdminBatchesMonitorAllData, ThrowOnError>) => {
     return (options?.client ?? client).post<PostAdminBatchesMonitorAllResponses, PostAdminBatchesMonitorAllErrors, ThrowOnError>({
         url: '/admin/batches/monitor-all',
+        ...options
+    });
+};
+
+export const postAdminBatchRetrieveErrorsByBatchId = <ThrowOnError extends boolean = false>(options: Options<PostAdminBatchRetrieveErrorsByBatchIdData, ThrowOnError>) => {
+    return (options.client ?? client).post<PostAdminBatchRetrieveErrorsByBatchIdResponses, PostAdminBatchRetrieveErrorsByBatchIdErrors, ThrowOnError>({
+        url: '/admin/batch-retrieve-errors/{batchId}',
         ...options
     });
 };
@@ -1029,6 +1161,71 @@ export const postAdminTopicsTranslateAll = <ThrowOnError extends boolean = false
     });
 };
 
+export const postAdminBatchAutoHighlights = <ThrowOnError extends boolean = false>(options: Options<PostAdminBatchAutoHighlightsData, ThrowOnError>) => {
+    return (options.client ?? client).post<unknown, unknown, ThrowOnError>({
+        url: '/admin/batch-auto-highlights',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+export const getAdminHighlightThemesAll = <ThrowOnError extends boolean = false>(options?: Options<GetAdminHighlightThemesAllData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, unknown, ThrowOnError>({
+        url: '/admin/highlight-themes/all',
+        ...options
+    });
+};
+
+export const patchAdminHighlightThemesByThemeId = <ThrowOnError extends boolean = false>(options: Options<PatchAdminHighlightThemesByThemeIdData, ThrowOnError>) => {
+    return (options.client ?? client).patch<unknown, unknown, ThrowOnError>({
+        url: '/admin/highlight-themes/{theme_id}',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+export const getAdminAutoHighlightSettingsDefaultRelevance = <ThrowOnError extends boolean = false>(options?: Options<GetAdminAutoHighlightSettingsDefaultRelevanceData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, unknown, ThrowOnError>({
+        url: '/admin/auto-highlight-settings/default-relevance',
+        ...options
+    });
+};
+
+export const patchAdminAutoHighlightSettingsDefaultRelevance = <ThrowOnError extends boolean = false>(options: Options<PatchAdminAutoHighlightSettingsDefaultRelevanceData, ThrowOnError>) => {
+    return (options.client ?? client).patch<unknown, unknown, ThrowOnError>({
+        url: '/admin/auto-highlight-settings/default-relevance',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
+export const getAdminUserThemePreferencesByUserId = <ThrowOnError extends boolean = false>(options: Options<GetAdminUserThemePreferencesByUserIdData, ThrowOnError>) => {
+    return (options.client ?? client).get<unknown, unknown, ThrowOnError>({
+        url: '/admin/user-theme-preferences/{user_id}',
+        ...options
+    });
+};
+
+export const patchAdminUserThemePreferencesByUserIdByThemeId = <ThrowOnError extends boolean = false>(options: Options<PatchAdminUserThemePreferencesByUserIdByThemeIdData, ThrowOnError>) => {
+    return (options.client ?? client).patch<unknown, unknown, ThrowOnError>({
+        url: '/admin/user-theme-preferences/{user_id}/{theme_id}',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers
+        }
+    });
+};
+
 export const getAdminCommentaryGrades = <ThrowOnError extends boolean = false>(options?: Options<GetAdminCommentaryGradesData, ThrowOnError>) => {
     return (options?.client ?? client).get<GetAdminCommentaryGradesResponses, GetAdminCommentaryGradesErrors, ThrowOnError>({
         url: '/admin/commentary/grades',
@@ -1044,5 +1241,33 @@ export const postAdminCommentaryGrade = <ThrowOnError extends boolean = false>(o
             'Content-Type': 'application/json',
             ...options.headers
         }
+    });
+};
+
+export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => {
+    return (options?.client ?? client).get<unknown, unknown, ThrowOnError>({
+        url: '/health',
+        ...options
+    });
+};
+
+export const getHealthDatabase = <ThrowOnError extends boolean = false>(options?: Options<GetHealthDatabaseData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetHealthDatabaseResponses, GetHealthDatabaseErrors, ThrowOnError>({
+        url: '/health/database',
+        ...options
+    });
+};
+
+export const getHealthCache = <ThrowOnError extends boolean = false>(options?: Options<GetHealthCacheData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetHealthCacheResponses, GetHealthCacheErrors, ThrowOnError>({
+        url: '/health/cache',
+        ...options
+    });
+};
+
+export const getHealthAll = <ThrowOnError extends boolean = false>(options?: Options<GetHealthAllData, ThrowOnError>) => {
+    return (options?.client ?? client).get<GetHealthAllResponses, GetHealthAllErrors, ThrowOnError>({
+        url: '/health/all',
+        ...options
     });
 };

@@ -27,27 +27,23 @@ import {
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
   useSaveLastRead,
-} from '@/src/api/generated';
+} from '@/src/api';
 
-// Mock dependencies
-jest.mock('expo-router', () => ({
-  router: {
-    push: jest.fn(),
-    replace: jest.fn(),
-  },
-  useLocalSearchParams: jest.fn(),
+// Centralized mocks - see hooks/bible/__mocks__/index.ts and __tests__/mocks/
+jest.mock('@/hooks/bible');
+jest.mock('@/src/api', () => require('../mocks/api-hooks.mock').default);
+jest.mock('expo-router', () => require('../mocks/expo-router.mock').default);
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
 }));
 
-// Mock Safe Area Context
-jest.mock('react-native-safe-area-context', () => {
-  return {
-    SafeAreaProvider: jest.fn(({ children }) => children),
-    SafeAreaView: jest.fn(({ children }) => children),
-    useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
-  };
-});
-
-// Mock AuthContext
+// Component-specific mocks
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: jest.fn(({ children }) => children),
+  SafeAreaView: jest.fn(({ children }) => children),
+  useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
+}));
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(() => ({
     isAuthenticated: false,
@@ -58,37 +54,8 @@ jest.mock('@/contexts/AuthContext', () => ({
     signup: jest.fn(),
   })),
 }));
-
-jest.mock('@/src/api/generated', () => ({
-  useBibleChapter: jest.fn(),
-  useBibleSummary: jest.fn(),
-  useSaveLastRead: jest.fn(),
-  useBibleTestaments: jest.fn(),
-  useBibleByLine: jest.fn(),
-  useBibleDetailed: jest.fn(),
-  usePrefetchNextChapter: jest.fn(),
-  usePrefetchPreviousChapter: jest.fn(),
-  useTopicsSearch: jest.fn(),
-}));
-jest.mock('@/hooks/bible', () => {
-  const React = require('react');
-  return {
-    useActiveTab: jest.fn(),
-    useActiveView: jest.fn(() => {
-      const [activeView, setActiveView] = React.useState('bible');
-      return { activeView, setActiveView, isLoading: false, error: null };
-    }),
-    useBookProgress: jest.fn(),
-    useLastReadPosition: jest.fn(),
-  };
-});
 jest.mock('@/hooks/bible/use-recent-books');
 jest.mock('@/hooks/bible/use-offline-status');
-
-jest.mock('@react-native-community/netinfo', () => ({
-  addEventListener: jest.fn(() => jest.fn()), // Return unsubscribe function
-  fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
-}));
 
 // Mock bookmarks and notes hooks (required by ChapterReader)
 jest.mock('@/hooks/bible/use-bookmarks', () => ({
@@ -319,7 +286,7 @@ describe('Bible Reading Interface - Integration Tests', () => {
     (usePrefetchNextChapter as jest.Mock).mockReturnValue(jest.fn());
     (usePrefetchPreviousChapter as jest.Mock).mockReturnValue(jest.fn());
 
-    const { useTopicsSearch } = require('@/src/api/generated');
+    const { useTopicsSearch } = require('@/src/api');
     (useTopicsSearch as jest.Mock).mockReturnValue({
       data: [],
       isLoading: false,
@@ -582,10 +549,11 @@ describe('Bible Reading Interface - Integration Tests', () => {
       { timeout: 10000 }
     );
 
-    // Verify Matthew 5 content loads
+    // Verify Matthew 5 content loads (multiple instances may exist due to ChapterPagerView)
     await waitFor(
       () => {
-        expect(screen.getByText('The Beatitudes')).toBeTruthy();
+        const beatitudesElements = screen.getAllByText('The Beatitudes');
+        expect(beatitudesElements.length).toBeGreaterThan(0);
       },
       { timeout: 10000 }
     );

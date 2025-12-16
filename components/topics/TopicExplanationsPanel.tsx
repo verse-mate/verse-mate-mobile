@@ -30,7 +30,7 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useTopicById } from '@/src/api/generated';
+import { useTopicById } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 
 const markdownRules: RenderRules = {};
