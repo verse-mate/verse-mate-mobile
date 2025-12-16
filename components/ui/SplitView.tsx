@@ -75,11 +75,14 @@ export function SplitView({
   // Track if divider is being dragged
   const [isDragging, setIsDragging] = useState(false);
 
+  // Live left panel width during drag for dynamic updates
+  const [liveLeftWidth, setLiveLeftWidth] = useState<number | null>(null);
+
+  // Store the drag start width for tracking during drag
+  const dragStartWidthRef = useRef(0);
+
   // Animated value for smooth divider position updates
   const dividerPosition = useRef(new Animated.Value(0)).current;
-
-  // Store the current ratio during drag
-  const currentRatioRef = useRef(splitRatio);
 
   // Handle container layout to get available width
   const handleLayout = useCallback(
@@ -110,7 +113,10 @@ export function SplitView({
 
         onPanResponderGrant: () => {
           setIsDragging(true);
-          currentRatioRef.current = splitRatio;
+          // Store the width at drag start
+          dragStartWidthRef.current = leftWidth;
+          // Initialize live width for dynamic rendering
+          setLiveLeftWidth(leftWidth);
           // Haptic feedback on drag start
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         },
@@ -118,17 +124,18 @@ export function SplitView({
         onPanResponderMove: (_, gestureState) => {
           if (containerWidth === 0) return;
 
-          // Calculate new left panel width based on drag
-          const currentLeftWidth = containerWidth * currentRatioRef.current;
-          const newLeftWidth = currentLeftWidth + gestureState.dx;
+          // Calculate new left panel width based on drag offset from start
+          const newLeftWidth = dragStartWidthRef.current + gestureState.dx;
 
           // Clamp to valid range
           const minWidth = BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH;
           const maxWidth = containerWidth - minWidth;
           const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newLeftWidth));
 
-          // Update animated position
+          // Update animated position for smooth visual feedback
           dividerPosition.setValue(clampedWidth);
+          // Update live width for immediate UI response
+          setLiveLeftWidth(clampedWidth);
         },
 
         onPanResponderRelease: (_, gestureState) => {
@@ -136,9 +143,8 @@ export function SplitView({
 
           if (containerWidth === 0) return;
 
-          // Calculate final ratio
-          const currentLeftWidth = containerWidth * currentRatioRef.current;
-          const newLeftWidth = currentLeftWidth + gestureState.dx;
+          // Calculate final width from drag
+          const newLeftWidth = dragStartWidthRef.current + gestureState.dx;
 
           // Clamp to valid range
           const minWidth = BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH;
@@ -153,6 +159,9 @@ export function SplitView({
 
           // Notify parent of ratio change (for persistence)
           onSplitRatioChange(newRatio);
+
+          // Clear live width, rendering will use persisted ratio
+          setLiveLeftWidth(null);
         },
 
         onPanResponderTerminate: () => {
@@ -160,9 +169,10 @@ export function SplitView({
           // Reset to current ratio if cancelled
           const { leftWidth: resetWidth } = calculatePanelWidths(containerWidth, splitRatio);
           dividerPosition.setValue(resetWidth);
+          setLiveLeftWidth(null);
         },
       }),
-    [containerWidth, splitRatio, onSplitRatioChange, dividerPosition]
+    [containerWidth, splitRatio, onSplitRatioChange, dividerPosition, leftWidth]
   );
 
   // Handle double-tap on divider to reset to default ratio
@@ -176,7 +186,10 @@ export function SplitView({
       {containerWidth > 0 && (
         <>
           {/* Left Panel */}
-          <View style={[styles.panel, { width: leftWidth }]} testID={`${testID}-left-panel`}>
+          <View
+            style={[styles.panel, { width: liveLeftWidth != null ? liveLeftWidth : leftWidth }]}
+            testID={`${testID}-left-panel`}
+          >
             {leftContent}
           </View>
 
@@ -203,7 +216,21 @@ export function SplitView({
           </View>
 
           {/* Right Panel */}
-          <View style={[styles.panel, { width: rightWidth }]} testID={`${testID}-right-panel`}>
+          <View
+            style={[
+              styles.panel,
+              {
+                width:
+                  liveLeftWidth != null
+                    ? Math.max(
+                        BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH,
+                        containerWidth - liveLeftWidth
+                      )
+                    : rightWidth,
+              },
+            ]}
+            testID={`${testID}-right-panel`}
+          >
             {rightContent}
           </View>
         </>

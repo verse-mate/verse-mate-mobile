@@ -192,31 +192,47 @@ export default function TopicDetailScreen() {
 
   /**
    * Handle previous topic navigation via FAB button
-   * Uses pagerRef.setPage for smooth animation, then router.push for stack
+   * Uses pagerRef.setPage for smooth animation in portrait, router.push for split view
    */
   const handlePrevious = useCallback(() => {
     if (prevTopic) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      // Use setPage to trigger pager animation (CENTER_INDEX - 1 = 1)
-      pagerRef.current?.setPage(CENTER_INDEX - 1);
+      if (useSplitView) {
+        // In split view, navigate directly via router
+        router.push({
+          pathname: '/topics/[topicId]',
+          params: { topicId: prevTopic.topic_id, category: prevTopic.category },
+        });
+      } else {
+        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX - 1 = 1)
+        pagerRef.current?.setPage(CENTER_INDEX - 1);
+      }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [prevTopic]);
+  }, [prevTopic, useSplitView]);
 
   /**
    * Handle next topic navigation via FAB button
-   * Uses pagerRef.setPage for smooth animation, then router.push for stack
+   * Uses pagerRef.setPage for smooth animation in portrait, router.push for split view
    */
   const handleNext = useCallback(() => {
     if (nextTopic) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      // Use setPage to trigger pager animation (CENTER_INDEX + 1 = 3)
-      pagerRef.current?.setPage(CENTER_INDEX + 1);
+      if (useSplitView) {
+        // In split view, navigate directly via router
+        router.push({
+          pathname: '/topics/[topicId]',
+          params: { topicId: nextTopic.topic_id, category: nextTopic.category },
+        });
+      } else {
+        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX + 1 = 3)
+        pagerRef.current?.setPage(CENTER_INDEX + 1);
+      }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [nextTopic]);
+  }, [nextTopic, useSplitView]);
 
   // Handle share topic
   const handleShare = useCallback(async () => {

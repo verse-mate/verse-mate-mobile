@@ -680,7 +680,7 @@ export const splitViewSpecs = {
   light: {
     // Panel dimensions
     /** Default split ratio (left panel proportion) - from Figma 640/(640+554) */
-    defaultSplitRatio: 0.536,
+    defaultSplitRatio: 0.596,
     /** Minimum panel width to prevent unusable narrow panels */
     minPanelWidth: 320,
     /** Maximum panel width on very wide screens */
@@ -734,7 +734,7 @@ export const splitViewSpecs = {
   },
   dark: {
     // Panel dimensions (same as light)
-    defaultSplitRatio: 0.536,
+    defaultSplitRatio: 0.596,
     minPanelWidth: 320,
     maxPanelWidth: 700,
     minSplitViewWidth: 900,

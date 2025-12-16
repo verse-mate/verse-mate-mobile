@@ -138,7 +138,7 @@ export function BibleContentPanel({
   }, [canGoNext, onNavigateNext]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]} testID={testID}>
+    <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>
       {/* Header Bar */}
       <Pressable style={styles.header} onPress={onHeaderPress} testID={`${testID}-header`}>
         <View style={styles.headerContent}>

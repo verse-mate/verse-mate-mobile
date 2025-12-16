@@ -144,14 +144,6 @@ export function calculatePanelWidths(
     leftWidth = totalWidth - rightWidth;
   }
 
-  // Enforce maximum panel widths on very wide screens
-  if (leftWidth > BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH) {
-    leftWidth = BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH;
-  }
-  if (rightWidth > BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH) {
-    rightWidth = BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH;
-  }
-
   return { leftWidth, rightWidth };
 }
 
