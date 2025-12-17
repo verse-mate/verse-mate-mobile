@@ -92,13 +92,19 @@ export function AutoHighlightTooltip({
   const { isTablet, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
   const { width: windowWidth } = useWindowDimensions();
 
-  // Calculate dynamic right panel width if in split view (and right panel is visible)
-  const rightPanelWidth =
-    useSplitView && splitViewMode !== 'left-full' ? windowWidth * (1 - splitRatio) : undefined;
+  // Calculate dynamic width for tooltip positioning
+  // In split view: align over the insights panel (right panel)
+  // In tablet landscape full screen: position on right side with fixed 50% width
+  const tooltipWidth =
+    useSplitView && splitViewMode !== 'left-full'
+      ? windowWidth * (1 - splitRatio)
+      : isTablet
+        ? windowWidth * 0.5
+        : undefined;
 
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom, isTablet, rightPanelWidth),
-    [colors, insets.bottom, isTablet, rightPanelWidth]
+    () => createStyles(colors, insets.bottom, isTablet, tooltipWidth),
+    [colors, insets.bottom, isTablet, tooltipWidth]
   );
 
   // Determine if this is a multi-verse highlight
@@ -237,11 +243,19 @@ export function AutoHighlightTooltip({
   ]);
 
   // Handle explicit dismiss (user action)
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     animateClose(() => {
       onClose();
     });
-  };
+  }, [animateClose, onClose]);
+
+  // Auto-close tooltip when switching to insight-only screen (right-full mode)
+  // Tooltips are supported in split view and full Bible screen, but not in insight-only
+  useEffect(() => {
+    if (visible && splitViewMode === 'right-full') {
+      handleDismiss();
+    }
+  }, [visible, splitViewMode, handleDismiss]);
 
   // Keep refs for PanResponder closure
   const dismissRef = useRef(handleDismiss);
@@ -427,11 +441,12 @@ export function AutoHighlightTooltip({
         style={[
           styles.backdrop,
           { opacity: backdropOpacity },
-          // Constrain backdrop to right panel in split view mode
-          !useModal && rightPanelWidth
+          // Constrain backdrop to right panel only in split view mode (left panel should stay visible)
+          // In full screen tablet mode, backdrop covers whole screen
+          !useModal && useSplitView && splitViewMode !== 'left-full' && tooltipWidth
             ? {
-                left: windowWidth - rightPanelWidth,
-                width: rightPanelWidth,
+                left: windowWidth - tooltipWidth,
+                width: tooltipWidth,
               }
             : undefined,
         ]}
@@ -619,14 +634,14 @@ export function AutoHighlightTooltip({
 const createStyles = (
   colors: ReturnType<typeof getColors>,
   bottomInset: number,
-  isTablet: boolean,
-  rightPanelWidth?: number
+  _isTablet: boolean,
+  tooltipWidth?: number
 ) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      alignItems: rightPanelWidth ? 'flex-end' : isTablet ? 'center' : 'stretch',
+      alignItems: tooltipWidth ? 'flex-end' : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -635,9 +650,9 @@ const createStyles = (
     container: {
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
-      borderTopRightRadius: rightPanelWidth ? 0 : 16,
+      borderTopRightRadius: tooltipWidth ? 0 : 16,
       maxHeight: '80%',
-      width: rightPanelWidth ?? (isTablet ? '60%' : '100%'),
+      width: tooltipWidth ?? '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {
