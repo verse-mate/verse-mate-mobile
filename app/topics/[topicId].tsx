@@ -364,6 +364,7 @@ export default function TopicDetailScreen() {
             onSplitRatioChange={setSplitRatio}
             viewMode={splitViewMode}
             onViewModeChange={setSplitViewMode}
+            edgeTabsVisible={fabVisible}
             leftContent={
               <TopicContentPanel
                 topicId={topicId}
