@@ -95,11 +95,14 @@ export function SplitView({
   // Track which target is being hovered over during long-press
   const [hoveredTarget, setHoveredTarget] = useState<'left' | 'right' | null>(null);
 
-  // Live left panel width during drag for dynamic updates
-  const [liveLeftWidth, setLiveLeftWidth] = useState<number | null>(null);
+  // Live left panel width during drag for dynamic updates - use ref to avoid rerenders
+  const liveLeftWidthRef = useRef<number | null>(null);
 
   // Store the drag start width for tracking during drag
   const dragStartWidthRef = useRef(0);
+
+  // Track the actual current divider position to prevent snapping on new drags
+  const currentDividerPositionRef = useRef(0);
 
   // Store the initial Y position of long-press to validate vertical movement
   const longPressStartYRef = useRef(0);
@@ -109,6 +112,17 @@ export function SplitView({
 
   // Animated value for smooth divider position updates
   const dividerPosition = useRef(new Animated.Value(0)).current;
+
+  // Derived animated value for right panel width (containerWidth - leftPanelWidth)
+  const rightPanelWidth = useMemo(
+    () =>
+      dividerPosition.interpolate({
+        inputRange: [0, containerWidth || 1],
+        outputRange: [containerWidth || 1, 0],
+        extrapolate: 'clamp',
+      }),
+    [dividerPosition, containerWidth]
+  );
 
   // Animated values for target buttons fade-in
   const leftTargetOpacity = useRef(new Animated.Value(0)).current;
@@ -127,12 +141,14 @@ export function SplitView({
       // Update animated value to match current ratio
       const { leftWidth } = calculatePanelWidths(width, splitRatio);
       dividerPosition.setValue(leftWidth);
+      // Track current position to prevent snapping
+      currentDividerPositionRef.current = leftWidth;
     },
     [splitRatio, dividerPosition]
   );
 
   // Calculate panel widths based on container width and split ratio
-  const { leftWidth, rightWidth } = useMemo(() => {
+  const { leftWidth } = useMemo(() => {
     if (containerWidth === 0) {
       return { leftWidth: 0, rightWidth: 0 };
     }
@@ -148,10 +164,11 @@ export function SplitView({
 
         onPanResponderGrant: (_, gestureState) => {
           setIsDragging(true);
-          // Store the width at drag start
-          dragStartWidthRef.current = leftWidth;
-          // Initialize live width for dynamic rendering
-          setLiveLeftWidth(leftWidth);
+          // Store the ACTUAL current position at drag start (not calculated from ratio)
+          // This prevents snapping when starting a new drag after being at an edge
+          dragStartWidthRef.current = currentDividerPositionRef.current;
+          // Initialize live width for dynamic rendering - use ref to avoid rerenders
+          liveLeftWidthRef.current = currentDividerPositionRef.current;
           // Store initial Y position for long-press validation
           longPressStartYRef.current = gestureState.y0;
           // Haptic feedback on drag start
@@ -180,9 +197,9 @@ export function SplitView({
         onPanResponderMove: (_, gestureState) => {
           if (containerWidth === 0) return;
 
-          // Check if horizontal movement is significant (>30px threshold)
-          // Higher threshold = less sensitive, easier to hold without canceling long-press
-          const dragThreshold = 30;
+          // Check if horizontal movement is significant (>10px threshold)
+          // Reduced from 30px to make dragging more responsive
+          const dragThreshold = 10;
           const isDraggingHorizontally = Math.abs(gestureState.dx) > dragThreshold;
 
           // If dragging horizontally and long-press NOT yet active, cancel the timer
@@ -197,15 +214,18 @@ export function SplitView({
             // Calculate new left panel width based on drag offset from start
             const newLeftWidth = dragStartWidthRef.current + gestureState.dx;
 
-            // Clamp to valid range
-            const minWidth = BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH;
-            const maxWidth = containerWidth - minWidth;
-            const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newLeftWidth));
+            // Clamp to valid range with separate minimums for each panel
+            const minLeftWidth = BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH;
+            const minRightWidth = BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH;
+            const maxLeftWidth = containerWidth - minRightWidth;
+            const clampedWidth = Math.max(minLeftWidth, Math.min(maxLeftWidth, newLeftWidth));
 
             // Update animated position for smooth visual feedback
             dividerPosition.setValue(clampedWidth);
-            // Update live width for immediate UI response
-            setLiveLeftWidth(clampedWidth);
+            // Track current position to prevent snapping on next drag
+            currentDividerPositionRef.current = clampedWidth;
+            // Update live width for immediate UI response - use ref to avoid rerenders
+            liveLeftWidthRef.current = clampedWidth;
           } else if (isLongPressing) {
             // Long-press is active - only update target zone highlighting, never drag divider
             // Check for target zones based on CURRENT touch position (where finger is now)
@@ -221,7 +241,8 @@ export function SplitView({
             const containerRelativeX = gestureState.moveX - containerXRef.current;
 
             // Calculate current divider position (use live width if dragging, otherwise use leftWidth)
-            const currentDividerX = liveLeftWidth !== null ? liveLeftWidth : leftWidth;
+            const currentDividerX =
+              liveLeftWidthRef.current !== null ? liveLeftWidthRef.current : leftWidth;
 
             // Divider is 20px wide, so center is at currentDividerX + 10
             const dividerCenterX = currentDividerX + 10;
@@ -268,7 +289,7 @@ export function SplitView({
           if (containerWidth === 0) return;
 
           // Check if horizontal movement is significant (must match threshold above)
-          const dragThreshold = 30;
+          const dragThreshold = 10;
           const wasDraggedHorizontally = Math.abs(gestureState.dx) > dragThreshold;
 
           // If was in long-press mode, check for target selection
@@ -306,10 +327,11 @@ export function SplitView({
             // Calculate final width from drag
             const newLeftWidth = dragStartWidthRef.current + gestureState.dx;
 
-            // Clamp to valid range
-            const minWidth = BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH;
-            const maxWidth = containerWidth - minWidth;
-            const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newLeftWidth));
+            // Clamp to valid range with separate minimums for each panel
+            const minLeftWidth = BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH;
+            const minRightWidth = BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH;
+            const maxLeftWidth = containerWidth - minRightWidth;
+            const clampedWidth = Math.max(minLeftWidth, Math.min(maxLeftWidth, newLeftWidth));
 
             // Calculate new ratio
             const newRatio = clampedWidth / containerWidth;
@@ -317,12 +339,15 @@ export function SplitView({
             // Haptic feedback on drag end
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+            // Track the final position
+            currentDividerPositionRef.current = clampedWidth;
+
             // Notify parent of ratio change (for persistence)
             onSplitRatioChange(newRatio);
           }
 
           // Clear live width, rendering will use persisted ratio
-          setLiveLeftWidth(null);
+          liveLeftWidthRef.current = null;
         },
 
         onPanResponderTerminate: () => {
@@ -352,7 +377,8 @@ export function SplitView({
           // Reset to current ratio if cancelled
           const { leftWidth: resetWidth } = calculatePanelWidths(containerWidth, splitRatio);
           dividerPosition.setValue(resetWidth);
-          setLiveLeftWidth(null);
+          currentDividerPositionRef.current = resetWidth;
+          liveLeftWidthRef.current = null;
         },
       }),
     [
@@ -366,7 +392,6 @@ export function SplitView({
       onViewModeChange,
       leftTargetOpacity,
       rightTargetOpacity,
-      liveLeftWidth,
     ]
   );
 
@@ -411,7 +436,7 @@ export function SplitView({
         }),
       ]).start();
     } else {
-      // Split mode - hide both tabs
+      // Split mode - hide both edge tabs and reset target button opacities
       Animated.parallel([
         Animated.timing(leftEdgeTabSlideAnim, {
           toValue: -50, // Slide out left
@@ -423,9 +448,29 @@ export function SplitView({
           duration: 200,
           useNativeDriver: true,
         }),
+        // Reset target button opacities to ensure they're fully hidden
+        Animated.timing(leftTargetOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(rightTargetOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
       ]).start();
+      // Also reset the long-press state
+      setIsLongPressing(false);
+      setHoveredTarget(null);
     }
-  }, [viewMode, leftEdgeTabSlideAnim, rightEdgeTabSlideAnim]);
+  }, [
+    viewMode,
+    leftEdgeTabSlideAnim,
+    rightEdgeTabSlideAnim,
+    leftTargetOpacity,
+    rightTargetOpacity,
+  ]);
 
   return (
     <View style={styles.container} onLayout={handleLayout} testID={testID}>
@@ -433,16 +478,16 @@ export function SplitView({
         <>
           {/* Left Panel - Hidden when right fullscreen */}
           {shouldShowLeftPanel && (
-            <View
+            <Animated.View
               style={[
                 styles.panel,
                 isFullscreen && { flex: 1, width: '100%' },
-                !isFullscreen && { width: liveLeftWidth != null ? liveLeftWidth : leftWidth },
+                !isFullscreen && { width: dividerPosition },
               ]}
               testID={`${testID}-left-panel`}
             >
               {leftContent}
-            </View>
+            </Animated.View>
           )}
 
           {/* Left Edge Tab - Shows when viewing right panel fullscreen (commentary) */}
@@ -537,24 +582,16 @@ export function SplitView({
 
           {/* Right Panel - Hidden when left fullscreen */}
           {shouldShowRightPanel && (
-            <View
+            <Animated.View
               style={[
                 styles.panel,
                 isFullscreen && { flex: 1, width: '100%' },
-                !isFullscreen && {
-                  width:
-                    liveLeftWidth != null
-                      ? Math.max(
-                          BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH,
-                          containerWidth - liveLeftWidth
-                        )
-                      : rightWidth,
-                },
+                !isFullscreen && { width: rightPanelWidth },
               ]}
               testID={`${testID}-right-panel`}
             >
               {rightContent}
-            </View>
+            </Animated.View>
           )}
 
           {/* Right Edge Tab - Shows when viewing left panel fullscreen (Bible) */}

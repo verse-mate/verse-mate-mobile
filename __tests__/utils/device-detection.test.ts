@@ -181,8 +181,9 @@ describe('device-detection', () => {
 
       // Both should fit within 640px
       expect(leftWidth + rightWidth).toBeLessThanOrEqual(640);
-      expect(leftWidth).toBe(320);
-      expect(rightWidth).toBe(320);
+      // Right panel has higher minimum (400px), so left adjusts
+      expect(leftWidth).toBe(240);
+      expect(rightWidth).toBe(400);
     });
   });
 
@@ -193,6 +194,8 @@ describe('device-detection', () => {
       expect(BREAKPOINTS.SPLIT_VIEW_MIN_WIDTH).toBe(1024);
       expect(BREAKPOINTS.SPLIT_VIEW_COMFORTABLE_WIDTH).toBe(1024);
       expect(BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH).toBe(320);
+      expect(BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH).toBe(320);
+      expect(BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH).toBe(400);
       expect(BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH).toBe(700);
     });
   });
