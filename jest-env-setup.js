@@ -120,6 +120,9 @@ jest.mock('react-native-gesture-handler', () => {
       Exclusive: (...gestures) => {
         return { gestures };
       },
+      Simultaneous: (...gestures) => {
+        return { gestures };
+      },
     },
     GestureDetector: MockView,
     GestureHandlerRootView: MockView,

@@ -29,6 +29,14 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
+// Add Gesture.Simultaneous polyfill before tests
+beforeAll(() => {
+  const { Gesture } = require('react-native-gesture-handler');
+  if (!Gesture.Simultaneous) {
+    Gesture.Simultaneous = (...gestures: any[]) => gestures[0];
+  }
+});
+
 const renderWithTheme = (component: React.ReactElement) => {
   const result = render(
     <SafeAreaProvider

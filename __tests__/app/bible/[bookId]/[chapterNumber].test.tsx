@@ -327,15 +327,17 @@ describe('ChapterScreen - PagerView Integration', () => {
     // Modal should not be visible initially
     expect(queryByTestId('bible-navigation-modal')).toBeNull();
 
-    await waitFor(() => {
-      const selectorButton = getByTestId('chapter-selector-button');
-      fireEvent.press(selectorButton);
-    });
+    // Press the chapter selector button
+    const selectorButton = await waitFor(() => getByTestId('chapter-selector-button'));
+    fireEvent.press(selectorButton);
 
     // Modal should be visible after press
-    await waitFor(() => {
-      expect(getByTestId('bible-navigation-modal')).toBeTruthy();
-    });
+    await waitFor(
+      () => {
+        expect(getByTestId('bible-navigation-modal')).toBeTruthy();
+      },
+      { timeout: 1000 }
+    );
   });
 
   /**
