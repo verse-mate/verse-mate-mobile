@@ -25,7 +25,7 @@
       "package": "org.versemate.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/ios-icon.png",
+        "foregroundImage": "./assets/images/android-icon.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
