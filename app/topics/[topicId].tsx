@@ -70,7 +70,8 @@ export default function TopicDetailScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Device info for split view detection
-  const { useSplitView, splitRatio, setSplitRatio } = useDeviceInfo();
+  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
+    useDeviceInfo();
 
   // Extract topicId from route params
   const params = useLocalSearchParams<{ topicId: string; category?: string }>();
@@ -361,6 +362,8 @@ export default function TopicDetailScreen() {
           <SplitView
             splitRatio={splitRatio}
             onSplitRatioChange={setSplitRatio}
+            viewMode={splitViewMode}
+            onViewModeChange={setSplitViewMode}
             leftContent={
               <TopicContentPanel
                 topicId={topicId}
@@ -372,6 +375,9 @@ export default function TopicDetailScreen() {
                 onNavigateNext={handleNext}
                 hasPrevTopic={canGoPrevious}
                 hasNextTopic={canGoNext}
+                onScroll={handleScroll}
+                onTap={handleTap}
+                visible={fabVisible}
               />
             }
             rightContent={

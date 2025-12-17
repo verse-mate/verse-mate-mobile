@@ -97,14 +97,18 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
         // At bottom - show buttons and keep them visible (no timeout)
         clearIdleTimeout();
         setVisible(true);
-      } else if (Math.abs(velocity) > SCROLL_VELOCITY_THRESHOLD) {
-        // Fast scroll in any direction - show buttons with 3s timeout
-        // This makes buttons appear on fast scroll up OR down
+      } else if (velocity < -SCROLL_VELOCITY_THRESHOLD) {
+        // Fast scroll UP - show buttons with 3s timeout
         if (!visible) {
           setVisible(true);
         }
-        // Always restart the timeout to keep buttons visible for 3s
         startIdleTimeout();
+      } else if (velocity > SCROLL_VELOCITY_THRESHOLD) {
+        // Fast scroll DOWN - hide buttons immediately
+        if (visible) {
+          setVisible(false);
+        }
+        clearIdleTimeout();
       }
       // Note: On slow scroll, let existing timeout continue (buttons will hide after 3s of inactivity)
     },

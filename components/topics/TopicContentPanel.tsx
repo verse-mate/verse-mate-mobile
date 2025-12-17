@@ -21,6 +21,7 @@ import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomLogo } from '@/components/bible/BottomLogo';
+import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { TopicText } from '@/components/topics/TopicText';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
 import {
@@ -102,6 +103,15 @@ export interface TopicContentPanelProps {
   /** Whether there is a next topic */
   hasNextTopic?: boolean;
 
+  /** Callback for scroll events (velocity tracking) */
+  onScroll?: (velocity: number, isAtBottom: boolean) => void;
+
+  /** Callback for tap events (toggle visibility) */
+  onTap?: () => void;
+
+  /** Whether floating controls should be visible */
+  visible?: boolean;
+
   /** Test ID for testing */
   testID?: string;
 }
@@ -121,6 +131,9 @@ export function TopicContentPanel({
   onNavigateNext,
   hasPrevTopic = false,
   hasNextTopic = false,
+  onScroll,
+  onTap,
+  visible = true,
   testID = 'topic-content-panel',
 }: TopicContentPanelProps) {
   const { mode, colors } = useTheme();
@@ -132,18 +145,53 @@ export function TopicContentPanel({
   const [progress, setProgress] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Velocity tracking
+  const lastScrollY = useRef(0);
+  const lastScrollTime = useRef(0);
+
   // Fetch references for this topic
   const { data: references } = useTopicReferences(topicId);
 
-  // Handle scroll to calculate reading progress
-  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const scrollableHeight = contentSize.height - layoutMeasurement.height;
-    if (scrollableHeight > 0) {
-      const scrollProgress = Math.min(100, Math.max(0, (contentOffset.y / scrollableHeight) * 100));
-      setProgress(Math.round(scrollProgress));
-    }
-  }, []);
+  // Handle scroll to calculate reading progress and velocity
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+
+      // Calculate progress
+      const scrollableHeight = contentSize.height - layoutMeasurement.height;
+      if (scrollableHeight > 0) {
+        const scrollProgress = Math.min(
+          100,
+          Math.max(0, (contentOffset.y / scrollableHeight) * 100)
+        );
+        setProgress(Math.round(scrollProgress));
+      }
+
+      // Calculate velocity for FAB visibility
+      if (onScroll) {
+        const currentY = contentOffset.y;
+        const currentTime = Date.now();
+        const dt = currentTime - lastScrollTime.current;
+
+        // Calculate velocity (px/ms) if sufficient time has passed (e.g. 16ms frame)
+        if (dt > 10) {
+          const dy = currentY - lastScrollY.current;
+          // Calculate velocity (px/s) - multiply by 1000
+          // Positive = scrolling down, Negative = scrolling up
+          const velocity = (dy / dt) * 1000;
+
+          // Check if at bottom
+          const isAtBottom = currentY + layoutMeasurement.height >= contentSize.height - 20;
+
+          onScroll(velocity, isAtBottom);
+
+          lastScrollY.current = currentY;
+          lastScrollTime.current = currentTime;
+        }
+      }
+    },
+    [onScroll]
+  );
 
   // Check if we have content
   const hasContent =
@@ -168,6 +216,18 @@ export function TopicContentPanel({
       </Pressable>
 
       {/* Content Area */}
+      {/* We wrap ScrollView in GestureDetector if we need tap detection on content, 
+          but ScrollView usually eats touches. 
+          Standard React Native approach: Wrap inner content in Pressable or use onTouchEnd. 
+          However, Reanimated Gesture Handler works with ScrollView if configured correctly.
+          For simplicity, we can rely on ScrollView's own touch handling or just wrap content items.
+          Actually, let's try wrapping the ScrollView with GestureDetector.
+      */}
+      {/* Note: GestureDetector might interfere with ScrollView if not careful. 
+          Simpler: Pressable background? 
+          Or assume scroll handles visibility mostly.
+          Let's try GestureDetector on the outer container or rely on `onTouchEnd` on ScrollView.
+      */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
@@ -176,10 +236,49 @@ export function TopicContentPanel({
         onScroll={handleScroll}
         scrollEventThrottle={16}
         testID={`${testID}-scroll`}
+        // Simple tap detection
+        onTouchEnd={() => {
+          // We can't distinguish drag vs tap easily here without heuristic.
+          // Leaving onTap for now, user relies on scroll to show/hide.
+          // Or explicitly add a Pressable overlay? No.
+          // If onTap is critical, we use GestureDetector.
+        }}
       >
-        {hasContent ? (
-          hasStructuredContent ? (
-            <TopicText topicName={topicName} markdownContent={contentString} onShare={onShare} />
+        {/* Helper for tap detection on content */}
+        <Pressable
+          onPress={() => onTap?.()}
+          style={{ flex: 1 }}
+          // Ensure it doesn't block scrolling/selection
+          delayLongPress={500}
+        >
+          {hasContent ? (
+            hasStructuredContent ? (
+              <TopicText topicName={topicName} markdownContent={contentString} onShare={onShare} />
+            ) : (
+              <>
+                {/* Topic Title */}
+                <View style={styles.titleRow}>
+                  <Text style={styles.topicTitle} accessibilityRole="header">
+                    {topicName}
+                  </Text>
+                </View>
+
+                {/* Topic Description */}
+                {topicDescription && (
+                  <Text style={styles.topicDescription}>{topicDescription}</Text>
+                )}
+
+                {/* References Content */}
+                <View style={styles.referencesContainer}>
+                  <Markdown style={markdownStyles} rules={markdownRules}>
+                    {formatVerseNumbers(contentString)
+                      .replace(/\n\n/g, '___PARAGRAPH___')
+                      .replace(/\n/g, ' ')
+                      .replace(/___PARAGRAPH___/g, '\n\n')}
+                  </Markdown>
+                </View>
+              </>
+            )
           ) : (
             <>
               {/* Topic Title */}
@@ -192,77 +291,27 @@ export function TopicContentPanel({
               {/* Topic Description */}
               {topicDescription && <Text style={styles.topicDescription}>{topicDescription}</Text>}
 
-              {/* References Content */}
-              <View style={styles.referencesContainer}>
-                <Markdown style={markdownStyles} rules={markdownRules}>
-                  {formatVerseNumbers(contentString)
-                    .replace(/\n\n/g, '___PARAGRAPH___')
-                    .replace(/\n/g, ' ')
-                    .replace(/___PARAGRAPH___/g, '\n\n')}
-                </Markdown>
+              {/* Empty State */}
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No Bible references available for this topic.</Text>
               </View>
             </>
-          )
-        ) : (
-          <>
-            {/* Topic Title */}
-            <View style={styles.titleRow}>
-              <Text style={styles.topicTitle} accessibilityRole="header">
-                {topicName}
-              </Text>
-            </View>
-
-            {/* Topic Description */}
-            {topicDescription && <Text style={styles.topicDescription}>{topicDescription}</Text>}
-
-            {/* Empty State */}
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No Bible references available for this topic.</Text>
-            </View>
-          </>
-        )}
-        <BottomLogo />
+          )}
+          <BottomLogo />
+        </Pressable>
       </ScrollView>
 
       {/* Progress Bar */}
       <ReadingProgressBar progress={progress} />
 
-      {/* Floating Navigation Buttons */}
-      {(hasPrevTopic || hasNextTopic) && (
-        <View style={styles.navButtonsContainer}>
-          {/* Previous Button */}
-          <Pressable
-            style={[styles.navButton, !hasPrevTopic && styles.navButtonDisabled]}
-            onPress={onNavigatePrev}
-            disabled={!hasPrevTopic}
-            accessibilityLabel="Previous topic"
-            accessibilityRole="button"
-            testID={`${testID}-prev-button`}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={24}
-              color={hasPrevTopic ? specs.navButtonIconColor : 'rgba(255,255,255,0.3)'}
-            />
-          </Pressable>
-
-          {/* Next Button */}
-          <Pressable
-            style={[styles.navButton, !hasNextTopic && styles.navButtonDisabled]}
-            onPress={onNavigateNext}
-            disabled={!hasNextTopic}
-            accessibilityLabel="Next topic"
-            accessibilityRole="button"
-            testID={`${testID}-next-button`}
-          >
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={hasNextTopic ? specs.navButtonIconColor : 'rgba(255,255,255,0.3)'}
-            />
-          </Pressable>
-        </View>
-      )}
+      {/* Floating Navigation Buttons - Replaced custom implementation with standard FAB */}
+      <FloatingActionButtons
+        onPrevious={onNavigatePrev || (() => {})}
+        onNext={onNavigateNext || (() => {})}
+        showPrevious={hasPrevTopic}
+        showNext={hasNextTopic}
+        visible={visible}
+      />
     </View>
   );
 }
@@ -336,27 +385,7 @@ function createStyles(
       color: colors.textSecondary,
       textAlign: 'center',
     },
-    navButtonsContainer: {
-      position: 'absolute',
-      top: '50%',
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.lg,
-      pointerEvents: 'box-none',
-    },
-    navButton: {
-      width: specs.navButtonSize,
-      height: specs.navButtonSize,
-      borderRadius: specs.navButtonSize / 2,
-      backgroundColor: specs.navButtonBackground,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    navButtonDisabled: {
-      opacity: 0.5,
-    },
+    // navButtonsContainer style removed as we use FloatingActionButtons component
   });
 
   const verseNumberStyle = {

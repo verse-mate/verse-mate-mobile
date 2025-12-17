@@ -15,13 +15,12 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
 import {
-  animationDurations,
   fontSizes,
   fontWeights,
   type getColors,
@@ -121,16 +120,6 @@ export function BibleContentPanel({
   // Calculate progress percentage
   const { progress } = useBookProgress(bookId, chapterNumber, totalChapters);
 
-  // Animated opacity value for fade in/out
-  const opacity = useSharedValue(visible ? 1 : 0);
-
-  // Update opacity when visibility changes
-  useEffect(() => {
-    opacity.value = withTiming(visible ? 1 : 0, {
-      duration: animationDurations.normal,
-    });
-  }, [visible, opacity]);
-
   // Handle previous navigation
   const handlePrevious = useCallback(() => {
     if (canGoPrevious) {
@@ -152,11 +141,6 @@ export function BibleContentPanel({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   }, [canGoNext, onNavigateNext]);
-
-  // Animated style for fade in/out
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>
@@ -189,40 +173,14 @@ export function BibleContentPanel({
       {/* Progress Bar */}
       <ReadingProgressBar progress={progress.percentage} />
 
-      {/* Floating Navigation Buttons */}
-      <Animated.View style={[styles.navButtonsContainer, animatedStyle]} pointerEvents="box-none">
-        {/* Previous Button */}
-        <Pressable
-          style={[styles.navButton, !canGoPrevious && styles.navButtonDisabled]}
-          onPress={handlePrevious}
-          disabled={!canGoPrevious}
-          accessibilityLabel="Previous chapter"
-          accessibilityRole="button"
-          testID={`${testID}-prev-button`}
-        >
-          <Ionicons
-            name="chevron-back"
-            size={24}
-            color={canGoPrevious ? specs.navButtonIconColor : 'rgba(255,255,255,0.3)'}
-          />
-        </Pressable>
-
-        {/* Next Button */}
-        <Pressable
-          style={[styles.navButton, !canGoNext && styles.navButtonDisabled]}
-          onPress={handleNext}
-          disabled={!canGoNext}
-          accessibilityLabel="Next chapter"
-          accessibilityRole="button"
-          testID={`${testID}-next-button`}
-        >
-          <Ionicons
-            name="chevron-forward"
-            size={24}
-            color={canGoNext ? specs.navButtonIconColor : 'rgba(255,255,255,0.3)'}
-          />
-        </Pressable>
-      </Animated.View>
+      {/* Floating Navigation Buttons - Now aligned with Topic and Portrait pages */}
+      <FloatingActionButtons
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        showPrevious={canGoPrevious}
+        showNext={canGoNext}
+        visible={visible}
+      />
     </View>
   );
 }
@@ -259,26 +217,7 @@ function createStyles(
     pagerContainer: {
       flex: 1,
     },
-    navButtonsContainer: {
-      position: 'absolute',
-      top: '50%', // Stay centered - don't move up
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.lg,
-    },
-    navButton: {
-      width: specs.navButtonSize,
-      height: specs.navButtonSize,
-      borderRadius: specs.navButtonSize / 2,
-      backgroundColor: specs.navButtonBackground,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    navButtonDisabled: {
-      opacity: 0.5,
-    },
+    // navButtonsContainer style removed
   });
 }
 
