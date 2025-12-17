@@ -48,15 +48,26 @@ jest.mock('@/hooks/bible/use-auto-highlights', () => ({
     autoHighlights: [],
   })),
 }));
+const mockUseAuth = jest.fn<
+  {
+    isAuthenticated: boolean;
+    user: { id: string; email: string; firstName: string; lastName: string } | null;
+    isLoading: boolean;
+    login: jest.Mock;
+    logout: jest.Mock;
+    signup: jest.Mock;
+  },
+  []
+>(() => ({
+  isAuthenticated: false,
+  user: null,
+  isLoading: false,
+  login: jest.fn(),
+  logout: jest.fn(),
+  signup: jest.fn(),
+}));
 jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: jest.fn(() => ({
-    isAuthenticated: false,
-    user: null,
-    isLoading: false,
-    login: jest.fn(),
-    logout: jest.fn(),
-    signup: jest.fn(),
-  })),
+  useAuth: () => mockUseAuth(),
 }));
 
 // Mock chapter data
@@ -268,9 +279,19 @@ describe('ChapterScreen', () => {
   });
 
   /**
-   * Test 4: Save reading position called on mount
+   * Test 4: Save reading position called on mount for authenticated users
    */
-  it('calls save reading position on mount', () => {
+  it('calls save reading position on mount when user is authenticated', () => {
+    const mockUserId = '550e8400-e29b-41d4-a716-446655440000';
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      user: { id: mockUserId, email: 'test@example.com', firstName: 'Test', lastName: 'User' },
+      isLoading: false,
+      login: jest.fn(),
+      logout: jest.fn(),
+      signup: jest.fn(),
+    });
+
     const mockMutate = jest.fn();
     (useSaveLastRead as jest.Mock).mockReturnValue({
       mutate: mockMutate,
@@ -284,12 +305,42 @@ describe('ChapterScreen', () => {
 
     renderWithSafeArea(<ChapterScreen />);
 
-    // Verify save position was called with correct data
+    // Verify save position was called with user's UUID
     expect(mockMutate).toHaveBeenCalledWith({
-      user_id: 'guest',
+      user_id: mockUserId,
       book_id: 1,
       chapter_number: 1,
     });
+  });
+
+  /**
+   * Test 4b: Save reading position NOT called for unauthenticated users
+   */
+  it('does not call save reading position when user is not authenticated', () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      user: null,
+      isLoading: false,
+      login: jest.fn(),
+      logout: jest.fn(),
+      signup: jest.fn(),
+    });
+
+    const mockMutate = jest.fn();
+    (useSaveLastRead as jest.Mock).mockReturnValue({
+      mutate: mockMutate,
+    });
+
+    (useBibleChapter as jest.Mock).mockReturnValue({
+      data: mockChapterData,
+      isLoading: false,
+      error: null,
+    });
+
+    renderWithSafeArea(<ChapterScreen />);
+
+    // Verify save position was NOT called for unauthenticated user
+    expect(mockMutate).not.toHaveBeenCalled();
   });
 
   /**
