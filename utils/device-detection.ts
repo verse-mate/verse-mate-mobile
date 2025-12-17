@@ -43,6 +43,10 @@ export const BREAKPOINTS = {
   SPLIT_VIEW_MAX_PANEL_WIDTH: 700,
   /** Minimum panel width in split view (dp) */
   SPLIT_VIEW_MIN_PANEL_WIDTH: 320,
+  /** Minimum left panel (Bible) width in split view (dp) */
+  SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH: 320,
+  /** Minimum right panel (Commentary) width in split view (dp) - larger to prevent button squishing */
+  SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH: 400,
 } as const;
 
 /**
@@ -135,12 +139,12 @@ export function calculatePanelWidths(
   let leftWidth = Math.round(totalWidth * clampedRatio);
   let rightWidth = totalWidth - leftWidth;
 
-  // Enforce minimum panel widths
-  if (leftWidth < BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH) {
-    leftWidth = BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH;
+  // Enforce minimum panel widths (separate minimums for each panel)
+  if (leftWidth < BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH) {
+    leftWidth = BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH;
     rightWidth = totalWidth - leftWidth;
-  } else if (rightWidth < BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH) {
-    rightWidth = BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH;
+  } else if (rightWidth < BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH) {
+    rightWidth = BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH;
     leftWidth = totalWidth - rightWidth;
   }
 
