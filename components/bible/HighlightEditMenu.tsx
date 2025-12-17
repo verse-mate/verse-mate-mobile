@@ -62,6 +62,8 @@ export interface HighlightEditMenuProps {
   onDelete: () => void;
   /** Callback when modal is closed */
   onClose: () => void;
+  /** Whether to use a system Modal (true) or a View overlay (false) */
+  useModal?: boolean;
 }
 
 /**
@@ -75,6 +77,7 @@ export function HighlightEditMenu({
   onColorChange,
   onDelete,
   onClose,
+  useModal = true,
 }: HighlightEditMenuProps) {
   const { colors, mode } = useTheme();
   const { useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
@@ -109,44 +112,74 @@ export function HighlightEditMenu({
     onClose();
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.modalContainer}
-      >
-        <Pressable style={styles.backdrop} onPress={handleBackdropPress} testID="backdrop" />
+  const content = (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.modalContainer}
+      pointerEvents="box-none"
+    >
+      <Pressable
+        style={[
+          styles.backdrop,
+          // Constrain backdrop to right panel in split view mode
+          !useModal && leftPadding > 0
+            ? {
+                left: leftPadding,
+                width: windowWidth - leftPadding,
+              }
+            : undefined,
+        ]}
+        onPress={handleBackdropPress}
+        testID="backdrop"
+        pointerEvents="auto"
+      />
 
-        <SafeAreaView style={styles.centerContainer}>
-          <View style={styles.menuContent}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>CHANGE COLOR</Text>
-            </View>
-
-            {/* Color Picker */}
-            <View style={styles.colorPickerContainer}>
-              <HighlightColorPicker
-                selectedColor={currentColor}
-                onColorSelect={handleColorChange}
-                variant={mode === 'dark' ? 'dark' : 'light'}
-              />
-            </View>
-
-            {/* Delete Button */}
-            <Pressable
-              style={styles.deleteButton}
-              onPress={handleDelete}
-              accessibilityRole="button"
-              accessibilityLabel="Delete highlight"
-            >
-              <Ionicons name="trash-outline" size={20} color={colors.error} />
-              <Text style={styles.deleteButtonText}>Delete Highlight</Text>
-            </Pressable>
+      <SafeAreaView style={styles.centerContainer} pointerEvents="box-none">
+        <View style={styles.menuContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>CHANGE COLOR</Text>
           </View>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+
+          {/* Color Picker */}
+          <View style={styles.colorPickerContainer}>
+            <HighlightColorPicker
+              selectedColor={currentColor}
+              onColorSelect={handleColorChange}
+              variant={mode === 'dark' ? 'dark' : 'light'}
+            />
+          </View>
+
+          {/* Delete Button */}
+          <Pressable
+            style={styles.deleteButton}
+            onPress={handleDelete}
+            accessibilityRole="button"
+            accessibilityLabel="Delete highlight"
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
+            <Text style={styles.deleteButtonText}>Delete Highlight</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
+  );
+
+  if (useModal) {
+    return (
+      <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+        {content}
+      </Modal>
+    );
+  }
+
+  // Non-modal rendering (Overlay)
+  if (!visible) return null;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {content}
+    </View>
   );
 }
 
