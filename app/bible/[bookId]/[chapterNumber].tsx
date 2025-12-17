@@ -34,6 +34,7 @@ import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   useActiveTab,
@@ -97,6 +98,9 @@ export default function ChapterScreen() {
   const chapterNumber = Number(params.chapterNumber);
   const targetVerse = params.verse ? Number(params.verse) : undefined;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
+
+  // Auth - get current user for saving reading progress
+  const { user } = useAuth();
 
   // Theme
   const { colors, mode } = useTheme();
@@ -218,15 +222,17 @@ export default function ChapterScreen() {
     booksMetadata
   );
 
-  // Save reading position on mount and navigation (API)
+  // Save reading position on mount and navigation (API) - only for authenticated users
   // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   useEffect(() => {
-    saveLastRead({
-      user_id: 'guest', // TODO: Replace with actual user ID when auth is added
-      book_id: validBookId,
-      chapter_number: validChapter,
-    });
-  }, [validBookId, validChapter]);
+    if (user?.id) {
+      saveLastRead({
+        user_id: user.id,
+        book_id: validBookId,
+        chapter_number: validChapter,
+      });
+    }
+  }, [validBookId, validChapter, user?.id]);
 
   // Save reading position to AsyncStorage for app launch continuity
   // Save whenever bookId, chapter, tab, or view changes
@@ -298,12 +304,14 @@ export default function ChapterScreen() {
       // Note: Animation comes from URL change, not router.replace itself
       router.replace(`/bible/${newBookId}/${newChapterNumber}` as never);
 
-      // Save reading position
-      saveLastRead({
-        user_id: 'guest',
-        book_id: newBookId,
-        chapter_number: newChapterNumber,
-      });
+      // Save reading position - only for authenticated users
+      if (user?.id) {
+        saveLastRead({
+          user_id: user.id,
+          book_id: newBookId,
+          chapter_number: newChapterNumber,
+        });
+      }
 
       // Haptic feedback for page change
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -314,7 +322,7 @@ export default function ChapterScreen() {
         prefetchPrevious();
       }, 1000);
     },
-    [prefetchNext, prefetchPrevious]
+    [prefetchNext, prefetchPrevious, user?.id]
   );
 
   /**
