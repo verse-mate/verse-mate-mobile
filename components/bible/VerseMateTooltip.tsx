@@ -633,15 +633,27 @@ export function VerseMateTooltip({
             {/* Primary Action - Context-aware */}
             {isHighlighted ? (
               // Highlighted verse - show remove button
-              <Pressable style={styles.removeButton} onPress={handleRemove}>
-                <Ionicons name="trash-outline" size={20} color={colors.white} />
-                <Text style={styles.removeButtonText}>Remove Highlight</Text>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { flexDirection: 'row', gap: spacing.xs, justifyContent: 'center' },
+                ]}
+                onPress={handleRemove}
+              >
+                <Ionicons name="trash-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.secondaryButtonText}>Remove Highlight</Text>
               </Pressable>
             ) : isLoggedIn ? (
               // Plain verse - show save button
-              <Pressable style={styles.primaryButton} onPress={handleSave}>
-                <Ionicons name="bookmark-outline" size={20} color={colors.background} />
-                <Text style={styles.primaryButtonText}>Save as My Highlight</Text>
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { flexDirection: 'row', gap: spacing.xs, justifyContent: 'center' },
+                ]}
+                onPress={handleSave}
+              >
+                <Ionicons name="bookmark-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.secondaryButtonText}>Save as My Highlight</Text>
               </Pressable>
             ) : (
               // Plain verse - not logged in

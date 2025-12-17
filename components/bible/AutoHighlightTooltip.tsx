@@ -578,14 +578,15 @@ export function AutoHighlightTooltip({
 
             {isLoggedIn ? (
               <>
-                <Pressable style={styles.primaryButton} onPress={handleSave}>
-                  <Ionicons
-                    name="bookmark-outline"
-                    size={20}
-                    color={colors.background}
-                    style={{ marginRight: spacing.xs }}
-                  />
-                  <Text style={styles.primaryButtonText}>Save as My Highlight</Text>
+                <Pressable
+                  style={[
+                    styles.secondaryButton,
+                    { flexDirection: 'row', gap: spacing.xs, justifyContent: 'center' },
+                  ]}
+                  onPress={handleSave}
+                >
+                  <Ionicons name="bookmark-outline" size={20} color={colors.textPrimary} />
+                  <Text style={styles.secondaryButtonText}>Save as My Highlight</Text>
                 </Pressable>
                 <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
                   <Text style={styles.secondaryButtonText}>Cancel</Text>
