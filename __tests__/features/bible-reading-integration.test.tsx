@@ -44,10 +44,12 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: jest.fn(({ children }) => children),
   useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
 }));
+// Mock authenticated user for tests that verify reading position saving
+const mockAuthUserId = '550e8400-e29b-41d4-a716-446655440000';
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(() => ({
-    isAuthenticated: false,
-    user: null,
+    isAuthenticated: true,
+    user: { id: mockAuthUserId, email: 'test@example.com', firstName: 'Test', lastName: 'User' },
     isLoading: false,
     login: jest.fn(),
     logout: jest.fn(),
@@ -323,10 +325,10 @@ describe('Bible Reading Interface - Integration Tests', () => {
       expect(screen.getAllByText('The Creation')[0]).toBeTruthy();
     });
 
-    // 2. Verify reading position saved
+    // 2. Verify reading position saved with authenticated user's UUID
     const mockMutate = (useSaveLastRead as jest.Mock).mock.results[0].value.mutate;
     expect(mockMutate).toHaveBeenCalledWith({
-      user_id: 'guest',
+      user_id: mockAuthUserId,
       book_id: 1,
       chapter_number: 1,
     });
@@ -558,11 +560,11 @@ describe('Bible Reading Interface - Integration Tests', () => {
       { timeout: 10000 }
     );
 
-    // Verify reading position saved for Matthew
+    // Verify reading position saved for Matthew with authenticated user's UUID
     const mockMutate = (useSaveLastRead as jest.Mock).mock.results[0].value.mutate;
     expect(mockMutate).toHaveBeenCalledWith(
       expect.objectContaining({
-        user_id: 'guest',
+        user_id: mockAuthUserId,
         book_id: 40,
         chapter_number: 5,
       })
