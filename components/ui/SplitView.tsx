@@ -10,6 +10,7 @@
  * - Independent scroll containers for each panel
  * - Persisted split ratio preference
  * - Responsive sizing based on screen dimensions
+ * - PERFORMANCE OPTIMIZED: Uses deferred resizing (ghost divider) to prevent layout thrashing
  *
  * @see Spec: agent-os/specs/landscape-tablet-optimization/plan.md
  * @see Figma: https://www.figma.com/design/GOiiI0yRby5mWqCji8e4pp/VerseMate?node-id=3367-16156
@@ -17,17 +18,15 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  type GestureResponderEvent,
-  type LayoutChangeEvent,
-  PanResponder,
-  type PanResponderGestureState,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
-import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Reanimated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getSplitViewSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -84,11 +83,14 @@ export function SplitView({
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(specs, colors, insets), [specs, colors, insets]);
 
-  // Track container width and X position for calculating panel sizes and hover detection
-  const [containerWidth, setContainerWidth] = useState(0);
-  const containerXRef = useRef(0);
+  // Container dimensions as shared values (avoid JS thread access in worklets)
+  const containerWidth = useSharedValue(0);
+  const containerX = useSharedValue(0);
 
-  // Track if divider is being dragged
+  // Track if layout is ready (for conditional rendering)
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
+
+  // Track if divider is being dragged (only for visual feedback, not checked in worklets)
   const [isDragging, setIsDragging] = useState(false);
 
   // Track if user is in long-press mode with target buttons visible
@@ -97,14 +99,13 @@ export function SplitView({
   // Track which target is being hovered over during long-press
   const [hoveredTarget, setHoveredTarget] = useState<'left' | 'right' | null>(null);
 
-  // Store the drag start width for tracking during drag
-  const dragStartWidthRef = useRef(0);
-
-  // Store the long-press timer ID
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Reanimated shared value for smooth divider position updates (runs on UI thread)
+  // Reanimated shared value for the committed panel width (layout width)
+  // This ONLY updates on drag end to prevent layout thrashing
   const dividerPosition = useSharedValue(0);
+
+  // Reanimated shared value for the temporary divider visual offset during drag
+  // This updates on every frame of the drag for 60fps smoothness
+  const dividerTranslation = useSharedValue(0);
 
   // Reanimated shared values for target buttons fade-in
   const leftTargetOpacity = useSharedValue(0);
@@ -118,207 +119,303 @@ export function SplitView({
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const { width, x } = event.nativeEvent.layout;
-      setContainerWidth(width);
-      containerXRef.current = x;
-      // Update shared value to match current ratio
-      const { leftWidth } = calculatePanelWidths(width, splitRatio);
-      dividerPosition.value = leftWidth;
-      dragStartWidthRef.current = leftWidth;
+      containerWidth.value = width;
+      containerX.value = x;
+
+      // Only set initial position if not already set or if width changed significantly
+      if (!isLayoutReady || Math.abs(containerWidth.value - width) > 1) {
+        const { leftWidth } = calculatePanelWidths(width, splitRatio);
+        dividerPosition.value = leftWidth;
+      }
+
+      // Mark layout as ready
+      if (!isLayoutReady && width > 0) {
+        setIsLayoutReady(true);
+      }
     },
-    [splitRatio, dividerPosition]
+    [splitRatio, dividerPosition, containerWidth, containerX, isLayoutReady]
   );
 
-  // Pan responder for divider drag and long-press detection
-  const panResponder = useMemo(
+  // Sync divider position when splitRatio prop changes externally
+  useEffect(() => {
+    if (isLayoutReady && containerWidth.value > 0) {
+      const { leftWidth } = calculatePanelWidths(containerWidth.value, splitRatio);
+      // Avoid snapping if difference is negligible (prevents loops with parent state)
+      if (Math.abs(dividerPosition.value - leftWidth) > 1) {
+        dividerPosition.value = withTiming(leftWidth, { duration: 300 });
+      }
+    }
+  }, [splitRatio, isLayoutReady, containerWidth, dividerPosition]);
+
+  // Shared values for tracking drag state (used in worklets, don't cause re-renders)
+  const isDraggingShared = useSharedValue(false);
+  const isLongPressingShared = useSharedValue(false);
+  const hoveredTargetShared = useSharedValue<'left' | 'right' | null>(null);
+  const dragStartX = useSharedValue(0);
+  const absoluteStartX = useSharedValue(0);
+  const gestureStartTime = useSharedValue(0);
+  const hasMovedHorizontally = useSharedValue(false);
+
+  // Store min/max constraints as shared values (avoid JS constant access in worklets)
+  const minLeftWidth = useSharedValue(BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH);
+  const minRightWidth = useSharedValue(BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH);
+  const maxPanelWidth = useSharedValue(BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH);
+
+  // Sync shared values with constants (critical for hot-reloading and dynamic updates)
+  useEffect(() => {
+    minLeftWidth.value = BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH;
+    minRightWidth.value = BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH;
+    maxPanelWidth.value = BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH;
+  }, [minLeftWidth, minRightWidth, maxPanelWidth]);
+
+  // Haptic callbacks (must run on JS thread)
+  const triggerLightHaptic = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
+
+  const triggerMediumHaptic = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  const triggerHeavyHaptic = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  }, []);
+
+  const triggerSuccessHaptic = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
+
+  // Batch state updates - only called at gesture begin/end, not during drag
+  const updateDragState = useCallback((dragging: boolean) => {
+    setIsDragging(dragging);
+  }, []);
+
+  const updateLongPressState = useCallback(
+    (longPressing: boolean, target: 'left' | 'right' | null) => {
+      setIsLongPressing(longPressing);
+      setHoveredTarget(target);
+    },
+    []
+  );
+
+  // Pan gesture for divider drag with long-press detection
+  const panGesture = useMemo(
     () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
+      Gesture.Pan()
+        .onBegin(() => {
+          'worklet';
+          isDraggingShared.value = true;
 
-        onPanResponderGrant: () => {
-          setIsDragging(true);
-          // Store the current position at drag start (prevents snapping)
-          dragStartWidthRef.current = dividerPosition.value;
-          // Haptic feedback on drag start
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          // Store the current WIDTH at drag start
+          dragStartX.value = dividerPosition.value;
+          // Reset translation offset
+          dividerTranslation.value = 0;
 
-          // Start long-press detection timer (500ms)
-          longPressTimerRef.current = setTimeout(() => {
-            setIsLongPressing(true);
-            // Fade in target buttons with Reanimated
+          // Track gesture start time for long-press detection
+          gestureStartTime.value = Date.now();
+          hasMovedHorizontally.value = false;
+
+          // Trigger haptic and state update
+          runOnJS(triggerLightHaptic)();
+          runOnJS(updateDragState)(true);
+        })
+        .onChange((event) => {
+          'worklet';
+          if (containerWidth.value === 0) return;
+
+          const dragThreshold = 10;
+          const isDraggingHorizontally = Math.abs(event.translationX) > dragThreshold;
+
+          // Track if we've moved horizontally
+          if (isDraggingHorizontally && !hasMovedHorizontally.value) {
+            hasMovedHorizontally.value = true;
+          }
+
+          // Check for long-press: no horizontal movement and 500ms elapsed
+          const elapsed = Date.now() - gestureStartTime.value;
+          if (!hasMovedHorizontally.value && elapsed > 500 && !isLongPressingShared.value) {
+            // Long-press detected
+            isLongPressingShared.value = true;
+
+            // Fade in target buttons
             leftTargetOpacity.value = withTiming(1, { duration: 300 });
             rightTargetOpacity.value = withTiming(1, { duration: 300 });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }, 500);
-        },
 
-        onPanResponderMove: (_: GestureResponderEvent, gestureState: PanResponderGestureState) => {
-          if (containerWidth === 0) return;
+            runOnJS(triggerSuccessHaptic)();
+            runOnJS(updateLongPressState)(true, null);
+            absoluteStartX.value = event.absoluteX;
+          }
 
-          // Check if horizontal movement is significant (>10px threshold)
-          // Reduced from 30px to make dragging more responsive
-          const dragThreshold = 10;
-          const isDraggingHorizontally = Math.abs(gestureState.dx) > dragThreshold;
+          // If dragging horizontally and long-press NOT yet active, do normal drag
+          if (isDraggingHorizontally && !isLongPressingShared.value) {
+            // Normal drag mode
+            const targetLeftWidth = dragStartX.value + event.translationX;
+            const totalWidth = containerWidth.value;
 
-          // If dragging horizontally and long-press NOT yet active, cancel the timer
-          if (isDraggingHorizontally && !isLongPressing) {
-            // Clear long-press timer if still running (hasn't fired yet)
-            if (longPressTimerRef.current) {
-              clearTimeout(longPressTimerRef.current);
-              longPressTimerRef.current = null;
-            }
+            // CALCULATE ROBUST CONSTRAINTS TO MATCH device-detection.ts LOGIC
+            // This prevents "snapping" when the committed value is re-processed by the system.
+            // Note: We ignore ratio constraints here and rely purely on pixel constraints,
+            // as device-detection.ts now prioritizes pixel limits (0.1-0.9 ratio is very permissive).
 
-            // Normal drag mode - resize divider
-            // Calculate new left panel width based on drag offset from start
-            const newLeftWidth = dragStartWidthRef.current + gestureState.dx;
+            // 2. Fixed Min/Max Width Constraints
+            // Effective Min: Fixed Min
+            const effectiveMinLeft = minLeftWidth.value;
 
-            // Clamp to valid range with separate minimums for each panel
-            const minLeftWidth = BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH;
-            const minRightWidth = BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH;
-            const maxLeftWidth = containerWidth - minRightWidth;
-            const clampedWidth = Math.max(minLeftWidth, Math.min(maxLeftWidth, newLeftWidth));
+            // Effective Max: Min of (Total - Fixed Right Min, Fixed Max Panel)
+            const effectiveMaxLeft = Math.min(
+              totalWidth - minRightWidth.value,
+              maxPanelWidth.value
+            );
 
-            // Update position directly (Reanimated updates on UI thread for smooth performance)
-            dividerPosition.value = clampedWidth;
-          } else if (isLongPressing) {
-            // Long-press is active - only update target zone highlighting, never drag divider
-            // Check for target zones based on CURRENT touch position (where finger is now)
+            // Clamp to valid range
+            const clampedWidth = Math.max(
+              effectiveMinLeft,
+              Math.min(effectiveMaxLeft, targetLeftWidth)
+            );
 
-            // Target buttons are positioned relative to the divider:
-            // - Left button: 60px to the left of divider (left: -60)
-            // - Right button: 60px to the right of divider (right: -60)
-            // Different radii to balance detection feel
-            const leftTargetZoneRadius = 40; // 10px smaller for left button
-            const rightTargetZoneRadius = 50; // Standard radius for right button
+            // Calculate the translation required to visually represent this width
+            dividerTranslation.value = clampedWidth - dragStartX.value;
+          } else if (isLongPressingShared.value) {
+            // Long-press active - update target zone highlighting
+            const leftTargetZoneRadius = 40;
+            const rightTargetZoneRadius = 50;
 
-            // Convert absolute screen coordinates to container-relative coordinates
-            const containerRelativeX = gestureState.moveX - containerXRef.current;
+            // Container-relative X position using shared value
+            const containerRelativeX = event.absoluteX - containerX.value;
 
-            // Get current divider position from shared value
-            const currentDividerX = dividerPosition.value;
+            // Current VISUAL divider center (includes translation if any)
+            const currentVisualX = dividerPosition.value + dividerTranslation.value;
+            const dividerCenterX = currentVisualX + 10; // Divider is 20px wide
 
-            // Divider is 20px wide, so center is at currentDividerX + 10
-            const dividerCenterX = currentDividerX + 10;
+            // Button center positions
+            const leftButtonCenterX = dividerCenterX - 60;
+            const rightButtonCenterX = dividerCenterX + 60;
 
-            // Calculate button center positions relative to divider CENTER
-            const leftButtonCenterX = dividerCenterX - 60; // 60px left of divider center
-            const rightButtonCenterX = dividerCenterX + 60; // 60px right of divider center
-
-            // Calculate distances from finger to each button center
+            // Distances from finger to each button
             const distanceToLeftButton = Math.abs(containerRelativeX - leftButtonCenterX);
             const distanceToRightButton = Math.abs(containerRelativeX - rightButtonCenterX);
+
+            let newTarget: 'left' | 'right' | null = null;
 
             if (
               distanceToLeftButton < leftTargetZoneRadius &&
               distanceToLeftButton < distanceToRightButton
             ) {
-              // Closer to left target zone
-              if (hoveredTarget !== 'left') {
-                setHoveredTarget('left');
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }
+              newTarget = 'left';
             } else if (distanceToRightButton < rightTargetZoneRadius) {
-              // Closer to right target zone
-              if (hoveredTarget !== 'right') {
-                setHoveredTarget('right');
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              newTarget = 'right';
+            }
+
+            // Only update if target changed (reduce runOnJS calls)
+            if (hoveredTargetShared.value !== newTarget) {
+              hoveredTargetShared.value = newTarget;
+              runOnJS(updateLongPressState)(true, newTarget);
+              if (newTarget !== null) {
+                runOnJS(triggerLightHaptic)();
               }
-            } else if (hoveredTarget !== null) {
-              // Not in any target zone
-              setHoveredTarget(null);
             }
           }
-        },
+        })
+        .onEnd((event) => {
+          'worklet';
+          isDraggingShared.value = false;
+          runOnJS(updateDragState)(false);
 
-        onPanResponderRelease: (
-          _: GestureResponderEvent,
-          gestureState: PanResponderGestureState
-        ) => {
-          // Clear long-press timer if still running
-          if (longPressTimerRef.current) {
-            clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = null;
-          }
+          if (containerWidth.value === 0) return;
 
-          setIsDragging(false);
-
-          if (containerWidth === 0) return;
-
-          // Check if horizontal movement is significant (must match threshold above)
           const dragThreshold = 10;
-          const wasDraggedHorizontally = Math.abs(gestureState.dx) > dragThreshold;
+          const wasDraggedHorizontally = Math.abs(event.translationX) > dragThreshold;
 
           // If was in long-press mode, check for target selection
-          if (isLongPressing) {
-            if (hoveredTarget) {
+          if (isLongPressingShared.value) {
+            const target = hoveredTargetShared.value;
+            if (target && onViewModeChange) {
               // Transition to fullscreen mode
-              // Left button (drag left) → divider goes left → RIGHT panel expands to fullscreen
-              // Right button (drag right) → divider goes right → LEFT panel expands to fullscreen
-              if (hoveredTarget === 'left') {
-                onViewModeChange?.('right-full'); // Expand RIGHT panel
+              if (target === 'left') {
+                runOnJS(onViewModeChange)('right-full');
               } else {
-                onViewModeChange?.('left-full'); // Expand LEFT panel
+                runOnJS(onViewModeChange)('left-full');
               }
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              runOnJS(triggerHeavyHaptic)();
             }
 
-            // Fade out target buttons with Reanimated
+            // Fade out target buttons
             leftTargetOpacity.value = withTiming(0, { duration: 200 });
             rightTargetOpacity.value = withTiming(0, { duration: 200 });
 
-            setIsLongPressing(false);
-            setHoveredTarget(null);
-          } else if (wasDraggedHorizontally) {
-            // Normal drag release - calculate new ratio
-            // Calculate final width from drag
-            const newLeftWidth = dragStartWidthRef.current + gestureState.dx;
+            isLongPressingShared.value = false;
+            hoveredTargetShared.value = null;
+            runOnJS(updateLongPressState)(false, null);
 
-            // Clamp to valid range with separate minimums for each panel
-            const minLeftWidth = BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH;
-            const minRightWidth = BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH;
-            const maxLeftWidth = containerWidth - minRightWidth;
-            const clampedWidth = Math.max(minLeftWidth, Math.min(maxLeftWidth, newLeftWidth));
+            // Reset translation
+            dividerTranslation.value = withTiming(0);
+          } else if (wasDraggedHorizontally) {
+            // Normal drag release - COMMIT THE NEW WIDTH
+            const finalWidth = dragStartX.value + dividerTranslation.value;
+
+            // Update panel width (layout triggers now)
+            dividerPosition.value = finalWidth;
+
+            // Reset translation (it's now part of the width)
+            dividerTranslation.value = 0;
 
             // Calculate new ratio
-            const newRatio = clampedWidth / containerWidth;
+            const newRatio = finalWidth / containerWidth.value;
 
-            // Haptic feedback on drag end
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            // Haptic feedback
+            runOnJS(triggerMediumHaptic)();
 
-            // Notify parent of ratio change (for persistence)
-            onSplitRatioChange(newRatio);
+            // Notify parent of ratio change
+            runOnJS(onSplitRatioChange)(newRatio);
+          } else {
+            // Small jitter, just reset
+            dividerTranslation.value = withTiming(0);
           }
-        },
+        })
+        .onFinalize(() => {
+          'worklet';
+          // Clean up state if gesture was cancelled
+          if (isDraggingShared.value || isLongPressingShared.value) {
+            isDraggingShared.value = false;
+            isLongPressingShared.value = false;
+            hoveredTargetShared.value = null;
 
-        onPanResponderTerminate: () => {
-          // Clear long-press timer if still running
-          if (longPressTimerRef.current) {
-            clearTimeout(longPressTimerRef.current);
+            runOnJS(updateDragState)(false);
+            runOnJS(updateLongPressState)(false, null);
+
+            // Fade out target buttons
+            leftTargetOpacity.value = withTiming(0, { duration: 200 });
+            rightTargetOpacity.value = withTiming(0, { duration: 200 });
+
+            // Reset translation without committing width
+            dividerTranslation.value = withTiming(0);
           }
-
-          setIsDragging(false);
-          setIsLongPressing(false);
-          setHoveredTarget(null);
-
-          // Fade out target buttons if visible with Reanimated
-          leftTargetOpacity.value = withTiming(0, { duration: 200 });
-          rightTargetOpacity.value = withTiming(0, { duration: 200 });
-
-          // Reset to current ratio if cancelled
-          const { leftWidth: resetWidth } = calculatePanelWidths(containerWidth, splitRatio);
-          dividerPosition.value = resetWidth;
-        },
-      }),
+        }),
     [
-      containerWidth,
-      splitRatio,
       onSplitRatioChange,
-      dividerPosition,
-      isLongPressing,
-      hoveredTarget,
       onViewModeChange,
+      containerWidth,
+      containerX,
+      dividerPosition,
+      dividerTranslation,
+      minLeftWidth,
+      minRightWidth,
+      maxPanelWidth,
+      isDraggingShared,
+      isLongPressingShared,
+      hoveredTargetShared,
+      dragStartX,
+      absoluteStartX,
+      gestureStartTime,
+      hasMovedHorizontally,
       leftTargetOpacity,
       rightTargetOpacity,
+      updateDragState,
+      updateLongPressState,
+      triggerLightHaptic,
+      triggerMediumHaptic,
+      triggerHeavyHaptic,
+      triggerSuccessHaptic,
     ]
   );
 
@@ -332,14 +429,31 @@ export function SplitView({
   const shouldShowRightPanel = viewMode === 'split' || viewMode === 'right-full';
   const isFullscreen = viewMode !== 'split';
 
-  // Animated styles for panels (runs on UI thread for smooth performance)
-  const leftPanelStyle = useAnimatedStyle(() => ({
-    width: isFullscreen ? '100%' : dividerPosition.value,
-  }));
+  // Animated styles for panel widths
+  const leftPanelStyle = useAnimatedStyle(() => {
+    if (isFullscreen) {
+      return { width: '100%' };
+    }
+    return {
+      width: dividerPosition.value,
+    };
+  });
 
-  const rightPanelStyle = useAnimatedStyle(() => ({
-    width: isFullscreen ? '100%' : containerWidth - dividerPosition.value,
-  }));
+  const rightPanelStyle = useAnimatedStyle(() => {
+    if (isFullscreen) {
+      return { width: '100%' };
+    }
+    return {
+      width: containerWidth.value - dividerPosition.value,
+    };
+  });
+
+  // Animated style for the divider itself (allows ghost-dragging)
+  const dividerAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: dividerTranslation.value }],
+    };
+  });
 
   const leftTargetButtonStyle = useAnimatedStyle(() => ({
     opacity: leftTargetOpacity.value,
@@ -387,14 +501,11 @@ export function SplitView({
 
   return (
     <View style={styles.container} onLayout={handleLayout} testID={testID}>
-      {containerWidth > 0 && (
+      {isLayoutReady && (
         <>
           {/* Left Panel - Hidden when right fullscreen */}
           {shouldShowLeftPanel && (
-            <Reanimated.View
-              style={[styles.panel, isFullscreen && { flex: 1 }, !isFullscreen && leftPanelStyle]}
-              testID={`${testID}-left-panel`}
-            >
+            <Reanimated.View style={[styles.panel, leftPanelStyle]} testID={`${testID}-left-panel`}>
               {leftContent}
             </Reanimated.View>
           )}
@@ -421,72 +532,77 @@ export function SplitView({
 
           {/* Resizable Divider - Hidden when fullscreen */}
           {viewMode === 'split' && (
-            <View
-              style={[styles.dividerContainer, isDragging && styles.dividerContainerActive]}
-              {...panResponder.panHandlers}
-              testID={`${testID}-divider`}
-            >
-              <View style={styles.dividerLine} />
-
-              {/* Long-Press Target Buttons - Fade in during long-press */}
+            <GestureDetector gesture={panGesture}>
               <Reanimated.View
                 style={[
-                  styles.targetButton,
-                  styles.targetButtonLeft,
-                  leftTargetButtonStyle,
-                  {
-                    backgroundColor:
-                      hoveredTarget === 'left' ? colors.gold : colors.backgroundElevated,
-                  },
+                  styles.dividerContainer,
+                  isDragging && styles.dividerContainerActive,
+                  dividerAnimatedStyle,
                 ]}
-                pointerEvents={isLongPressing ? 'auto' : 'none'}
+                testID={`${testID}-divider`}
               >
-                <Ionicons
-                  name="chevron-back"
-                  size={20}
-                  color={hoveredTarget === 'left' ? colors.white : colors.textSecondary}
-                />
-              </Reanimated.View>
+                <View style={styles.dividerLine} />
 
-              <Reanimated.View
-                style={[
-                  styles.targetButton,
-                  styles.targetButtonRight,
-                  rightTargetButtonStyle,
-                  {
-                    backgroundColor:
-                      hoveredTarget === 'right' ? colors.gold : colors.backgroundElevated,
-                  },
-                ]}
-                pointerEvents={isLongPressing ? 'auto' : 'none'}
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={hoveredTarget === 'right' ? colors.white : colors.textSecondary}
-                />
-              </Reanimated.View>
+                {/* Long-Press Target Buttons - Fade in during long-press */}
+                <Reanimated.View
+                  style={[
+                    styles.targetButton,
+                    styles.targetButtonLeft,
+                    leftTargetButtonStyle,
+                    {
+                      backgroundColor:
+                        hoveredTarget === 'left' ? colors.gold : colors.backgroundElevated,
+                    },
+                  ]}
+                  pointerEvents={isLongPressing ? 'auto' : 'none'}
+                >
+                  <Ionicons
+                    name="chevron-back"
+                    size={20}
+                    color={hoveredTarget === 'left' ? colors.white : colors.textSecondary}
+                  />
+                </Reanimated.View>
 
-              <Pressable
-                style={[styles.dividerHandle, isDragging && styles.dividerHandleActive]}
-                onPress={handleDividerDoubleTap}
-                accessibilityRole="adjustable"
-                accessibilityLabel="Resize panels or long-press for fullscreen"
-                accessibilityHint="Drag to adjust panel sizes, double tap to reset, long-press for fullscreen options"
-              >
-                <Ionicons
-                  name="swap-horizontal-outline"
-                  size={16}
-                  color={isDragging ? colors.textPrimary : colors.textTertiary}
-                />
-              </Pressable>
-            </View>
+                <Reanimated.View
+                  style={[
+                    styles.targetButton,
+                    styles.targetButtonRight,
+                    rightTargetButtonStyle,
+                    {
+                      backgroundColor:
+                        hoveredTarget === 'right' ? colors.gold : colors.backgroundElevated,
+                    },
+                  ]}
+                  pointerEvents={isLongPressing ? 'auto' : 'none'}
+                >
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={hoveredTarget === 'right' ? colors.white : colors.textSecondary}
+                  />
+                </Reanimated.View>
+
+                <Pressable
+                  style={[styles.dividerHandle, isDragging && styles.dividerHandleActive]}
+                  onPress={handleDividerDoubleTap}
+                  accessibilityRole="adjustable"
+                  accessibilityLabel="Resize panels or long-press for fullscreen"
+                  accessibilityHint="Drag to adjust panel sizes, double tap to reset, long-press for fullscreen options"
+                >
+                  <Ionicons
+                    name="swap-horizontal-outline"
+                    size={16}
+                    color={isDragging ? colors.textPrimary : colors.textTertiary}
+                  />
+                </Pressable>
+              </Reanimated.View>
+            </GestureDetector>
           )}
 
           {/* Right Panel - Hidden when left fullscreen */}
           {shouldShowRightPanel && (
             <Reanimated.View
-              style={[styles.panel, isFullscreen && { flex: 1 }, !isFullscreen && rightPanelStyle]}
+              style={[styles.panel, rightPanelStyle]}
               testID={`${testID}-right-panel`}
             >
               {rightContent}
