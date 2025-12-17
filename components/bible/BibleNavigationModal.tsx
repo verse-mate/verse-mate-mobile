@@ -148,6 +148,19 @@ function BibleNavigationModalComponent({
   // Track if modal is effectively open (visible prop OR dragging down)
   const [isOpenOrDragging, setIsOpenOrDragging] = useState(visible);
 
+  // State to track the chapter grid container and button dimensions for dynamic calculations
+  const [gridContainerWidth, setGridContainerWidth] = useState(0);
+  const [buttonWidth, setButtonWidth] = useState(0);
+  const [buttonHeight, setButtonHeight] = useState(0);
+
+  // Ref for ScrollView to enable programmatic scrolling
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // State to track book item positions and viewport height for smart scrolling
+  const [bookItemPositions, setBookItemPositions] = useState<Map<number, number>>(new Map());
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [currentScrollY, setCurrentScrollY] = useState(0);
+
   // Animate main tab indicator when selectedTab changes
   useEffect(() => {
     const tabIndex = selectedTab === 'OT' ? 0 : selectedTab === 'NT' ? 1 : 2;
@@ -397,12 +410,106 @@ function BibleNavigationModalComponent({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
+  // Track the last book that was expanded for scroll logic
+  const lastExpandedBookRef = useRef<{ bookId: number; previousBookId: number | null } | null>(
+    null
+  );
+
   // Handle book selection
-  const handleBookSelect = useCallback((book: BookMetadata) => {
-    setSelectedBookId((prevId) => (prevId === book.id ? null : book.id));
-    Keyboard.dismiss();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, []);
+  const handleBookSelect = useCallback(
+    (book: BookMetadata) => {
+      const isExpanding = selectedBookId !== book.id;
+      const previouslySelectedBookId = selectedBookId;
+      setSelectedBookId((prevId) => (prevId === book.id ? null : book.id));
+      Keyboard.dismiss();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Store book info for scroll effect to process
+      if (isExpanding) {
+        lastExpandedBookRef.current = {
+          bookId: book.id,
+          previousBookId: previouslySelectedBookId,
+        };
+      }
+    },
+    [selectedBookId]
+  );
+
+  // Auto-scroll effect - triggers when measurements are ready
+  useEffect(() => {
+    if (
+      !lastExpandedBookRef.current ||
+      gridContainerWidth === 0 ||
+      buttonWidth === 0 ||
+      buttonHeight === 0
+    ) {
+      return;
+    }
+
+    const { bookId, previousBookId } = lastExpandedBookRef.current;
+    const book = allBooks.find((b) => b.id === bookId);
+    if (!book) return;
+
+    // Calculate new chapter grid height
+    const gap = spacing.md;
+    const columnsPerRow = Math.floor((gridContainerWidth + gap) / (buttonWidth + gap));
+    const numRows = Math.ceil(book.chapterCount / columnsPerRow);
+    const gridHeight = numRows * buttonHeight + (numRows - 1) * gap;
+    const bookItemHeight = 56;
+    const totalContentHeight = bookItemHeight + gridHeight + spacing.xl * 2;
+
+    // Get book position
+    let bookPosition = bookItemPositions.get(bookId) || 0;
+
+    // Calculate height of previously opened book's grid (if any) to account for layout shift
+    if (previousBookId !== null) {
+      const previousBook = allBooks.find((b) => b.id === previousBookId);
+      if (previousBook) {
+        const prevNumRows = Math.ceil(previousBook.chapterCount / columnsPerRow);
+        const previousGridHeight =
+          prevNumRows * buttonHeight + (prevNumRows - 1) * gap + spacing.xl * 2;
+
+        // If previous book was above the clicked book, adjust position for layout shift
+        const prevPosition = bookItemPositions.get(previousBookId) || 0;
+        if (prevPosition < bookPosition) {
+          bookPosition -= previousGridHeight;
+        }
+      }
+    }
+
+    // Smart scroll logic
+    const scrollTimeout = setTimeout(() => {
+      if (scrollViewRef.current && scrollViewHeight > 0) {
+        // Calculate visible bottom edge
+        const visibleBottom = currentScrollY + scrollViewHeight;
+        const contentBottom = bookPosition + totalContentHeight;
+
+        // Only scroll if content doesn't fit in current viewport
+        if (contentBottom > visibleBottom) {
+          if (totalContentHeight <= scrollViewHeight) {
+            // Content fits in viewport, scroll just enough to show it all
+            const scrollTo = Math.max(0, bookPosition + totalContentHeight - scrollViewHeight);
+            scrollViewRef.current.scrollTo({ y: scrollTo, animated: true });
+          } else {
+            // Content larger than viewport, scroll to put book title at top
+            scrollViewRef.current.scrollTo({ y: bookPosition, animated: true });
+          }
+        }
+      }
+      // Clear the ref after processing
+      lastExpandedBookRef.current = null;
+    }, 150); // Slightly longer delay to ensure measurements are ready
+
+    return () => clearTimeout(scrollTimeout);
+  }, [
+    gridContainerWidth,
+    buttonWidth,
+    buttonHeight,
+    bookItemPositions,
+    scrollViewHeight,
+    currentScrollY,
+    allBooks,
+  ]);
 
   // Handle chapter selection
   const handleChapterSelect = useCallback(
@@ -433,6 +540,22 @@ function BibleNavigationModalComponent({
     .onUpdate((e: GestureUpdateEvent<PanGestureHandlerEventPayload>) => {
       // Apply resistance when dragging down (positive Y)
       // For a top sheet, we want to resist moving it further down into the screen
+      translateY.value = e.translationY > 0 ? e.translationY * 0.5 : e.translationY;
+    })
+    .onEnd((e: GestureStateChangeEvent<PanGestureHandlerEventPayload>) => {
+      // Close if dragged up significantly or flicked up
+      if (e.translationY < -100 || e.velocityY < -500) {
+        runOnJS(handleClose)();
+      } else {
+        // Snap back
+        translateY.value = withSpring(0, springConfig);
+      }
+    });
+
+  // Backdrop pan gesture - handles swipe
+  const backdropPanGesture = Gesture.Pan()
+    .onUpdate((e: GestureUpdateEvent<PanGestureHandlerEventPayload>) => {
+      // Same as panGesture - move the modal
       translateY.value = e.translationY > 0 ? e.translationY * 0.5 : e.translationY;
     })
     .onEnd((e: GestureStateChangeEvent<PanGestureHandlerEventPayload>) => {
@@ -737,9 +860,18 @@ function BibleNavigationModalComponent({
     return (
       <GestureDetector gesture={scrollGesture}>
         <ScrollView
+          ref={scrollViewRef}
           style={styles.bookList}
           contentContainerStyle={styles.bookListContent}
           keyboardShouldPersistTaps="always"
+          onLayout={(event) => {
+            const { height } = event.nativeEvent.layout;
+            setScrollViewHeight(height);
+          }}
+          onScroll={(event) => {
+            setCurrentScrollY(event.nativeEvent.contentOffset.y);
+          }}
+          scrollEventThrottle={16}
         >
           {/* Current book/chapter display - Clickable to expand */}
           {!filterText.trim() && allBooks.find((b) => b.id === currentBookId) && (
@@ -783,7 +915,14 @@ function BibleNavigationModalComponent({
 
             return (
               // Use React.Fragment to render book item and conditionally the chapter grid
-              <Animated.View key={book.id} layout={Layout.duration(300)}>
+              <Animated.View
+                key={book.id}
+                layout={Layout.duration(300)}
+                onLayout={(event) => {
+                  const { y } = event.nativeEvent.layout;
+                  setBookItemPositions((prev) => new Map(prev).set(book.id, y));
+                }}
+              >
                 {renderBookItem(book, isRecent)}
                 {isSelected && renderChapterGrid()}
               </Animated.View>
@@ -852,10 +991,32 @@ function BibleNavigationModalComponent({
 
     const chapters = Array.from({ length: chapterCount }, (_, i) => i + 1);
 
+    // Calculate exact height needed for the grid based on actual measured dimensions
+    let calculatedGridHeight = 0;
+    if (gridContainerWidth > 0 && buttonWidth > 0 && buttonHeight > 0) {
+      const gap = spacing.md;
+      // Calculate how many columns fit: floor((containerWidth + gap) / (buttonWidth + gap))
+      const columnsPerRow = Math.floor((gridContainerWidth + gap) / (buttonWidth + gap));
+      const numRows = Math.ceil(chapterCount / columnsPerRow);
+      // Use actual button HEIGHT for calculation
+      calculatedGridHeight = numRows * buttonHeight + (numRows - 1) * gap;
+    }
+
     return (
-      <View style={styles.chapterGridContent}>
-        <View style={styles.chapterGrid}>
-          {chapters.map((chapter) => {
+      <View
+        style={styles.chapterGridContent}
+        onLayout={(event) => {
+          const { width } = event.nativeEvent.layout;
+          setGridContainerWidth(width);
+        }}
+      >
+        <View
+          style={[
+            styles.chapterGrid,
+            gridContainerWidth > 0 && buttonHeight > 0 && { height: calculatedGridHeight },
+          ]}
+        >
+          {chapters.map((chapter, index) => {
             const isCurrent = selectedBookId === currentBookId && chapter === currentChapter;
 
             return (
@@ -863,6 +1024,14 @@ function BibleNavigationModalComponent({
                 key={chapter}
                 onPress={() => handleChapterSelect(chapter)}
                 style={[styles.chapterButton, isCurrent && styles.chapterButtonCurrent]}
+                onLayout={(event) => {
+                  // Measure the first button to get actual dimensions
+                  if (index === 0) {
+                    const { width, height } = event.nativeEvent.layout;
+                    setButtonWidth(width);
+                    setButtonHeight(height);
+                  }
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={`Chapter ${chapter}`}
                 accessibilityState={{ selected: isCurrent }}
@@ -893,6 +1062,10 @@ function BibleNavigationModalComponent({
           customTranslateY ? { pointerEvents: internalVisible ? 'auto' : 'none' } : undefined,
         ]}
       >
+        {/* Backdrop that handles both tap to close and swipe to dismiss - positioned first to be behind modal */}
+        <GestureDetector gesture={Gesture.Simultaneous(backdropPanGesture, backdropTapGesture)}>
+          <Animated.View style={styles.backdropTouchable} />
+        </GestureDetector>
         <Animated.View
           style={[styles.container, animatedModalStyle]}
           testID="bible-navigation-modal"
@@ -931,10 +1104,6 @@ function BibleNavigationModalComponent({
             </View>
           </GestureDetector>
         </Animated.View>
-        {/* Backdrop that handles both tap to close and swipe to dismiss */}
-        <GestureDetector gesture={Gesture.Exclusive(panGesture, backdropTapGesture)}>
-          <Animated.View style={styles.backdropTouchable} />
-        </GestureDetector>
       </Animated.View>
     </GestureHandlerRootView>
   );
@@ -981,7 +1150,7 @@ const createStyles = (
       alignItems: useSplitView ? 'center' : 'stretch',
     },
     backdropTouchable: {
-      flex: 1,
+      ...StyleSheet.absoluteFillObject,
     },
     container: {
       height: modalSpecs.height,
@@ -1158,7 +1327,7 @@ const createStyles = (
     chapterGridContent: {
       paddingHorizontal: spacing.xl,
       paddingTop: spacing.xl,
-      // paddingBottom is removed to avoid double padding with bookListContent
+      paddingBottom: spacing.lg,
     },
     chapterGrid: {
       flexDirection: 'row',
