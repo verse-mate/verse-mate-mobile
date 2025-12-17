@@ -38,6 +38,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,6 +46,7 @@ import { HighlightColorPicker } from '@/components/bible/HighlightColorPicker';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 
 /**
  * Props for HighlightEditMenu component
@@ -75,7 +77,13 @@ export function HighlightEditMenu({
   onClose,
 }: HighlightEditMenuProps) {
   const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { width: windowWidth } = useWindowDimensions();
+
+  // Calculate left padding to center over right panel in split view
+  const leftPadding = useSplitView && splitViewMode !== 'left-full' ? windowWidth * splitRatio : 0;
+
+  const styles = useMemo(() => createStyles(colors, leftPadding), [colors, leftPadding]);
 
   /**
    * Handle color change with haptic feedback
@@ -142,12 +150,13 @@ export function HighlightEditMenu({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>) =>
+const createStyles = (colors: ReturnType<typeof getColors>, leftPadding: number) =>
   StyleSheet.create({
     modalContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
+      paddingLeft: leftPadding, // Push content to the right panel area
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,

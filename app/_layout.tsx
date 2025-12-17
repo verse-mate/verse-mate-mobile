@@ -25,6 +25,7 @@ import 'react-native-reanimated';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
@@ -336,9 +337,11 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <CustomThemeProvider>
-              <ToastProvider>
-                <RootLayoutInner />
-              </ToastProvider>
+              <DeviceInfoProvider>
+                <ToastProvider>
+                  <RootLayoutInner />
+                </ToastProvider>
+              </DeviceInfoProvider>
             </CustomThemeProvider>
           </AuthProvider>
         </QueryClientProvider>

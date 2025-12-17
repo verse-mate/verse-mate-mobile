@@ -33,6 +33,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
@@ -110,10 +111,17 @@ export function VerseMateTooltip({
   const { colors, mode } = useTheme();
   const { bibleVersion } = useBibleVersion();
   const insets = useSafeAreaInsets();
-  const { isTablet } = useDeviceInfo();
+  const { isTablet, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { width: windowWidth } = useWindowDimensions();
+
+  // Calculate dynamic right panel width if in split view (and right panel is visible)
+  // We use this to align the tooltip over the insights panel
+  const rightPanelWidth =
+    useSplitView && splitViewMode !== 'left-full' ? windowWidth * (1 - splitRatio) : undefined;
+
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom, isTablet),
-    [colors, insets.bottom, isTablet]
+    () => createStyles(colors, insets.bottom, isTablet, rightPanelWidth),
+    [colors, insets.bottom, isTablet, rightPanelWidth]
   );
 
   // ... (rest of the component state and hooks)
@@ -659,13 +667,14 @@ export function VerseMateTooltip({
 const createStyles = (
   colors: ReturnType<typeof getColors>,
   bottomInset: number,
-  isTablet: boolean
+  isTablet: boolean,
+  rightPanelWidth?: number
 ) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      alignItems: isTablet ? 'center' : 'stretch',
+      alignItems: rightPanelWidth ? 'flex-end' : isTablet ? 'center' : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -674,9 +683,9 @@ const createStyles = (
     container: {
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopRightRadius: rightPanelWidth ? 0 : 16, // Remove corner radius if attached to right edge
       maxHeight: '80%',
-      width: isTablet ? '60%' : '100%',
+      width: rightPanelWidth ?? (isTablet ? '60%' : '100%'),
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {
