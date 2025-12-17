@@ -13,6 +13,7 @@ import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useBookProgress, useRecentBooks } from '@/hooks/bible';
 import {
   useBibleByLine,
@@ -44,6 +45,24 @@ jest.mock('@/hooks/bible/use-fab-visibility', () => ({
 }));
 jest.mock('@/components/bible/OfflineIndicator', () => ({
   OfflineIndicator: () => null,
+}));
+// Mock Bible Interaction dependencies to avoid async effects/open handles
+jest.mock('@/hooks/use-bible-version', () => ({
+  useBibleVersion: () => ({ bibleVersion: 'niv', isLoading: false }),
+}));
+jest.mock('@/hooks/use-auth', () => ({
+  useAuth: () => ({ user: null, isLoading: false, isAuthenticated: false }),
+}));
+jest.mock('@/hooks/bible/use-highlights', () => ({
+  useHighlights: () => ({
+    chapterHighlights: [],
+    addHighlight: jest.fn(),
+    updateHighlightColor: jest.fn(),
+    deleteHighlight: jest.fn(),
+  }),
+}));
+jest.mock('@/hooks/bible/use-auto-highlights', () => ({
+  useAutoHighlights: () => ({ autoHighlights: [] }),
 }));
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: jest.fn(() => ({
@@ -165,7 +184,7 @@ function renderWithSafeArea(component: React.ReactElement) {
             insets: { top: 47, left: 0, right: 0, bottom: 34 },
           }}
         >
-          {children}
+          <ToastProvider>{children}</ToastProvider>
         </SafeAreaProvider>
       </ThemeProvider>
     </QueryClientProvider>

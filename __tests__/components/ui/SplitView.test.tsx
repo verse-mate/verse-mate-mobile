@@ -36,6 +36,31 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
+jest.mock('react-native-gesture-handler', () => {
+  const actualGH = jest.requireActual('react-native-gesture-handler');
+
+  const createMockGesture = () => ({
+    minDuration: jest.fn().mockReturnThis(),
+    onStart: jest.fn().mockReturnThis(),
+    onUpdate: jest.fn().mockReturnThis(),
+    onEnd: jest.fn().mockReturnThis(),
+    onBegin: jest.fn().mockReturnThis(),
+    onChange: jest.fn().mockReturnThis(),
+    onFinalize: jest.fn().mockReturnThis(),
+    toGestureArray: jest.fn().mockReturnValue([]),
+  });
+
+  return {
+    ...actualGH,
+    Gesture: {
+      ...actualGH.Gesture,
+      LongPress: createMockGesture,
+      Pan: createMockGesture,
+    },
+    GestureDetector: ({ children }: any) => children,
+  };
+});
+
 describe('SplitView', () => {
   const mockLeftContent = (
     <View testID="left-content">

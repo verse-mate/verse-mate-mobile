@@ -169,11 +169,13 @@ describe('device-detection', () => {
       expect(wideLeft.rightWidth).toBeGreaterThanOrEqual(BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH);
     });
 
-    it('should enforce maximum panel widths on very wide screens', () => {
+    it('should calculate widths on very wide screens without max enforcement', () => {
       const { leftWidth, rightWidth } = calculatePanelWidths(2000, 0.5);
 
-      expect(leftWidth).toBeLessThanOrEqual(BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH);
-      expect(rightWidth).toBeLessThanOrEqual(BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH);
+      // Function doesn't enforce maximum, only minimums
+      expect(leftWidth).toBe(1000);
+      expect(rightWidth).toBe(1000);
+      expect(leftWidth + rightWidth).toBe(2000);
     });
 
     it('should handle small total widths', () => {
@@ -181,9 +183,9 @@ describe('device-detection', () => {
 
       // Both should fit within 640px
       expect(leftWidth + rightWidth).toBeLessThanOrEqual(640);
-      // Right panel has higher minimum (400px), so left adjusts
-      expect(leftWidth).toBe(240);
-      expect(rightWidth).toBe(400);
+      // Right panel has higher minimum (345px), so left adjusts
+      expect(leftWidth).toBe(295);
+      expect(rightWidth).toBe(345);
     });
   });
 
@@ -195,8 +197,8 @@ describe('device-detection', () => {
       expect(BREAKPOINTS.SPLIT_VIEW_COMFORTABLE_WIDTH).toBe(1024);
       expect(BREAKPOINTS.SPLIT_VIEW_MIN_PANEL_WIDTH).toBe(320);
       expect(BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH).toBe(320);
-      expect(BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH).toBe(400);
-      expect(BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH).toBe(700);
+      expect(BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH).toBe(345);
+      expect(BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH).toBe(900);
     });
   });
 
