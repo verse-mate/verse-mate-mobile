@@ -366,17 +366,6 @@ export default function ChapterScreen() {
     }
   }, [canGoNext, nextChapter]);
 
-  // Update last read position when chapter changes
-  useEffect(() => {
-    savePosition({
-      type: 'bible',
-      bookId,
-      chapterNumber,
-      activeTab,
-      activeView,
-    });
-  }, [bookId, chapterNumber, activeTab, activeView, savePosition]);
-
   // Show skeleton loader while loading and no data is available
   if (isLoading && !chapter) {
     return (
