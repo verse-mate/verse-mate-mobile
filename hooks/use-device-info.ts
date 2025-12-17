@@ -76,7 +76,7 @@ export function useDeviceInfo(): UseDeviceInfoResult {
         const stored = await AsyncStorage.getItem(SPLIT_RATIO_STORAGE_KEY);
         if (stored !== null) {
           const ratio = Number.parseFloat(stored);
-          if (!Number.isNaN(ratio) && ratio >= 0.3 && ratio <= 0.7) {
+          if (!Number.isNaN(ratio) && ratio >= 0.1 && ratio <= 0.9) {
             setSplitRatioState(ratio);
           }
         }
@@ -103,8 +103,8 @@ export function useDeviceInfo(): UseDeviceInfoResult {
 
   // Update split ratio and persist to storage
   const setSplitRatio = useCallback((ratio: number) => {
-    // Clamp ratio between 0.3 and 0.7
-    const clampedRatio = Math.max(0.3, Math.min(0.7, ratio));
+    // Clamp ratio between 0.1 and 0.9
+    const clampedRatio = Math.max(0.1, Math.min(0.9, ratio));
     setSplitRatioState(clampedRatio);
 
     // Persist to AsyncStorage (fire and forget)
