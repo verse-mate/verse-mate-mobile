@@ -19,6 +19,24 @@ import {
 } from '@/utils/device-detection';
 
 /**
+ * Split View Mode Type
+ */
+export type SplitViewMode = 'split' | 'left-full' | 'right-full';
+
+/**
+ * Storage key for persisting split view mode
+ */
+export const SPLIT_VIEW_MODE_STORAGE_KEY = 'versemate:split-view-mode';
+
+/**
+ * Module-level cache to prevent "flash of default content" on navigation
+ * and ensure state persists across component remounts.
+ */
+let cachedSplitRatio: number | null = null;
+let cachedSplitViewMode: SplitViewMode | null = null;
+let isCacheLoaded = false;
+
+/**
  * Extended device info with split view state
  */
 export interface UseDeviceInfoResult extends DeviceInfo {
@@ -28,7 +46,11 @@ export interface UseDeviceInfoResult extends DeviceInfo {
   splitRatio: number;
   /** Update split ratio (persists to AsyncStorage) */
   setSplitRatio: (ratio: number) => void;
-  /** Whether split ratio has been loaded from storage */
+  /** Current view mode */
+  splitViewMode: SplitViewMode;
+  /** Update view mode (persists to AsyncStorage) */
+  setSplitViewMode: (mode: SplitViewMode) => void;
+  /** Whether state has been loaded from storage */
   isLoaded: boolean;
 }
 
@@ -40,55 +62,64 @@ export interface UseDeviceInfoResult extends DeviceInfo {
  * - Orientation detection (landscape vs portrait)
  * - Split view determination based on screen size
  * - Persisted split ratio preference
+ * - Persisted view mode preference (Split/Fullscreen)
  *
  * Automatically updates when device orientation changes.
+ * Uses in-memory caching to prevent layout thrashing on navigation.
  *
  * @returns UseDeviceInfoResult with device info and split view state
- *
- * @example
- * ```tsx
- * function TopicDetailScreen() {
- *   const { useSplitView, splitRatio, setSplitRatio } = useDeviceInfo();
- *
- *   if (useSplitView) {
- *     return (
- *       <TopicSplitView
- *         splitRatio={splitRatio}
- *         onSplitRatioChange={setSplitRatio}
- *       />
- *     );
- *   }
- *
- *   return <TopicPagerView />;
- * }
- * ```
  */
 export function useDeviceInfo(): UseDeviceInfoResult {
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo>(getDeviceInfo());
   const [useSplitView, setUseSplitView] = useState(shouldUseSplitView());
-  const [splitRatio, setSplitRatioState] = useState(DEFAULT_SPLIT_RATIO);
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load persisted split ratio on mount
+  // Initialize with cached values if available to prevent animation glitches
+  const [splitRatio, setSplitRatioState] = useState(cachedSplitRatio ?? DEFAULT_SPLIT_RATIO);
+  const [splitViewMode, setSplitViewModeState] = useState<SplitViewMode>(
+    cachedSplitViewMode ?? 'split'
+  );
+  const [isLoaded, setIsLoaded] = useState(isCacheLoaded);
+
+  // Load persisted state on mount (only if not already loaded)
   useEffect(() => {
-    async function loadSplitRatio() {
+    async function loadState() {
+      // If cache is already loaded, we don't need to read storage again
+      // unless we want to ensure sync. For UI stability, cache is king.
+      if (isCacheLoaded) {
+        setIsLoaded(true);
+        return;
+      }
+
       try {
-        const stored = await AsyncStorage.getItem(SPLIT_RATIO_STORAGE_KEY);
-        if (stored !== null) {
-          const ratio = Number.parseFloat(stored);
+        const [storedRatio, storedMode] = await Promise.all([
+          AsyncStorage.getItem(SPLIT_RATIO_STORAGE_KEY),
+          AsyncStorage.getItem(SPLIT_VIEW_MODE_STORAGE_KEY),
+        ]);
+
+        if (storedRatio !== null) {
+          const ratio = Number.parseFloat(storedRatio);
           if (!Number.isNaN(ratio) && ratio >= 0.1 && ratio <= 0.9) {
+            cachedSplitRatio = ratio; // Update cache
             setSplitRatioState(ratio);
           }
         }
+
+        if (storedMode !== null) {
+          if (storedMode === 'split' || storedMode === 'left-full' || storedMode === 'right-full') {
+            const mode = storedMode as SplitViewMode;
+            cachedSplitViewMode = mode; // Update cache
+            setSplitViewModeState(mode);
+          }
+        }
       } catch (error) {
-        // Silently fail - use default ratio
-        console.warn('Failed to load split ratio:', error);
+        console.warn('Failed to load split view state:', error);
       } finally {
+        isCacheLoaded = true;
         setIsLoaded(true);
       }
     }
 
-    loadSplitRatio();
+    loadState();
   }, []);
 
   // Listen for dimension changes (orientation changes)
@@ -105,11 +136,25 @@ export function useDeviceInfo(): UseDeviceInfoResult {
   const setSplitRatio = useCallback((ratio: number) => {
     // Clamp ratio between 0.1 and 0.9
     const clampedRatio = Math.max(0.1, Math.min(0.9, ratio));
+
+    // Update state and cache
+    cachedSplitRatio = clampedRatio;
     setSplitRatioState(clampedRatio);
 
-    // Persist to AsyncStorage (fire and forget)
+    // Persist to AsyncStorage
     AsyncStorage.setItem(SPLIT_RATIO_STORAGE_KEY, clampedRatio.toString()).catch((error) => {
       console.warn('Failed to save split ratio:', error);
+    });
+  }, []);
+
+  // Update view mode and persist to storage
+  const setSplitViewMode = useCallback((mode: SplitViewMode) => {
+    // Update state and cache
+    cachedSplitViewMode = mode;
+    setSplitViewModeState(mode);
+
+    AsyncStorage.setItem(SPLIT_VIEW_MODE_STORAGE_KEY, mode).catch((error) => {
+      console.warn('Failed to save split view mode:', error);
     });
   }, []);
 
@@ -118,6 +163,8 @@ export function useDeviceInfo(): UseDeviceInfoResult {
     useSplitView,
     splitRatio,
     setSplitRatio,
+    splitViewMode,
+    setSplitViewMode,
     isLoaded,
   };
 }
