@@ -428,6 +428,7 @@ export default function ChapterScreen() {
               onSplitRatioChange={setSplitRatio}
               viewMode={splitViewMode}
               onViewModeChange={setSplitViewMode}
+              edgeTabsVisible={fabVisible}
               leftContent={
                 <BibleContentPanel
                   bookId={validBookId}
@@ -455,6 +456,8 @@ export default function ChapterScreen() {
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
                   onMenuPress={() => setIsMenuOpen(true)}
+                  onScroll={handleScroll}
+                  onTap={handleTap}
                 />
               }
             />

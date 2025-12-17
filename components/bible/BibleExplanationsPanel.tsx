@@ -15,6 +15,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +30,7 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 
@@ -63,6 +65,12 @@ export interface BibleExplanationsPanelProps {
   /** Callback when menu button is pressed */
   onMenuPress?: () => void;
 
+  /** Callback for scroll events (for FAB visibility control) */
+  onScroll?: (velocity: number, isAtBottom: boolean) => void;
+
+  /** Callback for tap events (for FAB visibility control) */
+  onTap?: () => void;
+
   /** Test ID for testing */
   testID?: string;
 }
@@ -79,6 +87,8 @@ export function BibleExplanationsPanel({
   activeTab,
   onTabChange,
   onMenuPress,
+  onScroll,
+  onTap,
   testID = 'bible-explanations-panel',
 }: BibleExplanationsPanelProps) {
   const { mode, colors } = useTheme();
@@ -90,6 +100,14 @@ export function BibleExplanationsPanel({
   const getTabIndex = useCallback((tab: ContentTabType) => TABS.findIndex((t) => t.id === tab), []);
   const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
   const [tabWidth, setTabWidth] = useState(0);
+
+  // Track last scroll position and timestamp for velocity calculation
+  const lastScrollY = useRef(0);
+  const lastScrollTime = useRef(Date.now());
+
+  // Track touch start time and position to differentiate tap from scroll
+  const touchStartTime = useRef(0);
+  const touchStartY = useRef(0);
 
   // Animate indicator when active tab changes
   useEffect(() => {
@@ -154,8 +172,75 @@ export function BibleExplanationsPanel({
     return null;
   }, [currentData]);
 
+  /**
+   * Handle touch start - record time and position
+   * Used to differentiate tap from scroll gestures
+   */
+  const handleTouchStart = useCallback((event: GestureResponderEvent) => {
+    touchStartTime.current = Date.now();
+    touchStartY.current = event.nativeEvent.pageY;
+  }, []);
+
+  /**
+   * Handle touch end - detect if it was a tap (not a scroll)
+   * A tap is defined as:
+   * - Touch duration < 200ms
+   * - Movement < 10 pixels
+   * Matches logic from ChapterPage.tsx for consistent behavior
+   */
+  const handleTouchEnd = useCallback(
+    (event: GestureResponderEvent) => {
+      if (!onTap) return;
+
+      const touchDuration = Date.now() - touchStartTime.current;
+      const touchMovement = Math.abs(event.nativeEvent.pageY - touchStartY.current);
+
+      // Only trigger tap if it was quick and didn't move much
+      if (touchDuration < 200 && touchMovement < 10) {
+        onTap();
+      }
+    },
+    [onTap]
+  );
+
+  /**
+   * Handle scroll events - calculate velocity and check if at bottom
+   * Matches logic from ChapterPage.tsx for consistent FAB behavior
+   */
+  const handleInternalScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (!onScroll) return;
+
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      const currentScrollY = contentOffset.y;
+      const currentTime = Date.now();
+
+      // Calculate scroll velocity (pixels per second)
+      const timeDelta = currentTime - lastScrollTime.current;
+      const scrollDelta = currentScrollY - lastScrollY.current;
+      const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
+
+      // Check if at bottom
+      const scrollHeight = contentSize.height - layoutMeasurement.height;
+      const isAtBottom = scrollHeight - currentScrollY <= BOTTOM_THRESHOLD;
+
+      // Update refs
+      lastScrollY.current = currentScrollY;
+      lastScrollTime.current = currentTime;
+
+      // Call parent callback
+      onScroll(velocity, isAtBottom);
+    },
+    [onScroll]
+  );
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>
+    <View
+      style={[styles.container, { paddingTop: insets.top + spacing.sm }]}
+      testID={testID}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Header Bar */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
@@ -229,6 +314,8 @@ export function BibleExplanationsPanel({
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
+        onScroll={handleInternalScroll}
+        scrollEventThrottle={16}
         testID={`${testID}-scroll`}
       >
         {isLoading ? (

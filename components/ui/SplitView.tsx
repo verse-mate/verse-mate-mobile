@@ -59,6 +59,9 @@ export interface SplitViewProps {
   /** Callback when view mode changes */
   onViewModeChange?: (mode: SplitViewMode) => void;
 
+  /** Whether edge tabs should be visible (fades in/out based on user interaction) */
+  edgeTabsVisible?: boolean;
+
   /** Test ID for testing */
   testID?: string;
 }
@@ -76,6 +79,7 @@ export function SplitView({
   onSplitRatioChange,
   viewMode = 'split',
   onViewModeChange,
+  edgeTabsVisible = true,
   testID = 'split-view',
 }: SplitViewProps) {
   const { mode, colors } = useTheme();
@@ -120,6 +124,9 @@ export function SplitView({
   // Edge Tab Slide Animations
   const leftEdgeTabSlideAnim = useSharedValue(-50);
   const rightEdgeTabSlideAnim = useSharedValue(50);
+
+  // Edge Tab Opacity (for fade in/out based on user interaction)
+  const edgeTabsOpacity = useSharedValue(edgeTabsVisible ? 1 : 0);
 
   // --- Layout Handling ---
 
@@ -486,9 +493,11 @@ export function SplitView({
   const rightTargetButtonStyle = useAnimatedStyle(() => ({ opacity: rightTargetOpacity.value }));
   const leftEdgeTabStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: leftEdgeTabSlideAnim.value }],
+    opacity: edgeTabsOpacity.value,
   }));
   const rightEdgeTabStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: rightEdgeTabSlideAnim.value }],
+    opacity: edgeTabsOpacity.value,
   }));
 
   // Edge Tab Animations
@@ -514,6 +523,13 @@ export function SplitView({
     leftTargetOpacity,
     rightTargetOpacity,
   ]);
+
+  // Edge Tab Opacity Animation (fade in/out based on user interaction)
+  useEffect(() => {
+    edgeTabsOpacity.value = withTiming(edgeTabsVisible ? 1 : 0, {
+      duration: 300,
+    });
+  }, [edgeTabsVisible, edgeTabsOpacity]);
 
   const handleDividerDoubleTap = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
