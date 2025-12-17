@@ -39,6 +39,8 @@ import {
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
+import SignInModal from '@/components/bible/SignInModal';
+import SignUpModal from '@/components/bible/SignUpModal';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -149,6 +151,9 @@ export function VerseMateTooltip({
 
   // State for delete confirmation modal
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+
+  // State for auth modals - 'signup' is default since most users don't have accounts
+  const [authModalType, setAuthModalType] = useState<'signin' | 'signup' | null>(null);
 
   // Ref to track if analytics event has been fired for this tooltip open
   const hasTrackedOpen = useRef(false);
@@ -657,11 +662,12 @@ export function VerseMateTooltip({
               </Pressable>
             ) : (
               // Plain verse - not logged in
-              <View style={styles.loginPrompt}>
+              <Pressable style={styles.loginPrompt} onPress={() => setAuthModalType('signup')}>
+                <Ionicons name="log-in-outline" size={20} color={colors.gold} />
                 <Text style={styles.loginPromptText}>
-                  Sign in to save this verse to your collection
+                  Sign up to save this verse to your collection
                 </Text>
-              </View>
+              </Pressable>
             )}
 
             {/* Cancel Button */}
@@ -697,6 +703,19 @@ export function VerseMateTooltip({
             }). To delete a single verse, long-press on the specific verse.`}
           />
         )}
+        {/* Auth Modals */}
+        <SignUpModal
+          visible={authModalType === 'signup'}
+          onClose={() => setAuthModalType(null)}
+          onSwitchToSignIn={() => setAuthModalType('signin')}
+          onAuthSuccess={onClose}
+        />
+        <SignInModal
+          visible={authModalType === 'signin'}
+          onClose={() => setAuthModalType(null)}
+          onSwitchToSignUp={() => setAuthModalType('signup')}
+          onAuthSuccess={onClose}
+        />
       </Modal>
     );
   }
@@ -722,6 +741,19 @@ export function VerseMateTooltip({
           }). To delete a single verse, long-press on the specific verse.`}
         />
       )}
+      {/* Auth Modals */}
+      <SignUpModal
+        visible={authModalType === 'signup'}
+        onClose={() => setAuthModalType(null)}
+        onSwitchToSignIn={() => setAuthModalType('signin')}
+        onAuthSuccess={onClose}
+      />
+      <SignInModal
+        visible={authModalType === 'signin'}
+        onClose={() => setAuthModalType(null)}
+        onSwitchToSignUp={() => setAuthModalType('signup')}
+        onAuthSuccess={onClose}
+      />
     </View>
   );
 }
@@ -908,11 +940,17 @@ const createStyles = (
       backgroundColor: colors.background,
       borderRadius: 8,
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.gold,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: spacing.sm,
     },
     loginPromptText: {
       fontSize: fontSizes.body,
-      color: colors.textSecondary,
+      color: colors.gold,
       textAlign: 'center',
+      fontWeight: fontWeights.medium,
     },
     insightContainer: {
       marginBottom: spacing.md,

@@ -7,20 +7,20 @@
  * This enables the "Side Panel" UX for tooltips in landscape mode.
  */
 
-import React, { createContext, useContext, useState } from 'react';
+import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
+import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
+import { HighlightSelectionSheet, type VerseRange } from '@/components/bible/HighlightSelectionSheet';
+import { SimpleColorPickerModal } from '@/components/bible/SimpleColorPickerModal';
+import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
+import type { HighlightColor } from '@/constants/highlight-colors';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 import { useDeviceInfo } from '@/hooks/use-device-info';
-import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
-import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
-import { HighlightSelectionSheet, type VerseRange } from '@/components/bible/HighlightSelectionSheet';
-import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
-import { SimpleColorPickerModal } from '@/components/bible/SimpleColorPickerModal';
-import { useAuth } from '@/hooks/use-auth';
-import { useToast } from '@/contexts/ToastContext';
 import type { AutoHighlight } from '@/types/auto-highlights';
-import type { HighlightColor } from '@/constants/highlight-colors';
 import { type HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
+import React, { createContext, useContext, useState } from 'react';
 
 interface BibleInteractionContextType {
   // Data
@@ -227,6 +227,7 @@ export function BibleInteractionProvider({
       {/* Overlays rendered at Root Level */}
       
       <VerseMateTooltip
+        key={`tooltip-${!!user}`}
         visible={verseTooltipState.visible}
         verseNumber={verseTooltipState.verseNumber}
         highlightGroup={verseTooltipState.highlightGroup}
