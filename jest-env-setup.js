@@ -147,3 +147,30 @@ jest.mock('@/modules/dictionary', () => ({
   showDefinition: jest.fn().mockResolvedValue(false),
   isNativeDictionaryAvailable: jest.fn().mockReturnValue(false),
 }));
+
+// Global cleanup to reduce open handle issues in tests
+try {
+  const { cleanup } = require('@testing-library/react-native');
+  afterEach(() => {
+    // Ensure any mounted trees are unmounted
+    cleanup();
+    // Restore real timers to avoid lingering fake timers between tests
+    jest.useRealTimers();
+    // Flush any remaining queued timers and clear them
+    try {
+      jest.runOnlyPendingTimers();
+      jest.clearAllTimers();
+    } catch {}
+  });
+} catch (e) {
+  // noop if library isn't available
+}
+
+// Silence RN Animated warnings and avoid native scheduling side effects
+// Note: Some RN versions don't expose NativeAnimatedHelper as a resolvable module.
+// If needed, mock at individual test files instead to avoid resolver errors.
+
+// Provide a deterministic requestAnimationFrame for tests
+if (typeof global.requestAnimationFrame === 'undefined') {
+  global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+}
