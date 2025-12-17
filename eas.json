@@ -14,8 +14,11 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_WEB_URL": "https://staging.versemate.org",
-        "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
+        "APP_ENV": "development",
+        "EXPO_PUBLIC_API_URL": "https://api.verse-mate.apegro.dev",
+        "EXPO_PUBLIC_WEB_URL": "https://app.versemate.org",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "false",
         "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
       }
@@ -34,8 +37,10 @@
       },
       "env": {
         "APP_ENV": "preview",
+        "EXPO_PUBLIC_API_URL": "https://api.verse-mate.apegro.dev",
         "EXPO_PUBLIC_WEB_URL": "https://app.versemate.org",
-        "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "false",
         "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
       }
@@ -54,8 +59,10 @@
       },
       "env": {
         "APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://api.verse-mate.apegro.dev",
         "EXPO_PUBLIC_WEB_URL": "https://app.versemate.org",
-        "EXPO_PUBLIC_POSTHOG_HOST": "https://app.posthog.com",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "true",
         "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
       }

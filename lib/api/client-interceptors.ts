@@ -146,8 +146,16 @@ async function responseInterceptor(
  *
  * Should be called once during app initialization, after QueryClient setup.
  * Configures both request and response interceptors on the global client instance.
+ * Also sets the baseUrl from environment variable (overrides hardcoded value in generated client).
  */
 export function setupClientInterceptors(): void {
+  // Override baseUrl from environment variable
+  // The generated client has a hardcoded baseUrl, but we want to use the env var for flexibility
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) {
+    client.setConfig({ baseUrl: apiUrl });
+  }
+
   // Add request interceptor for token injection
   client.interceptors.request.use(requestInterceptor);
 
