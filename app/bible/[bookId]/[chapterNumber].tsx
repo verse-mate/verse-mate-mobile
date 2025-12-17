@@ -35,7 +35,7 @@ import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { SplitView, type SplitViewMode } from '@/components/ui/SplitView';
+import { SplitView } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -107,7 +107,8 @@ export default function ChapterScreen() {
   const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
 
   // Device info for split view detection
-  const { useSplitView, splitRatio, setSplitRatio } = useDeviceInfo();
+  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
+    useDeviceInfo();
 
   // Bible version for analytics
   const { bibleVersion } = useBibleVersion();
@@ -147,9 +148,6 @@ export default function ChapterScreen() {
 
   // Hamburger menu state (Task 8.5)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  // Split view mode state for landscape/tablet fullscreen modes
-  const [splitViewMode, setSplitViewMode] = useState<SplitViewMode>('split');
 
   // FAB visibility state - manages auto-hide/show based on user interaction
   const {
