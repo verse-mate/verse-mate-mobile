@@ -38,6 +38,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,6 +53,7 @@ import {
 } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 
 /**
  * Verse range for the highlight selection
@@ -89,7 +91,17 @@ export function HighlightSelectionSheet({
   onClose,
 }: HighlightSelectionSheetProps) {
   const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+  const { useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { width: windowWidth } = useWindowDimensions();
+
+  // Calculate dynamic right panel width if in split view (and right panel is visible)
+  const rightPanelWidth =
+    useSplitView && splitViewMode !== 'left-full' ? windowWidth * (1 - splitRatio) : undefined;
+
+  const styles = useMemo(
+    () => createStyles(colors, mode, rightPanelWidth),
+    [colors, mode, rightPanelWidth]
+  );
 
   /**
    * Format verse range for display
@@ -195,13 +207,18 @@ export function HighlightSelectionSheet({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  mode: ThemeMode,
+  rightPanelWidth?: number
+) => {
   const modalSpecs = getModalSpecs(mode);
 
   return StyleSheet.create({
     modalContainer: {
       flex: 1,
       justifyContent: 'flex-end',
+      alignItems: rightPanelWidth ? 'flex-end' : undefined, // Align to right if split view
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -209,9 +226,10 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     },
     modalContent: {
       height: modalSpecs.height,
+      width: rightPanelWidth ?? '100%', // Use dynamic width or full width
       backgroundColor: modalSpecs.backgroundColor,
       borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
-      borderTopRightRadius: modalSpecs.borderTopRightRadius,
+      borderTopRightRadius: rightPanelWidth ? 0 : modalSpecs.borderTopRightRadius, // Remove corner if pinned
     },
     header: {
       flexDirection: 'row',
