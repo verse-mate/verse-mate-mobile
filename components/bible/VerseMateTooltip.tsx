@@ -704,11 +704,9 @@ export function VerseMateTooltip({
             onCancel={() => setShowDeleteConfirmation(false)}
             onConfirm={handleConfirmDelete}
             title="Remove Highlight Group"
-            message={`This will delete ${highlightGroup.highlights.length} highlighted ${
-              highlightGroup.highlights.length === 1 ? 'verse' : 'verses'
-            } (${
+            message={`This will delete the whole highlighted group (${
               startVerse === endVerse ? `verse ${startVerse}` : `verses ${startVerse}-${endVerse}`
-            }). To delete a single verse, long-press on the specific verse.`}
+            })`}
           />
         )}
         {/* Auth Modals */}
@@ -760,11 +758,9 @@ export function VerseMateTooltip({
           onCancel={() => setShowDeleteConfirmation(false)}
           onConfirm={handleConfirmDelete}
           title="Remove Highlight Group"
-          message={`This will delete ${highlightGroup.highlights.length} highlighted ${
-            highlightGroup.highlights.length === 1 ? 'verse' : 'verses'
-          } (${
+          message={`This will delete the whole highlighted group (${
             startVerse === endVerse ? `verse ${startVerse}` : `verses ${startVerse}-${endVerse}`
-          }). To delete a single verse, long-press on the specific verse.`}
+          })`}
         />
       )}
       {/* Auth Modals */}
