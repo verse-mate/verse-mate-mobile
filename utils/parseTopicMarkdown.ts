@@ -8,7 +8,8 @@
 export interface ParsedTopicVerse {
   verseNumber: string; // Can be "1", "6", etc. - from the source book
   text: string; // The verse text without the number and reference
-  reference: string; // The reference like "Hebrews 11:1"
+  reference: string; // The reference like "Hebrews 11:1" (Display only)
+  clickableReference?: string; // The reference for interaction/tooltip
 }
 
 export interface ParsedTopicSubtitle {
@@ -74,10 +75,12 @@ function parseVerses(text: string): ParsedTopicVerse[] {
     // Try to match verse with reference: number, text, (reference)
     const withRefMatch = trimmedPart.match(/^(\d+)\s*\n([\s\S]*?)\(([^)]+)\)$/);
     if (withRefMatch) {
+      const ref = withRefMatch[3].trim();
       verses.push({
         verseNumber: withRefMatch[1].trim(),
         text: withRefMatch[2].trim(),
-        reference: withRefMatch[3].trim(),
+        reference: ref,
+        clickableReference: ref,
       });
       continue;
     }
@@ -91,7 +94,7 @@ function parseVerses(text: string): ParsedTopicVerse[] {
         verses.push({
           verseNumber: withoutRefMatch[1].trim(),
           text: textPart,
-          reference: '', // No reference for this verse
+          reference: '', // No reference for this verse (display)
         });
       }
     }
@@ -104,6 +107,39 @@ function parseVerses(text: string): ParsedTopicVerse[] {
       text: text.trim(),
       reference: '',
     });
+  }
+
+  // Backfill clickable references
+  // If a block of verses ends with a reference (e.g., "Genesis 1:1-5"),
+  // apply the book/chapter context to preceding verses that lack a reference.
+  for (let i = verses.length - 1; i >= 0; i--) {
+    const current = verses[i];
+
+    // Use either the display reference or an already backfilled clickable reference as the source
+    const sourceRef = current.reference || current.clickableReference;
+
+    if (sourceRef) {
+      // Extract Book and Chapter from the reference
+      // Matches "Book Name Chapter:Verse" or "Book Name Chapter:Verse-Range"
+      const match = sourceRef.match(/^(.+?)\s+(\d+):(\d+)(?:-\d+)?$/);
+      if (match) {
+        const bookName = match[1];
+        const chapter = match[2];
+
+        // Look backwards for verses without clickable references
+        for (let j = i - 1; j >= 0; j--) {
+          const prev = verses[j];
+          // Stop if we hit a verse that already has a clickable reference (or explicit display reference)
+          if (prev.reference || prev.clickableReference) break;
+
+          // Construct reference for the previous verse using its own number
+          if (prev.verseNumber) {
+            // Only set clickableReference, do NOT touch 'reference' (display)
+            prev.clickableReference = `${bookName} ${chapter}:${prev.verseNumber}`;
+          }
+        }
+      }
+    }
   }
 
   return verses;

@@ -5,11 +5,13 @@
  * - Topic subtitles (h2 headings)
  * - Reference lists under subtitles
  * - Individual verses with superscript numbers and citations
+ * - Pressable verses that trigger tooltips
  *
  * Adapted from web version for React Native.
  */
 
-import { useMemo } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useCallback, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ShareButton } from '@/components/bible/ShareButton';
 import {
@@ -22,11 +24,25 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import type { ParsedTopicContent } from '@/utils/parseTopicMarkdown';
 import { parseTopicMarkdown } from '@/utils/parseTopicMarkdown';
+import { parseVerseReference } from '@/utils/topics/parseVerseReference';
+
+/**
+ * Data passed when a verse is pressed
+ */
+export interface VersePress {
+  bookId: number;
+  bookName: string;
+  chapterNumber: number;
+  verseNumber: number;
+  verseText: string;
+  verseReference: string;
+}
 
 interface TopicTextProps {
   topicName: string;
   markdownContent: string;
   onShare?: () => void;
+  onVersePress?: (data: VersePress) => void;
 }
 
 /**
@@ -54,7 +70,7 @@ function toSuperscript(num: number): string {
     .join('');
 }
 
-export function TopicText({ topicName, markdownContent, onShare }: TopicTextProps) {
+export function TopicText({ topicName, markdownContent, onShare, onVersePress }: TopicTextProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -62,6 +78,43 @@ export function TopicText({ topicName, markdownContent, onShare }: TopicTextProp
   const parsedContent: ParsedTopicContent = useMemo(() => {
     return parseTopicMarkdown(markdownContent);
   }, [markdownContent]);
+
+  // Helper function to handle verse press
+  const handleVersePress = useCallback(
+    (verseText: string, reference: string, verseNumberOverride?: string) => {
+      if (!onVersePress) return;
+
+      // Parse the reference to extract components
+      const parsed = parseVerseReference(reference);
+      if (!parsed) {
+        console.warn(`Failed to parse verse reference: ${reference}`);
+        return;
+      }
+
+      // If we have an explicit verse number from the text content (e.g. clicking on Verse 5 in a 1-5 block),
+      // use that instead of what the reference string says (which might be "1-5" -> 1).
+      if (verseNumberOverride) {
+        const overrideNum = Number.parseInt(verseNumberOverride, 10);
+        if (!Number.isNaN(overrideNum)) {
+          parsed.verseNumber = overrideNum;
+        }
+      }
+
+      // Trigger haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Call the callback with parsed data
+      onVersePress({
+        bookId: parsed.bookId,
+        bookName: parsed.bookName,
+        chapterNumber: parsed.chapterNumber,
+        verseNumber: parsed.verseNumber,
+        verseText: verseText.trim(),
+        verseReference: reference,
+      });
+    },
+    [onVersePress]
+  );
 
   // Helper function to render reference list with proper styling
   const renderReferenceList = (referenceList: string) => {
@@ -100,26 +153,46 @@ export function TopicText({ topicName, markdownContent, onShare }: TopicTextProp
           {/* Verses container */}
           <View style={styles.versesContainer}>
             <Text style={styles.versesText}>
-              {section.verses.map((verse, verseIndex) => (
-                <Text key={`${verse.verseNumber}-${verse.reference}-${verseIndex}`}>
-                  {/* Verse number as superscript - only show if verse number exists */}
-                  {verse.verseNumber && (
-                    <Text style={styles.verseNumber}>
-                      {toSuperscript(Number.parseInt(verse.verseNumber, 10))}
-                    </Text>
-                  )}
-                  {/* Verse text */}
-                  <Text style={styles.verseText}>
-                    {verse.text}
-                    {/* Reference citation (grayed out) - only show if reference exists */}
-                    {verse.reference && (
-                      <Text style={styles.verseReference}> ({verse.reference})</Text>
+              {section.verses.map((verse, verseIndex) => {
+                // Only make verse pressable if it has a reference (display or clickable) and onVersePress callback
+                const isPressable = Boolean(
+                  (verse.reference || verse.clickableReference) && onVersePress
+                );
+
+                return (
+                  <Text key={`${verse.verseNumber}-${verse.reference}-${verseIndex}`}>
+                    {/* Verse number as superscript - only show if verse number exists */}
+                    {verse.verseNumber && (
+                      <Text style={styles.verseNumber}>
+                        {toSuperscript(Number.parseInt(verse.verseNumber, 10))}
+                      </Text>
                     )}
+                    {/* Verse text - use onPress directly on Text to maintain inline flow */}
+                    <Text
+                      style={[styles.verseText, isPressable && styles.verseTextPressable]}
+                      onPress={
+                        isPressable
+                          ? () =>
+                              handleVersePress(
+                                verse.text,
+                                verse.reference || verse.clickableReference || '',
+                                verse.verseNumber
+                              )
+                          : undefined
+                      }
+                      suppressHighlighting={!isPressable}
+                    >
+                      {verse.text}
+                      {/* Reference citation (grayed out) - only show if reference exists (DISPLAY ONLY) */}
+                      {verse.reference && (
+                        <Text style={styles.verseReference}> ({verse.reference})</Text>
+                      )}
+                    </Text>
+                    {/* Add space between verses */}
+                    {verseIndex < section.verses.length - 1 && ' '}
                   </Text>
-                  {/* Add space between verses */}
-                  {verseIndex < section.verses.length - 1 && ' '}
-                </Text>
-              ))}
+                );
+              })}
             </Text>
           </View>
         </View>
@@ -201,6 +274,15 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       fontSize: fontSizes.bodyLarge,
       lineHeight: fontSizes.bodyLarge * 2.0,
       color: colors.textPrimary,
+    },
+    verseTextPressable: {
+      // Subtle indicator that verse is interactive (optional, can be removed if too subtle)
+    },
+    versePressable: {
+      // Wrapper for pressable verse - inline display
+    },
+    versePressablePressed: {
+      opacity: 0.6,
     },
     verseReference: {
       fontFamily: 'System',
