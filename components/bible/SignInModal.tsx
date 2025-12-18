@@ -18,6 +18,16 @@ interface SignInModalProps {
   onClose: () => void;
   onSwitchToSignUp: () => void;
   onAuthSuccess?: () => void;
+  /** Whether to use a system Modal (true) or a View overlay (false) */
+  useModal?: boolean;
+  /** Controlled state for email */
+  email: string;
+  /** Setter for email */
+  setEmail: (value: string) => void;
+  /** Controlled state for password */
+  password: string;
+  /** Setter for password */
+  setPassword: (value: string) => void;
 }
 
 /**
@@ -31,10 +41,14 @@ export default function SignInModal({
   onClose,
   onSwitchToSignUp,
   onAuthSuccess,
+  useModal = true,
+  email,
+  setEmail,
+  password,
+  setPassword,
 }: SignInModalProps) {
   const { colors } = useTheme();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // Local UI state
   const [showPassword, setShowPassword] = useState(false);
   const { mutate: login, isPending, error } = useLogin();
 
@@ -77,118 +91,135 @@ export default function SignInModal({
 
   const styles = createStyles(colors);
 
-  return (
-    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Sign In</Text>
-            <Pressable onPress={onClose} hitSlop={10}>
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </Pressable>
-          </View>
+  if (!visible) return null;
 
-          {/* Email/Password Form */}
-          <View style={styles.form}>
+  const content = (
+    <View style={styles.modalContainer}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={styles.modalContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Sign In</Text>
+          <Pressable onPress={onClose} hitSlop={10}>
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+
+        {/* Email/Password Form */}
+        <View style={styles.form}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={colors.textSecondary}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            editable={!isPending}
+          />
+          <View style={styles.passwordContainer}>
             <TextInput
-              style={styles.input}
-              placeholder="Email"
+              style={styles.passwordInput}
+              placeholder="Password"
               placeholderTextColor={colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
               editable={!isPending}
             />
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Password"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-                editable={!isPending}
+            <Pressable
+              style={styles.eyeIcon}
+              onPress={() => setShowPassword(!showPassword)}
+              hitSlop={10}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={colors.textSecondary}
               />
-              <Pressable
-                style={styles.eyeIcon}
-                onPress={() => setShowPassword(!showPassword)}
-                hitSlop={10}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              </Pressable>
-            </View>
+            </Pressable>
+          </View>
 
-            {/* Error Message */}
-            {error && (
-              <Text style={styles.errorText}>
-                {error.message || 'Login failed. Please check your credentials.'}
-              </Text>
+          {/* Error Message */}
+          {error && (
+            <Text style={styles.errorText}>
+              {error.message || 'Login failed. Please check your credentials.'}
+            </Text>
+          )}
+
+          {/* Sign In Button */}
+          <Pressable
+            style={[styles.signInButton, isPending && styles.signInButtonDisabled]}
+            onPress={handleSignIn}
+            disabled={isPending || !email || !password}
+          >
+            {isPending ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.signInButtonText}>Sign In</Text>
             )}
+          </Pressable>
+        </View>
 
-            {/* Sign In Button */}
-            <Pressable
-              style={[styles.signInButton, isPending && styles.signInButtonDisabled]}
-              onPress={handleSignIn}
-              disabled={isPending || !email || !password}
-            >
-              {isPending ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.signInButtonText}>Sign In</Text>
-              )}
-            </Pressable>
-          </View>
+        {/* Divider */}
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>OR</Text>
+          <View style={styles.dividerLine} />
+        </View>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
+        {/* SSO Options */}
+        <View style={styles.ssoContainer}>
+          {/* Google Sign-In (Placeholder) */}
+          <Pressable
+            style={[styles.ssoButton, styles.ssoButtonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled
+          >
+            <Ionicons name="logo-google" size={20} color={colors.textSecondary} />
+            <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
+              Continue with Google (Coming Soon)
+            </Text>
+          </Pressable>
 
-          {/* SSO Options */}
-          <View style={styles.ssoContainer}>
-            {/* Google Sign-In (Placeholder) */}
-            <Pressable
-              style={[styles.ssoButton, styles.ssoButtonDisabled]}
-              onPress={handleGoogleSignIn}
-              disabled
-            >
-              <Ionicons name="logo-google" size={20} color={colors.textSecondary} />
-              <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
-                Continue with Google (Coming Soon)
-              </Text>
-            </Pressable>
+          {/* Apple Sign-In (Placeholder) */}
+          <Pressable
+            style={[styles.ssoButton, styles.ssoButtonDisabled]}
+            onPress={handleAppleSignIn}
+            disabled
+          >
+            <Ionicons name="logo-apple" size={20} color={colors.textSecondary} />
+            <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
+              Continue with Apple (Coming Soon)
+            </Text>
+          </Pressable>
+        </View>
 
-            {/* Apple Sign-In (Placeholder) */}
-            <Pressable
-              style={[styles.ssoButton, styles.ssoButtonDisabled]}
-              onPress={handleAppleSignIn}
-              disabled
-            >
-              <Ionicons name="logo-apple" size={20} color={colors.textSecondary} />
-              <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
-                Continue with Apple (Coming Soon)
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Switch to Sign Up */}
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchText}>Don&apos;t have an account? </Text>
-            <Pressable onPress={onSwitchToSignUp} hitSlop={10}>
-              <Text style={styles.switchLink}>Sign Up</Text>
-            </Pressable>
-          </View>
+        {/* Switch to Sign Up */}
+        <View style={styles.switchContainer}>
+          <Text style={styles.switchText}>Don&apos;t have an account? </Text>
+          <Pressable onPress={onSwitchToSignUp} hitSlop={10}>
+            <Text style={styles.switchLink}>Sign Up</Text>
+          </Pressable>
         </View>
       </View>
-    </Modal>
+    </View>
+  );
+
+  // Conditional rendering based on useModal prop
+  if (useModal) {
+    return (
+      <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+        {content}
+      </Modal>
+    );
+  }
+
+  // Non-modal rendering (absolute positioned View)
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {content}
+    </View>
   );
 }
 
