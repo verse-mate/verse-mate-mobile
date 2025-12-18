@@ -788,44 +788,6 @@ export function ChapterReader({
                             }
                           }
 
-                          let trailingSpaceBackgroundColor: string | undefined;
-                          const currentVerseEndHighlight = getEndHighlight(
-                            verse.verseNumber,
-                            verse.text.length,
-                            chapterHighlights,
-                            autoHighlights
-                          );
-                          const nextVerse = group[verseIndex + 1];
-                          const nextVerseStartHighlight = nextVerse
-                            ? getStartHighlight(
-                                nextVerse.verseNumber,
-                                chapterHighlights,
-                                autoHighlights
-                              )
-                            : null;
-
-                          if (currentVerseEndHighlight) {
-                            const baseColor = getHighlightColor(
-                              currentVerseEndHighlight.color as HighlightColor,
-                              mode
-                            );
-                            const opacity = currentVerseEndHighlight.isAuto ? 0.2 : 0.35;
-                            const opacityHex = Math.round(opacity * 255)
-                              .toString(16)
-                              .padStart(2, '0');
-                            trailingSpaceBackgroundColor = baseColor + opacityHex;
-                          } else if (nextVerseStartHighlight) {
-                            const baseColor = getHighlightColor(
-                              nextVerseStartHighlight.color as HighlightColor,
-                              mode
-                            );
-                            const opacity = nextVerseStartHighlight.isAuto ? 0.2 : 0.35;
-                            const opacityHex = Math.round(opacity * 255)
-                              .toString(16)
-                              .padStart(2, '0');
-                            trailingSpaceBackgroundColor = baseColor + opacityHex;
-                          }
-
                           return (
                             <Text key={verse.verseNumber}>
                               <Text style={styles.verseNumberSuperscript}>
@@ -862,8 +824,8 @@ export function ChapterReader({
                                 </Text>
                                 <Text
                                   style={
-                                    trailingSpaceBackgroundColor && {
-                                      backgroundColor: trailingSpaceBackgroundColor,
+                                    currBackgroundColor && {
+                                      backgroundColor: currBackgroundColor,
                                     }
                                   }
                                 >
