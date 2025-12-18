@@ -21,8 +21,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * Scroll velocity threshold in pixels/second
  * Scrolling faster than this shows the buttons (user is navigating)
  * Scrolling slower hides the buttons (user is reading)
+ * Lower threshold = easier to trigger button visibility
  */
-export const SCROLL_VELOCITY_THRESHOLD = 600;
+export const SCROLL_VELOCITY_THRESHOLD = 300;
 
 /**
  * Distance from bottom in pixels to trigger "at bottom" state
@@ -97,19 +98,19 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
         clearIdleTimeout();
         setVisible(true);
       } else if (velocity < -SCROLL_VELOCITY_THRESHOLD) {
-        // Fast scroll UP (navigating back) - show buttons with 3s timeout
-        // Only restart timeout if not already visible to prevent flickering
+        // Fast scroll UP - show buttons with 3s timeout
         if (!visible) {
           setVisible(true);
         }
-        // Always restart the timeout on fast scroll up
         startIdleTimeout();
-      } else if (velocity > 0 && visible) {
-        // Hide immediately on scroll down to avoid lingering FABs
+      } else if (velocity > SCROLL_VELOCITY_THRESHOLD) {
+        // Fast scroll DOWN - hide buttons immediately
+        if (visible) {
+          setVisible(false);
+        }
         clearIdleTimeout();
-        setVisible(false);
       }
-      // Note: Don't do anything on slow scroll - let existing timer continue
+      // Note: On slow scroll, let existing timeout continue (buttons will hide after 3s of inactivity)
     },
     [visible, clearIdleTimeout, startIdleTimeout]
   );

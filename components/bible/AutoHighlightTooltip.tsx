@@ -25,6 +25,7 @@ import {
   Share,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
@@ -33,6 +34,7 @@ import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bib
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useBibleByLine } from '@/src/api';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -64,6 +66,8 @@ interface AutoHighlightTooltipProps {
   bookName?: string;
   /** Whether user is logged in */
   isLoggedIn: boolean;
+  /** Whether to use a system Modal (true) or a View overlay (false) */
+  useModal?: boolean;
 }
 
 /**
@@ -81,12 +85,26 @@ export function AutoHighlightTooltip({
   onAddNote,
   bookName,
   isLoggedIn,
+  useModal = true,
 }: AutoHighlightTooltipProps) {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
+  const { isTablet, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { width: windowWidth } = useWindowDimensions();
+
+  // Calculate dynamic width for tooltip positioning
+  // In split view: align over the insights panel (right panel)
+  // In tablet landscape full screen: position on right side with fixed 50% width
+  const tooltipWidth =
+    useSplitView && splitViewMode !== 'left-full'
+      ? windowWidth * (1 - splitRatio)
+      : isTablet
+        ? windowWidth * 0.5
+        : undefined;
+
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom),
-    [colors, insets.bottom]
+    () => createStyles(colors, insets.bottom, isTablet, tooltipWidth),
+    [colors, insets.bottom, isTablet, tooltipWidth]
   );
 
   // Determine if this is a multi-verse highlight
@@ -225,11 +243,19 @@ export function AutoHighlightTooltip({
   ]);
 
   // Handle explicit dismiss (user action)
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     animateClose(() => {
       onClose();
     });
-  };
+  }, [animateClose, onClose]);
+
+  // Auto-close tooltip when switching to insight-only screen (right-full mode)
+  // Tooltips are supported in split view and full Bible screen, but not in insight-only
+  useEffect(() => {
+    if (visible && splitViewMode === 'right-full') {
+      handleDismiss();
+    }
+  }, [visible, splitViewMode, handleDismiss]);
 
   // Keep refs for PanResponder closure
   const dismissRef = useRef(handleDismiss);
@@ -408,171 +434,197 @@ export function AutoHighlightTooltip({
     outputRange: [0, 0, 1],
   });
 
-  return (
-    <Modal
-      visible={internalVisible}
-      transparent
-      animationType="none"
-      onRequestClose={handleDismiss}
-    >
-      {/* Main Container - positions content at bottom */}
-      <View style={styles.overlay}>
-        {/* Animated Backdrop - Absolute positioned behind content */}
-        <Animated.View
-          style={[styles.backdrop, { opacity: backdropOpacity }]}
-          pointerEvents="box-none"
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
-        </Animated.View>
+  const content = (
+    <View style={styles.overlay} pointerEvents="box-none">
+      {/* Animated Backdrop - Absolute positioned behind content */}
+      <Animated.View
+        style={[
+          styles.backdrop,
+          { opacity: backdropOpacity },
+          // Constrain backdrop to right panel only in split view mode (left panel should stay visible)
+          // In full screen tablet mode, backdrop covers whole screen
+          !useModal && useSplitView && splitViewMode !== 'left-full' && tooltipWidth
+            ? {
+                left: windowWidth - tooltipWidth,
+                width: tooltipWidth,
+              }
+            : undefined,
+        ]}
+        pointerEvents="auto"
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
+      </Animated.View>
 
-        {/* Animated Modal Content */}
-        <Animated.View
-          style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
-          pointerEvents="auto"
-        >
-          {/* Header with pan responder for swipe */}
-          <View style={styles.header} {...panResponder.panHandlers}>
-            <View style={styles.handle} />
-            <Text style={styles.verseMateHeader}>Verse Insight</Text>
-          </View>
+      {/* Animated Modal Content */}
+      <Animated.View
+        style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
+        pointerEvents="auto"
+      >
+        {/* Header with pan responder for swipe */}
+        <View style={styles.header} {...panResponder.panHandlers}>
+          <View style={styles.handle} />
+          <Text style={styles.verseMateHeader}>Verse Insight</Text>
+        </View>
 
-          {/* Content */}
-          <View style={styles.contentContainer}>
-            <View style={styles.scrollContainer}>
-              <View {...panResponder.panHandlers}>
-                {/* Title with optional color indicator */}
-                <View style={styles.titleRow}>
-                  <Text style={styles.title}>{autoHighlight.theme_name}</Text>
-                  {autoHighlight && (
-                    <View style={styles.colorBadge}>
-                      <View
-                        style={[
-                          styles.colorIndicator,
-                          { backgroundColor: getHighlightColor(autoHighlight.theme_color, mode) },
-                        ]}
-                      />
-                      <Text style={styles.colorText}>
-                        {autoHighlight.theme_color.charAt(0).toUpperCase() +
-                          autoHighlight.theme_color.slice(1)}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.infoContainer}>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.label}>Verse Range:</Text>
-                    <Text style={styles.value}>
-                      {autoHighlight.start_verse === autoHighlight.end_verse
-                        ? `Verse ${autoHighlight.start_verse}`
-                        : `Verses ${autoHighlight.start_verse}-${autoHighlight.end_verse}`}
+        {/* Content */}
+        <View style={styles.contentContainer}>
+          <View style={styles.scrollContainer}>
+            <View {...panResponder.panHandlers}>
+              {/* Title with optional color indicator */}
+              <View style={styles.titleRow}>
+                <Text style={styles.title}>{autoHighlight.theme_name}</Text>
+                {autoHighlight && (
+                  <View style={styles.colorBadge}>
+                    <View
+                      style={[
+                        styles.colorIndicator,
+                        { backgroundColor: getHighlightColor(autoHighlight.theme_color, mode) },
+                      ]}
+                    />
+                    <Text style={styles.colorText}>
+                      {autoHighlight.theme_color.charAt(0).toUpperCase() +
+                        autoHighlight.theme_color.slice(1)}
                     </Text>
                   </View>
-                </View>
-              </View>
-
-              {/* Insight Section (Expandable) */}
-              <View style={styles.insightContainer}>
-                {isMultiVerse && (
-                  <Pressable
-                    style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
-                    onPress={() => setExpanded(!expanded)}
-                    hitSlop={10}
-                    {...panResponder.panHandlers}
-                  >
-                    <Ionicons
-                      name={expanded ? 'chevron-down' : 'chevron-up'}
-                      size={16}
-                      color={colors.gold}
-                      style={{ marginRight: spacing.xs }}
-                    />
-                    <Text style={styles.insightToggleText}>
-                      {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
-                    </Text>
-                  </Pressable>
-                )}
-
-                <Animated.View
-                  style={[
-                    styles.insightContentWrapper,
-                    { maxHeight: insightMaxHeight, opacity: insightOpacity },
-                  ]}
-                >
-                  {isByLineLoading ? (
-                    <View style={styles.loadingContainer}>
-                      <ActivityIndicator size="small" color={colors.gold} />
-                    </View>
-                  ) : insightText ? (
-                    <>
-                      <Text style={styles.analysisTitle}>Analysis</Text>
-                      <ScrollView
-                        style={styles.insightScroll}
-                        contentContainerStyle={styles.insightScrollContent}
-                        showsVerticalScrollIndicator={false}
-                      >
-                        <Markdown style={markdownStyles}>{insightText}</Markdown>
-                      </ScrollView>
-                    </>
-                  ) : (
-                    <View style={styles.emptyInsightContainer}>
-                      <Text style={styles.insightEmptyText}>
-                        No specific insight available for this verse.
-                      </Text>
-                    </View>
-                  )}
-                </Animated.View>
-              </View>
-            </View>
-
-            {/* Actions Footer */}
-            <View style={styles.actionsContainer}>
-              {/* Action Buttons Row */}
-              <View style={styles.actionButtonsRow}>
-                <Pressable style={styles.actionButton} onPress={handleCopy}>
-                  <Ionicons name="copy-outline" size={20} color={colors.textPrimary} />
-                  <Text style={styles.actionButtonText}>Copy</Text>
-                </Pressable>
-
-                <Pressable style={styles.actionButton} onPress={handleShare}>
-                  <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
-                  <Text style={styles.actionButtonText}>Share</Text>
-                </Pressable>
-
-                {onAddNote && (
-                  <Pressable style={styles.actionButton} onPress={handleAddNote}>
-                    <Ionicons name="create-outline" size={20} color={colors.textPrimary} />
-                    <Text style={styles.actionButtonText}>Note</Text>
-                  </Pressable>
                 )}
               </View>
 
-              {isLoggedIn ? (
-                <>
-                  <Pressable style={styles.primaryButton} onPress={handleSave}>
-                    <Ionicons
-                      name="bookmark-outline"
-                      size={20}
-                      color={colors.background}
-                      style={{ marginRight: spacing.xs }}
-                    />
-                    <Text style={styles.primaryButtonText}>Save as My Highlight</Text>
-                  </Pressable>
-                  <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
-                    <Text style={styles.secondaryButtonText}>Cancel</Text>
-                  </Pressable>
-                </>
-              ) : (
-                <View style={styles.loginPrompt}>
-                  <Text style={styles.loginPromptText}>
-                    Sign in to save this highlight to your collection
+              <View style={styles.infoContainer}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Verse Range:</Text>
+                  <Text style={styles.value}>
+                    {autoHighlight.start_verse === autoHighlight.end_verse
+                      ? `Verse ${autoHighlight.start_verse}`
+                      : `Verses ${autoHighlight.start_verse}-${autoHighlight.end_verse}`}
                   </Text>
                 </View>
+              </View>
+            </View>
+
+            {/* Insight Section (Expandable) */}
+            <View style={styles.insightContainer}>
+              {isMultiVerse && (
+                <Pressable
+                  style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
+                  onPress={() => setExpanded(!expanded)}
+                  hitSlop={10}
+                  {...panResponder.panHandlers}
+                >
+                  <Ionicons
+                    name={expanded ? 'chevron-down' : 'chevron-up'}
+                    size={16}
+                    color={colors.gold}
+                    style={{ marginRight: spacing.xs }}
+                  />
+                  <Text style={styles.insightToggleText}>
+                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
+                  </Text>
+                </Pressable>
               )}
+
+              <Animated.View
+                style={[
+                  styles.insightContentWrapper,
+                  { maxHeight: insightMaxHeight, opacity: insightOpacity },
+                ]}
+              >
+                {isByLineLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={colors.gold} />
+                  </View>
+                ) : insightText ? (
+                  <>
+                    <Text style={styles.analysisTitle}>Analysis</Text>
+                    <ScrollView
+                      style={styles.insightScroll}
+                      contentContainerStyle={styles.insightScrollContent}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      <Markdown style={markdownStyles}>{insightText}</Markdown>
+                    </ScrollView>
+                  </>
+                ) : (
+                  <View style={styles.emptyInsightContainer}>
+                    <Text style={styles.insightEmptyText}>
+                      No specific insight available for this verse.
+                    </Text>
+                  </View>
+                )}
+              </Animated.View>
             </View>
           </View>
-        </Animated.View>
-      </View>
-    </Modal>
+
+          {/* Actions Footer */}
+          <View style={styles.actionsContainer}>
+            {/* Action Buttons Row */}
+            <View style={styles.actionButtonsRow}>
+              <Pressable style={styles.actionButton} onPress={handleCopy}>
+                <Ionicons name="copy-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.actionButtonText}>Copy</Text>
+              </Pressable>
+
+              <Pressable style={styles.actionButton} onPress={handleShare}>
+                <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.actionButtonText}>Share</Text>
+              </Pressable>
+
+              {onAddNote && (
+                <Pressable style={styles.actionButton} onPress={handleAddNote}>
+                  <Ionicons name="create-outline" size={20} color={colors.textPrimary} />
+                  <Text style={styles.actionButtonText}>Note</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {isLoggedIn ? (
+              <>
+                <Pressable
+                  style={[
+                    styles.secondaryButton,
+                    { flexDirection: 'row', gap: spacing.xs, justifyContent: 'center' },
+                  ]}
+                  onPress={handleSave}
+                >
+                  <Ionicons name="bookmark-outline" size={20} color={colors.textPrimary} />
+                  <Text style={styles.secondaryButtonText}>Save as My Highlight</Text>
+                </Pressable>
+                <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
+                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                </Pressable>
+              </>
+            ) : (
+              <View style={styles.loginPrompt}>
+                <Text style={styles.loginPromptText}>
+                  Sign in to save this highlight to your collection
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Animated.View>
+    </View>
+  );
+
+  if (useModal) {
+    return (
+      <Modal
+        visible={internalVisible}
+        transparent
+        animationType="none"
+        onRequestClose={handleDismiss}
+      >
+        {content}
+      </Modal>
+    );
+  }
+
+  // Non-modal rendering (Overlay)
+  if (!internalVisible) return null;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {content}
+    </View>
   );
 }
 
@@ -580,11 +632,17 @@ export function AutoHighlightTooltip({
  * Creates all styles for AutoHighlightTooltip component
  * Returns both component styles and markdown styles in a single factory
  */
-const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number) => {
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  bottomInset: number,
+  _isTablet: boolean,
+  tooltipWidth?: number
+) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
+      alignItems: tooltipWidth ? 'flex-end' : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -593,8 +651,9 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     container: {
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopRightRadius: tooltipWidth ? 0 : 16,
       maxHeight: '80%',
+      width: tooltipWidth ?? '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {

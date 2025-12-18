@@ -18,6 +18,7 @@ import type { ReactNode } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { useAuth } from '@/contexts/AuthContext';
+import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 // Import mocked modules
@@ -158,7 +159,15 @@ describe('ChapterReader - Bookmark Integration', () => {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
-            <ToastProvider>{ui}</ToastProvider>
+            <ToastProvider>
+              <BibleInteractionProvider
+                bookId={mockChapter.bookId}
+                chapterNumber={mockChapter.chapterNumber}
+                bookName={mockChapter.bookName}
+              >
+                {ui}
+              </BibleInteractionProvider>
+            </ToastProvider>
           </ThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

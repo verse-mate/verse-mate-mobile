@@ -3,6 +3,23 @@ import { FormData, fetch, Headers, Request, Response } from 'undici';
 import { resetPostHogMock } from './__tests__/mocks/posthog-mock';
 import { server } from './__tests__/mocks/server';
 
+// Mock device info to avoid AsyncStorage and Dimensions listeners in tests
+jest.mock('@/hooks/use-device-info', () => ({
+  useDeviceInfo: () => ({
+    isTablet: false,
+    isLandscape: false,
+    screenWidth: 390,
+    screenHeight: 844,
+    smallerDimension: 390,
+    largerDimension: 844,
+    useSplitView: false,
+    splitRatio: 0.5,
+    setSplitRatio: jest.fn(),
+    isLoaded: true,
+  }),
+  useOrientation: () => ({ isLandscape: false, isPortrait: true }),
+}));
+
 // Polyfill fetch for Node.js environment (required for MSW v2)
 // biome-ignore lint/suspicious/noExplicitAny: Required for polyfilling global fetch types
 global.fetch = fetch as any;
@@ -44,7 +61,9 @@ beforeAll(() => {
         args[0].includes('Not implemented: HTMLFormElement.prototype.submit') ||
         args[0].includes('Failed to set up proactive refresh') ||
         args[0].includes('Failed to restore session') ||
-        args[0].includes('An update to AuthProvider inside a test was not wrapped in act'))
+        args[0].includes('was not wrapped in act') ||
+        args[0].includes('Cannot update a component') ||
+        args[0].includes('while rendering a different component'))
     ) {
       return;
     }

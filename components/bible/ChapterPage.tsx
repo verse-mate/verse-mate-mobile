@@ -659,7 +659,7 @@ export const ChapterPage = React.memo(function ChapterPage({
         visible={notesModalVisible}
         bookId={bookId}
         chapterNumber={chapterNumber}
-        bookName={chapter?.title.split(' ')[0] || ''}
+        bookName={chapter?.bookName || ''}
         onClose={() => setNotesModalVisible(false)}
       />
 

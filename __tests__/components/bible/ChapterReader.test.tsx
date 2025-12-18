@@ -10,6 +10,7 @@ import { render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import type { ChapterContent } from '@/types/bible';
@@ -108,7 +109,15 @@ describe('ChapterReader', () => {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ThemeProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <ToastProvider>
+              <BibleInteractionProvider
+                bookId={mockChapter.bookId}
+                chapterNumber={mockChapter.chapterNumber}
+                bookName={mockChapter.bookName}
+              >
+                {children}
+              </BibleInteractionProvider>
+            </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
       </QueryClientProvider>

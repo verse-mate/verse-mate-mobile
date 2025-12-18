@@ -70,6 +70,14 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+// Add Gesture.Simultaneous polyfill before tests
+beforeAll(() => {
+  const { Gesture } = require('react-native-gesture-handler');
+  if (!Gesture.Simultaneous) {
+    Gesture.Simultaneous = (...gestures: any[]) => gestures[0];
+  }
+});
+
 // Mock chapter data
 const mockChapterData = {
   bookId: 1,

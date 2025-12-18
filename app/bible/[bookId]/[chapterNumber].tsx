@@ -24,6 +24,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BibleContentPanel } from '@/components/bible/BibleContentPanel';
+import { BibleExplanationsPanel } from '@/components/bible/BibleExplanationsPanel';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import type { ChapterPagerViewRef } from '@/components/bible/ChapterPagerView';
@@ -33,8 +35,10 @@ import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { SplitView } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   useActiveTab,
@@ -48,6 +52,7 @@ import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   useBibleChapter,
@@ -105,6 +110,10 @@ export default function ChapterScreen() {
   // Theme
   const { colors, mode } = useTheme();
   const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+
+  // Device info for split view detection
+  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
+    useDeviceInfo();
 
   // Bible version for analytics
   const { bibleVersion } = useBibleVersion();
@@ -365,17 +374,6 @@ export default function ChapterScreen() {
     }
   }, [canGoNext, nextChapter]);
 
-  // Update last read position when chapter changes
-  useEffect(() => {
-    savePosition({
-      type: 'bible',
-      bookId,
-      chapterNumber,
-      activeTab,
-      activeView,
-    });
-  }, [bookId, chapterNumber, activeTab, activeView, savePosition]);
-
   // Show skeleton loader while loading and no data is available
   if (isLoading && !chapter) {
     return (
@@ -413,74 +411,148 @@ export default function ChapterScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Fixed Header (Task 8.6 - includes OfflineIndicator) */}
-      <ChapterHeader
-        bookName={chapter.bookName}
-        chapterNumber={chapter.chapterNumber}
-        activeView={activeView}
-        onNavigationPress={() => {
-          setIsNavigationModalOpen(true); // Task 7.9
-        }}
-        onViewChange={handleViewChange}
-        onMenuPress={() => {
-          setIsMenuOpen(true); // Task 8.5
-        }}
-      />
+    <BibleInteractionProvider
+      bookId={validBookId}
+      chapterNumber={validChapter}
+      bookName={chapter.bookName}
+    >
+      <View style={styles.container}>
+        {/* Split View Layout for Landscape/Tablet */}
+        {useSplitView ? (
+          <>
+            <SplitView
+              splitRatio={splitRatio}
+              onSplitRatioChange={setSplitRatio}
+              viewMode={splitViewMode}
+              onViewModeChange={setSplitViewMode}
+              edgeTabsVisible={fabVisible}
+              leftContent={
+                <BibleContentPanel
+                  bookId={validBookId}
+                  chapterNumber={validChapter}
+                  bookName={chapter.bookName}
+                  totalChapters={totalChapters}
+                  canGoPrevious={canGoPrevious}
+                  canGoNext={canGoNext}
+                  onHeaderPress={() => setIsNavigationModalOpen(true)}
+                  onPageChange={handlePageChange}
+                  onNavigatePrev={handlePrevious}
+                  onNavigateNext={handleNext}
+                  onScroll={handleScroll}
+                  onTap={handleTap}
+                  targetVerse={targetVerse}
+                  targetEndVerse={targetEndVerse}
+                  visible={fabVisible}
+                />
+              }
+              rightContent={
+                <BibleExplanationsPanel
+                  bookId={validBookId}
+                  chapterNumber={validChapter}
+                  bookName={chapter.bookName}
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  onMenuPress={() => setIsMenuOpen(true)}
+                  onScroll={handleScroll}
+                  onTap={handleTap}
+                />
+              }
+            />
 
-      {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
-      {activeView === 'explanations' && (
-        <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
-      )}
+            {/* Navigation Modal (Task 7.9) - Only render when needed to prevent Android flash */}
+            {isNavigationModalOpen && (
+              <BibleNavigationModal
+                visible={isNavigationModalOpen}
+                onClose={() => setIsNavigationModalOpen(false)}
+                currentBookId={validBookId}
+                currentChapter={validChapter}
+                onSelectChapter={(bookId, chapter) => {
+                  router.replace(`/bible/${bookId}/${chapter}` as never);
+                }}
+                onSelectTopic={(topicId, category) => {
+                  router.push({
+                    pathname: '/topics/[topicId]',
+                    params: { topicId, category },
+                  });
+                }}
+              />
+            )}
 
-      {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
-      <ChapterPagerView
-        ref={pagerRef}
-        initialBookId={validBookId}
-        initialChapter={validChapter}
-        activeTab={activeTab}
-        activeView={activeView}
-        targetVerse={targetVerse}
-        targetEndVerse={targetEndVerse}
-        onPageChange={handlePageChange}
-        onScroll={handleScroll}
-        onTap={handleTap}
-      />
+            {/* Hamburger Menu (Task 8.5) */}
+            <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+          </>
+        ) : (
+          <>
+            {/* Fixed Header (Task 8.6 - includes OfflineIndicator) */}
+            <ChapterHeader
+              bookName={chapter.bookName}
+              chapterNumber={chapter.chapterNumber}
+              activeView={activeView}
+              onNavigationPress={() => {
+                setIsNavigationModalOpen(true); // Task 7.9
+              }}
+              onViewChange={handleViewChange}
+              onMenuPress={() => {
+                setIsMenuOpen(true); // Task 8.5
+              }}
+            />
 
-      {/* Floating Action Buttons (Task 6.2, 6.4, 4.5) */}
-      <FloatingActionButtons
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        showPrevious={canGoPrevious}
-        showNext={canGoNext}
-        visible={fabVisible}
-      />
+            {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
+            {activeView === 'explanations' && (
+              <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
+            )}
 
-      {/* Progress Bar (Task 8.4) */}
-      <ProgressBar percentage={progress.percentage} />
+            {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
+            <ChapterPagerView
+              ref={pagerRef}
+              initialBookId={validBookId}
+              initialChapter={validChapter}
+              activeTab={activeTab}
+              activeView={activeView}
+              targetVerse={targetVerse}
+              targetEndVerse={targetEndVerse}
+              onPageChange={handlePageChange}
+              onScroll={handleScroll}
+              onTap={handleTap}
+            />
 
-      {/* Navigation Modal (Task 7.9) - Only render when needed to prevent Android flash */}
-      {isNavigationModalOpen && (
-        <BibleNavigationModal
-          visible={isNavigationModalOpen}
-          onClose={() => setIsNavigationModalOpen(false)}
-          currentBookId={validBookId}
-          currentChapter={validChapter}
-          onSelectChapter={(bookId, chapter) => {
-            router.replace(`/bible/${bookId}/${chapter}` as never);
-          }}
-          onSelectTopic={(topicId, category) => {
-            router.push({
-              pathname: '/topics/[topicId]',
-              params: { topicId, category },
-            });
-          }}
-        />
-      )}
+            {/* Floating Action Buttons (Task 6.2, 6.4, 4.5) - Same fade behavior as portrait */}
+            <FloatingActionButtons
+              onPrevious={handlePrevious}
+              onNext={handleNext}
+              showPrevious={canGoPrevious}
+              showNext={canGoNext}
+              visible={fabVisible}
+            />
 
-      {/* Hamburger Menu (Task 8.5) */}
-      <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-    </View>
+            {/* Progress Bar (Task 8.4) */}
+            <ProgressBar percentage={progress.percentage} />
+
+            {/* Navigation Modal (Task 7.9) - Only render when needed to prevent Android flash */}
+            {isNavigationModalOpen && (
+              <BibleNavigationModal
+                visible={isNavigationModalOpen}
+                onClose={() => setIsNavigationModalOpen(false)}
+                currentBookId={validBookId}
+                currentChapter={validChapter}
+                onSelectChapter={(bookId, chapter) => {
+                  router.replace(`/bible/${bookId}/${chapter}` as never);
+                }}
+                onSelectTopic={(topicId, category) => {
+                  router.push({
+                    pathname: '/topics/[topicId]',
+                    params: { topicId, category },
+                  });
+                }}
+              />
+            )}
+
+            {/* Hamburger Menu (Task 8.5) */}
+            <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+          </>
+        )}
+      </View>
+    </BibleInteractionProvider>
   );
 }
 

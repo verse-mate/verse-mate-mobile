@@ -140,7 +140,10 @@ export function useRecentBooks(): UseRecentBooksResult {
               setRecentBooks(mergedBooks);
             }
           } catch (syncError) {
-            console.error('Failed to sync recently viewed books:', syncError);
+            console.warn(
+              'Failed to sync recently viewed books (offline or server error):',
+              syncError
+            );
             // Continue with local data on sync error
           }
         }

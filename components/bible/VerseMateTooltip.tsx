@@ -33,15 +33,19 @@ import {
   Share,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
+import SignInModal from '@/components/bible/SignInModal';
+import SignUpModal from '@/components/bible/SignUpModal';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useBibleByLine } from '@/src/api';
 import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
@@ -83,6 +87,8 @@ interface VerseMateTooltipProps {
   verseText?: string;
   /** Whether user is logged in (for save action) */
   isLoggedIn: boolean;
+  /** Whether to use a system Modal (true) or a View overlay (false) */
+  useModal?: boolean;
 }
 
 /**
@@ -105,13 +111,27 @@ export function VerseMateTooltip({
   onCopy,
   verseText,
   isLoggedIn,
+  useModal = true,
 }: VerseMateTooltipProps) {
   const { colors, mode } = useTheme();
   const { bibleVersion } = useBibleVersion();
   const insets = useSafeAreaInsets();
+  const { isTablet, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { width: windowWidth } = useWindowDimensions();
+
+  // Calculate dynamic width for tooltip positioning
+  // In split view: align over the insights panel (right panel)
+  // In tablet landscape full screen: position on right side with fixed 50% width
+  const tooltipWidth =
+    useSplitView && splitViewMode !== 'left-full'
+      ? windowWidth * (1 - splitRatio)
+      : isTablet
+        ? windowWidth * 0.5
+        : undefined;
+
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom),
-    [colors, insets.bottom]
+    () => createStyles(colors, insets.bottom, isTablet, tooltipWidth),
+    [colors, insets.bottom, isTablet, tooltipWidth]
   );
 
   // ... (rest of the component state and hooks)
@@ -131,6 +151,9 @@ export function VerseMateTooltip({
 
   // State for delete confirmation modal
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+
+  // State for auth modals - 'signup' is default since most users don't have accounts
+  const [authModalType, setAuthModalType] = useState<'signin' | 'signup' | null>(null);
 
   // Ref to track if analytics event has been fired for this tooltip open
   const hasTrackedOpen = useRef(false);
@@ -285,11 +308,19 @@ export function VerseMateTooltip({
   ]);
 
   // Handle explicit dismiss (user action)
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     animateClose(() => {
       onClose();
     });
-  };
+  }, [animateClose, onClose]);
+
+  // Auto-close tooltip when switching to insight-only screen (right-full mode)
+  // Tooltips are supported in split view and full Bible screen, but not in insight-only
+  useEffect(() => {
+    if (visible && splitViewMode === 'right-full') {
+      handleDismiss();
+    }
+  }, [visible, splitViewMode, handleDismiss]);
 
   // Handle save as highlight (plain verse only)
   const handleSave = () => {
@@ -465,175 +496,238 @@ export function VerseMateTooltip({
     ? getHighlightColor(highlightGroup.color, mode)
     : undefined;
 
-  return (
-    <Modal
-      visible={internalVisible}
-      transparent
-      animationType="none"
-      onRequestClose={handleDismiss}
-    >
-      {/* Main Container - positions content at bottom */}
-      <View style={styles.overlay}>
-        {/* Animated Backdrop */}
-        <Animated.View
-          style={[styles.backdrop, { opacity: backdropOpacity }]}
-          pointerEvents="box-none"
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
-        </Animated.View>
+  const content = (
+    /* Main Container - positions content at bottom */
+    <View style={styles.overlay} pointerEvents="box-none">
+      {/* Animated Backdrop */}
+      <Animated.View
+        style={[
+          styles.backdrop,
+          { opacity: backdropOpacity },
+          // Constrain backdrop to right panel only in split view mode (left panel should stay visible)
+          // In full screen tablet mode, backdrop covers whole screen
+          !useModal && useSplitView && splitViewMode !== 'left-full' && tooltipWidth
+            ? {
+                left: windowWidth - tooltipWidth,
+                width: tooltipWidth,
+              }
+            : undefined,
+        ]}
+        pointerEvents="auto"
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleDismiss} />
+      </Animated.View>
 
-        {/* Animated Modal Content */}
-        <Animated.View
-          style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
-          pointerEvents="auto"
-        >
-          {/* Header with pan responder for swipe */}
-          <View style={styles.header} {...panResponder.panHandlers}>
-            <View style={styles.handle} />
-            <Text style={styles.verseMateHeader}>Verse Insight</Text>
-          </View>
+      {/* Animated Modal Content */}
+      <Animated.View
+        style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
+        pointerEvents="auto"
+      >
+        {/* Header with pan responder for swipe */}
+        <View style={styles.header} {...panResponder.panHandlers}>
+          <View style={styles.handle} />
+          <Text style={styles.verseMateHeader}>Verse Insight</Text>
+        </View>
 
-          {/* Content */}
-          <View style={styles.contentContainer}>
-            <View style={styles.scrollContainer}>
-              <View {...panResponder.panHandlers}>
-                {/* Title with optional color indicator */}
-                <View style={styles.titleRow}>
-                  <Text style={styles.title}>{verseReference}</Text>
-                  {isHighlighted && highlightGroup && onChangeColor && (
-                    <Pressable style={styles.colorBadge} onPress={handleChangeColor}>
-                      <View
-                        style={[styles.colorIndicator, { backgroundColor: highlightColorHex }]}
-                      />
-                      <Text style={styles.colorText}>
-                        {highlightGroup.color.charAt(0).toUpperCase() +
-                          highlightGroup.color.slice(1)}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-
-                {/* Verse Text (Single verse only) */}
-                {verseText && !isMultiVerse && (
-                  <Text style={styles.verseText}>{`"${verseText}"`}</Text>
-                )}
-              </View>
-
-              {/* Insight Section (Always Expandable) */}
-              <View style={styles.insightContainer}>
-                {isMultiVerse && (
-                  <Pressable
-                    style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
-                    onPress={() => setExpanded(!expanded)}
-                    hitSlop={10}
-                    {...panResponder.panHandlers}
-                  >
-                    <Ionicons
-                      name={expanded ? 'chevron-down' : 'chevron-up'}
-                      size={16}
-                      color={colors.gold}
-                      style={{ marginRight: spacing.xs }}
-                    />
-                    <Text style={styles.insightToggleText}>
-                      {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
+        {/* Content */}
+        <View style={styles.contentContainer}>
+          <View style={styles.scrollContainer}>
+            <View {...panResponder.panHandlers}>
+              {/* Title with optional color indicator */}
+              <View style={styles.titleRow}>
+                <Text style={styles.title}>{verseReference}</Text>
+                {isHighlighted && highlightGroup && onChangeColor && (
+                  <Pressable style={styles.colorBadge} onPress={handleChangeColor}>
+                    <View style={[styles.colorIndicator, { backgroundColor: highlightColorHex }]} />
+                    <Text style={styles.colorText}>
+                      {highlightGroup.color.charAt(0).toUpperCase() + highlightGroup.color.slice(1)}
                     </Text>
                   </Pressable>
                 )}
-
-                <Animated.View
-                  style={[
-                    styles.insightContentWrapper,
-                    { maxHeight: insightMaxHeight, opacity: insightOpacity },
-                  ]}
-                >
-                  {isByLineLoading ? (
-                    <View style={styles.loadingContainer}>
-                      <ActivityIndicator size="small" color={colors.gold} />
-                    </View>
-                  ) : insightText ? (
-                    <>
-                      <Text style={styles.analysisTitle}>Analysis</Text>
-                      <ScrollView
-                        style={styles.insightScroll}
-                        contentContainerStyle={styles.insightScrollContent}
-                        showsVerticalScrollIndicator={false}
-                      >
-                        <Markdown style={markdownStyles}>{insightText}</Markdown>
-                      </ScrollView>
-                    </>
-                  ) : (
-                    <View style={styles.emptyInsightContainer}>
-                      <Text style={styles.insightEmptyText}>
-                        No specific insight available for{' '}
-                        {isMultiVerse ? 'these verses' : 'this verse'}.
-                      </Text>
-                    </View>
-                  )}
-                </Animated.View>
               </View>
+
+              {/* Verse Text (Single verse only) */}
+              {verseText && !isMultiVerse && (
+                <Text style={styles.verseText}>{`"${verseText}"`}</Text>
+              )}
             </View>
 
-            {/* Actions Footer - Context-aware */}
-            <View style={styles.actionsContainer}>
-              {/* Action Buttons Row - Always visible */}
-              <View style={styles.actionButtonsRow}>
-                <Pressable style={styles.actionButton} onPress={handleCopy}>
-                  <Ionicons name="copy-outline" size={20} color={colors.textPrimary} />
-                  <Text style={styles.actionButtonText}>Copy</Text>
-                </Pressable>
-
-                <Pressable style={styles.actionButton} onPress={handleShare}>
-                  <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
-                  <Text style={styles.actionButtonText}>Share</Text>
-                </Pressable>
-
-                {isHighlighted && onChangeColor && (
-                  <Pressable style={styles.actionButton} onPress={handleChangeColor}>
-                    <Ionicons name="color-palette-outline" size={20} color={colors.textPrimary} />
-                    <Text style={styles.actionButtonText}>Color</Text>
-                  </Pressable>
-                )}
-
-                {onAddNote && (
-                  <Pressable style={styles.actionButton} onPress={handleAddNote}>
-                    <Ionicons name="create-outline" size={20} color={colors.textPrimary} />
-                    <Text style={styles.actionButtonText}>Note</Text>
-                  </Pressable>
-                )}
-              </View>
-
-              {/* Primary Action - Context-aware */}
-              {isHighlighted ? (
-                // Highlighted verse - show remove button
-                <Pressable style={styles.removeButton} onPress={handleRemove}>
-                  <Ionicons name="trash-outline" size={20} color={colors.white} />
-                  <Text style={styles.removeButtonText}>Remove Highlight</Text>
-                </Pressable>
-              ) : isLoggedIn ? (
-                // Plain verse - show save button
-                <Pressable style={styles.primaryButton} onPress={handleSave}>
-                  <Ionicons name="bookmark-outline" size={20} color={colors.background} />
-                  <Text style={styles.primaryButtonText}>Save as My Highlight</Text>
-                </Pressable>
-              ) : (
-                // Plain verse - not logged in
-                <View style={styles.loginPrompt}>
-                  <Text style={styles.loginPromptText}>
-                    Sign in to save this verse to your collection
+            {/* Insight Section (Always Expandable) */}
+            <View style={styles.insightContainer}>
+              {isMultiVerse && (
+                <Pressable
+                  style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
+                  onPress={() => setExpanded(!expanded)}
+                  hitSlop={10}
+                  {...panResponder.panHandlers}
+                >
+                  <Ionicons
+                    name={expanded ? 'chevron-down' : 'chevron-up'}
+                    size={16}
+                    color={colors.gold}
+                    style={{ marginRight: spacing.xs }}
+                  />
+                  <Text style={styles.insightToggleText}>
+                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
                   </Text>
-                </View>
+                </Pressable>
               )}
 
-              {/* Cancel Button */}
-              <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
-              </Pressable>
+              <Animated.View
+                style={[
+                  styles.insightContentWrapper,
+                  { maxHeight: insightMaxHeight, opacity: insightOpacity },
+                ]}
+              >
+                {isByLineLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={colors.gold} />
+                  </View>
+                ) : insightText ? (
+                  <>
+                    <Text style={styles.analysisTitle}>Analysis</Text>
+                    <ScrollView
+                      style={styles.insightScroll}
+                      contentContainerStyle={styles.insightScrollContent}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      <Markdown style={markdownStyles}>{insightText}</Markdown>
+                    </ScrollView>
+                  </>
+                ) : (
+                  <View style={styles.emptyInsightContainer}>
+                    <Text style={styles.insightEmptyText}>
+                      No specific insight available for{' '}
+                      {isMultiVerse ? 'these verses' : 'this verse'}.
+                    </Text>
+                  </View>
+                )}
+              </Animated.View>
             </View>
           </View>
-        </Animated.View>
-      </View>
 
-      {/* Delete Confirmation Modal */}
+          {/* Actions Footer - Context-aware */}
+          <View style={styles.actionsContainer}>
+            {/* Action Buttons Row - Always visible */}
+            <View style={styles.actionButtonsRow}>
+              <Pressable style={styles.actionButton} onPress={handleCopy}>
+                <Ionicons name="copy-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.actionButtonText}>Copy</Text>
+              </Pressable>
+
+              <Pressable style={styles.actionButton} onPress={handleShare}>
+                <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.actionButtonText}>Share</Text>
+              </Pressable>
+
+              {isHighlighted && onChangeColor && (
+                <Pressable style={styles.actionButton} onPress={handleChangeColor}>
+                  <Ionicons name="color-palette-outline" size={20} color={colors.textPrimary} />
+                  <Text style={styles.actionButtonText}>Color</Text>
+                </Pressable>
+              )}
+
+              {onAddNote && (
+                <Pressable style={styles.actionButton} onPress={handleAddNote}>
+                  <Ionicons name="create-outline" size={20} color={colors.textPrimary} />
+                  <Text style={styles.actionButtonText}>Note</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Primary Action - Context-aware */}
+            {isHighlighted ? (
+              // Highlighted verse - show remove button
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { flexDirection: 'row', gap: spacing.xs, justifyContent: 'center' },
+                ]}
+                onPress={handleRemove}
+              >
+                <Ionicons name="trash-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.secondaryButtonText}>Remove Highlight</Text>
+              </Pressable>
+            ) : isLoggedIn ? (
+              // Plain verse - show save button
+              <Pressable
+                style={[
+                  styles.secondaryButton,
+                  { flexDirection: 'row', gap: spacing.xs, justifyContent: 'center' },
+                ]}
+                onPress={handleSave}
+              >
+                <Ionicons name="bookmark-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.secondaryButtonText}>Save as My Highlight</Text>
+              </Pressable>
+            ) : (
+              // Plain verse - not logged in
+              <Pressable style={styles.loginPrompt} onPress={() => setAuthModalType('signup')}>
+                <Ionicons name="log-in-outline" size={20} color={colors.gold} />
+                <Text style={styles.loginPromptText}>
+                  Sign up to save this verse to your collection
+                </Text>
+              </Pressable>
+            )}
+
+            {/* Cancel Button */}
+            <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
+              <Text style={styles.secondaryButtonText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Animated.View>
+    </View>
+  );
+
+  if (useModal) {
+    return (
+      <Modal
+        visible={internalVisible}
+        transparent
+        animationType="none"
+        onRequestClose={handleDismiss}
+      >
+        {content}
+        {/* Delete Confirmation Modal */}
+        {highlightGroup && (
+          <DeleteConfirmationModal
+            visible={showDeleteConfirmation}
+            onCancel={() => setShowDeleteConfirmation(false)}
+            onConfirm={handleConfirmDelete}
+            title="Remove Highlight Group"
+            message={`This will delete ${highlightGroup.highlights.length} highlighted ${
+              highlightGroup.highlights.length === 1 ? 'verse' : 'verses'
+            } (${
+              startVerse === endVerse ? `verse ${startVerse}` : `verses ${startVerse}-${endVerse}`
+            }). To delete a single verse, long-press on the specific verse.`}
+          />
+        )}
+        {/* Auth Modals */}
+        <SignUpModal
+          visible={authModalType === 'signup'}
+          onClose={() => setAuthModalType(null)}
+          onSwitchToSignIn={() => setAuthModalType('signin')}
+          onAuthSuccess={onClose}
+        />
+        <SignInModal
+          visible={authModalType === 'signin'}
+          onClose={() => setAuthModalType(null)}
+          onSwitchToSignUp={() => setAuthModalType('signup')}
+          onAuthSuccess={onClose}
+        />
+      </Modal>
+    );
+  }
+
+  // Non-modal rendering (Overlay)
+  if (!internalVisible) return null;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {content}
+      {/* Delete Confirmation Modal - Still needs to be Modal or handled properly */}
+      {/* Since DeleteConfirmation is a separate component using Modal, it's fine */}
       {highlightGroup && (
         <DeleteConfirmationModal
           visible={showDeleteConfirmation}
@@ -647,18 +741,37 @@ export function VerseMateTooltip({
           }). To delete a single verse, long-press on the specific verse.`}
         />
       )}
-    </Modal>
+      {/* Auth Modals */}
+      <SignUpModal
+        visible={authModalType === 'signup'}
+        onClose={() => setAuthModalType(null)}
+        onSwitchToSignIn={() => setAuthModalType('signin')}
+        onAuthSuccess={onClose}
+      />
+      <SignInModal
+        visible={authModalType === 'signin'}
+        onClose={() => setAuthModalType(null)}
+        onSwitchToSignUp={() => setAuthModalType('signup')}
+        onAuthSuccess={onClose}
+      />
+    </View>
   );
 }
 
 /**
  * Creates all styles for VerseMateTooltip component
  */
-const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number) => {
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  bottomInset: number,
+  _isTablet: boolean,
+  tooltipWidth?: number
+) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
+      alignItems: tooltipWidth ? 'flex-end' : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -667,8 +780,9 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     container: {
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopRightRadius: tooltipWidth ? 0 : 16, // Remove corner radius if attached to right edge
       maxHeight: '80%',
+      width: tooltipWidth ?? '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {
@@ -826,11 +940,17 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       backgroundColor: colors.background,
       borderRadius: 8,
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.gold,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: spacing.sm,
     },
     loginPromptText: {
       fontSize: fontSizes.body,
-      color: colors.textSecondary,
+      color: colors.gold,
       textAlign: 'center',
+      fontWeight: fontWeights.medium,
     },
     insightContainer: {
       marginBottom: spacing.md,

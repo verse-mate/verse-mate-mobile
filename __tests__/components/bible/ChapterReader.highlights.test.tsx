@@ -14,6 +14,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import type { ChapterContent } from '@/types/bible';
@@ -91,7 +92,13 @@ function renderChapterReader(chapter: ChapterContent = mockChapter) {
       <AuthProvider>
         <ThemeProvider>
           <ToastProvider>
-            <ChapterReader chapter={chapter} activeTab="summary" />
+            <BibleInteractionProvider
+              bookId={chapter.bookId}
+              chapterNumber={chapter.chapterNumber}
+              bookName={chapter.bookName}
+            >
+              <ChapterReader chapter={chapter} activeTab="summary" />
+            </BibleInteractionProvider>
           </ToastProvider>
         </ThemeProvider>
       </AuthProvider>
