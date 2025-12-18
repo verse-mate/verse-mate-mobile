@@ -155,6 +155,16 @@ export function VerseMateTooltip({
   // State for auth modals - 'signup' is default since most users don't have accounts
   const [authModalType, setAuthModalType] = useState<'signin' | 'signup' | null>(null);
 
+  // Form State for Auth Modals (hoisted to preserve data across orientation/layout changes)
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInPassword, setSignInPassword] = useState('');
+
+  const [signUpFirstName, setSignUpFirstName] = useState('');
+  const [signUpLastName, setSignUpLastName] = useState('');
+  const [signUpEmail, setSignUpEmail] = useState('');
+  const [signUpPassword, setSignUpPassword] = useState('');
+  const [signUpConfirmPassword, setSignUpConfirmPassword] = useState('');
+
   // Ref to track if analytics event has been fired for this tooltip open
   const hasTrackedOpen = useRef(false);
 
@@ -496,7 +506,7 @@ export function VerseMateTooltip({
 
   const content = (
     /* Main Container - positions content at bottom */
-    <View style={styles.overlay} pointerEvents="box-none">
+    <View key={`tooltip-${useModal}`} style={styles.overlay} pointerEvents="box-none">
       {/* Animated Backdrop */}
       <Animated.View
         style={[
@@ -686,7 +696,7 @@ export function VerseMateTooltip({
         animationType="none"
         onRequestClose={handleDismiss}
       >
-        {content}
+        {!authModalType && content}
         {/* Delete Confirmation Modal */}
         {highlightGroup && (
           <DeleteConfirmationModal
@@ -703,16 +713,34 @@ export function VerseMateTooltip({
         )}
         {/* Auth Modals */}
         <SignUpModal
+          key="signup-modal"
           visible={authModalType === 'signup'}
           onClose={() => setAuthModalType(null)}
           onSwitchToSignIn={() => setAuthModalType('signin')}
           onAuthSuccess={onClose}
+          useModal={useModal}
+          firstName={signUpFirstName}
+          setFirstName={setSignUpFirstName}
+          lastName={signUpLastName}
+          setLastName={setSignUpLastName}
+          email={signUpEmail}
+          setEmail={setSignUpEmail}
+          password={signUpPassword}
+          setPassword={setSignUpPassword}
+          confirmPassword={signUpConfirmPassword}
+          setConfirmPassword={setSignUpConfirmPassword}
         />
         <SignInModal
+          key="signin-modal"
           visible={authModalType === 'signin'}
           onClose={() => setAuthModalType(null)}
           onSwitchToSignUp={() => setAuthModalType('signup')}
           onAuthSuccess={onClose}
+          useModal={useModal}
+          email={signInEmail}
+          setEmail={setSignInEmail}
+          password={signInPassword}
+          setPassword={setSignInPassword}
         />
       </Modal>
     );
@@ -723,7 +751,7 @@ export function VerseMateTooltip({
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {content}
+      {!authModalType && content}
       {/* Delete Confirmation Modal - Still needs to be Modal or handled properly */}
       {/* Since DeleteConfirmation is a separate component using Modal, it's fine */}
       {highlightGroup && (
@@ -741,16 +769,34 @@ export function VerseMateTooltip({
       )}
       {/* Auth Modals */}
       <SignUpModal
+        key="signup-modal"
         visible={authModalType === 'signup'}
         onClose={() => setAuthModalType(null)}
         onSwitchToSignIn={() => setAuthModalType('signin')}
         onAuthSuccess={onClose}
+        useModal={useModal}
+        firstName={signUpFirstName}
+        setFirstName={setSignUpFirstName}
+        lastName={signUpLastName}
+        setLastName={setSignUpLastName}
+        email={signUpEmail}
+        setEmail={setSignUpEmail}
+        password={signUpPassword}
+        setPassword={setSignUpPassword}
+        confirmPassword={signUpConfirmPassword}
+        setConfirmPassword={setSignUpConfirmPassword}
       />
       <SignInModal
+        key="signin-modal"
         visible={authModalType === 'signin'}
         onClose={() => setAuthModalType(null)}
         onSwitchToSignUp={() => setAuthModalType('signup')}
         onAuthSuccess={onClose}
+        useModal={useModal}
+        email={signInEmail}
+        setEmail={setSignInEmail}
+        password={signInPassword}
+        setPassword={setSignInPassword}
       />
     </View>
   );
