@@ -25,6 +25,8 @@ import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { TopicContentPanel } from '@/components/topics/TopicContentPanel';
 import { TopicExplanationsPanel } from '@/components/topics/TopicExplanationsPanel';
 import { TopicPagerView, type TopicPagerViewRef } from '@/components/topics/TopicPagerView';
+import type { VersePress } from '@/components/topics/TopicText';
+import { TopicVerseTooltip } from '@/components/topics/TopicVerseTooltip';
 import { SplitView } from '@/components/ui/SplitView';
 import {
   fontSizes,
@@ -34,9 +36,11 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useTopicNavigation } from '@/hooks/topics/use-topic-navigation';
+import { useAuth } from '@/hooks/use-auth';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useTopicById, useTopicsSearch } from '@/src/api';
@@ -68,6 +72,11 @@ const CENTER_INDEX = 2;
 export default function TopicDetailScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { user } = useAuth();
+  const { showToast } = useToast();
+
+  // Derive isLoggedIn from user
+  const isLoggedIn = user !== null;
 
   // Device info for split view detection
   const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
@@ -95,6 +104,10 @@ export default function TopicDetailScreen() {
 
   // Hamburger menu state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Tooltip state
+  const [selectedVerse, setSelectedVerse] = useState<VersePress | null>(null);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
 
   // FAB visibility state and handlers
   const {
@@ -286,6 +299,30 @@ export default function TopicDetailScreen() {
     [handleFABScroll]
   );
 
+  /**
+   * Handle verse press from TopicText component
+   */
+  const handleVersePress = useCallback((verseData: VersePress) => {
+    setSelectedVerse(verseData);
+    setTooltipVisible(true);
+  }, []);
+
+  /**
+   * Handle tooltip close
+   */
+  const handleTooltipClose = useCallback(() => {
+    setTooltipVisible(false);
+    // Clear selected verse after animation completes
+    setTimeout(() => setSelectedVerse(null), 300);
+  }, []);
+
+  /**
+   * Handle copy action from tooltip - show toast notification
+   */
+  const handleCopy = useCallback(() => {
+    showToast('Verse copied to clipboard');
+  }, [showToast]);
+
   // Type guard for topic
   const topic =
     topicData?.topic && typeof topicData.topic === 'object' && 'name' in topicData.topic
@@ -378,6 +415,7 @@ export default function TopicDetailScreen() {
                 hasNextTopic={canGoNext}
                 onScroll={handleScroll}
                 onTap={handleTap}
+                onVersePress={handleVersePress}
                 visible={fabVisible}
               />
             }
@@ -438,6 +476,7 @@ export default function TopicDetailScreen() {
             onScroll={handleScroll}
             onTap={handleTap}
             onShare={handleShare}
+            onVersePress={handleVersePress}
           />
 
           {/* Floating Action Buttons for Topic Navigation - Same fade behavior as portrait */}
@@ -466,6 +505,22 @@ export default function TopicDetailScreen() {
           {/* Hamburger Menu */}
           <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
         </>
+      )}
+
+      {/* Topic Verse Tooltip - Handled at screen level for proper positioning */}
+      {selectedVerse && (
+        <TopicVerseTooltip
+          verseNumber={selectedVerse.verseNumber}
+          bookId={selectedVerse.bookId}
+          chapterNumber={selectedVerse.chapterNumber}
+          bookName={selectedVerse.bookName}
+          verseText={selectedVerse.verseText}
+          visible={tooltipVisible}
+          onClose={handleTooltipClose}
+          onCopy={handleCopy}
+          isLoggedIn={isLoggedIn}
+          useModal={!useSplitView}
+        />
       )}
     </View>
   );

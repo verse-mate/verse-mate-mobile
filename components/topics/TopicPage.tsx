@@ -25,7 +25,7 @@ import Markdown from 'react-native-markdown-display';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { TopicText } from '@/components/topics/TopicText';
+import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import {
   fontSizes,
   fontWeights,
@@ -102,6 +102,8 @@ export interface TopicPageProps {
   onTap?: () => void;
   /** Callback when user wants to share current topic */
   onShare?: () => void;
+  /** Callback when a verse is pressed */
+  onVersePress?: (verseData: VersePress) => void;
 }
 
 /**
@@ -133,6 +135,7 @@ export const TopicPage = React.memo(function TopicPage({
   onScroll,
   onTap,
   onShare,
+  onVersePress,
 }: TopicPageProps) {
   const { colors } = useTheme();
   const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
@@ -320,6 +323,7 @@ export const TopicPage = React.memo(function TopicPage({
               topicName={topic.name}
               markdownContent={references.content}
               onShare={onShare}
+              onVersePress={onVersePress}
             />
           ) : (
             <>

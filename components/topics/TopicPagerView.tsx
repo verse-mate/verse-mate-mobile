@@ -30,6 +30,7 @@ import {
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
+import type { VersePress } from '@/components/topics/TopicText';
 import { SwipeBoundaryPage } from '@/components/ui/SwipeBoundaryPage';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
@@ -79,6 +80,8 @@ export interface TopicPagerViewProps {
   onTap?: () => void;
   /** Callback when user wants to share current topic */
   onShare?: () => void;
+  /** Callback when a verse is pressed */
+  onVersePress?: (verseData: VersePress) => void;
 }
 
 /**
@@ -122,6 +125,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       onScroll,
       onTap,
       onShare,
+      onVersePress,
     },
     ref
   ) {
@@ -208,6 +212,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
             onScroll={onScroll}
             onTap={onTap}
             onShare={onShare}
+            onVersePress={onVersePress}
           />
         ));
       }
@@ -243,6 +248,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
             onScroll={onScroll}
             onTap={onTap}
             onShare={onShare}
+            onVersePress={onVersePress}
           />
         );
       });
@@ -256,6 +262,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       onTap,
       sortedTopics,
       onShare,
+      onVersePress,
     ]);
 
     /**

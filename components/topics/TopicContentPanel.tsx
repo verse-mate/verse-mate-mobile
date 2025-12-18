@@ -22,7 +22,7 @@ import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
-import { TopicText } from '@/components/topics/TopicText';
+import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
 import {
   fontSizes,
@@ -109,6 +109,9 @@ export interface TopicContentPanelProps {
   /** Callback for tap events (toggle visibility) */
   onTap?: () => void;
 
+  /** Callback when a verse is pressed */
+  onVersePress?: (verseData: VersePress) => void;
+
   /** Whether floating controls should be visible */
   visible?: boolean;
 
@@ -133,6 +136,7 @@ export function TopicContentPanel({
   hasNextTopic = false,
   onScroll,
   onTap,
+  onVersePress,
   visible = true,
   testID = 'topic-content-panel',
 }: TopicContentPanelProps) {
@@ -216,18 +220,6 @@ export function TopicContentPanel({
       </Pressable>
 
       {/* Content Area */}
-      {/* We wrap ScrollView in GestureDetector if we need tap detection on content, 
-          but ScrollView usually eats touches. 
-          Standard React Native approach: Wrap inner content in Pressable or use onTouchEnd. 
-          However, Reanimated Gesture Handler works with ScrollView if configured correctly.
-          For simplicity, we can rely on ScrollView's own touch handling or just wrap content items.
-          Actually, let's try wrapping the ScrollView with GestureDetector.
-      */}
-      {/* Note: GestureDetector might interfere with ScrollView if not careful. 
-          Simpler: Pressable background? 
-          Or assume scroll handles visibility mostly.
-          Let's try GestureDetector on the outer container or rely on `onTouchEnd` on ScrollView.
-      */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
@@ -239,9 +231,6 @@ export function TopicContentPanel({
         // Simple tap detection
         onTouchEnd={() => {
           // We can't distinguish drag vs tap easily here without heuristic.
-          // Leaving onTap for now, user relies on scroll to show/hide.
-          // Or explicitly add a Pressable overlay? No.
-          // If onTap is critical, we use GestureDetector.
         }}
       >
         {/* Helper for tap detection on content */}
@@ -253,7 +242,12 @@ export function TopicContentPanel({
         >
           {hasContent ? (
             hasStructuredContent ? (
-              <TopicText topicName={topicName} markdownContent={contentString} onShare={onShare} />
+              <TopicText
+                topicName={topicName}
+                markdownContent={contentString}
+                onShare={onShare}
+                onVersePress={onVersePress}
+              />
             ) : (
               <>
                 {/* Topic Title */}
