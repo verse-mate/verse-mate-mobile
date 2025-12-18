@@ -270,8 +270,10 @@ export class SetupOrchestrator {
   private insightIdMap: Map<string, number> = new Map();
   private funnelIdMap: Map<string, number> = new Map();
   private dashboardIdMap: Map<string, number> = new Map();
+  private readonly config: PostHogConfig;
 
   constructor(config: PostHogConfig, options: ExecutionOptions) {
+    this.config = config;
     this.dryRun = options.dryRun;
     this.logger = createLogger({
       verbose: options.verbose,
@@ -286,6 +288,14 @@ export class SetupOrchestrator {
     this.insightsApi = new InsightsApi(this.client);
     this.cohortsApi = new CohortsApi(this.client);
     this.funnelsApi = new FunnelsApi(this.client);
+  }
+
+  /**
+   * Build PostHog insight URL
+   */
+  private buildInsightUrl(shortId: string): string {
+    const host = this.config.host.replace('/api', '').replace('i.posthog.com', 'posthog.com');
+    return `${host}/project/${this.config.projectId}/insights/${shortId}`;
   }
 
   /**
@@ -357,16 +367,14 @@ export class SetupOrchestrator {
 
         stats.record(result.operation);
 
+        const insightUrl = this.buildInsightUrl(result.insight.short_id);
+
         if (result.operation === 'created') {
           this.logger.success(`Created insight: ${definition.name}`);
-          this.logger.info(
-            `  → New insight ID: ${result.insight.id}, short_id: ${result.insight.short_id}`
-          );
+          this.logger.info(`  → ${insightUrl}`);
         } else if (result.operation === 'updated') {
           this.logger.success(`Updated insight: ${definition.name}`);
-          this.logger.info(
-            `  → Insight ID: ${result.insight.id}, short_id: ${result.insight.short_id}`
-          );
+          this.logger.info(`  → ${insightUrl}`);
         } else {
           this.logger.unchanged('Insight', definition.name);
         }
