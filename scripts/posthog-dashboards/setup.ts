@@ -19,6 +19,8 @@
  *   POSTHOG_HOST           PostHog instance URL (optional, defaults to cloud)
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { createPostHogApiClient, type PostHogApiClient } from './api/client';
 import { CohortsApi } from './api/cohorts';
 import { DashboardsApi } from './api/dashboards';
@@ -152,16 +154,43 @@ function cohortToInput(definition: CohortDefinition): PostHogCohortInput {
 }
 
 /**
+ * Base path for SQL query files
+ */
+const QUERIES_BASE_PATH = path.join(__dirname, 'queries', 'insights');
+
+/**
+ * Load SQL query from file
+ *
+ * @param queryFile Path relative to queries/insights/
+ * @returns SQL query string
+ */
+function loadSqlQuery(queryFile: string): string {
+  const filePath = path.join(QUERIES_BASE_PATH, queryFile);
+
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`SQL query file not found: ${filePath}`);
+  }
+
+  return fs.readFileSync(filePath, 'utf-8').trim();
+}
+
+/**
  * Convert insight definition to PostHog API input
+ *
+ * Loads the HogQL query from the SQL file and formats it for the PostHog API.
+ * Uses the new query format with kind: 'HogQLQuery' for native SQL support.
  */
 function insightToInput(definition: InsightDefinition): PostHogInsightInput {
+  // Load the SQL query from file
+  const sqlQuery = loadSqlQuery(definition.queryFile);
+
   return {
     name: definition.name,
     description: definition.description,
-    // Note: Query would be loaded from file in production
-    filters: {
-      insight: 'TRENDS',
-      date_from: `-${definition.timeWindow}`,
+    // Use the new query format with HogQL
+    query: {
+      kind: 'HogQLQuery',
+      query: sqlQuery,
     },
     saved: true,
   };
