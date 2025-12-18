@@ -344,10 +344,8 @@ export function AutoHighlightTooltip({
 
     await Clipboard.setStringAsync(payload);
 
-    // Close modal and trigger callback
-    animateClose(() => {
-      onCopy?.();
-    });
+    // Show toast without closing modal
+    onCopy?.();
   };
 
   // Handle share verse

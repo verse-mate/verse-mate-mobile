@@ -384,10 +384,8 @@ export function VerseMateTooltip({
     const payload = getShareContent();
     await Clipboard.setStringAsync(payload);
 
-    // Close modal and trigger callback (for showing toast)
-    animateClose(() => {
-      onCopy?.();
-    });
+    // Show toast without closing modal
+    onCopy?.();
   };
 
   // Handle share verse
@@ -781,7 +779,7 @@ const createStyles = (
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
       borderTopRightRadius: tooltipWidth ? 0 : 16, // Remove corner radius if attached to right edge
-      maxHeight: '100%',
+      maxHeight: '95%',
       width: tooltipWidth ?? '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
