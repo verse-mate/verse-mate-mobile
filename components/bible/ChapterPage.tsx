@@ -29,11 +29,14 @@ import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import type { Highlight } from '@/hooks/bible/use-highlights';
+import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
+import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
@@ -92,6 +95,8 @@ function TabContent({
   onScroll,
   onTouchStart,
   onTouchEnd,
+  filteredHighlights,
+  filteredAutoHighlights,
 }: {
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
@@ -104,6 +109,8 @@ function TabContent({
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onTouchStart?: (event: GestureResponderEvent) => void;
   onTouchEnd?: (event: GestureResponderEvent) => void;
+  filteredHighlights?: Highlight[];
+  filteredAutoHighlights?: AutoHighlight[];
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]); // Use local createStyles for TabContent
@@ -173,6 +180,8 @@ function TabContent({
               activeTab={activeTab}
               explanationsOnly={true}
               explanation={explanationContent}
+              filteredHighlights={filteredHighlights}
+              filteredAutoHighlights={filteredAutoHighlights}
             />
           )}
         </View>
@@ -267,7 +276,18 @@ export const ChapterPage = React.memo(function ChapterPage({
   const verseTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { isAuthenticated } = useAuth();
-  const { chapterHighlights } = useBibleInteraction();
+
+  // Fetch highlights directly for THIS specific chapter
+  // This ensures each page has its own highlights pre-loaded independently
+  const { chapterHighlights } = useHighlights({
+    bookId,
+    chapterNumber,
+  });
+
+  const { autoHighlights } = useAutoHighlights({
+    bookId,
+    chapterNumber,
+  });
 
   // Staggered rendering state to prevent UI freeze (waterfall loading)
   // 0: Initial (only active view)
@@ -587,6 +607,8 @@ export const ChapterPage = React.memo(function ChapterPage({
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            filteredHighlights={chapterHighlights}
+            filteredAutoHighlights={autoHighlights}
           />
           <TabContent
             chapter={chapter}
@@ -600,6 +622,8 @@ export const ChapterPage = React.memo(function ChapterPage({
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            filteredHighlights={chapterHighlights}
+            filteredAutoHighlights={autoHighlights}
           />
           <TabContent
             chapter={chapter}
@@ -613,6 +637,8 @@ export const ChapterPage = React.memo(function ChapterPage({
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            filteredHighlights={chapterHighlights}
+            filteredAutoHighlights={autoHighlights}
           />
         </View>
       )}
@@ -649,6 +675,8 @@ export const ChapterPage = React.memo(function ChapterPage({
               explanationsOnly={false}
               onContentLayout={handleContentLayout}
               onOpenNotes={handleOpenNotes}
+              filteredHighlights={chapterHighlights}
+              filteredAutoHighlights={autoHighlights}
             />
           ) : (
             <SkeletonLoader />
