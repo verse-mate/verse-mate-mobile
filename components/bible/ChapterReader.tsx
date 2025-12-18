@@ -33,18 +33,13 @@ import {
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
-import { AutoHighlightTooltip } from '@/components/bible/AutoHighlightTooltip';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { DictionaryModal } from '@/components/bible/DictionaryModal';
 import { ErrorModal } from '@/components/bible/ErrorModal';
-import { HighlightEditMenu } from '@/components/bible/HighlightEditMenu';
-import type { TextSelection, WordTapEvent } from '@/components/bible/HighlightedText';
+import type { WordTapEvent } from '@/components/bible/HighlightedText';
 import { HighlightedText } from '@/components/bible/HighlightedText';
-import { HighlightSelectionSheet } from '@/components/bible/HighlightSelectionSheet';
 import { NotesButton } from '@/components/bible/NotesButton';
-import { SimpleColorPickerModal } from '@/components/bible/SimpleColorPickerModal';
 import { TextSelectionMenu } from '@/components/bible/TextSelectionMenu';
-import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import {
   fontSizes,
   fontWeights,
@@ -55,18 +50,16 @@ import {
 } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
+import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
-import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
-import { useAuth } from '@/hooks/use-auth';
+import type { Highlight } from '@/hooks/bible/use-highlights';
 import { getWordAtPosition } from '@/hooks/use-text-selection';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import {
   findGroupByHighlightId,
   groupConsecutiveHighlights,
-  type HighlightGroup,
 } from '@/utils/bible/groupConsecutiveHighlights';
 
 // TODO: This will be replaced by a user setting
@@ -122,7 +115,7 @@ function startsWithTransitionWord(text: string): boolean {
   ];
 
   const firstWord = text.trim().split(/\s+/)[0];
-  const cleanWord = firstWord.replace(/[.,;:!?'"]/g, '');
+  const cleanWord = firstWord.replace(/[.,;:!?"']/g, '');
   return transitions.includes(cleanWord);
 }
 
@@ -255,11 +248,6 @@ function getStartHighlight(
   return null;
 }
 
-interface SelectionContext {
-  verseNumber: number;
-  selection: TextSelection;
-}
-
 export function ChapterReader({
   chapter,
   explanation,
@@ -271,8 +259,17 @@ export function ChapterReader({
   const specs = getHeaderSpecs(mode);
   const styles = useMemo(() => createStyles(colors, explanationsOnly), [colors, explanationsOnly]);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
-  const { user } = useAuth();
   const { showToast } = useToast();
+
+  // Use Bible Interaction Context for highlights and interactions
+  const {
+    chapterHighlights,
+    autoHighlights,
+    openVerseTooltip,
+    openAutoHighlightTooltip,
+    openHighlightSelection,
+    openHighlightEditMenu,
+  } = useBibleInteraction();
 
   // Store verse layouts: map startVerse -> Y position
   const sectionPositions = useRef<Record<number, number>>({});
@@ -287,51 +284,14 @@ export function ChapterReader({
     };
   }, []);
 
-  // Fetch highlights for this chapter
-  const { chapterHighlights, addHighlight, updateHighlightColor, deleteHighlight } = useHighlights({
-    bookId: chapter.bookId,
-    chapterNumber: chapter.chapterNumber,
-  });
-
-  // Fetch auto-highlights for this chapter
-  const { autoHighlights } = useAutoHighlights({
-    bookId: chapter.bookId,
-    chapterNumber: chapter.chapterNumber,
-  });
-
-  // Highlight modal state
-  const [selectionSheetVisible, setSelectionSheetVisible] = useState(false);
-  const [editMenuVisible, setEditMenuVisible] = useState(false);
-  const [selectionContext, setSelectionContext] = useState<SelectionContext | null>(null);
-  const [selectedHighlightId, setSelectedHighlightId] = useState<number | null>(null);
-  const [selectedHighlightGroupForEdit, setSelectedHighlightGroupForEdit] =
-    useState<HighlightGroup | null>(null);
-
-  // Auto-highlight modal state
-  const [autoHighlightTooltipVisible, setAutoHighlightTooltipVisible] = useState(false);
-  const [selectedAutoHighlight, setSelectedAutoHighlight] = useState<AutoHighlight | null>(null);
+  // Error modal state (still local for generic errors)
   const [errorModalVisible, setErrorModalVisible] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('An error occurred. Please try again.');
-
-  // New tooltip modal state
-  const [verseInsightTooltipVisible, setVerseInsightTooltipVisible] = useState(false);
-  const [selectedVerse, setSelectedVerse] = useState<number | null>(null);
-  const [manualHighlightTooltipVisible, setManualHighlightTooltipVisible] = useState(false);
-  const [selectedHighlightGroup, setSelectedHighlightGroup] = useState<HighlightGroup | null>(null);
-  const [colorPickerModalVisible, setColorPickerModalVisible] = useState(false);
+  const [errorMessage, _setErrorMessage] = useState('An error occurred. Please try again.');
 
   // Group consecutive manual highlights
   const highlightGroups = useMemo(() => {
     return groupConsecutiveHighlights(chapterHighlights);
   }, [chapterHighlights]);
-
-  /**
-   * Show error modal with custom message
-   */
-  const showError = (message: string) => {
-    setErrorMessage(message);
-    setErrorModalVisible(true);
-  };
 
   // Dictionary modal state
   const [dictionaryModalVisible, setDictionaryModalVisible] = useState(false);
@@ -342,17 +302,10 @@ export function ChapterReader({
   const [selectedWord, setSelectedWord] = useState<WordTapEvent | null>(null);
 
   // Line layout information for paragraph groups (for accurate tap detection)
-  // Key: groupKey (e.g., "group-1-5"), Value: array of line info
   const paragraphLineLayoutsRef = useRef<
     Map<
       string,
-      {
-        text: string;
-        y: number;
-        height: number;
-        width: number;
-        startCharOffset: number;
-      }[]
+      { text: string; y: number; height: number; width: number; startCharOffset: number }[]
     >
   >(new Map());
 
@@ -362,7 +315,6 @@ export function ChapterReader({
   const handleVerseLayout = (startVerse: number, y: number) => {
     sectionPositions.current[startVerse] = y;
 
-    // Debounce layout updates to prevent excessive updates and premature scrolling
     if (layoutTimeoutRef.current) {
       clearTimeout(layoutTimeoutRef.current);
     }
@@ -381,71 +333,19 @@ export function ChapterReader({
 
   /**
    * Handle long-press on verse for creating new highlight
-   * DISABLED: No longer opens highlight options modal
    */
   const handleVerseLongPress = (_verseNumber: number) => {
-    // Disabled - long press on verse no longer opens highlight modal
+    // Disabled
     return;
   };
 
   /**
-   * Handle color selection from HighlightSelectionSheet
-   */
-  const handleCreateHighlight = async (color: HighlightColor) => {
-    if (!selectionContext) return;
-
-    const { verseNumber, selection } = selectionContext;
-
-    // Get the verse to check if this is a full-verse highlight
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === verseNumber);
-
-    // Check if selection covers the entire verse
-    const isFullVerse = verse && selection.start === 0 && selection.end === verse.text.length;
-
-    try {
-      await addHighlight({
-        bookId: chapter.bookId,
-        chapterNumber: chapter.chapterNumber,
-        startVerse: verseNumber,
-        endVerse: verseNumber,
-        color,
-        // Only include startChar/endChar for partial verse highlights
-        ...(isFullVerse
-          ? { selectedText: selection.text }
-          : {
-              startChar: selection.start,
-              endChar: selection.end,
-              selectedText: selection.text,
-            }),
-      });
-
-      setSelectionSheetVisible(false);
-      setSelectionContext(null);
-    } catch (error) {
-      console.error('Failed to create highlight:', error);
-
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      if (errorMsg.toLowerCase().includes('overlap')) {
-        showError(
-          'This text overlaps with an existing highlight. Please delete the existing highlight first or select different text.'
-        );
-      } else {
-        showError('Failed to create highlight. Please try again.');
-      }
-    }
-  };
-
-  /**
    * Handle tap on highlighted text
-   * Shows grouped tooltip if part of consecutive group, otherwise shows tooltip for single highlight
+   * Shows grouped tooltip via context
    */
   const handleHighlightTap = (highlightId: number) => {
-    // Try to find in grouped highlights first (full-verse highlights only)
     let group = findGroupByHighlightId(highlightGroups, highlightId);
 
-    // If not found, it's a character-level highlight - create a single-item group for it
     if (!group) {
       const highlight = chapterHighlights.find((h) => h.highlight_id === highlightId);
       if (highlight) {
@@ -460,124 +360,47 @@ export function ChapterReader({
     }
 
     if (group) {
-      setSelectedHighlightGroup(group);
-      setManualHighlightTooltipVisible(true);
+      const text =
+        typeof group.highlights[0]?.selected_text === 'string'
+          ? group.highlights[0].selected_text
+          : undefined;
+      openVerseTooltip(null, group, text);
     } else {
-      // Fallback: open edit menu for robustness (e.g. stale ID or failed grouping)
-      setSelectedHighlightId(highlightId);
-      setEditMenuVisible(true);
+      // Fallback
+      const highlight = chapterHighlights.find((h) => h.highlight_id === highlightId);
+      if (highlight) {
+        openHighlightEditMenu(highlight.highlight_id, highlight.color as HighlightColor);
+      }
     }
   };
 
   /**
    * Handle long-press on highlighted text
-   * Shows quick edit menu
+   * Shows quick edit menu via context
    */
   const handleHighlightLongPress = (highlightId: number) => {
-    setSelectedHighlightId(highlightId);
-    setEditMenuVisible(true);
+    const highlight = chapterHighlights.find((h) => h.highlight_id === highlightId);
+    if (highlight) {
+      openHighlightEditMenu(highlightId, highlight.color as HighlightColor);
+    }
   };
 
   /**
    * Handle tap on plain text
-   * Shows verse insight tooltip
+   * Shows verse insight tooltip via context
    */
   const handleVerseTap = (verseNumber: number) => {
-    setSelectedVerse(verseNumber);
-    setVerseInsightTooltipVisible(true);
+    const verse = chapter.sections
+      .flatMap((section) => section.verses)
+      .find((v) => v.verseNumber === verseNumber);
+    openVerseTooltip(verseNumber, null, verse?.text);
   };
 
   /**
    * Handle tap on auto-highlighted text
    */
   const handleAutoHighlightPress = (autoHighlight: AutoHighlight) => {
-    setSelectedAutoHighlight(autoHighlight);
-    setAutoHighlightTooltipVisible(true);
-  };
-
-  /**
-   * Handle save auto-highlight as user highlight
-   */
-  const handleSaveAutoHighlightAsUserHighlight = async (
-    color: HighlightColor,
-    verseRange: { start: number; end: number },
-    selectedText?: string
-  ) => {
-    try {
-      await addHighlight({
-        bookId: chapter.bookId,
-        chapterNumber: chapter.chapterNumber,
-        startVerse: verseRange.start,
-        endVerse: verseRange.end,
-        color,
-        selectedText,
-      });
-      showToast('Highlight saved to your collection!');
-    } catch (error) {
-      console.error('Failed to save auto-highlight as user highlight:', error);
-      setErrorModalVisible(true);
-    }
-  };
-
-  /**
-   * Handle color change from HighlightEditMenu
-   */
-  const handleUpdateHighlightColor = async (color: HighlightColor) => {
-    // If we have a group to edit, update all highlights in the group
-    if (selectedHighlightGroupForEdit) {
-      try {
-        // Update all highlights in the group
-        await Promise.all(
-          selectedHighlightGroupForEdit.highlights.map((h) =>
-            updateHighlightColor(h.highlight_id, color)
-          )
-        );
-        setEditMenuVisible(false);
-        setSelectedHighlightId(null);
-        setSelectedHighlightGroupForEdit(null);
-      } catch (error) {
-        console.error('Failed to update highlight colors:', error);
-        showError('Failed to update highlight colors. Please try again.');
-      }
-      return;
-    }
-
-    // Fallback to single highlight update
-    if (!selectedHighlightId) return;
-
-    try {
-      await updateHighlightColor(selectedHighlightId, color);
-      setEditMenuVisible(false);
-      setSelectedHighlightId(null);
-    } catch (error) {
-      console.error('Failed to update highlight color:', error);
-      showError('Failed to update highlight color. Please try again.');
-    }
-  };
-
-  /**
-   * Handle delete from HighlightEditMenu
-   */
-  const handleDeleteHighlight = async () => {
-    if (!selectedHighlightId) return;
-
-    try {
-      await deleteHighlight(selectedHighlightId);
-      setEditMenuVisible(false);
-      setSelectedHighlightId(null);
-      setSelectedHighlightGroupForEdit(null);
-    } catch (error) {
-      console.error('Failed to delete highlight:', error);
-      showError('Failed to delete highlight. Please try again.');
-    }
-  };
-
-  /**
-   * Handle close HighlightSelectionSheet
-   */
-  const handleSelectionSheetClose = () => {
-    setSelectionSheetVisible(false);
-    setSelectionContext(null);
+    openAutoHighlightTooltip(autoHighlight);
   };
 
   /**
@@ -589,8 +412,7 @@ export function ChapterReader({
   };
 
   /**
-   * Handle word tap from HighlightedText (legacy - not used in paragraph mode)
-   * Shows the floating selection menu
+   * Handle word tap from HighlightedText
    */
   const handleWordTap = useCallback((event: WordTapEvent) => {
     setSelectedWord(event);
@@ -599,13 +421,10 @@ export function ChapterReader({
 
   /**
    * Handle text layout event to capture line positions
-   * This is called when the Text component renders and provides line-by-line layout info
    */
   const handleTextLayout = useCallback(
     (groupKey: string, event: NativeSyntheticEvent<TextLayoutEventData>) => {
       const { lines } = event.nativeEvent;
-
-      // Build line info with cumulative character offsets
       let charOffset = 0;
       const lineInfo = lines.map((line) => {
         const info = {
@@ -618,7 +437,6 @@ export function ChapterReader({
         charOffset += line.text.length;
         return info;
       });
-
       paragraphLineLayoutsRef.current.set(groupKey, lineInfo);
     },
     []
@@ -626,7 +444,6 @@ export function ChapterReader({
 
   /**
    * Handle tap on paragraph to detect which word was tapped
-   * Uses line layout info from onTextLayout to accurately detect which line was tapped
    */
   const handleParagraphTap = useCallback(
     (
@@ -635,12 +452,8 @@ export function ChapterReader({
       groupKey: string
     ) => {
       const { pageX, pageY, locationX, locationY } = event.nativeEvent;
-
-      // Get line layouts for this paragraph group
       const lineLayouts = paragraphLineLayoutsRef.current.get(groupKey);
 
-      // Build verse offsets map for the entire paragraph
-      // This maps global character positions to verse info
       let totalOffset = 0;
       const verseOffsets: {
         verseNumber: number;
@@ -651,13 +464,8 @@ export function ChapterReader({
 
       for (let i = 0; i < group.length; i++) {
         const verse = group[i];
-        // Account for leading spaces/thin spaces between verses
-        if (i > 0) {
-          // Two thin spaces (prev end + curr start) between verses
-          totalOffset += 2;
-        }
-        // Account for verse number (superscript) and narrow no-break space
-        const verseNumberLength = toSuperscript(verse.verseNumber).length + 1; // +1 for narrow space
+        if (i > 0) totalOffset += 2;
+        const verseNumberLength = toSuperscript(verse.verseNumber).length + 1;
         const verseStart = totalOffset + verseNumberLength;
         const verseEnd = verseStart + verse.text.length;
 
@@ -667,55 +475,43 @@ export function ChapterReader({
           startOffset: verseStart,
           endOffset: verseEnd,
         });
-
         totalOffset = verseEnd;
       }
 
-      // Calculate estimated character position using line layouts if available
       let estimatedCharPos: number;
 
       if (lineLayouts && lineLayouts.length > 0) {
-        // Find which line was tapped using locationY
         let tappedLine = lineLayouts[0];
         for (const line of lineLayouts) {
           if (locationY >= line.y && locationY < line.y + line.height) {
             tappedLine = line;
             break;
           }
-          // If tap is below this line but there are more lines, continue
           if (locationY >= line.y + line.height) {
             tappedLine = line;
           }
         }
 
-        // Estimate character position within the tapped line
         const avgCharWidth = tappedLine.width / Math.max(tappedLine.text.length, 1);
         const charInLine = Math.floor(locationX / avgCharWidth);
         const clampedCharInLine = Math.max(0, Math.min(charInLine, tappedLine.text.length - 1));
-
-        // Calculate global character position
         estimatedCharPos = tappedLine.startCharOffset + clampedCharInLine;
       } else {
-        // Fallback: use old X-only estimation (less accurate for multi-line)
         const avgCharWidth = 9;
         estimatedCharPos = Math.floor(locationX / avgCharWidth);
       }
 
-      // Find which verse contains this position
       const verseInfo = verseOffsets.find(
         (v) => estimatedCharPos >= v.startOffset && estimatedCharPos < v.endOffset
       );
 
       if (!verseInfo) {
-        // Fallback: find nearest verse
+        // Fallback logic
         const firstVerse = group[0];
         if (!firstVerse) return;
-
-        // If position is before first verse text, select first word
         if (estimatedCharPos < verseOffsets[0].startOffset) {
           const wordInfo = getWordAtPosition(firstVerse.text, 0);
           if (!wordInfo) return;
-
           setSelectedWord({
             verseNumber: firstVerse.verseNumber,
             word: wordInfo.word,
@@ -726,14 +522,11 @@ export function ChapterReader({
           setSelectionMenuVisible(true);
           return;
         }
-
-        // If position is after last verse, select last word of last verse
         const lastVerseOffset = verseOffsets[verseOffsets.length - 1];
         if (lastVerseOffset) {
           const lastVerse = group[group.length - 1];
           const wordInfo = getWordAtPosition(lastVerse.text, lastVerse.text.length - 1);
           if (!wordInfo) return;
-
           setSelectedWord({
             verseNumber: lastVerse.verseNumber,
             word: wordInfo.word,
@@ -744,15 +537,11 @@ export function ChapterReader({
           setSelectionMenuVisible(true);
           return;
         }
-
         return;
       }
 
-      // Calculate position within verse text
       const positionInVerse = estimatedCharPos - verseInfo.startOffset;
       const clampedPosition = Math.max(0, Math.min(positionInVerse, verseInfo.text.length - 1));
-
-      // Find word at that position
       const wordInfo = getWordAtPosition(verseInfo.text, clampedPosition);
       if (!wordInfo) return;
 
@@ -774,11 +563,8 @@ export function ChapterReader({
   const handleSingleVerseTap = useCallback(
     (event: GestureResponderEvent, verse: { verseNumber: number; text: string }) => {
       const { pageX, pageY, locationX } = event.nativeEvent;
-
-      // Estimate character position from tap X
       const avgCharWidth = 9;
       const estimatedCharPos = Math.floor(locationX / avgCharWidth);
-
       const wordInfo = getWordAtPosition(verse.text, estimatedCharPos);
       if (!wordInfo) return;
 
@@ -803,19 +589,14 @@ export function ChapterReader({
   }, []);
 
   /**
-   * Handle Select Verse action - selects the entire verse text
+   * Handle Select Verse action
    */
   const handleSelectVerse = useCallback(() => {
     if (!selectedWord) return;
-
-    // Find the verse
     const verse = chapter.sections
       .flatMap((section) => section.verses)
       .find((v) => v.verseNumber === selectedWord.verseNumber);
-
     if (!verse) return;
-
-    // Update selectedWord to reflect full verse selection
     setSelectedWord({
       ...selectedWord,
       startChar: 0,
@@ -825,7 +606,7 @@ export function ChapterReader({
   }, [selectedWord, chapter]);
 
   /**
-   * Handle Define action from selection menu
+   * Handle Define action
    */
   const handleSelectionDefine = useCallback(() => {
     if (!selectedWord) return;
@@ -835,236 +616,52 @@ export function ChapterReader({
   }, [selectedWord, handleSelectionMenuClose]);
 
   /**
-   * Handle Copy action from selection menu
+   * Handle Copy action
    */
   const handleSelectionCopy = useCallback(async () => {
     if (!selectedWord) return;
-
     const verse = chapter.sections
       .flatMap((section) => section.verses)
       .find((v) => v.verseNumber === selectedWord.verseNumber);
-
     let payload = selectedWord.word;
-
     if (verse) {
-      // Prefer exact slice from verse to capture true selection
       const start = Math.max(0, Math.min(selectedWord.startChar, verse.text.length));
       const end = Math.max(start, Math.min(selectedWord.endChar, verse.text.length));
       const selectedSlice = verse.text.slice(start, end) || selectedWord.word;
-
       payload = `"${selectedSlice}" - ${chapter.title} ${selectedWord.verseNumber}`;
     }
-
     await Clipboard.setStringAsync(payload);
     showToast('Copied to clipboard');
     handleSelectionMenuClose();
   }, [selectedWord, chapter, showToast, handleSelectionMenuClose]);
 
   /**
-   * Handle Share action from selection menu
+   * Handle Share action
    */
   const handleSelectionShare = useCallback(async () => {
     if (!selectedWord) return;
-
     const verse = chapter.sections
       .flatMap((section) => section.verses)
       .find((v) => v.verseNumber === selectedWord.verseNumber);
-
     const textToShare = verse
       ? `"${verse.text}"\n\n- ${chapter.title} ${selectedWord.verseNumber}`
       : `"${selectedWord.word}"`;
-
-    await Share.share({
-      message: textToShare,
-    });
+    await Share.share({ message: textToShare });
     handleSelectionMenuClose();
   }, [selectedWord, chapter, handleSelectionMenuClose]);
 
   /**
    * Handle Highlight action from selection menu
-   * Opens the highlight selection sheet with the selected word
+   * Opens the highlight selection sheet via context
    */
   const handleSelectionHighlight = useCallback(() => {
     if (!selectedWord) return;
-
-    // Find the verse text
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === selectedWord.verseNumber);
-
-    if (!verse) return;
-
-    setSelectionContext({
-      verseNumber: selectedWord.verseNumber,
-      selection: {
-        start: selectedWord.startChar,
-        end: selectedWord.endChar,
-        text: selectedWord.word,
-      },
-    });
-    setSelectionSheetVisible(true);
+    openHighlightSelection(
+      { start: selectedWord.verseNumber, end: selectedWord.verseNumber },
+      selectedWord.word
+    );
     handleSelectionMenuClose();
-  }, [selectedWord, chapter, handleSelectionMenuClose]);
-
-  /**
-   * Handle close HighlightEditMenu
-   */
-  const handleEditMenuClose = () => {
-    setEditMenuVisible(false);
-    setSelectedHighlightId(null);
-    setSelectedHighlightGroupForEdit(null);
-  };
-
-  /**
-   * Handle remove grouped highlights
-   */
-  const handleRemoveHighlightGroup = async (group: HighlightGroup) => {
-    // Close modal immediately to prevent re-opening after highlights are deleted
-    setManualHighlightTooltipVisible(false);
-    setSelectedHighlightGroup(null);
-
-    try {
-      // Delete all highlights in the group
-      await Promise.all(group.highlights.map((h) => deleteHighlight(h.highlight_id)));
-      showToast('Highlight group removed');
-    } catch (error) {
-      console.error('Failed to remove highlight group:', error);
-      showError('Failed to remove highlight group. Please try again.');
-    }
-  };
-
-  /**
-   * Handle save from verse insight tooltip
-   * Opens color picker modal
-   */
-  const handleSaveFromVerseInsight = () => {
-    // Close verse insight tooltip and open color picker
-    setVerseInsightTooltipVisible(false);
-    setColorPickerModalVisible(true);
-  };
-
-  /**
-   * Handle color selection from SimpleColorPickerModal
-   * Creates highlight for the selected verse
-   */
-  const handleColorPickerSave = async (color: HighlightColor) => {
-    if (!selectedVerse) return;
-
-    // Store verse number locally before resetting state
-    const verseNumber = selectedVerse;
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === verseNumber);
-
-    if (!verse) return;
-
-    // Close modal and reset state immediately to prevent re-opening
-    setColorPickerModalVisible(false);
-    setSelectedVerse(null);
-
-    try {
-      await addHighlight({
-        bookId: chapter.bookId,
-        chapterNumber: chapter.chapterNumber,
-        startVerse: verseNumber,
-        endVerse: verseNumber,
-        color,
-        selectedText: verse.text,
-      });
-
-      showToast('Highlight saved!');
-    } catch (error) {
-      console.error('Failed to create highlight from verse insight:', error);
-
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      if (errorMsg.toLowerCase().includes('overlap')) {
-        showError(
-          'This verse already has a highlight. Please delete the existing highlight first.'
-        );
-      } else {
-        showError('Failed to create highlight. Please try again.');
-      }
-    }
-  };
-
-  /**
-   * Handle close color picker modal
-   */
-  const handleColorPickerClose = () => {
-    setColorPickerModalVisible(false);
-    setSelectedVerse(null);
-  };
-
-  /**
-   * Handle change color from VerseMate tooltip
-   * Opens the HighlightEditMenu to change color for all highlights in the group
-   */
-  const handleChangeColorFromTooltip = (group: HighlightGroup) => {
-    // Close tooltip and open edit menu for the entire group
-    setManualHighlightTooltipVisible(false);
-    setSelectedHighlightGroup(null);
-
-    // Store the group for batch color updates
-    setSelectedHighlightGroupForEdit(group);
-
-    // Open edit menu with the first highlight's color as the current color
-    const firstHighlight = group.highlights[0];
-    if (firstHighlight) {
-      setSelectedHighlightId(firstHighlight.highlight_id);
-      setEditMenuVisible(true);
-    }
-  };
-
-  /**
-   * Handle add note from VerseMate tooltip
-   * Opens the chapter notes modal
-   */
-  const handleAddNoteFromTooltip = () => {
-    // Close tooltip and clear all modal states
-    setVerseInsightTooltipVisible(false);
-    setManualHighlightTooltipVisible(false);
-    setAutoHighlightTooltipVisible(false);
-    setSelectedVerse(null);
-    setSelectedHighlightGroup(null);
-    setSelectedAutoHighlight(null);
-
-    // Open chapter notes modal
-    onOpenNotes?.();
-  };
-
-  /**
-   * Handle copy from VerseMate tooltip
-   * Shows toast message after verse is copied and clears states
-   */
-  const handleCopyFromTooltip = () => {
-    // Clear all modal states to prevent reopening
-    setVerseInsightTooltipVisible(false);
-    setManualHighlightTooltipVisible(false);
-    setAutoHighlightTooltipVisible(false);
-    setSelectedVerse(null);
-    setSelectedHighlightGroup(null);
-    setSelectedAutoHighlight(null);
-
-    // Show success toast
-    showToast('Verse copied to clipboard');
-  };
-
-  /**
-   * Get verse text for VerseMate tooltip
-   */
-  const getVerseTextForTooltip = (): string | undefined => {
-    const verseNum = selectedVerse ?? selectedHighlightGroup?.startVerse;
-    if (!verseNum) return undefined;
-
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === verseNum);
-
-    return verse?.text;
-  };
-
-  const currentHighlight = chapterHighlights.find((h) => h.highlight_id === selectedHighlightId);
-  const currentHighlightColor = currentHighlight?.color || 'yellow';
+  }, [selectedWord, openHighlightSelection, handleSelectionMenuClose]);
 
   return (
     <View style={styles.container} collapsable={false}>
@@ -1096,7 +693,7 @@ export function ChapterReader({
       {!explanationsOnly &&
         chapter.sections.map((section) => (
           <Fragment key={`section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`}>
-            {/* Section Subtitle (if present) */}
+            {/* Section Subtitle */}
             {section.subtitle ? (
               <Text style={styles.sectionSubtitle} accessibilityRole="header">
                 {section.subtitle}
@@ -1139,8 +736,6 @@ export function ChapterReader({
                         onPress={(e) => handleParagraphTap(e, group, groupKey)}
                       >
                         {group.map((verse, verseIndex) => {
-                          // Determine background color for verse number (from current verse's start)
-                          // We calculate this early to use it for the second half of the leading space
                           let currBackgroundColor: string | undefined;
                           const startHighlight = getStartHighlight(
                             verse.verseNumber,
@@ -1160,7 +755,6 @@ export function ChapterReader({
                             currBackgroundColor = baseColor + opacityHex;
                           }
 
-                          // Determine background color for leading space (from previous verse's end)
                           let prevBackgroundColor: string | undefined;
                           if (verseIndex > 0) {
                             const prevVerse = group[verseIndex - 1];
@@ -1184,7 +778,6 @@ export function ChapterReader({
                             }
                           }
 
-                          // Determine background color for trailing space (only if current highlight continues or next verse is highlighted)
                           let trailingSpaceBackgroundColor: string | undefined;
                           const currentVerseEndHighlight = getEndHighlight(
                             verse.verseNumber,
@@ -1228,7 +821,6 @@ export function ChapterReader({
                               <Text style={styles.verseNumberSuperscript}>
                                 {verseIndex > 0 && (
                                   <>
-                                    {/* First half of whitespace: matches previous verse */}
                                     <Text
                                       style={
                                         prevBackgroundColor && {
@@ -1236,9 +828,8 @@ export function ChapterReader({
                                         }
                                       }
                                     >
-                                      {'\u2009'}
+                                      {' '}
                                     </Text>
-                                    {/* Second half of whitespace: matches current verse */}
                                     <Text
                                       style={
                                         currBackgroundColor && {
@@ -1246,7 +837,7 @@ export function ChapterReader({
                                         }
                                       }
                                     >
-                                      {'\u2009'}
+                                      {' '}
                                     </Text>
                                   </>
                                 )}
@@ -1266,7 +857,7 @@ export function ChapterReader({
                                     }
                                   }
                                 >
-                                  {'\u202F'}
+                                  {' '}
                                 </Text>
                               </Text>
                               <HighlightedText
@@ -1350,74 +941,12 @@ export function ChapterReader({
         </View>
       )}
 
-      {/* Highlight Selection Sheet */}
-      {selectionContext && (
-        <HighlightSelectionSheet
-          visible={selectionSheetVisible}
-          verseRange={{
-            start: selectionContext.verseNumber,
-            end: selectionContext.verseNumber,
-          }}
-          onColorSelect={handleCreateHighlight}
-          onClose={handleSelectionSheetClose}
-        />
-      )}
-
-      {/* Highlight Edit Menu */}
-      {selectedHighlightId && (
-        <HighlightEditMenu
-          visible={editMenuVisible}
-          currentColor={currentHighlightColor}
-          onColorChange={handleUpdateHighlightColor}
-          onDelete={handleDeleteHighlight}
-          onClose={handleEditMenuClose}
-        />
-      )}
-
-      {/* Auto-Highlight Tooltip */}
-      <AutoHighlightTooltip
-        autoHighlight={selectedAutoHighlight}
-        visible={autoHighlightTooltipVisible}
-        onClose={() => {
-          setAutoHighlightTooltipVisible(false);
-          setSelectedAutoHighlight(null);
-        }}
-        onSaveAsUserHighlight={handleSaveAutoHighlightAsUserHighlight}
-        onCopy={handleCopyFromTooltip}
-        onAddNote={handleAddNoteFromTooltip}
-        bookName={chapter.bookName}
-        isLoggedIn={!!user}
-      />
-
-      {/* VerseMate Tooltip - Unified for both plain and highlighted verses */}
-      <VerseMateTooltip
-        verseNumber={selectedVerse}
-        highlightGroup={selectedHighlightGroup}
-        bookId={chapter.bookId}
-        chapterNumber={chapter.chapterNumber}
-        bookName={chapter.bookName}
-        visible={verseInsightTooltipVisible || manualHighlightTooltipVisible}
-        onClose={() => {
-          setVerseInsightTooltipVisible(false);
-          setManualHighlightTooltipVisible(false);
-          setSelectedVerse(null);
-          setSelectedHighlightGroup(null);
-        }}
-        onSaveAsHighlight={handleSaveFromVerseInsight}
-        onRemoveHighlight={handleRemoveHighlightGroup}
-        onChangeColor={handleChangeColorFromTooltip}
-        onAddNote={handleAddNoteFromTooltip}
-        onCopy={handleCopyFromTooltip}
-        verseText={getVerseTextForTooltip()}
-        isLoggedIn={!!user}
-      />
-
-      {/* Simple Color Picker Modal */}
-      <SimpleColorPickerModal
-        visible={colorPickerModalVisible}
-        onClose={handleColorPickerClose}
-        onSave={handleColorPickerSave}
-      />
+      {/* 
+          NOTE: Tooltips and Modals (VerseMateTooltip, HighlightSelectionSheet, etc.)
+          are now rendered by the BibleInteractionContext provider at the ChapterScreen level.
+          This allows them to float over the SplitView right panel without being clipped
+          by the left panel's overflow.
+      */}
 
       {/* Error Modal */}
       <ErrorModal

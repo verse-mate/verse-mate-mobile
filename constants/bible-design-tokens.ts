@@ -660,3 +660,117 @@ export function getSpacing(key: SpacingKey): number {
 export function getFontSize(key: FontSizeKey): number {
   return fontSizes[key];
 }
+
+// ============================================================================
+// Split View / Landscape / Tablet Specifications
+// ============================================================================
+
+/**
+ * Split view layout specifications
+ *
+ * Based on Figma design:
+ * - Left panel: 640px (Bible references/content)
+ * - Right panel: 554px (Commentary/Explanations)
+ * - Total: 1194px
+ * - Default ratio: 640/1194 = 0.536
+ *
+ * @see Spec: agent-os/specs/landscape-tablet-optimization/plan.md
+ */
+export const splitViewSpecs = {
+  light: {
+    // Panel dimensions
+    /** Default split ratio (left panel proportion) - from Figma 640/(640+554) */
+    defaultSplitRatio: 0.536,
+    /** Minimum panel width to prevent unusable narrow panels */
+    minPanelWidth: 320,
+    /** Maximum panel width on very wide screens */
+    maxPanelWidth: 700,
+    /** Minimum screen width to enable split view */
+    minSplitViewWidth: 900,
+
+    // Divider
+    /** Divider line width */
+    dividerWidth: 1,
+    /** Divider drag handle size */
+    dividerHandleSize: 28,
+    /** Divider line color */
+    dividerColor: colors.light.gray200,
+    /** Divider handle background when pressed */
+    dividerHandleActiveColor: colors.light.gray100,
+
+    // Header
+    /** Panel header height (matches main header) */
+    headerHeight: 56,
+    /** Panel header background - dark grey from Figma */
+    headerBackground: '#1b1b1b',
+    /** Panel header text color */
+    headerTextColor: colors.light.white,
+
+    // Tab selector (in explanations panel header)
+    /** Active tab background - golden from Figma */
+    activeTabBackground: colors.light.gold,
+    /** Active tab text color */
+    activeTabTextColor: colors.light.black,
+    /** Inactive tab background - semi-transparent white */
+    inactiveTabBackground: 'rgba(255, 255, 255, 0.2)',
+    /** Inactive tab text color */
+    inactiveTabTextColor: colors.light.white,
+
+    // Progress bar (bottom of left panel)
+    /** Progress bar container height */
+    progressBarHeight: 32,
+    /** Progress bar track color */
+    progressBarTrackColor: '#eae6de',
+    /** Progress bar fill color */
+    progressBarFillColor: colors.light.gold,
+
+    // Navigation buttons (floating on left panel)
+    /** Navigation button size */
+    navButtonSize: 44,
+    /** Navigation button background */
+    navButtonBackground: 'rgba(0, 0, 0, 0.7)',
+    /** Navigation button icon color */
+    navButtonIconColor: colors.light.white,
+  },
+  dark: {
+    // Panel dimensions (same as light)
+    defaultSplitRatio: 0.536,
+    minPanelWidth: 320,
+    maxPanelWidth: 700,
+    minSplitViewWidth: 900,
+
+    // Divider
+    dividerWidth: 1,
+    dividerHandleSize: 28,
+    dividerColor: colors.dark.border,
+    dividerHandleActiveColor: colors.dark.backgroundOverlay,
+
+    // Header
+    headerHeight: 56,
+    headerBackground: colors.dark.darkGrey,
+    headerTextColor: colors.dark.white,
+
+    // Tab selector
+    activeTabBackground: colors.dark.gold,
+    activeTabTextColor: colors.dark.background,
+    inactiveTabBackground: 'rgba(255, 255, 255, 0.2)',
+    inactiveTabTextColor: colors.dark.white,
+
+    // Progress bar
+    progressBarHeight: 32,
+    progressBarTrackColor: colors.dark.backgroundElevated,
+    progressBarFillColor: colors.dark.gold,
+
+    // Navigation buttons
+    navButtonSize: 44,
+    navButtonBackground: 'rgba(0, 0, 0, 0.7)',
+    navButtonIconColor: colors.dark.white,
+  },
+} as const;
+
+/**
+ * Get split view specs for a specific theme mode
+ */
+export function getSplitViewSpecs(mode: ThemeMode) {
+  return splitViewSpecs[mode];
+}

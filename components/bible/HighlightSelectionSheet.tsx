@@ -38,6 +38,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,6 +53,7 @@ import {
 } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 
 /**
  * Verse range for the highlight selection
@@ -75,6 +77,8 @@ export interface HighlightSelectionSheetProps {
   onColorSelect: (color: HighlightColor) => void;
   /** Callback when modal is closed */
   onClose: () => void;
+  /** Whether to use a system Modal (true) or a View overlay (false) */
+  useModal?: boolean;
 }
 
 /**
@@ -87,9 +91,20 @@ export function HighlightSelectionSheet({
   verseRange,
   onColorSelect,
   onClose,
+  useModal = true,
 }: HighlightSelectionSheetProps) {
   const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+  const { useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { width: windowWidth } = useWindowDimensions();
+
+  // Calculate dynamic right panel width if in split view (and right panel is visible)
+  const rightPanelWidth =
+    useSplitView && splitViewMode !== 'left-full' ? windowWidth * (1 - splitRatio) : undefined;
+
+  const styles = useMemo(
+    () => createStyles(colors, mode, rightPanelWidth),
+    [colors, mode, rightPanelWidth]
+  );
 
   /**
    * Format verse range for display
@@ -126,82 +141,110 @@ export function HighlightSelectionSheet({
     console.log(`Quick action: ${action}`);
   };
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.modalContainer}
-      >
-        <Pressable style={styles.backdrop} onPress={handleBackdropPress} testID="backdrop" />
+  const content = (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.modalContainer}
+      pointerEvents="box-none"
+    >
+      <Pressable
+        style={[
+          styles.backdrop,
+          // Constrain backdrop to right panel in split view mode
+          !useModal && rightPanelWidth
+            ? {
+                left: windowWidth - rightPanelWidth,
+                width: rightPanelWidth,
+              }
+            : undefined,
+        ]}
+        onPress={handleBackdropPress}
+        testID="backdrop"
+        pointerEvents="auto"
+      />
 
-        <SafeAreaView style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.verseRangeLabel}>{verseRangeLabel}</Text>
-            <Pressable
-              onPress={handleBackdropPress}
-              style={styles.closeButton}
-              testID="close-button"
-            >
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </Pressable>
+      <SafeAreaView style={styles.modalContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.verseRangeLabel}>{verseRangeLabel}</Text>
+          <Pressable onPress={handleBackdropPress} style={styles.closeButton} testID="close-button">
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {/* Highlight Verse Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>HIGHLIGHT VERSE</Text>
+
+            <HighlightColorPicker
+              selectedColor="yellow"
+              onColorSelect={handleColorSelect}
+              variant={mode === 'dark' ? 'dark' : 'light'}
+            />
           </View>
 
-          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-            {/* Highlight Verse Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>HIGHLIGHT VERSE</Text>
+          {/* Quick Actions Section */}
+          <View style={styles.quickActions}>
+            {/* Bookmarked */}
+            <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('bookmark')}>
+              <Ionicons name="bookmark" size={20} color={colors.info} />
+              <Text style={styles.quickActionText}>Bookmarked</Text>
+            </Pressable>
 
-              <HighlightColorPicker
-                selectedColor="yellow"
-                onColorSelect={handleColorSelect}
-                variant={mode === 'dark' ? 'dark' : 'light'}
-              />
-            </View>
+            {/* Take a Note */}
+            <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('note')}>
+              <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
+              <Text style={styles.quickActionText}>Take a Note</Text>
+            </Pressable>
 
-            {/* Quick Actions Section */}
-            <View style={styles.quickActions}>
-              {/* Bookmarked */}
-              <Pressable
-                style={styles.quickActionItem}
-                onPress={() => handleQuickAction('bookmark')}
-              >
-                <Ionicons name="bookmark" size={20} color={colors.info} />
-                <Text style={styles.quickActionText}>Bookmarked</Text>
-              </Pressable>
+            {/* Copy Verse */}
+            <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('copy')}>
+              <Ionicons name="copy-outline" size={20} color={colors.textSecondary} />
+              <Text style={styles.quickActionText}>Copy Verse</Text>
+            </Pressable>
 
-              {/* Take a Note */}
-              <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('note')}>
-                <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
-                <Text style={styles.quickActionText}>Take a Note</Text>
-              </Pressable>
+            {/* Share Verse */}
+            <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('share')}>
+              <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+              <Text style={styles.quickActionText}>Share Verse</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
+  );
 
-              {/* Copy Verse */}
-              <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('copy')}>
-                <Ionicons name="copy-outline" size={20} color={colors.textSecondary} />
-                <Text style={styles.quickActionText}>Copy Verse</Text>
-              </Pressable>
+  if (useModal) {
+    return (
+      <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+        {content}
+      </Modal>
+    );
+  }
 
-              {/* Share Verse */}
-              <Pressable style={styles.quickActionItem} onPress={() => handleQuickAction('share')}>
-                <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
-                <Text style={styles.quickActionText}>Share Verse</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
+  // Non-modal rendering (Overlay)
+  if (!visible) return null;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {content}
+    </View>
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  mode: ThemeMode,
+  rightPanelWidth?: number
+) => {
   const modalSpecs = getModalSpecs(mode);
 
   return StyleSheet.create({
     modalContainer: {
       flex: 1,
       justifyContent: 'flex-end',
+      alignItems: rightPanelWidth ? 'flex-end' : undefined, // Align to right if split view
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -209,9 +252,10 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     },
     modalContent: {
       height: modalSpecs.height,
+      width: rightPanelWidth ?? '100%', // Use dynamic width or full width
       backgroundColor: modalSpecs.backgroundColor,
       borderTopLeftRadius: modalSpecs.borderTopLeftRadius,
-      borderTopRightRadius: modalSpecs.borderTopRightRadius,
+      borderTopRightRadius: rightPanelWidth ? 0 : modalSpecs.borderTopRightRadius, // Remove corner if pinned
     },
     header: {
       flexDirection: 'row',

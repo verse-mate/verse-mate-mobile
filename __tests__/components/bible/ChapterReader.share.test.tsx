@@ -10,6 +10,7 @@ import { render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { useAuth } from '@/contexts/AuthContext';
+import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
@@ -49,11 +50,24 @@ const queryClient = new QueryClient({
 process.env.EXPO_PUBLIC_WEB_URL = 'https://app.versemate.org';
 
 // Test wrapper with required providers
-const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const TestWrapper: React.FC<{
+  children: React.ReactNode;
+  bookId: number;
+  chapterNumber: number;
+  bookName: string;
+}> = ({ children, bookId, chapterNumber, bookName }) => (
   <SafeAreaProvider>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <BibleInteractionProvider
+            bookId={bookId}
+            chapterNumber={chapterNumber}
+            bookName={bookName}
+          >
+            {children}
+          </BibleInteractionProvider>
+        </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </SafeAreaProvider>
@@ -146,7 +160,11 @@ describe('ChapterReader Share Functionality (removed)', () => {
 
   it('does not render share button in ChapterReader', () => {
     render(
-      <TestWrapper>
+      <TestWrapper
+        bookId={mockChapter.bookId}
+        chapterNumber={mockChapter.chapterNumber}
+        bookName={mockChapter.bookName}
+      >
         <ChapterReader chapter={mockChapter} activeTab="summary" />
       </TestWrapper>
     );

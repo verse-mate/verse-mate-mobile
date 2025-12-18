@@ -22,7 +22,10 @@ import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons'
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { TopicContentPanel } from '@/components/topics/TopicContentPanel';
+import { TopicExplanationsPanel } from '@/components/topics/TopicExplanationsPanel';
 import { TopicPagerView, type TopicPagerViewRef } from '@/components/topics/TopicPagerView';
+import { SplitView } from '@/components/ui/SplitView';
 import {
   fontSizes,
   fontWeights,
@@ -34,6 +37,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useTopicNavigation } from '@/hooks/topics/use-topic-navigation';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useTopicById, useTopicsSearch } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
@@ -59,10 +63,15 @@ const CENTER_INDEX = 2;
  * - Horizontal swipe navigation between topics in the same category
  * - Tab switching between explanation types (summary, byline, detailed)
  * - Navigation to other topics via modal or FAB buttons
+ * - Split view layout for landscape/tablet mode
  */
 export default function TopicDetailScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // Device info for split view detection
+  const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
+    useDeviceInfo();
 
   // Extract topicId from route params
   const params = useLocalSearchParams<{ topicId: string; category?: string }>();
@@ -186,31 +195,47 @@ export default function TopicDetailScreen() {
 
   /**
    * Handle previous topic navigation via FAB button
-   * Uses pagerRef.setPage for smooth animation, then router.push for stack
+   * Uses pagerRef.setPage for smooth animation in portrait, router.push for split view
    */
   const handlePrevious = useCallback(() => {
     if (prevTopic) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      // Use setPage to trigger pager animation (CENTER_INDEX - 1 = 1)
-      pagerRef.current?.setPage(CENTER_INDEX - 1);
+      if (useSplitView) {
+        // In split view, navigate directly via router
+        router.push({
+          pathname: '/topics/[topicId]',
+          params: { topicId: prevTopic.topic_id, category: prevTopic.category },
+        });
+      } else {
+        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX - 1 = 1)
+        pagerRef.current?.setPage(CENTER_INDEX - 1);
+      }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [prevTopic]);
+  }, [prevTopic, useSplitView]);
 
   /**
    * Handle next topic navigation via FAB button
-   * Uses pagerRef.setPage for smooth animation, then router.push for stack
+   * Uses pagerRef.setPage for smooth animation in portrait, router.push for split view
    */
   const handleNext = useCallback(() => {
     if (nextTopic) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      // Use setPage to trigger pager animation (CENTER_INDEX + 1 = 3)
-      pagerRef.current?.setPage(CENTER_INDEX + 1);
+      if (useSplitView) {
+        // In split view, navigate directly via router
+        router.push({
+          pathname: '/topics/[topicId]',
+          params: { topicId: nextTopic.topic_id, category: nextTopic.category },
+        });
+      } else {
+        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX + 1 = 3)
+        pagerRef.current?.setPage(CENTER_INDEX + 1);
+      }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [nextTopic]);
+  }, [nextTopic, useSplitView]);
 
   // Handle share topic
   const handleShare = useCallback(async () => {
@@ -331,59 +356,117 @@ export default function TopicDetailScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <TopicHeader
-        topicName={topic.name}
-        activeView={activeView}
-        onNavigationPress={() => setIsNavigationModalOpen(true)}
-        onViewChange={handleViewChange}
-        onMenuPress={() => setIsMenuOpen(true)}
-      />
+      {/* Split View Layout for Landscape/Tablet */}
+      {useSplitView ? (
+        <>
+          <SplitView
+            splitRatio={splitRatio}
+            onSplitRatioChange={setSplitRatio}
+            viewMode={splitViewMode}
+            onViewModeChange={setSplitViewMode}
+            edgeTabsVisible={fabVisible}
+            leftContent={
+              <TopicContentPanel
+                topicId={topicId}
+                topicName={topic.name}
+                topicDescription={topic.description}
+                onHeaderPress={() => setIsNavigationModalOpen(true)}
+                onShare={handleShare}
+                onNavigatePrev={handlePrevious}
+                onNavigateNext={handleNext}
+                hasPrevTopic={canGoPrevious}
+                hasNextTopic={canGoNext}
+                onScroll={handleScroll}
+                onTap={handleTap}
+                visible={fabVisible}
+              />
+            }
+            rightContent={
+              <TopicExplanationsPanel
+                topicId={topicId}
+                topicName={topic.name}
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+                onMenuPress={() => setIsMenuOpen(true)}
+              />
+            }
+          />
 
-      {/* Content Tabs - Only visible in Explanations view */}
-      {activeView === 'explanations' && (
-        <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} />
+          {/* Navigation Modal */}
+          {isNavigationModalOpen && (
+            <BibleNavigationModal
+              visible={isNavigationModalOpen}
+              currentBookId={1}
+              currentChapter={1}
+              initialTab="TOPICS"
+              initialTopicCategory={category}
+              onClose={() => setIsNavigationModalOpen(false)}
+              onSelectChapter={handleSelectChapter}
+              onSelectTopic={handleSelectTopic}
+            />
+          )}
+
+          {/* Hamburger Menu */}
+          <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+        </>
+      ) : (
+        /* Standard Portrait/Phone Layout */
+        <>
+          {/* Header */}
+          <TopicHeader
+            topicName={topic.name}
+            activeView={activeView}
+            onNavigationPress={() => setIsNavigationModalOpen(true)}
+            onViewChange={handleViewChange}
+            onMenuPress={() => setIsMenuOpen(true)}
+          />
+
+          {/* Content Tabs - Only visible in Explanations view */}
+          {activeView === 'explanations' && (
+            <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} />
+          )}
+
+          {/* TopicPagerView - 5-page sliding window for swipe navigation */}
+          <TopicPagerView
+            ref={pagerRef}
+            initialTopicId={topicId}
+            category={category}
+            sortedTopics={sortedTopics}
+            activeTab={activeTab}
+            activeView={activeView}
+            onPageChange={handlePageChange}
+            onScroll={handleScroll}
+            onTap={handleTap}
+            onShare={handleShare}
+          />
+
+          {/* Floating Action Buttons for Topic Navigation - Same fade behavior as portrait */}
+          <FloatingActionButtons
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            showPrevious={canGoPrevious}
+            showNext={canGoNext}
+            visible={fabVisible}
+          />
+
+          {/* Navigation Modal */}
+          {isNavigationModalOpen && (
+            <BibleNavigationModal
+              visible={isNavigationModalOpen}
+              currentBookId={1} // Default to Genesis
+              currentChapter={1}
+              initialTab="TOPICS"
+              initialTopicCategory={category}
+              onClose={() => setIsNavigationModalOpen(false)}
+              onSelectChapter={handleSelectChapter}
+              onSelectTopic={handleSelectTopic}
+            />
+          )}
+
+          {/* Hamburger Menu */}
+          <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+        </>
       )}
-
-      {/* TopicPagerView - 5-page sliding window for swipe navigation */}
-      <TopicPagerView
-        ref={pagerRef}
-        initialTopicId={topicId}
-        category={category}
-        sortedTopics={sortedTopics}
-        activeTab={activeTab}
-        activeView={activeView}
-        onPageChange={handlePageChange}
-        onScroll={handleScroll}
-        onTap={handleTap}
-        onShare={handleShare}
-      />
-
-      {/* Floating Action Buttons for Topic Navigation */}
-      <FloatingActionButtons
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        showPrevious={canGoPrevious}
-        showNext={canGoNext}
-        visible={fabVisible}
-      />
-
-      {/* Navigation Modal */}
-      {isNavigationModalOpen && (
-        <BibleNavigationModal
-          visible={isNavigationModalOpen}
-          currentBookId={1} // Default to Genesis
-          currentChapter={1}
-          initialTab="TOPICS"
-          initialTopicCategory={category}
-          onClose={() => setIsNavigationModalOpen(false)}
-          onSelectChapter={handleSelectChapter}
-          onSelectTopic={handleSelectTopic}
-        />
-      )}
-
-      {/* Hamburger Menu */}
-      <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
     </View>
   );
 }
