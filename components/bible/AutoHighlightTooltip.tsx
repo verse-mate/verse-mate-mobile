@@ -652,7 +652,7 @@ const createStyles = (
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
       borderTopRightRadius: tooltipWidth ? 0 : 16,
-      maxHeight: '80%',
+      maxHeight: '95%',
       width: tooltipWidth ?? '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },

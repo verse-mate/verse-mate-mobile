@@ -781,7 +781,7 @@ const createStyles = (
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
       borderTopRightRadius: tooltipWidth ? 0 : 16, // Remove corner radius if attached to right edge
-      maxHeight: '80%',
+      maxHeight: '100%',
       width: tooltipWidth ?? '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
