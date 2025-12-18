@@ -175,22 +175,53 @@ function loadSqlQuery(queryFile: string): string {
 }
 
 /**
+ * Extract the first SQL statement from a file (ignores additional statements)
+ *
+ * PostHog HogQL only accepts single statements. SQL files may contain multiple
+ * queries for documentation, but only the first is used for the insight.
+ */
+function extractFirstStatement(sql: string): string {
+  // Remove SQL comments
+  const withoutComments = sql
+    .replace(/--.*$/gm, '') // Single line comments
+    .replace(/\/\*[\s\S]*?\*\//g, ''); // Multi-line comments
+
+  // Split by semicolon and get first non-empty statement
+  const statements = withoutComments
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (statements.length === 0) {
+    throw new Error('No SQL statement found');
+  }
+
+  return statements[0];
+}
+
+/**
  * Convert insight definition to PostHog API input
  *
  * Loads the HogQL query from the SQL file and formats it for the PostHog API.
- * Uses the new query format with kind: 'HogQLQuery' for native SQL support.
+ * Uses DataTableNode with HogQLQuery source for proper visualization support.
  */
 function insightToInput(definition: InsightDefinition): PostHogInsightInput {
   // Load the SQL query from file
-  const sqlQuery = loadSqlQuery(definition.queryFile);
+  const sqlContent = loadSqlQuery(definition.queryFile);
+
+  // Extract first statement (PostHog only accepts single statements)
+  const sqlQuery = extractFirstStatement(sqlContent);
 
   return {
     name: definition.name,
     description: definition.description,
-    // Use the new query format with HogQL
+    // Use DataTableNode wrapper for proper insight visualization
     query: {
-      kind: 'HogQLQuery',
-      query: sqlQuery,
+      kind: 'DataTableNode',
+      source: {
+        kind: 'HogQLQuery',
+        query: sqlQuery,
+      },
     },
     saved: true,
   };
