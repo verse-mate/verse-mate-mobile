@@ -662,10 +662,10 @@ export function VerseMateTooltip({
               </Pressable>
             ) : (
               // Plain verse - not logged in
-              <Pressable style={styles.loginPrompt} onPress={() => setAuthModalType('signup')}>
+              <Pressable style={styles.loginPrompt} onPress={() => setAuthModalType('signin')}>
                 <Ionicons name="log-in-outline" size={20} color={colors.gold} />
                 <Text style={styles.loginPromptText}>
-                  Sign up to save this verse to your collection
+                  Sign in to save this verse to your collection
                 </Text>
               </Pressable>
             )}
