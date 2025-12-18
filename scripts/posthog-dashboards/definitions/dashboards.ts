@@ -153,6 +153,24 @@ const SOCIAL_VIRALITY: DashboardDefinition = {
 };
 
 /**
+ * Dashboard 7: Error Monitoring
+ */
+const ERROR_MONITORING: DashboardDefinition = {
+  id: 'error-monitoring',
+  name: 'Engineering - Error Monitoring',
+  description:
+    'Error monitoring dashboard tracking $exception events from captureException() calls. ' +
+    'Provides aggregate error visibility including error rate health, volume trends, source breakdown, ' +
+    'severity distribution, top failing endpoints, crash rate, and 5xx server error trends. ' +
+    'Essential for engineering/SRE team to assess system health and prioritize fixes.',
+  team: 'Engineering',
+  refreshInterval: 'daily',
+  defaultTimeRange: '7d',
+  pinned: false,
+  tags: ['engineering', 'errors', 'monitoring', 'exceptions'],
+};
+
+/**
  * All dashboard definitions
  */
 export const DASHBOARD_DEFINITIONS: DashboardDefinition[] = [
@@ -162,6 +180,7 @@ export const DASHBOARD_DEFINITIONS: DashboardDefinition[] = [
   AI_PERFORMANCE,
   TECHNICAL_HEALTH,
   SOCIAL_VIRALITY,
+  ERROR_MONITORING,
 ];
 
 /**
@@ -209,6 +228,7 @@ export const DASHBOARD_ID_TO_NAME: Record<DashboardId, string> = {
   'ai-performance': 'Product - AI Feature Performance',
   'technical-health': 'Engineering - Technical Health',
   'social-virality': 'Marketing - Social & Virality',
+  'error-monitoring': 'Engineering - Error Monitoring',
 };
 
 /**
@@ -221,4 +241,5 @@ export const DASHBOARD_NAME_TO_ID: Record<string, DashboardId> = {
   'Product - AI Feature Performance': 'ai-performance',
   'Engineering - Technical Health': 'technical-health',
   'Marketing - Social & Virality': 'social-virality',
+  'Engineering - Error Monitoring': 'error-monitoring',
 };

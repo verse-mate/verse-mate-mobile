@@ -36,7 +36,8 @@ export type DashboardId =
   | 'retention-growth'
   | 'ai-performance'
   | 'technical-health'
-  | 'social-virality';
+  | 'social-virality'
+  | 'error-monitoring';
 
 /**
  * Insight definition interface
@@ -468,6 +469,76 @@ const SOCIAL_VIRALITY_INSIGHTS: InsightDefinition[] = [
 ];
 
 /**
+ * Error Monitoring insights (Dashboard 7)
+ */
+const ERROR_MONITORING_INSIGHTS: InsightDefinition[] = [
+  {
+    name: 'Number - Error Rate Health',
+    description:
+      'Primary health indicator showing overall error rate as a percentage. Traffic-light status: green (<1%), yellow (1-5%), red (>5%). Uses 7-day window for stable calculation.',
+    queryFile: 'error-monitoring/error-rate-health.sql',
+    visualizationType: 'Number',
+    dashboards: ['error-monitoring'],
+    timeWindow: '7d',
+    layoutHint: { row: 0, col: 0 }, // Top-left for critical metric
+  },
+  {
+    name: 'Trend - Error Volume',
+    description:
+      'Line chart showing $exception count over time with daily granularity. Includes 7-day rolling average for baseline comparison.',
+    queryFile: 'error-monitoring/error-volume-trend.sql',
+    visualizationType: 'Trend',
+    dashboards: ['error-monitoring'],
+    timeWindow: '30d',
+  },
+  {
+    name: 'Bar - Errors by Source',
+    description:
+      'Breakdown of errors by source: error-boundary, react-query, network-error, backend. Helps identify which system component is generating errors.',
+    queryFile: 'error-monitoring/errors-by-source.sql',
+    visualizationType: 'Bar',
+    dashboards: ['error-monitoring'],
+    timeWindow: '7d',
+  },
+  {
+    name: 'Bar - Errors by Severity',
+    description:
+      'Group errors into severity buckets: 4xx (client errors), 5xx (server errors), crash (error boundary). Excludes 401 auth flow errors.',
+    queryFile: 'error-monitoring/errors-by-severity.sql',
+    visualizationType: 'Bar',
+    dashboards: ['error-monitoring'],
+    timeWindow: '7d',
+  },
+  {
+    name: 'Table - Top Endpoints with Errors',
+    description:
+      'Top 10 API endpoints by error count. Shows endpoint, method, error count, and most common status code for investigation.',
+    queryFile: 'error-monitoring/top-endpoints-with-errors.sql',
+    visualizationType: 'Table',
+    dashboards: ['error-monitoring'],
+    timeWindow: '7d',
+  },
+  {
+    name: 'Number - Crash Rate',
+    description:
+      'Error boundary trigger rate as percentage of sessions. Traffic-light status: green (<0.1%), yellow (0.1-0.5%), red (>0.5%). Critical for mobile UX.',
+    queryFile: 'error-monitoring/crash-rate.sql',
+    visualizationType: 'Number',
+    dashboards: ['error-monitoring'],
+    timeWindow: '7d',
+  },
+  {
+    name: 'Trend - 5xx Rate',
+    description:
+      'Trend line showing 5xx server error rate over time. Helps identify backend stability trends and correlate with incidents.',
+    queryFile: 'error-monitoring/server-error-rate-trend.sql',
+    visualizationType: 'Trend',
+    dashboards: ['error-monitoring'],
+    timeWindow: '30d',
+  },
+];
+
+/**
  * All insight definitions combined
  */
 export const INSIGHT_DEFINITIONS: InsightDefinition[] = [
@@ -477,6 +548,7 @@ export const INSIGHT_DEFINITIONS: InsightDefinition[] = [
   ...AI_PERFORMANCE_INSIGHTS,
   ...TECHNICAL_HEALTH_INSIGHTS,
   ...SOCIAL_VIRALITY_INSIGHTS,
+  ...ERROR_MONITORING_INSIGHTS,
 ];
 
 /**

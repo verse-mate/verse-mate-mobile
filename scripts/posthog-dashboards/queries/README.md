@@ -124,13 +124,21 @@ queries/
 │   │   ├── geographic-distribution.sql
 │   │   ├── logout-patterns.sql
 │   │   └── login-frequency.sql
-│   └── social-virality/         # Dashboard 6 (6 queries)
-│       ├── total-shares.sql
-│       ├── share-rate.sql
-│       ├── chapter-sharing-patterns.sql
-│       ├── topic-sharing-patterns.sql
-│       ├── sharing-trends.sql
-│       └── super-sharers.sql
+│   ├── social-virality/         # Dashboard 6 (6 queries)
+│   │   ├── total-shares.sql
+│   │   ├── share-rate.sql
+│   │   ├── chapter-sharing-patterns.sql
+│   │   ├── topic-sharing-patterns.sql
+│   │   ├── sharing-trends.sql
+│   │   └── super-sharers.sql
+│   └── error-monitoring/        # Dashboard 7 (7 queries)
+│       ├── error-rate-health.sql
+│       ├── error-volume-trend.sql
+│       ├── errors-by-source.sql
+│       ├── errors-by-severity.sql
+│       ├── top-endpoints-with-errors.sql
+│       ├── crash-rate.sql
+│       └── server-error-rate-trend.sql
 └── funnels/                     # Funnel definitions (6 queries)
     ├── activation-funnel.sql    # Signup -> Chapter -> Feature -> D1
     ├── core-reading-funnel.sql  # Session -> Chapter -> 90% scroll
@@ -140,7 +148,7 @@ queries/
     └── feature-depth-funnel.sql # Highlight -> Edit
 ```
 
-**Total: 65 query files** (14 cohorts + 41 insights + 6 funnels)
+**Total: 72 query files** (14 cohorts + 48 insights + 6 funnels)
 
 ## Query Catalog
 
@@ -215,6 +223,22 @@ queries/
 | `sharing-trends.sql` | Line | Weekly share volume |
 | `super-sharers.sql` | Number | Top 10% sharer count |
 
+### Error Monitoring Dashboard
+
+| Query | Type | Description |
+|-------|------|-------------|
+| `error-rate-health.sql` | Number | Overall error rate with traffic-light status |
+| `error-volume-trend.sql` | Trend | Daily error count with 7-day rolling average |
+| `errors-by-source.sql` | Bar | Breakdown by error-boundary, react-query, network-error, backend |
+| `errors-by-severity.sql` | Bar | Group by 4xx, 5xx, crash severity buckets |
+| `top-endpoints-with-errors.sql` | Table | Top 10 API endpoints by error count |
+| `crash-rate.sql` | Number | Error boundary rate as % of sessions |
+| `server-error-rate-trend.sql` | Trend | 5xx server error rate over time |
+
+**Traffic-Light Thresholds:**
+- **Error Rate Health**: green (<1%), yellow (1-5%), red (>5%)
+- **Crash Rate**: green (<0.1%), yellow (0.1-0.5%), red (>0.5%)
+
 ## How to Use These Queries
 
 ### Method 1: Copy/Paste into PostHog UI
@@ -266,6 +290,7 @@ Format: `[Team] - Dashboard Name`
 - Product - AI Feature Performance
 - Engineering - Technical Health
 - Marketing - Social & Virality
+- Engineering - Error Monitoring
 
 ### Insight Names
 Format: `[Type] - Metric Name`
@@ -342,6 +367,24 @@ All 23 tracked events from `lib/analytics/types.ts`:
 | `VIEW_MODE_DURATION` | Time in view mode | `viewMode`, `duration_seconds` |
 | `TOOLTIP_READING_DURATION` | Time viewing tooltip | `duration_seconds`, `verseNumber` |
 | `CHAPTER_SCROLL_DEPTH` | Scroll depth reached | `maxScrollDepthPercent` |
+
+### Error Events (1)
+| Event | Description | Key Properties |
+|-------|-------------|----------------|
+| `$exception` | Exception captured | `componentStack`, `message`, `statusCode`, `endpoint`, `method`, `source`, `context`, `url` |
+
+**Error Property Reference:**
+
+| Property | Source | Description |
+|----------|--------|-------------|
+| `componentStack` | Error Boundary | React component stack trace |
+| `message` | All | Error message string |
+| `statusCode` | react-query, network-error | HTTP status code (e.g., 404, 500) |
+| `endpoint` | react-query, network-error | API endpoint path |
+| `method` | react-query, network-error | HTTP method (GET, POST, etc.) |
+| `source` | react-query | Value: `'react-query'` |
+| `context` | network-error | Value: `'network-error'` |
+| `url` | network-error | Full request URL |
 
 ## User Properties
 
