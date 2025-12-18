@@ -19,6 +19,8 @@
  *   POSTHOG_HOST           PostHog instance URL (optional, defaults to cloud)
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { createPostHogApiClient, type PostHogApiClient } from './api/client';
 import { CohortsApi } from './api/cohorts';
 import { DashboardsApi } from './api/dashboards';
@@ -152,16 +154,74 @@ function cohortToInput(definition: CohortDefinition): PostHogCohortInput {
 }
 
 /**
+ * Base path for SQL query files
+ */
+const QUERIES_BASE_PATH = path.join(__dirname, 'queries', 'insights');
+
+/**
+ * Load SQL query from file
+ *
+ * @param queryFile Path relative to queries/insights/
+ * @returns SQL query string
+ */
+function loadSqlQuery(queryFile: string): string {
+  const filePath = path.join(QUERIES_BASE_PATH, queryFile);
+
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`SQL query file not found: ${filePath}`);
+  }
+
+  return fs.readFileSync(filePath, 'utf-8').trim();
+}
+
+/**
+ * Extract the first SQL statement from a file (ignores additional statements)
+ *
+ * PostHog HogQL only accepts single statements. SQL files may contain multiple
+ * queries for documentation, but only the first is used for the insight.
+ */
+function extractFirstStatement(sql: string): string {
+  // Remove SQL comments
+  const withoutComments = sql
+    .replace(/--.*$/gm, '') // Single line comments
+    .replace(/\/\*[\s\S]*?\*\//g, ''); // Multi-line comments
+
+  // Split by semicolon and get first non-empty statement
+  const statements = withoutComments
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (statements.length === 0) {
+    throw new Error('No SQL statement found');
+  }
+
+  return statements[0];
+}
+
+/**
  * Convert insight definition to PostHog API input
+ *
+ * Loads the HogQL query from the SQL file and formats it for the PostHog API.
+ * Uses DataTableNode with HogQLQuery source for proper visualization support.
  */
 function insightToInput(definition: InsightDefinition): PostHogInsightInput {
+  // Load the SQL query from file
+  const sqlContent = loadSqlQuery(definition.queryFile);
+
+  // Extract first statement (PostHog only accepts single statements)
+  const sqlQuery = extractFirstStatement(sqlContent);
+
   return {
     name: definition.name,
     description: definition.description,
-    // Note: Query would be loaded from file in production
-    filters: {
-      insight: 'TRENDS',
-      date_from: `-${definition.timeWindow}`,
+    // Use DataTableNode wrapper for proper insight visualization
+    query: {
+      kind: 'DataTableNode',
+      source: {
+        kind: 'HogQLQuery',
+        query: sqlQuery,
+      },
     },
     saved: true,
   };
@@ -210,8 +270,10 @@ export class SetupOrchestrator {
   private insightIdMap: Map<string, number> = new Map();
   private funnelIdMap: Map<string, number> = new Map();
   private dashboardIdMap: Map<string, number> = new Map();
+  private readonly config: PostHogConfig;
 
   constructor(config: PostHogConfig, options: ExecutionOptions) {
+    this.config = config;
     this.dryRun = options.dryRun;
     this.logger = createLogger({
       verbose: options.verbose,
@@ -226,6 +288,14 @@ export class SetupOrchestrator {
     this.insightsApi = new InsightsApi(this.client);
     this.cohortsApi = new CohortsApi(this.client);
     this.funnelsApi = new FunnelsApi(this.client);
+  }
+
+  /**
+   * Build PostHog insight URL
+   */
+  private buildInsightUrl(shortId: string): string {
+    const host = this.config.host.replace('/api', '').replace('i.posthog.com', 'posthog.com');
+    return `${host}/project/${this.config.projectId}/insights/${shortId}`;
   }
 
   /**
@@ -283,15 +353,28 @@ export class SetupOrchestrator {
 
     for (const definition of insightsToSync) {
       try {
+        this.logger.debug(`Loading SQL from: queries/insights/${definition.queryFile}`);
         const input = insightToInput(definition);
+
+        // Log the query structure being sent
+        this.logger.debug(
+          `Query format: ${input.query?.kind} > ${(input.query as any)?.source?.kind}`
+        );
+        const queryPreview = (input.query as any)?.source?.query?.slice(0, 100) || '';
+        this.logger.debug(`Query preview: ${queryPreview.replace(/\n/g, ' ')}...`);
+
         const result = await this.insightsApi.createOrUpdate(input);
 
         stats.record(result.operation);
 
+        const insightUrl = this.buildInsightUrl(result.insight.short_id);
+
         if (result.operation === 'created') {
           this.logger.success(`Created insight: ${definition.name}`);
+          this.logger.info(`  → ${insightUrl}`);
         } else if (result.operation === 'updated') {
           this.logger.success(`Updated insight: ${definition.name}`);
+          this.logger.info(`  → ${insightUrl}`);
         } else {
           this.logger.unchanged('Insight', definition.name);
         }
@@ -305,6 +388,10 @@ export class SetupOrchestrator {
         this.logger.error(
           `Failed to sync insight "${definition.name}": ${error instanceof Error ? error.message : String(error)}`
         );
+        // Log more details for debugging
+        if (error instanceof Error && 'apiError' in error) {
+          this.logger.error(`  → API Error: ${JSON.stringify((error as any).apiError)}`);
+        }
       }
     }
 
