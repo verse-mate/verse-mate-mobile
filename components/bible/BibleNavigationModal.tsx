@@ -1142,19 +1142,22 @@ const createStyles = (
   useSplitView: boolean,
   isTablet: boolean
 ) => {
+  // Tablet portrait mode check (Tablet but not in Split View landscape)
+  const isTabletPortrait = isTablet && !useSplitView;
+
   return StyleSheet.create({
     backdrop: {
       flex: 1,
       backgroundColor: modalSpecs.backdropColor,
       justifyContent: 'flex-start',
-      alignItems: useSplitView ? 'center' : 'stretch',
+      alignItems: useSplitView || isTabletPortrait ? 'center' : 'stretch',
     },
     backdropTouchable: {
       ...StyleSheet.absoluteFillObject,
     },
     container: {
       height: modalSpecs.height,
-      width: useSplitView ? '60%' : '100%',
+      width: useSplitView ? '60%' : isTabletPortrait ? '70%' : '100%',
       backgroundColor: modalSpecs.backgroundColor,
       borderBottomLeftRadius: 30,
       borderBottomRightRadius: 30,
