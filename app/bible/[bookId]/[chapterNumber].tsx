@@ -309,9 +309,12 @@ export default function ChapterScreen() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   const handlePageChange = useCallback(
     (newBookId: number, newChapterNumber: number) => {
-      // Use router.replace for swipe navigation
-      // Note: Animation comes from URL change, not router.replace itself
-      router.replace(`/bible/${newBookId}/${newChapterNumber}` as never);
+      // Use router.setParams for swipe navigation to prevent unmounting/flickering
+      // Note: Animation comes from URL change
+      router.setParams({
+        bookId: newBookId.toString(),
+        chapterNumber: newChapterNumber.toString(),
+      });
 
       // Save reading position - only for authenticated users
       if (user?.id) {
@@ -467,7 +470,10 @@ export default function ChapterScreen() {
                 currentBookId={validBookId}
                 currentChapter={validChapter}
                 onSelectChapter={(bookId, chapter) => {
-                  router.replace(`/bible/${bookId}/${chapter}` as never);
+                  router.setParams({
+                    bookId: bookId.toString(),
+                    chapterNumber: chapter.toString(),
+                  });
                 }}
                 onSelectTopic={(topicId, category) => {
                   router.push({
@@ -536,7 +542,10 @@ export default function ChapterScreen() {
                 currentBookId={validBookId}
                 currentChapter={validChapter}
                 onSelectChapter={(bookId, chapter) => {
-                  router.replace(`/bible/${bookId}/${chapter}` as never);
+                  router.setParams({
+                    bookId: bookId.toString(),
+                    chapterNumber: chapter.toString(),
+                  });
                 }}
                 onSelectTopic={(topicId, category) => {
                   router.push({
