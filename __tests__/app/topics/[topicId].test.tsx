@@ -21,6 +21,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import TopicDetailScreen from '@/app/topics/[topicId]';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView } from '@/hooks/bible';
 import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api';
 
@@ -171,7 +172,7 @@ function renderWithProviders(component: React.ReactElement) {
             insets: { top: 47, left: 0, right: 0, bottom: 34 },
           }}
         >
-          {children}
+          <ToastProvider>{children}</ToastProvider>
         </SafeAreaProvider>
       </ThemeProvider>
     </QueryClientProvider>
