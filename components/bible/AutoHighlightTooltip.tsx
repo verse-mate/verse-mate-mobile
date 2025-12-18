@@ -586,8 +586,8 @@ export function AutoHighlightTooltip({
                   <Ionicons name="bookmark-outline" size={20} color={colors.textPrimary} />
                   <Text style={styles.secondaryButtonText}>Save as My Highlight</Text>
                 </Pressable>
-                <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
-                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                <Pressable style={styles.closeButton} onPress={handleDismiss}>
+                  <Text style={styles.closeButtonText}>Close</Text>
                 </Pressable>
               </>
             ) : (
@@ -793,6 +793,20 @@ const createStyles = (
     },
     secondaryButtonText: {
       color: colors.textPrimary,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+    },
+    closeButton: {
+      backgroundColor: colors.gold,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.gold,
+    },
+    closeButtonText: {
+      color: colors.background,
       fontSize: fontSizes.body,
       fontWeight: fontWeights.medium,
     },

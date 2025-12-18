@@ -678,9 +678,9 @@ export function VerseMateTooltip({
               </Pressable>
             )}
 
-            {/* Cancel Button */}
-            <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
-              <Text style={styles.secondaryButtonText}>Cancel</Text>
+            {/* Close Button */}
+            <Pressable style={styles.closeButton} onPress={handleDismiss}>
+              <Text style={styles.closeButtonText}>Close</Text>
             </Pressable>
           </View>
         </View>
@@ -972,6 +972,20 @@ const createStyles = (
     },
     secondaryButtonText: {
       color: colors.textPrimary,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+    },
+    closeButton: {
+      backgroundColor: colors.gold,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.gold,
+    },
+    closeButtonText: {
+      color: colors.background,
       fontSize: fontSizes.body,
       fontWeight: fontWeights.medium,
     },
