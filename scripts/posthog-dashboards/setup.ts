@@ -343,15 +343,30 @@ export class SetupOrchestrator {
 
     for (const definition of insightsToSync) {
       try {
+        this.logger.debug(`Loading SQL from: queries/insights/${definition.queryFile}`);
         const input = insightToInput(definition);
+
+        // Log the query structure being sent
+        this.logger.debug(
+          `Query format: ${input.query?.kind} > ${(input.query as any)?.source?.kind}`
+        );
+        const queryPreview = (input.query as any)?.source?.query?.slice(0, 100) || '';
+        this.logger.debug(`Query preview: ${queryPreview.replace(/\n/g, ' ')}...`);
+
         const result = await this.insightsApi.createOrUpdate(input);
 
         stats.record(result.operation);
 
         if (result.operation === 'created') {
           this.logger.success(`Created insight: ${definition.name}`);
+          this.logger.info(
+            `  → New insight ID: ${result.insight.id}, short_id: ${result.insight.short_id}`
+          );
         } else if (result.operation === 'updated') {
           this.logger.success(`Updated insight: ${definition.name}`);
+          this.logger.info(
+            `  → Insight ID: ${result.insight.id}, short_id: ${result.insight.short_id}`
+          );
         } else {
           this.logger.unchanged('Insight', definition.name);
         }
@@ -365,6 +380,10 @@ export class SetupOrchestrator {
         this.logger.error(
           `Failed to sync insight "${definition.name}": ${error instanceof Error ? error.message : String(error)}`
         );
+        // Log more details for debugging
+        if (error instanceof Error && 'apiError' in error) {
+          this.logger.error(`  → API Error: ${JSON.stringify((error as any).apiError)}`);
+        }
       }
     }
 
