@@ -81,8 +81,9 @@ export function groupConsecutiveHighlights(highlights: Highlight[]): HighlightGr
     const highlight = sorted[i];
     const prevHighlight = sorted[i - 1];
 
-    // Check if this highlight is consecutive and same color
-    const isConsecutive = highlight.start_verse === prevHighlight.start_verse + 1;
+    // Check if this highlight is consecutive/contiguous and same color
+    // Handles both single-verse and multi-verse highlights
+    const isConsecutive = highlight.start_verse <= prevHighlight.end_verse + 1;
     const isSameColor = highlight.color === currentColor;
 
     if (isConsecutive && isSameColor) {
@@ -90,10 +91,12 @@ export function groupConsecutiveHighlights(highlights: Highlight[]): HighlightGr
       currentGroup.push(highlight);
     } else {
       // Finalize current group and start new one
+      // Use max end_verse from all highlights in the group
+      const groupEndVerse = Math.max(...currentGroup.map((h) => h.end_verse));
       groups.push({
         highlights: currentGroup,
         startVerse: currentStartVerse,
-        endVerse: prevHighlight.start_verse,
+        endVerse: groupEndVerse,
         color: currentColor,
         isGrouped: currentGroup.length > 1,
       });
@@ -106,10 +109,12 @@ export function groupConsecutiveHighlights(highlights: Highlight[]): HighlightGr
   }
 
   // Finalize last group
+  // Use max end_verse from all highlights in the group
+  const groupEndVerse = Math.max(...currentGroup.map((h) => h.end_verse));
   groups.push({
     highlights: currentGroup,
     startVerse: currentStartVerse,
-    endVerse: sorted[sorted.length - 1].start_verse,
+    endVerse: groupEndVerse,
     color: currentColor,
     isGrouped: currentGroup.length > 1,
   });

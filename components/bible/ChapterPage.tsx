@@ -29,12 +29,14 @@ import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
+import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
@@ -265,6 +267,7 @@ export const ChapterPage = React.memo(function ChapterPage({
   const verseTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { isAuthenticated } = useAuth();
+  const { chapterHighlights } = useBibleInteraction();
 
   // Staggered rendering state to prevent UI freeze (waterfall loading)
   // 0: Initial (only active view)
@@ -715,28 +718,51 @@ export const ChapterPage = React.memo(function ChapterPage({
       />
 
       {/* Verse Tooltip - shown after scroll animation completes */}
-      {targetVerse && (
-        <VerseMateTooltip
-          verseNumber={!targetEndVerse || targetEndVerse === targetVerse ? targetVerse : null}
-          highlightGroup={
-            targetEndVerse && targetEndVerse > targetVerse
-              ? {
-                  color: 'yellow',
-                  startVerse: targetVerse,
-                  endVerse: targetEndVerse,
-                  highlights: [],
-                  isGrouped: true,
-                }
-              : null
+      {targetVerse &&
+        (() => {
+          // Determine the verse range to check for highlights
+          const endVerse = targetEndVerse || targetVerse;
+
+          // Group consecutive highlights and find if target verse(s) are highlighted
+          const highlightGroups = groupConsecutiveHighlights(chapterHighlights);
+          // Match exact range to ensure we show the correct highlight group
+          const matchingGroup = highlightGroups.find(
+            (group) => group.startVerse === targetVerse && group.endVerse === endVerse
+          );
+
+          // Get verse text from chapter data
+          let verseText = '';
+          if (chapter) {
+            const verses = chapter.sections.flatMap((s) => s.verses);
+            if (endVerse > targetVerse) {
+              // Multi-verse: concatenate all verses in range
+              const verseRange = verses.filter(
+                (v) => v.verseNumber >= targetVerse && v.verseNumber <= endVerse
+              );
+              verseText = verseRange.map((v) => v.text).join(' ');
+            } else {
+              // Single verse
+              const verse = verses.find((v) => v.verseNumber === targetVerse);
+              verseText = verse?.text || '';
+            }
           }
-          bookId={bookId}
-          chapterNumber={chapterNumber}
-          bookName={chapter?.title.split(' ')[0] || ''}
-          visible={verseTooltipVisible}
-          onClose={() => setVerseTooltipVisible(false)}
-          isLoggedIn={isAuthenticated}
-        />
-      )}
+
+          // If we found a matching highlight group, use it
+          // Otherwise, treat as plain verse
+          return (
+            <VerseMateTooltip
+              verseNumber={matchingGroup ? null : targetVerse}
+              highlightGroup={matchingGroup || null}
+              bookId={bookId}
+              chapterNumber={chapterNumber}
+              bookName={chapter?.title.split(' ')[0] || ''}
+              visible={verseTooltipVisible}
+              onClose={() => setVerseTooltipVisible(false)}
+              verseText={verseText}
+              isLoggedIn={isAuthenticated}
+            />
+          );
+        })()}
     </View>
   );
 });
