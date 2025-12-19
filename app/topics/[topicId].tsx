@@ -55,11 +55,6 @@ import { generateTopicSlug } from '@/utils/topicSlugs';
 type ViewMode = 'bible' | 'explanations';
 
 /**
- * Center index constant from TopicPagerView (5-page window)
- */
-const CENTER_INDEX = 2;
-
-/**
  * Topic Detail Screen Component
  *
  * Handles:
@@ -86,6 +81,30 @@ export default function TopicDetailScreen() {
   const params = useLocalSearchParams<{ topicId: string; category?: string }>();
   const topicId = params.topicId;
   const category = (params.category as TopicCategory) || 'EVENT';
+
+  // Local state for immediate UI updates
+  const [activeTopicId, setActiveTopicId] = useState(topicId);
+
+  // Sync local state from params (deep links, back button)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeTopicId is intentionally omitted
+  useEffect(() => {
+    if (params.topicId && params.topicId !== activeTopicId) {
+      setActiveTopicId(params.topicId);
+    }
+  }, [params.topicId]);
+
+  // Debounced URL sync
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (params.topicId !== activeTopicId) {
+        router.setParams({
+          topicId: activeTopicId,
+          category: category,
+        });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [activeTopicId, category, params.topicId]);
 
   // Ref for imperative pager control
   const pagerRef = useRef<TopicPagerViewRef>(null);
@@ -124,7 +143,7 @@ export default function TopicDetailScreen() {
     data: topicData,
     isLoading: isTopicLoading,
     error: topicError,
-  } = useTopicById(topicId, bibleVersion);
+  } = useTopicById(activeTopicId, bibleVersion);
 
   // Fetch all topics in the category for navigation
   const { data: categoryTopics = [] } = useTopicsSearch(category);
@@ -138,7 +157,7 @@ export default function TopicDetailScreen() {
 
   // Calculate navigation state using the hook
   const { canGoNext, canGoPrevious, nextTopic, prevTopic } = useTopicNavigation(
-    topicId,
+    activeTopicId,
     sortedTopics
   );
 
@@ -148,12 +167,12 @@ export default function TopicDetailScreen() {
   useEffect(() => {
     savePosition({
       type: 'topic',
-      topicId,
+      topicId: activeTopicId,
       topicCategory: category,
       activeTab,
       activeView,
     });
-  }, [topicId, category, activeTab, activeView]);
+  }, [activeTopicId, category, activeTab, activeView]);
 
   // Handle back navigation
   const handleBack = useCallback(() => {
@@ -171,12 +190,10 @@ export default function TopicDetailScreen() {
   }, []);
 
   // Handle topic selection from modal (navigate to different topic)
-  const handleSelectTopic = useCallback((newTopicId: string, newCategory: TopicCategory) => {
+  const handleSelectTopic = useCallback((newTopicId: string, _newCategory: TopicCategory) => {
     setIsNavigationModalOpen(false);
-    router.push({
-      pathname: '/topics/[topicId]',
-      params: { topicId: newTopicId, category: newCategory },
-    });
+    setActiveTopicId(newTopicId);
+    // URL will catch up via debounce
   }, []);
 
   // Handle tab change
@@ -199,13 +216,10 @@ export default function TopicDetailScreen() {
 
   /**
    * Handle page change from TopicPagerView swipe
-   * Uses router.replace for silent URL update (swipe handles animation)
+   * Updates local state immediately to prevent flash
    */
-  const handlePageChange = useCallback((newTopicId: string, newCategory: TopicCategory) => {
-    router.replace({
-      pathname: '/topics/[topicId]',
-      params: { topicId: newTopicId, category: newCategory },
-    });
+  const handlePageChange = useCallback((newTopicId: string, _newCategory: TopicCategory) => {
+    setActiveTopicId(newTopicId);
   }, []);
 
   /**
@@ -216,14 +230,12 @@ export default function TopicDetailScreen() {
     if (prevTopic) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       if (useSplitView) {
-        // In split view, navigate directly via router
-        router.push({
-          pathname: '/topics/[topicId]',
-          params: { topicId: prevTopic.topic_id, category: prevTopic.category },
-        });
+        // In split view, update local state
+        setActiveTopicId(prevTopic.topic_id);
       } else {
-        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX - 1 = 1)
-        pagerRef.current?.setPage(CENTER_INDEX - 1);
+        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX - 1)
+        // 7-page window uses CENTER_INDEX = 3
+        pagerRef.current?.setPage(2);
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -238,14 +250,12 @@ export default function TopicDetailScreen() {
     if (nextTopic) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       if (useSplitView) {
-        // In split view, navigate directly via router
-        router.push({
-          pathname: '/topics/[topicId]',
-          params: { topicId: nextTopic.topic_id, category: nextTopic.category },
-        });
+        // In split view, update local state
+        setActiveTopicId(nextTopic.topic_id);
       } else {
-        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX + 1 = 3)
-        pagerRef.current?.setPage(CENTER_INDEX + 1);
+        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX + 1)
+        // 7-page window uses CENTER_INDEX = 3
+        pagerRef.current?.setPage(4);
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -336,8 +346,9 @@ export default function TopicDetailScreen() {
         })
       : null;
 
-  // Loading state - show skeleton while fetching topic header info
-  if (isTopicLoading && !topic) {
+  // Show skeleton loader ONLY on initial mount
+  const isInitialLoad = isTopicLoading && !topicData;
+  if (isInitialLoad) {
     return (
       <View style={styles.container}>
         <TopicHeader
@@ -353,7 +364,7 @@ export default function TopicDetailScreen() {
   }
 
   // Error state
-  if (topicError || !topicData) {
+  if ((topicError || !topicData) && !isTopicLoading) {
     return (
       <View style={styles.container}>
         <TopicHeader
@@ -373,74 +384,49 @@ export default function TopicDetailScreen() {
     );
   }
 
-  if (!topic) {
-    return (
-      <View style={styles.container}>
-        <TopicHeader
-          topicName="Error"
-          activeView={activeView}
-          onNavigationPress={() => {}}
-          onViewChange={handleViewChange}
-          onMenuPress={() => {}}
-        />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Topic data not available</Text>
-          <Pressable onPress={handleBack} style={styles.errorButton}>
-            <Text style={styles.errorButtonText}>Go Back</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       {/* Split View Layout for Landscape/Tablet */}
       {useSplitView ? (
-        <>
-          <SplitView
-            splitRatio={splitRatio}
-            onSplitRatioChange={setSplitRatio}
-            viewMode={splitViewMode}
-            onViewModeChange={setSplitViewMode}
-            edgeTabsVisible={fabVisible}
-            leftContent={
-              <TopicContentPanel
-                topicId={topicId}
-                topicName={topic.name}
-                topicDescription={topic.description}
-                onHeaderPress={() => setIsNavigationModalOpen(true)}
-                onShare={handleShare}
-                onNavigatePrev={handlePrevious}
-                onNavigateNext={handleNext}
-                hasPrevTopic={canGoPrevious}
-                hasNextTopic={canGoNext}
-                onScroll={handleScroll}
-                onTap={handleTap}
-                onVersePress={handleVersePress}
-                visible={fabVisible}
-              />
-            }
-            rightContent={
-              <TopicExplanationsPanel
-                topicId={topicId}
-                topicName={topic.name}
-                activeTab={activeTab}
-                onTabChange={handleTabChange}
-                onMenuPress={() => setIsMenuOpen(true)}
-              />
-            }
-          />
-
-          {/* Hamburger Menu */}
-          <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-        </>
+        <SplitView
+          splitRatio={splitRatio}
+          onSplitRatioChange={setSplitRatio}
+          viewMode={splitViewMode}
+          onViewModeChange={setSplitViewMode}
+          edgeTabsVisible={fabVisible}
+          leftContent={
+            <TopicContentPanel
+              topicId={activeTopicId}
+              topicName={topic?.name || ''}
+              topicDescription={topic?.description}
+              onHeaderPress={() => setIsNavigationModalOpen(true)}
+              onShare={handleShare}
+              onNavigatePrev={handlePrevious}
+              onNavigateNext={handleNext}
+              hasPrevTopic={canGoPrevious}
+              hasNextTopic={canGoNext}
+              onScroll={handleScroll}
+              onTap={handleTap}
+              onVersePress={handleVersePress}
+              visible={fabVisible}
+            />
+          }
+          rightContent={
+            <TopicExplanationsPanel
+              topicId={activeTopicId}
+              topicName={topic?.name || ''}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              onMenuPress={() => setIsMenuOpen(true)}
+            />
+          }
+        />
       ) : (
         /* Standard Portrait/Phone Layout */
         <>
           {/* Header */}
           <TopicHeader
-            topicName={topic.name}
+            topicName={topic?.name || ''}
             activeView={activeView}
             onNavigationPress={() => setIsNavigationModalOpen(true)}
             navigationModalVisible={isNavigationModalOpen}
@@ -453,10 +439,10 @@ export default function TopicDetailScreen() {
             <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} />
           )}
 
-          {/* TopicPagerView - 5-page sliding window for swipe navigation */}
+          {/* TopicPagerView - 7-page sliding window for swipe navigation */}
           <TopicPagerView
             ref={pagerRef}
-            initialTopicId={topicId}
+            initialTopicId={activeTopicId}
             category={category}
             sortedTopics={sortedTopics}
             activeTab={activeTab}
