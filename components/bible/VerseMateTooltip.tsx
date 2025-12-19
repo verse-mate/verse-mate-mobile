@@ -116,22 +116,25 @@ export function VerseMateTooltip({
   const { colors, mode } = useTheme();
   const { bibleVersion } = useBibleVersion();
   const insets = useSafeAreaInsets();
-  const { isTablet, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { isTablet, isLandscape, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
   const { width: windowWidth } = useWindowDimensions();
 
   // Calculate dynamic width for tooltip positioning
   // In split view: align over the insights panel (right panel)
-  // In tablet landscape full screen: position on right side with fixed 50% width
+  // In tablet portrait: center with 75% width
+  // In tablet landscape full screen: position on right side with 50% width
   const tooltipWidth =
     useSplitView && splitViewMode !== 'left-full'
       ? windowWidth * (1 - splitRatio)
       : isTablet
-        ? windowWidth * 0.5
+        ? isLandscape
+          ? windowWidth * 0.5
+          : windowWidth * 0.75
         : undefined;
 
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom, isTablet, tooltipWidth),
-    [colors, insets.bottom, isTablet, tooltipWidth]
+    () => createStyles(colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth),
+    [colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth]
   );
 
   // ... (rest of the component state and hooks)
@@ -784,13 +787,16 @@ const createStyles = (
   colors: ReturnType<typeof getColors>,
   bottomInset: number,
   _isTablet: boolean,
+  isLandscape: boolean,
+  useSplitView: boolean,
   tooltipWidth?: number
 ) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      alignItems: tooltipWidth ? 'flex-end' : 'stretch',
+      // Center align for tablet portrait only, right align for landscape/split view, stretch for mobile
+      alignItems: tooltipWidth ? (useSplitView || isLandscape ? 'flex-end' : 'center') : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,

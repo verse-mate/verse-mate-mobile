@@ -93,7 +93,7 @@ export function TopicVerseTooltip({
 }: TopicVerseTooltipProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { isTablet, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { isTablet, isLandscape, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
   const { width: windowWidth } = useWindowDimensions();
 
   // Calculate dynamic width for tooltip positioning (same as VerseMateTooltip)
@@ -101,12 +101,14 @@ export function TopicVerseTooltip({
     useSplitView && splitViewMode !== 'left-full'
       ? windowWidth * (1 - splitRatio)
       : isTablet
-        ? windowWidth * 0.5
+        ? isLandscape
+          ? windowWidth * 0.5
+          : windowWidth * 0.75
         : undefined;
 
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom, isTablet, tooltipWidth),
-    [colors, insets.bottom, isTablet, tooltipWidth]
+    () => createStyles(colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth),
+    [colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth]
   );
 
   // Internal visibility state to keep Modal mounted during exit animation
@@ -604,13 +606,16 @@ const createStyles = (
   colors: ReturnType<typeof getColors>,
   bottomInset: number,
   _isTablet: boolean,
+  _isLandscape: boolean,
+  useSplitView: boolean,
   tooltipWidth?: number
 ) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      alignItems: tooltipWidth ? 'flex-end' : 'stretch',
+      // Center align for tablet portrait, right align for split view, stretch for mobile
+      alignItems: tooltipWidth ? (useSplitView ? 'flex-end' : 'center') : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
