@@ -166,11 +166,13 @@ export default function TopicDetailScreen() {
 
   // Handle chapter selection from modal (redirect to Bible)
   const handleSelectChapter = useCallback((bookId: number, chapter: number) => {
+    setIsNavigationModalOpen(false);
     router.push(`/bible/${bookId}/${chapter}`);
   }, []);
 
   // Handle topic selection from modal (navigate to different topic)
   const handleSelectTopic = useCallback((newTopicId: string, newCategory: TopicCategory) => {
+    setIsNavigationModalOpen(false);
     router.push({
       pathname: '/topics/[topicId]',
       params: { topicId: newTopicId, category: newCategory },
@@ -430,20 +432,6 @@ export default function TopicDetailScreen() {
             }
           />
 
-          {/* Navigation Modal */}
-          {isNavigationModalOpen && (
-            <BibleNavigationModal
-              visible={isNavigationModalOpen}
-              currentBookId={1}
-              currentChapter={1}
-              initialTab="TOPICS"
-              initialTopicCategory={category}
-              onClose={() => setIsNavigationModalOpen(false)}
-              onSelectChapter={handleSelectChapter}
-              onSelectTopic={handleSelectTopic}
-            />
-          )}
-
           {/* Hamburger Menu */}
           <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
         </>
@@ -455,6 +443,7 @@ export default function TopicDetailScreen() {
             topicName={topic.name}
             activeView={activeView}
             onNavigationPress={() => setIsNavigationModalOpen(true)}
+            navigationModalVisible={isNavigationModalOpen}
             onViewChange={handleViewChange}
             onMenuPress={() => setIsMenuOpen(true)}
           />
@@ -488,23 +477,23 @@ export default function TopicDetailScreen() {
             visible={fabVisible}
           />
 
-          {/* Navigation Modal */}
-          {isNavigationModalOpen && (
-            <BibleNavigationModal
-              visible={isNavigationModalOpen}
-              currentBookId={1} // Default to Genesis
-              currentChapter={1}
-              initialTab="TOPICS"
-              initialTopicCategory={category}
-              onClose={() => setIsNavigationModalOpen(false)}
-              onSelectChapter={handleSelectChapter}
-              onSelectTopic={handleSelectTopic}
-            />
-          )}
-
           {/* Hamburger Menu */}
           <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
         </>
+      )}
+
+      {/* Navigation Modal - Consolidated outside conditional blocks */}
+      {isNavigationModalOpen && (
+        <BibleNavigationModal
+          visible={isNavigationModalOpen}
+          currentBookId={1} // Default to Genesis
+          currentChapter={1}
+          initialTab="TOPICS"
+          initialTopicCategory={category}
+          onClose={() => setIsNavigationModalOpen(false)}
+          onSelectChapter={handleSelectChapter}
+          onSelectTopic={handleSelectTopic}
+        />
       )}
 
       {/* Topic Verse Tooltip - Handled at screen level for proper positioning */}
@@ -544,6 +533,7 @@ interface TopicHeaderProps {
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
+  navigationModalVisible?: boolean;
 }
 
 function TopicHeader({
@@ -552,6 +542,7 @@ function TopicHeader({
   onNavigationPress,
   onViewChange,
   onMenuPress,
+  navigationModalVisible,
 }: TopicHeaderProps) {
   // Get theme directly inside TopicHeader (no props drilling)
   const { colors, mode } = useTheme();
@@ -590,7 +581,7 @@ function TopicHeader({
     () =>
       toggleSlideAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, bibleButtonWidth + 4], // Move to insight position (Bible width + gap)
+        outputRange: [0, Math.max(0, bibleButtonWidth + 4)], // Move to insight position (Bible width + gap)
       }),
     [toggleSlideAnim, bibleButtonWidth]
   );
@@ -599,16 +590,25 @@ function TopicHeader({
     () =>
       toggleSlideAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [bibleButtonWidth, insightButtonWidth],
+        outputRange: [Math.max(0, bibleButtonWidth), Math.max(0, insightButtonWidth)],
       }),
     [toggleSlideAnim, bibleButtonWidth, insightButtonWidth]
   );
+
+  /**
+   * Safe navigation press handler to prevent double-triggering
+   */
+  const handleNavigationPress = () => {
+    if (!navigationModalVisible) {
+      onNavigationPress();
+    }
+  };
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="topic-header">
       {/* Topic Title Button (clickable to open navigation) */}
       <Pressable
-        onPress={onNavigationPress}
+        onPress={handleNavigationPress}
         style={styles.topicButton}
         accessibilityLabel={`Select topic, currently ${topicName}`}
         accessibilityRole="button"
