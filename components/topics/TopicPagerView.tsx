@@ -46,8 +46,10 @@ const CENTER_INDEX = 2;
 /**
  * Delay in milliseconds before calling onPageChange after swipe
  * This prevents double animation (PagerView + router.replace)
+ * Increased to 250ms to ensure PagerView animation is well underway/complete
+ * before state/route updates trigger re-renders.
  */
-const ROUTE_UPDATE_DELAY_MS = 75;
+const ROUTE_UPDATE_DELAY_MS = 250;
 
 /**
  * Imperative handle interface for TopicPagerView
@@ -137,6 +139,23 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       getTopicIndexInCategory(initialTopicId, sortedTopics)
     );
 
+    // Track the currently selected position in the 5-page window (0-4)
+    const [selectedPosition, setSelectedPosition] = useState(CENTER_INDEX);
+
+    // Refs to track state for the useEffect without causing it to re-run on every swipe
+    const absIndexRef = useRef(currentAbsoluteIndex);
+    const posRef = useRef(selectedPosition);
+    const lastProcessedRef = useRef({ topicId: initialTopicId });
+
+    // Keep refs in sync with state
+    useEffect(() => {
+      absIndexRef.current = currentAbsoluteIndex;
+    }, [currentAbsoluteIndex]);
+
+    useEffect(() => {
+      posRef.current = selectedPosition;
+    }, [selectedPosition]);
+
     // Expose imperative methods to parent component
     useImperativeHandle(
       ref,
@@ -157,17 +176,28 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       };
     }, []);
 
-    // Update absolute index if initialTopicId changes externally
-    // Note: Intentionally excludes currentAbsoluteIndex from deps to prevent race condition
-    // when swipe updates state before route updates (75ms delay)
+    // Update absolute index if initialTopicId changes externally (modal, back button, etc.)
     useEffect(() => {
+      // Only act if the topicId prop actually changed from what we last processed
+      if (lastProcessedRef.current.topicId === initialTopicId) {
+        return;
+      }
+      lastProcessedRef.current = { topicId: initialTopicId };
+
       const newIndex = getTopicIndexInCategory(initialTopicId, sortedTopics);
-      if (newIndex !== -1 && newIndex !== currentAbsoluteIndex) {
+      if (newIndex === -1) return;
+
+      // Calculate what absolute index is currently visible at the current pager position
+      const currentlyVisibleIndex = absIndexRef.current + (posRef.current - CENTER_INDEX);
+
+      // Only re-center if the new index is DIFFERENT from what the user is already looking at.
+      // This prevents the "flash" and "snap back" during swipe navigation.
+      if (newIndex !== currentlyVisibleIndex) {
         setCurrentAbsoluteIndex(newIndex);
-        // Also update pager position for external navigation (e.g., from modal)
+        setSelectedPosition(CENTER_INDEX);
         pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
       }
-    }, [initialTopicId, sortedTopics, currentAbsoluteIndex]);
+    }, [initialTopicId, sortedTopics]); // Removed currentAbsoluteIndex and selectedPosition from deps
 
     /**
      * Calculate which topic should display at a given window position
@@ -284,7 +314,8 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
      */
     const handlePageSelected = useCallback(
       (event: { nativeEvent: OnPageSelectedEventData }) => {
-        const selectedPosition = Math.floor(event.nativeEvent.position);
+        const newPosition = Math.floor(event.nativeEvent.position);
+        setSelectedPosition(newPosition);
 
         // Clear any pending route update timeout
         if (routeUpdateTimeoutRef.current) {
@@ -292,7 +323,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
         }
 
         // Calculate would-be absolute index for this page
-        const offset = selectedPosition - CENTER_INDEX;
+        const offset = newPosition - CENTER_INDEX;
         const newAbsoluteIndex = currentAbsoluteIndex + offset;
 
         // Check if swipe would go out of bounds (to an empty placeholder page)
@@ -302,13 +333,14 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
           // Snap back to center - user tried to swipe past category boundary
           requestAnimationFrame(() => {
             pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+            setSelectedPosition(CENTER_INDEX);
           });
           // Don't update route or state - stay on current topic
           return;
         }
 
         // Check if user reached edge positions (0 or 4)
-        const isAtEdge = selectedPosition === 0 || selectedPosition === WINDOW_SIZE - 1;
+        const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
 
         if (isAtEdge) {
           // Update state to new absolute index
@@ -317,9 +349,10 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
           // Re-center to middle page without animation
           requestAnimationFrame(() => {
             pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+            setSelectedPosition(CENTER_INDEX);
           });
 
-          // Delay route update by 75ms to prevent double animation
+          // Delay route update by 250ms to prevent double animation
           const topic = getTopicFromIndex(newAbsoluteIndex, sortedTopics);
 
           if (topic) {
@@ -327,12 +360,12 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
               onPageChange(topic.topic_id, category);
             }, ROUTE_UPDATE_DELAY_MS);
           }
-        } else if (selectedPosition !== CENTER_INDEX) {
+        } else if (newPosition !== CENTER_INDEX) {
           // User swiped one position away from center (to index 1 or 3)
           // DON'T update currentAbsoluteIndex yet to avoid flickering
-          // Let the route update trigger useEffect which will re-center properly
+          // Let the route update trigger useEffect which will handle re-centering logic
 
-          // Delay route update by 75ms to prevent double animation
+          // Delay route update by 250ms to prevent double animation
           const topic = getTopicFromIndex(newAbsoluteIndex, sortedTopics);
 
           if (topic) {

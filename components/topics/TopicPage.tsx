@@ -175,6 +175,20 @@ export const TopicPage = React.memo(function TopicPage({
     };
   }, []);
 
+  // Reset scroll state when topic changes
+  const bibleScrollRef = useRef<ScrollView>(null);
+  const explanationsScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    // Reset scroll position to top when topicId changes
+    // This prevents "height teleportation" from previous topic
+    bibleScrollRef.current?.scrollTo({ y: 0, animated: false });
+    explanationsScrollRef.current?.scrollTo({ y: 0, animated: false });
+
+    // Reset internal scroll tracking
+    lastScrollY.current = 0;
+  }, []);
+
   // Fetch topic data with verse replacement
   const { data: topicData, isLoading: isTopicLoading } = useTopicById(topicId, bibleVersion);
   const { data: references } = useTopicReferences(topicId);
@@ -291,6 +305,7 @@ export const TopicPage = React.memo(function TopicPage({
     <View style={styles.container} testID={`topic-page-${topicId}`}>
       {/* Bible References View */}
       <ScrollView
+        ref={bibleScrollRef}
         style={[
           styles.container,
           activeView !== 'bible' && {
@@ -387,6 +402,7 @@ export const TopicPage = React.memo(function TopicPage({
       {/* Explanations View - Pre-render all tabs but only show active */}
       {(activeView === 'explanations' || delayedRenderStage >= 1) && (
         <ScrollView
+          ref={explanationsScrollRef}
           style={[
             styles.container,
             activeView !== 'explanations' && {

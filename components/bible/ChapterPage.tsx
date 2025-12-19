@@ -320,6 +320,11 @@ export const ChapterPage = React.memo(function ChapterPage({
     hasScrolledRef.current = false;
     sectionPositionsRef.current = {};
     currentScrollYRef.current = 0;
+
+    // Reset scroll position to top when chapter changes
+    // This prevents "height teleportation" from previous chapter
+    animatedScrollRef.current?.scrollTo({ y: 0, animated: false });
+
     // Close tooltip and clear timer when changing book/chapter
     setVerseTooltipVisible(false);
     if (verseTooltipTimerRef.current) {
