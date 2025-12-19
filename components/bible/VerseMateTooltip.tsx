@@ -146,8 +146,8 @@ export function VerseMateTooltip({
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
 
-  // State for showing verse insight - start expanded for single verses
-  const [expanded, setExpanded] = useState(!isMultiVerse);
+  // State for showing verse insight - always expanded
+  const [expanded, setExpanded] = useState(true);
 
   // State for delete confirmation modal
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -177,7 +177,7 @@ export function VerseMateTooltip({
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(!isMultiVerse ? 1 : 0)).current; // Start expanded for single verse
+  const expansionAnim = useRef(new Animated.Value(1)).current; // Always start expanded
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
@@ -254,8 +254,8 @@ export function VerseMateTooltip({
       // Force cleanup after 150ms to prevent "spring tail" blocking the UI
       setTimeout(() => {
         setInternalVisible(false);
-        setExpanded(!isMultiVerse); // Reset to default state
-        expansionAnim.setValue(!isMultiVerse ? 1 : 0);
+        setExpanded(true); // Reset to default state
+        expansionAnim.setValue(1);
         hasTrackedOpen.current = false; // Reset tracking flag
         openTimestampRef.current = null; // Reset open timestamp
         if (callback) callback();
@@ -266,7 +266,6 @@ export function VerseMateTooltip({
       slideAnim,
       screenHeight,
       expansionAnim,
-      isMultiVerse,
       bookId,
       chapterNumber,
       targetVerseNumber,
@@ -286,10 +285,10 @@ export function VerseMateTooltip({
   // Watch for prop changes to trigger animations
   useEffect(() => {
     if (visible) {
-      // Reset expansion state and animation value immediately based on verse count
-      const shouldBeExpanded = !isMultiVerse;
+      // Always start expanded
+      const shouldBeExpanded = true;
       setExpanded(shouldBeExpanded);
-      expansionAnim.setValue(shouldBeExpanded ? 1 : 0); // Set immediately without animation
+      expansionAnim.setValue(1); // Set immediately without animation
       animateOpen();
 
       // Track analytics: VERSEMATE_TOOLTIP_OPENED (Task 4.7)
@@ -310,7 +309,6 @@ export function VerseMateTooltip({
     animateOpen,
     animateClose,
     internalVisible,
-    isMultiVerse,
     expansionAnim,
     bookId,
     chapterNumber,
@@ -560,27 +558,8 @@ export function VerseMateTooltip({
               )}
             </View>
 
-            {/* Insight Section (Always Expandable) */}
+            {/* Insight Section (Always Expanded) */}
             <View style={styles.insightContainer}>
-              {isMultiVerse && (
-                <Pressable
-                  style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
-                  onPress={() => setExpanded(!expanded)}
-                  hitSlop={10}
-                  {...panResponder.panHandlers}
-                >
-                  <Ionicons
-                    name={expanded ? 'chevron-down' : 'chevron-up'}
-                    size={16}
-                    color={colors.gold}
-                    style={{ marginRight: spacing.xs }}
-                  />
-                  <Text style={styles.insightToggleText}>
-                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
-                  </Text>
-                </Pressable>
-              )}
-
               <Animated.View
                 style={[
                   styles.insightContentWrapper,
@@ -1007,30 +986,8 @@ const createStyles = (
       fontWeight: fontWeights.medium,
     },
     insightContainer: {
-      marginBottom: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.divider,
-      paddingTop: spacing.md,
-      flexShrink: 1,
-      minHeight: 0,
-    },
-    insightToggle: {
-      flexDirection: 'row',
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: 'transparent',
-    },
-    insightToggleText: {
-      fontSize: fontSizes.bodySmall,
-      color: colors.gold,
-      fontWeight: fontWeights.semibold,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
     },
     analysisTitle: {
       fontSize: fontSizes.heading3,
@@ -1041,7 +998,6 @@ const createStyles = (
     },
     insightContentWrapper: {
       overflow: 'hidden',
-      flexShrink: 1,
     },
     insightScroll: {
       backgroundColor: colors.background,
