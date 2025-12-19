@@ -286,8 +286,11 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
 
         const { bookId, chapterNumber } = chapter;
         const isTargetChapter = bookId === initialBookId && chapterNumber === initialChapter;
-        // isPreloading should be true for any page that is NOT currently selected by the user
-        const isPreloading = windowPosition !== selectedPosition;
+
+        // isPreloading should only be true for pages that are far away from the user's view.
+        // We allow the current page AND its immediate neighbors (distance <= 1) to render
+        // their content so that swiping between them is visually seamless.
+        const isPreloading = Math.abs(windowPosition - selectedPosition) > 1;
 
         return (
           <ChapterPage

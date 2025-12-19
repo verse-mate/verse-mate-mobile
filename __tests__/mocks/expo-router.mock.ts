@@ -28,11 +28,13 @@ const expoRouterMock = {
     push: jest.fn(),
     replace: jest.fn(),
     back: jest.fn(),
+    setParams: jest.fn(),
   })),
   router: {
     push: jest.fn(),
     replace: jest.fn(),
     back: jest.fn(),
+    setParams: jest.fn(),
   },
   Link: 'Link',
   Stack: {
