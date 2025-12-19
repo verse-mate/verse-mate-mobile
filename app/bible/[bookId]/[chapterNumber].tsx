@@ -462,28 +462,6 @@ export default function ChapterScreen() {
               }
             />
 
-            {/* Navigation Modal (Task 7.9) - Only render when needed to prevent Android flash */}
-            {isNavigationModalOpen && (
-              <BibleNavigationModal
-                visible={isNavigationModalOpen}
-                onClose={() => setIsNavigationModalOpen(false)}
-                currentBookId={validBookId}
-                currentChapter={validChapter}
-                onSelectChapter={(bookId, chapter) => {
-                  router.setParams({
-                    bookId: bookId.toString(),
-                    chapterNumber: chapter.toString(),
-                  });
-                }}
-                onSelectTopic={(topicId, category) => {
-                  router.push({
-                    pathname: '/topics/[topicId]',
-                    params: { topicId, category },
-                  });
-                }}
-              />
-            )}
-
             {/* Hamburger Menu (Task 8.5) */}
             <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
           </>
@@ -497,6 +475,7 @@ export default function ChapterScreen() {
               onNavigationPress={() => {
                 setIsNavigationModalOpen(true); // Task 7.9
               }}
+              navigationModalVisible={isNavigationModalOpen}
               onViewChange={handleViewChange}
               onMenuPress={() => {
                 setIsMenuOpen(true); // Task 8.5
@@ -534,31 +513,35 @@ export default function ChapterScreen() {
             {/* Progress Bar (Task 8.4) */}
             <ProgressBar percentage={progress.percentage} />
 
-            {/* Navigation Modal (Task 7.9) - Only render when needed to prevent Android flash */}
-            {isNavigationModalOpen && (
-              <BibleNavigationModal
-                visible={isNavigationModalOpen}
-                onClose={() => setIsNavigationModalOpen(false)}
-                currentBookId={validBookId}
-                currentChapter={validChapter}
-                onSelectChapter={(bookId, chapter) => {
-                  router.setParams({
-                    bookId: bookId.toString(),
-                    chapterNumber: chapter.toString(),
-                  });
-                }}
-                onSelectTopic={(topicId, category) => {
-                  router.push({
-                    pathname: '/topics/[topicId]',
-                    params: { topicId, category },
-                  });
-                }}
-              />
-            )}
-
             {/* Hamburger Menu (Task 8.5) */}
             <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
           </>
+        )}
+
+        {/* Navigation Modal (Task 7.9) - Consolidated outside conditional blocks */}
+        {isNavigationModalOpen && (
+          <BibleNavigationModal
+            visible={isNavigationModalOpen}
+            onClose={() => setIsNavigationModalOpen(false)}
+            currentBookId={validBookId}
+            currentChapter={validChapter}
+            onSelectChapter={(bookId, chapter) => {
+              setIsNavigationModalOpen(false);
+              router.setParams({
+                bookId: bookId.toString(),
+                chapterNumber: chapter.toString(),
+                verse: undefined,
+                endVerse: undefined,
+              });
+            }}
+            onSelectTopic={(topicId, category) => {
+              setIsNavigationModalOpen(false);
+              router.push({
+                pathname: '/topics/[topicId]',
+                params: { topicId, category },
+              });
+            }}
+          />
         )}
       </View>
     </BibleInteractionProvider>
@@ -584,6 +567,7 @@ interface ChapterHeaderProps {
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
+  navigationModalVisible?: boolean;
 }
 
 function ChapterHeader({
@@ -593,6 +577,7 @@ function ChapterHeader({
   onNavigationPress,
   onViewChange,
   onMenuPress,
+  navigationModalVisible,
 }: ChapterHeaderProps) {
   // Get theme directly inside ChapterHeader (no props drilling)
   const { colors, mode } = useTheme();
@@ -631,7 +616,7 @@ function ChapterHeader({
     () =>
       toggleSlideAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, bibleButtonWidth + 4], // Move to insight position (Bible width + gap)
+        outputRange: [0, Math.max(0, bibleButtonWidth + 4)], // Move to insight position (Bible width + gap)
       }),
     [toggleSlideAnim, bibleButtonWidth]
   );
@@ -640,16 +625,25 @@ function ChapterHeader({
     () =>
       toggleSlideAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [bibleButtonWidth, insightButtonWidth],
+        outputRange: [Math.max(0, bibleButtonWidth), Math.max(0, insightButtonWidth)],
       }),
     [toggleSlideAnim, bibleButtonWidth, insightButtonWidth]
   );
+
+  /**
+   * Safe navigation press handler to prevent double-triggering
+   */
+  const handleNavigationPress = () => {
+    if (!navigationModalVisible) {
+      onNavigationPress();
+    }
+  };
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="chapter-header">
       {/* Chapter Title Button (clickable to open navigation) */}
       <Pressable
-        onPress={onNavigationPress}
+        onPress={handleNavigationPress}
         style={styles.chapterButton}
         accessibilityLabel={`Select chapter, currently ${bookName} ${chapterNumber}`}
         accessibilityRole="button"
