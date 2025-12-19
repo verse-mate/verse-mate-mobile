@@ -107,16 +107,11 @@ export function AutoHighlightTooltip({
     [colors, insets.bottom, isTablet, tooltipWidth]
   );
 
-  // Determine if this is a multi-verse highlight
-  const isMultiVerse = autoHighlight
-    ? autoHighlight.start_verse !== autoHighlight.end_verse
-    : false;
-
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
 
-  // State for showing verse insight (expanded view) - start expanded for single verses
-  const [expanded, setExpanded] = useState(!isMultiVerse);
+  // State for showing verse insight (expanded view) - always expanded
+  const [expanded, setExpanded] = useState(true);
 
   // Ref to track if analytics event has been fired for this tooltip open
   const hasTrackedOpen = useRef(false);
@@ -127,7 +122,7 @@ export function AutoHighlightTooltip({
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(!isMultiVerse ? 1 : 0)).current; // 0: collapsed, 1: expanded
+  const expansionAnim = useRef(new Animated.Value(1)).current; // 0: collapsed, 1: expanded
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
@@ -192,13 +187,13 @@ export function AutoHighlightTooltip({
       // This ensures the modal unmounts deterministically, fixing the double-click bug
       setTimeout(() => {
         setInternalVisible(false);
-        setExpanded(!isMultiVerse); // Reset expansion state
-        expansionAnim.setValue(!isMultiVerse ? 1 : 0);
+        setExpanded(true); // Reset expansion state
+        expansionAnim.setValue(1);
         hasTrackedOpen.current = false; // Reset tracking flag
         if (callback) callback();
       }, 150);
     },
-    [backdropOpacity, slideAnim, screenHeight, expansionAnim, isMultiVerse]
+    [backdropOpacity, slideAnim, screenHeight, expansionAnim]
   );
 
   // Handle expansion animation
@@ -214,10 +209,10 @@ export function AutoHighlightTooltip({
   // Watch for prop changes to trigger animations
   useEffect(() => {
     if (visible) {
-      // Reset expansion state based on multi-verse status
-      const shouldBeExpanded = !isMultiVerse;
+      // Always start expanded
+      const shouldBeExpanded = true;
       setExpanded(shouldBeExpanded);
-      expansionAnim.setValue(shouldBeExpanded ? 1 : 0);
+      expansionAnim.setValue(1);
       animateOpen();
 
       // Track analytics: AUTO_HIGHLIGHT_TOOLTIP_VIEWED (Task 4.7)
@@ -232,15 +227,7 @@ export function AutoHighlightTooltip({
     } else if (internalVisible) {
       animateClose();
     }
-  }, [
-    visible,
-    animateOpen,
-    animateClose,
-    internalVisible,
-    isMultiVerse,
-    expansionAnim,
-    autoHighlight,
-  ]);
+  }, [visible, animateOpen, animateClose, internalVisible, expansionAnim, autoHighlight]);
 
   // Handle explicit dismiss (user action)
   const handleDismiss = useCallback(() => {
@@ -499,27 +486,8 @@ export function AutoHighlightTooltip({
               </View>
             </View>
 
-            {/* Insight Section (Expandable) */}
+            {/* Insight Section (Always Expanded) */}
             <View style={styles.insightContainer}>
-              {isMultiVerse && (
-                <Pressable
-                  style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
-                  onPress={() => setExpanded(!expanded)}
-                  hitSlop={10}
-                  {...panResponder.panHandlers}
-                >
-                  <Ionicons
-                    name={expanded ? 'chevron-down' : 'chevron-up'}
-                    size={16}
-                    color={colors.gold}
-                    style={{ marginRight: spacing.xs }}
-                  />
-                  <Text style={styles.insightToggleText}>
-                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
-                  </Text>
-                </Pressable>
-              )}
-
               <Animated.View
                 style={[
                   styles.insightContentWrapper,
@@ -828,24 +796,6 @@ const createStyles = (
       paddingTop: spacing.lg,
       flexShrink: 1,
       minHeight: 0,
-    },
-    insightToggle: {
-      flexDirection: 'row',
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: 'transparent',
-    },
-    insightToggleText: {
-      fontSize: fontSizes.bodySmall,
-      color: colors.gold,
-      fontWeight: fontWeights.semibold,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
     },
     analysisTitle: {
       fontSize: fontSizes.heading3,
