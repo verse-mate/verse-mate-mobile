@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useActiveView } from '@/hooks/bible';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 
 /**
@@ -54,17 +55,23 @@ export default function Bookmarks() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { bookmarks, isFetchingBookmarks } = useBookmarks();
+  const { setActiveView } = useActiveView();
 
   /**
    * Handle bookmark item press
    *
    * Flow:
    * 1. Trigger haptic feedback
-   * 2. Navigate to chapter using Expo Router
+   * 2. Reset view to Bible (not explanations)
+   * 3. Navigate to chapter using Expo Router
    */
   const handleBookmarkPress = async (bookId: number, chapterNumber: number) => {
     // Trigger haptic feedback
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Reset view to Bible before navigating
+    // This ensures bookmarks always open in Bible view, not explanations
+    await setActiveView('bible');
 
     // Navigate to chapter
     router.push(`/bible/${bookId}/${chapterNumber}`);

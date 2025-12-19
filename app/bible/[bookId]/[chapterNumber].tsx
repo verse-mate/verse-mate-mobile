@@ -74,9 +74,9 @@ import {
 type ViewMode = 'bible' | 'explanations';
 
 /**
- * Center index for 5-page window in ChapterPagerView
+ * Center index for 7-page window in ChapterPagerView
  */
-const CENTER_INDEX = 2;
+const CENTER_INDEX = 3;
 
 /**
  * Chapter Screen Component
