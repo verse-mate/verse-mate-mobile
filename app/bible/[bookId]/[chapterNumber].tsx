@@ -22,7 +22,13 @@ import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleContentPanel } from '@/components/bible/BibleContentPanel';
 import { BibleExplanationsPanel } from '@/components/bible/BibleExplanationsPanel';
@@ -99,10 +105,51 @@ export default function ChapterScreen() {
     verse?: string;
     endVerse?: string;
   }>();
-  const bookId = Number(params.bookId);
-  const chapterNumber = Number(params.chapterNumber);
   const targetVerse = params.verse ? Number(params.verse) : undefined;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
+
+  // Local state for immediate UI updates (Source of Truth for UI)
+  // Initialized from params, but can diverge during swiping
+  const [activeBookId, setActiveBookId] = useState(Number(params.bookId));
+  const [activeChapter, setActiveChapter] = useState(Number(params.chapterNumber));
+
+  // Sync local state from params ONLY when params change significantly (e.g. deep link, menu nav)
+  // avoiding loops with our own debounced updates
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeBookId and activeChapter are intentionally omitted to prevent snap-back during swiping
+  useEffect(() => {
+    const paramBookId = Number(params.bookId);
+    const paramChapter = Number(params.chapterNumber);
+    if (
+      !Number.isNaN(paramBookId) &&
+      !Number.isNaN(paramChapter) &&
+      (paramBookId !== activeBookId || paramChapter !== activeChapter)
+    ) {
+      setActiveBookId(paramBookId);
+      setActiveChapter(paramChapter);
+    }
+  }, [params.bookId, params.chapterNumber]); // Sync correctly without loops
+
+  // Debounced URL sync (The "Follower")
+  // Updates the URL silently after user stops swiping to prevent global re-renders during animation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Only update if URL is different from current state
+      if (
+        Number(params.bookId) !== activeBookId ||
+        Number(params.chapterNumber) !== activeChapter
+      ) {
+        router.setParams({
+          bookId: activeBookId.toString(),
+          chapterNumber: activeChapter.toString(),
+          // Clear verse params when chapter changes to prevent "sticky" highlighting
+          verse: undefined,
+          endVerse: undefined,
+        });
+      }
+    }, 1000); // Increased to 1000ms for stability
+
+    return () => clearTimeout(timer);
+  }, [activeBookId, activeChapter, params.bookId, params.chapterNumber]);
 
   // Auth - get current user for saving reading progress
   const { user } = useAuth();
@@ -124,9 +171,9 @@ export default function ChapterScreen() {
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
 
-  // Use validated params for API calls (defined early for hooks)
-  const validBookId = Math.max(1, Math.min(66, bookId));
-  const validChapter = Math.max(1, chapterNumber);
+  // Use local state for API calls (defined early for hooks)
+  const validBookId = Math.max(1, Math.min(66, activeBookId));
+  const validChapter = Math.max(1, activeChapter);
 
   // Track chapter reading duration (Time-Based Analytics)
   // Hook fires CHAPTER_READING_DURATION event on unmount with AppState awareness
@@ -169,8 +216,8 @@ export default function ChapterScreen() {
   // Fetch book metadata to get total chapters for validation
   const { data: booksMetadata } = useBibleTestaments();
   const bookMetadata = useMemo(
-    () => booksMetadata?.find((book) => book.id === bookId),
-    [booksMetadata, bookId]
+    () => booksMetadata?.find((book) => book.id === activeBookId),
+    [booksMetadata, activeBookId]
   );
   const totalChapters = bookMetadata?.chapterCount || 50; // Default to 50 if not loaded
 
@@ -184,26 +231,26 @@ export default function ChapterScreen() {
    */
   useEffect(() => {
     // Validate bookId (1-66)
-    if (bookId < 1 || bookId > 66) {
+    if (activeBookId < 1 || activeBookId > 66) {
       // Invalid bookId, redirect to Genesis 1
-      router.replace('/bible/1/1' as never);
+      setActiveBookId(1);
+      setActiveChapter(1);
       return;
     }
 
     // Validate chapter number (must be positive and within book's range)
-    if (chapterNumber < 1) {
+    if (activeChapter < 1) {
       // Invalid chapter, redirect to book's first chapter
-      router.replace(`/bible/${bookId}/1` as never);
+      setActiveChapter(1);
       return;
     }
 
     // If we have book metadata, validate against actual chapter count
-    if (bookMetadata && chapterNumber > bookMetadata.chapterCount) {
+    if (bookMetadata && activeChapter > bookMetadata.chapterCount) {
       // Chapter exceeds book's chapter count, redirect to first chapter
-      router.replace(`/bible/${bookId}/1` as never);
+      setActiveChapter(1);
     }
-    // Note: router is stable and doesn't need to be in dependencies
-  }, [bookId, chapterNumber, bookMetadata]);
+  }, [activeBookId, activeChapter, bookMetadata]);
 
   // Calculate progress percentage (Task 8.4)
   const { progress } = useBookProgress(validBookId, validChapter, totalChapters);
@@ -292,29 +339,36 @@ export default function ChapterScreen() {
   /**
    * Handle view mode change with haptic feedback
    */
-  const handleViewChange = (view: ViewMode) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setActiveView(view);
-  };
+  const handleViewChange = useCallback(
+    (view: ViewMode) => {
+      // Skip if already on this view
+      if (view === activeView) return;
+
+      // Trigger haptic feedback (non-blocking)
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Update view immediately
+      setActiveView(view);
+    },
+    [activeView, setActiveView]
+  );
 
   /**
    * Handle page change from ChapterPagerView (Task 4.4)
    *
    * Updates:
-   * - URL with setParams() (no animation, just updates URL)
+   * - Local state immediately (instant UI update)
+   * - URL via debounced effect (silent background sync)
    * - Save last read position
    * - Trigger prefetch after 1s delay
-   * - Haptic feedback (medium impact)
+   * - Haptic feedback (INSTANTLY handled by PagerView natively)
    */
   // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   const handlePageChange = useCallback(
     (newBookId: number, newChapterNumber: number) => {
-      // Use router.setParams for swipe navigation to prevent unmounting/flickering
-      // Note: Animation comes from URL change
-      router.setParams({
-        bookId: newBookId.toString(),
-        chapterNumber: newChapterNumber.toString(),
-      });
+      // Update local state IMMEDIATELY to prevent flash
+      setActiveBookId(newBookId);
+      setActiveChapter(newChapterNumber);
 
       // Save reading position - only for authenticated users
       if (user?.id) {
@@ -324,9 +378,6 @@ export default function ChapterScreen() {
           chapter_number: newChapterNumber,
         });
       }
-
-      // Haptic feedback for page change
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Prefetch adjacent chapters after 1 second delay (Task 4.6)
       setTimeout(() => {
@@ -483,9 +534,9 @@ export default function ChapterScreen() {
             />
 
             {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
-            {activeView === 'explanations' && (
+            <View style={activeView !== 'explanations' && { height: 0, overflow: 'hidden' }}>
               <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
-            )}
+            </View>
 
             {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
             <ChapterPagerView
@@ -585,20 +636,18 @@ function ChapterHeader({
   const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
 
-  // Animation for sliding toggle indicator
-  const toggleSlideAnim = useRef(new Animated.Value(activeView === 'bible' ? 0 : 1)).current;
+  // Animation for sliding toggle indicator (using Reanimated for native thread performance)
+  const toggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
   const [bibleButtonWidth, setBibleButtonWidth] = useState(0);
   const [insightButtonWidth, setInsightButtonWidth] = useState(0);
 
   // Animate toggle indicator when activeView changes
   useEffect(() => {
-    Animated.spring(toggleSlideAnim, {
-      toValue: activeView === 'bible' ? 0 : 1,
-      useNativeDriver: false, // Changed to false to allow width animation
-      friction: 8,
-      tension: 50,
-    }).start();
-  }, [activeView, toggleSlideAnim]);
+    toggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [activeView, toggleProgress]);
 
   // Measure individual button widths
   const handleBibleLayout = (event: LayoutChangeEvent) => {
@@ -611,24 +660,17 @@ function ChapterHeader({
     setInsightButtonWidth(width);
   };
 
-  // Memoize interpolations to prevent recreating on every render
-  const indicatorTranslateX = useMemo(
-    () =>
-      toggleSlideAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, Math.max(0, bibleButtonWidth + 4)], // Move to insight position (Bible width + gap)
-      }),
-    [toggleSlideAnim, bibleButtonWidth]
-  );
+  // Animated style for the indicator (runs on native thread)
+  const indicatorAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    const translateX = toggleProgress.value * Math.max(0, bibleButtonWidth + 4);
+    const width = bibleButtonWidth + toggleProgress.value * (insightButtonWidth - bibleButtonWidth);
 
-  const indicatorWidth = useMemo(
-    () =>
-      toggleSlideAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [Math.max(0, bibleButtonWidth), Math.max(0, insightButtonWidth)],
-      }),
-    [toggleSlideAnim, bibleButtonWidth, insightButtonWidth]
-  );
+    return {
+      transform: [{ translateX }],
+      width: Math.max(0, width),
+    };
+  }, [bibleButtonWidth, insightButtonWidth]);
 
   /**
    * Safe navigation press handler to prevent double-triggering
@@ -663,22 +705,10 @@ function ChapterHeader({
         {/* Bible/Commentary Toggle (Figma pill-style) */}
         <View style={styles.toggleContainer}>
           {/* Sliding indicator background */}
-          <Animated.View
-            style={[
-              styles.toggleIndicator,
-              {
-                width: indicatorWidth,
-                transform: [
-                  {
-                    translateX: indicatorTranslateX,
-                  },
-                ],
-              },
-            ]}
-          />
+          <Animated.View style={[styles.toggleIndicator, indicatorAnimatedStyle]} />
           <Pressable
             onPress={() => onViewChange('bible')}
-            style={styles.toggleButton}
+            style={({ pressed }) => [styles.toggleButton, pressed && styles.toggleButtonPressed]}
             onLayout={handleBibleLayout}
             accessibilityLabel="Bible reading view"
             accessibilityRole="button"
@@ -691,7 +721,7 @@ function ChapterHeader({
           </Pressable>
           <Pressable
             onPress={() => onViewChange('explanations')}
-            style={styles.toggleButton}
+            style={({ pressed }) => [styles.toggleButton, pressed && styles.toggleButtonPressed]}
             onLayout={handleInsightLayout}
             accessibilityLabel="Insight view"
             accessibilityRole="button"
@@ -790,6 +820,9 @@ const createHeaderStyles = (
       alignItems: 'center',
       backgroundColor: 'transparent',
       zIndex: 1,
+    },
+    toggleButtonPressed: {
+      opacity: 0.7,
     },
     toggleButtonActive: {
       backgroundColor: 'transparent',

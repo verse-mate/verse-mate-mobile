@@ -47,6 +47,12 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
   const [visible, setVisible] = useState(initialVisible);
   const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAtBottomRef = useRef(false);
+  const visibleRef = useRef(visible);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    visibleRef.current = visible;
+  }, [visible]);
 
   /**
    * Clear any pending idle timeout
@@ -99,20 +105,20 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
         setVisible(true);
       } else if (velocity < -SCROLL_VELOCITY_THRESHOLD) {
         // Fast scroll UP - show buttons with 3s timeout
-        if (!visible) {
+        if (!visibleRef.current) {
           setVisible(true);
         }
         startIdleTimeout();
       } else if (velocity > SCROLL_VELOCITY_THRESHOLD) {
         // Fast scroll DOWN - hide buttons immediately
-        if (visible) {
+        if (visibleRef.current) {
           setVisible(false);
         }
         clearIdleTimeout();
       }
       // Note: On slow scroll, let existing timeout continue (buttons will hide after 3s of inactivity)
     },
-    [visible, clearIdleTimeout, startIdleTimeout]
+    [clearIdleTimeout, startIdleTimeout]
   );
 
   /**
