@@ -558,14 +558,13 @@ export default function SettingsScreen() {
         {/* Theme Selector Section */}
         <ThemeSelector />
 
-        {/* Account Actions Section - Authenticated Only */}
+        {/* Logout Button - Authenticated Only */}
         {isAuthenticated && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Account Actions</Text>
             <Button
               title="Logout"
               onPress={handleLogout}
-              variant="outline"
+              variant="outlineGold"
               fullWidth
               testID="settings-logout-button"
             />
