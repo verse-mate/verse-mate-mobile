@@ -6,7 +6,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react-native';
+import { act, render, screen, waitFor, within } from '@testing-library/react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -355,6 +355,8 @@ describe('ChapterScreen', () => {
    * Test 5: Invalid bookId redirects to Genesis 1
    */
   it('redirects to Genesis 1 when bookId is invalid', () => {
+    jest.useFakeTimers();
+
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       bookId: '999', // Invalid book ID (only 66 books)
       chapterNumber: '1',
@@ -368,8 +370,20 @@ describe('ChapterScreen', () => {
 
     renderWithSafeArea(<ChapterScreen />);
 
-    // Should redirect to Genesis 1
-    expect(router.replace).toHaveBeenCalled();
+    // Validation sets state immediately, then debounced URL sync happens after 1000ms
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    // Should update URL params to Genesis 1 (bookId: 1, chapterNumber: 1)
+    expect(router.setParams).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookId: '1',
+        chapterNumber: '1',
+      })
+    );
+
+    jest.useRealTimers();
   });
 
   /**

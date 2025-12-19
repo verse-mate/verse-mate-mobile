@@ -354,8 +354,8 @@ describe('TopicDetailScreen', () => {
       fireEvent.press(prevButton);
 
       // With TopicPagerView, navigation uses setPage instead of router.push
-      // CENTER_INDEX - 1 = 2 - 1 = 1
-      expect(mockSetPage).toHaveBeenCalledWith(1);
+      // CENTER_INDEX - 1 = 3 - 1 = 2
+      expect(mockSetPage).toHaveBeenCalledWith(2);
     });
 
     it('should call pagerRef.setPage when next button is pressed', async () => {
@@ -370,8 +370,8 @@ describe('TopicDetailScreen', () => {
       fireEvent.press(nextButton);
 
       // With TopicPagerView, navigation uses setPage instead of router.push
-      // CENTER_INDEX + 1 = 2 + 1 = 3
-      expect(mockSetPage).toHaveBeenCalledWith(3);
+      // CENTER_INDEX + 1 = 3 + 1 = 4
+      expect(mockSetPage).toHaveBeenCalledWith(4);
     });
 
     it('should have navigation menu accessible', async () => {

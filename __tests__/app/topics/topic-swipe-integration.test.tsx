@@ -85,8 +85,8 @@ jest.mock('expo-haptics', () => ({
 // Mock TopicPagerView to track ref usage
 const mockSetPage = jest.fn();
 
-// Center index constant from TopicPagerView (5-page window)
-const _CENTER_INDEX = 2;
+// Center index constant from TopicPagerView (7-page window)
+const _CENTER_INDEX = 3;
 
 jest.mock('@/components/topics/TopicPagerView', () => {
   const React = require('react');
@@ -250,8 +250,8 @@ describe('TopicDetailScreen - PagerView Integration', () => {
       fireEvent.press(nextButton);
     });
 
-    // Should call setPage with CENTER_INDEX + 1 (2 + 1 = 3)
-    expect(mockSetPage).toHaveBeenCalledWith(3);
+    // Should call setPage with CENTER_INDEX + 1 (3 + 1 = 4)
+    expect(mockSetPage).toHaveBeenCalledWith(4);
   });
 
   /**
@@ -311,8 +311,8 @@ describe('TopicDetailScreen - PagerView Integration', () => {
         fireEvent.press(prevButton);
       });
 
-      // Should call setPage with CENTER_INDEX - 1 (2 - 1 = 1)
-      expect(mockSetPage).toHaveBeenCalledWith(1);
+      // Should call setPage with CENTER_INDEX - 1 (3 - 1 = 2)
+      expect(mockSetPage).toHaveBeenCalledWith(2);
     });
 
     /**

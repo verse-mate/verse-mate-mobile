@@ -104,8 +104,8 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
       </QueryClientProvider>
     );
 
-    // Simulate swipe to next page (position 3)
-    mockOnPageSelected?.({ nativeEvent: { position: 3 } });
+    // Simulate swipe to next page (position 4, since CENTER_INDEX is 3)
+    mockOnPageSelected?.({ nativeEvent: { position: 4 } });
 
     // onPageChange should NOT be called immediately
     expect(onPageChange).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
     );
 
     // Simulate swipe
-    mockOnPageSelected?.({ nativeEvent: { position: 3 } });
+    mockOnPageSelected?.({ nativeEvent: { position: 4 } });
 
     // Unmount before delay completes
     unmount();
@@ -165,14 +165,14 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
       </QueryClientProvider>
     );
 
-    // Simulate first swipe to position 3
-    mockOnPageSelected?.({ nativeEvent: { position: 3 } });
+    // Simulate first swipe to position 4
+    mockOnPageSelected?.({ nativeEvent: { position: 4 } });
 
     // Advance by 30ms (not enough to trigger first callback)
     jest.advanceTimersByTime(30);
 
-    // Simulate second rapid swipe to position 1 (should cancel first timeout)
-    mockOnPageSelected?.({ nativeEvent: { position: 1 } });
+    // Simulate second rapid swipe to position 2 (should cancel first timeout)
+    mockOnPageSelected?.({ nativeEvent: { position: 2 } });
 
     // Advance past when first delay would have fired
     jest.advanceTimersByTime(50); // Total 80ms from first swipe, 50ms from second
@@ -204,8 +204,8 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
       </QueryClientProvider>
     );
 
-    // Simulate swipe to next chapter (position 3)
-    mockOnPageSelected?.({ nativeEvent: { position: 3 } });
+    // Simulate swipe to next chapter (position 4, since CENTER_INDEX is 3)
+    mockOnPageSelected?.({ nativeEvent: { position: 4 } });
 
     // Verify callback not called immediately
     expect(onPageChange).not.toHaveBeenCalled();

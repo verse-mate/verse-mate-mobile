@@ -148,7 +148,7 @@ describe('AutoHighlightTooltip', () => {
     expect(screen.getByText('Sign in to save this highlight to your collection')).toBeTruthy();
   });
 
-  it('shows parsed insight when toggle is clicked for multi-verse highlight', () => {
+  it('shows parsed insight expanded by default for multi-verse highlight', () => {
     const multiVerseHighlight = { ...mockAutoHighlight, end_verse: 17 };
 
     renderWithProviders(
@@ -166,15 +166,7 @@ describe('AutoHighlightTooltip', () => {
       jest.advanceTimersByTime(500);
     });
 
-    const toggleButton = screen.getByText('View Verse Insight');
-
-    act(() => {
-      fireEvent.press(toggleButton);
-      // Advance timers for expansion animation
-      jest.advanceTimersByTime(500);
-    });
-
-    expect(screen.getByText('Hide Verse Insight')).toBeTruthy();
+    // Tooltip now always starts expanded, so verse insight should be immediately visible
     expect(screen.getByText(/God loved the world so much/)).toBeTruthy();
   });
 });
