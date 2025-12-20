@@ -32,7 +32,7 @@
         "buildConfiguration": "Release"
       },
       "android": {
-        "buildType": "apk",
+        "buildType": "app-bundle",
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
