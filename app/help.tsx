@@ -1,77 +1,174 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fontSizes, spacing } from '@/constants/bible-design-tokens';
+import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import {
+  getSupportConversations,
+  getSupportMessages,
+  postSupportConversation,
+  postSupportMessage,
+  type SupportConversation,
+  type SupportMessage,
+} from '@/lib/api/support';
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'support';
-  timestamp: Date;
-}
+type ViewState = 'list' | 'chat';
 
 export default function HelpScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  // -- State --
+  const [view, setView] = useState<ViewState>('list');
+  const [conversations, setConversations] = useState<SupportConversation[]>([]);
+  const [currentConvId, setCurrentConvId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [inputText, setInputText] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'Hi! How can we help you today? Feel free to send us feedback or ask any questions about VerseMate.',
-      sender: 'support',
-      timestamp: new Date(),
-    },
-  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
+
+  // -- Data Loading --
+
+  const loadConversations = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setIsLoading(true);
+    try {
+      const { data } = await getSupportConversations();
+      if (data) {
+        setConversations(data.conversations);
+      }
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  const loadMessages = useCallback(async (id: string) => {
+    try {
+      const { data } = await getSupportMessages(id);
+      if (data) {
+        setMessages(data.messages);
+      }
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  // Poll for new messages if in chat view
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (view === 'chat' && currentConvId) {
+      interval = setInterval(() => {
+        loadMessages(currentConvId);
+      }, 5000); // Every 5 seconds
+    }
+    return () => clearInterval(interval);
+  }, [view, currentConvId, loadMessages]);
+
+  // -- Handlers --
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadConversations();
+    setRefreshing(false);
+  };
+
+  const handleSelectConversation = async (id: string) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCurrentConvId(id);
+    setView('chat');
+    setIsLoading(true);
+    await loadMessages(id);
+    setIsLoading(false);
+  };
+
+  const handleStartNewConversation = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCurrentConvId(null);
+    setMessages([]);
+    setView('chat');
+  };
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
 
+    const text = inputText.trim();
+    setInputText('');
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      sender: 'user',
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
-    setInputText('');
-
-    // TODO: Hook up to backend API which forwards to Slack
-    console.log('Sending to support:', newMessage.text);
-
-    // Auto-scroll to bottom
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    try {
+      if (currentConvId) {
+        // Reply to existing
+        await postSupportMessage(currentConvId, text);
+        await loadMessages(currentConvId);
+      } else {
+        // Start new
+        const response = await postSupportConversation(text, 'New Support Request');
+        const data = response.data;
+        if (data && 'success' in data && data.success) {
+          setCurrentConvId(data.conversationId);
+          await loadMessages(data.conversationId);
+          loadConversations(); // Update list in background
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleBackPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
+    if (view === 'chat') {
+      setView('list');
+      setCurrentConvId(null);
+      loadConversations();
+    } else {
+      router.back();
+    }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  // -- Render Helpers --
+
+  const renderConversationItem = ({ item }: { item: SupportConversation }) => (
+    <Pressable
+      onPress={() => handleSelectConversation(item.id)}
+      style={({ pressed }) => [styles.convCard, pressed && styles.convCardPressed]}
+    >
+      <View style={styles.convInfo}>
+        <Text style={styles.convSubject}>{item.subject || 'Support Chat'}</Text>
+        <Text style={styles.convDate}>
+          {item.last_message_at ? new Date(item.last_message_at).toLocaleDateString() : 'New'}
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+    </Pressable>
+  );
+
+  const renderMessage = ({ item }: { item: SupportMessage }) => {
     const isUser = item.sender === 'user';
     return (
       <View style={[styles.messageRow, isUser ? styles.userRow : styles.supportRow]}>
@@ -84,13 +181,42 @@ export default function HelpScreen() {
           <Text style={[styles.messageText, isUser ? styles.userText : styles.supportText]}>
             {item.text}
           </Text>
-          <Text style={styles.timestamp}>
-            {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+          {item.created_at && (
+            <Text style={[styles.timestamp, isUser && { color: 'rgba(255,255,255,0.7)' }]}>
+              {new Date(item.created_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </Text>
+          )}
         </View>
       </View>
     );
   };
+
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Help & Support</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.centerContent}>
+          <Ionicons name="lock-closed-outline" size={64} color={colors.textTertiary} />
+          <Text style={styles.loginText}>Please sign in to contact support</Text>
+          <Pressable
+            style={[styles.newChatButton, { backgroundColor: colors.gold, marginTop: 20 }]}
+            onPress={() => router.push('/auth/login')}
+          >
+            <Text style={{ color: colors.background, fontWeight: '600' }}>Sign In</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -99,53 +225,94 @@ export default function HelpScreen() {
         <Pressable onPress={handleBackPress} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>Help & Support</Text>
+        <Text style={styles.headerTitle}>
+          {view === 'chat' ? 'Conversation' : 'Help & Support'}
+        </Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-      />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        <View style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              value={inputText}
-              onChangeText={setInputText}
-              placeholder="Type a message..."
-              placeholderTextColor={colors.textTertiary}
-              multiline
-              maxLength={500}
-            />
-            <Pressable
-              onPress={handleSend}
-              style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
-              disabled={!inputText.trim()}
-            >
-              <Ionicons
-                name="send"
-                size={20}
-                color={inputText.trim() ? colors.gold : colors.textTertiary}
+      {view === 'list' ? (
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={conversations}
+            renderItem={renderConversationItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.gold}
               />
-            </Pressable>
-          </View>
+            }
+            ListHeaderComponent={
+              <Pressable
+                onPress={handleStartNewConversation}
+                style={({ pressed }) => [styles.newChatButton, pressed && { opacity: 0.8 }]}
+              >
+                <Ionicons name="add-circle-outline" size={24} color={colors.gold} />
+                <Text style={styles.newChatText}>Start New Conversation</Text>
+              </Pressable>
+            }
+            ListEmptyComponent={
+              !isLoading ? (
+                <View style={styles.centerContent}>
+                  <Text style={styles.emptyText}>No past conversations found.</Text>
+                </View>
+              ) : null
+            }
+          />
+          {isLoading && (
+            <ActivityIndicator style={StyleSheet.absoluteFill} size="large" color={colors.gold} />
+          )}
         </View>
-      </KeyboardAvoidingView>
+      ) : (
+        <View style={{ flex: 1 }}>
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          />
+
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+          >
+            <View style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder="Type a message..."
+                  placeholderTextColor={colors.textTertiary}
+                  multiline
+                  maxLength={500}
+                />
+                <Pressable
+                  onPress={handleSend}
+                  style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+                  disabled={!inputText.trim()}
+                >
+                  <Ionicons
+                    name="send"
+                    size={20}
+                    color={inputText.trim() ? colors.gold : colors.textTertiary}
+                  />
+                </Pressable>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      )}
     </View>
   );
 }
 
-const createStyles = (colors: any) =>
+const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -171,6 +338,68 @@ const createStyles = (colors: any) =>
     },
     headerSpacer: {
       width: 40,
+    },
+    listContent: {
+      padding: 16,
+      gap: 12,
+    },
+    convCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
+    },
+    convCardPressed: {
+      opacity: 0.7,
+    },
+    convInfo: {
+      flex: 1,
+    },
+    convSubject: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.textPrimary,
+      marginBottom: 4,
+    },
+    convDate: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    newChatButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 16,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
+      marginBottom: 8,
+      gap: 8,
+    },
+    newChatText: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: colors.gold,
+    },
+    centerContent: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingTop: 100,
+    },
+    emptyText: {
+      color: colors.textSecondary,
+      fontSize: 14,
+    },
+    loginText: {
+      color: colors.textPrimary,
+      fontSize: 16,
+      marginTop: 16,
+      textAlign: 'center',
     },
     scrollContent: {
       paddingHorizontal: 16,
@@ -219,7 +448,7 @@ const createStyles = (colors: any) =>
       lineHeight: 20,
     },
     userText: {
-      color: colors.background, // Contrast text on gold
+      color: colors.background,
     },
     supportText: {
       color: colors.textPrimary,
@@ -229,6 +458,7 @@ const createStyles = (colors: any) =>
       marginTop: 4,
       opacity: 0.5,
       alignSelf: 'flex-end',
+      color: colors.textSecondary,
     },
     inputArea: {
       paddingHorizontal: 16,
