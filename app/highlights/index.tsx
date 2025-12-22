@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
+import { IconHighlight } from '@/components/ui/icons';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -223,7 +224,7 @@ export default function HighlightsScreen() {
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="color-wand-outline" size={64} color={colors.textDisabled} />
+          <IconHighlight width={64} height={64} color={colors.textDisabled} />
           <Text style={styles.emptyStateTitle}>Please login to view your highlights</Text>
           <Text style={styles.emptyStateSubtitle}>
             Sign in to save and access your highlighted verses
@@ -314,7 +315,7 @@ export default function HighlightsScreen() {
 
           {/* Empty State */}
           <View style={styles.emptyStateContainer}>
-            <Ionicons name="color-wand-outline" size={64} color={colors.textDisabled} />
+            <IconHighlight width={64} height={64} color={colors.textDisabled} />
             <Text style={styles.emptyStateTitle}>No highlights yet</Text>
             <Text style={styles.emptyStateSubtitle}>
               Start highlighting verses to see them here.
@@ -373,36 +374,30 @@ export default function HighlightsScreen() {
         }
         testID="highlights-list"
       >
-        {/* My Highlights Section Header */}
-        <View style={styles.sectionDivider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>My Highlights</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
         {/* User Highlights */}
         {chapterGroups.map((group) => (
-          <View key={`${group.bookId}-${group.chapterNumber}`} style={styles.chapterGroup}>
-            {/* Chapter Group Header */}
-            <Pressable
-              style={({ pressed }) => [styles.groupHeader, pressed && styles.groupHeaderPressed]}
-              onPress={() => handleChapterPress(group)}
-              testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
-            >
-              <View style={styles.groupInfo}>
-                <Text style={styles.groupTitle}>
-                  {group.bookName} {group.chapterNumber}
-                </Text>
-                <Text style={styles.groupSubtitle}>
-                  {group.highlights.length}{' '}
-                  {group.highlights.length === 1 ? 'highlight' : 'highlights'}
-                </Text>
+          <Pressable
+            key={`${group.bookId}-${group.chapterNumber}`}
+            style={({ pressed }) => [styles.highlightItem, pressed && styles.highlightItemPressed]}
+            onPress={() => handleChapterPress(group)}
+            testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
+          >
+            <View style={styles.highlightItemContent}>
+              <View style={styles.highlightIconContainer}>
+                <IconHighlight width={24} height={24} color={colors.gold} />
               </View>
-              <View style={styles.groupIconContainer}>
-                <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+              <Text style={styles.highlightText}>
+                {group.bookName} {group.chapterNumber}
+              </Text>
+            </View>
+
+            <View style={styles.rightContent}>
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>{group.highlights.length}</Text>
               </View>
-            </Pressable>
-          </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Pressable>
         ))}
 
         {/* Divider */}
@@ -427,29 +422,29 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      backgroundColor: colors.background,
+      // No background or border for header
     },
     backButton: {
       padding: spacing.xs,
-      marginRight: spacing.sm,
+      width: 40,
+      alignItems: 'flex-start',
     },
     headerTitle: {
       flex: 1,
-      fontSize: fontSizes.displayMedium * 0.88,
-      fontWeight: fontWeights.bold,
+      fontSize: 18,
+      fontWeight: '300',
       color: colors.textPrimary,
+      textAlign: 'center',
     },
     headerSpacer: {
-      width: 32,
+      width: 40,
     },
     centerContent: {
       flex: 1,
@@ -462,7 +457,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: spacing.xl,
-      paddingVertical: spacing.xxl * 2,
+      paddingVertical: spacing.xxl,
     },
     emptyStateTitle: {
       fontSize: fontSizes.heading2,
@@ -494,35 +489,21 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       flex: 1,
     },
     scrollContent: {
-      paddingVertical: spacing.sm,
+      paddingTop: 16,
+      paddingBottom: spacing.sm,
+      gap: 16, // Spacing between items
     },
     autoHighlightSection: {
       marginBottom: spacing.lg,
     },
-    sectionHeaderContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-      backgroundColor: colors.background,
-    },
-    sectionIcon: {
-      marginRight: spacing.sm,
-    },
-    sectionHeader: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
     autoHighlightContainer: {
-      paddingHorizontal: spacing.lg,
-      backgroundColor: colors.background,
+      paddingHorizontal: 0, // Container handles padding
     },
     sectionDivider: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.xl,
+      paddingVertical: spacing.lg,
     },
     dividerLine: {
       flex: 1,
@@ -537,76 +518,51 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
-    // Updated Card Styles
-    chapterGroup: {
-      marginBottom: spacing.md,
-      marginHorizontal: spacing.lg,
-      backgroundColor: colors.backgroundElevated,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
-      overflow: 'hidden',
-    },
-    groupHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: spacing.lg,
-    },
-    groupHeaderPressed: {
-      backgroundColor: `${colors.divider}20`, // Subtle press effect
-    },
-    groupInfo: {
-      flex: 1,
-    },
-    groupTitle: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.bold,
-      color: colors.textPrimary,
-      marginBottom: 2,
-    },
-    groupSubtitle: {
-      fontSize: fontSizes.caption,
-      color: colors.textSecondary,
-      fontWeight: fontWeights.medium,
-    },
-    groupIconContainer: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.background,
-      borderWidth: 1,
-      borderColor: colors.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    groupContent: {
-      backgroundColor: colors.background,
-      paddingVertical: spacing.sm,
-    },
+    // Updated Highlight Item Styles (Card)
     highlightItem: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
-      minHeight: 60,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginHorizontal: 16,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
     },
     highlightItemPressed: {
-      backgroundColor: colors.backgroundElevated,
+      opacity: 0.7,
+    },
+    highlightItemContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    highlightIconContainer: {
+      marginRight: 8, // 8px gap
     },
     highlightText: {
-      flex: 1,
-      fontSize: fontSizes.body,
+      fontSize: 16,
+      fontWeight: '400',
       color: colors.textPrimary,
-      lineHeight: 20,
-      marginRight: spacing.md,
+    },
+    rightContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    countBadge: {
+      backgroundColor: 'rgba(176, 154, 109, 0.1)',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+      minWidth: 24,
+      alignItems: 'center',
+    },
+    countText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textPrimary,
     },
   });

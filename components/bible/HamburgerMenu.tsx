@@ -23,11 +23,19 @@
  * <HamburgerMenu visible={isOpen} onClose={() => setIsOpen(false)} />
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useEffect, useMemo } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
@@ -41,9 +49,22 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
+import type { SvgProps } from 'react-native-svg';
+import {
+  IconBookmarkFilled,
+  IconDocument,
+  IconHeart,
+  IconHelp,
+  IconHighlight,
+  IconInfo,
+  IconProfile,
+  IconSettings,
+  IconShare,
+} from '@/components/ui/icons';
+import type { getColors } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { MessageModal } from './MessageModal';
 
 interface HamburgerMenuProps {
   /** Whether menu is visible */
@@ -55,36 +76,42 @@ interface HamburgerMenuProps {
 interface MenuItem {
   id: string;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  action?: 'auth' | 'logout' | 'bookmarks' | 'notes' | 'highlights' | 'settings';
+  icon: React.FC<SvgProps>;
+  action?:
+    | 'auth'
+    | 'logout'
+    | 'bookmarks'
+    | 'notes'
+    | 'highlights'
+    | 'settings'
+    | 'share'
+    | 'about'
+    | 'giving'
+    | 'help';
 }
 
-const authMenuItems: MenuItem[] = [
-  { id: 'login', label: 'Login', icon: 'log-in-outline', action: 'auth' },
-  { id: 'signup', label: 'Sign Up', icon: 'person-add-outline', action: 'auth' },
-];
-
 const regularMenuItems: MenuItem[] = [
-  { id: 'bookmarks', label: 'Bookmarks', icon: 'bookmark-outline', action: 'bookmarks' },
-  { id: 'notes', label: 'Notes', icon: 'document-text-outline', action: 'notes' },
-  { id: 'highlights', label: 'Highlights', icon: 'color-wand-outline', action: 'highlights' },
-  { id: 'settings', label: 'Settings', icon: 'settings-outline', action: 'settings' },
+  { id: 'bookmarks', label: 'Bookmarks', icon: IconBookmarkFilled, action: 'bookmarks' },
+  { id: 'notes', label: 'Notes', icon: IconDocument, action: 'notes' },
+  { id: 'highlights', label: 'Highlights', icon: IconHighlight, action: 'highlights' },
+  { id: 'settings', label: 'Settings', icon: IconSettings, action: 'settings' },
+  { id: 'share', label: 'Share VerseMate', icon: IconShare, action: 'share' },
+  { id: 'about', label: 'About', icon: IconInfo, action: 'about' },
+  { id: 'giving', label: 'Giving', icon: IconHeart, action: 'giving' },
+  { id: 'help', label: 'Help', icon: IconHelp, action: 'help' },
 ];
-
-const logoutMenuItem: MenuItem = {
-  id: 'logout',
-  label: 'Logout',
-  icon: 'log-out-outline',
-  action: 'logout',
-};
 
 export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const { colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
-  const menuWidth = Math.min(windowWidth * 0.8, 320); // 80% of screen width, max 320px
+  const menuWidth = Math.min(windowWidth * 0.85, 340); // Slightly wider to match Figma feel
   const styles = useMemo(() => createStyles(colors, menuWidth), [colors, menuWidth]);
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, logout } = useAuth();
+
+  // Message Modal State
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalContent, setModalContent] = useState({ title: '', message: '' });
 
   // Shared value for swipe translation
   const translateX = useSharedValue(0);
@@ -101,53 +128,73 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     transform: [{ translateX: translateX.value }],
   }));
 
+  const showMessage = (title: string, message: string) => {
+    setModalContent({ title, message });
+    setModalVisible(true);
+  };
+
   /**
    * Handle menu item tap
-   * Routes to auth screens, bookmarks screen, notes screen, highlights screen, or shows "Coming soon" alert
    */
   const handleItemPress = async (item: MenuItem) => {
-    // Trigger haptic feedback first
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (item.action === 'auth') {
-      onClose();
-      if (item.id === 'login') {
-        router.push('/auth/login');
-      } else if (item.id === 'signup') {
-        router.push('/auth/signup');
-      }
-    } else if (item.action === 'logout') {
-      await logout();
-      Alert.alert('Logged Out', 'You have been logged out successfully.');
-      onClose();
-    } else if (item.action === 'bookmarks') {
-      // Navigate to bookmarks screen
+    if (item.action === 'bookmarks') {
       onClose();
       router.push('/bookmarks');
     } else if (item.action === 'notes') {
-      // Navigate to notes screen
       onClose();
       router.push('/notes');
     } else if (item.action === 'highlights') {
-      // Navigate to highlights screen
       onClose();
-      // biome-ignore lint/suspicious/noExplicitAny: Typed routes might be stale after refactor
+      // biome-ignore lint/suspicious/noExplicitAny: Typed routes might be stale
       router.push('/highlights' as any);
     } else if (item.action === 'settings') {
-      // Navigate to settings screen
       onClose();
       router.push('/settings' as never);
+    } else if (item.action === 'about') {
+      onClose();
+      showMessage(
+        'About VerseMate',
+        'VerseMate v1.0.0\n\nYour companion for Bible study and spiritual growth.'
+      );
+    } else if (item.action === 'giving') {
+      onClose();
+      showMessage('Giving', 'Support VerseMate with your contribution (Coming Soon).');
+    } else if (item.action === 'help') {
+      onClose();
+      showMessage('Help', 'Help & Support documentation is coming soon!');
+    } else if (item.action === 'share') {
+      try {
+        const result = await Share.share({
+          message: 'Check out VerseMate! Read the Bible with ease.',
+          title: 'Share VerseMate',
+          // url: 'https://versemate.app', // TODO: Add actual URL when deployed
+        });
+
+        if (result.action === Share.sharedAction) {
+          // Shared successfully
+        } else if (result.action === Share.dismissedAction) {
+          // Dismissed
+        }
+      } catch (_error) {
+        showMessage('Share Error', 'Could not open share dialog.');
+      }
     } else {
-      // Other features show "Coming soon" alert
       Alert.alert('Coming Soon', `${item.label} feature is coming soon!`);
     }
+  };
+
+  const handleProfilePress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onClose();
+    router.push('/settings' as never);
   };
 
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
         .onUpdate((event) => {
-          // Only allow dragging to the right (closing)
           translateX.value = Math.max(0, event.translationX);
         })
         .onEnd((event) => {
@@ -158,89 +205,85 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
             event.translationX > SWIPE_THRESHOLD_DISTANCE ||
             event.velocityX > SWIPE_THRESHOLD_VELOCITY
           ) {
-            // Animate off-screen then close
             translateX.value = withTiming(menuWidth, { duration: 200 }, () => {
               runOnJS(onClose)();
             });
           } else {
-            // Snap back to open
             translateX.value = withSpring(0);
           }
         }),
     [menuWidth, onClose, translateX]
   );
 
-  const handleProfilePress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onClose();
-    router.push('/settings' as never);
-  };
-
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none" // Use Reanimated for custom animations
-      onRequestClose={onClose}
-      testID="hamburger-menu-modal"
-    >
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <GestureDetector gesture={panGesture}>
-          {/* Backdrop with fade animation */}
-          <Animated.View
-            style={styles.backdrop}
-            entering={FadeIn.duration(300)}
-            exiting={FadeOut.duration(300)}
-          >
-            {/* Backdrop touchable area */}
-            <Pressable style={styles.backdropTouchable} onPress={onClose} testID="menu-backdrop" />
-
-            {/* Menu container with slide animation */}
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="none"
+        onRequestClose={onClose}
+        testID="hamburger-menu-modal"
+      >
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <GestureDetector gesture={panGesture}>
             <Animated.View
-              style={[styles.menuContainer, animatedStyle]}
-              entering={SlideInRight.duration(300)}
-              exiting={SlideOutRight.duration(300)}
-              testID="hamburger-menu"
+              style={styles.backdrop}
+              entering={FadeIn.duration(300)}
+              exiting={FadeOut.duration(300)}
             >
-              {/* Header with close button */}
-              <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-                <Text style={styles.headerTitle}>Menu</Text>
-                <Pressable
-                  onPress={onClose}
-                  style={styles.closeButton}
-                  accessibilityLabel="Close menu"
-                  accessibilityRole="button"
-                  testID="menu-close-button"
-                >
-                  <Ionicons name="close" size={24} color={colors.textPrimary} />
-                </Pressable>
-              </View>
+              <Pressable
+                style={styles.backdropTouchable}
+                onPress={onClose}
+                testID="menu-backdrop"
+              />
 
-              {/* User Info Section (if authenticated) */}
-              {isAuthenticated && user && (
+              <Animated.View
+                style={[styles.menuContainer, animatedStyle, { paddingTop: insets.top }]}
+                entering={SlideInRight.duration(300)}
+                exiting={SlideOutRight.duration(300)}
+                testID="hamburger-menu"
+              >
+                {/* Header Controls (Menu + Close) */}
+                <View style={styles.headerControls}>
+                  <Text style={styles.headerTitle}>Menu</Text>
+                  <Pressable
+                    onPress={onClose}
+                    style={styles.closeButton}
+                    accessibilityLabel="Close menu"
+                    accessibilityRole="button"
+                    testID="menu-close-button"
+                  >
+                    <View style={styles.closeIconContainer}>
+                      <Text style={{ fontSize: 24, lineHeight: 24, color: colors.textPrimary }}>
+                        ×
+                      </Text>
+                    </View>
+                  </Pressable>
+                </View>
+
+                {/* User Profile Section (Button) */}
                 <Pressable
                   onPress={handleProfilePress}
                   style={({ pressed }) => [styles.userSection, pressed && styles.menuItemPressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="User Profile"
                 >
+                  <View style={styles.avatarContainer}>
+                    <IconProfile width={24} height={24} color={colors.textPrimary} />
+                  </View>
                   <View style={styles.userInfo}>
-                    <Ionicons name="person-circle-outline" size={48} color={colors.textSecondary} />
-                    <View style={styles.userDetails}>
-                      <Text style={styles.userName}>
-                        {user.firstName} {user.lastName}
-                      </Text>
-                      <Text style={styles.userEmail}>{user.email}</Text>
-                    </View>
+                    <Text style={styles.userName}>
+                      {isAuthenticated && user
+                        ? `${user.firstName} ${user.lastName}`
+                        : 'Guest User'}
+                    </Text>
+                    <Text style={styles.userEmail}>
+                      {isAuthenticated && user ? user.email : 'Sign in to sync your data'}
+                    </Text>
                   </View>
                 </Pressable>
-              )}
 
-              {/* Auth buttons (if not authenticated) */}
-              {!isAuthenticated && (
-                <View style={styles.authSection}>
-                  <Text style={styles.authSectionTitle}>Account</Text>
-                  {authMenuItems.map((item) => (
+                {/* Menu Items */}
+                <View style={styles.menuItems}>
+                  {regularMenuItems.map((item) => (
                     <Pressable
                       key={item.id}
                       style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
@@ -249,54 +292,59 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                       accessibilityRole="button"
                       testID={`menu-item-${item.id}`}
                     >
-                      <Ionicons name={item.icon} size={24} color={colors.textSecondary} />
+                      <View style={styles.menuIconContainer}>
+                        <item.icon width={24} height={24} color={colors.textPrimary} />
+                      </View>
                       <Text style={styles.menuItemText}>{item.label}</Text>
                     </Pressable>
                   ))}
-                  <View style={styles.divider} />
                 </View>
-              )}
 
-              {/* Regular menu items */}
-              <View style={styles.menuItems}>
-                {regularMenuItems.map((item) => (
-                  <Pressable
-                    key={item.id}
-                    style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                    onPress={() => handleItemPress(item)}
-                    accessibilityLabel={item.label}
-                    accessibilityRole="button"
-                    testID={`menu-item-${item.id}`}
-                  >
-                    <Ionicons name={item.icon} size={24} color={colors.textSecondary} />
-                    <Text style={styles.menuItemText}>{item.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {/* Logout button (if authenticated) */}
-              {isAuthenticated && (
-                <View style={styles.logoutSection}>
-                  <View style={styles.divider} />
+                {/* Authentication Action (Login/Logout) */}
+                <View style={styles.footer}>
                   <Pressable
                     style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                    onPress={() => handleItemPress(logoutMenuItem)}
-                    accessibilityLabel={logoutMenuItem.label}
-                    accessibilityRole="button"
-                    testID={`menu-item-${logoutMenuItem.id}`}
+                    onPress={async () => {
+                      if (isAuthenticated) {
+                        await logout();
+                        Alert.alert('Logged Out', 'You have been logged out successfully.');
+                        onClose();
+                      } else {
+                        onClose();
+                        router.push('/auth/login');
+                      }
+                    }}
                   >
-                    <Ionicons name={logoutMenuItem.icon} size={24} color={colors.error} />
-                    <Text style={[styles.menuItemText, { color: colors.error }]}>
-                      {logoutMenuItem.label}
+                    <View style={styles.menuIconContainer}>
+                      <IconProfile
+                        width={24}
+                        height={24}
+                        color={isAuthenticated ? colors.error : colors.gold}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.menuItemText,
+                        { color: isAuthenticated ? colors.error : colors.gold },
+                      ]}
+                    >
+                      {isAuthenticated ? 'Log Out' : 'Log In'}
                     </Text>
                   </Pressable>
                 </View>
-              )}
+              </Animated.View>
             </Animated.View>
-          </Animated.View>
-        </GestureDetector>
-      </GestureHandlerRootView>
-    </Modal>
+          </GestureDetector>
+        </GestureHandlerRootView>
+      </Modal>
+
+      <MessageModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        title={modalContent.title}
+        message={modalContent.message}
+      />
+    </>
   );
 }
 
@@ -304,7 +352,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, menuWidth: number) =
   StyleSheet.create({
     backdrop: {
       flex: 1,
-      backgroundColor: colors.backdrop,
+      backgroundColor: 'rgba(0,0,0,0.4)', // Slightly darker backdrop
       justifyContent: 'flex-end',
       flexDirection: 'row',
     },
@@ -312,95 +360,107 @@ const createStyles = (colors: ReturnType<typeof getColors>, menuWidth: number) =
       flex: 1,
     },
     menuContainer: {
-      width: menuWidth, // 75% of screen width
+      width: menuWidth,
       height: '100%',
-      backgroundColor: colors.backgroundElevated,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: -2, height: 0 },
-      shadowOpacity: 0.25,
+      backgroundColor: colors.backgroundSecondary, // Using specialized menu background
+      shadowColor: '#000',
+      shadowOffset: { width: -4, height: 0 },
+      shadowOpacity: 0.1,
       shadowRadius: 8,
-      elevation: 8, // Android shadow
+      elevation: 5,
+      paddingHorizontal: 16, // Figma uses padding
     },
-    header: {
-      minHeight: 56,
+    headerControls: {
       flexDirection: 'row',
-      alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      alignItems: 'center',
+      marginBottom: 16,
+      marginTop: 16,
     },
     headerTitle: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.semibold,
+      fontSize: 18,
+      fontWeight: '300', // Light font weight per Figma
       color: colors.textPrimary,
+      fontFamily: 'Roboto', // If available, otherwise system font
     },
     closeButton: {
-      padding: spacing.xs,
+      width: 24,
+      height: 24,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    userSection: {
-      paddingVertical: spacing.lg,
-      paddingHorizontal: spacing.xl,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+    closeIconContainer: {
+      width: 24,
+      height: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 4,
     },
-    userInfo: {
+    userSection: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.md,
+      gap: 16,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 24,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
     },
-    userDetails: {
+    avatarContainer: {
+      width: 40,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.background, // Inner background slightly distinct or same
+      borderRadius: 20, // Circular
+    },
+    userInfo: {
       flex: 1,
     },
     userName: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-      marginBottom: spacing.xs / 2,
+      fontSize: 15,
+      fontWeight: '400',
+      color: colors.gold, // Using the brownish gold from Figma
+      marginBottom: 2,
     },
     userEmail: {
-      fontSize: fontSizes.caption,
-      color: colors.textTertiary,
+      fontSize: 13,
+      color: colors.textSecondary,
     },
-    authSection: {
-      paddingTop: spacing.lg,
-    },
-    authSectionTitle: {
-      fontSize: fontSizes.caption,
-      fontWeight: fontWeights.semibold,
-      color: colors.textTertiary,
-      paddingHorizontal: spacing.xl,
-      paddingBottom: spacing.sm,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: colors.divider,
-      marginVertical: spacing.lg,
-    },
+
     menuItems: {
-      paddingTop: spacing.lg,
+      gap: 8,
     },
     menuItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: spacing.lg,
-      paddingHorizontal: spacing.xl,
-      gap: spacing.lg,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
     },
     menuItemPressed: {
-      backgroundColor: colors.background,
+      opacity: 0.7, // Visual feedback
+    },
+    menuIconContainer: {
+      width: 24,
+      height: 24,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 16,
     },
     menuItemText: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.regular,
+      fontSize: 14,
+      fontWeight: '300', // Light weight
       color: colors.textPrimary,
     },
-    logoutSection: {
-      marginTop: spacing.lg,
+    footer: {
+      marginTop: 'auto', // Push to bottom
+      marginBottom: 32,
+      paddingTop: 16,
     },
   });

@@ -302,6 +302,7 @@ export function BibleInteractionProvider({
         visible={colorPickerState.visible}
         onClose={() => setColorPickerState(prev => ({ ...prev, visible: false }))}
         onSave={handleColorPickerSave}
+        useModal={!useSplitView}
       />
       
     </BibleInteractionContext.Provider>

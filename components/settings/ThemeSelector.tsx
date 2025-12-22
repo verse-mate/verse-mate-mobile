@@ -9,7 +9,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import type { ThemePreference } from '@/contexts/ThemeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -139,66 +138,69 @@ const createStyles = (
 ) =>
   StyleSheet.create({
     container: {
-      marginBottom: spacing.xxl,
+      marginBottom: 24,
+      paddingHorizontal: 16,
     },
     sectionLabel: {
-      fontSize: fontSizes.bodySmall,
-      fontWeight: fontWeights.semibold,
+      fontSize: 14,
+      fontWeight: '400',
       color: colors.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: spacing.md,
+      marginBottom: 12,
+      marginLeft: 4,
     },
     selectButton: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: spacing.lg,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
       backgroundColor: colors.backgroundElevated,
-      borderRadius: 8,
+      borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSecondary,
+      height: 48,
     },
     selectButtonText: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.medium,
+      fontSize: 16,
+      fontWeight: '400',
       color: colors.textPrimary,
     },
     pickerContainer: {
-      marginTop: spacing.sm,
+      marginTop: 8,
       backgroundColor: colors.backgroundElevated,
-      borderRadius: 8,
+      borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSecondary,
       overflow: 'hidden',
     },
     pickerItem: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: spacing.lg,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
       borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
+      borderBottomColor: colors.borderSecondary,
     },
     pickerItemSelected: {
-      backgroundColor: colors.backgroundOverlay,
+      backgroundColor: 'rgba(255,255,255,0.05)',
     },
     pickerItemContent: {
       flex: 1,
-      marginRight: spacing.md,
+      marginRight: 16,
     },
     pickerItemText: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.regular,
+      fontSize: 16,
+      fontWeight: '400',
       color: colors.textPrimary,
-      marginBottom: spacing.xs,
+      marginBottom: 2,
     },
     pickerItemTextSelected: {
-      fontWeight: fontWeights.medium,
+      fontWeight: '500',
       color: colors.gold,
     },
     pickerItemDescription: {
-      fontSize: fontSizes.bodySmall,
+      fontSize: 12,
       color: colors.textSecondary,
     },
   });

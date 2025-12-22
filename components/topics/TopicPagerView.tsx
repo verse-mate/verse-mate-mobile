@@ -18,8 +18,10 @@
  * @see components/bible/ChapterPagerView.tsx - Reference implementation
  */
 
+import * as Haptics from 'expo-haptics';
 import {
   forwardRef,
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -30,6 +32,7 @@ import {
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
+import type { VersePress } from '@/components/topics/TopicText';
 import { SwipeBoundaryPage } from '@/components/ui/SwipeBoundaryPage';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
@@ -37,14 +40,16 @@ import { getTopicFromIndex, getTopicIndexInCategory } from '@/utils/topics/topic
 import { TopicPage } from './TopicPage';
 
 /**
- * Constants for 5-page fixed window
+ * Constants for 7-page fixed window
  */
-const WINDOW_SIZE = 5;
-const CENTER_INDEX = 2;
+const WINDOW_SIZE = 7;
+const CENTER_INDEX = 3;
 
 /**
  * Delay in milliseconds before calling onPageChange after swipe
  * This prevents double animation (PagerView + router.replace)
+ * Kept short (75ms) to ensure snappy UI updates (Header/Fab), while
+ * parent component handles URL debouncing to prevent global re-renders.
  */
 const ROUTE_UPDATE_DELAY_MS = 75;
 
@@ -79,6 +84,8 @@ export interface TopicPagerViewProps {
   onTap?: () => void;
   /** Callback when user wants to share current topic */
   onShare?: () => void;
+  /** Callback when a verse is pressed */
+  onVersePress?: (verseData: VersePress) => void;
 }
 
 /**
@@ -110,7 +117,7 @@ export interface TopicPagerViewProps {
  * pagerRef.current?.setPage(3);
  * ```
  */
-export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>(
+const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProps>(
   function TopicPagerView(
     {
       initialTopicId,
@@ -122,6 +129,7 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       onScroll,
       onTap,
       onShare,
+      onVersePress,
     },
     ref
   ) {
@@ -132,6 +140,17 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
     const [currentAbsoluteIndex, setCurrentAbsoluteIndex] = useState(() =>
       getTopicIndexInCategory(initialTopicId, sortedTopics)
     );
+
+    // Track the currently selected position in the 7-page window (0-6)
+    const [selectedPosition, setSelectedPosition] = useState(CENTER_INDEX);
+
+    // Flag to tell pages NOT to reset scroll during a seamless snap
+    const [forceJump, setForceJump] = useState(false);
+
+    // Refs to track state for the useEffect without causing it to re-run on every swipe
+    const absIndexRef = useRef(currentAbsoluteIndex);
+    const posRef = useRef(selectedPosition);
+    const lastProcessedRef = useRef({ topicId: initialTopicId });
 
     // Expose imperative methods to parent component
     useImperativeHandle(
@@ -153,31 +172,40 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       };
     }, []);
 
-    // Update absolute index if initialTopicId changes externally
-    // Note: Intentionally excludes currentAbsoluteIndex from deps to prevent race condition
-    // when swipe updates state before route updates (75ms delay)
+    // Update absolute index if initialTopicId changes externally (modal, back button, etc.)
     useEffect(() => {
-      const newIndex = getTopicIndexInCategory(initialTopicId, sortedTopics);
-      if (newIndex !== -1 && newIndex !== currentAbsoluteIndex) {
-        setCurrentAbsoluteIndex(newIndex);
-        // Also update pager position for external navigation (e.g., from modal)
-        pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+      if (routeUpdateTimeoutRef.current !== null) return;
+
+      if (lastProcessedRef.current.topicId === initialTopicId) {
+        return;
       }
-    }, [initialTopicId, sortedTopics, currentAbsoluteIndex]);
+      lastProcessedRef.current = { topicId: initialTopicId };
+
+      const newIndex = getTopicIndexInCategory(initialTopicId, sortedTopics);
+      if (newIndex === -1) return;
+
+      const currentlyVisibleIndex = absIndexRef.current + (posRef.current - CENTER_INDEX);
+
+      // JUMP DETECTED (e.g. from Modal)
+      if (newIndex !== currentlyVisibleIndex) {
+        setForceJump(true); // Tell pages to reset scroll for a true jump
+        setCurrentAbsoluteIndex(newIndex);
+        absIndexRef.current = newIndex;
+        setSelectedPosition(CENTER_INDEX);
+        posRef.current = CENTER_INDEX;
+        pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+        // Reset jump flag after a frame
+        requestAnimationFrame(() => setForceJump(false));
+      }
+    }, [initialTopicId, sortedTopics]);
 
     /**
      * Calculate which topic should display at a given window position
-     *
-     * Returns null for out-of-bounds positions instead of clamping.
-     * This allows us to render empty placeholders at boundaries and
-     * detect when user swipes past the edge.
      */
     const getTopicForPosition = useCallback(
       (windowPosition: number): TopicListItem | null => {
         const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
-        // Return null for out-of-bounds - don't clamp to boundaries
-        // This prevents showing duplicate content when at first/last topic
         if (absoluteIndex < 0 || absoluteIndex >= sortedTopics.length) {
           return null;
         }
@@ -188,26 +216,21 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
     );
 
     /**
-     * Generate exactly 5 pages with STABLE POSITIONAL KEYS
-     *
-     * Keys never change - they're based on window position (0-4), not content.
-     * Topic data is passed as props that update when window shifts.
+     * Generate exactly 7 pages with STABLE POSITIONAL KEYS
      */
     const pages = useMemo(() => {
-      // Handle case when topics not loaded yet
       if (!sortedTopics || sortedTopics.length === 0) {
-        // Return placeholder pages with first topic (or fallback)
         return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => (
           <TopicPage
-            key={
-              /* biome-ignore lint/suspicious/noArrayIndexKey: This is a stable positional key for a fixed-window PagerView. */ `page-${windowPosition}`
-            }
+            // biome-ignore lint/suspicious/noArrayIndexKey: Stable positional keys are required for fixed-window pager
+            key={`page-${windowPosition}`}
             topicId={initialTopicId}
             activeTab={activeTab}
             activeView={activeView}
             onScroll={onScroll}
             onTap={onTap}
             onShare={onShare}
+            onVersePress={onVersePress}
           />
         ));
       }
@@ -216,15 +239,12 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
         const topic = getTopicForPosition(windowPosition);
         const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
-        // Render boundary indicator for out-of-bounds pages
-        // This shows a helpful message instead of duplicate content at category boundaries
         if (!topic) {
           const direction = absoluteIndex < 0 ? 'start' : 'end';
           return (
             <SwipeBoundaryPage
-              key={
-                /* biome-ignore lint/suspicious/noArrayIndexKey: This is a stable positional key for a fixed-window PagerView. */ `page-${windowPosition}`
-              }
+              // biome-ignore lint/suspicious/noArrayIndexKey: Stable positional keys are required for fixed-window pager
+              key={`page-${windowPosition}`}
               direction={direction}
               contentType="topic"
               testID={`topic-page-boundary-${windowPosition}`}
@@ -232,17 +252,21 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
           );
         }
 
+        const isPreloading = windowPosition !== selectedPosition;
+
         return (
           <TopicPage
-            key={
-              /* biome-ignore lint/suspicious/noArrayIndexKey: This is a stable positional key for a fixed-window PagerView. */ `page-${windowPosition}`
-            }
-            topicId={topic.topic_id} // DYNAMIC PROP: updates when window shifts
+            // biome-ignore lint/suspicious/noArrayIndexKey: Stable positional keys are required for fixed-window pager
+            key={`page-${windowPosition}`}
+            topicId={topic.topic_id}
             activeTab={activeTab}
             activeView={activeView}
+            shouldResetScroll={forceJump} // ONLY reset scroll if this is a forced jump
+            isPreloading={isPreloading} // Optimize off-screen pages
             onScroll={onScroll}
             onTap={onTap}
             onShare={onShare}
+            onVersePress={onVersePress}
           />
         );
       });
@@ -256,6 +280,9 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
       onTap,
       sortedTopics,
       onShare,
+      onVersePress,
+      forceJump,
+      selectedPosition, // Added dependency
     ]);
 
     /**
@@ -277,60 +304,67 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
      */
     const handlePageSelected = useCallback(
       (event: { nativeEvent: OnPageSelectedEventData }) => {
-        const selectedPosition = Math.floor(event.nativeEvent.position);
+        const newPosition = Math.floor(event.nativeEvent.position);
+        if (newPosition === posRef.current) return;
+
+        // SYNC REFS IMMEDIATELY
+        posRef.current = newPosition;
+        setSelectedPosition(newPosition);
 
         // Clear any pending route update timeout
         if (routeUpdateTimeoutRef.current) {
           clearTimeout(routeUpdateTimeoutRef.current);
+          routeUpdateTimeoutRef.current = null;
         }
 
         // Calculate would-be absolute index for this page
-        const offset = selectedPosition - CENTER_INDEX;
+        const offset = newPosition - CENTER_INDEX;
         const newAbsoluteIndex = currentAbsoluteIndex + offset;
 
-        // Check if swipe would go out of bounds (to an empty placeholder page)
+        // Check if swipe would go out of bounds
         const isOutOfBounds = newAbsoluteIndex < 0 || newAbsoluteIndex >= sortedTopics.length;
 
         if (isOutOfBounds) {
-          // Snap back to center - user tried to swipe past category boundary
           requestAnimationFrame(() => {
             pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+            setSelectedPosition(CENTER_INDEX);
+            posRef.current = CENTER_INDEX;
           });
-          // Don't update route or state - stay on current topic
           return;
         }
 
-        // Check if user reached edge positions (0 or 4)
-        const isAtEdge = selectedPosition === 0 || selectedPosition === WINDOW_SIZE - 1;
+        // Fire Haptics INSTANTLY
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+        // Check if user reached edge positions (0 or 6) - EDGE RESET
+        const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
 
         if (isAtEdge) {
-          // Update state to new absolute index
+          // SEAMLESS EDGE SNAP
+          setForceJump(false); // ENSURE we don't reset scroll during this snap
           setCurrentAbsoluteIndex(newAbsoluteIndex);
+          absIndexRef.current = newAbsoluteIndex;
 
-          // Re-center to middle page without animation
           requestAnimationFrame(() => {
             pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+            setSelectedPosition(CENTER_INDEX);
+            posRef.current = CENTER_INDEX;
           });
 
-          // Delay route update by 75ms to prevent double animation
           const topic = getTopicFromIndex(newAbsoluteIndex, sortedTopics);
-
           if (topic) {
             routeUpdateTimeoutRef.current = setTimeout(() => {
               onPageChange(topic.topic_id, category);
+              routeUpdateTimeoutRef.current = null;
             }, ROUTE_UPDATE_DELAY_MS);
           }
-        } else if (selectedPosition !== CENTER_INDEX) {
-          // User swiped one position away from center (to index 1 or 3)
-          // DON'T update currentAbsoluteIndex yet to avoid flickering
-          // Let the route update trigger useEffect which will re-center properly
-
-          // Delay route update by 75ms to prevent double animation
+        } else {
+          // Normal swipe (1, 2, 4, 5) - Stay there, update parent
           const topic = getTopicFromIndex(newAbsoluteIndex, sortedTopics);
-
           if (topic) {
             routeUpdateTimeoutRef.current = setTimeout(() => {
               onPageChange(topic.topic_id, category);
+              routeUpdateTimeoutRef.current = null;
             }, ROUTE_UPDATE_DELAY_MS);
           }
         }
@@ -354,6 +388,12 @@ export const TopicPagerView = forwardRef<TopicPagerViewRef, TopicPagerViewProps>
     );
   }
 );
+
+/**
+ * Memoized PagerView to prevent unnecessary global re-renders
+ * during URL synchronization.
+ */
+export const TopicPagerView = memo(TopicPagerViewComponent);
 
 const styles = StyleSheet.create({
   pagerView: {

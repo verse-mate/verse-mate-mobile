@@ -116,22 +116,25 @@ export function VerseMateTooltip({
   const { colors, mode } = useTheme();
   const { bibleVersion } = useBibleVersion();
   const insets = useSafeAreaInsets();
-  const { isTablet, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { isTablet, isLandscape, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
   const { width: windowWidth } = useWindowDimensions();
 
   // Calculate dynamic width for tooltip positioning
   // In split view: align over the insights panel (right panel)
-  // In tablet landscape full screen: position on right side with fixed 50% width
+  // In tablet portrait: center with 75% width
+  // In tablet landscape full screen: position on right side with 50% width
   const tooltipWidth =
     useSplitView && splitViewMode !== 'left-full'
       ? windowWidth * (1 - splitRatio)
       : isTablet
-        ? windowWidth * 0.5
+        ? isLandscape
+          ? windowWidth * 0.5
+          : windowWidth * 0.75
         : undefined;
 
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom, isTablet, tooltipWidth),
-    [colors, insets.bottom, isTablet, tooltipWidth]
+    () => createStyles(colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth),
+    [colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth]
   );
 
   // ... (rest of the component state and hooks)
@@ -146,14 +149,24 @@ export function VerseMateTooltip({
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
 
-  // State for showing verse insight - start expanded for single verses
-  const [expanded, setExpanded] = useState(!isMultiVerse);
+  // State for showing verse insight - always expanded
+  const [expanded, setExpanded] = useState(true);
 
   // State for delete confirmation modal
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   // State for auth modals - 'signup' is default since most users don't have accounts
   const [authModalType, setAuthModalType] = useState<'signin' | 'signup' | null>(null);
+
+  // Form State for Auth Modals (hoisted to preserve data across orientation/layout changes)
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInPassword, setSignInPassword] = useState('');
+
+  const [signUpFirstName, setSignUpFirstName] = useState('');
+  const [signUpLastName, setSignUpLastName] = useState('');
+  const [signUpEmail, setSignUpEmail] = useState('');
+  const [signUpPassword, setSignUpPassword] = useState('');
+  const [signUpConfirmPassword, setSignUpConfirmPassword] = useState('');
 
   // Ref to track if analytics event has been fired for this tooltip open
   const hasTrackedOpen = useRef(false);
@@ -167,7 +180,7 @@ export function VerseMateTooltip({
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(!isMultiVerse ? 1 : 0)).current; // Start expanded for single verse
+  const expansionAnim = useRef(new Animated.Value(1)).current; // Always start expanded
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
@@ -244,8 +257,8 @@ export function VerseMateTooltip({
       // Force cleanup after 150ms to prevent "spring tail" blocking the UI
       setTimeout(() => {
         setInternalVisible(false);
-        setExpanded(!isMultiVerse); // Reset to default state
-        expansionAnim.setValue(!isMultiVerse ? 1 : 0);
+        setExpanded(true); // Reset to default state
+        expansionAnim.setValue(1);
         hasTrackedOpen.current = false; // Reset tracking flag
         openTimestampRef.current = null; // Reset open timestamp
         if (callback) callback();
@@ -256,7 +269,6 @@ export function VerseMateTooltip({
       slideAnim,
       screenHeight,
       expansionAnim,
-      isMultiVerse,
       bookId,
       chapterNumber,
       targetVerseNumber,
@@ -276,10 +288,10 @@ export function VerseMateTooltip({
   // Watch for prop changes to trigger animations
   useEffect(() => {
     if (visible) {
-      // Reset expansion state and animation value immediately based on verse count
-      const shouldBeExpanded = !isMultiVerse;
+      // Always start expanded
+      const shouldBeExpanded = true;
       setExpanded(shouldBeExpanded);
-      expansionAnim.setValue(shouldBeExpanded ? 1 : 0); // Set immediately without animation
+      expansionAnim.setValue(1); // Set immediately without animation
       animateOpen();
 
       // Track analytics: VERSEMATE_TOOLTIP_OPENED (Task 4.7)
@@ -300,7 +312,6 @@ export function VerseMateTooltip({
     animateOpen,
     animateClose,
     internalVisible,
-    isMultiVerse,
     expansionAnim,
     bookId,
     chapterNumber,
@@ -384,10 +395,8 @@ export function VerseMateTooltip({
     const payload = getShareContent();
     await Clipboard.setStringAsync(payload);
 
-    // Close modal and trigger callback (for showing toast)
-    animateClose(() => {
-      onCopy?.();
-    });
+    // Show toast without closing modal
+    onCopy?.();
   };
 
   // Handle share verse
@@ -498,7 +507,7 @@ export function VerseMateTooltip({
 
   const content = (
     /* Main Container - positions content at bottom */
-    <View style={styles.overlay} pointerEvents="box-none">
+    <View key={`tooltip-${useModal}`} style={styles.overlay} pointerEvents="box-none">
       {/* Animated Backdrop */}
       <Animated.View
         style={[
@@ -552,27 +561,8 @@ export function VerseMateTooltip({
               )}
             </View>
 
-            {/* Insight Section (Always Expandable) */}
+            {/* Insight Section (Always Expanded) */}
             <View style={styles.insightContainer}>
-              {isMultiVerse && (
-                <Pressable
-                  style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
-                  onPress={() => setExpanded(!expanded)}
-                  hitSlop={10}
-                  {...panResponder.panHandlers}
-                >
-                  <Ionicons
-                    name={expanded ? 'chevron-down' : 'chevron-up'}
-                    size={16}
-                    color={colors.gold}
-                    style={{ marginRight: spacing.xs }}
-                  />
-                  <Text style={styles.insightToggleText}>
-                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
-                  </Text>
-                </Pressable>
-              )}
-
               <Animated.View
                 style={[
                   styles.insightContentWrapper,
@@ -662,17 +652,17 @@ export function VerseMateTooltip({
               </Pressable>
             ) : (
               // Plain verse - not logged in
-              <Pressable style={styles.loginPrompt} onPress={() => setAuthModalType('signup')}>
+              <Pressable style={styles.loginPrompt} onPress={() => setAuthModalType('signin')}>
                 <Ionicons name="log-in-outline" size={20} color={colors.gold} />
                 <Text style={styles.loginPromptText}>
-                  Sign up to save this verse to your collection
+                  Sign in to save this verse to your collection
                 </Text>
               </Pressable>
             )}
 
-            {/* Cancel Button */}
-            <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
-              <Text style={styles.secondaryButtonText}>Cancel</Text>
+            {/* Close Button */}
+            <Pressable style={styles.closeButton} onPress={handleDismiss}>
+              <Text style={styles.closeButtonText}>Close</Text>
             </Pressable>
           </View>
         </View>
@@ -688,7 +678,7 @@ export function VerseMateTooltip({
         animationType="none"
         onRequestClose={handleDismiss}
       >
-        {content}
+        {!authModalType && content}
         {/* Delete Confirmation Modal */}
         {highlightGroup && (
           <DeleteConfirmationModal
@@ -696,25 +686,41 @@ export function VerseMateTooltip({
             onCancel={() => setShowDeleteConfirmation(false)}
             onConfirm={handleConfirmDelete}
             title="Remove Highlight Group"
-            message={`This will delete ${highlightGroup.highlights.length} highlighted ${
-              highlightGroup.highlights.length === 1 ? 'verse' : 'verses'
-            } (${
+            message={`This will delete the whole highlighted group (${
               startVerse === endVerse ? `verse ${startVerse}` : `verses ${startVerse}-${endVerse}`
-            }). To delete a single verse, long-press on the specific verse.`}
+            })`}
           />
         )}
         {/* Auth Modals */}
         <SignUpModal
+          key="signup-modal"
           visible={authModalType === 'signup'}
           onClose={() => setAuthModalType(null)}
           onSwitchToSignIn={() => setAuthModalType('signin')}
           onAuthSuccess={onClose}
+          useModal={useModal}
+          firstName={signUpFirstName}
+          setFirstName={setSignUpFirstName}
+          lastName={signUpLastName}
+          setLastName={setSignUpLastName}
+          email={signUpEmail}
+          setEmail={setSignUpEmail}
+          password={signUpPassword}
+          setPassword={setSignUpPassword}
+          confirmPassword={signUpConfirmPassword}
+          setConfirmPassword={setSignUpConfirmPassword}
         />
         <SignInModal
+          key="signin-modal"
           visible={authModalType === 'signin'}
           onClose={() => setAuthModalType(null)}
           onSwitchToSignUp={() => setAuthModalType('signup')}
           onAuthSuccess={onClose}
+          useModal={useModal}
+          email={signInEmail}
+          setEmail={setSignInEmail}
+          password={signInPassword}
+          setPassword={setSignInPassword}
         />
       </Modal>
     );
@@ -725,7 +731,7 @@ export function VerseMateTooltip({
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {content}
+      {!authModalType && content}
       {/* Delete Confirmation Modal - Still needs to be Modal or handled properly */}
       {/* Since DeleteConfirmation is a separate component using Modal, it's fine */}
       {highlightGroup && (
@@ -734,25 +740,41 @@ export function VerseMateTooltip({
           onCancel={() => setShowDeleteConfirmation(false)}
           onConfirm={handleConfirmDelete}
           title="Remove Highlight Group"
-          message={`This will delete ${highlightGroup.highlights.length} highlighted ${
-            highlightGroup.highlights.length === 1 ? 'verse' : 'verses'
-          } (${
+          message={`This will delete the whole highlighted group (${
             startVerse === endVerse ? `verse ${startVerse}` : `verses ${startVerse}-${endVerse}`
-          }). To delete a single verse, long-press on the specific verse.`}
+          })`}
         />
       )}
       {/* Auth Modals */}
       <SignUpModal
+        key="signup-modal"
         visible={authModalType === 'signup'}
         onClose={() => setAuthModalType(null)}
         onSwitchToSignIn={() => setAuthModalType('signin')}
         onAuthSuccess={onClose}
+        useModal={useModal}
+        firstName={signUpFirstName}
+        setFirstName={setSignUpFirstName}
+        lastName={signUpLastName}
+        setLastName={setSignUpLastName}
+        email={signUpEmail}
+        setEmail={setSignUpEmail}
+        password={signUpPassword}
+        setPassword={setSignUpPassword}
+        confirmPassword={signUpConfirmPassword}
+        setConfirmPassword={setSignUpConfirmPassword}
       />
       <SignInModal
+        key="signin-modal"
         visible={authModalType === 'signin'}
         onClose={() => setAuthModalType(null)}
         onSwitchToSignUp={() => setAuthModalType('signup')}
         onAuthSuccess={onClose}
+        useModal={useModal}
+        email={signInEmail}
+        setEmail={setSignInEmail}
+        password={signInPassword}
+        setPassword={setSignInPassword}
       />
     </View>
   );
@@ -765,13 +787,16 @@ const createStyles = (
   colors: ReturnType<typeof getColors>,
   bottomInset: number,
   _isTablet: boolean,
+  isLandscape: boolean,
+  useSplitView: boolean,
   tooltipWidth?: number
 ) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      alignItems: tooltipWidth ? 'flex-end' : 'stretch',
+      // Center align for tablet portrait only, right align for landscape/split view, stretch for mobile
+      alignItems: tooltipWidth ? (useSplitView || isLandscape ? 'flex-end' : 'center') : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -781,7 +806,7 @@ const createStyles = (
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
       borderTopRightRadius: tooltipWidth ? 0 : 16, // Remove corner radius if attached to right edge
-      maxHeight: '80%',
+      maxHeight: '95%',
       width: tooltipWidth ?? '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
@@ -935,6 +960,20 @@ const createStyles = (
       fontSize: fontSizes.body,
       fontWeight: fontWeights.medium,
     },
+    closeButton: {
+      backgroundColor: colors.gold,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.gold,
+    },
+    closeButtonText: {
+      color: colors.background,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+    },
     loginPrompt: {
       padding: spacing.lg,
       backgroundColor: colors.background,
@@ -953,30 +992,8 @@ const createStyles = (
       fontWeight: fontWeights.medium,
     },
     insightContainer: {
-      marginBottom: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.divider,
-      paddingTop: spacing.md,
-      flexShrink: 1,
-      minHeight: 0,
-    },
-    insightToggle: {
-      flexDirection: 'row',
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: 'transparent',
-    },
-    insightToggleText: {
-      fontSize: fontSizes.bodySmall,
-      color: colors.gold,
-      fontWeight: fontWeights.semibold,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
     },
     analysisTitle: {
       fontSize: fontSizes.heading3,
@@ -987,7 +1004,6 @@ const createStyles = (
     },
     insightContentWrapper: {
       overflow: 'hidden',
-      flexShrink: 1,
     },
     insightScroll: {
       backgroundColor: colors.background,

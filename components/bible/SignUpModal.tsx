@@ -18,6 +18,28 @@ interface SignUpModalProps {
   onClose: () => void;
   onSwitchToSignIn: () => void;
   onAuthSuccess?: () => void;
+  /** Whether to use a system Modal (true) or a View overlay (false) */
+  useModal?: boolean;
+  /** Controlled state for first name */
+  firstName: string;
+  /** Setter for first name */
+  setFirstName: (value: string) => void;
+  /** Controlled state for last name */
+  lastName: string;
+  /** Setter for last name */
+  setLastName: (value: string) => void;
+  /** Controlled state for email */
+  email: string;
+  /** Setter for email */
+  setEmail: (value: string) => void;
+  /** Controlled state for password */
+  password: string;
+  /** Setter for password */
+  setPassword: (value: string) => void;
+  /** Controlled state for confirm password */
+  confirmPassword: string;
+  /** Setter for confirm password */
+  setConfirmPassword: (value: string) => void;
 }
 
 /**
@@ -31,13 +53,20 @@ export default function SignUpModal({
   onClose,
   onSwitchToSignIn,
   onAuthSuccess,
+  useModal = true,
+  firstName,
+  setFirstName,
+  lastName,
+  setLastName,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  confirmPassword,
+  setConfirmPassword,
 }: SignUpModalProps) {
   const { colors } = useTheme();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  // Local UI state
   const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState('');
   const { mutate: signup, isPending, error } = useSignup();
@@ -82,154 +111,171 @@ export default function SignUpModal({
 
   const styles = createStyles(colors);
 
-  return (
-    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Sign Up</Text>
-            <Pressable onPress={onClose} hitSlop={10}>
-              <Ionicons name="close" size={24} color={colors.textPrimary} />
-            </Pressable>
-          </View>
+  if (!visible) return null;
 
-          {/* Sign Up Form */}
-          <View style={styles.form}>
-            <View style={styles.nameRow}>
-              <TextInput
-                style={[styles.input, styles.nameInput]}
-                placeholder="First Name"
-                placeholderTextColor={colors.textSecondary}
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-                editable={!isPending}
-              />
-              <TextInput
-                style={[styles.input, styles.nameInput]}
-                placeholder="Last Name"
-                placeholderTextColor={colors.textSecondary}
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-                editable={!isPending}
-              />
-            </View>
+  const content = (
+    <View style={styles.modalContainer}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <View style={styles.modalContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Sign Up</Text>
+          <Pressable onPress={onClose} hitSlop={10}>
+            <Ionicons name="close" size={24} color={colors.textPrimary} />
+          </Pressable>
+        </View>
+
+        {/* Sign Up Form */}
+        <View style={styles.form}>
+          <View style={styles.nameRow}>
             <TextInput
-              style={styles.input}
-              placeholder="Email"
+              style={[styles.input, styles.nameInput]}
+              placeholder="First Name"
               placeholderTextColor={colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
               editable={!isPending}
             />
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Password"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-                editable={!isPending}
-              />
-              <Pressable
-                style={styles.eyeIcon}
-                onPress={() => setShowPassword(!showPassword)}
-                hitSlop={10}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              </Pressable>
-            </View>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Confirm Password"
-                placeholderTextColor={colors.textSecondary}
-                secureTextEntry={!showPassword}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                editable={!isPending}
-              />
-              <Pressable
-                style={styles.eyeIcon}
-                onPress={() => setShowPassword(!showPassword)}
-                hitSlop={10}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              </Pressable>
-            </View>
-
-            {/* Error Message */}
-            {(error || validationError) && (
-              <Text style={styles.errorText}>
-                {validationError || error?.message || 'Sign up failed. Please try again.'}
-              </Text>
-            )}
-
-            {/* Sign Up Button */}
+            <TextInput
+              style={[styles.input, styles.nameInput]}
+              placeholder="Last Name"
+              placeholderTextColor={colors.textSecondary}
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+              editable={!isPending}
+            />
+          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor={colors.textSecondary}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            editable={!isPending}
+          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Password"
+              placeholderTextColor={colors.textSecondary}
+              secureTextEntry={!showPassword}
+              value={password}
+              onChangeText={setPassword}
+              editable={!isPending}
+            />
             <Pressable
-              style={[styles.signUpButton, isPending && styles.signUpButtonDisabled]}
-              onPress={handleSignUp}
-              disabled={
-                isPending || !firstName || !lastName || !email || !password || !confirmPassword
-              }
+              style={styles.eyeIcon}
+              onPress={() => setShowPassword(!showPassword)}
+              hitSlop={10}
             >
-              {isPending ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.signUpButtonText}>Sign Up</Text>
-              )}
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </Pressable>
+          </View>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Confirm Password"
+              placeholderTextColor={colors.textSecondary}
+              secureTextEntry={!showPassword}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              editable={!isPending}
+            />
+            <Pressable
+              style={styles.eyeIcon}
+              onPress={() => setShowPassword(!showPassword)}
+              hitSlop={10}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color={colors.textSecondary}
+              />
             </Pressable>
           </View>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {/* Error Message */}
+          {(error || validationError) && (
+            <Text style={styles.errorText}>
+              {validationError || error?.message || 'Sign up failed. Please try again.'}
+            </Text>
+          )}
 
-          {/* SSO Options */}
-          <View style={styles.ssoContainer}>
-            {/* Google Sign-Up (Placeholder) */}
-            <Pressable style={[styles.ssoButton, styles.ssoButtonDisabled]} disabled>
-              <Ionicons name="logo-google" size={20} color={colors.textSecondary} />
-              <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
-                Continue with Google (Coming Soon)
-              </Text>
-            </Pressable>
+          {/* Sign Up Button */}
+          <Pressable
+            style={[styles.signUpButton, isPending && styles.signUpButtonDisabled]}
+            onPress={handleSignUp}
+            disabled={
+              isPending || !firstName || !lastName || !email || !password || !confirmPassword
+            }
+          >
+            {isPending ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.signUpButtonText}>Sign Up</Text>
+            )}
+          </Pressable>
+        </View>
 
-            {/* Apple Sign-Up (Placeholder) */}
-            <Pressable style={[styles.ssoButton, styles.ssoButtonDisabled]} disabled>
-              <Ionicons name="logo-apple" size={20} color={colors.textSecondary} />
-              <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
-                Continue with Apple (Coming Soon)
-              </Text>
-            </Pressable>
-          </View>
+        {/* Divider */}
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>OR</Text>
+          <View style={styles.dividerLine} />
+        </View>
 
-          {/* Switch to Sign In */}
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchText}>Already have an account? </Text>
-            <Pressable onPress={onSwitchToSignIn} hitSlop={10}>
-              <Text style={styles.switchLink}>Sign In</Text>
-            </Pressable>
-          </View>
+        {/* SSO Options */}
+        <View style={styles.ssoContainer}>
+          {/* Google Sign-Up (Placeholder) */}
+          <Pressable style={[styles.ssoButton, styles.ssoButtonDisabled]} disabled>
+            <Ionicons name="logo-google" size={20} color={colors.textSecondary} />
+            <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
+              Continue with Google (Coming Soon)
+            </Text>
+          </Pressable>
+
+          {/* Apple Sign-Up (Placeholder) */}
+          <Pressable style={[styles.ssoButton, styles.ssoButtonDisabled]} disabled>
+            <Ionicons name="logo-apple" size={20} color={colors.textSecondary} />
+            <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
+              Continue with Apple (Coming Soon)
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Switch to Sign In */}
+        <View style={styles.switchContainer}>
+          <Text style={styles.switchText}>Already have an account? </Text>
+          <Pressable onPress={onSwitchToSignIn} hitSlop={10}>
+            <Text style={styles.switchLink}>Sign In</Text>
+          </Pressable>
         </View>
       </View>
-    </Modal>
+    </View>
+  );
+
+  // Conditional rendering based on useModal prop
+  if (useModal) {
+    return (
+      <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+        {content}
+      </Modal>
+    );
+  }
+
+  // Non-modal rendering (absolute positioned View)
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {content}
+    </View>
   );
 }
 

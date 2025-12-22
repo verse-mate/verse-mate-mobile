@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 
 interface ToastProps {
   visible: boolean;
@@ -16,6 +17,8 @@ interface ToastProps {
 export function Toast({ visible, message, onHide, duration = 2000 }: ToastProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { width: windowWidth } = useWindowDimensions();
 
   useEffect(() => {
     if (visible && onHide) {
@@ -26,6 +29,16 @@ export function Toast({ visible, message, onHide, duration = 2000 }: ToastProps)
 
   if (!visible) return null;
 
+  // Calculate horizontal position for split view
+  // In split view, center toast on the left panel (Bible content)
+  const leftPanelWidth =
+    useSplitView && splitViewMode !== 'left-full' ? windowWidth * splitRatio : windowWidth;
+
+  const horizontalPosition =
+    useSplitView && splitViewMode !== 'left-full'
+      ? { left: leftPanelWidth / 2, marginLeft: -150 } // Center on left panel (assuming ~300px toast width)
+      : { alignSelf: 'center' as const }; // Center on full screen
+
   return (
     <Animated.View
       style={[
@@ -34,6 +47,7 @@ export function Toast({ visible, message, onHide, duration = 2000 }: ToastProps)
           backgroundColor: colors.textPrimary, // High contrast
           bottom: insets.bottom + 120, // Floating at bottom
         },
+        horizontalPosition,
       ]}
       entering={FadeIn}
       exiting={FadeOut}
