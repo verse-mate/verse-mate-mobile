@@ -125,23 +125,24 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       marginBottom: 16,
     },
     label: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: colors.textPrimary,
+      fontSize: 14, // Slightly smaller label
+      fontWeight: '400',
+      color: colors.textSecondary,
       marginBottom: 8,
+      marginLeft: 4,
     },
     inputContainer: {
       position: 'relative',
     },
     input: {
       borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 8,
+      borderColor: colors.borderSecondary,
+      borderRadius: 12,
       paddingVertical: 12,
       paddingHorizontal: 16,
       fontSize: 16,
       color: colors.textPrimary,
-      backgroundColor: colors.gray50,
+      backgroundColor: colors.backgroundElevated,
       minHeight: 48,
     },
     inputError: {

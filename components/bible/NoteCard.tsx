@@ -148,16 +148,16 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     card: {
       flexDirection: 'row',
       backgroundColor: colors.backgroundElevated,
-      borderRadius: 8,
-      padding: spacing.md,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
       marginBottom: spacing.sm,
-      alignItems: 'flex-start',
-      // Add border for visibility in light mode (as requested)
+      alignItems: 'center',
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.borderSecondary,
     },
     cardPressed: {
-      backgroundColor: `${colors.divider}20`,
+      opacity: 0.7, // Visual feedback
     },
     content: {
       flex: 1,
@@ -171,9 +171,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     actions: {
       flexDirection: 'row',
-      alignItems: 'flex-end',
-      alignSelf: 'flex-end',
-      gap: spacing.sm,
+      alignItems: 'center',
     },
     expandedActions: {
       flexDirection: 'row',
@@ -181,6 +179,5 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     actionButton: {
       padding: spacing.xs,
-      marginTop: spacing.xs,
     },
   });

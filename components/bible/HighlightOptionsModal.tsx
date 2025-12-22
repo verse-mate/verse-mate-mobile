@@ -15,6 +15,8 @@ import {
   View,
 } from 'react-native';
 import { type EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { SvgProps } from 'react-native-svg';
+import { IconCopy, IconShare, IconTrash } from '@/components/ui/icons';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
@@ -33,12 +35,9 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
   StyleSheet.create({
     overlay: {
       flex: 1,
-      // This controls the main positioning of content within the modal
-      // It will either justify-end for the menu, or center for dialogs
       justifyContent: 'flex-end',
-      alignItems: 'center', // For centering dialogs horizontally
+      alignItems: 'center',
     },
-    // Backdrop styles
     backdrop: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -46,12 +45,10 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
     backdropPressable: {
       ...StyleSheet.absoluteFillObject,
     },
-
-    // Sheet Container (for Options Menu)
     sheetContainer: {
-      backgroundColor: colors.background,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      backgroundColor: colors.backgroundElevated,
+      borderTopLeftRadius: 30,
+      borderTopRightRadius: 30,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
       paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.md : spacing.lg,
@@ -61,29 +58,32 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       shadowRadius: 10,
       elevation: 10,
       maxHeight: Dimensions.get('window').height * 0.9,
-      width: '100%', // Ensure it spans full width
+      width: '100%',
     },
     handleContainer: {
       alignItems: 'center',
       paddingVertical: spacing.sm,
     },
     handle: {
-      width: 40,
+      width: 72,
       height: 4,
       borderRadius: 2,
-      backgroundColor: colors.textTertiary,
-      opacity: 0.3,
+      backgroundColor: '#3A3A3A',
+      opacity: 1,
     },
     title: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.bold,
+      fontSize: 18,
+      fontWeight: '300',
       color: colors.textPrimary,
       textAlign: 'center',
       marginBottom: spacing.lg,
       marginTop: spacing.sm,
     },
     optionsContainer: {
-      gap: spacing.xs,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
     },
     optionsScrollView: {
       flexGrow: 0,
@@ -94,47 +94,42 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       marginVertical: spacing.sm,
     },
     cancelButton: {
-      marginTop: spacing.lg,
-      paddingVertical: spacing.md,
+      paddingVertical: 14,
       alignItems: 'center',
-      backgroundColor: colors.backgroundElevated,
+      backgroundColor: 'transparent',
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: 'rgba(255,255,255,0.2)',
     },
     cancelButtonText: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.bold,
+      fontSize: 16,
+      fontWeight: '400',
       color: colors.textPrimary,
     },
     optionItem: {
-      flexDirection: 'row',
+      flex: 1,
       alignItems: 'center',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.sm,
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 4,
       borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.05)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.2)',
+      height: 74,
     },
     iconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.backgroundElevated,
-      borderWidth: 1,
-      borderColor: 'transparent', // Default transparent, set by logic
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: spacing.md,
+      marginBottom: 8,
     },
     optionLabel: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.medium,
+      fontSize: 12,
+      fontWeight: '400',
       color: colors.textPrimary,
+      textAlign: 'center',
     },
-
-    // Dialog Overlay (for Delete/Success/Error dialogs - centered)
     dialogCenterOverlay: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.5)', // Will be controlled by animated opacity
+      backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 20,
@@ -236,23 +231,18 @@ export function HighlightOptionsModal({
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createThemedStyles(colors, insets), [colors, insets]);
 
-  // Internal state for modal visibility to control animations
   const [internalVisible, setInternalVisible] = useState(false);
-
-  // Dialog specific states
   const [isConfirmDeleteVisible, setIsConfirmDeleteVisible] = useState(false);
   const [isSuccessVisible, setIsSuccessVisible] = useState(false);
   const [isErrorVisible, setIsErrorVisible] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Animated values
   const screenHeight = Dimensions.get('window').height;
-  const slideAnim = useRef(new Animated.Value(screenHeight)).current; // Start off-screen
+  const slideAnim = useRef(new Animated.Value(screenHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
-  // Helper to animate open
   const animateOpen = useCallback(() => {
-    setInternalVisible(true); // Mount content for animation
+    setInternalVisible(true);
     Animated.parallel([
       Animated.timing(backdropOpacity, {
         toValue: 1,
@@ -268,7 +258,6 @@ export function HighlightOptionsModal({
     ]).start();
   }, [backdropOpacity, slideAnim]);
 
-  // Helper to animate close
   const animateClose = useCallback(
     (callback?: () => void) => {
       Animated.parallel([
@@ -278,7 +267,7 @@ export function HighlightOptionsModal({
           useNativeDriver: true,
         }),
         Animated.spring(slideAnim, {
-          toValue: screenHeight, // Slide off-screen
+          toValue: screenHeight,
           useNativeDriver: true,
           damping: 20,
           stiffness: 90,
@@ -288,24 +277,20 @@ export function HighlightOptionsModal({
         }),
       ]).start();
 
-      // Force cleanup after animation to prevent blocking UI if spring "tail" persists
       setTimeout(() => {
-        setInternalVisible(false); // Unmount content
-        // Reset all internal states when closing, so it's fresh on next open
+        setInternalVisible(false);
         setIsConfirmDeleteVisible(false);
         setIsSuccessVisible(false);
         setIsErrorVisible(false);
         setStatusMessage('');
         if (callback) callback();
-      }, 300); // Match fadeOut duration
+      }, 300);
     },
     [backdropOpacity, slideAnim, screenHeight]
   );
 
-  // Sync visible prop with internal state and trigger animations
   useEffect(() => {
     if (visible && !internalVisible) {
-      // Reset all internal states when opening to ensure fresh state
       setIsConfirmDeleteVisible(false);
       setIsSuccessVisible(false);
       setIsErrorVisible(false);
@@ -316,23 +301,19 @@ export function HighlightOptionsModal({
     }
   }, [visible, internalVisible, animateOpen, animateClose, onClose]);
 
-  // Pan Responder for swipe-to-dismiss on the bottom sheet
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 5,
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
-          // Only allow downward drag
           slideAnim.setValue(gestureState.dy);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > 100) {
-          // If dragged down enough, dismiss
           animateClose(onClose);
         } else {
-          // Snap back to open position
           Animated.spring(slideAnim, {
             toValue: 0,
             useNativeDriver: true,
@@ -362,14 +343,14 @@ export function HighlightOptionsModal({
         if (highlight.selected_text) {
           await Clipboard.setStringAsync(String(highlight.selected_text));
           onActionComplete?.('copy');
-          handleDismiss(); // Dismiss entire modal after copy
+          handleDismiss();
         } else {
           setStatusMessage('No text to copy for this highlight.');
           setIsErrorVisible(true);
         }
         break;
       case 'delete':
-        setIsConfirmDeleteVisible(true); // Show confirmation dialog (this is central, not part of sheet)
+        setIsConfirmDeleteVisible(true);
         break;
       case 'share':
         if (highlight.selected_text) {
@@ -409,10 +390,8 @@ export function HighlightOptionsModal({
 
     try {
       await deleteHighlight(highlight.highlight_id);
-      // After successful delete, close the entire modal
       handleDismiss();
     } catch (error) {
-      // If error, switch from Confirm to Error dialog
       setIsConfirmDeleteVisible(false);
       setStatusMessage('Failed to delete highlight.');
       setIsErrorVisible(true);
@@ -421,46 +400,39 @@ export function HighlightOptionsModal({
   };
 
   const handleStatusModalClose = () => {
-    // Close the entire modal after status dialog is acknowledged
     handleDismiss();
   };
 
   const isDialogActive = isConfirmDeleteVisible || isSuccessVisible || isErrorVisible;
 
-  // Only render if internalVisible is true (after enter animation, before exit animation)
   if (!internalVisible) return null;
 
   return (
     <Modal
-      visible={true} // Modal is always visible internally when internalVisible is true
+      visible={true}
       transparent
       animationType="none"
-      onRequestClose={handleDismiss} // Use internal dismiss handler
+      onRequestClose={handleDismiss}
       statusBarTranslucent
       presentationStyle="overFullScreen"
     >
-      {/* Main Overlay Container */}
       <View
         style={[styles.overlay, isDialogActive && { justifyContent: 'center' }]}
         pointerEvents="box-none"
       >
-        {/* Backdrop (animated opacity) */}
         <Animated.View
           style={[styles.backdrop, { opacity: backdropOpacity }]}
           pointerEvents="box-none"
         >
-          {/* Pressable on backdrop to dismiss - only active when menu is shown */}
           {!isDialogActive && (
             <Pressable style={styles.backdropPressable} onPress={handleDismiss} />
           )}
         </Animated.View>
 
-        {/* Bottom Sheet for Options Menu (swipeable) */}
         {!isDialogActive && (
           <Animated.View
             style={[styles.sheetContainer, { transform: [{ translateY: slideAnim }] }]}
           >
-            {/* Header Area (Handle + Title) - Swipeable */}
             <View {...panResponder.panHandlers}>
               <View style={styles.handleContainer}>
                 <View style={styles.handle} />
@@ -475,21 +447,20 @@ export function HighlightOptionsModal({
             >
               <View style={styles.optionsContainer}>
                 <OptionItem
-                  icon="copy-outline"
-                  label="Copy Text"
+                  Icon={IconCopy}
+                  label="Copy"
                   onPress={() => handleAction('copy')}
                   colors={colors}
                 />
                 <OptionItem
-                  icon="share-social-outline"
+                  Icon={IconShare}
                   label="Share"
                   onPress={() => handleAction('share')}
                   colors={colors}
                 />
-                <View style={styles.separator} />
                 <OptionItem
-                  icon="trash-outline"
-                  label="Delete Highlight"
+                  Icon={IconTrash}
+                  label="Delete"
                   onPress={() => handleAction('delete')}
                   isDestructive
                   colors={colors}
@@ -503,11 +474,10 @@ export function HighlightOptionsModal({
           </Animated.View>
         )}
 
-        {/* Centered Dialogs (Delete Confirmation, Success, Error) */}
         {isDialogActive && (
           <Animated.View
-            style={[styles.dialogCenterOverlay, { opacity: backdropOpacity }]} // Fade with backdrop
-            pointerEvents="auto" // Ensure dialog is interactive
+            style={[styles.dialogCenterOverlay, { opacity: backdropOpacity }]}
+            pointerEvents="auto"
           >
             <Pressable style={styles.dialog} onPress={(e) => e?.stopPropagation?.()}>
               {isConfirmDeleteVisible && (
@@ -581,39 +551,38 @@ export function HighlightOptionsModal({
 }
 
 interface OptionItemProps {
-  icon: keyof typeof Ionicons.glyphMap;
+  Icon: React.FC<SvgProps>;
   label: string;
   onPress: () => void;
   isDestructive?: boolean;
   colors: ReturnType<typeof getColors>;
 }
 
-function OptionItem({ icon, label, onPress, isDestructive, colors }: OptionItemProps) {
+function OptionItem({ Icon, label, onPress, isDestructive, colors }: OptionItemProps) {
+  const destructiveColor = '#B03A42';
   const styles = useMemo(
     () =>
       StyleSheet.create({
         optionItem: {
-          flexDirection: 'row',
+          flex: 1,
           alignItems: 'center',
-          paddingVertical: spacing.md,
-          paddingHorizontal: spacing.sm,
+          justifyContent: 'center',
+          paddingVertical: 12,
+          paddingHorizontal: 4,
           borderRadius: 12,
+          backgroundColor: isDestructive ? 'rgba(176, 58, 66, 0.1)' : 'rgba(255,255,255,0.05)',
+          borderWidth: 1,
+          borderColor: isDestructive ? 'rgba(176, 58, 66, 0.4)' : 'rgba(255,255,255,0.2)',
+          height: 74,
         },
         iconContainer: {
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: isDestructive ? `${colors.error}30` : colors.backgroundElevated,
-          borderWidth: 1,
-          borderColor: isDestructive ? colors.error : colors.border,
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginRight: spacing.md,
+          marginBottom: 8,
         },
         optionLabel: {
-          fontSize: fontSizes.body,
-          fontWeight: fontWeights.medium,
-          color: isDestructive ? colors.error : colors.textPrimary,
+          fontSize: 12,
+          fontWeight: '400',
+          color: isDestructive ? destructiveColor : colors.textPrimary,
+          textAlign: 'center',
         },
       }),
     [colors, isDestructive]
@@ -623,12 +592,18 @@ function OptionItem({ icon, label, onPress, isDestructive, colors }: OptionItemP
     <Pressable
       style={({ pressed }) => [
         styles.optionItem,
-        pressed && { backgroundColor: colors.backgroundElevated },
+        pressed && {
+          backgroundColor: isDestructive ? 'rgba(176, 58, 66, 0.2)' : 'rgba(255,255,255,0.1)',
+        },
       ]}
       onPress={onPress}
     >
       <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={22} color={isDestructive ? colors.error : colors.textPrimary} />
+        <Icon
+          width={24}
+          height={24}
+          color={isDestructive ? destructiveColor : colors.textPrimary}
+        />
       </View>
       <Text style={styles.optionLabel}>{label}</Text>
     </Pressable>

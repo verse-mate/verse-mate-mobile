@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HighlightOptionsModal } from '@/components/bible/HighlightOptionsModal';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
@@ -100,7 +101,7 @@ export default function ChapterHighlightsScreen() {
     bookName: string;
   }>();
 
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const parsedBookId = parseInt(bookId || '0', 10);
@@ -255,30 +256,38 @@ export default function ChapterHighlightsScreen() {
                 style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
                 onPress={() => handleHighlightPress(highlight)}
               >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>
-                    {formatReference(
-                      bookName || '',
-                      parsedChapterNumber,
-                      highlight.start_verse,
-                      highlight.end_verse
-                    )}
-                  </Text>
+                <View style={styles.cardContent}>
+                  <View style={styles.cardHeaderRow}>
+                    <View
+                      style={[
+                        styles.colorDot,
+                        { backgroundColor: getHighlightColor(highlight.color, mode) },
+                      ]}
+                    />
+                    <Text style={styles.cardTitle}>
+                      {formatReference(
+                        bookName || '',
+                        parsedChapterNumber,
+                        highlight.start_verse,
+                        highlight.end_verse
+                      )}
+                    </Text>
+                  </View>
+
+                  <View style={styles.cardBody}>
+                    <Text style={styles.cardText} numberOfLines={2} ellipsizeMode="tail">
+                      {String(highlight.selected_text || 'No content')}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardText} numberOfLines={5} ellipsizeMode="tail">
-                    {String(highlight.selected_text || 'No content')}
-                  </Text>
-
-                  <Pressable
-                    onPress={() => handleMenuPress(highlight)}
-                    hitSlop={12}
-                    style={({ pressed }) => [styles.menuButton, pressed && { opacity: 0.7 }]}
-                  >
-                    <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
-                  </Pressable>
-                </View>
+                <Pressable
+                  onPress={() => handleMenuPress(highlight)}
+                  hitSlop={12}
+                  style={({ pressed }) => [styles.menuButton, pressed && { opacity: 0.7 }]}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={24} color={colors.textSecondary} />
+                </Pressable>
               </Pressable>
             ))}
           </View>
@@ -302,30 +311,29 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      backgroundColor: colors.background,
+      // No background or border
     },
     backButton: {
       padding: spacing.xs,
-      marginRight: spacing.sm,
+      width: 40,
+      alignItems: 'flex-start',
     },
     headerTitle: {
       flex: 1,
-      fontSize: fontSizes.heading3 * 0.88,
-      fontWeight: fontWeights.bold,
+      fontSize: 18,
+      fontWeight: '300', // Light weight
       color: colors.textPrimary,
       textAlign: 'center',
     },
     headerSpacer: {
-      width: 32,
+      width: 40,
     },
     centerContent: {
       flex: 1,
@@ -336,54 +344,59 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       flex: 1,
     },
     scrollContent: {
-      padding: spacing.lg,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: 0,
     },
     highlightsList: {
-      gap: spacing.md,
+      gap: 8, // 8px gap
+      paddingHorizontal: 16,
     },
     card: {
       backgroundColor: colors.backgroundElevated,
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.md,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      borderColor: colors.borderSecondary,
+      padding: 16,
+      flexDirection: 'row', // Horizontal layout to center icon vertically
+      alignItems: 'center',
     },
     cardPressed: {
-      opacity: 0.95,
-      transform: [{ scale: 0.995 }],
+      opacity: 0.9,
     },
-    cardHeader: {
-      marginBottom: spacing.sm,
+    cardContent: {
+      flex: 1,
+    },
+    cardHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    colorDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: 8,
     },
     cardTitle: {
-      fontSize: fontSizes.caption,
-      fontWeight: fontWeights.bold,
+      fontSize: 14,
+      fontWeight: '400',
       color: colors.textSecondary,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
     cardBody: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
+      minHeight: 48, // Minimum height for the text area
+      justifyContent: 'center',
     },
     cardText: {
-      flex: 1,
-      fontSize: fontSizes.body,
+      fontSize: 14,
+      fontWeight: '300', // Light
       color: colors.textPrimary,
-      lineHeight: 24,
-      marginBottom: 0,
+      lineHeight: 20,
     },
     menuButton: {
-      padding: spacing.xs,
-      marginLeft: spacing.sm,
-      alignSelf: 'flex-end', // keep the 3-dots at bottom-right without creating a new row
+      padding: 4,
+      marginLeft: 16, // 16px gap from content
     },
     emptyState: {
       alignItems: 'center',

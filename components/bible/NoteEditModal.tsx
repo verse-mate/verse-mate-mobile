@@ -331,31 +331,11 @@ export function NoteEditModal({
 
             {/* Actions Footer */}
             <View style={styles.actionsContainer}>
-              <View style={styles.actionButtonsRow}>
-                <Pressable style={styles.actionButton} onPress={handleCopy}>
-                  <Ionicons name="copy-outline" size={20} color={colors.textPrimary} />
-                  <Text style={styles.actionButtonText}>Copy</Text>
-                </Pressable>
-
-                <Pressable style={styles.actionButton} onPress={handleShare}>
-                  <Ionicons name="share-outline" size={20} color={colors.textPrimary} />
-                  <Text style={styles.actionButtonText}>Share</Text>
-                </Pressable>
-
-                {onDelete && (
-                  <Pressable style={[styles.actionButton]} onPress={handleDelete}>
-                    <Ionicons name="trash-outline" size={20} color={colors.error} />
-                    <Text style={[styles.actionButtonText, { color: colors.error }]}>Delete</Text>
-                  </Pressable>
-                )}
-              </View>
-
               <Pressable
                 style={[styles.primaryButton, isSaveDisabled && styles.primaryButtonDisabled]}
                 onPress={handleSave}
                 disabled={isSaveDisabled}
               >
-                <Ionicons name="save-outline" size={20} color={colors.background} />
                 <Text style={styles.primaryButtonText}>
                   {isUpdatingNote ? 'Saving...' : 'Save Note'}
                 </Text>
@@ -393,28 +373,27 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     },
     container: {
       backgroundColor: colors.backgroundElevated,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopLeftRadius: 30, // Updated radius
+      borderTopRightRadius: 30, // Updated radius
       maxHeight: '85%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     header: {
       alignItems: 'center',
-      paddingTop: spacing.sm,
+      paddingTop: spacing.md,
       paddingBottom: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
+      // Removed border bottom for cleaner look as per design
     },
     handle: {
-      width: 40,
+      width: 72, // Updated width
       height: 4,
-      backgroundColor: colors.border,
+      backgroundColor: '#3A3A3A', // Updated color
       borderRadius: 2,
-      marginBottom: spacing.sm,
+      marginBottom: spacing.md,
     },
     headerTitle: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.medium,
+      fontSize: 18,
+      fontWeight: '300', // Light weight
       color: colors.textPrimary,
     },
     contentContainer: {
@@ -427,8 +406,9 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     },
     textArea: {
       borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 8,
+      borderColor: 'rgba(255,255,255,0.2)', // Updated border
+      backgroundColor: 'rgba(255,255,255,0.05)', // Updated background
+      borderRadius: 12, // Updated radius
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.lg,
       fontSize: fontSizes.body,
@@ -458,70 +438,43 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       paddingVertical: spacing.xs,
     },
     actionsContainer: {
-      gap: spacing.sm,
+      gap: spacing.md, // Spacing between stacked buttons
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
-      paddingBottom: spacing.md,
-      borderTopWidth: 1,
-      borderTopColor: colors.divider,
-      backgroundColor: colors.backgroundElevated,
+      paddingBottom: spacing.lg,
+      // Removed border top/bg since container has it
     },
-    actionButtonsRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      gap: spacing.xs,
-      marginBottom: spacing.sm,
-    },
-    actionButton: {
-      flex: 1,
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.xs,
-      borderRadius: 8,
-      backgroundColor: colors.background,
-      borderWidth: 1,
-      borderColor: colors.border,
-      gap: 4,
-    },
-    actionButtonText: {
-      fontSize: fontSizes.bodySmall,
-      color: colors.textPrimary,
-      fontWeight: fontWeights.medium,
-      textAlign: 'center',
-    },
+    // Removed actionButtonsRow and actionButton styles
     primaryButton: {
       backgroundColor: colors.gold,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      borderRadius: 8,
+      paddingVertical: 14,
+      borderRadius: 12,
       alignItems: 'center',
-      flexDirection: 'row',
       justifyContent: 'center',
-      gap: spacing.xs,
+      width: '100%',
     },
     primaryButtonDisabled: {
       backgroundColor: colors.textDisabled,
     },
     primaryButtonText: {
-      color: colors.background,
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.semibold,
+      color: colors.background, // Or black if needed
+      fontSize: 16,
+      fontWeight: '400',
     },
     secondaryButton: {
       backgroundColor: 'transparent',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      borderRadius: 8,
+      paddingVertical: 14,
+      borderRadius: 12,
       alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: 'rgba(255,255,255,0.2)',
     },
     secondaryButtonText: {
       color: colors.textPrimary,
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.medium,
+      fontSize: 16,
+      fontWeight: '400',
     },
   });
 };

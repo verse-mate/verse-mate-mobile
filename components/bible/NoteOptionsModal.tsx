@@ -15,6 +15,8 @@ import {
   View,
 } from 'react-native';
 import { type EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { SvgProps } from 'react-native-svg';
+import { IconCopy, IconEdit, IconShare, IconTrash } from '@/components/ui/icons';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Note } from '@/types/notes';
@@ -44,9 +46,9 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       ...StyleSheet.absoluteFillObject,
     },
     sheetContainer: {
-      backgroundColor: colors.background,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
+      backgroundColor: colors.backgroundElevated,
+      borderTopLeftRadius: 30,
+      borderTopRightRadius: 30,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
       paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.md : spacing.lg,
@@ -63,22 +65,25 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       paddingVertical: spacing.sm,
     },
     handle: {
-      width: 40,
+      width: 72,
       height: 4,
       borderRadius: 2,
-      backgroundColor: colors.textTertiary,
-      opacity: 0.3,
+      backgroundColor: '#3A3A3A',
+      opacity: 1,
     },
     title: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.bold,
+      fontSize: 18,
+      fontWeight: '300',
       color: colors.textPrimary,
       textAlign: 'center',
       marginBottom: spacing.lg,
       marginTop: spacing.sm,
     },
     optionsContainer: {
-      gap: spacing.xs,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
     },
     optionsScrollView: {
       flexGrow: 0,
@@ -89,41 +94,38 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       marginVertical: spacing.sm,
     },
     cancelButton: {
-      marginTop: spacing.lg,
-      paddingVertical: spacing.md,
+      paddingVertical: 14,
       alignItems: 'center',
-      backgroundColor: colors.backgroundElevated,
+      backgroundColor: 'transparent',
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: 'rgba(255,255,255,0.2)',
     },
     cancelButtonText: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.bold,
+      fontSize: 16,
+      fontWeight: '400',
       color: colors.textPrimary,
     },
     optionItem: {
-      flexDirection: 'row',
+      flex: 1,
       alignItems: 'center',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.sm,
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 4,
       borderRadius: 12,
+      backgroundColor: 'rgba(255,255,255,0.05)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.2)',
+      height: 74,
     },
     iconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.backgroundElevated,
-      borderWidth: 1,
-      borderColor: 'transparent',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: spacing.md,
+      marginBottom: 8,
     },
     optionLabel: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.medium,
+      fontSize: 12, // Smaller font for grid
+      fontWeight: '400',
       color: colors.textPrimary,
+      textAlign: 'center',
     },
     dialogCenterOverlay: {
       ...StyleSheet.absoluteFillObject,
@@ -461,27 +463,26 @@ export function NoteOptionsModal({
             >
               <View style={styles.optionsContainer}>
                 <OptionItem
-                  icon="copy-outline"
-                  label="Copy Note"
+                  Icon={IconCopy}
+                  label="Copy"
                   onPress={() => handleAction('copy')}
                   colors={colors}
                 />
                 <OptionItem
-                  icon="share-social-outline"
+                  Icon={IconShare}
                   label="Share"
                   onPress={() => handleAction('share')}
                   colors={colors}
                 />
                 <OptionItem
-                  icon="create-outline"
-                  label="Edit Note"
+                  Icon={IconEdit}
+                  label="Edit"
                   onPress={() => handleAction('edit')}
                   colors={colors}
                 />
-                <View style={styles.separator} />
                 <OptionItem
-                  icon="trash-outline"
-                  label="Delete Note"
+                  Icon={IconTrash}
+                  label="Delete"
                   onPress={() => handleAction('delete')}
                   isDestructive
                   colors={colors}
@@ -572,39 +573,38 @@ export function NoteOptionsModal({
 }
 
 interface OptionItemProps {
-  icon: keyof typeof Ionicons.glyphMap;
+  Icon: React.FC<SvgProps>;
   label: string;
   onPress: () => void;
   isDestructive?: boolean;
   colors: ReturnType<typeof getColors>;
 }
 
-function OptionItem({ icon, label, onPress, isDestructive, colors }: OptionItemProps) {
+function OptionItem({ Icon, label, onPress, isDestructive, colors }: OptionItemProps) {
+  const destructiveColor = '#B03A42';
   const styles = useMemo(
     () =>
       StyleSheet.create({
         optionItem: {
-          flexDirection: 'row',
+          flex: 1,
           alignItems: 'center',
-          paddingVertical: spacing.md,
-          paddingHorizontal: spacing.sm,
+          justifyContent: 'center',
+          paddingVertical: 12,
+          paddingHorizontal: 4,
           borderRadius: 12,
+          backgroundColor: isDestructive ? 'rgba(176, 58, 66, 0.1)' : 'rgba(255,255,255,0.05)',
+          borderWidth: 1,
+          borderColor: isDestructive ? 'rgba(176, 58, 66, 0.4)' : 'rgba(255,255,255,0.2)',
+          height: 74,
         },
         iconContainer: {
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: isDestructive ? `${colors.error}30` : colors.backgroundElevated,
-          borderWidth: 1,
-          borderColor: isDestructive ? colors.error : colors.border,
-          justifyContent: 'center',
-          alignItems: 'center',
-          marginRight: spacing.md,
+          marginBottom: 8,
         },
         optionLabel: {
-          fontSize: fontSizes.body,
-          fontWeight: fontWeights.medium,
-          color: isDestructive ? colors.error : colors.textPrimary,
+          fontSize: 12, // Smaller font for grid
+          fontWeight: '400',
+          color: isDestructive ? destructiveColor : colors.textPrimary,
+          textAlign: 'center',
         },
       }),
     [colors, isDestructive]
@@ -614,12 +614,18 @@ function OptionItem({ icon, label, onPress, isDestructive, colors }: OptionItemP
     <Pressable
       style={({ pressed }) => [
         styles.optionItem,
-        pressed && { backgroundColor: colors.backgroundElevated },
+        pressed && {
+          backgroundColor: isDestructive ? 'rgba(176, 58, 66, 0.2)' : 'rgba(255,255,255,0.1)',
+        },
       ]}
       onPress={onPress}
     >
       <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={22} color={isDestructive ? colors.error : colors.textPrimary} />
+        <Icon
+          width={24}
+          height={24}
+          color={isDestructive ? destructiveColor : colors.textPrimary}
+        />
       </View>
       <Text style={styles.optionLabel}>{label}</Text>
     </Pressable>
