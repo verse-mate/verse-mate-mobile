@@ -163,7 +163,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       showMessage('Giving', 'Support VerseMate with your contribution (Coming Soon).');
     } else if (item.action === 'help') {
       onClose();
-      showMessage('Help', 'Help & Support documentation is coming soon!');
+      router.push('/help');
     } else if (item.action === 'share') {
       try {
         const result = await Share.share({
