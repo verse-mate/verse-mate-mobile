@@ -9,7 +9,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import type { ThemePreference } from '@/contexts/ThemeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 

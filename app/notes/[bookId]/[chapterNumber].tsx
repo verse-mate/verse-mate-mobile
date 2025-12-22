@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NoteCard } from '@/components/bible/NoteCard';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useNotes } from '@/hooks/bible/use-notes';

@@ -10,7 +10,7 @@ interface MessageModalProps {
   message: string;
 }
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export const MessageModal = ({ visible, onClose, title, message }: MessageModalProps) => {
   const { colors } = useTheme();
