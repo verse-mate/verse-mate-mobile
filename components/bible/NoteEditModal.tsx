@@ -13,7 +13,6 @@
  * @see Task Group 5: Modal Components - NoteEditModal
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -228,13 +227,13 @@ export function NoteEditModal({
     }
   };
 
-  const handleCopy = async () => {
+  const _handleCopy = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await Clipboard.setStringAsync(content);
     showToast('Note copied to clipboard');
   };
 
-  const handleShare = async () => {
+  const _handleShare = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const message = `Note on ${bookName} ${chapterNumber}:\n\n"${content}"`;
 
@@ -250,7 +249,7 @@ export function NoteEditModal({
     });
   };
 
-  const handleDelete = () => {
+  const _handleDelete = () => {
     setShowDeleteConfirmation(true);
   };
 

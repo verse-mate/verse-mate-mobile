@@ -31,7 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/Button';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { TextInput } from '@/components/ui/TextInput';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { BibleVersion } from '@/constants/bible-versions';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';

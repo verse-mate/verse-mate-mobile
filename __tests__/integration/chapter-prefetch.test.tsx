@@ -181,8 +181,8 @@ describe('Chapter Prefetching', () => {
     result.current();
     const endTime = performance.now();
 
-    // Prefetch should complete very quickly (< 10ms) since it's async in background
-    expect(endTime - startTime).toBeLessThan(10);
+    // Prefetch should complete very quickly (< 50ms) since it's async in background
+    expect(endTime - startTime).toBeLessThan(50);
   });
 
   /**

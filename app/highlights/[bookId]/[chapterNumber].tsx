@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HighlightOptionsModal } from '@/components/bible/HighlightOptionsModal';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { fontSizes, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';

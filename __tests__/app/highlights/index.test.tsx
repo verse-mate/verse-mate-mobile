@@ -149,13 +149,13 @@ describe('HighlightsScreen', () => {
         expect(screen.getByTestId('chapter-group-1-1')).toBeTruthy();
         expect(screen.getByTestId('chapter-group-43-3')).toBeTruthy();
 
-        // Genesis 1 group should show title and subtitle separately
+        // Genesis 1 group should show title and badge separately
         expect(screen.getByText('Genesis 1')).toBeTruthy();
-        expect(screen.getByText('2 highlights')).toBeTruthy();
+        expect(screen.getByText('2')).toBeTruthy();
 
-        // John 3 group should show title and subtitle separately
+        // John 3 group should show title and badge separately
         expect(screen.getByText('John 3')).toBeTruthy();
-        expect(screen.getByText('1 highlight')).toBeTruthy();
+        expect(screen.getByText('1')).toBeTruthy();
       });
     });
   });
