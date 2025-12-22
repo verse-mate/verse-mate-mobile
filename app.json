@@ -22,7 +22,7 @@
       }
     },
     "android": {
-      "package": "org.versemate.mobile",
+      "package": "org.versemate.mobile.internal",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon.png",
