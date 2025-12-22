@@ -89,34 +89,32 @@ export function AutoHighlightTooltip({
 }: AutoHighlightTooltipProps) {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { isTablet, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
+  const { isTablet, isLandscape, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
   const { width: windowWidth } = useWindowDimensions();
 
   // Calculate dynamic width for tooltip positioning
   // In split view: align over the insights panel (right panel)
-  // In tablet landscape full screen: position on right side with fixed 50% width
+  // In tablet portrait: center with 75% width
+  // In tablet landscape full screen: position on right side with 50% width
   const tooltipWidth =
     useSplitView && splitViewMode !== 'left-full'
       ? windowWidth * (1 - splitRatio)
       : isTablet
-        ? windowWidth * 0.5
+        ? isLandscape
+          ? windowWidth * 0.5
+          : windowWidth * 0.75
         : undefined;
 
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom, isTablet, tooltipWidth),
-    [colors, insets.bottom, isTablet, tooltipWidth]
+    () => createStyles(colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth),
+    [colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth]
   );
-
-  // Determine if this is a multi-verse highlight
-  const isMultiVerse = autoHighlight
-    ? autoHighlight.start_verse !== autoHighlight.end_verse
-    : false;
 
   // Internal visibility state to keep Modal mounted during exit animation
   const [internalVisible, setInternalVisible] = useState(visible);
 
-  // State for showing verse insight (expanded view) - start expanded for single verses
-  const [expanded, setExpanded] = useState(!isMultiVerse);
+  // State for showing verse insight (expanded view) - always expanded
+  const [expanded, setExpanded] = useState(true);
 
   // Ref to track if analytics event has been fired for this tooltip open
   const hasTrackedOpen = useRef(false);
@@ -127,7 +125,7 @@ export function AutoHighlightTooltip({
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(!isMultiVerse ? 1 : 0)).current; // 0: collapsed, 1: expanded
+  const expansionAnim = useRef(new Animated.Value(1)).current; // 0: collapsed, 1: expanded
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
@@ -192,13 +190,13 @@ export function AutoHighlightTooltip({
       // This ensures the modal unmounts deterministically, fixing the double-click bug
       setTimeout(() => {
         setInternalVisible(false);
-        setExpanded(!isMultiVerse); // Reset expansion state
-        expansionAnim.setValue(!isMultiVerse ? 1 : 0);
+        setExpanded(true); // Reset expansion state
+        expansionAnim.setValue(1);
         hasTrackedOpen.current = false; // Reset tracking flag
         if (callback) callback();
       }, 150);
     },
-    [backdropOpacity, slideAnim, screenHeight, expansionAnim, isMultiVerse]
+    [backdropOpacity, slideAnim, screenHeight, expansionAnim]
   );
 
   // Handle expansion animation
@@ -214,10 +212,10 @@ export function AutoHighlightTooltip({
   // Watch for prop changes to trigger animations
   useEffect(() => {
     if (visible) {
-      // Reset expansion state based on multi-verse status
-      const shouldBeExpanded = !isMultiVerse;
+      // Always start expanded
+      const shouldBeExpanded = true;
       setExpanded(shouldBeExpanded);
-      expansionAnim.setValue(shouldBeExpanded ? 1 : 0);
+      expansionAnim.setValue(1);
       animateOpen();
 
       // Track analytics: AUTO_HIGHLIGHT_TOOLTIP_VIEWED (Task 4.7)
@@ -232,15 +230,7 @@ export function AutoHighlightTooltip({
     } else if (internalVisible) {
       animateClose();
     }
-  }, [
-    visible,
-    animateOpen,
-    animateClose,
-    internalVisible,
-    isMultiVerse,
-    expansionAnim,
-    autoHighlight,
-  ]);
+  }, [visible, animateOpen, animateClose, internalVisible, expansionAnim, autoHighlight]);
 
   // Handle explicit dismiss (user action)
   const handleDismiss = useCallback(() => {
@@ -344,10 +334,8 @@ export function AutoHighlightTooltip({
 
     await Clipboard.setStringAsync(payload);
 
-    // Close modal and trigger callback
-    animateClose(() => {
-      onCopy?.();
-    });
+    // Show toast without closing modal
+    onCopy?.();
   };
 
   // Handle share verse
@@ -501,27 +489,8 @@ export function AutoHighlightTooltip({
               </View>
             </View>
 
-            {/* Insight Section (Expandable) */}
+            {/* Insight Section (Always Expanded) */}
             <View style={styles.insightContainer}>
-              {isMultiVerse && (
-                <Pressable
-                  style={[styles.insightToggle, expanded && { marginBottom: spacing.md }]}
-                  onPress={() => setExpanded(!expanded)}
-                  hitSlop={10}
-                  {...panResponder.panHandlers}
-                >
-                  <Ionicons
-                    name={expanded ? 'chevron-down' : 'chevron-up'}
-                    size={16}
-                    color={colors.gold}
-                    style={{ marginRight: spacing.xs }}
-                  />
-                  <Text style={styles.insightToggleText}>
-                    {expanded ? 'Hide Verse Insight' : 'View Verse Insight'}
-                  </Text>
-                </Pressable>
-              )}
-
               <Animated.View
                 style={[
                   styles.insightContentWrapper,
@@ -588,8 +557,8 @@ export function AutoHighlightTooltip({
                   <Ionicons name="bookmark-outline" size={20} color={colors.textPrimary} />
                   <Text style={styles.secondaryButtonText}>Save as My Highlight</Text>
                 </Pressable>
-                <Pressable style={styles.secondaryButton} onPress={handleDismiss}>
-                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                <Pressable style={styles.closeButton} onPress={handleDismiss}>
+                  <Text style={styles.closeButtonText}>Close</Text>
                 </Pressable>
               </>
             ) : (
@@ -636,13 +605,16 @@ const createStyles = (
   colors: ReturnType<typeof getColors>,
   bottomInset: number,
   _isTablet: boolean,
+  isLandscape: boolean,
+  useSplitView: boolean,
   tooltipWidth?: number
 ) => {
   const styles = StyleSheet.create({
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      alignItems: tooltipWidth ? 'flex-end' : 'stretch',
+      // Center align for tablet portrait only, right align for landscape/split view, stretch for mobile
+      alignItems: tooltipWidth ? (useSplitView || isLandscape ? 'flex-end' : 'center') : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
@@ -652,7 +624,7 @@ const createStyles = (
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
       borderTopRightRadius: tooltipWidth ? 0 : 16,
-      maxHeight: '80%',
+      maxHeight: '95%',
       width: tooltipWidth ?? '100%',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
@@ -798,6 +770,20 @@ const createStyles = (
       fontSize: fontSizes.body,
       fontWeight: fontWeights.medium,
     },
+    closeButton: {
+      backgroundColor: colors.gold,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.gold,
+    },
+    closeButtonText: {
+      color: colors.background,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+    },
     loginPrompt: {
       padding: spacing.lg,
       backgroundColor: colors.background,
@@ -816,24 +802,6 @@ const createStyles = (
       paddingTop: spacing.lg,
       flexShrink: 1,
       minHeight: 0,
-    },
-    insightToggle: {
-      flexDirection: 'row',
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 6,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: 'transparent',
-    },
-    insightToggleText: {
-      fontSize: fontSizes.bodySmall,
-      color: colors.gold,
-      fontWeight: fontWeights.semibold,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
     },
     analysisTitle: {
       fontSize: fontSizes.heading3,

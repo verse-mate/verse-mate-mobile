@@ -95,7 +95,7 @@ jest.mock('expo-haptics', () => ({
 const mockSetPage = jest.fn();
 
 // Center index constant from ChapterScreen (5-page window)
-const CENTER_INDEX = 2;
+const CENTER_INDEX = 3;
 
 jest.mock('@/components/bible/ChapterPagerView', () => {
   const React = require('react');
@@ -402,8 +402,9 @@ describe('ChapterScreen - PagerView Integration', () => {
 
     const { getByTestId, queryByTestId } = renderWithSafeArea(<ChapterScreen />);
 
-    // Tabs should NOT be visible in Bible view initially
-    expect(queryByTestId('chapter-content-tabs')).toBeNull();
+    // Tabs are now always mounted (height: 0 in Bible view)
+    const tabs = queryByTestId('chapter-content-tabs');
+    expect(tabs).toBeTruthy();
 
     // Switch to explanations view
     await waitFor(() => {
@@ -411,7 +412,7 @@ describe('ChapterScreen - PagerView Integration', () => {
       fireEvent.press(explanationsIcon);
     });
 
-    // Tabs should be visible in explanations view
+    // Tabs should be visible and functional in explanations view
     await waitFor(() => {
       const tabsContainer = getByTestId('chapter-content-tabs');
       expect(tabsContainer).toBeTruthy();
@@ -424,8 +425,8 @@ describe('ChapterScreen - PagerView Integration', () => {
   it('switches between Bible and Explanations view modes', async () => {
     const { getByTestId, queryByTestId } = renderWithSafeArea(<ChapterScreen />);
 
-    // Initially in Bible view, tabs should NOT be visible
-    expect(queryByTestId('chapter-content-tabs')).toBeNull();
+    // Tabs are now always mounted (height: 0 in Bible view)
+    expect(queryByTestId('chapter-content-tabs')).toBeTruthy();
 
     const bibleIcon = getByTestId('bible-view-toggle');
     const explanationsIcon = getByTestId('commentary-view-toggle');
@@ -433,7 +434,7 @@ describe('ChapterScreen - PagerView Integration', () => {
     // Switch to explanations view
     fireEvent.press(explanationsIcon);
 
-    // Tabs should appear
+    // Tabs should be visible and functional
     await waitFor(() => {
       expect(getByTestId('chapter-content-tabs')).toBeTruthy();
     });
@@ -441,9 +442,10 @@ describe('ChapterScreen - PagerView Integration', () => {
     // Switch back to Bible view
     fireEvent.press(bibleIcon);
 
-    // Tabs should not be visible
+    // Tabs should still be mounted (kept for instant visibility when switching back)
     await waitFor(() => {
-      expect(queryByTestId('chapter-content-tabs')).toBeNull();
+      expect(queryByTestId('chapter-content-tabs')).toBeTruthy();
+      // They're hidden via height: 0, overflow: 'hidden' when activeView !== 'explanations'
     });
   });
 
@@ -465,8 +467,8 @@ describe('ChapterScreen - PagerView Integration', () => {
         fireEvent.press(nextButton);
       });
 
-      // Should call setPage with CENTER_INDEX + 1 (2 + 1 = 3)
-      expect(mockSetPage).toHaveBeenCalledWith(3);
+      // Should call setPage with CENTER_INDEX + 1 (3 + 1 = 4)
+      expect(mockSetPage).toHaveBeenCalledWith(4);
     });
 
     /**
@@ -492,8 +494,8 @@ describe('ChapterScreen - PagerView Integration', () => {
         fireEvent.press(prevButton);
       });
 
-      // Should call setPage with CENTER_INDEX - 1 (2 - 1 = 1)
-      expect(mockSetPage).toHaveBeenCalledWith(1);
+      // Should call setPage with CENTER_INDEX - 1 (3 - 1 = 2)
+      expect(mockSetPage).toHaveBeenCalledWith(2);
     });
 
     /**

@@ -14,8 +14,10 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 103-218)
  */
 
+import * as Haptics from 'expo-haptics';
 import {
   forwardRef,
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -37,14 +39,16 @@ import {
 import { ChapterPage } from './ChapterPage';
 
 /**
- * Constants for 5-page fixed window
+ * Constants for 7-page fixed window
  */
-const WINDOW_SIZE = 5;
-const CENTER_INDEX = 2;
+const WINDOW_SIZE = 7;
+const CENTER_INDEX = 3;
 
 /**
  * Delay in milliseconds before calling onPageChange after swipe
  * This prevents double animation (PagerView + router.replace)
+ * Kept short (75ms) to ensure snappy UI updates (Header/Fab), while
+ * parent component handles URL debouncing to prevent global re-renders.
  */
 const ROUTE_UPDATE_DELAY_MS = 75;
 
@@ -109,7 +113,7 @@ export interface ChapterPagerViewProps {
  * pagerRef.current?.setPage(3);
  * ```
  */
-export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerViewProps>(
+const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerViewProps>(
   function ChapterPagerView(
     {
       initialBookId,
@@ -135,6 +139,26 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       getAbsolutePageIndex(initialBookId, initialChapter, booksMetadata)
     );
 
+    // Track the currently selected position in the 5-page window (0-4)
+    const [selectedPosition, setSelectedPosition] = useState(CENTER_INDEX);
+
+    // Flag to tell pages NOT to reset scroll during a seamless snap
+    const [forceJump, setForceJump] = useState(false);
+
+    // Refs to track state for the useEffect without causing it to re-run on every swipe
+    const absIndexRef = useRef(currentAbsoluteIndex);
+    const posRef = useRef(selectedPosition);
+    const lastProcessedRef = useRef({ bookId: initialBookId, chapter: initialChapter });
+
+    // Keep refs in sync with state
+    useEffect(() => {
+      absIndexRef.current = currentAbsoluteIndex;
+    }, [currentAbsoluteIndex]);
+
+    useEffect(() => {
+      posRef.current = selectedPosition;
+    }, [selectedPosition]);
+
     // Expose imperative methods to parent component
     useImperativeHandle(
       ref,
@@ -155,17 +179,42 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       };
     }, []);
 
-    // Update absolute index if initialBookId/initialChapter changes externally
-    // Note: Intentionally excludes currentAbsoluteIndex from deps to prevent race condition
-    // when swipe updates state before route updates (75ms delay)
+    // Update absolute index if initialBookId/initialChapter changes externally (modal, back button, etc.)
     useEffect(() => {
-      const newIndex = getAbsolutePageIndex(initialBookId, initialChapter, booksMetadata);
-      if (newIndex !== -1 && newIndex !== currentAbsoluteIndex) {
-        setCurrentAbsoluteIndex(newIndex);
-        // Also update pager position for external navigation (e.g., from modal)
-        pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+      // If we have a pending route update, it means WE initiated a change that hasn't propagated yet.
+      // Ignoring prop updates during this window prevents "Snap Back" where the parent
+      // forces us back to the old chapter before processing our request.
+      if (routeUpdateTimeoutRef.current !== null) {
+        return;
       }
-    }, [initialBookId, initialChapter, booksMetadata, currentAbsoluteIndex]);
+
+      // Only act if the props actually changed from what we last processed
+      if (
+        lastProcessedRef.current.bookId === initialBookId &&
+        lastProcessedRef.current.chapter === initialChapter
+      ) {
+        return;
+      }
+      lastProcessedRef.current = { bookId: initialBookId, chapter: initialChapter };
+
+      const newIndex = getAbsolutePageIndex(initialBookId, initialChapter, booksMetadata);
+      if (newIndex === -1) return;
+
+      // Calculate what absolute index is currently visible at the current pager position
+      const currentlyVisibleIndex = absIndexRef.current + (posRef.current - CENTER_INDEX);
+
+      // Only re-center if the new index is DIFFERENT from what the user is already looking at.
+      if (newIndex !== currentlyVisibleIndex) {
+        setForceJump(true); // Tell pages to reset scroll for a true jump
+        setCurrentAbsoluteIndex(newIndex);
+        absIndexRef.current = newIndex;
+        setSelectedPosition(CENTER_INDEX);
+        posRef.current = CENTER_INDEX;
+        pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+        // Reset jump flag after a frame
+        requestAnimationFrame(() => setForceJump(false));
+      }
+    }, [initialBookId, initialChapter, booksMetadata]); // Removed currentAbsoluteIndex and selectedPosition from deps
 
     /**
      * Calculate which chapter should display at a given window position
@@ -236,9 +285,12 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
         }
 
         const { bookId, chapterNumber } = chapter;
-
-        // Only pass targetVerse if this page matches the requested chapter
         const isTargetChapter = bookId === initialBookId && chapterNumber === initialChapter;
+
+        // isPreloading should only be true for pages that are far away from the user's view.
+        // We allow the current page AND its immediate neighbors (distance <= 1) to render
+        // their content so that swiping between them is visually seamless.
+        const isPreloading = Math.abs(windowPosition - selectedPosition) > 1;
 
         return (
           <ChapterPage
@@ -247,6 +299,8 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
             chapterNumber={chapterNumber} // DYNAMIC PROP: updates when window shifts
             activeTab={activeTab}
             activeView={activeView}
+            shouldResetScroll={forceJump} // ONLY reset scroll if this is a forced jump
+            isPreloading={isPreloading} // Optimize off-screen pages
             targetVerse={isTargetChapter ? targetVerse : undefined}
             targetEndVerse={isTargetChapter ? targetEndVerse : undefined}
             onScroll={onScroll}
@@ -266,95 +320,93 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
       initialChapter,
       targetVerse,
       targetEndVerse,
+      forceJump,
+      selectedPosition, // Added dependency
     ]);
 
     /**
      * Handle page selection events
      *
-     * Re-centering strategy (spec lines 212-218):
-     * 1. Initial: Genesis 1 at index 2: [none, none, Gen 1, Gen 2, Gen 3]
-     * 2. Swipe right once: Position 3 (Genesis 2) - NO re-center, just update absolute index
-     * 3. Swipe right again: Position 4 (Genesis 3 - EDGE!) - Re-center to index 2
-     * 4. Result: [Gen 1, Gen 2, Gen 3, Gen 4, Gen 5] - User can continue swiping
+     * SEAMLESS RESET STRATEGY:
+     * To prevent the "every other swipe is laggy" bug, we re-center the pager
+     * to the middle index (2) after EVERY swipe.
      *
-     * User can swipe once without jarring re-center. Re-center only at edges.
-     *
-     * IMPORTANT: Adds 75ms delay before calling onPageChange to prevent double animation.
-     * PagerView handles the visual animation, router.replace() should only update URL silently.
-     *
-     * BOUNDARY HANDLING: When user swipes to an out-of-bounds page (boundary indicator),
-     * snap back to center immediately. This prevents navigation past Bible boundaries.
+     * Because we update currentAbsoluteIndex BEFORE calling setPageWithoutAnimation,
+     * the content at the "new" index 2 is IDENTICAL to the content at the
+     * "old" index 1 or 3. This makes the snap visually invisible.
      */
     const handlePageSelected = useCallback(
       (event: { nativeEvent: OnPageSelectedEventData }) => {
-        const selectedPosition = Math.floor(event.nativeEvent.position);
+        const newPosition = Math.floor(event.nativeEvent.position);
+        if (newPosition === CENTER_INDEX) return; // Already centered
+
+        // SYNC REFS IMMEDIATELY to prevent race conditions in useEffect
+        posRef.current = newPosition;
+        setSelectedPosition(newPosition);
 
         // Clear any pending route update timeout
         if (routeUpdateTimeoutRef.current) {
           clearTimeout(routeUpdateTimeoutRef.current);
+          routeUpdateTimeoutRef.current = null;
         }
 
         // Calculate would-be absolute index for this page
-        const offset = selectedPosition - CENTER_INDEX;
+        const offset = newPosition - CENTER_INDEX;
         const newAbsoluteIndex = currentAbsoluteIndex + offset;
 
-        // Check if swipe would go out of bounds (to a boundary indicator page)
+        // Check if swipe would go out of bounds
         const maxIndex = getMaxPageIndex(booksMetadata);
         const isOutOfBounds = newAbsoluteIndex < 0 || newAbsoluteIndex > maxIndex;
 
         if (isOutOfBounds) {
-          // Snap back to center - user tried to swipe past Bible boundary
           requestAnimationFrame(() => {
             pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+            setSelectedPosition(CENTER_INDEX);
+            posRef.current = CENTER_INDEX;
           });
-          // Don't update route or state - stay on current chapter
           return;
         }
 
-        // Check if user reached edge positions (0 or 4)
-        const isAtEdge = selectedPosition === 0 || selectedPosition === WINDOW_SIZE - 1;
+        // Check if user reached edge positions (0 or 6) - EDGE RESET
+        const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
+
+        // Fire Haptics INSTANTLY on the native UI thread
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         if (isAtEdge) {
-          // Update state to new absolute index
+          // SEAMLESS EDGE SNAP
+          setForceJump(false); // ENSURE we don't reset scroll during this snap
           setCurrentAbsoluteIndex(newAbsoluteIndex);
+          absIndexRef.current = newAbsoluteIndex;
 
-          // Re-center to middle page without animation
           requestAnimationFrame(() => {
             pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+            setSelectedPosition(CENTER_INDEX);
+            posRef.current = CENTER_INDEX;
           });
 
-          // Delay route update by 75ms to prevent double animation
-          const { bookId, chapterNumber } = getChapterFromPageIndex(
-            newAbsoluteIndex,
-            booksMetadata
-          ) || {
-            bookId: initialBookId,
-            chapterNumber: initialChapter,
-          };
-
-          routeUpdateTimeoutRef.current = setTimeout(() => {
-            onPageChange(bookId, chapterNumber);
-          }, ROUTE_UPDATE_DELAY_MS);
-        } else if (selectedPosition !== CENTER_INDEX) {
-          // User swiped one position away from center (to index 1 or 3)
-          // DON'T update currentAbsoluteIndex yet to avoid flickering
-          // Let the route update trigger useEffect which will re-center properly
-
-          // Delay route update by 75ms to prevent double animation
-          const { bookId, chapterNumber } = getChapterFromPageIndex(
-            newAbsoluteIndex,
-            booksMetadata
-          ) || {
-            bookId: initialBookId,
-            chapterNumber: initialChapter,
-          };
-
-          routeUpdateTimeoutRef.current = setTimeout(() => {
-            onPageChange(bookId, chapterNumber);
-          }, ROUTE_UPDATE_DELAY_MS);
+          const chapter = getChapterFromPageIndex(newAbsoluteIndex, booksMetadata);
+          if (chapter) {
+            routeUpdateTimeoutRef.current = setTimeout(() => {
+              onPageChange(chapter.bookId, chapter.chapterNumber);
+              routeUpdateTimeoutRef.current = null;
+            }, ROUTE_UPDATE_DELAY_MS);
+          }
+        } else {
+          // Proactive re-center logic:
+          // If we are at position 1 or 5, we are getting close to the wall.
+          // We can silently re-center when the user is idle, but for now
+          // we'll just let them swipe until 0 or 6 to minimize snaps.
+          const chapter = getChapterFromPageIndex(newAbsoluteIndex, booksMetadata);
+          if (chapter) {
+            routeUpdateTimeoutRef.current = setTimeout(() => {
+              onPageChange(chapter.bookId, chapter.chapterNumber);
+              routeUpdateTimeoutRef.current = null;
+            }, ROUTE_UPDATE_DELAY_MS);
+          }
         }
       },
-      [currentAbsoluteIndex, booksMetadata, initialBookId, initialChapter, onPageChange]
+      [currentAbsoluteIndex, booksMetadata, onPageChange]
     );
 
     return (
@@ -373,6 +425,12 @@ export const ChapterPagerView = forwardRef<ChapterPagerViewRef, ChapterPagerView
     );
   }
 );
+
+/**
+ * Memoized PagerView to prevent unnecessary global re-renders
+ * during URL synchronization.
+ */
+export const ChapterPagerView = memo(ChapterPagerViewComponent);
 
 const styles = StyleSheet.create({
   pagerView: {

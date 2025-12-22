@@ -12,7 +12,7 @@ export interface ButtonProps {
   title: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline' | 'auth';
+  variant?: 'primary' | 'secondary' | 'outline' | 'outlineGold' | 'auth';
   fullWidth?: boolean;
   testID?: string;
 }
@@ -72,6 +72,11 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       borderWidth: 2,
       borderColor: colors.info,
     },
+    outlineGold: {
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderColor: colors.gold,
+    },
     auth: {
       backgroundColor: colors.gold,
       borderRadius: 8,
@@ -95,6 +100,9 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     outlineText: {
       color: colors.info,
+    },
+    outlineGoldText: {
+      color: colors.gold,
     },
     authText: {
       color: colors.background, // Contrast: Black on Gold (Dark), White on Gold (Light)

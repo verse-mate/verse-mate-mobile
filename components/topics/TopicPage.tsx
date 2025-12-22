@@ -25,7 +25,7 @@ import Markdown from 'react-native-markdown-display';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { TopicText } from '@/components/topics/TopicText';
+import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import {
   fontSizes,
   fontWeights,
@@ -96,12 +96,18 @@ export interface TopicPageProps {
   activeTab: ContentTabType;
   /** Current view mode (bible or explanations) */
   activeView: 'bible' | 'explanations';
+  /** Whether to reset scroll to top on topic change (default: true) */
+  shouldResetScroll?: boolean;
+  /** Whether this page is being preloaded (skips heavy AI content) */
+  isPreloading?: boolean;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
   onTap?: () => void;
   /** Callback when user wants to share current topic */
   onShare?: () => void;
+  /** Callback when a verse is pressed */
+  onVersePress?: (verseData: VersePress) => void;
 }
 
 /**
@@ -130,9 +136,12 @@ export const TopicPage = React.memo(function TopicPage({
   topicId,
   activeTab,
   activeView,
+  shouldResetScroll = true,
+  isPreloading = false,
   onScroll,
   onTap,
   onShare,
+  onVersePress,
 }: TopicPageProps) {
   const { colors } = useTheme();
   const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
@@ -172,9 +181,37 @@ export const TopicPage = React.memo(function TopicPage({
     };
   }, []);
 
+  // Reset scroll state when topic changes
+  const bibleScrollRef = useRef<ScrollView>(null);
+  const explanationsScrollRef = useRef<ScrollView>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: topicId and shouldResetScroll are required to trigger scroll reset
+  useEffect(() => {
+    // Reset scroll position to top when topicId changes
+    // This prevents "height teleportation" from previous topic
+    // ONLY if shouldResetScroll is true (skipped during seamless pager snaps)
+    if (shouldResetScroll) {
+      bibleScrollRef.current?.scrollTo({ y: 0, animated: false });
+      explanationsScrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+
+    // Reset internal scroll tracking
+    lastScrollY.current = 0;
+  }, [topicId, shouldResetScroll]);
+
   // Fetch topic data with verse replacement
   const { data: topicData, isLoading: isTopicLoading } = useTopicById(topicId, bibleVersion);
   const { data: references } = useTopicReferences(topicId);
+
+  // Keep references to last valid data to prevent flicker during transitions
+  const lastTopicDataRef = useRef<typeof topicData | null>(null);
+  const lastReferencesRef = useRef<typeof references | null>(null);
+
+  if (topicData) lastTopicDataRef.current = topicData;
+  if (references) lastReferencesRef.current = references;
+
+  const displayTopicData = topicData || lastTopicDataRef.current;
+  const displayReferences = references || lastReferencesRef.current;
 
   /**
    * Handle touch start - record time and position
@@ -237,8 +274,10 @@ export const TopicPage = React.memo(function TopicPage({
 
   // Type guard for topic
   const topic =
-    topicData?.topic && typeof topicData.topic === 'object' && 'name' in topicData.topic
-      ? (topicData.topic as {
+    displayTopicData?.topic &&
+    typeof displayTopicData.topic === 'object' &&
+    'name' in displayTopicData.topic
+      ? (displayTopicData.topic as {
           name: string;
           description?: string;
           topic_id: string;
@@ -252,8 +291,8 @@ export const TopicPage = React.memo(function TopicPage({
       ? topic.description
       : null;
 
-  // Loading state - show skeleton
-  if (isTopicLoading && !topicData) {
+  // Loading state - show skeleton ONLY on initial mount when no data exists
+  if (isTopicLoading && !displayTopicData) {
     return (
       <View style={styles.container} testID={`topic-page-${topicId}`}>
         <ScrollView
@@ -268,7 +307,7 @@ export const TopicPage = React.memo(function TopicPage({
   }
 
   // Error or no data state
-  if (!topic) {
+  if (!topic && !isTopicLoading) {
     return (
       <View style={styles.container} testID={`topic-page-${topicId}`}>
         <ScrollView
@@ -288,6 +327,7 @@ export const TopicPage = React.memo(function TopicPage({
     <View style={styles.container} testID={`topic-page-${topicId}`}>
       {/* Bible References View */}
       <ScrollView
+        ref={bibleScrollRef}
         style={[
           styles.container,
           activeView !== 'bible' && {
@@ -309,24 +349,25 @@ export const TopicPage = React.memo(function TopicPage({
         onTouchEnd={handleTouchEnd}
         pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
       >
-        {references &&
-        typeof references === 'object' &&
-        'content' in references &&
-        typeof references.content === 'string' ? (
+        {displayReferences &&
+        typeof displayReferences === 'object' &&
+        'content' in displayReferences &&
+        typeof displayReferences.content === 'string' ? (
           // Use TopicText if content has structured format (## subtitles)
           // Otherwise fall back to existing Markdown renderer
-          references.content.includes('## ') ? (
+          displayReferences.content.includes('## ') ? (
             <TopicText
-              topicName={topic.name}
-              markdownContent={references.content}
+              topicName={topic?.name || ''}
+              markdownContent={displayReferences.content}
               onShare={onShare}
+              onVersePress={onVersePress}
             />
           ) : (
             <>
               {/* Topic Title Row with Share button */}
               <View style={styles.titleRow}>
                 <Text style={styles.topicTitle} accessibilityRole="header">
-                  {topic.name}
+                  {topic?.name}
                 </Text>
                 {onShare && (
                   <View style={styles.iconButtons}>
@@ -344,7 +385,7 @@ export const TopicPage = React.memo(function TopicPage({
                 <Markdown style={markdownStyles} rules={markdownRules}>
                   {
                     // First format verse numbers, THEN process newlines
-                    formatVerseNumbers(references.content)
+                    formatVerseNumbers(displayReferences.content)
                       .replace(/\n\n/g, '___PARAGRAPH___')
                       .replace(/\n/g, ' ')
                       .replace(/___PARAGRAPH___/g, '\n\n')
@@ -358,7 +399,7 @@ export const TopicPage = React.memo(function TopicPage({
             {/* Topic Title Row with Share button */}
             <View style={styles.titleRow}>
               <Text style={styles.topicTitle} accessibilityRole="header">
-                {topic.name}
+                {topic?.name}
               </Text>
               {onShare && (
                 <View style={styles.iconButtons}>
@@ -380,9 +421,10 @@ export const TopicPage = React.memo(function TopicPage({
         <BottomLogo />
       </ScrollView>
 
-      {/* Explanations View - Pre-render all tabs but only show active */}
-      {(activeView === 'explanations' || delayedRenderStage >= 1) && (
+      {/* Explanations View - Pre-render all tabs but only show active (Skipped if preloading) */}
+      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
         <ScrollView
+          ref={explanationsScrollRef}
           style={[
             styles.container,
             activeView !== 'explanations' && {
@@ -406,7 +448,7 @@ export const TopicPage = React.memo(function TopicPage({
         >
           {/* Topic Title */}
           <Text style={styles.topicTitle} accessibilityRole="header">
-            {topic.name}
+            {topic?.name}
           </Text>
 
           {/* Topic Description */}
@@ -421,10 +463,10 @@ export const TopicPage = React.memo(function TopicPage({
               style={[styles.explanationContainer, activeTab !== 'summary' && { display: 'none' }]}
               testID="topic-explanation-summary"
             >
-              {topicData?.explanation?.summary &&
-              typeof topicData.explanation.summary === 'string' ? (
+              {displayTopicData?.explanation?.summary &&
+              typeof displayTopicData.explanation.summary === 'string' ? (
                 <Markdown style={markdownStyles} rules={markdownRules}>
-                  {topicData.explanation.summary.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+                  {displayTopicData.explanation.summary.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
                 </Markdown>
               ) : (
                 <View style={styles.emptyContainer}>
@@ -442,10 +484,10 @@ export const TopicPage = React.memo(function TopicPage({
               style={[styles.explanationContainer, activeTab !== 'byline' && { display: 'none' }]}
               testID="topic-explanation-byline"
             >
-              {topicData?.explanation?.byline &&
-              typeof topicData.explanation.byline === 'string' ? (
+              {displayTopicData?.explanation?.byline &&
+              typeof displayTopicData.explanation.byline === 'string' ? (
                 <Markdown style={markdownStyles} rules={markdownRules}>
-                  {topicData.explanation.byline.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+                  {displayTopicData.explanation.byline.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
                 </Markdown>
               ) : (
                 <View style={styles.emptyContainer}>
@@ -463,10 +505,10 @@ export const TopicPage = React.memo(function TopicPage({
               style={[styles.explanationContainer, activeTab !== 'detailed' && { display: 'none' }]}
               testID="topic-explanation-detailed"
             >
-              {topicData?.explanation?.detailed &&
-              typeof topicData.explanation.detailed === 'string' ? (
+              {displayTopicData?.explanation?.detailed &&
+              typeof displayTopicData.explanation.detailed === 'string' ? (
                 <Markdown style={markdownStyles} rules={markdownRules}>
-                  {topicData.explanation.detailed.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+                  {displayTopicData.explanation.detailed.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
                 </Markdown>
               ) : (
                 <View style={styles.emptyContainer}>

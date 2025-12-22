@@ -25,6 +25,7 @@ import Reanimated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -249,6 +250,7 @@ export function SplitView({
   // --- Shared Values for Drag Logic ---
   const isDraggingShared = useSharedValue(false);
   const isLongPressingShared = useSharedValue(false);
+  const isSnappedShared = useSharedValue<string | null>(null);
   const hoveredTargetShared = useSharedValue<'left' | 'right' | null>(null);
   const dragStartX = useSharedValue(0);
   const gestureStartTime = useSharedValue(0);
@@ -258,6 +260,7 @@ export function SplitView({
   const minLeftWidth = useSharedValue(BREAKPOINTS.SPLIT_VIEW_MIN_LEFT_PANEL_WIDTH);
   const minRightWidth = useSharedValue(BREAKPOINTS.SPLIT_VIEW_MIN_RIGHT_PANEL_WIDTH);
   const maxPanelWidth = useSharedValue(BREAKPOINTS.SPLIT_VIEW_MAX_PANEL_WIDTH);
+  const snapThreshold = useSharedValue(120);
 
   // Sync constraints
   useEffect(() => {
@@ -325,6 +328,7 @@ export function SplitView({
         .onBegin(() => {
           'worklet';
           isDraggingShared.value = true;
+          isSnappedShared.value = null;
           dragStartX.value = committedSplitPosition.value;
           dividerTranslation.value = 0; // Reset any previous animation offset
           gestureStartTime.value = Date.now();
@@ -342,24 +346,71 @@ export function SplitView({
           }
 
           if (isDraggingHorizontally && !isLongPressingShared.value) {
-            // Normal Drag Logic
+            // Normal Drag Logic with Magnetic Snap
             const targetLeftWidth = dragStartX.value + event.translationX;
             const totalWidth = containerWidth.value;
 
-            // Robust Constraints
-            const effectiveMinLeft = minLeftWidth.value;
-            const effectiveMaxLeft = Math.min(
-              totalWidth - minRightWidth.value,
-              maxPanelWidth.value
-            );
+            // Constants
+            const EDGE_SNAP_THRESHOLD = snapThreshold.value;
+            const LIMIT_SNAP_RADIUS_INNER = 60; // "Bigger inside" (towards edge/invalid)
+            const LIMIT_SNAP_RADIUS_OUTER = 20; // "Small outside" (towards center/valid)
 
-            const clampedWidth = Math.max(
-              effectiveMinLeft,
-              Math.min(effectiveMaxLeft, targetLeftWidth)
-            );
+            // Calculate valid boundaries (The "Limits")
+            const leftLimit = minLeftWidth.value;
+            const rightLimit = Math.min(totalWidth - minRightWidth.value, maxPanelWidth.value);
 
-            // Apply to visual translation ONLY
-            dividerTranslation.value = clampedWidth - dragStartX.value;
+            // Determine Target & State
+            let targetVisualOffset = 0;
+            let currentSnap: string | null = null;
+
+            // 1. Edge Snaps (Highest Priority)
+            if (targetLeftWidth < EDGE_SNAP_THRESHOLD) {
+              // Snap to Fullscreen Left
+              currentSnap = 'edge-left';
+              targetVisualOffset = 0 - dragStartX.value;
+            } else if (targetLeftWidth > totalWidth - EDGE_SNAP_THRESHOLD) {
+              // Snap to Fullscreen Right
+              currentSnap = 'edge-right';
+              targetVisualOffset = totalWidth - dragStartX.value;
+            }
+            // 2. Limit Snaps (Checkpoints)
+            else if (
+              targetLeftWidth >= leftLimit - LIMIT_SNAP_RADIUS_INNER &&
+              targetLeftWidth <= leftLimit + LIMIT_SNAP_RADIUS_OUTER
+            ) {
+              // Snap to Minimum Left Width
+              currentSnap = 'limit-left';
+              targetVisualOffset = leftLimit - dragStartX.value;
+            } else if (
+              targetLeftWidth >= rightLimit - LIMIT_SNAP_RADIUS_OUTER &&
+              targetLeftWidth <= rightLimit + LIMIT_SNAP_RADIUS_INNER
+            ) {
+              // Snap to Maximum Left Width (Right Panel Min)
+              currentSnap = 'limit-right';
+              targetVisualOffset = rightLimit - dragStartX.value;
+            }
+            // 3. No Snap (Tracking)
+            else {
+              currentSnap = null;
+              // Clamp to screen edges for visual tracking (don't go offscreen)
+              const clampedWidth = Math.max(0, Math.min(totalWidth, targetLeftWidth));
+              targetVisualOffset = clampedWidth - dragStartX.value;
+            }
+
+            // Trigger haptic on snap state change (Entering any snap zone)
+            if (currentSnap !== isSnappedShared.value) {
+              isSnappedShared.value = currentSnap;
+              if (currentSnap !== null) {
+                runOnJS(triggerLightHaptic)();
+              }
+            }
+
+            // Always animate to target
+            dividerTranslation.value = withSpring(targetVisualOffset, {
+              damping: 15,
+              stiffness: 200,
+              mass: 0.5,
+            });
           } else if (isLongPressingShared.value) {
             // Long Press Hover Logic
             const containerRelativeX = event.absoluteX - containerX.value;
@@ -402,18 +453,64 @@ export function SplitView({
             runOnJS(updateLongPressState)(false, null);
             dividerTranslation.value = withTiming(0);
           } else if (Math.abs(event.translationX) > 10) {
-            // Handle Drag Commit
-            const finalWidth = dragStartX.value + dividerTranslation.value;
-            committedSplitPosition.value = finalWidth; // Snap layout
-            dividerTranslation.value = 0; // Reset visual offset
+            // Handle Drag End - Check for Snap or Commit
+            const totalWidth = containerWidth.value;
+            const currentSnap = isSnappedShared.value;
 
-            const newRatio = finalWidth / containerWidth.value;
-            runOnJS(triggerMediumHaptic)();
-            runOnJS(onSplitRatioChange)(newRatio);
+            // 1. Edge Snaps (Trigger Fullscreen)
+            if (currentSnap === 'edge-left' && onViewModeChange) {
+              runOnJS(onViewModeChange)('right-full');
+              runOnJS(triggerSuccessHaptic)();
+            } else if (currentSnap === 'edge-right' && onViewModeChange) {
+              runOnJS(onViewModeChange)('left-full');
+              runOnJS(triggerSuccessHaptic)();
+            }
+            // 2. Limit Snaps (Commit exact limit)
+            else if (currentSnap === 'limit-left' || currentSnap === 'limit-right') {
+              let targetWidth = 0;
+              if (currentSnap === 'limit-left') {
+                targetWidth = minLeftWidth.value;
+              } else {
+                targetWidth = Math.min(totalWidth - minRightWidth.value, maxPanelWidth.value);
+              }
+
+              committedSplitPosition.value = targetWidth;
+              dividerTranslation.value = 0;
+              const newRatio = targetWidth / containerWidth.value;
+              runOnJS(triggerMediumHaptic)();
+              runOnJS(onSplitRatioChange)(newRatio);
+            }
+            // 3. Normal Commit (Clamp to valid constraints)
+            else {
+              const rawFinalWidth = dragStartX.value + event.translationX;
+              const effectiveMinLeft = minLeftWidth.value;
+              const effectiveMaxLeft = Math.min(
+                totalWidth - minRightWidth.value,
+                maxPanelWidth.value
+              );
+
+              // Bounce back to valid range if dropped in "forbidden zone"
+              const finalWidth = Math.max(
+                effectiveMinLeft,
+                Math.min(effectiveMaxLeft, rawFinalWidth)
+              );
+
+              // Commit new position
+              committedSplitPosition.value = finalWidth;
+
+              // Reset visual offset
+              dividerTranslation.value = 0;
+
+              const newRatio = finalWidth / containerWidth.value;
+              runOnJS(triggerMediumHaptic)();
+              runOnJS(onSplitRatioChange)(newRatio);
+            }
           } else {
-            // Cancel Drag
+            // Cancel Drag (Too small movement)
             dividerTranslation.value = withTiming(0);
           }
+
+          isSnappedShared.value = null;
         }),
     [
       onSplitRatioChange,
@@ -438,6 +535,9 @@ export function SplitView({
       triggerLightHaptic,
       triggerMediumHaptic,
       triggerHeavyHaptic,
+      triggerSuccessHaptic,
+      isSnappedShared,
+      snapThreshold,
     ]
   );
 

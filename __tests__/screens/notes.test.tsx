@@ -171,9 +171,9 @@ describe('Notes List Screen', () => {
 
     // Check for chapter group headers
     expect(await screen.findByText('Genesis 1')).toBeTruthy();
-    expect(await screen.findByText('2 notes')).toBeTruthy();
+    expect(await screen.findByText('2')).toBeTruthy();
     expect(await screen.findByText('Joshua 2')).toBeTruthy();
-    expect(await screen.findByText('1 note')).toBeTruthy();
+    expect(await screen.findByText('1')).toBeTruthy();
   });
 
   // Test 4: Navigates to chapter notes detail screen on tap

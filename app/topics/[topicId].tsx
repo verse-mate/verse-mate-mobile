@@ -25,6 +25,8 @@ import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { TopicContentPanel } from '@/components/topics/TopicContentPanel';
 import { TopicExplanationsPanel } from '@/components/topics/TopicExplanationsPanel';
 import { TopicPagerView, type TopicPagerViewRef } from '@/components/topics/TopicPagerView';
+import type { VersePress } from '@/components/topics/TopicText';
+import { TopicVerseTooltip } from '@/components/topics/TopicVerseTooltip';
 import { SplitView } from '@/components/ui/SplitView';
 import {
   fontSizes,
@@ -34,9 +36,11 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useTopicNavigation } from '@/hooks/topics/use-topic-navigation';
+import { useAuth } from '@/hooks/use-auth';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useTopicById, useTopicsSearch } from '@/src/api';
@@ -51,11 +55,6 @@ import { generateTopicSlug } from '@/utils/topicSlugs';
 type ViewMode = 'bible' | 'explanations';
 
 /**
- * Center index constant from TopicPagerView (5-page window)
- */
-const CENTER_INDEX = 2;
-
-/**
  * Topic Detail Screen Component
  *
  * Handles:
@@ -68,6 +67,11 @@ const CENTER_INDEX = 2;
 export default function TopicDetailScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { user } = useAuth();
+  const { showToast } = useToast();
+
+  // Derive isLoggedIn from user
+  const isLoggedIn = user !== null;
 
   // Device info for split view detection
   const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =
@@ -77,6 +81,30 @@ export default function TopicDetailScreen() {
   const params = useLocalSearchParams<{ topicId: string; category?: string }>();
   const topicId = params.topicId;
   const category = (params.category as TopicCategory) || 'EVENT';
+
+  // Local state for immediate UI updates
+  const [activeTopicId, setActiveTopicId] = useState(topicId);
+
+  // Sync local state from params (deep links, back button)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeTopicId is intentionally omitted
+  useEffect(() => {
+    if (params.topicId && params.topicId !== activeTopicId) {
+      setActiveTopicId(params.topicId);
+    }
+  }, [params.topicId]);
+
+  // Debounced URL sync
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (params.topicId !== activeTopicId) {
+        router.setParams({
+          topicId: activeTopicId,
+          category: category,
+        });
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [activeTopicId, category, params.topicId]);
 
   // Ref for imperative pager control
   const pagerRef = useRef<TopicPagerViewRef>(null);
@@ -96,6 +124,10 @@ export default function TopicDetailScreen() {
   // Hamburger menu state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // Tooltip state
+  const [selectedVerse, setSelectedVerse] = useState<VersePress | null>(null);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+
   // FAB visibility state and handlers
   const {
     visible: fabVisible,
@@ -111,7 +143,7 @@ export default function TopicDetailScreen() {
     data: topicData,
     isLoading: isTopicLoading,
     error: topicError,
-  } = useTopicById(topicId, bibleVersion);
+  } = useTopicById(activeTopicId, bibleVersion);
 
   // Fetch all topics in the category for navigation
   const { data: categoryTopics = [] } = useTopicsSearch(category);
@@ -125,7 +157,7 @@ export default function TopicDetailScreen() {
 
   // Calculate navigation state using the hook
   const { canGoNext, canGoPrevious, nextTopic, prevTopic } = useTopicNavigation(
-    topicId,
+    activeTopicId,
     sortedTopics
   );
 
@@ -135,12 +167,12 @@ export default function TopicDetailScreen() {
   useEffect(() => {
     savePosition({
       type: 'topic',
-      topicId,
+      topicId: activeTopicId,
       topicCategory: category,
       activeTab,
       activeView,
     });
-  }, [topicId, category, activeTab, activeView]);
+  }, [activeTopicId, category, activeTab, activeView]);
 
   // Handle back navigation
   const handleBack = useCallback(() => {
@@ -153,15 +185,15 @@ export default function TopicDetailScreen() {
 
   // Handle chapter selection from modal (redirect to Bible)
   const handleSelectChapter = useCallback((bookId: number, chapter: number) => {
+    setIsNavigationModalOpen(false);
     router.push(`/bible/${bookId}/${chapter}`);
   }, []);
 
   // Handle topic selection from modal (navigate to different topic)
-  const handleSelectTopic = useCallback((newTopicId: string, newCategory: TopicCategory) => {
-    router.push({
-      pathname: '/topics/[topicId]',
-      params: { topicId: newTopicId, category: newCategory },
-    });
+  const handleSelectTopic = useCallback((newTopicId: string, _newCategory: TopicCategory) => {
+    setIsNavigationModalOpen(false);
+    setActiveTopicId(newTopicId);
+    // URL will catch up via debounce
   }, []);
 
   // Handle tab change
@@ -184,13 +216,10 @@ export default function TopicDetailScreen() {
 
   /**
    * Handle page change from TopicPagerView swipe
-   * Uses router.replace for silent URL update (swipe handles animation)
+   * Updates local state immediately to prevent flash
    */
-  const handlePageChange = useCallback((newTopicId: string, newCategory: TopicCategory) => {
-    router.replace({
-      pathname: '/topics/[topicId]',
-      params: { topicId: newTopicId, category: newCategory },
-    });
+  const handlePageChange = useCallback((newTopicId: string, _newCategory: TopicCategory) => {
+    setActiveTopicId(newTopicId);
   }, []);
 
   /**
@@ -201,14 +230,12 @@ export default function TopicDetailScreen() {
     if (prevTopic) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       if (useSplitView) {
-        // In split view, navigate directly via router
-        router.push({
-          pathname: '/topics/[topicId]',
-          params: { topicId: prevTopic.topic_id, category: prevTopic.category },
-        });
+        // In split view, update local state
+        setActiveTopicId(prevTopic.topic_id);
       } else {
-        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX - 1 = 1)
-        pagerRef.current?.setPage(CENTER_INDEX - 1);
+        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX - 1)
+        // 7-page window uses CENTER_INDEX = 3
+        pagerRef.current?.setPage(2);
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -223,14 +250,12 @@ export default function TopicDetailScreen() {
     if (nextTopic) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       if (useSplitView) {
-        // In split view, navigate directly via router
-        router.push({
-          pathname: '/topics/[topicId]',
-          params: { topicId: nextTopic.topic_id, category: nextTopic.category },
-        });
+        // In split view, update local state
+        setActiveTopicId(nextTopic.topic_id);
       } else {
-        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX + 1 = 3)
-        pagerRef.current?.setPage(CENTER_INDEX + 1);
+        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX + 1)
+        // 7-page window uses CENTER_INDEX = 3
+        pagerRef.current?.setPage(4);
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -286,6 +311,30 @@ export default function TopicDetailScreen() {
     [handleFABScroll]
   );
 
+  /**
+   * Handle verse press from TopicText component
+   */
+  const handleVersePress = useCallback((verseData: VersePress) => {
+    setSelectedVerse(verseData);
+    setTooltipVisible(true);
+  }, []);
+
+  /**
+   * Handle tooltip close
+   */
+  const handleTooltipClose = useCallback(() => {
+    setTooltipVisible(false);
+    // Clear selected verse after animation completes
+    setTimeout(() => setSelectedVerse(null), 300);
+  }, []);
+
+  /**
+   * Handle copy action from tooltip - show toast notification
+   */
+  const handleCopy = useCallback(() => {
+    showToast('Verse copied to clipboard');
+  }, [showToast]);
+
   // Type guard for topic
   const topic =
     topicData?.topic && typeof topicData.topic === 'object' && 'name' in topicData.topic
@@ -297,8 +346,9 @@ export default function TopicDetailScreen() {
         })
       : null;
 
-  // Loading state - show skeleton while fetching topic header info
-  if (isTopicLoading && !topic) {
+  // Show skeleton loader ONLY on initial mount
+  const isInitialLoad = isTopicLoading && !topicData;
+  if (isInitialLoad) {
     return (
       <View style={styles.container}>
         <TopicHeader
@@ -314,7 +364,7 @@ export default function TopicDetailScreen() {
   }
 
   // Error state
-  if (topicError || !topicData) {
+  if ((topicError || !topicData) && !isTopicLoading) {
     return (
       <View style={styles.container}>
         <TopicHeader
@@ -334,89 +384,52 @@ export default function TopicDetailScreen() {
     );
   }
 
-  if (!topic) {
-    return (
-      <View style={styles.container}>
-        <TopicHeader
-          topicName="Error"
-          activeView={activeView}
-          onNavigationPress={() => {}}
-          onViewChange={handleViewChange}
-          onMenuPress={() => {}}
-        />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Topic data not available</Text>
-          <Pressable onPress={handleBack} style={styles.errorButton}>
-            <Text style={styles.errorButtonText}>Go Back</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       {/* Split View Layout for Landscape/Tablet */}
       {useSplitView ? (
-        <>
-          <SplitView
-            splitRatio={splitRatio}
-            onSplitRatioChange={setSplitRatio}
-            viewMode={splitViewMode}
-            onViewModeChange={setSplitViewMode}
-            edgeTabsVisible={fabVisible}
-            leftContent={
-              <TopicContentPanel
-                topicId={topicId}
-                topicName={topic.name}
-                topicDescription={topic.description}
-                onHeaderPress={() => setIsNavigationModalOpen(true)}
-                onShare={handleShare}
-                onNavigatePrev={handlePrevious}
-                onNavigateNext={handleNext}
-                hasPrevTopic={canGoPrevious}
-                hasNextTopic={canGoNext}
-                onScroll={handleScroll}
-                onTap={handleTap}
-                visible={fabVisible}
-              />
-            }
-            rightContent={
-              <TopicExplanationsPanel
-                topicId={topicId}
-                topicName={topic.name}
-                activeTab={activeTab}
-                onTabChange={handleTabChange}
-                onMenuPress={() => setIsMenuOpen(true)}
-              />
-            }
-          />
-
-          {/* Navigation Modal */}
-          {isNavigationModalOpen && (
-            <BibleNavigationModal
-              visible={isNavigationModalOpen}
-              currentBookId={1}
-              currentChapter={1}
-              initialTab="TOPICS"
-              initialTopicCategory={category}
-              onClose={() => setIsNavigationModalOpen(false)}
-              onSelectChapter={handleSelectChapter}
-              onSelectTopic={handleSelectTopic}
+        <SplitView
+          splitRatio={splitRatio}
+          onSplitRatioChange={setSplitRatio}
+          viewMode={splitViewMode}
+          onViewModeChange={setSplitViewMode}
+          edgeTabsVisible={fabVisible}
+          leftContent={
+            <TopicContentPanel
+              topicId={activeTopicId}
+              topicName={topic?.name || ''}
+              topicDescription={topic?.description}
+              onHeaderPress={() => setIsNavigationModalOpen(true)}
+              onShare={handleShare}
+              onNavigatePrev={handlePrevious}
+              onNavigateNext={handleNext}
+              hasPrevTopic={canGoPrevious}
+              hasNextTopic={canGoNext}
+              onScroll={handleScroll}
+              onTap={handleTap}
+              onVersePress={handleVersePress}
+              visible={fabVisible}
             />
-          )}
-
-          {/* Hamburger Menu */}
-          <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-        </>
+          }
+          rightContent={
+            <TopicExplanationsPanel
+              topicId={activeTopicId}
+              topicName={topic?.name || ''}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              onMenuPress={() => setIsMenuOpen(true)}
+            />
+          }
+        />
       ) : (
         /* Standard Portrait/Phone Layout */
         <>
           {/* Header */}
           <TopicHeader
-            topicName={topic.name}
+            topicName={topic?.name || ''}
             activeView={activeView}
             onNavigationPress={() => setIsNavigationModalOpen(true)}
+            navigationModalVisible={isNavigationModalOpen}
             onViewChange={handleViewChange}
             onMenuPress={() => setIsMenuOpen(true)}
           />
@@ -426,10 +439,10 @@ export default function TopicDetailScreen() {
             <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} />
           )}
 
-          {/* TopicPagerView - 5-page sliding window for swipe navigation */}
+          {/* TopicPagerView - 7-page sliding window for swipe navigation */}
           <TopicPagerView
             ref={pagerRef}
-            initialTopicId={topicId}
+            initialTopicId={activeTopicId}
             category={category}
             sortedTopics={sortedTopics}
             activeTab={activeTab}
@@ -438,6 +451,7 @@ export default function TopicDetailScreen() {
             onScroll={handleScroll}
             onTap={handleTap}
             onShare={handleShare}
+            onVersePress={handleVersePress}
           />
 
           {/* Floating Action Buttons for Topic Navigation - Same fade behavior as portrait */}
@@ -449,23 +463,39 @@ export default function TopicDetailScreen() {
             visible={fabVisible}
           />
 
-          {/* Navigation Modal */}
-          {isNavigationModalOpen && (
-            <BibleNavigationModal
-              visible={isNavigationModalOpen}
-              currentBookId={1} // Default to Genesis
-              currentChapter={1}
-              initialTab="TOPICS"
-              initialTopicCategory={category}
-              onClose={() => setIsNavigationModalOpen(false)}
-              onSelectChapter={handleSelectChapter}
-              onSelectTopic={handleSelectTopic}
-            />
-          )}
-
           {/* Hamburger Menu */}
           <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
         </>
+      )}
+
+      {/* Navigation Modal - Consolidated outside conditional blocks */}
+      {isNavigationModalOpen && (
+        <BibleNavigationModal
+          visible={isNavigationModalOpen}
+          currentBookId={1} // Default to Genesis
+          currentChapter={1}
+          initialTab="TOPICS"
+          initialTopicCategory={category}
+          onClose={() => setIsNavigationModalOpen(false)}
+          onSelectChapter={handleSelectChapter}
+          onSelectTopic={handleSelectTopic}
+        />
+      )}
+
+      {/* Topic Verse Tooltip - Handled at screen level for proper positioning */}
+      {selectedVerse && (
+        <TopicVerseTooltip
+          verseNumber={selectedVerse.verseNumber}
+          bookId={selectedVerse.bookId}
+          chapterNumber={selectedVerse.chapterNumber}
+          bookName={selectedVerse.bookName}
+          verseText={selectedVerse.verseText}
+          visible={tooltipVisible}
+          onClose={handleTooltipClose}
+          onCopy={handleCopy}
+          isLoggedIn={isLoggedIn}
+          useModal={!useSplitView}
+        />
       )}
     </View>
   );
@@ -489,6 +519,7 @@ interface TopicHeaderProps {
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
+  navigationModalVisible?: boolean;
 }
 
 function TopicHeader({
@@ -497,6 +528,7 @@ function TopicHeader({
   onNavigationPress,
   onViewChange,
   onMenuPress,
+  navigationModalVisible,
 }: TopicHeaderProps) {
   // Get theme directly inside TopicHeader (no props drilling)
   const { colors, mode } = useTheme();
@@ -535,7 +567,7 @@ function TopicHeader({
     () =>
       toggleSlideAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, bibleButtonWidth + 4], // Move to insight position (Bible width + gap)
+        outputRange: [0, Math.max(0, bibleButtonWidth + 4)], // Move to insight position (Bible width + gap)
       }),
     [toggleSlideAnim, bibleButtonWidth]
   );
@@ -544,16 +576,25 @@ function TopicHeader({
     () =>
       toggleSlideAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [bibleButtonWidth, insightButtonWidth],
+        outputRange: [Math.max(0, bibleButtonWidth), Math.max(0, insightButtonWidth)],
       }),
     [toggleSlideAnim, bibleButtonWidth, insightButtonWidth]
   );
+
+  /**
+   * Safe navigation press handler to prevent double-triggering
+   */
+  const handleNavigationPress = () => {
+    if (!navigationModalVisible) {
+      onNavigationPress();
+    }
+  };
 
   return (
     <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="topic-header">
       {/* Topic Title Button (clickable to open navigation) */}
       <Pressable
-        onPress={onNavigationPress}
+        onPress={handleNavigationPress}
         style={styles.topicButton}
         accessibilityLabel={`Select topic, currently ${topicName}`}
         accessibilityRole="button"

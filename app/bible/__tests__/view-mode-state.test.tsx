@@ -246,9 +246,10 @@ describe('ChapterScreen - View Mode State', () => {
     const bibleIcon = screen.queryByTestId('bible-view-toggle');
     expect(bibleIcon).toBeTruthy();
 
-    // Tabs should NOT be visible in bible view
+    // Tabs should be mounted but hidden in bible view (height: 0)
     const tabs = screen.queryByTestId('chapter-content-tabs');
-    expect(tabs).toBeNull();
+    expect(tabs).toBeTruthy();
+    // Tabs are hidden via height: 0, overflow: 'hidden' when activeView !== 'explanations'
   });
 
   it('should switch to explanations view when explanations icon is pressed', async () => {
@@ -289,8 +290,9 @@ describe('ChapterScreen - View Mode State', () => {
     fireEvent.press(bibleIcon);
 
     await waitFor(() => {
-      // Tabs should be hidden again
-      expect(screen.queryByTestId('chapter-content-tabs')).toBeNull();
+      // Tabs should still be mounted (kept for instant visibility when switching back)
+      expect(screen.queryByTestId('chapter-content-tabs')).toBeTruthy();
+      // They're hidden via height: 0, overflow: 'hidden' when activeView !== 'explanations'
     });
   });
 
@@ -321,8 +323,9 @@ describe('ChapterScreen - View Mode State', () => {
     fireEvent.press(bibleIcon);
 
     await waitFor(() => {
-      // Tabs should be hidden even though tab state is 'byline'
-      expect(screen.queryByTestId('chapter-content-tabs')).toBeNull();
+      // Tabs should still be mounted even though view is 'bible' (tab state remains 'byline')
+      expect(screen.queryByTestId('chapter-content-tabs')).toBeTruthy();
+      // They're hidden via height: 0, overflow: 'hidden' when activeView !== 'explanations'
     });
   });
 });

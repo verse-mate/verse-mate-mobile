@@ -25,11 +25,21 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { IconBookmarkFilled, IconTrash } from '@/components/ui/icons';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useActiveView } from '@/hooks/bible';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 
 /**
@@ -53,21 +63,51 @@ export default function Bookmarks() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const { bookmarks, isFetchingBookmarks } = useBookmarks();
+  const { bookmarks, isFetchingBookmarks, removeBookmark } = useBookmarks();
+  const { setActiveView } = useActiveView();
 
   /**
    * Handle bookmark item press
    *
    * Flow:
    * 1. Trigger haptic feedback
-   * 2. Navigate to chapter using Expo Router
+   * 2. Reset view to Bible (not explanations)
+   * 3. Navigate to chapter using Expo Router
    */
   const handleBookmarkPress = async (bookId: number, chapterNumber: number) => {
     // Trigger haptic feedback
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    // Reset view to Bible before navigating
+    // This ensures bookmarks always open in Bible view, not explanations
+    await setActiveView('bible');
+
     // Navigate to chapter
     router.push(`/bible/${bookId}/${chapterNumber}`);
+  };
+
+  /**
+   * Handle bookmark delete press
+   */
+  const handleDeletePress = (bookId: number, chapterNumber: number, bookName: string) => {
+    Alert.alert(
+      'Remove Bookmark',
+      `Are you sure you want to remove the bookmark for ${bookName} ${chapterNumber}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            await removeBookmark(bookId, chapterNumber);
+          },
+        },
+      ]
+    );
   };
 
   /**
@@ -121,7 +161,7 @@ export default function Bookmarks() {
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="bookmark-outline" size={64} color={colors.textDisabled} />
+          <IconBookmarkFilled width={64} height={64} color={colors.textDisabled} />
           <Text style={styles.emptyStateTitle}>Please login to view your bookmarks</Text>
           <Text style={styles.emptyStateSubtitle}>
             Sign in to save and access your favorite Bible chapters
@@ -190,7 +230,7 @@ export default function Bookmarks() {
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="bookmark-outline" size={64} color={colors.textDisabled} />
+          <IconBookmarkFilled width={64} height={64} color={colors.textDisabled} />
           <Text style={styles.emptyStateTitle}>No bookmarked chapters yet</Text>
           <Text style={styles.emptyStateSubtitle}>
             Tap the bookmark icon while reading to save chapters for later.
@@ -234,12 +274,23 @@ export default function Bookmarks() {
             testID={`bookmark-item-${bookmark.book_id}-${bookmark.chapter_number}`}
           >
             <View style={styles.bookmarkItemContent}>
-              <Ionicons name="bookmark" size={20} color={colors.gold} style={styles.bookmarkIcon} />
+              <View style={styles.bookmarkIconContainer}>
+                <IconBookmarkFilled width={24} height={24} color={colors.gold} />
+              </View>
               <Text style={styles.bookmarkText}>
                 {bookmark.book_name} {bookmark.chapter_number}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+
+            <Pressable
+              onPress={() =>
+                handleDeletePress(bookmark.book_id, bookmark.chapter_number, bookmark.book_name)
+              }
+              style={({ pressed }) => [styles.deleteButton, pressed && { opacity: 0.7 }]}
+              hitSlop={12}
+            >
+              <IconTrash width={24} height={24} color="#B03A42" />
+            </Pressable>
           </Pressable>
         ))}
       </ScrollView>
@@ -251,29 +302,29 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      backgroundColor: colors.background,
+      marginBottom: 8,
     },
     backButton: {
       padding: spacing.xs,
-      marginRight: spacing.sm,
+      width: 40,
+      alignItems: 'flex-start',
     },
     headerTitle: {
       flex: 1,
-      fontSize: fontSizes.displayMedium * 0.88,
-      fontWeight: fontWeights.bold,
+      fontSize: 18,
+      fontWeight: '300', // Light weight per Figma
       color: colors.textPrimary,
+      textAlign: 'center',
     },
     headerSpacer: {
-      width: 32, // Same width as back button for centering
+      width: 40, // Same width as back button for centering
     },
     centerContent: {
       flex: 1,
@@ -312,31 +363,42 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     scrollContent: {
       paddingVertical: spacing.sm,
+      gap: 16, // Spacing between items per Figma
     },
     bookmarkItem: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
-      minHeight: 60,
+      paddingVertical: 10, // Reduced padding
+      paddingHorizontal: 16,
+      marginHorizontal: 16,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
     },
     bookmarkItemPressed: {
-      backgroundColor: colors.backgroundElevated,
+      opacity: 0.7,
     },
     bookmarkItemContent: {
       flexDirection: 'row',
       alignItems: 'center',
       flex: 1,
     },
-    bookmarkIcon: {
-      marginRight: spacing.md,
+    bookmarkIconContainer: {
+      marginRight: 16,
     },
     bookmarkText: {
-      fontSize: fontSizes.bodyLarge,
-      fontWeight: fontWeights.medium,
+      fontSize: 16, // Keeping established bigger font
+      fontWeight: '400', // Regular weight
       color: colors.textPrimary,
+    },
+    deleteButton: {
+      width: 40, // Reduced size
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 10,
     },
   });

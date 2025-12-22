@@ -30,11 +30,16 @@ import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import type { Highlight } from '@/hooks/bible/use-highlights';
+import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
+import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
+import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
@@ -90,6 +95,8 @@ function TabContent({
   onScroll,
   onTouchStart,
   onTouchEnd,
+  filteredHighlights,
+  filteredAutoHighlights,
 }: {
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
@@ -102,6 +109,8 @@ function TabContent({
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onTouchStart?: (event: GestureResponderEvent) => void;
   onTouchEnd?: (event: GestureResponderEvent) => void;
+  filteredHighlights?: Highlight[];
+  filteredAutoHighlights?: AutoHighlight[];
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]); // Use local createStyles for TabContent
@@ -171,6 +180,8 @@ function TabContent({
               activeTab={activeTab}
               explanationsOnly={true}
               explanation={explanationContent}
+              filteredHighlights={filteredHighlights}
+              filteredAutoHighlights={filteredAutoHighlights}
             />
           )}
         </View>
@@ -195,6 +206,10 @@ export interface ChapterPageProps {
   activeTab: ContentTabType;
   /** Current view mode (bible or explanations) */
   activeView: 'bible' | 'explanations';
+  /** Whether to reset scroll to top on chapter change (default: true) */
+  shouldResetScroll?: boolean;
+  /** Whether this page is being preloaded (skips heavy AI content) */
+  isPreloading?: boolean;
   /** Target verse to scroll to (optional) */
   targetVerse?: number;
   /** Target end verse for multi-verse highlights (optional) */
@@ -233,6 +248,8 @@ export const ChapterPage = React.memo(function ChapterPage({
   chapterNumber,
   activeTab,
   activeView,
+  shouldResetScroll = true,
+  isPreloading = false,
   targetVerse,
   targetEndVerse,
   onScroll,
@@ -266,6 +283,18 @@ export const ChapterPage = React.memo(function ChapterPage({
 
   const { isAuthenticated } = useAuth();
 
+  // Fetch highlights directly for THIS specific chapter
+  // This ensures each page has its own highlights pre-loaded independently
+  const { chapterHighlights } = useHighlights({
+    bookId,
+    chapterNumber,
+  });
+
+  const { autoHighlights } = useAutoHighlights({
+    bookId,
+    chapterNumber,
+  });
+
   // Staggered rendering state to prevent UI freeze (waterfall loading)
   // 0: Initial (only active view)
   // 1: Mount Explanations container (active tab renders)
@@ -297,6 +326,14 @@ export const ChapterPage = React.memo(function ChapterPage({
     hasScrolledRef.current = false;
     sectionPositionsRef.current = {};
     currentScrollYRef.current = 0;
+
+    // Reset scroll position to top when chapter changes
+    // This prevents "height teleportation" from previous chapter
+    // ONLY if shouldResetScroll is true (skipped during seamless pager snaps)
+    if (shouldResetScroll) {
+      animatedScrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+
     // Close tooltip and clear timer when changing book/chapter
     setVerseTooltipVisible(false);
     if (verseTooltipTimerRef.current) {
@@ -348,7 +385,15 @@ export const ChapterPage = React.memo(function ChapterPage({
   };
 
   // Fetch chapter content
+
   const { data: chapter } = useBibleChapter(bookId, chapterNumber, undefined);
+
+  // Keep a reference to the last valid chapter data to prevent flickering during prop changes
+  const lastChapterRef = useRef<ChapterContent | null>(null);
+  if (chapter) {
+    lastChapterRef.current = chapter;
+  }
+  const displayChapter = chapter || lastChapterRef.current;
 
   // Fetch explanations for each tab
   // All three are ALWAYS enabled and load in parallel to ensure instant tab switching
@@ -554,8 +599,8 @@ export const ChapterPage = React.memo(function ChapterPage({
 
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Explanations View - Render if active OR if delayed render stage >= 1 */}
-      {(activeView === 'explanations' || delayedRenderStage >= 1) && (
+      {/* Explanations View - Render if active OR if delayed render stage >= 1 (And NOT preloading) */}
+      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
         <View
           style={[
             styles.container,
@@ -573,7 +618,7 @@ export const ChapterPage = React.memo(function ChapterPage({
           pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
         >
           <TabContent
-            chapter={chapter}
+            chapter={displayChapter}
             activeTab="summary"
             content={summaryData}
             isLoading={isSummaryLoading}
@@ -584,9 +629,11 @@ export const ChapterPage = React.memo(function ChapterPage({
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            filteredHighlights={chapterHighlights}
+            filteredAutoHighlights={autoHighlights}
           />
           <TabContent
-            chapter={chapter}
+            chapter={displayChapter}
             activeTab="byline"
             content={byLineData}
             isLoading={isByLineLoading}
@@ -597,9 +644,11 @@ export const ChapterPage = React.memo(function ChapterPage({
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            filteredHighlights={chapterHighlights}
+            filteredAutoHighlights={autoHighlights}
           />
           <TabContent
-            chapter={chapter}
+            chapter={displayChapter}
             activeTab="detailed"
             content={detailedData}
             isLoading={isDetailedLoading}
@@ -610,6 +659,8 @@ export const ChapterPage = React.memo(function ChapterPage({
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            filteredHighlights={chapterHighlights}
+            filteredAutoHighlights={autoHighlights}
           />
         </View>
       )}
@@ -639,13 +690,15 @@ export const ChapterPage = React.memo(function ChapterPage({
         pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
       >
         <View style={styles.readerContainer} collapsable={false}>
-          {chapter ? (
+          {displayChapter ? (
             <ChapterReader
-              chapter={chapter}
+              chapter={displayChapter}
               activeTab={activeTab}
               explanationsOnly={false}
               onContentLayout={handleContentLayout}
               onOpenNotes={handleOpenNotes}
+              filteredHighlights={chapterHighlights}
+              filteredAutoHighlights={autoHighlights}
             />
           ) : (
             <SkeletonLoader />
@@ -659,7 +712,7 @@ export const ChapterPage = React.memo(function ChapterPage({
         visible={notesModalVisible}
         bookId={bookId}
         chapterNumber={chapterNumber}
-        bookName={chapter?.bookName || ''}
+        bookName={displayChapter?.bookName || ''}
         onClose={() => setNotesModalVisible(false)}
       />
 
@@ -667,7 +720,7 @@ export const ChapterPage = React.memo(function ChapterPage({
         <NoteViewModal
           visible={viewModalVisible}
           note={selectedNote}
-          bookName={chapter?.title.split(' ')[0] || ''}
+          bookName={displayChapter?.title.split(' ')[0] || ''}
           chapterNumber={chapterNumber}
           onClose={() => {
             setViewModalVisible(false);
@@ -695,7 +748,7 @@ export const ChapterPage = React.memo(function ChapterPage({
         <NoteEditModal
           visible={editModalVisible}
           note={selectedNote}
-          bookName={chapter?.title.split(' ')[0] || ''}
+          bookName={displayChapter?.title.split(' ')[0] || ''}
           chapterNumber={chapterNumber}
           onClose={() => {
             setEditModalVisible(false);
@@ -715,28 +768,51 @@ export const ChapterPage = React.memo(function ChapterPage({
       />
 
       {/* Verse Tooltip - shown after scroll animation completes */}
-      {targetVerse && (
-        <VerseMateTooltip
-          verseNumber={!targetEndVerse || targetEndVerse === targetVerse ? targetVerse : null}
-          highlightGroup={
-            targetEndVerse && targetEndVerse > targetVerse
-              ? {
-                  color: 'yellow',
-                  startVerse: targetVerse,
-                  endVerse: targetEndVerse,
-                  highlights: [],
-                  isGrouped: true,
-                }
-              : null
+      {targetVerse &&
+        (() => {
+          // Determine the verse range to check for highlights
+          const endVerse = targetEndVerse || targetVerse;
+
+          // Group consecutive highlights and find if target verse(s) are highlighted
+          const highlightGroups = groupConsecutiveHighlights(chapterHighlights);
+          // Match exact range to ensure we show the correct highlight group
+          const matchingGroup = highlightGroups.find(
+            (group) => group.startVerse === targetVerse && group.endVerse === endVerse
+          );
+
+          // Get verse text from chapter data
+          let verseText = '';
+          if (displayChapter) {
+            const verses = displayChapter.sections.flatMap((s) => s.verses);
+            if (endVerse > targetVerse) {
+              // Multi-verse: concatenate all verses in range
+              const verseRange = verses.filter(
+                (v) => v.verseNumber >= targetVerse && v.verseNumber <= endVerse
+              );
+              verseText = verseRange.map((v) => v.text).join(' ');
+            } else {
+              // Single verse
+              const verse = verses.find((v) => v.verseNumber === targetVerse);
+              verseText = verse?.text || '';
+            }
           }
-          bookId={bookId}
-          chapterNumber={chapterNumber}
-          bookName={chapter?.title.split(' ')[0] || ''}
-          visible={verseTooltipVisible}
-          onClose={() => setVerseTooltipVisible(false)}
-          isLoggedIn={isAuthenticated}
-        />
-      )}
+
+          // If we found a matching highlight group, use it
+          // Otherwise, treat as plain verse
+          return (
+            <VerseMateTooltip
+              verseNumber={matchingGroup ? null : targetVerse}
+              highlightGroup={matchingGroup || null}
+              bookId={bookId}
+              chapterNumber={chapterNumber}
+              bookName={displayChapter?.title.split(' ')[0] || ''}
+              visible={verseTooltipVisible}
+              onClose={() => setVerseTooltipVisible(false)}
+              verseText={verseText}
+              isLoggedIn={isAuthenticated}
+            />
+          );
+        })()}
     </View>
   );
 });

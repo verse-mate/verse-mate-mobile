@@ -67,6 +67,12 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/submit-testflight.sh "${{ steps.ios_build.outputs.build_id }}"
 
+      - name: Submit to Play Store
+        if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: bash .deployment/submit-play-store.sh "${{ steps.android_build.outputs.build_id }}"
+
       - name: Build Summary
         run: |
           echo "=========================================="
@@ -84,8 +90,7 @@ jobs:
             echo "🤖 Android Build:"
             echo "   Build ID: ${{ steps.android_build.outputs.build_id }}"
             echo "   URL: ${{ steps.android_build.outputs.build_url }}"
-            echo "   Status: Available for download from EAS dashboard"
-            echo "   Note: Play Store publication not configured (account inactive)"
+            echo "   Status: Submitted to Play Store (Internal/Closed)"
             echo ""
           fi
           echo "=========================================="
