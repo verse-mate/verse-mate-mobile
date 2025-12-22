@@ -21,26 +21,12 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
-import * as Clipboard from 'expo-clipboard';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  type GestureResponderEvent,
-  type NativeSyntheticEvent,
-  Share,
-  StyleSheet,
-  Text,
-  type TextLayoutEventData,
-  View,
-} from 'react-native';
-import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
-import { DictionaryModal } from '@/components/bible/DictionaryModal';
 import { ErrorModal } from '@/components/bible/ErrorModal';
-import type { WordTapEvent } from '@/components/bible/HighlightedText';
 import { HighlightedText } from '@/components/bible/HighlightedText';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
-import { TextSelectionMenu } from '@/components/bible/TextSelectionMenu';
+import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import {
   fontSizes,
   fontWeights,
@@ -55,13 +41,21 @@ import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
-import { getWordAtPosition } from '@/hooks/use-text-selection';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import {
   findGroupByHighlightId,
   groupConsecutiveHighlights,
 } from '@/utils/bible/groupConsecutiveHighlights';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type NativeSyntheticEvent,
+  StyleSheet,
+  Text,
+  type TextLayoutEventData,
+  View,
+} from 'react-native';
+import Markdown from 'react-native-markdown-display';
 
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
@@ -275,7 +269,6 @@ export function ChapterReader({
     autoHighlights: contextAutoHighlights,
     openVerseTooltip,
     openAutoHighlightTooltip,
-    openHighlightSelection,
     openHighlightEditMenu,
   } = useBibleInteraction();
 
@@ -305,19 +298,24 @@ export function ChapterReader({
     return groupConsecutiveHighlights(chapterHighlights);
   }, [chapterHighlights]);
 
-  // Dictionary modal state
-  const [dictionaryModalVisible, setDictionaryModalVisible] = useState(false);
-  const [dictionaryWord, setDictionaryWord] = useState<string>('');
-
-  // Text selection menu state
-  const [selectionMenuVisible, setSelectionMenuVisible] = useState(false);
-  const [selectedWord, setSelectedWord] = useState<WordTapEvent | null>(null);
+  // Word definition tooltip state
+  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
+  const [wordToDefine, setWordToDefine] = useState<{
+    word: string;
+    verseNumber: number;
+  } | null>(null);
 
   // Line layout information for paragraph groups (for accurate tap detection)
   const paragraphLineLayoutsRef = useRef<
     Map<
       string,
-      { text: string; y: number; height: number; width: number; startCharOffset: number }[]
+      {
+        text: string;
+        y: number;
+        height: number;
+        width: number;
+        startCharOffset: number;
+      }[]
     >
   >(new Map());
 
@@ -344,12 +342,16 @@ export function ChapterReader({
   };
 
   /**
-   * Handle long-press on verse for creating new highlight
+   * Handle long-press on a word for dictionary lookup
+   * Word is passed directly from HighlightedText (no coordinate estimation needed)
    */
-  const handleVerseLongPress = (_verseNumber: number) => {
-    // Disabled
-    return;
-  };
+  const handleWordLongPress = useCallback((verseNumber: number, word: string) => {
+    setWordToDefine({
+      word,
+      verseNumber,
+    });
+    setWordDefinitionVisible(true);
+  }, []);
 
   /**
    * Handle tap on highlighted text
@@ -387,17 +389,6 @@ export function ChapterReader({
   };
 
   /**
-   * Handle long-press on highlighted text
-   * Shows quick edit menu via context
-   */
-  const handleHighlightLongPress = (highlightId: number) => {
-    const highlight = chapterHighlights.find((h) => h.highlight_id === highlightId);
-    if (highlight) {
-      openHighlightEditMenu(highlightId, highlight.color as HighlightColor);
-    }
-  };
-
-  /**
    * Handle tap on plain text
    * Shows verse insight tooltip via context
    */
@@ -416,20 +407,19 @@ export function ChapterReader({
   };
 
   /**
-   * Handle close Dictionary modal
+   * Handle close word definition tooltip
    */
-  const handleDictionaryClose = () => {
-    setDictionaryModalVisible(false);
-    setDictionaryWord('');
-  };
+  const handleWordDefinitionClose = useCallback(() => {
+    setWordDefinitionVisible(false);
+    setWordToDefine(null);
+  }, []);
 
   /**
-   * Handle word tap from HighlightedText
+   * Handle copy from word definition tooltip
    */
-  const handleWordTap = useCallback((event: WordTapEvent) => {
-    setSelectedWord(event);
-    setSelectionMenuVisible(true);
-  }, []);
+  const handleWordDefinitionCopy = useCallback(() => {
+    showToast('Copied to clipboard');
+  }, [showToast]);
 
   /**
    * Handle text layout event to capture line positions
@@ -453,227 +443,6 @@ export function ChapterReader({
     },
     []
   );
-
-  /**
-   * Handle tap on paragraph to detect which word was tapped
-   */
-  const handleParagraphTap = useCallback(
-    (
-      event: GestureResponderEvent,
-      group: { verseNumber: number; text: string }[],
-      groupKey: string
-    ) => {
-      const { pageX, pageY, locationX, locationY } = event.nativeEvent;
-      const lineLayouts = paragraphLineLayoutsRef.current.get(groupKey);
-
-      let totalOffset = 0;
-      const verseOffsets: {
-        verseNumber: number;
-        text: string;
-        startOffset: number;
-        endOffset: number;
-      }[] = [];
-
-      for (let i = 0; i < group.length; i++) {
-        const verse = group[i];
-        if (i > 0) totalOffset += 2;
-        const verseNumberLength = toSuperscript(verse.verseNumber).length + 1;
-        const verseStart = totalOffset + verseNumberLength;
-        const verseEnd = verseStart + verse.text.length;
-
-        verseOffsets.push({
-          verseNumber: verse.verseNumber,
-          text: verse.text,
-          startOffset: verseStart,
-          endOffset: verseEnd,
-        });
-        totalOffset = verseEnd;
-      }
-
-      let estimatedCharPos: number;
-
-      if (lineLayouts && lineLayouts.length > 0) {
-        let tappedLine = lineLayouts[0];
-        for (const line of lineLayouts) {
-          if (locationY >= line.y && locationY < line.y + line.height) {
-            tappedLine = line;
-            break;
-          }
-          if (locationY >= line.y + line.height) {
-            tappedLine = line;
-          }
-        }
-
-        const avgCharWidth = tappedLine.width / Math.max(tappedLine.text.length, 1);
-        const charInLine = Math.floor(locationX / avgCharWidth);
-        const clampedCharInLine = Math.max(0, Math.min(charInLine, tappedLine.text.length - 1));
-        estimatedCharPos = tappedLine.startCharOffset + clampedCharInLine;
-      } else {
-        const avgCharWidth = 9;
-        estimatedCharPos = Math.floor(locationX / avgCharWidth);
-      }
-
-      const verseInfo = verseOffsets.find(
-        (v) => estimatedCharPos >= v.startOffset && estimatedCharPos < v.endOffset
-      );
-
-      if (!verseInfo) {
-        // Fallback logic
-        const firstVerse = group[0];
-        if (!firstVerse) return;
-        if (estimatedCharPos < verseOffsets[0].startOffset) {
-          const wordInfo = getWordAtPosition(firstVerse.text, 0);
-          if (!wordInfo) return;
-          setSelectedWord({
-            verseNumber: firstVerse.verseNumber,
-            word: wordInfo.word,
-            startChar: wordInfo.start,
-            endChar: wordInfo.end,
-            position: { x: pageX, y: pageY },
-          });
-          setSelectionMenuVisible(true);
-          return;
-        }
-        const lastVerseOffset = verseOffsets[verseOffsets.length - 1];
-        if (lastVerseOffset) {
-          const lastVerse = group[group.length - 1];
-          const wordInfo = getWordAtPosition(lastVerse.text, lastVerse.text.length - 1);
-          if (!wordInfo) return;
-          setSelectedWord({
-            verseNumber: lastVerse.verseNumber,
-            word: wordInfo.word,
-            startChar: wordInfo.start,
-            endChar: wordInfo.end,
-            position: { x: pageX, y: pageY },
-          });
-          setSelectionMenuVisible(true);
-          return;
-        }
-        return;
-      }
-
-      const positionInVerse = estimatedCharPos - verseInfo.startOffset;
-      const clampedPosition = Math.max(0, Math.min(positionInVerse, verseInfo.text.length - 1));
-      const wordInfo = getWordAtPosition(verseInfo.text, clampedPosition);
-      if (!wordInfo) return;
-
-      setSelectedWord({
-        verseNumber: verseInfo.verseNumber,
-        word: wordInfo.word,
-        startChar: wordInfo.start,
-        endChar: wordInfo.end,
-        position: { x: pageX, y: pageY },
-      });
-      setSelectionMenuVisible(true);
-    },
-    []
-  );
-
-  /**
-   * Handle tap on single verse (non-paragraph mode)
-   */
-  const handleSingleVerseTap = useCallback(
-    (event: GestureResponderEvent, verse: { verseNumber: number; text: string }) => {
-      const { pageX, pageY, locationX } = event.nativeEvent;
-      const avgCharWidth = 9;
-      const estimatedCharPos = Math.floor(locationX / avgCharWidth);
-      const wordInfo = getWordAtPosition(verse.text, estimatedCharPos);
-      if (!wordInfo) return;
-
-      setSelectedWord({
-        verseNumber: verse.verseNumber,
-        word: wordInfo.word,
-        startChar: wordInfo.start,
-        endChar: wordInfo.end,
-        position: { x: pageX, y: pageY },
-      });
-      setSelectionMenuVisible(true);
-    },
-    []
-  );
-
-  /**
-   * Handle selection menu close
-   */
-  const handleSelectionMenuClose = useCallback(() => {
-    setSelectionMenuVisible(false);
-    setSelectedWord(null);
-  }, []);
-
-  /**
-   * Handle Select Verse action
-   */
-  const handleSelectVerse = useCallback(() => {
-    if (!selectedWord) return;
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === selectedWord.verseNumber);
-    if (!verse) return;
-    setSelectedWord({
-      ...selectedWord,
-      startChar: 0,
-      endChar: verse.text.length,
-      word: verse.text,
-    });
-  }, [selectedWord, chapter]);
-
-  /**
-   * Handle Define action
-   */
-  const handleSelectionDefine = useCallback(() => {
-    if (!selectedWord) return;
-    setDictionaryWord(selectedWord.word);
-    setDictionaryModalVisible(true);
-    handleSelectionMenuClose();
-  }, [selectedWord, handleSelectionMenuClose]);
-
-  /**
-   * Handle Copy action
-   */
-  const handleSelectionCopy = useCallback(async () => {
-    if (!selectedWord) return;
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === selectedWord.verseNumber);
-    let payload = selectedWord.word;
-    if (verse) {
-      const start = Math.max(0, Math.min(selectedWord.startChar, verse.text.length));
-      const end = Math.max(start, Math.min(selectedWord.endChar, verse.text.length));
-      const selectedSlice = verse.text.slice(start, end) || selectedWord.word;
-      payload = `"${selectedSlice}" - ${chapter.title} ${selectedWord.verseNumber}`;
-    }
-    await Clipboard.setStringAsync(payload);
-    showToast('Copied to clipboard');
-    handleSelectionMenuClose();
-  }, [selectedWord, chapter, showToast, handleSelectionMenuClose]);
-
-  /**
-   * Handle Share action
-   */
-  const handleSelectionShare = useCallback(async () => {
-    if (!selectedWord) return;
-    const verse = chapter.sections
-      .flatMap((section) => section.verses)
-      .find((v) => v.verseNumber === selectedWord.verseNumber);
-    const textToShare = verse
-      ? `"${verse.text}"\n\n- ${chapter.title} ${selectedWord.verseNumber}`
-      : `"${selectedWord.word}"`;
-    await Share.share({ message: textToShare });
-    handleSelectionMenuClose();
-  }, [selectedWord, chapter, handleSelectionMenuClose]);
-
-  /**
-   * Handle Highlight action from selection menu
-   * Opens the highlight selection sheet via context
-   */
-  const handleSelectionHighlight = useCallback(() => {
-    if (!selectedWord) return;
-    openHighlightSelection(
-      { start: selectedWord.verseNumber, end: selectedWord.verseNumber },
-      selectedWord.word
-    );
-    handleSelectionMenuClose();
-  }, [selectedWord, openHighlightSelection, handleSelectionMenuClose]);
 
   return (
     <View style={styles.container} collapsable={false}>
@@ -745,7 +514,6 @@ export function ChapterReader({
                       <Text
                         style={styles.verseTextParagraph}
                         onTextLayout={(e) => handleTextLayout(groupKey, e)}
-                        onPress={(e) => handleParagraphTap(e, group, groupKey)}
                       >
                         {group.map((verse, verseIndex) => {
                           let currBackgroundColor: string | undefined;
@@ -840,20 +608,9 @@ export function ChapterReader({
                                 highlights={chapterHighlights}
                                 autoHighlights={autoHighlights}
                                 onHighlightTap={handleHighlightTap}
-                                onHighlightLongPress={handleHighlightLongPress}
                                 onAutoHighlightPress={handleAutoHighlightPress}
                                 onVerseTap={handleVerseTap}
-                                onVerseLongPress={handleVerseLongPress}
-                                onWordTap={handleWordTap}
-                                activeSelection={
-                                  selectedWord?.verseNumber === verse.verseNumber
-                                    ? {
-                                        verseNumber: selectedWord.verseNumber,
-                                        startChar: selectedWord.startChar,
-                                        endChar: selectedWord.endChar,
-                                      }
-                                    : undefined
-                                }
+                                onWordLongPress={handleWordLongPress}
                                 style={styles.verseText}
                               />
                             </Text>
@@ -881,21 +638,9 @@ export function ChapterReader({
                       highlights={chapterHighlights}
                       autoHighlights={autoHighlights}
                       onHighlightTap={handleHighlightTap}
-                      onHighlightLongPress={handleHighlightLongPress}
                       onAutoHighlightPress={handleAutoHighlightPress}
                       onVerseTap={handleVerseTap}
-                      onVerseLongPress={handleVerseLongPress}
-                      onWordTap={handleWordTap}
-                      onPress={(e) => handleSingleVerseTap(e, verse)}
-                      activeSelection={
-                        selectedWord?.verseNumber === verse.verseNumber
-                          ? {
-                              verseNumber: selectedWord.verseNumber,
-                              startChar: selectedWord.startChar,
-                              endChar: selectedWord.endChar,
-                            }
-                          : undefined
-                      }
+                      onWordLongPress={handleWordLongPress}
                       style={styles.verseText}
                     />
                   </View>
@@ -983,26 +728,16 @@ export function ChapterReader({
         onClose={() => setErrorModalVisible(false)}
       />
 
-      {/* Dictionary Modal */}
-      <DictionaryModal
-        visible={dictionaryModalVisible}
-        word={dictionaryWord}
-        onClose={handleDictionaryClose}
-      />
-
-      {/* Text Selection Menu (floating above selected text) */}
-      {selectedWord && (
-        <TextSelectionMenu
-          visible={selectionMenuVisible}
-          position={selectedWord.position}
-          selectedText={selectedWord.word}
-          isMultiWord={selectedWord.word.includes(' ')}
-          onDefine={handleSelectionDefine}
-          onCopy={handleSelectionCopy}
-          onShare={handleSelectionShare}
-          onSelectVerse={handleSelectVerse}
-          onMoreOptions={handleSelectionHighlight}
-          onClose={handleSelectionMenuClose}
+      {/* Word Definition Tooltip */}
+      {wordToDefine && (
+        <WordDefinitionTooltip
+          visible={wordDefinitionVisible}
+          word={wordToDefine.word}
+          bookName={chapter.title.split(' ').slice(0, -1).join(' ')}
+          chapterNumber={chapter.chapterNumber}
+          verseNumber={wordToDefine.verseNumber}
+          onClose={handleWordDefinitionClose}
+          onCopy={handleWordDefinitionCopy}
         />
       )}
     </View>
