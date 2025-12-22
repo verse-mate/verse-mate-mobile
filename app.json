@@ -11,7 +11,7 @@
     "newArchEnabled": true,
     "ios": {
       "icon": "./assets/images/ios-icon.png",
-      "bundleIdentifier": "org.versemate.mobile",
+      "bundleIdentifier": "org.versemate.app",
       "supportsTablet": true,
       "associatedDomains": [
         "applinks:app.versemate.org",
@@ -22,7 +22,7 @@
       }
     },
     "android": {
-      "package": "org.versemate.mobile.internal",
+      "package": "org.versemate.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon.png",
