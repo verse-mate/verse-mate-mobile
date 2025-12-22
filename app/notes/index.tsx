@@ -31,6 +31,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { IconDocument } from '@/components/ui/icons';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -166,7 +167,7 @@ export default function NotesScreen() {
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="document-text-outline" size={64} color={colors.textDisabled} />
+          <IconDocument width={64} height={64} color={colors.textDisabled} />
           <Text style={styles.emptyStateTitle}>Please login to view your notes</Text>
           <Text style={styles.emptyStateSubtitle}>
             Sign in to create and access your Bible study notes
@@ -249,7 +250,7 @@ export default function NotesScreen() {
           }
         >
           <View style={styles.emptyStateContainer}>
-            <Ionicons name="document-text-outline" size={64} color={colors.textDisabled} />
+            <IconDocument width={64} height={64} color={colors.textDisabled} />
             <Text style={styles.emptyStateTitle}>No notes yet</Text>
             <Text style={styles.emptyStateSubtitle}>
               Start taking notes while reading chapters to see them here.
@@ -295,26 +296,28 @@ export default function NotesScreen() {
         testID="notes-list"
       >
         {chapterGroups.map((group) => (
-          <View key={`${group.bookId}-${group.chapterNumber}`} style={styles.chapterGroup}>
-            {/* Chapter Group Card */}
-            <Pressable
-              style={({ pressed }) => [styles.groupHeader, pressed && styles.groupHeaderPressed]}
-              onPress={() => handleChapterPress(group)}
-              testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
-            >
-              <View style={styles.groupInfo}>
-                <Text style={styles.groupTitle}>
-                  {group.bookName} {group.chapterNumber}
-                </Text>
-                <Text style={styles.groupSubtitle}>
-                  {group.notes.length} {group.notes.length === 1 ? 'note' : 'notes'}
-                </Text>
+          <Pressable
+            key={`${group.bookId}-${group.chapterNumber}`}
+            style={({ pressed }) => [styles.noteItem, pressed && styles.noteItemPressed]}
+            onPress={() => handleChapterPress(group)}
+            testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
+          >
+            <View style={styles.noteItemContent}>
+              <View style={styles.noteIconContainer}>
+                <IconDocument width={24} height={24} color={colors.gold} />
               </View>
-              <View style={styles.groupIconContainer}>
-                <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+              <Text style={styles.noteText}>
+                {group.bookName} {group.chapterNumber}
+              </Text>
+            </View>
+
+            <View style={styles.rightContent}>
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>{group.notes.length}</Text>
               </View>
-            </Pressable>
-          </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </View>
+          </Pressable>
         ))}
       </ScrollView>
     </View>
@@ -325,29 +328,29 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      backgroundColor: colors.background,
+      marginBottom: 8,
     },
     backButton: {
       padding: spacing.xs,
-      marginRight: spacing.sm,
+      width: 40,
+      alignItems: 'flex-start',
     },
     headerTitle: {
       flex: 1,
-      fontSize: fontSizes.displayMedium * 0.88,
-      fontWeight: fontWeights.bold,
+      fontSize: 18,
+      fontWeight: '300', // Light weight per Figma
       color: colors.textPrimary,
+      textAlign: 'center',
     },
     headerSpacer: {
-      width: 32, // Same width as back button for centering
+      width: 40, // Same width as back button for centering
     },
     centerContent: {
       flex: 1,
@@ -393,53 +396,52 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     scrollContent: {
       paddingVertical: spacing.sm,
+      gap: 16, // Spacing between items
     },
-    // Card Styles matched to HighlightsScreen
-    chapterGroup: {
-      marginBottom: spacing.md,
-      marginHorizontal: spacing.lg,
-      backgroundColor: colors.backgroundElevated,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      shadowColor: colors.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
-      overflow: 'hidden',
-    },
-    groupHeader: {
+    noteItem: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: spacing.lg,
+      paddingVertical: 12, // Achieve ~48px total height
+      paddingHorizontal: 16,
+      marginHorizontal: 16,
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
     },
-    groupHeaderPressed: {
-      backgroundColor: `${colors.divider}20`, // Subtle press effect
+    noteItemPressed: {
+      opacity: 0.7,
     },
-    groupInfo: {
+    noteItemContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
       flex: 1,
     },
-    groupTitle: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.bold,
+    noteIconContainer: {
+      marginRight: 8, // 8px gap between icon and text
+    },
+    noteText: {
+      fontSize: 16,
+      fontWeight: '400',
       color: colors.textPrimary,
-      marginBottom: 2,
     },
-    groupSubtitle: {
-      fontSize: fontSizes.caption,
-      color: colors.textSecondary,
-      fontWeight: fontWeights.medium,
-    },
-    groupIconContainer: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.background,
-      borderWidth: 1,
-      borderColor: colors.border,
-      justifyContent: 'center',
+    rightContent: {
+      flexDirection: 'row',
       alignItems: 'center',
+      gap: 8, // 8px gap between badge and chevron
+    },
+    countBadge: {
+      backgroundColor: 'rgba(176, 154, 109, 0.1)', // Gold with 10% opacity
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+      minWidth: 24,
+      alignItems: 'center',
+    },
+    countText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textPrimary, // Or colors.gold if text should be gold
     },
   });

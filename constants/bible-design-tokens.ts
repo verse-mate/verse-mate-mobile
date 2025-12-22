@@ -80,8 +80,10 @@ export const colors = {
     // Semantic Aliases for Components
     /** Background color for main content */
     background: '#ffffff',
+    /** Background color for secondary containers (like drawers) */
+    backgroundSecondary: '#F2F2F7',
     /** Background color for elevated surfaces (cards, modals) */
-    backgroundElevated: '#f5f5f5',
+    backgroundElevated: '#FFFFFF',
     /** Background color for overlay surfaces (sheets, tooltips) */
     backgroundOverlay: '#ffffff',
     /** Primary text color */
@@ -94,6 +96,8 @@ export const colors = {
     textDisabled: '#cccccc',
     /** Border color */
     border: '#cccccc',
+    /** Secondary border color for buttons/cards */
+    borderSecondary: '#E5E5E7',
     /** Strong border color */
     borderStrong: '#999999',
     /** Divider color */
@@ -157,8 +161,10 @@ export const colors = {
     // Semantic Aliases for Components (Material Design 3 elevation system)
     /** Background color for main content - Base elevation */
     background: '#121212',
+    /** Background color for secondary containers (like drawers) */
+    backgroundSecondary: '#1A1A1A',
     /** Background color for elevated surfaces (cards, modals) - Elevation +1 */
-    backgroundElevated: '#1E1E1E',
+    backgroundElevated: '#222222',
     /** Background color for overlay surfaces (sheets, tooltips) - Elevation +2 */
     backgroundOverlay: '#2C2C2C',
     /** Primary text color - 87% white */
@@ -171,6 +177,8 @@ export const colors = {
     textDisabled: '#606060',
     /** Border color */
     border: '#3A3A3A',
+    /** Secondary border color for buttons/cards */
+    borderSecondary: '#2D2D2D',
     /** Strong border color */
     borderStrong: '#4A4A4A',
     /** Divider color */

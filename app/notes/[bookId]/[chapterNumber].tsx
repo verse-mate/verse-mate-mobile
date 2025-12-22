@@ -200,30 +200,29 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.backgroundSecondary,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      backgroundColor: colors.background,
+      // No background or border for header in new design
     },
     backButton: {
       padding: spacing.xs,
-      marginRight: spacing.sm,
+      width: 40,
+      alignItems: 'flex-start',
     },
     headerTitle: {
       flex: 1,
-      fontSize: fontSizes.heading3 * 0.88,
-      fontWeight: fontWeights.bold,
+      fontSize: 18,
+      fontWeight: '300', // Light weight per Figma
       color: colors.textPrimary,
       textAlign: 'center',
     },
     headerSpacer: {
-      width: 32,
+      width: 40,
     },
     centerContent: {
       flex: 1,
@@ -234,10 +233,12 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       flex: 1,
     },
     scrollContent: {
-      padding: spacing.lg,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: 0, // Cards have margins
     },
     notesList: {
-      gap: spacing.md,
+      gap: 8, // 8px spacing
+      paddingHorizontal: 16, // Padding for list content
     },
     emptyState: {
       alignItems: 'center',
