@@ -5,15 +5,7 @@ export const IconEdit = (props: SvgProps) => {
   const maskId = useId();
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none" {...props}>
-      <Mask
-        id={maskId}
-        style={{ maskType: 'alpha' }}
-        maskUnits="userSpaceOnUse"
-        x="0"
-        y="0"
-        width="24"
-        height="24"
-      >
+      <Mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
         <Rect width="24" height="24" fill="#D9D9D9" />
       </Mask>
       <G mask={`url(#${maskId})`}>
