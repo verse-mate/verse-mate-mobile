@@ -18,7 +18,14 @@ jest.mock('expo-router', () => ({
     push: jest.fn(),
     replace: jest.fn(),
     dismiss: jest.fn(),
+    canGoBack: jest.fn(() => true),
   },
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    dismiss: jest.fn(),
+    canGoBack: jest.fn(() => true),
+  }),
 }));
 
 jest.mock('@/hooks/useLogin');

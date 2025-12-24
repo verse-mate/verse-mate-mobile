@@ -151,6 +151,17 @@ jest.mock('@/modules/dictionary', () => ({
   isNativeDictionaryAvailable: jest.fn().mockReturnValue(false),
 }));
 
+// Mock expo-device
+jest.mock('expo-device', () => ({
+  deviceType: 1, // PHONE
+  DeviceType: {
+    PHONE: 1,
+    TABLET: 2,
+    DESKTOP: 3,
+    TV: 4,
+  },
+}));
+
 // Global cleanup to reduce open handle issues in tests
 try {
   const { cleanup } = require('@testing-library/react-native');

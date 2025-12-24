@@ -18,6 +18,7 @@ jest.mock('expo-router', () => ({
     push: jest.fn(),
     replace: jest.fn(),
     dismiss: jest.fn(),
+    canGoBack: jest.fn(() => true),
   },
 }));
 
