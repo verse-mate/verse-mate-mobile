@@ -42,6 +42,8 @@ export {
   type NoteCreatedProperties,
   type NoteDeletedProperties,
   type NoteEditedProperties,
+  type OnboardingCompletedProperties,
+  type OnboardingStartedProperties,
   type SignupCompletedProperties,
   type TopicSharedProperties,
   type UserProperties,
