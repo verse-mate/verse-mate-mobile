@@ -14,7 +14,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import * as NavigationBar from 'expo-navigation-bar';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
@@ -22,6 +22,7 @@ import { useEffect, useRef } from 'react';
 import { InteractionManager, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -34,6 +35,7 @@ import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
+import { ONBOARDING_KEY } from './onboarding';
 
 // Keep the splash screen visible while we fetch last read position
 SplashScreen.preventAutoHideAsync();
@@ -69,7 +71,30 @@ setupClientInterceptors();
 function RootLayoutInner() {
   const { mode, colors, isLoading: themeLoading } = useTheme();
   const router = useRouter();
+  const segments = useSegments();
   const hasInitialized = useRef(false);
+
+  // Check onboarding status
+  // biome-ignore lint/correctness/useExhaustiveDependencies: router.replace is stable but not typed as such
+  useEffect(() => {
+    async function checkOnboarding() {
+      // Avoid redirecting if already on the onboarding screen
+      if (segments[0] === 'onboarding') return;
+
+      try {
+        const hasSeenOnboarding = await AsyncStorage.getItem(ONBOARDING_KEY);
+        if (hasSeenOnboarding !== 'true') {
+          router.replace('/onboarding');
+        }
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+      }
+    }
+
+    if (!themeLoading) {
+      checkOnboarding();
+    }
+  }, [themeLoading, segments]);
 
   /**
    * Handle deep link navigation
@@ -310,6 +335,13 @@ function RootLayoutInner() {
             name="notes"
             options={{
               headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="onboarding"
+            options={{
+              headerShown: false,
+              animation: 'fade',
             }}
           />
         </Stack>

@@ -7,6 +7,7 @@
  * @see Spec: agent-os/specs/landscape-tablet-optimization/plan.md
  */
 
+import * as Device from 'expo-device';
 import { Dimensions, Platform } from 'react-native';
 
 /**
@@ -53,7 +54,7 @@ export const BREAKPOINTS = {
  * Get current device information
  *
  * Detects whether the device is a tablet and current orientation
- * based on screen dimensions.
+ * based on screen dimensions and expo-device type.
  *
  * @returns DeviceInfo object with device characteristics
  *
@@ -72,12 +73,22 @@ export function getDeviceInfo(): DeviceInfo {
   const largerDimension = Math.max(width, height);
 
   // Tablet detection logic:
+  // We consider it a tablet if EITHER:
+  // 1. expo-device explicitly says it's a tablet/desktop
+  // 2. The screen dimensions match standard tablet thresholds (fallback/override)
+
+  const isHardwareTablet =
+    Device.deviceType === Device.DeviceType.TABLET ||
+    Device.deviceType === Device.DeviceType.DESKTOP;
+
   // - iOS: smaller dimension >= 768 (iPad mini and up)
   // - Android: smaller dimension >= 600dp (common tablet threshold)
   const tabletThreshold =
     Platform.OS === 'ios' ? BREAKPOINTS.IPAD_MIN_WIDTH : BREAKPOINTS.TABLET_MIN_WIDTH;
 
-  const isTablet = smallerDimension >= tabletThreshold;
+  const isDimensionTablet = smallerDimension >= tabletThreshold;
+
+  const isTablet = isHardwareTablet || isDimensionTablet;
 
   return {
     isTablet,

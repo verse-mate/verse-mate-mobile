@@ -158,7 +158,11 @@ export default function Signup() {
 
   // Handle continue without account
   const handleContinueWithout = () => {
-    router.dismiss();
+    if (router.canGoBack()) {
+      router.dismiss();
+    } else {
+      router.replace('/bible/1/1');
+    }
   };
 
   return (

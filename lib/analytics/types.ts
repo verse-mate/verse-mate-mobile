@@ -41,6 +41,10 @@ export enum AnalyticsEvent {
   LOGIN_COMPLETED = 'LOGIN_COMPLETED',
   LOGOUT = 'LOGOUT',
 
+  // Onboarding Events
+  ONBOARDING_STARTED = 'ONBOARDING_STARTED',
+  ONBOARDING_COMPLETED = 'ONBOARDING_COMPLETED',
+
   // Time-Based Analytics Events (Phase 2-3)
   CHAPTER_READING_DURATION = 'CHAPTER_READING_DURATION',
   VIEW_MODE_DURATION = 'VIEW_MODE_DURATION',
@@ -176,6 +180,18 @@ export interface LoginCompletedProperties {
 // Logout has no properties
 export type LogoutProperties = Record<string, never>;
 
+/**
+ * Onboarding Event Properties
+ */
+export interface OnboardingStartedProperties {
+  deviceType: 'phone' | 'tablet';
+}
+
+export interface OnboardingCompletedProperties {
+  method: 'skipped' | 'completed' | 'login';
+  finalSlideIndex: number;
+}
+
 // ============================================================================
 // Time-Based Analytics Event Properties (Phase 2-3)
 // ============================================================================
@@ -271,6 +287,8 @@ export interface EventProperties {
   [AnalyticsEvent.SIGNUP_COMPLETED]: SignupCompletedProperties;
   [AnalyticsEvent.LOGIN_COMPLETED]: LoginCompletedProperties;
   [AnalyticsEvent.LOGOUT]: LogoutProperties;
+  [AnalyticsEvent.ONBOARDING_STARTED]: OnboardingStartedProperties;
+  [AnalyticsEvent.ONBOARDING_COMPLETED]: OnboardingCompletedProperties;
   // Time-Based Analytics Events
   [AnalyticsEvent.CHAPTER_READING_DURATION]: ChapterReadingDurationProperties;
   [AnalyticsEvent.VIEW_MODE_DURATION]: ViewModeDurationProperties;

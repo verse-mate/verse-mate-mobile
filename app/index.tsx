@@ -1,9 +1,3 @@
-/**
- * Index Route
- *
- * Redirects to last read position on app launch, or defaults to Genesis 1
- */
-
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
