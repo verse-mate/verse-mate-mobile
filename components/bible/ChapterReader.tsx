@@ -21,6 +21,15 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type NativeSyntheticEvent,
+  StyleSheet,
+  Text,
+  type TextLayoutEventData,
+  View,
+} from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightedText } from '@/components/bible/HighlightedText';
@@ -47,15 +56,6 @@ import {
   findGroupByHighlightId,
   groupConsecutiveHighlights,
 } from '@/utils/bible/groupConsecutiveHighlights';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  type NativeSyntheticEvent,
-  StyleSheet,
-  Text,
-  type TextLayoutEventData,
-  View,
-} from 'react-native';
-import Markdown from 'react-native-markdown-display';
 
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
