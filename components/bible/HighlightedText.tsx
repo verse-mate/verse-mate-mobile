@@ -10,16 +10,26 @@
  * - Multiple non-overlapping highlights per verse
  * - Single tap on highlighted text shows tooltip
  * - Single tap on plain text shows verse insight
- * - Long-press on individual word opens dictionary lookup
+ * - Long-press with coordinate-based word detection opens dictionary lookup
  * - Theme-aware highlight colors (brighter in dark mode)
+ *
+ * Performance: Uses segment-based rendering without per-word tokenization.
+ * Word detection on long-press uses touch coordinates and text layout estimation.
  *
  * @see Spec: .agent-os/specs/2025-11-06-highlight-feature/spec.md
  * @see Visual: after-selected-text-popup.png (highlighted text appearance)
  */
 
 import * as Haptics from 'expo-haptics';
-import { memo, useCallback, useMemo } from 'react';
-import { Text, type TextProps } from 'react-native';
+import { memo, useCallback, useMemo, useRef } from 'react';
+import {
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+  type NativeSyntheticEvent,
+  Text,
+  type TextLayoutEventData,
+  type TextProps,
+} from 'react-native';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
@@ -53,27 +63,19 @@ interface TextSegment {
   startChar: number;
   /** End character position in verse text */
   endChar: number;
-}
-
-/**
- * Token representing a word or non-word (whitespace/punctuation)
- */
-interface TextToken {
-  /** The token text */
-  token: string;
-  /** Whether this token is a word (contains alphanumeric characters) */
-  isWord: boolean;
-  /** Unique key for React */
+  /** Unique key for React rendering */
   key: string;
 }
 
 /**
- * Processed segment with pre-tokenized text
+ * Text layout line information from onTextLayout event
  */
-interface ProcessedSegment {
-  segment: TextSegment;
-  tokens: TextToken[];
-  segmentKey: string;
+interface TextLayoutLine {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 /**
@@ -110,31 +112,75 @@ export interface HighlightedTextProps extends TextProps {
 }
 
 /**
- * Tokenize text into words and non-words (whitespace/punctuation)
- * Preserves exact spacing and punctuation for proper rendering
+ * Extract the word at a given character index from text
+ * Expands from the index to find word boundaries
  */
-function tokenizeText(text: string, segmentKey: string): TextToken[] {
-  // Split on word boundaries, keeping all parts
-  // This regex splits on transitions between word chars (\w) and non-word chars
-  const parts = text.split(/(\s+|[^\w\s]+)/);
+function extractWordAtIndex(text: string, charIndex: number): string | null {
+  if (charIndex < 0 || charIndex >= text.length) return null;
 
-  return parts
-    .filter((part) => part.length > 0)
-    .map((token, idx) => ({
-      token,
-      isWord: /\w/.test(token), // Contains at least one alphanumeric character
-      key: `${segmentKey}-${idx}`,
-    }));
+  // Find word boundaries by expanding from the character index
+  let wordStart = charIndex;
+  let wordEnd = charIndex;
+
+  // If we're on whitespace/punctuation, try to find the nearest word
+  if (!/\w/.test(text[charIndex])) {
+    // Look backward for a word
+    let backwardIdx = charIndex - 1;
+    while (backwardIdx >= 0 && !/\w/.test(text[backwardIdx])) {
+      backwardIdx--;
+    }
+    // Look forward for a word
+    let forwardIdx = charIndex + 1;
+    while (forwardIdx < text.length && !/\w/.test(text[forwardIdx])) {
+      forwardIdx++;
+    }
+
+    // Choose the closer word
+    const backwardDist = backwardIdx >= 0 ? charIndex - backwardIdx : Infinity;
+    const forwardDist = forwardIdx < text.length ? forwardIdx - charIndex : Infinity;
+
+    if (backwardDist <= forwardDist && backwardIdx >= 0) {
+      charIndex = backwardIdx;
+    } else if (forwardIdx < text.length) {
+      charIndex = forwardIdx;
+    } else {
+      return null;
+    }
+    wordStart = charIndex;
+    wordEnd = charIndex;
+  }
+
+  // Expand backward to find start of word
+  while (wordStart > 0 && /\w/.test(text[wordStart - 1])) {
+    wordStart--;
+  }
+
+  // Expand forward to find end of word
+  while (wordEnd < text.length - 1 && /\w/.test(text[wordEnd + 1])) {
+    wordEnd++;
+  }
+
+  const word = text.slice(wordStart, wordEnd + 1);
+  return word.length > 0 && /\w/.test(word) ? word : null;
 }
+
+/**
+ * Estimate average character width based on text and container width
+ * Uses a simple heuristic that works well for most fonts
+ */
+const DEFAULT_CHAR_WIDTH = 8; // Fallback character width in pixels
 
 /**
  * HighlightedText Component
  *
  * Renders verse text with highlights as semi-transparent backgrounds.
  * Segments text based on highlight character positions for precise rendering.
- * Each word is wrapped in its own Text component for precise long-press detection.
+ * Uses coordinate-based word detection for dictionary lookup on long-press.
  *
- * Optimized with React.memo and useMemo for performance.
+ * Performance optimizations:
+ * - Segment-based rendering (not per-word tokenization)
+ * - Memoized with React.memo and useMemo
+ * - Text layout tracked for accurate word detection
  */
 export const HighlightedText = memo(function HighlightedText({
   text,
@@ -151,11 +197,15 @@ export const HighlightedText = memo(function HighlightedText({
   // Get current theme mode for highlight color selection
   const { mode } = useTheme();
 
+  // Track text layout for coordinate-based word detection
+  const textLayoutRef = useRef<TextLayoutLine[]>([]);
+  const containerWidthRef = useRef<number>(0);
+
   /**
-   * Process segments and tokenize text - all memoized together
-   * This is the main optimization: compute everything once when dependencies change
+   * Process segments - memoized for performance
+   * No tokenization - each segment is rendered as a single Text component
    */
-  const processedSegments = useMemo((): ProcessedSegment[] => {
+  const segments = useMemo((): TextSegment[] => {
     // Filter highlights relevant to this verse
     const verseHighlights = highlights.filter(
       (h) => h.start_verse <= verseNumber && h.end_verse >= verseNumber
@@ -165,13 +215,17 @@ export const HighlightedText = memo(function HighlightedText({
       (h) => h.start_verse <= verseNumber && h.end_verse >= verseNumber
     );
 
-    // Build segments
-    let segments: TextSegment[];
-
     // If no highlights or auto-highlights, return plain text
     if (verseHighlights.length === 0 && verseAutoHighlights.length === 0) {
-      segments = [
-        { text, highlight: null, autoHighlight: null, startChar: 0, endChar: text.length },
+      return [
+        {
+          text,
+          highlight: null,
+          autoHighlight: null,
+          startChar: 0,
+          endChar: text.length,
+          key: `text-${verseNumber}-0-${text.length}`,
+        },
       ];
     } else {
       // Process user highlights first (they take precedence)
@@ -219,12 +273,17 @@ export const HighlightedText = memo(function HighlightedText({
             return ah.start_verse <= verseNumber && ah.end_verse >= verseNumber;
           });
 
+          const key = autoHighlightInRange
+            ? `auto-${autoHighlightInRange.auto_highlight_id}-${currentPosition}-${highlightStart}`
+            : `text-${verseNumber}-${currentPosition}-${highlightStart}`;
+
           textSegments.push({
             text: text.slice(currentPosition, highlightStart),
             highlight: null,
             autoHighlight: autoHighlightInRange || null,
             startChar: currentPosition,
             endChar: highlightStart,
+            key,
           });
         }
 
@@ -235,6 +294,7 @@ export const HighlightedText = memo(function HighlightedText({
           autoHighlight: null, // User highlights take precedence
           startChar: highlightStart,
           endChar: highlightEnd,
+          key: `highlight-${highlight.highlight_id}-${highlightStart}-${highlightEnd}`,
         });
 
         currentPosition = highlightEnd;
@@ -247,32 +307,22 @@ export const HighlightedText = memo(function HighlightedText({
           return ah.start_verse <= verseNumber && ah.end_verse >= verseNumber;
         });
 
+        const key = autoHighlightInRange
+          ? `auto-${autoHighlightInRange.auto_highlight_id}-${currentPosition}-${text.length}`
+          : `text-${verseNumber}-${currentPosition}-${text.length}`;
+
         textSegments.push({
           text: text.slice(currentPosition),
           highlight: null,
           autoHighlight: autoHighlightInRange || null,
           startChar: currentPosition,
           endChar: text.length,
+          key,
         });
       }
 
-      segments = textSegments;
+      return textSegments;
     }
-
-    // Now tokenize each segment and create processed segments
-    return segments.map((segment) => {
-      const segmentKey = segment.highlight
-        ? `highlight-${segment.highlight.highlight_id}-${segment.startChar}-${segment.endChar}`
-        : segment.autoHighlight
-          ? `auto-highlight-${segment.autoHighlight.auto_highlight_id}-${segment.startChar}-${segment.endChar}`
-          : `text-${verseNumber}-${segment.startChar}-${segment.endChar}`;
-
-      return {
-        segment,
-        tokens: tokenizeText(segment.text, segmentKey),
-        segmentKey,
-      };
-    });
   }, [text, highlights, autoHighlights, verseNumber]);
 
   /**
@@ -312,19 +362,51 @@ export const HighlightedText = memo(function HighlightedText({
   }, [onVerseTap, verseNumber]);
 
   /**
-   * Handle long-press on a word
-   * Opens word definition dictionary
+   * Handle text layout event to track line information
+   * Used for coordinate-based word detection on long-press
    */
-  const handleWordLongPress = useCallback(
-    (word: string) => {
+  const handleTextLayout = useCallback((event: NativeSyntheticEvent<TextLayoutEventData>) => {
+    textLayoutRef.current = event.nativeEvent.lines as TextLayoutLine[];
+  }, []);
+
+  /**
+   * Handle container layout to track width
+   * Used for character width estimation
+   */
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    containerWidthRef.current = event.nativeEvent.layout.width;
+  }, []);
+
+  /**
+   * Detect word from long-press coordinates within a segment
+   * Uses text layout and character position estimation
+   */
+  const detectWordFromLongPress = useCallback(
+    (segmentText: string, event: GestureResponderEvent) => {
       if (!onWordLongPress) return;
-      // Clean trailing punctuation from word
-      const cleanWord = word.replace(/[.,;:!?"']+$/, '');
-      if (!cleanWord) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onWordLongPress(verseNumber, cleanWord);
+
+      const { locationX } = event.nativeEvent;
+
+      // Estimate character position based on location
+      // Use segment width and character count for approximation
+      const avgCharWidth =
+        containerWidthRef.current > 0 && segmentText.length > 0
+          ? containerWidthRef.current / text.length
+          : DEFAULT_CHAR_WIDTH;
+
+      const charIndex = Math.floor(locationX / avgCharWidth);
+      const word = extractWordAtIndex(segmentText, charIndex);
+
+      if (word) {
+        // Clean trailing punctuation from word
+        const cleanWord = word.replace(/[.,;:!?"']+$/, '').replace(/^[.,;:!?"']+/, '');
+        if (cleanWord) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onWordLongPress(verseNumber, cleanWord);
+        }
+      }
     },
-    [onWordLongPress, verseNumber]
+    [onWordLongPress, verseNumber, text.length]
   );
 
   /**
@@ -332,7 +414,7 @@ export const HighlightedText = memo(function HighlightedText({
    */
   const highlightStyles = useMemo(() => {
     const styles: Record<string, { backgroundColor: string }> = {};
-    for (const { segment } of processedSegments) {
+    for (const segment of segments) {
       if (segment.highlight) {
         const color = segment.highlight.color;
         if (!styles[color]) {
@@ -347,7 +429,7 @@ export const HighlightedText = memo(function HighlightedText({
       }
     }
     return styles;
-  }, [processedSegments, mode]);
+  }, [segments, mode]);
 
   /**
    * Memoized auto-highlight styles
@@ -357,7 +439,7 @@ export const HighlightedText = memo(function HighlightedText({
       string,
       { backgroundColor: string; borderBottomWidth: number; borderBottomColor: string }
     > = {};
-    for (const { segment } of processedSegments) {
+    for (const segment of segments) {
       if (segment.autoHighlight) {
         const color = segment.autoHighlight.theme_color;
         if (!styles[color]) {
@@ -379,33 +461,32 @@ export const HighlightedText = memo(function HighlightedText({
       }
     }
     return styles;
-  }, [processedSegments, mode]);
+  }, [segments, mode]);
 
   return (
-    <Text style={style} selectable={false} suppressHighlighting={true} {...textProps}>
-      {processedSegments.map(({ segment, tokens, segmentKey }) => {
+    <Text
+      style={style}
+      selectable={false}
+      suppressHighlighting={true}
+      onTextLayout={handleTextLayout}
+      onLayout={handleLayout}
+      {...textProps}
+    >
+      {segments.map((segment) => {
         // User highlight segment (solid color)
         if (segment.highlight) {
           const highlightStyle = highlightStyles[segment.highlight.color];
-          const onPressHandler = () => {
-            if (segment.highlight?.highlight_id !== undefined) {
-              handleHighlightTap(segment.highlight.highlight_id);
-            }
-          };
+          const highlightId = segment.highlight.highlight_id;
 
           return (
-            <Text key={segmentKey} suppressHighlighting={true}>
-              {tokens.map((token) => (
-                <Text
-                  key={token.key}
-                  style={highlightStyle}
-                  onPress={onPressHandler}
-                  onLongPress={token.isWord ? () => handleWordLongPress(token.token) : undefined}
-                  suppressHighlighting={true}
-                >
-                  {token.token}
-                </Text>
-              ))}
+            <Text
+              key={segment.key}
+              style={highlightStyle}
+              onPress={() => handleHighlightTap(highlightId)}
+              onLongPress={(e) => detectWordFromLongPress(segment.text, e)}
+              suppressHighlighting={true}
+            >
+              {segment.text}
             </Text>
           );
         }
@@ -413,41 +494,30 @@ export const HighlightedText = memo(function HighlightedText({
         // Auto-highlight segment (lighter color + border)
         if (segment.autoHighlight) {
           const autoHighlightStyle = autoHighlightStyles[segment.autoHighlight.theme_color];
-          const onPressHandler = () => {
-            /* biome-ignore lint/style/noNonNullAssertion: Guarded by if (segment.autoHighlight) check */
-            handleAutoHighlightPress(segment.autoHighlight!);
-          };
+          const autoHighlight = segment.autoHighlight;
 
           return (
-            <Text key={segmentKey} suppressHighlighting={true}>
-              {tokens.map((token) => (
-                <Text
-                  key={token.key}
-                  style={autoHighlightStyle}
-                  onPress={onPressHandler}
-                  onLongPress={token.isWord ? () => handleWordLongPress(token.token) : undefined}
-                  suppressHighlighting={true}
-                >
-                  {token.token}
-                </Text>
-              ))}
+            <Text
+              key={segment.key}
+              style={autoHighlightStyle}
+              onPress={() => handleAutoHighlightPress(autoHighlight)}
+              onLongPress={(e) => detectWordFromLongPress(segment.text, e)}
+              suppressHighlighting={true}
+            >
+              {segment.text}
             </Text>
           );
         }
 
         // Plain text segment
         return (
-          <Text key={segmentKey} suppressHighlighting={true}>
-            {tokens.map((token) => (
-              <Text
-                key={token.key}
-                onPress={handleVerseTap}
-                onLongPress={token.isWord ? () => handleWordLongPress(token.token) : undefined}
-                suppressHighlighting={true}
-              >
-                {token.token}
-              </Text>
-            ))}
+          <Text
+            key={segment.key}
+            onPress={handleVerseTap}
+            onLongPress={(e) => detectWordFromLongPress(segment.text, e)}
+            suppressHighlighting={true}
+          >
+            {segment.text}
           </Text>
         );
       })}
