@@ -15,7 +15,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { type getColors, spacing } from '@/constants/bible-design-tokens';
+import { IconHelp } from '@/components/ui/icons';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -205,13 +206,13 @@ export default function HelpScreen() {
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
-          <Ionicons name="lock-closed-outline" size={64} color={colors.textTertiary} />
-          <Text style={styles.loginText}>Please sign in to contact support</Text>
-          <Pressable
-            style={[styles.newChatButton, { backgroundColor: colors.gold, marginTop: 20 }]}
-            onPress={() => router.push('/auth/login')}
-          >
-            <Text style={{ color: colors.background, fontWeight: '600' }}>Sign In</Text>
+          <IconHelp width={64} height={64} color={colors.textTertiary} />
+          <Text style={styles.emptyStateTitle}>Please sign in to contact support</Text>
+          <Text style={styles.emptyStateSubtitle}>
+            Get personalized assistance and track your conversation history
+          </Text>
+          <Pressable style={styles.loginButton} onPress={() => router.push('/auth/login')}>
+            <Text style={styles.loginButtonText}>Login</Text>
           </Pressable>
         </View>
       </View>
@@ -395,11 +396,32 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       color: colors.textSecondary,
       fontSize: 14,
     },
-    loginText: {
+    emptyStateTitle: {
+      fontSize: fontSizes.heading2,
+      fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
-      fontSize: 16,
-      marginTop: 16,
+      marginTop: spacing.lg,
       textAlign: 'center',
+    },
+    emptyStateSubtitle: {
+      fontSize: fontSizes.body,
+      color: colors.textSecondary,
+      marginTop: spacing.sm,
+      textAlign: 'center',
+      lineHeight: 24,
+      maxWidth: '80%',
+    },
+    loginButton: {
+      marginTop: spacing.xl,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      backgroundColor: colors.gold,
+      borderRadius: 8,
+    },
+    loginButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.background,
     },
     scrollContent: {
       paddingHorizontal: 16,
