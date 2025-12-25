@@ -27,7 +27,16 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, Share, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  Modal,
+  Platform,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
@@ -369,7 +378,7 @@ const createStyles = (
       backgroundColor: 'rgba(0,0,0,0.4)', // Slightly darker backdrop
       justifyContent: 'flex-end',
       flexDirection: 'row',
-      paddingTop: insets.top,
+      paddingTop: Platform.OS === 'ios' ? insets.top : 0,
     },
     backdropTouchable: {
       flex: 1,
@@ -391,7 +400,7 @@ const createStyles = (
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 16,
-      marginTop: 16,
+      marginTop: Platform.OS === 'android' ? insets.top + 16 : 16,
     },
     headerTitle: {
       fontSize: 18,

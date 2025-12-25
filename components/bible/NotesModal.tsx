@@ -36,6 +36,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CharacterCounter } from '@/components/bible/CharacterCounter';
+import { NoteEditModal } from '@/components/bible/NoteEditModal';
+import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import {
   fontSizes,
   fontWeights,
@@ -48,6 +50,7 @@ import { NOTES_CONFIG } from '@/constants/notes';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useNotes } from '@/hooks/bible/use-notes';
+import type { Note } from '@/types/notes';
 
 /**
  * Props for NotesModal component
@@ -73,9 +76,13 @@ export interface NotesModalProps {
 export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }: NotesModalProps) {
   const { colors, mode } = useTheme();
   const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
-  const { addNote, isAddingNote } = useNotes();
+  const { addNote, isAddingNote, deleteNote } = useNotes();
   const { showToast } = useToast();
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
+  const [activeNote, setActiveNote] = useState<Note | null>(null);
+  const [showNoteOptions, setShowNoteOptions] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const textInputRef = useRef<TextInput>(null);
 
   // Animation state for swipe-to-dismiss
@@ -186,10 +193,20 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
-      await addNote(bookId, chapterNumber, newNoteContent.trim());
+      const noteContent = newNoteContent.trim();
+      const addedNote = await addNote(bookId, chapterNumber, noteContent);
+
       // Clear textarea after successful addition
       setNewNoteContent('');
       showToast('Note added successfully');
+
+      if (addedNote) {
+        const noteWithBookName = {
+          ...addedNote,
+          book_name: bookName,
+        };
+        setRecentNotes((prev) => [noteWithBookName, ...prev]);
+      }
     } catch (error) {
       console.error('Failed to add note:', error);
     }
@@ -204,6 +221,48 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
     setImmediate(() => {
       handleAddNote();
     });
+  };
+
+  /**
+   * Handle note options menu (three dots)
+   */
+  const handleNoteMenuPress = async (note: Note) => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveNote(note);
+    setShowNoteOptions(true);
+  };
+
+  /**
+   * Handle edit from options modal
+   */
+  const handleEdit = () => {
+    setShowEditModal(true);
+  };
+
+  /**
+   * Handle action complete (copy, share, etc.)
+   */
+  const handleActionComplete = (action: string) => {
+    if (action === 'copy') {
+      showToast('Note copied to clipboard');
+    }
+  };
+
+  /**
+   * Handle note deletion from either modal
+   */
+  const handleDeleteLastNote = async (noteId: string) => {
+    // Optimistic update: clear UI immediately
+    setRecentNotes((prev) => prev.filter((n) => n.note_id !== noteId));
+    setShowEditModal(false);
+    setShowNoteOptions(false);
+    showToast('Note deleted successfully');
+
+    try {
+      await deleteNote(noteId);
+    } catch (error) {
+      console.error('Failed to delete note:', error);
+    }
   };
 
   /**
@@ -286,10 +345,68 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {/* Show most recently added notes */}
+              {recentNotes.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Recently Added Notes</Text>
+                  <View style={{ gap: 12 }}>
+                    {recentNotes.map((note) => (
+                      <View key={note.note_id} style={styles.noteCard}>
+                        <Text style={styles.noteContent}>{note.content}</Text>
+                        <Pressable
+                          onPress={() => handleNoteMenuPress(note)}
+                          style={styles.noteMenuButton}
+                          hitSlop={12}
+                        >
+                          <Ionicons
+                            name="ellipsis-horizontal"
+                            size={20}
+                            color={colors.textSecondary}
+                          />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
             </ScrollView>
           </SafeAreaView>
         </Animated.View>
       </KeyboardAvoidingView>
+
+      {/* Note Options Modal (same as notes page) */}
+      <NoteOptionsModal
+        visible={showNoteOptions}
+        onClose={() => setShowNoteOptions(false)}
+        note={activeNote}
+        deleteNote={handleDeleteLastNote}
+        onEdit={handleEdit}
+        onActionComplete={handleActionComplete}
+      />
+
+      {/* Edit Modal */}
+      {activeNote && (
+        <NoteEditModal
+          visible={showEditModal}
+          note={activeNote}
+          bookName={bookName}
+          chapterNumber={chapterNumber}
+          onClose={() => {
+            setShowEditModal(false);
+          }}
+          onSave={(newContent: string) => {
+            setShowEditModal(false);
+            // Update the local state immediately to reflect changes
+            setRecentNotes((prev) =>
+              prev.map((n) =>
+                n.note_id === activeNote.note_id ? { ...n, content: newContent } : n
+              )
+            );
+          }}
+          onDelete={handleDeleteLastNote}
+        />
+      )}
     </Modal>
   );
 }
@@ -405,6 +522,25 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     },
     notesList: {
       marginTop: spacing.sm,
+    },
+    noteCard: {
+      backgroundColor: colors.backgroundElevated,
+      borderRadius: 8,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+    },
+    noteContent: {
+      flex: 1,
+      fontSize: fontSizes.body,
+      color: colors.textPrimary,
+      lineHeight: fontSizes.body * 1.5,
+    },
+    noteMenuButton: {
+      padding: spacing.xs,
     },
   });
 };
