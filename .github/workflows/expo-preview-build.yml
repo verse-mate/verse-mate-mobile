@@ -12,6 +12,9 @@ on:
           - ios
           - android
         default: 'all'
+  push:
+    branches:
+      - '**'
 
 jobs:
   preview-build:
@@ -22,71 +25,114 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check for preview build trigger
+        id: check_trigger
+        run: |
+          # Get the commit message title (first line)
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          echo "Commit message: $COMMIT_MSG"
+
+          # Extract platform from commit message
+          PLATFORM=""
+          if [[ "$COMMIT_MSG" =~ \[preview:ios\] ]]; then
+            PLATFORM="ios"
+          elif [[ "$COMMIT_MSG" =~ \[preview:android\] ]]; then
+            PLATFORM="android"
+          elif [[ "$COMMIT_MSG" =~ \[preview:all\] ]]; then
+            PLATFORM="all"
+          fi
+
+          # If triggered manually, use the input parameter
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            PLATFORM="${{ github.event.inputs.platform }}"
+          fi
+
+          echo "platform=$PLATFORM" >> $GITHUB_OUTPUT
+          echo "Detected platform: $PLATFORM"
+
+          # Skip the workflow if no platform detected (for push events)
+          if [ -z "$PLATFORM" ] && [ "${{ github.event_name }}" == "push" ]; then
+            echo "No preview build tag found in commit message. Skipping."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Node.js
+        if: steps.check_trigger.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Setup Bun
+        if: steps.check_trigger.outputs.skip != 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Setup EAS CLI
+        if: steps.check_trigger.outputs.skip != 'true'
         run: npm install -g eas-cli
 
       - name: Install dependencies
+        if: steps.check_trigger.outputs.skip != 'true'
         run: bun install --frozen-lockfile
 
       - name: Run type checking
+        if: steps.check_trigger.outputs.skip != 'true'
         run: bun tsc --noEmit
 
       - name: Run linting
+        if: steps.check_trigger.outputs.skip != 'true'
         run: bun run lint
 
       - name: Run tests
+        if: steps.check_trigger.outputs.skip != 'true'
         run: npm test
 
       - name: Build iOS Preview
         id: ios_build
-        if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
+        if: ${{ steps.check_trigger.outputs.skip != 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'ios') }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/build-preview.sh ios
 
       - name: Build Android Preview
         id: android_build
-        if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+        if: ${{ steps.check_trigger.outputs.skip != 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'android') }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/build-preview.sh android
 
       - name: Submit to TestFlight
-        if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios' }}
+        if: ${{ steps.check_trigger.outputs.skip != 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'ios') }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/submit-testflight.sh "${{ steps.ios_build.outputs.build_id }}"
 
       - name: Submit to Play Store
-        if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+        if: ${{ steps.check_trigger.outputs.skip != 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'android') }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/submit-play-store.sh "${{ steps.android_build.outputs.build_id }}"
 
       - name: Build Summary
+        if: steps.check_trigger.outputs.skip != 'true'
         run: |
           echo "=========================================="
           echo "Preview Build Summary"
           echo "=========================================="
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Trigger: ${{ github.event_name }}"
           echo ""
-          if [ "${{ github.event.inputs.platform }}" == "all" ] || [ "${{ github.event.inputs.platform }}" == "ios" ]; then
+          if [ "${{ steps.check_trigger.outputs.platform }}" == "all" ] || [ "${{ steps.check_trigger.outputs.platform }}" == "ios" ]; then
             echo "📱 iOS Build:"
             echo "   Build ID: ${{ steps.ios_build.outputs.build_id }}"
             echo "   URL: ${{ steps.ios_build.outputs.build_url }}"
             echo "   Status: Submitted to TestFlight"
             echo ""
           fi
-          if [ "${{ github.event.inputs.platform }}" == "all" ] || [ "${{ github.event.inputs.platform }}" == "android" ]; then
+          if [ "${{ steps.check_trigger.outputs.platform }}" == "all" ] || [ "${{ steps.check_trigger.outputs.platform }}" == "android" ]; then
             echo "🤖 Android Build:"
             echo "   Build ID: ${{ steps.android_build.outputs.build_id }}"
             echo "   URL: ${{ steps.android_build.outputs.build_url }}"
