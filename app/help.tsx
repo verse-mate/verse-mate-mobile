@@ -1,6 +1,20 @@
+/**
+ * Help & Support Screen
+ *
+ * Chat-based support system with conversation list and messaging.
+ * Integrates with Slack for real-time support communication.
+ *
+ * Features:
+ * - Conversation list view with past chats
+ * - Real-time messaging with support team
+ * - Topic selection for new conversations
+ * - Message polling for live updates
+ * - Authentication required
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,6 +23,7 @@ import {
   Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -28,7 +43,14 @@ import {
   type SupportMessage,
 } from '@/lib/api/support';
 
-type ViewState = 'list' | 'chat';
+type ViewState = 'list' | 'chat' | 'newChat';
+
+const SUPPORT_TOPICS = [
+  'Report an App problem',
+  'Login/Password',
+  'Suggestions and ideas',
+  'Other',
+] as const;
 
 export default function HelpScreen() {
   const insets = useSafeAreaInsets();
@@ -42,6 +64,8 @@ export default function HelpScreen() {
   const [currentConvId, setCurrentConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [inputText, setInputText] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState<string>('');
+  const [showTopicPicker, setShowTopicPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -111,11 +135,23 @@ export default function HelpScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCurrentConvId(null);
     setMessages([]);
-    setView('chat');
+    setSelectedTopic('');
+    setInputText('');
+    setView('newChat');
+  };
+
+  const handleTopicSelect = (topic: string) => {
+    setSelectedTopic(topic);
+    setShowTopicPicker(false);
   };
 
   const handleSend = async () => {
     if (!inputText.trim()) return;
+
+    // For new conversations, require topic selection
+    if (!currentConvId && !selectedTopic) {
+      return;
+    }
 
     const text = inputText.trim();
     setInputText('');
@@ -123,17 +159,19 @@ export default function HelpScreen() {
 
     try {
       if (currentConvId) {
-        // Reply to existing
+        // Reply to existing conversation
         await postSupportMessage(currentConvId, text);
         await loadMessages(currentConvId);
       } else {
-        // Start new
-        const response = await postSupportConversation(text, 'New Support Request');
+        // Start new conversation with selected topic
+        const subject = selectedTopic || 'New Support Request';
+        const response = await postSupportConversation(text, subject);
         const data = response.data;
         if (data && 'success' in data && data.success) {
           setCurrentConvId(data.conversationId);
           await loadMessages(data.conversationId);
           loadConversations(); // Update list in background
+          setView('chat');
         }
       }
     } catch (error) {
@@ -143,9 +181,11 @@ export default function HelpScreen() {
 
   const handleBackPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (view === 'chat') {
+    if (view === 'chat' || view === 'newChat') {
       setView('list');
       setCurrentConvId(null);
+      setSelectedTopic('');
+      setInputText('');
       loadConversations();
     } else {
       router.back();
@@ -197,119 +237,219 @@ export default function HelpScreen() {
 
   if (!isAuthenticated) {
     return (
-      <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Help & Support</Text>
-          <View style={styles.headerSpacer} />
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.container}>
+          <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
+            <Pressable onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+            </Pressable>
+            <Text style={styles.headerTitle}>Help & Feedback</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+          <View style={styles.centerContent}>
+            <IconHelp width={64} height={64} color={colors.textTertiary} />
+            <Text style={styles.emptyStateTitle}>Please sign in to contact support</Text>
+            <Text style={styles.emptyStateSubtitle}>
+              Get personalized assistance and track your conversation history
+            </Text>
+            <Pressable style={styles.loginButton} onPress={() => router.push('/auth/login')}>
+              <Text style={styles.loginButtonText}>Login</Text>
+            </Pressable>
+          </View>
         </View>
-        <View style={styles.centerContent}>
-          <IconHelp width={64} height={64} color={colors.textTertiary} />
-          <Text style={styles.emptyStateTitle}>Please sign in to contact support</Text>
-          <Text style={styles.emptyStateSubtitle}>
-            Get personalized assistance and track your conversation history
-          </Text>
-          <Pressable style={styles.loginButton} onPress={() => router.push('/auth/login')}>
-            <Text style={styles.loginButtonText}>Login</Text>
-          </Pressable>
-        </View>
-      </View>
+      </>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <Pressable onPress={handleBackPress} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>
-          {view === 'chat' ? 'Conversation' : 'Help & Support'}
-        </Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      {view === 'list' ? (
-        <View style={{ flex: 1 }}>
-          <FlatList
-            data={conversations}
-            renderItem={renderConversationItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={colors.gold}
-              />
-            }
-            ListHeaderComponent={
-              <Pressable
-                onPress={handleStartNewConversation}
-                style={({ pressed }) => [styles.newChatButton, pressed && { opacity: 0.8 }]}
-              >
-                <Ionicons name="add-circle-outline" size={24} color={colors.gold} />
-                <Text style={styles.newChatText}>Start New Conversation</Text>
-              </Pressable>
-            }
-            ListEmptyComponent={
-              !isLoading ? (
-                <View style={styles.centerContent}>
-                  <Text style={styles.emptyText}>No past conversations found.</Text>
-                </View>
-              ) : null
-            }
-          />
-          {isLoading && (
-            <ActivityIndicator style={StyleSheet.absoluteFill} size="large" color={colors.gold} />
-          )}
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
+          <Pressable onPress={handleBackPress} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.headerTitle}>
+            {view === 'chat' || view === 'newChat' ? 'Conversation' : 'Help & Feedback'}
+          </Text>
+          <View style={styles.headerSpacer} />
         </View>
-      ) : (
-        <View style={{ flex: 1 }}>
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          />
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-          >
-            <View style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.input}
-                  value={inputText}
-                  onChangeText={setInputText}
-                  placeholder="Type a message..."
-                  placeholderTextColor={colors.textTertiary}
-                  multiline
-                  maxLength={500}
+        {view === 'list' ? (
+          <View style={{ flex: 1 }}>
+            <FlatList
+              data={conversations}
+              renderItem={renderConversationItem}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={colors.gold}
                 />
+              }
+              ListHeaderComponent={
                 <Pressable
-                  onPress={handleSend}
-                  style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
-                  disabled={!inputText.trim()}
+                  onPress={handleStartNewConversation}
+                  style={({ pressed }) => [styles.newChatButton, pressed && { opacity: 0.8 }]}
                 >
+                  <Ionicons name="add-circle-outline" size={24} color={colors.gold} />
+                  <Text style={styles.newChatText}>Start New Conversation</Text>
+                </Pressable>
+              }
+              ListEmptyComponent={
+                !isLoading ? (
+                  <View style={styles.centerContent}>
+                    <Text style={styles.emptyText}>No past conversations found.</Text>
+                  </View>
+                ) : null
+              }
+            />
+            {isLoading && (
+              <ActivityIndicator style={StyleSheet.absoluteFill} size="large" color={colors.gold} />
+            )}
+          </View>
+        ) : view === 'newChat' ? (
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <ScrollView
+              style={styles.newChatContainer}
+              contentContainerStyle={styles.newChatContent}
+            >
+              <Text style={styles.newChatTitle}>How can we help?</Text>
+              <Text style={styles.newChatSubtitle}>
+                Select a topic and tell us what happened. We read every message.
+              </Text>
+
+              {/* Topic Selector */}
+              <View style={styles.topicContainer}>
+                <Text style={styles.topicLabel}>
+                  Topic<Text style={styles.requiredStar}>*</Text>
+                </Text>
+                <Pressable
+                  style={styles.topicSelector}
+                  onPress={() => setShowTopicPicker(!showTopicPicker)}
+                >
+                  <Text
+                    style={[styles.topicSelectorText, !selectedTopic && styles.topicPlaceholder]}
+                  >
+                    {selectedTopic || 'Select a topic'}
+                  </Text>
                   <Ionicons
-                    name="send"
+                    name={showTopicPicker ? 'chevron-up' : 'chevron-down'}
                     size={20}
-                    color={inputText.trim() ? colors.gold : colors.textTertiary}
+                    color={colors.textSecondary}
                   />
                 </Pressable>
+
+                {showTopicPicker && (
+                  <View style={styles.topicPicker}>
+                    {SUPPORT_TOPICS.map((topic) => (
+                      <Pressable
+                        key={topic}
+                        style={[
+                          styles.topicOption,
+                          selectedTopic === topic && styles.topicOptionSelected,
+                        ]}
+                        onPress={() => handleTopicSelect(topic)}
+                      >
+                        <Text
+                          style={[
+                            styles.topicOptionText,
+                            selectedTopic === topic && styles.topicOptionTextSelected,
+                          ]}
+                        >
+                          {topic}
+                        </Text>
+                        {selectedTopic === topic && (
+                          <Ionicons name="checkmark" size={20} color={colors.gold} />
+                        )}
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
               </View>
+
+              {/* Message Input */}
+              <View style={styles.messageInputContainer}>
+                <Text style={styles.messageLabel}>Your message</Text>
+                <TextInput
+                  style={styles.messageInput}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder="Tell us what happened..."
+                  placeholderTextColor={colors.textTertiary}
+                  multiline
+                  numberOfLines={6}
+                  textAlignVertical="top"
+                  maxLength={1000}
+                />
+              </View>
+            </ScrollView>
+
+            {/* Submit Button */}
+            <View style={[styles.submitContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+              <Pressable
+                style={[
+                  styles.submitButton,
+                  (!selectedTopic || !inputText.trim()) && styles.submitButtonDisabled,
+                ]}
+                onPress={handleSend}
+                disabled={!selectedTopic || !inputText.trim()}
+              >
+                <Text style={styles.submitButtonText}>Submit</Text>
+              </Pressable>
             </View>
           </KeyboardAvoidingView>
-        </View>
-      )}
-    </View>
+        ) : (
+          <View style={{ flex: 1 }}>
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              renderItem={renderMessage}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            />
+
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+              <View style={[styles.inputArea, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={styles.input}
+                    value={inputText}
+                    onChangeText={setInputText}
+                    placeholder="Type a message..."
+                    placeholderTextColor={colors.textTertiary}
+                    multiline
+                    maxLength={500}
+                  />
+                  <Pressable
+                    onPress={handleSend}
+                    style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+                    disabled={!inputText.trim()}
+                  >
+                    <Ionicons
+                      name="send"
+                      size={20}
+                      color={inputText.trim() ? colors.gold : colors.textTertiary}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        )}
+      </View>
+    </>
   );
 }
 
@@ -317,7 +457,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.backgroundSecondary,
+      backgroundColor: colors.background,
     },
     header: {
       flexDirection: 'row',
@@ -325,6 +465,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       justifyContent: 'space-between',
       paddingHorizontal: spacing.lg,
       paddingBottom: spacing.md,
+      backgroundColor: colors.backgroundSecondary,
     },
     backButton: {
       width: 40,
@@ -391,6 +532,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       alignItems: 'center',
       justifyContent: 'center',
       paddingTop: 100,
+      paddingHorizontal: 32,
     },
     emptyText: {
       color: colors.textSecondary,
@@ -485,7 +627,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     inputArea: {
       paddingHorizontal: 16,
       paddingTop: 8,
-      backgroundColor: colors.backgroundSecondary,
+      backgroundColor: colors.background,
     },
     inputWrapper: {
       flexDirection: 'row',
@@ -511,5 +653,123 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     sendButtonDisabled: {
       opacity: 0.5,
+    },
+
+    // New Chat View Styles
+    newChatContainer: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    newChatContent: {
+      padding: 24,
+      gap: 24,
+    },
+    newChatTitle: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: colors.textPrimary,
+    },
+    newChatSubtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      lineHeight: 24,
+    },
+    topicContainer: {
+      gap: 8,
+    },
+    topicLabel: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    requiredStar: {
+      color: colors.error,
+    },
+    topicSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      minHeight: 48,
+    },
+    topicSelectorText: {
+      fontSize: 16,
+      color: colors.textPrimary,
+    },
+    topicPlaceholder: {
+      color: colors.textTertiary,
+    },
+    topicPicker: {
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
+      borderRadius: 8,
+      overflow: 'hidden',
+      marginTop: 4,
+    },
+    topicOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSecondary,
+    },
+    topicOptionSelected: {
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    },
+    topicOptionText: {
+      fontSize: 16,
+      color: colors.textPrimary,
+    },
+    topicOptionTextSelected: {
+      color: colors.gold,
+      fontWeight: '500',
+    },
+    messageInputContainer: {
+      gap: 8,
+    },
+    messageLabel: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    messageInput: {
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.borderSecondary,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontSize: 16,
+      color: colors.textPrimary,
+      minHeight: 120,
+      textAlignVertical: 'top',
+    },
+    submitContainer: {
+      paddingHorizontal: 24,
+      paddingTop: 16,
+      backgroundColor: colors.background,
+    },
+    submitButton: {
+      backgroundColor: colors.gold,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    submitButtonDisabled: {
+      opacity: 0.5,
+    },
+    submitButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.background,
     },
   });
