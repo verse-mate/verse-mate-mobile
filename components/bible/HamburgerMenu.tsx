@@ -158,10 +158,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       router.push('/settings' as never);
     } else if (item.action === 'about') {
       onClose();
-      showMessage(
-        'About VerseMate',
-        'VerseMate v1.0.0\n\nYour companion for Bible study and spiritual growth.'
-      );
+      router.push('/about');
     } else if (item.action === 'giving') {
       onClose();
       showMessage('Giving', 'Support VerseMate with your contribution (Coming Soon).');
