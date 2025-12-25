@@ -94,6 +94,9 @@ export default function AboutScreen() {
                 lasting transformation.
               </Text>
             </View>
+
+            {/* Team Signatures - Easter Egg */}
+            <Text style={styles.signatures}>SB · AC · AM · AZ · SZ · VB · VK · VK · AT</Text>
           </View>
         </ScrollView>
       </View>
@@ -160,5 +163,14 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       fontWeight: '300',
       color: colors.textSecondary,
       lineHeight: 24,
+    },
+    signatures: {
+      fontSize: 14,
+      fontWeight: '300',
+      color: colors.textTertiary,
+      textAlign: 'center',
+      marginTop: 40,
+      opacity: 0.7,
+      letterSpacing: 1,
     },
   });
