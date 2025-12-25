@@ -780,7 +780,6 @@ function createStyles(
       // Offset to center the touch area over the visual divider line
       marginLeft: -10,
       marginRight: -10,
-      marginTop: -80, // Move up more to align with target buttons
     },
     dividerContainerActive: {
       backgroundColor: 'rgba(0, 0, 0, 0.05)',
@@ -806,10 +805,11 @@ function createStyles(
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 3,
+      transform: [{ translateY: -80 }],
     },
     dividerHandleActive: {
       backgroundColor: specs.dividerHandleActiveColor,
-      transform: [{ scale: 1.1 }],
+      transform: [{ scale: 1.1 }, { translateY: -80 }],
     },
     targetButton: {
       position: 'absolute',
@@ -830,12 +830,12 @@ function createStyles(
     targetButtonLeft: {
       left: -60,
       top: '50%',
-      marginTop: -22, // Bring down to align with divider and edge tabs
+      marginTop: -102, // -22 (center) - 80 (offset)
     },
     targetButtonRight: {
       right: -60,
       top: '50%',
-      marginTop: -22, // Bring down to align with divider and edge tabs
+      marginTop: -102, // -22 (center) - 80 (offset)
     },
     edgeTab: {
       position: 'absolute',
@@ -843,7 +843,6 @@ function createStyles(
       height: '100%',
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: -80, // Move up more to align with target buttons (same as divider)
       zIndex: 100, // High z-index to be above all content
       pointerEvents: 'box-none', // Pass touches to children
     },
@@ -871,6 +870,7 @@ function createStyles(
       shadowRadius: 4,
       elevation: 4,
       pointerEvents: 'box-only', // Only this element captures touches
+      transform: [{ translateY: -80 }],
     },
     leftEdgeTabButton: {
       // Half-circle glued to left edge (rounded on right side only)

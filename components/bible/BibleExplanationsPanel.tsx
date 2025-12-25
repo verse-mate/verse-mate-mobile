@@ -92,9 +92,12 @@ export function BibleExplanationsPanel({
   testID = 'bible-explanations-panel',
 }: BibleExplanationsPanelProps) {
   const { mode, colors } = useTheme();
-  const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
-  const { styles, markdownStyles } = useMemo(() => createStyles(specs, colors), [specs, colors]);
   const insets = useSafeAreaInsets();
+  const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
+  const { styles, markdownStyles } = useMemo(
+    () => createStyles(specs, colors, insets),
+    [specs, colors, insets]
+  );
 
   // Animation for sliding tab indicator
   const getTabIndex = useCallback((tab: ContentTabType) => TABS.findIndex((t) => t.id === tab), []);
@@ -236,30 +239,33 @@ export function BibleExplanationsPanel({
 
   return (
     <View
-      style={[styles.container, { paddingTop: insets.top + spacing.sm }]}
+      style={styles.container}
       testID={testID}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Header Bar */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          {bookName} {chapterNumber} Insights
-        </Text>
-        {onMenuPress && (
-          <Pressable
-            style={styles.menuButton}
-            onPress={onMenuPress}
-            accessibilityLabel="Open menu"
-            accessibilityRole="button"
-            testID={`${testID}-menu-button`}
-          >
-            <Ionicons name="menu" size={24} color={specs.headerTextColor} />
-          </Pressable>
-        )}
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>
+            {bookName} {chapterNumber} Insights
+          </Text>
+          {onMenuPress && (
+            <Pressable
+              style={styles.menuButton}
+              onPress={onMenuPress}
+              accessibilityLabel="Open menu"
+              accessibilityRole="button"
+              testID={`${testID}-menu-button`}
+            >
+              <Ionicons name="menu" size={24} color={specs.headerTextColor} />
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {/* Tab Selector */}
+
       <View style={styles.tabContainer}>
         <View
           style={styles.tabsRow}
@@ -340,7 +346,8 @@ export function BibleExplanationsPanel({
  */
 function createStyles(
   specs: ReturnType<typeof getSplitViewSpecs>,
-  colors: ReturnType<typeof getColors>
+  colors: ReturnType<typeof getColors>,
+  insets: ReturnType<typeof useSafeAreaInsets>
 ) {
   const styles = StyleSheet.create({
     container: {
@@ -348,12 +355,19 @@ function createStyles(
       backgroundColor: colors.background,
     },
     header: {
-      height: specs.headerHeight,
+      minHeight: specs.headerHeight + insets.top,
+      paddingTop: insets.top,
+      paddingBottom: spacing.sm,
       backgroundColor: specs.headerBackground,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    headerContent: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: spacing.lg,
+      height: specs.headerHeight,
+      width: '100%',
     },
     headerTitle: {
       fontSize: fontSizes.body,

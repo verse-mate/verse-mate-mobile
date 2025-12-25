@@ -110,9 +110,9 @@ export function BibleContentPanel({
   testID = 'bible-content-panel',
 }: BibleContentPanelProps) {
   const { mode, colors } = useTheme();
-  const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
-  const styles = useMemo(() => createStyles(specs, colors), [specs, colors]);
   const insets = useSafeAreaInsets();
+  const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
+  const styles = useMemo(() => createStyles(specs, colors, insets), [specs, colors, insets]);
 
   // Ref for ChapterPagerView imperative control
   const pagerRef = useRef<ChapterPagerViewRef>(null);
@@ -143,7 +143,7 @@ export function BibleContentPanel({
   }, [canGoNext, onNavigateNext]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>
+    <View style={styles.container} testID={testID}>
       {/* Header Bar */}
       <Pressable style={styles.header} onPress={onHeaderPress} testID={`${testID}-header`}>
         <View style={styles.headerContent}>
@@ -190,7 +190,8 @@ export function BibleContentPanel({
  */
 function createStyles(
   specs: ReturnType<typeof getSplitViewSpecs>,
-  colors: ReturnType<typeof getColors>
+  colors: ReturnType<typeof getColors>,
+  insets: ReturnType<typeof useSafeAreaInsets>
 ) {
   return StyleSheet.create({
     container: {
@@ -198,7 +199,9 @@ function createStyles(
       backgroundColor: colors.background,
     },
     header: {
-      height: specs.headerHeight,
+      minHeight: specs.headerHeight + insets.top,
+      paddingTop: insets.top,
+      paddingBottom: spacing.sm,
       backgroundColor: specs.headerBackground,
       justifyContent: 'center',
       paddingHorizontal: spacing.lg,
@@ -207,6 +210,7 @@ function createStyles(
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      height: specs.headerHeight,
     },
     headerTitle: {
       fontSize: fontSizes.body,

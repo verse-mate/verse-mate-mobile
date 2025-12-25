@@ -35,6 +35,15 @@ const tabletSlides = [
   require('../assets/images/onboarding/slide6-tablet.jpg'),
 ];
 
+const tabletLandscapeSlides = [
+  require('../assets/images/onboarding/slide1-tablet-landscape.jpg'),
+  require('../assets/images/onboarding/slide2-tablet-landscape.jpg'),
+  require('../assets/images/onboarding/slide3-tablet-landscape.jpg'),
+  require('../assets/images/onboarding/slide4-tablet-landscape.jpg'),
+  require('../assets/images/onboarding/slide5-tablet-landscape.jpg'),
+  require('../assets/images/onboarding/slide6-tablet-landscape.jpg'),
+];
+
 export const ONBOARDING_KEY = 'HAS_SEEN_ONBOARDING';
 
 const PaginationDot = ({
@@ -75,7 +84,7 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
 
   const { isTablet, isLandscape } = useDeviceInfo();
-  const slides = isTablet ? tabletSlides : phoneSlides;
+  const slides = isTablet ? (isLandscape ? tabletLandscapeSlides : tabletSlides) : phoneSlides;
 
   // Shared value to track scroll position (0 to slides.length - 1)
   const scrollOffset = useSharedValue(0);
@@ -141,22 +150,8 @@ export default function OnboardingScreen() {
         {slides.map((slide, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: slides array is static and never reordered
           <View key={index} style={styles.slide}>
-            {/* Ambient Background for Landscape */}
-            {isLandscape && (
-              <Image
-                source={slide}
-                style={[StyleSheet.absoluteFill, { opacity: 0.6 }]}
-                contentFit="cover"
-                blurRadius={50}
-              />
-            )}
             {/* Main Image */}
-            <Image
-              source={slide}
-              style={styles.image}
-              contentFit={isLandscape ? 'contain' : 'cover'}
-              transition={200}
-            />
+            <Image source={slide} style={styles.image} contentFit="cover" transition={200} />
           </View>
         ))}
       </PagerView>

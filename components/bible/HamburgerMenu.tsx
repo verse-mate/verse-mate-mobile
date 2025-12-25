@@ -25,6 +25,7 @@
 
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -104,9 +105,12 @@ const regularMenuItems: MenuItem[] = [
 export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const { colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
-  const menuWidth = Math.min(windowWidth * 0.85, 340); // Slightly wider to match Figma feel
-  const styles = useMemo(() => createStyles(colors, menuWidth), [colors, menuWidth]);
+  const menuWidth = Math.min(windowWidth * 0.85, 340);
   const insets = useSafeAreaInsets();
+  const styles = useMemo(
+    () => createStyles(colors, menuWidth, insets),
+    [colors, menuWidth, insets]
+  );
   const { user, isAuthenticated, logout } = useAuth();
 
   // Message Modal State
@@ -224,6 +228,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
         onRequestClose={onClose}
         testID="hamburger-menu-modal"
       >
+        <StatusBar style="light" />
         <GestureHandlerRootView style={{ flex: 1 }}>
           <GestureDetector gesture={panGesture}>
             <Animated.View
@@ -238,7 +243,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
               />
 
               <Animated.View
-                style={[styles.menuContainer, animatedStyle, { paddingTop: insets.top }]}
+                style={[styles.menuContainer, animatedStyle]}
                 entering={SlideInRight.duration(300)}
                 exiting={SlideOutRight.duration(300)}
                 testID="hamburger-menu"
@@ -348,13 +353,18 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>, menuWidth: number) =>
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  menuWidth: number,
+  insets: ReturnType<typeof useSafeAreaInsets>
+) =>
   StyleSheet.create({
     backdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.4)', // Slightly darker backdrop
       justifyContent: 'flex-end',
       flexDirection: 'row',
+      paddingTop: insets.top,
     },
     backdropTouchable: {
       flex: 1,
@@ -369,6 +379,7 @@ const createStyles = (colors: ReturnType<typeof getColors>, menuWidth: number) =
       shadowRadius: 8,
       elevation: 5,
       paddingHorizontal: 16, // Figma uses padding
+      borderTopLeftRadius: 24,
     },
     headerControls: {
       flexDirection: 'row',
