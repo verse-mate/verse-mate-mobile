@@ -27,16 +27,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  Share,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Modal, Pressable, Share, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   FadeIn,
@@ -66,6 +57,7 @@ import type { getColors } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { MessageModal } from './MessageModal';
+import { SuccessModal } from './SuccessModal';
 
 interface HamburgerMenuProps {
   /** Whether menu is visible */
@@ -117,6 +109,10 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalContent, setModalContent] = useState({ title: '', message: '' });
 
+  // Success Modal State
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [successModalContent, setSuccessModalContent] = useState({ title: '', message: '' });
+
   // Shared value for swipe translation
   const translateX = useSharedValue(0);
 
@@ -135,6 +131,11 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const showMessage = (title: string, message: string) => {
     setModalContent({ title, message });
     setModalVisible(true);
+  };
+
+  const showSuccess = (title: string, message: string) => {
+    setSuccessModalContent({ title, message });
+    setSuccessModalVisible(true);
   };
 
   /**
@@ -161,7 +162,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       router.push('/about');
     } else if (item.action === 'giving') {
       onClose();
-      showMessage('Giving', 'Support VerseMate with your contribution (Coming Soon).');
+      router.push('/giving');
     } else if (item.action === 'help') {
       onClose();
       router.push('/help');
@@ -182,7 +183,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
         showMessage('Share Error', 'Could not open share dialog.');
       }
     } else {
-      Alert.alert('Coming Soon', `${item.label} feature is coming soon!`);
+      showMessage('Coming Soon', `${item.label} feature is coming soon!`);
     }
   };
 
@@ -309,7 +310,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                     onPress={async () => {
                       if (isAuthenticated) {
                         await logout();
-                        Alert.alert('Logged Out', 'You have been logged out successfully.');
+                        showSuccess('Logged Out', 'You have been logged out successfully.');
                         onClose();
                       } else {
                         onClose();
@@ -345,6 +346,13 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
         onClose={() => setModalVisible(false)}
         title={modalContent.title}
         message={modalContent.message}
+      />
+
+      <SuccessModal
+        visible={successModalVisible}
+        onClose={() => setSuccessModalVisible(false)}
+        title={successModalContent.title}
+        message={successModalContent.message}
       />
     </>
   );
