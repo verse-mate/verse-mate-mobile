@@ -338,6 +338,12 @@ function RootLayoutInner() {
             }}
           />
           <Stack.Screen
+            name="help"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
             name="onboarding"
             options={{
               headerShown: false,
