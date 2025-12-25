@@ -162,6 +162,8 @@ export default function Login() {
               onChangeText={setEmail}
               placeholder="Email"
               keyboardType="email-address"
+              autoCorrect={false}
+              spellCheck={false}
               error={errors.email}
               testID="login-email"
             />
@@ -173,6 +175,8 @@ export default function Login() {
               onChangeText={setPassword}
               placeholder="Password"
               secureTextEntry
+              autoCorrect={false}
+              spellCheck={false}
               error={errors.password}
               testID="login-password"
               autoComplete="off"

@@ -224,6 +224,8 @@ export default function Signup() {
               onChangeText={setEmail}
               placeholder="Email"
               keyboardType="email-address"
+              autoCorrect={false}
+              spellCheck={false}
               error={errors.email}
               testID="signup-email"
             />
@@ -235,6 +237,8 @@ export default function Signup() {
               onChangeText={setPassword}
               placeholder="Password"
               secureTextEntry
+              autoCorrect={false}
+              spellCheck={false}
               error={errors.password}
               testID="signup-password"
               autoComplete="off"
