@@ -50,7 +50,7 @@ export interface NoteEditModalProps {
   bookName: string;
   chapterNumber: number;
   onClose: () => void;
-  onSave: () => void;
+  onSave?: (content: string) => void;
   onDelete?: (noteId: string) => Promise<void>;
 }
 
@@ -218,7 +218,8 @@ export function NoteEditModal({
     try {
       await updateNote(note.note_id, content.trim());
       await clearDraft();
-      animateClose(onSave);
+      onSave?.(content.trim());
+      handleDismiss();
       // Note: we don't reset isSavingRef here because the component will unmount
     } catch (error) {
       console.error('Failed to update note:', error);

@@ -541,7 +541,7 @@ export function VerseMateTooltip({
         {/* Content */}
         <View style={styles.contentContainer}>
           <View style={styles.scrollContainer}>
-            <View {...panResponder.panHandlers}>
+            <View {...panResponder.panHandlers} style={{ paddingHorizontal: spacing.lg }}>
               {/* Title with optional color indicator */}
               <View style={styles.titleRow}>
                 <Text style={styles.title}>{verseReference}</Text>

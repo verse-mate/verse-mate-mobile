@@ -457,7 +457,7 @@ export function AutoHighlightTooltip({
         {/* Content */}
         <View style={styles.contentContainer}>
           <View style={styles.scrollContainer}>
-            <View {...panResponder.panHandlers}>
+            <View {...panResponder.panHandlers} style={{ paddingHorizontal: spacing.lg }}>
               {/* Title with optional color indicator */}
               <View style={styles.titleRow}>
                 <Text style={styles.title}>{autoHighlight.theme_name}</Text>
@@ -800,6 +800,7 @@ const createStyles = (
       borderTopWidth: 1,
       borderTopColor: colors.divider,
       paddingTop: spacing.lg,
+      paddingHorizontal: spacing.lg,
       flexShrink: 1,
       minHeight: 0,
     },

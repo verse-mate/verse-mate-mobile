@@ -124,7 +124,11 @@ export default function Login() {
 
   // Handle continue without account
   const handleContinueWithout = () => {
-    router.dismiss();
+    if (router.canGoBack()) {
+      router.dismiss();
+    } else {
+      router.replace('/bible/1/1');
+    }
   };
 
   return (
@@ -158,6 +162,8 @@ export default function Login() {
               onChangeText={setEmail}
               placeholder="Email"
               keyboardType="email-address"
+              autoCorrect={false}
+              spellCheck={false}
               error={errors.email}
               testID="login-email"
             />
@@ -169,6 +175,8 @@ export default function Login() {
               onChangeText={setPassword}
               placeholder="Password"
               secureTextEntry
+              autoCorrect={false}
+              spellCheck={false}
               error={errors.password}
               testID="login-password"
               autoComplete="off"

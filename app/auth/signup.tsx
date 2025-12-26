@@ -158,7 +158,11 @@ export default function Signup() {
 
   // Handle continue without account
   const handleContinueWithout = () => {
-    router.dismiss();
+    if (router.canGoBack()) {
+      router.dismiss();
+    } else {
+      router.replace('/bible/1/1');
+    }
   };
 
   return (
@@ -220,6 +224,8 @@ export default function Signup() {
               onChangeText={setEmail}
               placeholder="Email"
               keyboardType="email-address"
+              autoCorrect={false}
+              spellCheck={false}
               error={errors.email}
               testID="signup-email"
             />
@@ -231,6 +237,8 @@ export default function Signup() {
               onChangeText={setPassword}
               placeholder="Password"
               secureTextEntry
+              autoCorrect={false}
+              spellCheck={false}
               error={errors.password}
               testID="signup-password"
               autoComplete="off"

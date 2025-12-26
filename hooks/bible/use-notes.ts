@@ -71,8 +71,8 @@ export interface UseNotesResult {
   isUpdatingNote: boolean;
   /** Whether a note is being deleted */
   isDeletingNote: boolean;
-  /** Add a note with optimistic update */
-  addNote: (bookId: number, chapterNumber: number, content: string) => Promise<void>;
+  /** Add a note with optimistic update, returns the created note */
+  addNote: (bookId: number, chapterNumber: number, content: string) => Promise<Note | null>;
   /** Update a note with optimistic update */
   updateNote: (noteId: string, content: string) => Promise<void>;
   /** Delete a note with optimistic update */
@@ -315,21 +315,21 @@ export function useNotes(): UseNotesResult {
    * Add a note with optimistic update
    */
   const addNote = useCallback(
-    async (bookId: number, chapterNumber: number, content: string): Promise<void> => {
+    async (bookId: number, chapterNumber: number, content: string): Promise<Note | null> => {
       // Check authentication
       if (!isAuthenticated || !user?.id) {
         console.error('User must be authenticated to add notes');
-        return;
+        return null;
       }
 
       // Validate content
       if (!content.trim()) {
         console.error('Note content cannot be empty');
-        return;
+        return null;
       }
 
       // Call mutation
-      await addMutation.mutateAsync({
+      const response = await addMutation.mutateAsync({
         body: {
           user_id: user.id,
           book_id: bookId,
@@ -337,6 +337,21 @@ export function useNotes(): UseNotesResult {
           content: content.trim(),
         },
       } as PostBibleBookNoteAddData);
+
+      if (response?.note) {
+        return {
+          note_id: response.note.note_id,
+          content: response.note.content,
+          created_at: response.note.created_at,
+          updated_at: response.note.updated_at,
+          book_id: bookId,
+          chapter_number: chapterNumber,
+          book_name: '', // Will be populated by UI context
+          verse_number: typeof response.note.verse_id === 'number' ? response.note.verse_id : null,
+        };
+      }
+
+      return null;
     },
     [isAuthenticated, user?.id, addMutation]
   );
