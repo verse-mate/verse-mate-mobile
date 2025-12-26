@@ -23,6 +23,7 @@ import SettingsScreen from '@/app/settings';
 import type { User } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import * as sdk from '@/src/api/generated/sdk.gen';
 
 // Mock dependencies
@@ -41,11 +42,22 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@/contexts/AuthContext');
 jest.mock('@/hooks/use-bible-version');
+jest.mock('@/hooks/useDeleteAccount');
 jest.mock('@/src/api/generated/sdk.gen');
 
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn().mockResolvedValue(undefined),
   ImpactFeedbackStyle: { Light: 'light' },
+}));
+
+// Mock PostHog
+jest.mock('posthog-react-native', () => ({
+  PostHogProvider: ({ children }: { children: React.ReactNode }) => children,
+  usePostHog: () => ({
+    capture: jest.fn(),
+    identify: jest.fn(),
+    reset: jest.fn(),
+  }),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -74,11 +86,25 @@ jest.mock('@/components/settings/ThemeSelector', () => ({
   },
 }));
 
+// Mock Delete Account modals
+jest.mock('@/components/account/DeleteAccountWarningModal', () => ({
+  DeleteAccountWarningModal: () => null,
+}));
+
+jest.mock('@/components/account/DeleteAccountPasswordModal', () => ({
+  DeleteAccountPasswordModal: () => null,
+}));
+
+jest.mock('@/components/account/DeleteAccountFinalModal', () => ({
+  DeleteAccountFinalModal: () => null,
+}));
+
 // Spy on Alert
 const alertSpy = jest.spyOn(Alert, 'alert');
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUseBibleVersion = useBibleVersion as jest.MockedFunction<typeof useBibleVersion>;
+const mockUseDeleteAccount = useDeleteAccount as jest.MockedFunction<typeof useDeleteAccount>;
 const mockGetBibleLanguages = sdk.getBibleLanguages as jest.MockedFunction<
   typeof sdk.getBibleLanguages
 >;
@@ -126,6 +152,14 @@ describe('SettingsScreen', () => {
       bibleVersion: 'kjv',
       setBibleVersion: jest.fn().mockResolvedValue(undefined),
       isLoading: false,
+    });
+
+    // Default: Mock useDeleteAccount hook
+    mockUseDeleteAccount.mockReturnValue({
+      deleteAccount: jest.fn().mockResolvedValue(true),
+      isDeleting: false,
+      error: null,
+      clearError: jest.fn(),
     });
 
     // Default: Mock empty languages
