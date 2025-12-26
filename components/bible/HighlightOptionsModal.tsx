@@ -164,12 +164,6 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       marginBottom: spacing.xl,
       lineHeight: fontSizes.body * 1.5,
     },
-    dialogSubmessage: {
-      fontSize: fontSizes.bodySmall,
-      color: colors.textTertiary,
-      textAlign: 'center',
-      marginBottom: spacing.xl,
-    },
     dialogActions: {
       flexDirection: 'row',
       gap: spacing.md,
@@ -489,7 +483,6 @@ export function HighlightOptionsModal({
                   <Text style={styles.dialogMessage}>
                     Are you sure you want to delete this highlight?
                   </Text>
-                  <Text style={styles.dialogSubmessage}>This action cannot be undone.</Text>
                   <View style={styles.dialogActions}>
                     <Pressable
                       onPress={() => setIsConfirmDeleteVisible(false)}

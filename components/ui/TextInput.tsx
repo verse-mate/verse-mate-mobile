@@ -28,6 +28,8 @@ export interface TextInputProps {
   testID?: string;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  autoCorrect?: boolean;
+  spellCheck?: boolean;
   autoComplete?:
     | 'off'
     | 'email'
@@ -66,6 +68,8 @@ export const TextInput: React.FC<TextInputProps> = ({
   testID,
   autoCapitalize = 'none',
   keyboardType = 'default',
+  autoCorrect,
+  spellCheck,
   autoComplete,
   textContentType,
 }) => {
@@ -91,6 +95,8 @@ export const TextInput: React.FC<TextInputProps> = ({
           testID={testID}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
+          autoCorrect={autoCorrect}
+          spellCheck={spellCheck}
           autoComplete={autoComplete}
           textContentType={textContentType}
           accessible={true}

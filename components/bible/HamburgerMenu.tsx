@@ -25,10 +25,11 @@
 
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Modal,
+  Platform,
   Pressable,
   Share,
   StyleSheet,
@@ -65,6 +66,7 @@ import type { getColors } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { MessageModal } from './MessageModal';
+import { SuccessModal } from './SuccessModal';
 
 interface HamburgerMenuProps {
   /** Whether menu is visible */
@@ -104,14 +106,21 @@ const regularMenuItems: MenuItem[] = [
 export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const { colors } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
-  const menuWidth = Math.min(windowWidth * 0.85, 340); // Slightly wider to match Figma feel
-  const styles = useMemo(() => createStyles(colors, menuWidth), [colors, menuWidth]);
+  const menuWidth = Math.min(windowWidth * 0.85, 340);
   const insets = useSafeAreaInsets();
+  const styles = useMemo(
+    () => createStyles(colors, menuWidth, insets),
+    [colors, menuWidth, insets]
+  );
   const { user, isAuthenticated, logout } = useAuth();
 
   // Message Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [modalContent, setModalContent] = useState({ title: '', message: '' });
+
+  // Success Modal State
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [successModalContent, setSuccessModalContent] = useState({ title: '', message: '' });
 
   // Shared value for swipe translation
   const translateX = useSharedValue(0);
@@ -131,6 +140,11 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const showMessage = (title: string, message: string) => {
     setModalContent({ title, message });
     setModalVisible(true);
+  };
+
+  const showSuccess = (title: string, message: string) => {
+    setSuccessModalContent({ title, message });
+    setSuccessModalVisible(true);
   };
 
   /**
@@ -154,16 +168,13 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       router.push('/settings' as never);
     } else if (item.action === 'about') {
       onClose();
-      showMessage(
-        'About VerseMate',
-        'VerseMate v1.0.0\n\nYour companion for Bible study and spiritual growth.'
-      );
+      router.push('/about');
     } else if (item.action === 'giving') {
       onClose();
-      showMessage('Giving', 'Support VerseMate with your contribution (Coming Soon).');
+      router.push('/giving');
     } else if (item.action === 'help') {
       onClose();
-      showMessage('Help', 'Help & Support documentation is coming soon!');
+      router.push('/help');
     } else if (item.action === 'share') {
       try {
         const result = await Share.share({
@@ -181,7 +192,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
         showMessage('Share Error', 'Could not open share dialog.');
       }
     } else {
-      Alert.alert('Coming Soon', `${item.label} feature is coming soon!`);
+      showMessage('Coming Soon', `${item.label} feature is coming soon!`);
     }
   };
 
@@ -224,6 +235,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
         onRequestClose={onClose}
         testID="hamburger-menu-modal"
       >
+        <StatusBar style="light" />
         <GestureHandlerRootView style={{ flex: 1 }}>
           <GestureDetector gesture={panGesture}>
             <Animated.View
@@ -238,7 +250,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
               />
 
               <Animated.View
-                style={[styles.menuContainer, animatedStyle, { paddingTop: insets.top }]}
+                style={[styles.menuContainer, animatedStyle]}
                 entering={SlideInRight.duration(300)}
                 exiting={SlideOutRight.duration(300)}
                 testID="hamburger-menu"
@@ -307,7 +319,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                     onPress={async () => {
                       if (isAuthenticated) {
                         await logout();
-                        Alert.alert('Logged Out', 'You have been logged out successfully.');
+                        showSuccess('Logged Out', 'You have been logged out successfully.');
                         onClose();
                       } else {
                         onClose();
@@ -344,17 +356,29 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
         title={modalContent.title}
         message={modalContent.message}
       />
+
+      <SuccessModal
+        visible={successModalVisible}
+        onClose={() => setSuccessModalVisible(false)}
+        title={successModalContent.title}
+        message={successModalContent.message}
+      />
     </>
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>, menuWidth: number) =>
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  menuWidth: number,
+  insets: ReturnType<typeof useSafeAreaInsets>
+) =>
   StyleSheet.create({
     backdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.4)', // Slightly darker backdrop
       justifyContent: 'flex-end',
       flexDirection: 'row',
+      paddingTop: Platform.OS === 'ios' ? insets.top : 0,
     },
     backdropTouchable: {
       flex: 1,
@@ -369,13 +393,14 @@ const createStyles = (colors: ReturnType<typeof getColors>, menuWidth: number) =
       shadowRadius: 8,
       elevation: 5,
       paddingHorizontal: 16, // Figma uses padding
+      borderTopLeftRadius: 24,
     },
     headerControls: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 16,
-      marginTop: 16,
+      marginTop: Platform.OS === 'android' ? insets.top + 16 : 16,
     },
     headerTitle: {
       fontSize: 18,

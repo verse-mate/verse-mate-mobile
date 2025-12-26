@@ -55,7 +55,6 @@ export function DeleteConfirmationModal({
 
           {/* Message */}
           <Text style={styles.message}>{message}</Text>
-          <Text style={styles.submessage}>This action cannot be undone.</Text>
 
           {/* Actions */}
           <View style={styles.actions}>
@@ -117,12 +116,6 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     message: {
       fontSize: fontSizes.body,
       color: colors.textSecondary,
-      textAlign: 'center',
-      marginBottom: spacing.xs,
-    },
-    submessage: {
-      fontSize: fontSizes.bodySmall,
-      color: colors.textTertiary,
       textAlign: 'center',
       marginBottom: spacing.xl,
     },
