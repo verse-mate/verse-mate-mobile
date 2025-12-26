@@ -28,6 +28,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DeleteAccountFinalModal } from '@/components/account/DeleteAccountFinalModal';
+import { DeleteAccountPasswordModal } from '@/components/account/DeleteAccountPasswordModal';
+import { DeleteAccountWarningModal } from '@/components/account/DeleteAccountWarningModal';
 import { Button } from '@/components/Button';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { TextInput } from '@/components/ui/TextInput';
@@ -37,6 +40,7 @@ import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import {
   getBibleLanguages,
   patchUserPreferences,
@@ -76,6 +80,13 @@ export default function SettingsScreen() {
 
   // Track if we need to save on blur
   const hasPendingChangesRef = useRef(false);
+
+  // Delete account state
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showFinalModal, setShowFinalModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState<string | undefined>();
+  const { deleteAccount, isDeleting, error: deleteError, clearError } = useDeleteAccount();
 
   // Update form fields when user session changes
   useEffect(() => {
@@ -308,6 +319,46 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  };
+
+  const handleDeleteAccountPress = () => {
+    setShowWarningModal(true);
+  };
+
+  const handleWarningContinue = () => {
+    setShowWarningModal(false);
+    // Check if user has a password (email/password account vs SSO-only)
+    if (user?.email && user?.firstName) {
+      // Email/password account - show password modal
+      setShowPasswordModal(true);
+    } else {
+      // SSO-only account - skip password modal
+      setShowFinalModal(true);
+    }
+  };
+
+  const handlePasswordConfirm = async (password: string) => {
+    // Store password and close password modal
+    setDeletePassword(password);
+    setShowPasswordModal(false);
+    setShowFinalModal(true);
+  };
+
+  const handleFinalConfirm = async () => {
+    // Call delete account with password (if available)
+    const success = await deleteAccount(deletePassword);
+    if (success) {
+      setShowFinalModal(false);
+      setDeletePassword(undefined);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowWarningModal(false);
+    setShowPasswordModal(false);
+    setShowFinalModal(false);
+    setDeletePassword(undefined);
+    clearError();
   };
 
   const formatLanguageDisplay = (lang: Language) => {
@@ -571,6 +622,23 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        {/* Delete Account Section - Authenticated Only */}
+        {isAuthenticated && (
+          <View style={[styles.section, styles.dangerSection]}>
+            <Text style={styles.dangerSectionTitle}>Danger Zone</Text>
+            <Pressable
+              style={styles.deleteAccountButton}
+              onPress={handleDeleteAccountPress}
+              accessibilityLabel="Delete account permanently"
+              accessibilityRole="button"
+              accessibilityHint="This action cannot be undone"
+            >
+              <Ionicons name="trash-outline" size={20} color="#dc2626" />
+              <Text style={styles.deleteAccountText}>Delete Account</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Not Authenticated Message */}
         {!isAuthenticated && (
           <View style={styles.notAuthenticatedContainer}>
@@ -587,6 +655,28 @@ export default function SettingsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Delete Account Modals */}
+      <DeleteAccountWarningModal
+        visible={showWarningModal}
+        onCancel={handleCancelDelete}
+        onContinue={handleWarningContinue}
+      />
+
+      <DeleteAccountPasswordModal
+        visible={showPasswordModal}
+        onCancel={handleCancelDelete}
+        onConfirm={handlePasswordConfirm}
+        isLoading={isDeleting}
+        error={deleteError || undefined}
+      />
+
+      <DeleteAccountFinalModal
+        visible={showFinalModal}
+        onCancel={handleCancelDelete}
+        onConfirm={handleFinalConfirm}
+        isLoading={isDeleting}
+      />
     </View>
   );
 }
@@ -753,5 +843,34 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       marginTop: 16,
       marginBottom: 24,
       lineHeight: 24,
+    },
+    dangerSection: {
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSecondary,
+      paddingTop: 24,
+    },
+    dangerSectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#dc2626',
+      marginBottom: 12,
+      marginLeft: 4,
+    },
+    deleteAccountButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: '#dc2626',
+      borderRadius: 8,
+      gap: 8,
+    },
+    deleteAccountText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#dc2626',
     },
   });
