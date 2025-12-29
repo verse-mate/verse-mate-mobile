@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSSOLogin } from '@/hooks/auth/useSSOLogin';
 import { useLogin } from '@/hooks/useLogin';
 
 interface SignInModalProps {
@@ -50,7 +51,17 @@ export default function SignInModal({
   const { colors } = useTheme();
   // Local UI state
   const [showPassword, setShowPassword] = useState(false);
-  const { mutate: login, isPending, error } = useLogin();
+  const { mutate: login, isPending, error: loginError } = useLogin();
+  const {
+    signInWithGoogle,
+    signInWithApple,
+    isGoogleLoading,
+    isAppleLoading,
+    isGoogleAvailable,
+    isAppleAvailable,
+    error: ssoError,
+    resetError: resetSSOError,
+  } = useSSOLogin();
 
   const handleSignIn = () => {
     if (!email || !password) {
@@ -77,17 +88,26 @@ export default function SignInModal({
     );
   };
 
-  const handleGoogleSignIn = () => {
-    // TODO: Implement Google SSO
-    // Will integrate with Google OAuth flow
-    console.log('Google Sign-In clicked');
+  const handleGoogleSignIn = async () => {
+    await signInWithGoogle();
   };
 
-  const handleAppleSignIn = () => {
-    // TODO: Implement Apple Sign In
-    // Will integrate with Apple Sign In service
-    console.log('Apple Sign-In clicked');
+  const handleAppleSignIn = async () => {
+    await signInWithApple();
   };
+
+  // Close and notify on SSO success (if not handled by AuthContext state)
+  // Since useSSOLogin completes the backend login, we can close if it succeeds
+  useEffect(() => {
+    if (visible && !isGoogleLoading && !isAppleLoading && !ssoError && !isPending) {
+      // We don't have a direct 'success' flag from useSSOLogin, but we can assume
+      // if it was loading and now isn't, and there's no error, it might have worked.
+      // However, AuthContext provides the true state.
+    }
+  }, [isGoogleLoading, isAppleLoading, ssoError, visible, isPending]);
+
+  // Combined error display
+  const displayError = loginError?.message || ssoError;
 
   const styles = createStyles(colors);
 
@@ -100,7 +120,13 @@ export default function SignInModal({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Sign In</Text>
-          <Pressable onPress={onClose} hitSlop={10}>
+          <Pressable
+            onPress={() => {
+              resetSSOError();
+              onClose();
+            }}
+            hitSlop={10}
+          >
             <Ionicons name="close" size={24} color={colors.textPrimary} />
           </Pressable>
         </View>
@@ -115,7 +141,7 @@ export default function SignInModal({
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
-            editable={!isPending}
+            editable={!isPending && !isGoogleLoading && !isAppleLoading}
           />
           <View style={styles.passwordContainer}>
             <TextInput
@@ -125,7 +151,7 @@ export default function SignInModal({
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
-              editable={!isPending}
+              editable={!isPending && !isGoogleLoading && !isAppleLoading}
             />
             <Pressable
               style={styles.eyeIcon}
@@ -141,17 +167,17 @@ export default function SignInModal({
           </View>
 
           {/* Error Message */}
-          {error && (
-            <Text style={styles.errorText}>
-              {error.message || 'Login failed. Please check your credentials.'}
-            </Text>
-          )}
+          {displayError && <Text style={styles.errorText}>{displayError}</Text>}
 
           {/* Sign In Button */}
           <Pressable
-            style={[styles.signInButton, isPending && styles.signInButtonDisabled]}
+            style={[
+              styles.signInButton,
+              (isPending || !email || !password || isGoogleLoading || isAppleLoading) &&
+                styles.signInButtonDisabled,
+            ]}
             onPress={handleSignIn}
-            disabled={isPending || !email || !password}
+            disabled={isPending || !email || !password || isGoogleLoading || isAppleLoading}
           >
             {isPending ? (
               <ActivityIndicator color={colors.white} />
@@ -162,43 +188,69 @@ export default function SignInModal({
         </View>
 
         {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
-        </View>
+        {(isGoogleAvailable || isAppleAvailable) && (
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+        )}
 
         {/* SSO Options */}
         <View style={styles.ssoContainer}>
-          {/* Google Sign-In (Placeholder) */}
-          <Pressable
-            style={[styles.ssoButton, styles.ssoButtonDisabled]}
-            onPress={handleGoogleSignIn}
-            disabled
-          >
-            <Ionicons name="logo-google" size={20} color={colors.textSecondary} />
-            <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
-              Continue with Google (Coming Soon)
-            </Text>
-          </Pressable>
+          {/* Google Sign-In */}
+          {isGoogleAvailable && (
+            <Pressable
+              style={[
+                styles.ssoButton,
+                (isPending || isGoogleLoading || isAppleLoading) && styles.ssoButtonDisabled,
+              ]}
+              onPress={handleGoogleSignIn}
+              disabled={isPending || isGoogleLoading || isAppleLoading}
+            >
+              {isGoogleLoading ? (
+                <ActivityIndicator color={colors.textPrimary} />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
+                  <Text style={styles.ssoButtonText}>Continue with Google</Text>
+                </>
+              )}
+            </Pressable>
+          )}
 
-          {/* Apple Sign-In (Placeholder) */}
-          <Pressable
-            style={[styles.ssoButton, styles.ssoButtonDisabled]}
-            onPress={handleAppleSignIn}
-            disabled
-          >
-            <Ionicons name="logo-apple" size={20} color={colors.textSecondary} />
-            <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
-              Continue with Apple (Coming Soon)
-            </Text>
-          </Pressable>
+          {/* Apple Sign-In */}
+          {isAppleAvailable && (
+            <Pressable
+              style={[
+                styles.ssoButton,
+                (isPending || isGoogleLoading || isAppleLoading) && styles.ssoButtonDisabled,
+              ]}
+              onPress={handleAppleSignIn}
+              disabled={isPending || isGoogleLoading || isAppleLoading}
+            >
+              {isAppleLoading ? (
+                <ActivityIndicator color={colors.textPrimary} />
+              ) : (
+                <>
+                  <Ionicons name="logo-apple" size={20} color={colors.textPrimary} />
+                  <Text style={styles.ssoButtonText}>Continue with Apple</Text>
+                </>
+              )}
+            </Pressable>
+          )}
         </View>
 
         {/* Switch to Sign Up */}
         <View style={styles.switchContainer}>
           <Text style={styles.switchText}>Don&apos;t have an account? </Text>
-          <Pressable onPress={onSwitchToSignUp} hitSlop={10}>
+          <Pressable
+            onPress={() => {
+              resetSSOError();
+              onSwitchToSignUp();
+            }}
+            hitSlop={10}
+          >
             <Text style={styles.switchLink}>Sign Up</Text>
           </Pressable>
         </View>
