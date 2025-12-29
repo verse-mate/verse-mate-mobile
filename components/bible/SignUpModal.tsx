@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSSOLogin } from '@/hooks/auth/useSSOLogin';
 import { useSignup } from '@/hooks/useSignup';
 
 interface SignUpModalProps {
@@ -69,7 +70,17 @@ export default function SignUpModal({
   // Local UI state
   const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState('');
-  const { mutate: signup, isPending, error } = useSignup();
+  const { mutate: signup, isPending, error: signupError } = useSignup();
+  const {
+    signInWithGoogle,
+    signInWithApple,
+    isGoogleLoading,
+    isAppleLoading,
+    isGoogleAvailable,
+    isAppleAvailable,
+    error: ssoError,
+    resetError: resetSSOError,
+  } = useSSOLogin();
 
   const handleSignUp = () => {
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
@@ -109,6 +120,17 @@ export default function SignUpModal({
     );
   };
 
+  const handleGoogleSignIn = async () => {
+    await signInWithGoogle();
+  };
+
+  const handleAppleSignIn = async () => {
+    await signInWithApple();
+  };
+
+  // Combined error display
+  const displayError = validationError || signupError?.message || ssoError;
+
   const styles = createStyles(colors);
 
   if (!visible) return null;
@@ -120,7 +142,13 @@ export default function SignUpModal({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Sign Up</Text>
-          <Pressable onPress={onClose} hitSlop={10}>
+          <Pressable
+            onPress={() => {
+              resetSSOError();
+              onClose();
+            }}
+            hitSlop={10}
+          >
             <Ionicons name="close" size={24} color={colors.textPrimary} />
           </Pressable>
         </View>
@@ -135,7 +163,7 @@ export default function SignUpModal({
               value={firstName}
               onChangeText={setFirstName}
               autoCapitalize="words"
-              editable={!isPending}
+              editable={!isPending && !isGoogleLoading && !isAppleLoading}
             />
             <TextInput
               style={[styles.input, styles.nameInput]}
@@ -144,7 +172,7 @@ export default function SignUpModal({
               value={lastName}
               onChangeText={setLastName}
               autoCapitalize="words"
-              editable={!isPending}
+              editable={!isPending && !isGoogleLoading && !isAppleLoading}
             />
           </View>
           <TextInput
@@ -155,7 +183,7 @@ export default function SignUpModal({
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
-            editable={!isPending}
+            editable={!isPending && !isGoogleLoading && !isAppleLoading}
           />
           <View style={styles.passwordContainer}>
             <TextInput
@@ -165,7 +193,7 @@ export default function SignUpModal({
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
-              editable={!isPending}
+              editable={!isPending && !isGoogleLoading && !isAppleLoading}
             />
             <Pressable
               style={styles.eyeIcon}
@@ -187,7 +215,7 @@ export default function SignUpModal({
               secureTextEntry={!showPassword}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              editable={!isPending}
+              editable={!isPending && !isGoogleLoading && !isAppleLoading}
             />
             <Pressable
               style={styles.eyeIcon}
@@ -203,18 +231,32 @@ export default function SignUpModal({
           </View>
 
           {/* Error Message */}
-          {(error || validationError) && (
-            <Text style={styles.errorText}>
-              {validationError || error?.message || 'Sign up failed. Please try again.'}
-            </Text>
-          )}
+          {displayError && <Text style={styles.errorText}>{displayError}</Text>}
 
           {/* Sign Up Button */}
           <Pressable
-            style={[styles.signUpButton, isPending && styles.signUpButtonDisabled]}
+            style={[
+              styles.signUpButton,
+              (isPending ||
+                !firstName ||
+                !lastName ||
+                !email ||
+                !password ||
+                !confirmPassword ||
+                isGoogleLoading ||
+                isAppleLoading) &&
+                styles.signUpButtonDisabled,
+            ]}
             onPress={handleSignUp}
             disabled={
-              isPending || !firstName || !lastName || !email || !password || !confirmPassword
+              isPending ||
+              !firstName ||
+              !lastName ||
+              !email ||
+              !password ||
+              !confirmPassword ||
+              isGoogleLoading ||
+              isAppleLoading
             }
           >
             {isPending ? (
@@ -226,35 +268,69 @@ export default function SignUpModal({
         </View>
 
         {/* Divider */}
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
-        </View>
+        {(isGoogleAvailable || isAppleAvailable) && (
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+        )}
 
         {/* SSO Options */}
         <View style={styles.ssoContainer}>
-          {/* Google Sign-Up (Placeholder) */}
-          <Pressable style={[styles.ssoButton, styles.ssoButtonDisabled]} disabled>
-            <Ionicons name="logo-google" size={20} color={colors.textSecondary} />
-            <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
-              Continue with Google (Coming Soon)
-            </Text>
-          </Pressable>
+          {/* Google Sign-Up */}
+          {isGoogleAvailable && (
+            <Pressable
+              style={[
+                styles.ssoButton,
+                (isPending || isGoogleLoading || isAppleLoading) && styles.ssoButtonDisabled,
+              ]}
+              onPress={handleGoogleSignIn}
+              disabled={isPending || isGoogleLoading || isAppleLoading}
+            >
+              {isGoogleLoading ? (
+                <ActivityIndicator color={colors.textPrimary} />
+              ) : (
+                <>
+                  <Ionicons name="logo-google" size={20} color={colors.textPrimary} />
+                  <Text style={styles.ssoButtonText}>Continue with Google</Text>
+                </>
+              )}
+            </Pressable>
+          )}
 
-          {/* Apple Sign-Up (Placeholder) */}
-          <Pressable style={[styles.ssoButton, styles.ssoButtonDisabled]} disabled>
-            <Ionicons name="logo-apple" size={20} color={colors.textSecondary} />
-            <Text style={[styles.ssoButtonText, styles.ssoButtonTextDisabled]}>
-              Continue with Apple (Coming Soon)
-            </Text>
-          </Pressable>
+          {/* Apple Sign-Up */}
+          {isAppleAvailable && (
+            <Pressable
+              style={[
+                styles.ssoButton,
+                (isPending || isGoogleLoading || isAppleLoading) && styles.ssoButtonDisabled,
+              ]}
+              onPress={handleAppleSignIn}
+              disabled={isPending || isGoogleLoading || isAppleLoading}
+            >
+              {isAppleLoading ? (
+                <ActivityIndicator color={colors.textPrimary} />
+              ) : (
+                <>
+                  <Ionicons name="logo-apple" size={20} color={colors.textPrimary} />
+                  <Text style={styles.ssoButtonText}>Continue with Apple</Text>
+                </>
+              )}
+            </Pressable>
+          )}
         </View>
 
         {/* Switch to Sign In */}
         <View style={styles.switchContainer}>
           <Text style={styles.switchText}>Already have an account? </Text>
-          <Pressable onPress={onSwitchToSignIn} hitSlop={10}>
+          <Pressable
+            onPress={() => {
+              resetSSOError();
+              onSwitchToSignIn();
+            }}
+            hitSlop={10}
+          >
             <Text style={styles.switchLink}>Sign In</Text>
           </Pressable>
         </View>
