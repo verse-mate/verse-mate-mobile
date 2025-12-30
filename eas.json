@@ -71,7 +71,7 @@
   "submit": {
     "preview": {
       "android": {
-        "releaseStatus": "draft"
+        "releaseStatus": "completed"
       },
       "ios": {
         "ascAppId": "6754565256"
