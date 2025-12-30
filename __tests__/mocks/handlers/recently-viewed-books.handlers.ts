@@ -14,7 +14,7 @@ import type {
 } from '@/src/api/generated/types.gen';
 
 // API Base URL - matches the generated client default
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const API_BASE_URL = 'http://localhost:4000';
 
 /**
  * In-memory store for recently viewed books

@@ -23,7 +23,7 @@ import { RECENT_BOOKS_EXPIRY_DAYS, STORAGE_KEYS } from '@/types/bible';
 import { resetRecentlyViewedStore } from '../../mocks/handlers/recently-viewed-books.handlers';
 import { server } from '../../mocks/server';
 
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const API_BASE_URL = 'http://localhost:4000';
 
 // Test user ID (matches mock pattern)
 const TEST_USER_ID = 'user-1234567890';
