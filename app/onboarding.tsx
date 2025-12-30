@@ -134,7 +134,7 @@ export default function OnboardingScreen() {
   };
 
   const handleLogin = async () => {
-    await completeOnboarding('login', '/auth');
+    await completeOnboarding('login', '/auth/login?fromOnboarding=true');
   };
 
   return (

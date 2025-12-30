@@ -18,7 +18,7 @@ import { clearBookmarkStore, resetBookmarkStore } from '../mocks/handlers/bookma
 import { server } from '../mocks/server';
 
 // Match the MSW handler configuration and generated client baseUrl
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const API_BASE_URL = 'http://localhost:4000';
 
 describe('Bookmark API Integration', () => {
   beforeEach(() => {

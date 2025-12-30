@@ -51,6 +51,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SvgProps } from 'react-native-svg';
+import { Avatar } from '@/components/ui/Avatar';
 import {
   IconBookmarkFilled,
   IconDocument,
@@ -279,7 +280,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                   style={({ pressed }) => [styles.userSection, pressed && styles.menuItemPressed]}
                 >
                   <View style={styles.avatarContainer}>
-                    <IconProfile width={24} height={24} color={colors.textPrimary} />
+                    <Avatar url={user?.imageSrc} size={40} />
                   </View>
                   <View style={styles.userInfo}>
                     <Text style={styles.userName}>

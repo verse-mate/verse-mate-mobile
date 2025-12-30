@@ -33,6 +33,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useTopicById } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
+import { ShareButton } from '../bible/ShareButton';
 
 const markdownRules: RenderRules = {};
 
@@ -150,11 +151,66 @@ export function TopicExplanationsPanel({
   const explanationContent = getExplanationContent();
   const hasContent = explanationContent && typeof explanationContent === 'string';
 
+  // Custom share handler for topics
+  const handleShare = useCallback(async () => {
+    if (!topicData) return;
+
+    const { generateTopicShareUrl } = await import('@/utils/sharing/generate-topic-share-url');
+    const { Share } = await import('react-native');
+    const { AnalyticsEvent, analytics } = await import('@/lib/analytics');
+
+    try {
+      // Type assertion needed because topicData.topic is typed as unknown in generated types
+      const topic = topicData.topic as {
+        category: string;
+        name: string;
+        slug?: string;
+        topic_id: string;
+      };
+
+      const shareUrl = generateTopicShareUrl(topic.category, topic.name, activeTab);
+      const message = `Check out ${topicName} on VerseMate: ${shareUrl}`;
+
+      const result = await Share.share({
+        message,
+        url: shareUrl,
+      });
+
+      if (result.action === Share.sharedAction) {
+        // TopicSharedProperties only includes category and topicSlug
+        analytics.track(AnalyticsEvent.TOPIC_SHARED, {
+          category: topic.category,
+          topicSlug: topic.slug || topicName.toLowerCase().replace(/\s+/g, '-'),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to share topic:', error);
+    }
+  }, [topicData, topicName, activeTab]);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>
       {/* Header Bar */}
       <View style={styles.header} testID={`${testID}-header`}>
         <Text style={styles.headerTitle}>{topicName} Insights</Text>
+
+        {/* Action buttons */}
+        <View style={styles.headerActions}>
+          <ShareButton
+            onShare={handleShare}
+            size={20}
+            color={specs.headerTextColor}
+            testID={`${testID}-share-button`}
+          />
+          {/* TODO: Topic bookmark button - requires topic bookmark support in hook */}
+          {/* <InsightBookmarkButton
+            topicId={topicId}
+            insightType={activeTab}
+            size={20}
+            color={specs.headerTextColor}
+            testID={`${testID}-bookmark-button`}
+          /> */}
+        </View>
 
         {/* Menu Button */}
         <Pressable
@@ -271,6 +327,13 @@ function createStyles(
       fontSize: fontSizes.body,
       fontWeight: fontWeights.medium,
       color: specs.headerTextColor,
+      flex: 1,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginRight: spacing.sm,
     },
     tabContainer: {
       backgroundColor: colors.background,

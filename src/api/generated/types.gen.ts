@@ -417,6 +417,59 @@ export type PutAuthProfileResponses = {
 
 export type PutAuthProfileResponse = PutAuthProfileResponses[keyof PutAuthProfileResponses];
 
+export type DeleteAuthAccountData = {
+    body: {
+        password?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/account';
+};
+
+export type DeleteAuthAccountErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteAuthAccountError = DeleteAuthAccountErrors[keyof DeleteAuthAccountErrors];
+
+export type DeleteAuthAccountResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        success: boolean;
+        message: string;
+    };
+};
+
+export type DeleteAuthAccountResponse = DeleteAuthAccountResponses[keyof DeleteAuthAccountResponses];
+
 export type PostAuthSignupData = {
     body: {
         firstName: string;
@@ -3587,6 +3640,237 @@ export type PostTopicsParseReferencesResponses = {
 };
 
 export type PostTopicsParseReferencesResponse = PostTopicsParseReferencesResponses[keyof PostTopicsParseReferencesResponses];
+
+export type GetSupportConversationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/support/conversations';
+};
+
+export type GetSupportConversationsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetSupportConversationsError = GetSupportConversationsErrors[keyof GetSupportConversationsErrors];
+
+export type GetSupportConversationsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        conversations: {
+            id: string;
+            user_id: string;
+            subject: string | unknown;
+            status: string;
+            last_message_at: string | unknown;
+            created_at: string | unknown;
+        }[];
+    };
+};
+
+export type GetSupportConversationsResponse = GetSupportConversationsResponses[keyof GetSupportConversationsResponses];
+
+export type PostSupportConversationsData = {
+    body: {
+        text: string;
+        subject?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/support/conversations';
+};
+
+export type PostSupportConversationsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostSupportConversationsError = PostSupportConversationsErrors[keyof PostSupportConversationsErrors];
+
+export type PostSupportConversationsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        success: boolean;
+        conversationId: string;
+    };
+};
+
+export type PostSupportConversationsResponse = PostSupportConversationsResponses[keyof PostSupportConversationsResponses];
+
+export type GetSupportConversationsByIdMessagesData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/support/conversations/{id}/messages';
+};
+
+export type GetSupportConversationsByIdMessagesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetSupportConversationsByIdMessagesError = GetSupportConversationsByIdMessagesErrors[keyof GetSupportConversationsByIdMessagesErrors];
+
+export type GetSupportConversationsByIdMessagesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        messages: {
+            id: string;
+            conversation_id: string;
+            user_id: string;
+            text: string;
+            sender: 'user' | 'support';
+            created_at: string | unknown;
+        }[];
+    };
+};
+
+export type GetSupportConversationsByIdMessagesResponse = GetSupportConversationsByIdMessagesResponses[keyof GetSupportConversationsByIdMessagesResponses];
+
+export type PostSupportConversationsByIdMessagesData = {
+    body: {
+        text: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/support/conversations/{id}/messages';
+};
+
+export type PostSupportConversationsByIdMessagesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostSupportConversationsByIdMessagesError = PostSupportConversationsByIdMessagesErrors[keyof PostSupportConversationsByIdMessagesErrors];
+
+export type PostSupportConversationsByIdMessagesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type PostSupportConversationsByIdMessagesResponse = PostSupportConversationsByIdMessagesResponses[keyof PostSupportConversationsByIdMessagesResponses];
+
+export type PostWebhooksSlackData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/webhooks/slack';
+};
 
 export type PatchUserPreferencesData = {
     body: {

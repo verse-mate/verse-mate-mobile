@@ -15,7 +15,7 @@ import type {
 import { MOCK_USER_ID, mockBookmarksResponse } from '../data/bookmarks.data';
 
 // API Base URL - matches the generated client default
-const BIBLE_API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const BIBLE_API_BASE_URL = 'http://localhost:4000';
 
 /**
  * In-memory bookmark store for testing

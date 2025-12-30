@@ -30,8 +30,25 @@ import { usePostHog } from 'posthog-react-native';
 
 /**
  * User type from GetAuthSession response
+ * Extended with SSO and profile picture fields
  */
-export type User = GetAuthSessionResponse;
+export type User = GetAuthSessionResponse & {
+  /**
+   * Indicates if user has password auth (vs SSO-only)
+   * @see sso-account-deletion-migration.md
+   */
+  hasPassword?: boolean;
+  /**
+   * Profile picture URL from SSO provider or uploaded
+   * Backend returns as 'profile_picture_url' but mapped to 'imageSrc' for frontend consistency
+   * @see profile-pictures-sso.md
+   */
+  imageSrc?: string;
+  /**
+   * Raw profile_picture_url from backend (in case both naming conventions exist)
+   */
+  profile_picture_url?: string;
+};
 
 /**
  * SSO Provider types
