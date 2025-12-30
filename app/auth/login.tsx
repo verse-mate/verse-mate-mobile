@@ -9,7 +9,7 @@
  * @see Task Group 5: SSO Integration
  */
 
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -43,6 +43,7 @@ import { useLogin } from '@/hooks/useLogin';
 export default function Login() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const params = useLocalSearchParams<{ fromOnboarding?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -61,12 +62,18 @@ export default function Login() {
     resetError: resetSsoError,
   } = useSSOLogin();
 
-  // Dismiss modal on successful login
+  // Navigate after successful login
   useEffect(() => {
     if (isSuccess) {
-      router.dismiss();
+      // If coming from onboarding, navigate to Genesis 1
+      if (params.fromOnboarding === 'true') {
+        router.replace('/bible/1/1');
+      } else {
+        // Otherwise just dismiss the modal (return to previous screen)
+        router.dismiss();
+      }
     }
-  }, [isSuccess]);
+  }, [isSuccess, params.fromOnboarding]);
 
   // Validate email format
   const validateEmail = (email: string): boolean => {
@@ -119,7 +126,12 @@ export default function Login() {
 
   // Handle navigation to signup (replace instead of push to avoid modal stacking)
   const handleSignupPress = () => {
-    router.replace('/auth/signup');
+    // Preserve fromOnboarding parameter when navigating to signup
+    if (params.fromOnboarding === 'true') {
+      router.replace('/auth/signup?fromOnboarding=true');
+    } else {
+      router.replace('/auth/signup');
+    }
   };
 
   // Handle continue without account
