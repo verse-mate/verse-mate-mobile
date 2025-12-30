@@ -20,6 +20,7 @@ jest.mock('expo-router', () => ({
     dismiss: jest.fn(),
     canGoBack: jest.fn(() => true),
   },
+  useLocalSearchParams: () => ({}),
 }));
 
 jest.mock('@/hooks/useSignup');

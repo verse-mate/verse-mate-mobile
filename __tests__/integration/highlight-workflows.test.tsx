@@ -17,7 +17,7 @@ import { MOCK_USER_ID } from '../mocks/data/highlights.data';
 import { resetHighlightStore } from '../mocks/handlers/highlights.handlers';
 import { server } from '../mocks/server';
 
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const API_BASE_URL = 'http://localhost:4000';
 
 // Mock auth tokens
 // NOTE: Using 'test-user-123' to match MOCK_USER_ID from highlights.data.ts

@@ -8,7 +8,7 @@
 import { HttpResponse, http } from 'msw';
 
 // API Base URL - matches the generated SDK default
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const API_BASE_URL = 'http://localhost:4000';
 
 // SSO Provider types
 export type SSOProvider = 'google' | 'apple';
