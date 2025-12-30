@@ -5,10 +5,12 @@
  * These URLs use Universal Links (iOS) / App Links (Android) to open directly in
  * the mobile app when installed, or fallback to the web version.
  *
- * URL Format: ${EXPO_PUBLIC_WEB_URL}/bible/[bookSlug]/[chapterNumber]
+ * URL Format: ${EXPO_PUBLIC_WEB_URL}/bible/[bookSlug]/[chapterNumber]?tab=[insightType]
  * Example: https://app.versemate.org/bible/john/3 (John 3)
+ * Example: https://app.versemate.org/bible/john/3?tab=summary (John 3 Summary insight)
  */
 
+import type { ContentTabType } from '@/types/bible';
 import { getBookSlug, parseBookParam } from '../bookSlugs';
 
 /**
@@ -20,14 +22,23 @@ import { getBookSlug, parseBookParam } from '../bookSlugs';
  *
  * @param bookId - Bible book ID (1-66, where 1=Genesis, 66=Revelation)
  * @param chapterNumber - Chapter number within the book (positive integer)
- * @returns Formatted HTTPS URL for sharing with book slug
+ * @param insightType - Optional insight tab type (summary, byline, detailed)
+ * @returns Formatted HTTPS URL for sharing with book slug and optional tab query param
  * @throws Error if EXPO_PUBLIC_WEB_URL environment variable is not configured
  *
  * @example
  * generateChapterShareUrl(43, 3)
  * // Returns: "https://app.versemate.org/bible/john/3"
+ *
+ * @example
+ * generateChapterShareUrl(43, 3, 'summary')
+ * // Returns: "https://app.versemate.org/bible/john/3?tab=summary"
  */
-export function generateChapterShareUrl(bookId: number, chapterNumber: number): string {
+export function generateChapterShareUrl(
+  bookId: number,
+  chapterNumber: number,
+  insightType?: ContentTabType
+): string {
   const baseUrl = process.env.EXPO_PUBLIC_WEB_URL;
 
   if (!baseUrl) {
@@ -41,7 +52,14 @@ export function generateChapterShareUrl(bookId: number, chapterNumber: number): 
     throw new Error(`Invalid bookId: ${bookId}`);
   }
 
-  return `${baseUrl}/bible/${bookSlug}/${chapterNumber}`;
+  let url = `${baseUrl}/bible/${bookSlug}/${chapterNumber}`;
+
+  // Append insight tab query parameter if provided
+  if (insightType) {
+    url += `?tab=${insightType}`;
+  }
+
+  return url;
 }
 
 /**

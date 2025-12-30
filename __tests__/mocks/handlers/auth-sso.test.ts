@@ -7,7 +7,7 @@
 import { server } from '../server';
 import { authSsoHandlers, resetSsoMocks, seedSsoTestUser } from './auth-sso';
 
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const API_BASE_URL = 'http://localhost:4000';
 
 describe('Auth SSO MSW Handlers', () => {
   beforeEach(() => {

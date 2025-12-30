@@ -18,7 +18,14 @@
         "applinks:app.versemate.org"
       ],
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.94126503648-htsubrfo04f7ef34ig58lsiscj9kbmo6"
+            ]
+          }
+        ]
       }
     },
     "android": {

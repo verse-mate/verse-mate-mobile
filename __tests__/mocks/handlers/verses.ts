@@ -15,7 +15,7 @@ import {
 
 // Base API URL - matches the generated SDK default
 // API Base URL - matches the generated client default
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const API_BASE_URL = 'http://localhost:4000';
 
 export const verseHandlers = [
   // GET /api/verses/daily - Get verse of the day

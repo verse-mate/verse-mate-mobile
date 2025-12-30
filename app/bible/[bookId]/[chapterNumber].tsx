@@ -104,6 +104,7 @@ export default function ChapterScreen() {
     chapterNumber: string;
     verse?: string;
     endVerse?: string;
+    tab?: string;
   }>();
   const targetVerse = params.verse ? Number(params.verse) : undefined;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
@@ -194,6 +195,24 @@ export default function ChapterScreen() {
       }
     }
   }, [targetVerse, activeView, setActiveView]);
+
+  // Handle deep-linked insight tab parameter
+  // When user opens a shared insight URL, navigate to that specific tab
+  const hasSetInitialTab = useRef(false);
+  useEffect(() => {
+    const deeplinkTab = params.tab;
+    if (deeplinkTab && !hasSetInitialTab.current) {
+      hasSetInitialTab.current = true;
+      // Validate that the tab parameter is a valid ContentTabType
+      if (deeplinkTab === 'summary' || deeplinkTab === 'byline' || deeplinkTab === 'detailed') {
+        setActiveTab(deeplinkTab);
+        // Force explanations view to show the insight tab
+        if (activeView !== 'explanations') {
+          setActiveView('explanations');
+        }
+      }
+    }
+  }, [params.tab, setActiveTab, activeView, setActiveView]);
 
   // Navigation modal state (Task 7.9)
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);

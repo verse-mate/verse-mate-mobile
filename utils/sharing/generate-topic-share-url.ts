@@ -5,10 +5,12 @@
  * These URLs use Universal Links (iOS) / App Links (Android) to open directly in
  * the mobile app when installed, or fallback to the web version.
  *
- * URL Format: ${EXPO_PUBLIC_WEB_URL}/topic/{category-slug}/{topic-slug}
+ * URL Format: ${EXPO_PUBLIC_WEB_URL}/topic/{category-slug}/{topic-slug}?tab={insightType}
  * Example: https://app.versemate.org/topic/events/the-resurrection
+ * Example: https://app.versemate.org/topic/events/the-resurrection?tab=summary
  */
 
+import type { ContentTabType } from '@/types/bible';
 import { buildTopicUrl, parseTopicUrl } from '../topicSlugs';
 
 /**
@@ -20,14 +22,23 @@ import { buildTopicUrl, parseTopicUrl } from '../topicSlugs';
  *
  * @param category - Topic category (e.g., "EVENT", "PROPHECY", "PARABLE", "THEME")
  * @param topicTitle - Topic title (e.g., "The Resurrection")
- * @returns Formatted HTTPS URL for sharing with category and topic slugs
+ * @param insightType - Optional insight tab type (summary, byline, detailed)
+ * @returns Formatted HTTPS URL for sharing with category and topic slugs and optional tab query param
  * @throws Error if EXPO_PUBLIC_WEB_URL environment variable is not configured
  *
  * @example
  * generateTopicShareUrl("EVENT", "The Resurrection")
  * // Returns: "https://app.versemate.org/topic/events/the-resurrection"
+ *
+ * @example
+ * generateTopicShareUrl("EVENT", "The Resurrection", "summary")
+ * // Returns: "https://app.versemate.org/topic/events/the-resurrection?tab=summary"
  */
-export function generateTopicShareUrl(category: string, topicTitle: string): string {
+export function generateTopicShareUrl(
+  category: string,
+  topicTitle: string,
+  insightType?: ContentTabType
+): string {
   const baseUrl = process.env.EXPO_PUBLIC_WEB_URL?.trim();
 
   // Treat undefined/null strings as missing
@@ -38,7 +49,14 @@ export function generateTopicShareUrl(category: string, topicTitle: string): str
 
   const topicPath = buildTopicUrl(category, topicTitle);
   const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
-  return `${normalizedBaseUrl}${topicPath}`;
+  let url = `${normalizedBaseUrl}${topicPath}`;
+
+  // Append insight tab query parameter if provided
+  if (insightType) {
+    url += `?tab=${insightType}`;
+  }
+
+  return url;
 }
 
 /**

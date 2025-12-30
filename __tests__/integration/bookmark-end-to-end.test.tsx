@@ -30,7 +30,7 @@ import { MOCK_USER_ID } from '../mocks/data/bookmarks.data';
 import { clearBookmarkStore, resetBookmarkStore } from '../mocks/handlers/bookmarks.handlers';
 import { server } from '../mocks/server';
 
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const API_BASE_URL = 'http://localhost:4000';
 const TEST_USER_ID = 'user-1234567890';
 const TEST_ACCESS_TOKEN = `mock-access-token-${TEST_USER_ID}`;
 

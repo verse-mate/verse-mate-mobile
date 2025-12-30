@@ -24,7 +24,7 @@ import { MOCK_USER_ID, mockBookmarksResponse } from '../../mocks/data/bookmarks.
 import { resetBookmarkStore } from '../../mocks/handlers/bookmarks.handlers';
 import { server } from '../../mocks/server';
 
-const API_BASE_URL = 'https://api.verse-mate.apegro.dev';
+const API_BASE_URL = 'http://localhost:4000';
 
 // Use a user ID that matches the mock pattern expected by auth handlers
 const TEST_USER_ID = 'user-1234567890';
