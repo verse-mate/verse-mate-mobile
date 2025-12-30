@@ -78,7 +78,7 @@ export default function TopicDetailScreen() {
     useDeviceInfo();
 
   // Extract topicId from route params
-  const params = useLocalSearchParams<{ topicId: string; category?: string }>();
+  const params = useLocalSearchParams<{ topicId: string; category?: string; tab?: string }>();
   const topicId = params.topicId;
   const category = (params.category as TopicCategory) || 'EVENT';
 
@@ -114,6 +114,24 @@ export default function TopicDetailScreen() {
 
   // Get active view from persistence (Bible references vs Explanations view)
   const { activeView, setActiveView } = useActiveView();
+
+  // Handle deep-linked insight tab parameter
+  // When user opens a shared topic insight URL, navigate to that specific tab
+  const hasSetInitialTab = useRef(false);
+  useEffect(() => {
+    const deeplinkTab = params.tab;
+    if (deeplinkTab && !hasSetInitialTab.current) {
+      hasSetInitialTab.current = true;
+      // Validate that the tab parameter is a valid ContentTabType
+      if (deeplinkTab === 'summary' || deeplinkTab === 'byline' || deeplinkTab === 'detailed') {
+        setActiveTab(deeplinkTab);
+        // Force explanations view to show the insight tab
+        if (activeView !== 'explanations') {
+          setActiveView('explanations');
+        }
+      }
+    }
+  }, [params.tab, setActiveTab, activeView, setActiveView]);
 
   // Save reading position to AsyncStorage for app launch continuity
   const { savePosition } = useLastReadPosition();

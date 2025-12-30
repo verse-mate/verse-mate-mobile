@@ -33,6 +33,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
+import { InsightBookmarkButton } from './InsightBookmarkButton';
+import { ShareButton } from './ShareButton';
 
 /**
  * Tab configuration for explanation types
@@ -250,6 +252,28 @@ export function BibleExplanationsPanel({
           <Text style={styles.headerTitle}>
             {bookName} {chapterNumber} Insights
           </Text>
+
+          {/* Action buttons */}
+          <View style={styles.headerActions}>
+            <ShareButton
+              bookId={bookId}
+              chapterNumber={chapterNumber}
+              bookName={bookName}
+              insightType={activeTab}
+              size={20}
+              color={specs.headerTextColor}
+              testID={`${testID}-share-button`}
+            />
+            <InsightBookmarkButton
+              bookId={bookId}
+              chapterNumber={chapterNumber}
+              insightType={activeTab}
+              size={20}
+              color={specs.headerTextColor}
+              testID={`${testID}-bookmark-button`}
+            />
+          </View>
+
           {onMenuPress && (
             <Pressable
               style={styles.menuButton}
@@ -373,6 +397,13 @@ function createStyles(
       fontSize: fontSizes.body,
       fontWeight: fontWeights.medium,
       color: specs.headerTextColor,
+      flex: 1,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginRight: spacing.sm,
     },
     menuButton: {
       padding: spacing.xs,
