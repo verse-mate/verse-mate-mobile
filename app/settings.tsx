@@ -33,6 +33,7 @@ import { DeleteAccountPasswordModal } from '@/components/account/DeleteAccountPa
 import { DeleteAccountWarningModal } from '@/components/account/DeleteAccountWarningModal';
 import { Button } from '@/components/Button';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
+import { Avatar } from '@/components/ui/Avatar';
 import { TextInput } from '@/components/ui/TextInput';
 import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { BibleVersion } from '@/constants/bible-versions';
@@ -328,7 +329,10 @@ export default function SettingsScreen() {
   const handleWarningContinue = () => {
     setShowWarningModal(false);
     // Check if user has a password (email/password account vs SSO-only)
-    if (user?.email && user?.firstName) {
+    // Use authoritative flag from backend, default to true for safety
+    const requiresPassword = user?.hasPassword ?? true;
+
+    if (requiresPassword) {
       // Email/password account - show password modal
       setShowPasswordModal(true);
     } else {
@@ -417,7 +421,7 @@ export default function SettingsScreen() {
             <Text style={styles.sectionLabel}>Profile Information</Text>
             <View style={styles.profileHeader}>
               <View style={styles.profileIconWrapper}>
-                <Ionicons name="person-circle-outline" size={48} color={colors.gray700} />
+                <Avatar url={user.imageSrc} size={48} />
               </View>
               <View style={styles.profileInfo}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>

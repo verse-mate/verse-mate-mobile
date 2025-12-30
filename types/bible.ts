@@ -359,3 +359,39 @@ export interface UseLastReadPositionResult extends LoadingState {
   savePosition: (position: Omit<LastReadPosition, 'timestamp'>) => Promise<void>;
   clearPosition: () => Promise<void>;
 }
+
+// ============================================================================
+// Insight Bookmark Types
+// ============================================================================
+
+/**
+ * Insight bookmark type that includes insight type
+ * Used for bookmarking specific insight tabs (summary/byline/detailed)
+ */
+export interface InsightBookmark {
+  /** Book ID (1-66) */
+  bookId: number;
+  /** Chapter number */
+  chapterNumber: number;
+  /** Insight type (summary, byline, detailed). Undefined for chapter text bookmarks */
+  insightType?: ContentTabType;
+  /** Topic ID for topic insights (optional) */
+  topicId?: string;
+}
+
+/**
+ * Bookmark group for displaying bookmarks with count badges
+ * Used in the bookmarks screen to group chapter and insight bookmarks together
+ */
+export interface BookmarkGroup {
+  /** Book ID (1-66) */
+  bookId: number;
+  /** Chapter number */
+  chapterNumber: number;
+  /** Book name for display */
+  bookName: string;
+  /** Whether the chapter text is bookmarked */
+  chapterBookmarked: boolean;
+  /** Array of bookmarked insight types for this chapter */
+  insightBookmarks: ContentTabType[];
+}

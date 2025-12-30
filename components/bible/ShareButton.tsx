@@ -30,6 +30,7 @@ import { Alert, Pressable, Share, StyleSheet } from 'react-native';
 import { getHeaderSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import type { ContentTabType } from '@/types/bible';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 
 /**
@@ -42,6 +43,8 @@ export interface ShareButtonProps {
   chapterNumber?: number;
   /** Book name for share message (e.g., "Genesis", "John") - optional if onShare is provided */
   bookName?: string;
+  /** Insight type to include in share URL (summary, byline, detailed) - optional */
+  insightType?: ContentTabType;
   /** Custom share handler (for topics or custom sharing logic) */
   onShare?: () => void | Promise<void>;
   /** Icon size in pixels (default: 24px from headerSpecs.iconSize) */
@@ -75,6 +78,7 @@ export function ShareButton({
   bookId,
   chapterNumber,
   bookName,
+  insightType,
   size,
   color,
   onShare,
@@ -117,8 +121,8 @@ export function ShareButton({
         return;
       }
 
-      // Generate shareable URL
-      const shareUrl = generateChapterShareUrl(bookId, chapterNumber);
+      // Generate shareable URL with optional insight type
+      const shareUrl = generateChapterShareUrl(bookId, chapterNumber, insightType);
 
       // Format share message
       const message = `Check out ${bookName} ${chapterNumber} on VerseMate: ${shareUrl}`;
