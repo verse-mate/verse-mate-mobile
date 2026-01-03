@@ -17,11 +17,6 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
-import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
@@ -30,6 +25,7 @@ import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
@@ -41,6 +37,11 @@ import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
+import { router } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
@@ -287,6 +288,12 @@ export const ChapterPage = React.memo(function ChapterPage({
   // Get current language from user preferences (default to 'en-US')
   // This ensures the query key changes when language changes
   const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
+  // Text visibility tracking for hybrid tokenization
+  // Use state with debouncing to avoid re-renders on every scroll frame
+  const [visibleYRange, setVisibleYRange] = useState<VisibleYRange | null>(null);
+  const visibleYRangeRef = useRef<VisibleYRange | null>(null);
+  const visibilityUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewportHeightRef = useRef<number>(0);
 
   // Fetch highlights directly for THIS specific chapter
   // This ensures each page has its own highlights pre-loaded independently
@@ -339,12 +346,19 @@ export const ChapterPage = React.memo(function ChapterPage({
       animatedScrollRef.current?.scrollTo({ y: 0, animated: false });
     }
 
-    // Close tooltip and clear timer when changing book/chapter
+    // Close tooltip and clear timers when changing book/chapter
     setVerseTooltipVisible(false);
     if (verseTooltipTimerRef.current) {
       clearTimeout(verseTooltipTimerRef.current);
       verseTooltipTimerRef.current = null;
     }
+    if (visibilityUpdateTimerRef.current) {
+      clearTimeout(visibilityUpdateTimerRef.current);
+      visibilityUpdateTimerRef.current = null;
+    }
+    // Reset visible range on chapter change
+    setVisibleYRange(null);
+    visibleYRangeRef.current = null;
   }, [bookId, chapterNumber]);
 
   // Mark as scrolled when user switches to explanations view
@@ -517,17 +531,36 @@ export const ChapterPage = React.memo(function ChapterPage({
   }, [attemptScrollToVerse]);
 
   /**
-   * Handle scroll events - calculate velocity and detect bottom
+   * Handle scroll events - calculate velocity, detect bottom, and update visible range
    */
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     // Update current scroll ref for distance calculation
     currentScrollYRef.current = event.nativeEvent.contentOffset.y;
 
-    if (!onScroll) return;
-
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const currentScrollY = contentOffset.y;
     const currentTime = Date.now();
+
+    // Store viewport height for visibility calculations
+    viewportHeightRef.current = layoutMeasurement.height;
+
+    // Update visible Y range ref immediately (no re-render)
+    const newRange: VisibleYRange = {
+      startY: currentScrollY,
+      endY: currentScrollY + layoutMeasurement.height,
+    };
+    visibleYRangeRef.current = newRange;
+
+    // Debounce state update to avoid re-renders on every scroll frame
+    // Update every 150ms for smooth-enough tokenization transitions
+    if (visibilityUpdateTimerRef.current) {
+      clearTimeout(visibilityUpdateTimerRef.current);
+    }
+    visibilityUpdateTimerRef.current = setTimeout(() => {
+      setVisibleYRange(newRange);
+    }, 150);
+
+    if (!onScroll) return;
 
     // Calculate scroll velocity (pixels per second)
     const timeDelta = currentTime - lastScrollTime.current;
@@ -609,14 +642,84 @@ export const ChapterPage = React.memo(function ChapterPage({
     setSelectedNote(null);
   };
 
+  // Memoize context value to avoid unnecessary re-renders
+  const textVisibilityContextValue = useMemo(() => ({ visibleYRange }), [visibleYRange]);
+
   return (
-    <View style={styles.container} collapsable={false}>
-      {/* Explanations View - Render if active OR if delayed render stage >= 1 (And NOT preloading) */}
-      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
-        <View
+    <TextVisibilityContext.Provider value={textVisibilityContextValue}>
+      <View style={styles.container} collapsable={false}>
+        {/* Explanations View - Render if active OR if delayed render stage >= 1 (And NOT preloading) */}
+        {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
+          <View
+            style={[
+              styles.container,
+              activeView !== 'explanations' && {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                opacity: 0,
+                zIndex: -1,
+              },
+            ]}
+            collapsable={false}
+            pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
+          >
+            <TabContent
+              chapter={displayChapter}
+              activeTab="summary"
+              content={summaryData}
+              isLoading={isSummaryLoading}
+              error={summaryError}
+              visible={activeTab === 'summary'}
+              shouldRenderHidden={delayedRenderStage >= 2}
+              testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
+              onScroll={handleScroll}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              filteredHighlights={chapterHighlights}
+              filteredAutoHighlights={autoHighlights}
+            />
+            <TabContent
+              chapter={displayChapter}
+              activeTab="byline"
+              content={byLineData}
+              isLoading={isByLineLoading}
+              error={byLineError}
+              visible={activeTab === 'byline'}
+              shouldRenderHidden={delayedRenderStage >= 3}
+              testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
+              onScroll={handleScroll}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              filteredHighlights={chapterHighlights}
+              filteredAutoHighlights={autoHighlights}
+            />
+            <TabContent
+              chapter={displayChapter}
+              activeTab="detailed"
+              content={detailedData}
+              isLoading={isDetailedLoading}
+              error={detailedError}
+              visible={activeTab === 'detailed'}
+              shouldRenderHidden={delayedRenderStage >= 4}
+              testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
+              onScroll={handleScroll}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              filteredHighlights={chapterHighlights}
+              filteredAutoHighlights={autoHighlights}
+            />
+          </View>
+        )}
+
+        {/* Bible reading view (no explanations) - Always rendered but hidden if inactive */}
+        <Animated.ScrollView
+          ref={animatedScrollRef}
           style={[
             styles.container,
-            activeView !== 'explanations' && {
+            activeView !== 'bible' && {
               position: 'absolute',
               top: 0,
               left: 0,
@@ -626,205 +729,140 @@ export const ChapterPage = React.memo(function ChapterPage({
               zIndex: -1,
             },
           ]}
-          collapsable={false}
-          pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={true}
+          testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
         >
-          <TabContent
-            chapter={displayChapter}
-            activeTab="summary"
-            content={summaryData}
-            isLoading={isSummaryLoading}
-            error={summaryError}
-            visible={activeTab === 'summary'}
-            shouldRenderHidden={delayedRenderStage >= 2}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
-            onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-          />
-          <TabContent
-            chapter={displayChapter}
-            activeTab="byline"
-            content={byLineData}
-            isLoading={isByLineLoading}
-            error={byLineError}
-            visible={activeTab === 'byline'}
-            shouldRenderHidden={delayedRenderStage >= 3}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
-            onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-          />
-          <TabContent
-            chapter={displayChapter}
-            activeTab="detailed"
-            content={detailedData}
-            isLoading={isDetailedLoading}
-            error={detailedError}
-            visible={activeTab === 'detailed'}
-            shouldRenderHidden={delayedRenderStage >= 4}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
-            onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-          />
-        </View>
-      )}
+          <View style={styles.readerContainer} collapsable={false}>
+            {displayChapter ? (
+              <ChapterReader
+                chapter={displayChapter}
+                activeTab={activeTab}
+                explanationsOnly={false}
+                onContentLayout={handleContentLayout}
+                onOpenNotes={handleOpenNotes}
+                filteredHighlights={chapterHighlights}
+                filteredAutoHighlights={autoHighlights}
+              />
+            ) : (
+              <SkeletonLoader />
+            )}
+          </View>
+          <BottomLogo />
+        </Animated.ScrollView>
 
-      {/* Bible reading view (no explanations) - Always rendered but hidden if inactive */}
-      <Animated.ScrollView
-        ref={animatedScrollRef}
-        style={[
-          styles.container,
-          activeView !== 'bible' && {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            opacity: 0,
-            zIndex: -1,
-          },
-        ]}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={true}
-        testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
-      >
-        <View style={styles.readerContainer} collapsable={false}>
-          {displayChapter ? (
-            <ChapterReader
-              chapter={displayChapter}
-              activeTab={activeTab}
-              explanationsOnly={false}
-              onContentLayout={handleContentLayout}
-              onOpenNotes={handleOpenNotes}
-              filteredHighlights={chapterHighlights}
-              filteredAutoHighlights={autoHighlights}
-            />
-          ) : (
-            <SkeletonLoader />
-          )}
-        </View>
-        <BottomLogo />
-      </Animated.ScrollView>
-
-      {/* Note Modals - Rendered OUTSIDE ScrollView */}
-      <NotesModal
-        visible={notesModalVisible}
-        bookId={bookId}
-        chapterNumber={chapterNumber}
-        bookName={displayChapter?.bookName || ''}
-        onClose={() => setNotesModalVisible(false)}
-      />
-
-      {selectedNote && (
-        <NoteViewModal
-          visible={viewModalVisible}
-          note={selectedNote}
-          bookName={displayChapter?.title.split(' ')[0] || ''}
+        {/* Note Modals - Rendered OUTSIDE ScrollView */}
+        <NotesModal
+          visible={notesModalVisible}
+          bookId={bookId}
           chapterNumber={chapterNumber}
-          onClose={() => {
-            setViewModalVisible(false);
-            setSelectedNote(null);
-          }}
+          bookName={displayChapter?.bookName || ''}
+          onClose={() => setNotesModalVisible(false)}
         />
-      )}
 
-      {selectedNote && (
-        <NoteOptionsModal
-          visible={optionsModalVisible}
-          note={selectedNote}
-          onClose={handleOptionsModalClose}
-          deleteNote={async (noteId) => {
-            await deleteNote(noteId);
-            setOptionsModalVisible(false);
-            setViewModalVisible(false);
-            setSelectedNote(null);
-          }}
-          onEdit={() => handleEditNote(selectedNote)}
+        {selectedNote && (
+          <NoteViewModal
+            visible={viewModalVisible}
+            note={selectedNote}
+            bookName={displayChapter?.title.split(' ')[0] || ''}
+            chapterNumber={chapterNumber}
+            onClose={() => {
+              setViewModalVisible(false);
+              setSelectedNote(null);
+            }}
+          />
+        )}
+
+        {selectedNote && (
+          <NoteOptionsModal
+            visible={optionsModalVisible}
+            note={selectedNote}
+            onClose={handleOptionsModalClose}
+            deleteNote={async (noteId) => {
+              await deleteNote(noteId);
+              setOptionsModalVisible(false);
+              setViewModalVisible(false);
+              setSelectedNote(null);
+            }}
+            onEdit={() => handleEditNote(selectedNote)}
+          />
+        )}
+
+        {selectedNote && (
+          <NoteEditModal
+            visible={editModalVisible}
+            note={selectedNote}
+            bookName={displayChapter?.title.split(' ')[0] || ''}
+            chapterNumber={chapterNumber}
+            onClose={() => {
+              setEditModalVisible(false);
+              setSelectedNote(null);
+            }}
+            onSave={handleNoteSave}
+          />
+        )}
+
+        <DeleteConfirmationModal
+          visible={deleteConfirmVisible}
+          onCancel={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+          isDeleting={isDeletingNote}
+          title="Delete Note"
+          message="Are you sure you want to delete this note?"
         />
-      )}
 
-      {selectedNote && (
-        <NoteEditModal
-          visible={editModalVisible}
-          note={selectedNote}
-          bookName={displayChapter?.title.split(' ')[0] || ''}
-          chapterNumber={chapterNumber}
-          onClose={() => {
-            setEditModalVisible(false);
-            setSelectedNote(null);
-          }}
-          onSave={handleNoteSave}
-        />
-      )}
+        {/* Verse Tooltip - shown after scroll animation completes */}
+        {targetVerse &&
+          (() => {
+            // Determine the verse range to check for highlights
+            const endVerse = targetEndVerse || targetVerse;
 
-      <DeleteConfirmationModal
-        visible={deleteConfirmVisible}
-        onCancel={handleCancelDelete}
-        onConfirm={handleConfirmDelete}
-        isDeleting={isDeletingNote}
-        title="Delete Note"
-        message="Are you sure you want to delete this note?"
-      />
+            // Group consecutive highlights and find if target verse(s) are highlighted
+            const highlightGroups = groupConsecutiveHighlights(chapterHighlights);
+            // Match exact range to ensure we show the correct highlight group
+            const matchingGroup = highlightGroups.find(
+              (group) => group.startVerse === targetVerse && group.endVerse === endVerse
+            );
 
-      {/* Verse Tooltip - shown after scroll animation completes */}
-      {targetVerse &&
-        (() => {
-          // Determine the verse range to check for highlights
-          const endVerse = targetEndVerse || targetVerse;
-
-          // Group consecutive highlights and find if target verse(s) are highlighted
-          const highlightGroups = groupConsecutiveHighlights(chapterHighlights);
-          // Match exact range to ensure we show the correct highlight group
-          const matchingGroup = highlightGroups.find(
-            (group) => group.startVerse === targetVerse && group.endVerse === endVerse
-          );
-
-          // Get verse text from chapter data
-          let verseText = '';
-          if (displayChapter) {
-            const verses = displayChapter.sections.flatMap((s) => s.verses);
-            if (endVerse > targetVerse) {
-              // Multi-verse: concatenate all verses in range
-              const verseRange = verses.filter(
-                (v) => v.verseNumber >= targetVerse && v.verseNumber <= endVerse
-              );
-              verseText = verseRange.map((v) => v.text).join(' ');
-            } else {
-              // Single verse
-              const verse = verses.find((v) => v.verseNumber === targetVerse);
-              verseText = verse?.text || '';
+            // Get verse text from chapter data
+            let verseText = '';
+            if (displayChapter) {
+              const verses = displayChapter.sections.flatMap((s) => s.verses);
+              if (endVerse > targetVerse) {
+                // Multi-verse: concatenate all verses in range
+                const verseRange = verses.filter(
+                  (v) => v.verseNumber >= targetVerse && v.verseNumber <= endVerse
+                );
+                verseText = verseRange.map((v) => v.text).join(' ');
+              } else {
+                // Single verse
+                const verse = verses.find((v) => v.verseNumber === targetVerse);
+                verseText = verse?.text || '';
+              }
             }
-          }
 
-          // If we found a matching highlight group, use it
-          // Otherwise, treat as plain verse
-          return (
-            <VerseMateTooltip
-              verseNumber={matchingGroup ? null : targetVerse}
-              highlightGroup={matchingGroup || null}
-              bookId={bookId}
-              chapterNumber={chapterNumber}
-              bookName={displayChapter?.title.split(' ')[0] || ''}
-              visible={verseTooltipVisible}
-              onClose={() => setVerseTooltipVisible(false)}
-              verseText={verseText}
-              isLoggedIn={isAuthenticated}
-            />
-          );
-        })()}
-    </View>
+            // If we found a matching highlight group, use it
+            // Otherwise, treat as plain verse
+            return (
+              <VerseMateTooltip
+                verseNumber={matchingGroup ? null : targetVerse}
+                highlightGroup={matchingGroup || null}
+                bookId={bookId}
+                chapterNumber={chapterNumber}
+                bookName={displayChapter?.title.split(' ')[0] || ''}
+                visible={verseTooltipVisible}
+                onClose={() => setVerseTooltipVisible(false)}
+                verseText={verseText}
+                isLoggedIn={isAuthenticated}
+              />
+            );
+          })()}
+      </View>
+    </TextVisibilityContext.Provider>
   );
 });

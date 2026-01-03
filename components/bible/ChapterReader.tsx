@@ -32,7 +32,7 @@ import {
 import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { ErrorModal } from '@/components/bible/ErrorModal';
-import { HighlightedText } from '@/components/bible/HighlightedText';
+import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
@@ -47,6 +47,7 @@ import {
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
+import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
@@ -276,8 +277,12 @@ export function ChapterReader({
   const chapterHighlights = filteredHighlights ?? contextHighlights;
   const autoHighlights = filteredAutoHighlights ?? contextAutoHighlights;
 
-  // Store verse layouts: map startVerse -> Y position
+  // Text visibility context for hybrid tokenization
+  const { visibleYRange } = useTextVisibility();
+
+  // Store verse layouts: map startVerse -> { y, height }
   const sectionPositions = useRef<Record<number, number>>({});
+  const sectionLayouts = useRef<Record<number, { y: number; height: number }>>({});
   const layoutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear timeout on unmount
@@ -321,9 +326,11 @@ export function ChapterReader({
 
   /**
    * Handle layout of a verse/paragraph
+   * Stores both Y position (for scroll-to) and height (for visibility calculation)
    */
-  const handleVerseLayout = (startVerse: number, y: number) => {
+  const handleVerseLayout = (startVerse: number, y: number, height: number) => {
     sectionPositions.current[startVerse] = y;
+    sectionLayouts.current[startVerse] = { y, height };
 
     if (layoutTimeoutRef.current) {
       clearTimeout(layoutTimeoutRef.current);
@@ -335,6 +342,21 @@ export function ChapterReader({
   };
 
   /**
+   * Check if a verse group is visible in the viewport
+   */
+  const isVerseVisible = useCallback(
+    (startVerse: number): boolean => {
+      const layout = sectionLayouts.current[startVerse];
+      if (!layout) {
+        // If layout not yet calculated, assume visible (safe default)
+        return true;
+      }
+      return isElementVisible(layout.y, layout.height, visibleYRange);
+    },
+    [visibleYRange]
+  );
+
+  /**
    * Handle notes button press
    */
   const handleNotesPress = () => {
@@ -342,15 +364,19 @@ export function ChapterReader({
   };
 
   /**
-   * Handle long-press on a word for dictionary lookup
-   * Word is passed directly from HighlightedText (no coordinate estimation needed)
+   * Handle word selection from HighlightedText
+   * Directly opens dictionary definition (no intermediate selection UI)
    */
-  const handleWordLongPress = useCallback((verseNumber: number, word: string) => {
+  const handleWordSelect = useCallback((selection: WordSelection, clearSelection: () => void) => {
+    // Directly open definition
     setWordToDefine({
-      word,
-      verseNumber,
+      word: selection.word,
+      verseNumber: selection.verseNumber,
     });
     setWordDefinitionVisible(true);
+
+    // Clear any selection highlight
+    clearSelection();
   }, []);
 
   /**
@@ -508,7 +534,11 @@ export function ChapterReader({
                     <View
                       key={groupKey}
                       onLayout={(e) =>
-                        handleVerseLayout(group[0].verseNumber, e.nativeEvent.layout.y)
+                        handleVerseLayout(
+                          group[0].verseNumber,
+                          e.nativeEvent.layout.y,
+                          e.nativeEvent.layout.height
+                        )
                       }
                     >
                       <Text
@@ -610,8 +640,9 @@ export function ChapterReader({
                                 onHighlightTap={handleHighlightTap}
                                 onAutoHighlightPress={handleAutoHighlightPress}
                                 onVerseTap={handleVerseTap}
-                                onWordLongPress={handleWordLongPress}
+                                onWordSelect={handleWordSelect}
                                 style={styles.verseText}
+                                isVisible={isVerseVisible(group[0].verseNumber)}
                               />
                             </Text>
                           );
@@ -640,8 +671,9 @@ export function ChapterReader({
                       onHighlightTap={handleHighlightTap}
                       onAutoHighlightPress={handleAutoHighlightPress}
                       onVerseTap={handleVerseTap}
-                      onWordLongPress={handleWordLongPress}
+                      onWordSelect={handleWordSelect}
                       style={styles.verseText}
+                      isVisible={true}
                     />
                   </View>
                 ))}

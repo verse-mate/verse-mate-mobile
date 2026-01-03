@@ -21,11 +21,12 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
+  StyleSheet,
   Text,
   type TextLayoutEventData,
   type TextProps,
@@ -90,6 +91,25 @@ export interface TextSelection {
   text: string;
 }
 
+/**
+ * Word selection state for dictionary lookup
+ * Tracks selected word and position for Define button placement
+ */
+export interface WordSelection {
+  /** The selected word (cleaned of punctuation) */
+  word: string;
+  /** Start character position in verse text */
+  startChar: number;
+  /** End character position in verse text */
+  endChar: number;
+  /** Page X coordinate for floating button positioning */
+  pageX: number;
+  /** Page Y coordinate for floating button positioning */
+  pageY: number;
+  /** Verse number containing the selected word */
+  verseNumber: number;
+}
+
 export interface HighlightedTextProps extends TextProps {
   /** Full text of the verse */
   text: string;
@@ -105,17 +125,72 @@ export interface HighlightedTextProps extends TextProps {
   onAutoHighlightPress?: (autoHighlight: AutoHighlight) => void;
   /** Callback when plain text is tapped (show verse insight tooltip) */
   onVerseTap?: (verseNumber: number) => void;
-  /** Callback when a word is long-pressed (for dictionary lookup) */
+  /** Callback when a word is long-pressed (for dictionary lookup) - DEPRECATED: use onWordSelect */
   onWordLongPress?: (verseNumber: number, word: string) => void;
+  /** Callback when a word is selected via long-press (shows selection with Define button) */
+  onWordSelect?: (selection: WordSelection, clearSelection: () => void) => void;
+  /** External selection state for controlled mode (when parent manages selection) */
+  selectedWord?: WordSelection | null;
   /** Style override for base text */
   style?: TextProps['style'];
+  /** Whether this text is visible in viewport - enables word tokenization for accurate long-press */
+  isVisible?: boolean;
+}
+
+/**
+ * Word token for tokenized rendering
+ * Each word becomes a separate Text element for accurate long-press detection
+ */
+interface WordToken {
+  /** The word text (may include punctuation) */
+  word: string;
+  /** Start character position in the segment */
+  startChar: number;
+  /** End character position in the segment (exclusive) */
+  endChar: number;
+  /** Whether there's a trailing space after this word */
+  hasTrailingSpace: boolean;
+}
+
+/**
+ * Tokenize text into individual words for per-word rendering
+ * Preserves spaces and punctuation for accurate positioning
+ */
+function tokenizeText(text: string): WordToken[] {
+  const tokens: WordToken[] = [];
+  // Match word characters and any attached punctuation, followed by optional whitespace
+  const regex = /(\S+)(\s*)/g;
+  const matches = text.matchAll(regex);
+
+  for (const match of matches) {
+    const wordMatch = match[1];
+    const spaceMatch = match[2];
+    tokens.push({
+      word: wordMatch,
+      startChar: match.index ?? 0,
+      endChar: (match.index ?? 0) + wordMatch.length,
+      hasTrailingSpace: spaceMatch.length > 0,
+    });
+  }
+
+  return tokens;
+}
+
+/**
+ * Result of word extraction including boundaries
+ */
+interface WordExtractionResult {
+  word: string;
+  startChar: number;
+  endChar: number;
 }
 
 /**
  * Extract the word at a given character index from text
  * Expands from the index to find word boundaries
+ * Returns word and its character boundaries
  */
-function extractWordAtIndex(text: string, charIndex: number): string | null {
+function extractWordAtIndex(text: string, charIndex: number): WordExtractionResult | null {
   if (charIndex < 0 || charIndex >= text.length) return null;
 
   // Find word boundaries by expanding from the character index
@@ -161,7 +236,13 @@ function extractWordAtIndex(text: string, charIndex: number): string | null {
   }
 
   const word = text.slice(wordStart, wordEnd + 1);
-  return word.length > 0 && /\w/.test(word) ? word : null;
+  if (word.length === 0 || !/\w/.test(word)) return null;
+
+  return {
+    word,
+    startChar: wordStart,
+    endChar: wordEnd + 1, // End is exclusive
+  };
 }
 
 /**
@@ -191,7 +272,10 @@ export const HighlightedText = memo(function HighlightedText({
   onAutoHighlightPress,
   onVerseTap,
   onWordLongPress,
+  onWordSelect,
+  selectedWord: externalSelectedWord,
   style,
+  isVisible = true,
   ...textProps
 }: HighlightedTextProps) {
   // Get current theme mode for highlight color selection
@@ -200,6 +284,18 @@ export const HighlightedText = memo(function HighlightedText({
   // Track text layout for coordinate-based word detection
   const textLayoutRef = useRef<TextLayoutLine[]>([]);
   const containerWidthRef = useRef<number>(0);
+
+  // Internal selection state (used when not controlled externally)
+  const [internalSelectedWord, setInternalSelectedWord] = useState<WordSelection | null>(null);
+
+  // Use external selection if provided, otherwise use internal state
+  const selectedWordState =
+    externalSelectedWord !== undefined ? externalSelectedWord : internalSelectedWord;
+
+  // Clear selection callback
+  const clearSelection = useCallback(() => {
+    setInternalSelectedWord(null);
+  }, []);
 
   /**
    * Process segments - memoized for performance
@@ -379,34 +475,124 @@ export const HighlightedText = memo(function HighlightedText({
 
   /**
    * Detect word from long-press coordinates within a segment
-   * Uses text layout and character position estimation
+   * Uses line layout data for accurate character detection in wrapped text.
+   * Falls back to simple estimation when line data unavailable.
    */
   const detectWordFromLongPress = useCallback(
-    (segmentText: string, event: GestureResponderEvent) => {
-      if (!onWordLongPress) return;
+    (segmentText: string, segmentStartChar: number, event: GestureResponderEvent) => {
+      const { locationX, locationY, pageX, pageY } = event.nativeEvent;
 
-      const { locationX } = event.nativeEvent;
+      // Use line layout for accurate wrapped text detection
+      const lines = textLayoutRef.current;
+      let charIndexInFullText = -1;
 
-      // Estimate character position based on location
-      // Use segment width and character count for approximation
-      const avgCharWidth =
-        containerWidthRef.current > 0 && segmentText.length > 0
-          ? containerWidthRef.current / text.length
-          : DEFAULT_CHAR_WIDTH;
+      if (lines.length > 0) {
+        // Find which line was tapped using Y coordinate
+        let cumulativeCharOffset = 0;
+        for (const line of lines) {
+          // Check if tap Y is within this line's bounds
+          if (locationY >= line.y && locationY < line.y + line.height) {
+            // Calculate character position within this line
+            const lineCharWidth =
+              line.width > 0 && line.text.length > 0
+                ? line.width / line.text.length
+                : DEFAULT_CHAR_WIDTH;
 
-      const charIndex = Math.floor(locationX / avgCharWidth);
-      const word = extractWordAtIndex(segmentText, charIndex);
+            // locationX relative to line start
+            const xInLine = locationX - line.x;
+            const charInLine = Math.floor(xInLine / lineCharWidth);
+            const clampedCharInLine = Math.max(0, Math.min(charInLine, line.text.length - 1));
 
-      if (word) {
-        // Clean trailing punctuation from word
-        const cleanWord = word.replace(/[.,;:!?"']+$/, '').replace(/^[.,;:!?"']+/, '');
-        if (cleanWord) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            charIndexInFullText = cumulativeCharOffset + clampedCharInLine;
+            break;
+          }
+          cumulativeCharOffset += line.text.length;
+        }
+      }
+
+      // Fallback: simple X-based estimation if line detection didn't work
+      if (charIndexInFullText < 0) {
+        // Use a reasonable character width for bodyLarge font (~17px)
+        const FALLBACK_CHAR_WIDTH = 10;
+        charIndexInFullText = Math.floor(locationX / FALLBACK_CHAR_WIDTH);
+      }
+
+      // Convert full-text index to segment-relative index
+      const segmentRelativeIndex = charIndexInFullText - segmentStartChar;
+
+      // Clamp to segment bounds - if tap was outside this segment, use nearest edge
+      const clampedIndex = Math.max(0, Math.min(segmentRelativeIndex, segmentText.length - 1));
+
+      const result = extractWordAtIndex(segmentText, clampedIndex);
+
+      if (result) {
+        // Clean punctuation from word
+        const cleanWord = result.word.replace(/[.,;:!?"']+$/, '').replace(/^[.,;:!?"']+/, '');
+        if (!cleanWord) return;
+
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+        // Calculate absolute character positions in full verse text
+        const wordStartInFullText = segmentStartChar + result.startChar;
+        const wordEndInFullText = segmentStartChar + result.endChar;
+
+        // Create selection object
+        const selection: WordSelection = {
+          word: cleanWord,
+          startChar: wordStartInFullText,
+          endChar: wordEndInFullText,
+          pageX,
+          pageY,
+          verseNumber,
+        };
+
+        // Use new selection API if available
+        if (onWordSelect) {
+          setInternalSelectedWord(selection);
+          onWordSelect(selection, clearSelection);
+        } else if (onWordLongPress) {
+          // Legacy fallback: directly trigger dictionary lookup
           onWordLongPress(verseNumber, cleanWord);
         }
       }
     },
-    [onWordLongPress, verseNumber, text.length]
+    [onWordSelect, onWordLongPress, verseNumber, clearSelection]
+  );
+
+  /**
+   * Handle long-press on a tokenized word (when isVisible=true)
+   * Since each word is a separate Text element, we know exactly which word was pressed
+   */
+  const handleTokenizedWordLongPress = useCallback(
+    (word: string, startChar: number, endChar: number, event: GestureResponderEvent) => {
+      const { pageX, pageY } = event.nativeEvent;
+
+      // Clean punctuation from word
+      const cleanWord = word.replace(/[.,;:!?"']+$/, '').replace(/^[.,;:!?"']+/, '');
+      if (!cleanWord) return;
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // Create selection object
+      const selection: WordSelection = {
+        word: cleanWord,
+        startChar,
+        endChar,
+        pageX,
+        pageY,
+        verseNumber,
+      };
+
+      // Use new selection API if available
+      if (onWordSelect) {
+        setInternalSelectedWord(selection);
+        onWordSelect(selection, clearSelection);
+      } else if (onWordLongPress) {
+        // Legacy fallback: directly trigger dictionary lookup
+        onWordLongPress(verseNumber, cleanWord);
+      }
+    },
+    [onWordSelect, onWordLongPress, verseNumber, clearSelection]
   );
 
   /**
@@ -463,6 +649,99 @@ export const HighlightedText = memo(function HighlightedText({
     return styles;
   }, [segments, mode]);
 
+  /**
+   * Check if a segment contains the selected word
+   * Returns the text split into [before, selected, after] if selection exists in segment
+   */
+  const getSelectionParts = useCallback(
+    (segment: TextSegment): { before: string; selected: string; after: string } | null => {
+      if (!selectedWordState) return null;
+
+      // Check if selection falls within this segment
+      const selStart = selectedWordState.startChar;
+      const selEnd = selectedWordState.endChar;
+      const segStart = segment.startChar;
+      const segEnd = segment.endChar;
+
+      // Selection must overlap with segment
+      if (selEnd <= segStart || selStart >= segEnd) return null;
+
+      // Calculate relative positions within segment
+      const relativeStart = Math.max(0, selStart - segStart);
+      const relativeEnd = Math.min(segment.text.length, selEnd - segStart);
+
+      return {
+        before: segment.text.slice(0, relativeStart),
+        selected: segment.text.slice(relativeStart, relativeEnd),
+        after: segment.text.slice(relativeEnd),
+      };
+    },
+    [selectedWordState]
+  );
+
+  /**
+   * Handle tap on outer text to clear selection
+   */
+  const handleOuterPress = useCallback(() => {
+    if (selectedWordState) {
+      clearSelection();
+    }
+  }, [selectedWordState, clearSelection]);
+
+  /**
+   * Render a segment as tokenized words (when visible)
+   * Each word is a separate Text element for accurate long-press detection
+   */
+  const renderTokenizedSegment = useCallback(
+    (
+      segment: TextSegment,
+      segmentStyle: { backgroundColor: string } | undefined,
+      onPressHandler: (() => void) | undefined
+    ) => {
+      const tokens = tokenizeText(segment.text);
+
+      return (
+        <Text key={segment.key} style={segmentStyle} suppressHighlighting={true}>
+          {tokens.map((token) => {
+            // Calculate absolute char positions in verse text
+            const absoluteStartChar = segment.startChar + token.startChar;
+            const absoluteEndChar = segment.startChar + token.endChar;
+
+            // Check if this word is selected
+            const isSelected =
+              selectedWordState &&
+              selectedWordState.startChar === absoluteStartChar &&
+              selectedWordState.endChar === absoluteEndChar;
+
+            // Responder props exist at runtime but not in Text's TS types
+            // They allow ScrollView to take over the gesture when scrolling
+            const responderProps: Record<string, () => boolean> = {
+              onStartShouldSetResponder: () => true,
+              onResponderTerminationRequest: () => true,
+            };
+
+            return (
+              <Text
+                key={`word-${segment.key}-${token.startChar}`}
+                style={isSelected ? selectionStyles.selected : undefined}
+                onPress={onPressHandler}
+                onLongPress={(e) =>
+                  handleTokenizedWordLongPress(token.word, absoluteStartChar, absoluteEndChar, e)
+                }
+                suppressHighlighting={true}
+                {...responderProps}
+              >
+                {token.word}
+                {token.hasTrailingSpace ? ' ' : ''}
+              </Text>
+            );
+          })}
+        </Text>
+      );
+    },
+    [selectedWordState, handleTokenizedWordLongPress]
+  );
+
   return (
     <Text
       style={style}
@@ -470,20 +749,63 @@ export const HighlightedText = memo(function HighlightedText({
       suppressHighlighting={true}
       onTextLayout={handleTextLayout}
       onLayout={handleLayout}
+      onPress={handleOuterPress}
       {...textProps}
     >
       {segments.map((segment) => {
+        // When visible, use tokenized rendering for accurate word detection
+        if (isVisible) {
+          // Determine style and press handler based on segment type
+          let segmentStyle: { backgroundColor: string } | undefined;
+          let onPressHandler: (() => void) | undefined;
+
+          if (segment.highlight) {
+            segmentStyle = highlightStyles[segment.highlight.color];
+            const highlightId = segment.highlight.highlight_id;
+            onPressHandler = () => handleHighlightTap(highlightId);
+          } else if (segment.autoHighlight) {
+            segmentStyle = autoHighlightStyles[segment.autoHighlight.theme_color];
+            const autoHighlight = segment.autoHighlight;
+            onPressHandler = () => handleAutoHighlightPress(autoHighlight);
+          } else {
+            onPressHandler = handleVerseTap;
+          }
+
+          return renderTokenizedSegment(segment, segmentStyle, onPressHandler);
+        }
+
+        // Non-visible: use original segment-based rendering (faster, coordinate-based detection)
+        // Check if this segment contains selected word
+        const selectionParts = getSelectionParts(segment);
+
         // User highlight segment (solid color)
         if (segment.highlight) {
           const highlightStyle = highlightStyles[segment.highlight.color];
           const highlightId = segment.highlight.highlight_id;
+
+          // If segment contains selection, render with blue highlight on selected word
+          if (selectionParts) {
+            return (
+              <Text
+                key={segment.key}
+                style={highlightStyle}
+                onPress={() => handleHighlightTap(highlightId)}
+                onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
+                suppressHighlighting={true}
+              >
+                {selectionParts.before}
+                <Text style={selectionStyles.selected}>{selectionParts.selected}</Text>
+                {selectionParts.after}
+              </Text>
+            );
+          }
 
           return (
             <Text
               key={segment.key}
               style={highlightStyle}
               onPress={() => handleHighlightTap(highlightId)}
-              onLongPress={(e) => detectWordFromLongPress(segment.text, e)}
+              onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
               suppressHighlighting={true}
             >
               {segment.text}
@@ -496,12 +818,29 @@ export const HighlightedText = memo(function HighlightedText({
           const autoHighlightStyle = autoHighlightStyles[segment.autoHighlight.theme_color];
           const autoHighlight = segment.autoHighlight;
 
+          // If segment contains selection, render with blue highlight on selected word
+          if (selectionParts) {
+            return (
+              <Text
+                key={segment.key}
+                style={autoHighlightStyle}
+                onPress={() => handleAutoHighlightPress(autoHighlight)}
+                onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
+                suppressHighlighting={true}
+              >
+                {selectionParts.before}
+                <Text style={selectionStyles.selected}>{selectionParts.selected}</Text>
+                {selectionParts.after}
+              </Text>
+            );
+          }
+
           return (
             <Text
               key={segment.key}
               style={autoHighlightStyle}
               onPress={() => handleAutoHighlightPress(autoHighlight)}
-              onLongPress={(e) => detectWordFromLongPress(segment.text, e)}
+              onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
               suppressHighlighting={true}
             >
               {segment.text}
@@ -510,11 +849,27 @@ export const HighlightedText = memo(function HighlightedText({
         }
 
         // Plain text segment
+        // If segment contains selection, render with blue highlight on selected word
+        if (selectionParts) {
+          return (
+            <Text
+              key={segment.key}
+              onPress={handleVerseTap}
+              onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
+              suppressHighlighting={true}
+            >
+              {selectionParts.before}
+              <Text style={selectionStyles.selected}>{selectionParts.selected}</Text>
+              {selectionParts.after}
+            </Text>
+          );
+        }
+
         return (
           <Text
             key={segment.key}
             onPress={handleVerseTap}
-            onLongPress={(e) => detectWordFromLongPress(segment.text, e)}
+            onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
             suppressHighlighting={true}
           >
             {segment.text}
@@ -523,4 +878,14 @@ export const HighlightedText = memo(function HighlightedText({
       })}
     </Text>
   );
+});
+
+/**
+ * Styles for word selection highlight
+ * Blue background similar to native text selection
+ */
+const selectionStyles = StyleSheet.create({
+  selected: {
+    backgroundColor: '#3390FF40', // Light blue with transparency
+  },
 });
