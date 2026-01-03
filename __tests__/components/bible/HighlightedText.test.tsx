@@ -88,13 +88,26 @@ describe('HighlightedText', () => {
     });
 
     expect(highlightedSegment).toBeTruthy();
+
+    // Helper to recursively extract text from React elements
+    const extractText = (children: any): string => {
+      if (typeof children === 'string') return children;
+      if (Array.isArray(children)) {
+        return children.map((c) => extractText(c)).join('');
+      }
+      if (children?.props?.children) {
+        return extractText(children.props.children);
+      }
+      return '';
+    };
+
     // Component now renders each word separately, so collect all highlighted text
     const highlightedTexts = textElements
       .filter((el: ReactTestInstance) => {
         const style = el.props.style;
         return style?.backgroundColor?.includes(HIGHLIGHT_COLORS.yellow);
       })
-      .map((el: ReactTestInstance) => el.props.children)
+      .map((el: ReactTestInstance) => extractText(el.props.children))
       .join('');
     expect(highlightedTexts).toBe('beginning God');
   });
@@ -127,13 +140,26 @@ describe('HighlightedText', () => {
     });
 
     expect(highlightedSegment).toBeTruthy();
+
+    // Helper to recursively extract text from React elements
+    const extractText = (children: any): string => {
+      if (typeof children === 'string') return children;
+      if (Array.isArray(children)) {
+        return children.map((c) => extractText(c)).join('');
+      }
+      if (children?.props?.children) {
+        return extractText(children.props.children);
+      }
+      return '';
+    };
+
     // Component now renders each word separately, so collect all highlighted text
     const highlightedTexts = textElements
       .filter((el: ReactTestInstance) => {
         const style = el.props.style;
         return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.yellow);
       })
-      .map((el: ReactTestInstance) => el.props.children)
+      .map((el: ReactTestInstance) => extractText(el.props.children))
       .join('');
     expect(highlightedTexts).toBe('beginning God');
   });
@@ -180,6 +206,28 @@ describe('HighlightedText', () => {
       return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.green);
     });
     expect(greenSegment).toBeTruthy();
+
+    // Collect text from tokenized structure (may be nested)
+    const collectTextContent = (elements: ReactTestInstance[]): string => {
+      return elements
+        .filter((el: ReactTestInstance) => {
+          const style = el.props.style;
+          return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.yellow);
+        })
+        .map((el: ReactTestInstance) => {
+          const children = el.props.children;
+          if (typeof children === 'string') return children;
+          if (Array.isArray(children)) {
+            return children
+              .flatMap((c: any) => (typeof c === 'string' ? c : c?.props?.children || ''))
+              .join('');
+          }
+          return '';
+        })
+        .join('');
+    };
+    const highlightedTexts = collectTextContent(textElements);
+    expect(highlightedTexts).toContain('beginning');
   });
 
   it('should handle multiple non-overlapping highlights in same verse', () => {
@@ -258,9 +306,19 @@ describe('HighlightedText', () => {
 
     const parentElement = findElementWithHandler(UNSAFE_root);
 
+    // Create mock event with nativeEvent (required for tokenized word handler)
+    const mockEvent = {
+      nativeEvent: {
+        pageX: 100,
+        pageY: 200,
+        locationX: 50,
+        locationY: 10,
+      },
+    };
+
     // Simulate long press on parent element (a word)
     if (parentElement) {
-      fireEvent(parentElement, 'longPress');
+      fireEvent(parentElement, 'longPress', mockEvent);
     }
 
     // Wait for async handler to complete
@@ -291,10 +349,20 @@ describe('HighlightedText', () => {
       return el.props.onLongPress !== undefined;
     });
 
+    // Create mock event with nativeEvent (required for tokenized word handler)
+    const mockEvent = {
+      nativeEvent: {
+        pageX: 100,
+        pageY: 200,
+        locationX: 50,
+        locationY: 10,
+      },
+    };
+
     // Should not throw error when long-pressing without callback
     expect(() => {
       if (parentTextElement) {
-        fireEvent(parentTextElement, 'longPress');
+        fireEvent(parentTextElement, 'longPress', mockEvent);
       }
     }).not.toThrow();
   });
@@ -326,14 +394,26 @@ describe('HighlightedText', () => {
     });
 
     expect(highlightedSegment).toBeTruthy();
-    // Component now renders each word separately, so collect all highlighted text
+    // Component renders each word separately, so we need to extract text from nested structure
+    // Helper to recursively extract text from React elements
+    const extractText = (children: any): string => {
+      if (typeof children === 'string') return children;
+      if (Array.isArray(children)) {
+        return children.map((c) => extractText(c)).join('');
+      }
+      if (children?.props?.children) {
+        return extractText(children.props.children);
+      }
+      return '';
+    };
+
     // First verse should be highlighted from char 29 to end
     const highlightedTexts = textElements
       .filter((el: ReactTestInstance) => {
         const style = el.props.style;
         return style?.backgroundColor;
       })
-      .map((el: ReactTestInstance) => el.props.children)
+      .map((el: ReactTestInstance) => extractText(el.props.children))
       .join('');
     expect(highlightedTexts).toBe('the heavens and the earth.');
   });
