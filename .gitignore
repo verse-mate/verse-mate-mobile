@@ -82,3 +82,5 @@ review.md
 modules/dictionary/android/build/*
 
 crash_logs
+
+.agent-os/**/*
