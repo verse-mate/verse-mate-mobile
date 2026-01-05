@@ -39,7 +39,7 @@ The project uses `@hey-api/openapi-ts` to generate TypeScript API client code fr
 
 **Commands**:
 - `bun generate:api` - Generate API client from `openapi.json`
-- `curl https://api.verse-mate.apegro.dev/openapi/json -o openapi.json` - Download latest OpenAPI schema
+- `curl https://api.versemate.org/openapi/json -o openapi.json` - Download latest OpenAPI schema
 
 **When to Regenerate**:
 1. When backend API changes (new endpoints, modified request/response schemas)
