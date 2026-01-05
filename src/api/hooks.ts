@@ -504,7 +504,7 @@ export function getUserRecentlyViewedBooksOptions() {
 	return {
 		queryKey: ['user', 'recently-viewed-books'],
 		queryFn: async () => {
-			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
 
 			// Get access token from storage for authentication
 			const accessToken = await getAccessToken();
@@ -532,7 +532,7 @@ export function getUserRecentlyViewedBooksOptions() {
 export function postUserRecentlyViewedBooksSyncMutation() {
 	return {
 		mutationFn: async ({ body }: { body: { books: { bookId: string; timestamp: number }[] } }) => {
-			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+			const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
 
 			// Get access token from storage for authentication
 			const accessToken = await getAccessToken();

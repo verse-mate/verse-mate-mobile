@@ -8,7 +8,7 @@
 import { HttpResponse, http } from 'msw';
 
 // Support both local and production API URLs for testing
-const BASE_URLS = ['http://localhost:4000', 'https://api.verse-mate.apegro.dev'];
+const BASE_URLS = ['http://localhost:4000', 'https://api.versemate.org'];
 
 /**
  * Mock auto-highlights data
