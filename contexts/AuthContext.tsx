@@ -158,7 +158,7 @@ async function postAuthSso(body: {
   token: string;
   platform: 'mobile';
 }): Promise<{ data?: SSOAuthResponse; error?: SSOErrorResponse }> {
-  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+  const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
 
   try {
     const response = await fetch(`${baseUrl}/auth/sso`, {

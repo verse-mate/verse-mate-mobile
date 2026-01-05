@@ -6,7 +6,7 @@
 
 import { HttpResponse, http } from 'msw';
 
-const BASE_URLS = ['http://localhost:4000', 'https://api.verse-mate.apegro.dev'];
+const BASE_URLS = ['http://localhost:4000', 'https://api.versemate.org'];
 
 export const languagesHandlers = BASE_URLS.flatMap((BASE_URL) => [
   // GET /bible/languages - Get available languages
