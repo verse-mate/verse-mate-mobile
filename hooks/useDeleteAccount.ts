@@ -29,7 +29,7 @@ export function useDeleteAccount() {
       }
 
       // Call API to delete account
-      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
       const response = await fetch(`${baseUrl}/auth/account`, {
         method: 'DELETE',
         headers: {

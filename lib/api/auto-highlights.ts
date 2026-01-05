@@ -16,7 +16,7 @@ import type {
   UpdateThemePreferenceRequest,
 } from '@/types/auto-highlights';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.verse-mate.apegro.dev';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
 
 /**
  * Get auto-highlights for a specific chapter
