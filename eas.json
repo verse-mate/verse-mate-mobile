@@ -42,7 +42,9 @@
         "EXPO_PUBLIC_POSTHOG_KEY": "phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC",
         "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "false",
-        "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
+        "EXPO_PUBLIC_APPLE_SSO_ENABLED": "true",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "94126503648-2fb9dakdfi8pmi8ep78bk5nsrv94db6o.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "94126503648-htsubrfo04f7ef34ig58lsiscj9kbmo6.apps.googleusercontent.com"
       }
     },
     "production": {
