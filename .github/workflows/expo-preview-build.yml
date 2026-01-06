@@ -12,6 +12,16 @@ on:
           - ios
           - android
         default: 'all'
+      version_bump:
+        description: 'Bump version before build'
+        required: true
+        type: choice
+        options:
+          - none
+          - patch
+          - minor
+          - major
+        default: 'none'
   push:
     branches:
       - '**'
@@ -20,10 +30,14 @@ jobs:
   preview-build:
     name: EAS Preview Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check for preview build trigger
         id: check_trigger
@@ -63,6 +77,28 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Bump Version
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version_bump != 'none' && steps.check_trigger.outputs.skip != 'true' }}
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          echo "Bumping version type: ${{ github.event.inputs.version_bump }}"
+          node scripts/bump-version.js ${{ github.event.inputs.version_bump }}
+          
+          # Commit and tag are handled inside script or we do it here
+          # Since the script supports COMMIT_BUMP=true, we can use that or manual commands
+          git add app.json package.json
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+          git tag "v$NEW_VERSION"
+          
+          git push origin HEAD:${{ github.ref_name }}
+          git push origin "v$NEW_VERSION"
+          
+          echo "Version bumped to $NEW_VERSION"
 
       - name: Setup Bun
         if: steps.check_trigger.outputs.skip != 'true'
