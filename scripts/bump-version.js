@@ -1,7 +1,7 @@
 /* eslint-env node */
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const { execSync } = require('node:child_process');
 
 // Get the bump type from arguments (patch, minor, major)
 const bumpType = process.argv[2] || 'patch';
@@ -60,8 +60,8 @@ appJson.expo.version = newVersion;
 packageJson.version = newVersion;
 
 // Write files back
-fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n');
-fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+fs.writeFileSync(appJsonPath, `${JSON.stringify(appJson, null, 2)}\n`);
+fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
 // Optional: Git commit and tag if requested via env var
 if (process.env.COMMIT_BUMP === 'true') {

@@ -13,11 +13,13 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -30,6 +32,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SuccessModal } from '@/components/bible/SuccessModal';
 import { IconHelp } from '@/components/ui/icons';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
@@ -68,6 +71,8 @@ export default function HelpScreen() {
   const [showTopicPicker, setShowTopicPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [lastVisited, setLastVisited] = useState<string | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -99,9 +104,50 @@ export default function HelpScreen() {
     }
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      const updateVisitTime = async () => {
+        try {
+          const previousVisit = await AsyncStorage.getItem('last_visited_help_at');
+          setLastVisited(previousVisit);
+          await AsyncStorage.setItem('last_visited_help_at', new Date().toISOString());
+        } catch (error) {
+          console.error('Failed to update visit time:', error);
+        }
+      };
+
+      loadConversations();
+      updateVisitTime();
+    }, [loadConversations])
+  );
+
+  const handleBackPress = useCallback(async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (view === 'chat' || view === 'newChat') {
+      setView('list');
+      setCurrentConvId(null);
+      setSelectedTopic('');
+      setInputText('');
+      loadConversations();
+      setLastVisited(new Date().toISOString());
+    } else {
+      router.back();
+    }
+  }, [view, loadConversations]);
+
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    const backAction = () => {
+      if (view !== 'list') {
+        handleBackPress();
+        return true;
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [view, handleBackPress]);
 
   // Poll for new messages if in chat view
   useEffect(() => {
@@ -168,10 +214,9 @@ export default function HelpScreen() {
         const response = await postSupportConversation(text, subject);
         const data = response.data;
         if (data && 'success' in data && data.success) {
-          setCurrentConvId(data.conversationId);
-          await loadMessages(data.conversationId);
+          // Show success modal instead of going to chat immediately
+          setSuccessModalVisible(true);
           loadConversations(); // Update list in background
-          setView('chat');
         }
       }
     } catch (error) {
@@ -179,35 +224,44 @@ export default function HelpScreen() {
     }
   };
 
-  const handleBackPress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (view === 'chat' || view === 'newChat') {
-      setView('list');
-      setCurrentConvId(null);
-      setSelectedTopic('');
-      setInputText('');
-      loadConversations();
-    } else {
-      router.back();
-    }
+  const handleSuccessModalClose = () => {
+    setSuccessModalVisible(false);
+    setView('list');
+    setCurrentConvId(null);
+    setSelectedTopic('');
+    setInputText('');
+    setLastVisited(new Date().toISOString());
   };
 
   // -- Render Helpers --
 
-  const renderConversationItem = ({ item }: { item: SupportConversation }) => (
-    <Pressable
-      onPress={() => handleSelectConversation(item.id)}
-      style={({ pressed }) => [styles.convCard, pressed && styles.convCardPressed]}
-    >
-      <View style={styles.convInfo}>
-        <Text style={styles.convSubject}>{item.subject || 'Support Chat'}</Text>
-        <Text style={styles.convDate}>
-          {item.last_message_at ? new Date(item.last_message_at).toLocaleDateString() : 'New'}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-    </Pressable>
-  );
+  const renderConversationItem = ({ item }: { item: SupportConversation }) => {
+    const isUnread = (() => {
+      if (!item.last_message_at) return false;
+      if (!lastVisited) return true; // Assume unread if no history
+      return new Date(item.last_message_at).getTime() > new Date(lastVisited).getTime();
+    })();
+
+    return (
+      <Pressable
+        onPress={() => handleSelectConversation(item.id)}
+        style={({ pressed }) => [styles.convCard, pressed && styles.convCardPressed]}
+      >
+        <View style={styles.convInfo}>
+          <View style={styles.convHeaderRow}>
+            <Text style={[styles.convSubject, isUnread && styles.convSubjectUnread]}>
+              {item.subject || 'Support Chat'}
+            </Text>
+            {isUnread && <View style={styles.unreadDot} />}
+          </View>
+          <Text style={[styles.convDate, isUnread && styles.convDateUnread]}>
+            {item.last_message_at ? new Date(item.last_message_at).toLocaleDateString() : 'New'}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+      </Pressable>
+    );
+  };
 
   const renderMessage = ({ item }: { item: SupportMessage }) => {
     const isUser = item.sender === 'user';
@@ -272,7 +326,11 @@ export default function HelpScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
           <Text style={styles.headerTitle}>
-            {view === 'chat' || view === 'newChat' ? 'Conversation' : 'Help & Feedback'}
+            {view === 'chat'
+              ? 'Conversation'
+              : view === 'newChat'
+                ? 'Send Feedback'
+                : 'Help & Feedback'}
           </Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -292,23 +350,43 @@ export default function HelpScreen() {
                 />
               }
               ListHeaderComponent={
-                <Pressable
-                  onPress={handleStartNewConversation}
-                  style={({ pressed }) => [styles.newChatButton, pressed && { opacity: 0.8 }]}
-                >
-                  <Ionicons name="add-circle-outline" size={24} color={colors.gold} />
-                  <Text style={styles.newChatText}>Start New Conversation</Text>
-                </Pressable>
+                <View style={styles.listHeader}>
+                  <Pressable
+                    onPress={handleStartNewConversation}
+                    style={({ pressed }) => [styles.newChatButton, pressed && { opacity: 0.9 }]}
+                  >
+                    <View style={styles.newChatIconContainer}>
+                      <Ionicons
+                        name="chatbox-ellipses-outline"
+                        size={28}
+                        color={colors.background}
+                      />
+                    </View>
+                    <View style={styles.newChatTextContainer}>
+                      <Text style={styles.newChatTitleText}>Send Feedback</Text>
+                      <Text style={styles.newChatSubtitleText}>
+                        Ask a question or share your thoughts
+                      </Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={20} color={colors.background} />
+                  </Pressable>
+
+                  {conversations.length > 0 && (
+                    <View style={styles.historySection}>
+                      <View style={styles.historyDivider} />
+                      <Text style={styles.sectionHeader}>History</Text>
+                      <Text style={styles.sectionSubtitle}>
+                        View your past feedback or add more details to ongoing conversations.
+                      </Text>
+                    </View>
+                  )}
+                </View>
               }
               ListEmptyComponent={
-                !isLoading ? (
-                  <View style={styles.centerContent}>
-                    <Text style={styles.emptyText}>No past conversations found.</Text>
-                  </View>
-                ) : null
+                null // Empty state handled by "History" header logic
               }
             />
-            {isLoading && (
+            {isLoading && conversations.length === 0 && (
               <ActivityIndicator style={StyleSheet.absoluteFill} size="large" color={colors.gold} />
             )}
           </View>
@@ -323,7 +401,7 @@ export default function HelpScreen() {
             >
               <Text style={styles.newChatTitle}>How can we help?</Text>
               <Text style={styles.newChatSubtitle}>
-                Select a topic and tell us what happened. We read every message.
+                Select a topic and tell us what happened. We appreciate your feedback!
               </Text>
 
               {/* Topic Selector */}
@@ -402,7 +480,7 @@ export default function HelpScreen() {
                 onPress={handleSend}
                 disabled={!selectedTopic || !inputText.trim()}
               >
-                <Text style={styles.submitButtonText}>Submit</Text>
+                <Text style={styles.submitButtonText}>Send Feedback</Text>
               </Pressable>
             </View>
           </KeyboardAvoidingView>
@@ -448,6 +526,13 @@ export default function HelpScreen() {
             </KeyboardAvoidingView>
           </View>
         )}
+
+        <SuccessModal
+          visible={successModalVisible}
+          onClose={handleSuccessModalClose}
+          title="Feedback Sent"
+          message="Thanks for your feedback! We'll get back to you if we have any questions. You can check the status in the History section."
+        />
       </View>
     </>
   );
@@ -500,32 +585,93 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     convInfo: {
       flex: 1,
     },
+    convHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 4,
+    },
     convSubject: {
       fontSize: 16,
       fontWeight: '500',
       color: colors.textPrimary,
-      marginBottom: 4,
+    },
+    convSubjectUnread: {
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.gold,
     },
     convDate: {
       fontSize: 12,
       color: colors.textSecondary,
     },
+    convDateUnread: {
+      color: colors.gold,
+      fontWeight: '500',
+    },
+    listHeader: {
+      marginBottom: 24,
+    },
     newChatButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      padding: 16,
+      padding: 20,
       backgroundColor: colors.backgroundElevated,
-      borderRadius: 12,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.borderSecondary,
-      marginBottom: 8,
-      gap: 8,
+      gap: 16,
     },
-    newChatText: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: colors.gold,
+    newChatIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.gold,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    newChatTextContainer: {
+      flex: 1,
+      gap: 4,
+    },
+    newChatTitleText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    newChatSubtitleText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    sectionHeader: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    sectionSubtitle: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginBottom: 24,
+      lineHeight: 20,
+      textAlign: 'center',
+      paddingHorizontal: 24,
+    },
+    historySection: {
+      marginTop: 32,
+      alignItems: 'center',
+    },
+    historyDivider: {
+      height: 1,
+      backgroundColor: colors.borderSecondary,
+      width: '100%',
+      marginBottom: 32,
     },
     centerContent: {
       flex: 1,
