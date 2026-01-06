@@ -103,6 +103,7 @@ describe('Notes List Screen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
+      refreshTokens: jest.fn(),
     });
 
     // Default mock: no notes
@@ -132,6 +133,7 @@ describe('Notes List Screen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
+      refreshTokens: jest.fn(),
     });
 
     renderWithProviders(<NotesScreen />);

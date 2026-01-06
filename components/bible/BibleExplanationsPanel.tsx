@@ -29,6 +29,7 @@ import {
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
@@ -94,12 +95,17 @@ export function BibleExplanationsPanel({
   testID = 'bible-explanations-panel',
 }: BibleExplanationsPanelProps) {
   const { mode, colors } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = useMemo(
     () => createStyles(specs, colors, insets),
     [specs, colors, insets]
   );
+
+  // Get current language from user preferences (default to 'en-US')
+  // This ensures the query key changes when language changes
+  const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
 
   // Animation for sliding tab indicator
   const getTabIndex = useCallback((tab: ContentTabType) => TABS.findIndex((t) => t.id === tab), []);
@@ -126,18 +132,34 @@ export function BibleExplanationsPanel({
   }, [activeTab, slideAnim, getTabIndex]);
 
   // Fetch explanations based on active tab
-  const { data: summaryData, isLoading: summaryLoading } = useBibleSummary(bookId, chapterNumber, {
-    query: { enabled: activeTab === 'summary' },
-  });
+  const { data: summaryData, isLoading: summaryLoading } = useBibleSummary(
+    bookId,
+    chapterNumber,
+    undefined,
+    {
+      enabled: activeTab === 'summary',
+      language,
+    }
+  );
 
-  const { data: byLineData, isLoading: byLineLoading } = useBibleByLine(bookId, chapterNumber, {
-    query: { enabled: activeTab === 'byline' },
-  });
+  const { data: byLineData, isLoading: byLineLoading } = useBibleByLine(
+    bookId,
+    chapterNumber,
+    undefined,
+    {
+      enabled: activeTab === 'byline',
+      language,
+    }
+  );
 
   const { data: detailedData, isLoading: detailedLoading } = useBibleDetailed(
     bookId,
     chapterNumber,
-    { query: { enabled: activeTab === 'detailed' } }
+    undefined,
+    {
+      enabled: activeTab === 'detailed',
+      language,
+    }
   );
 
   // Get current tab data
