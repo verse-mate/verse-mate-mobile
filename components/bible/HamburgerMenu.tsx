@@ -178,10 +178,21 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       router.push('/help');
     } else if (item.action === 'share') {
       try {
+        const shareUrl = Platform.select({
+          ios: 'https://apps.apple.com/app/verse-mate/id6756897180',
+          android: 'https://play.google.com/store/apps/details?id=org.versemate.app',
+          default: 'https://versemate.org',
+        });
+
+        const message =
+          Platform.OS === 'ios'
+            ? 'Check out VerseMate! Read the Bible with ease.'
+            : `Check out VerseMate! Read the Bible with ease. ${shareUrl}`;
+
         const result = await Share.share({
-          message: 'Check out VerseMate! Read the Bible with ease.',
+          message,
           title: 'Share VerseMate',
-          // url: 'https://versemate.app', // TODO: Add actual URL when deployed
+          url: shareUrl,
         });
 
         if (result.action === Share.sharedAction) {

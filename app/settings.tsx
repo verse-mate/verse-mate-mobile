@@ -629,7 +629,6 @@ export default function SettingsScreen() {
         {/* Delete Account Section - Authenticated Only */}
         {isAuthenticated && (
           <View style={[styles.section, styles.dangerSection]}>
-            <Text style={styles.dangerSectionTitle}>Danger Zone</Text>
             <Pressable
               style={styles.deleteAccountButton}
               onPress={handleDeleteAccountPress}
@@ -849,16 +848,10 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       lineHeight: 24,
     },
     dangerSection: {
+      marginTop: 24,
       borderTopWidth: 1,
-      borderTopColor: colors.borderSecondary,
+      borderTopColor: colors.border,
       paddingTop: 24,
-    },
-    dangerSectionTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: '#dc2626',
-      marginBottom: 12,
-      marginLeft: 4,
     },
     deleteAccountButton: {
       flexDirection: 'row',
