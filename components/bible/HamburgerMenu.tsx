@@ -23,10 +23,11 @@
  * <HamburgerMenu visible={isOpen} onClose={() => setIsOpen(false)} />
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -66,6 +67,7 @@ import {
 import type { getColors } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getSupportConversations } from '@/lib/api/support';
 import { MessageModal } from './MessageModal';
 import { SuccessModal } from './SuccessModal';
 
@@ -123,8 +125,42 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [successModalContent, setSuccessModalContent] = useState({ title: '', message: '' });
 
+  // Unread State
+  const [hasUnreadHelp, setHasUnreadHelp] = useState(false);
+
   // Shared value for swipe translation
   const translateX = useSharedValue(0);
+
+  const checkUnreadSupport = useCallback(async () => {
+    try {
+      const lastVisited = await AsyncStorage.getItem('last_visited_help_at');
+      const { data } = await getSupportConversations();
+
+      if (data?.conversations) {
+        // If never visited, assume unread if there are conversations
+        if (!lastVisited) {
+          setHasUnreadHelp(data.conversations.length > 0);
+          return;
+        }
+
+        const lastVisitedTime = new Date(lastVisited).getTime();
+        const hasNew = data.conversations.some((c) => {
+          if (!c.last_message_at) return false;
+          return new Date(c.last_message_at).getTime() > lastVisitedTime;
+        });
+        setHasUnreadHelp(hasNew);
+      }
+    } catch (error) {
+      console.error('Failed to check unread support:', error);
+    }
+  }, []);
+
+  // Check for unread support messages
+  useEffect(() => {
+    if (visible && isAuthenticated) {
+      checkUnreadSupport();
+    }
+  }, [visible, isAuthenticated, checkUnreadSupport]);
 
   // Reset translation when menu closes (prepares for next open)
   useEffect(() => {
@@ -318,6 +354,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                     >
                       <View style={styles.menuIconContainer}>
                         <item.icon width={24} height={24} color={colors.textPrimary} />
+                        {item.id === 'help' && hasUnreadHelp && <View style={styles.unreadBadge} />}
                       </View>
                       <Text style={styles.menuItemText}>{item.label}</Text>
                     </Pressable>
@@ -489,6 +526,16 @@ const createStyles = (
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 16,
+      position: 'relative', // Enable absolute positioning for badge
+    },
+    unreadBadge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.gold,
     },
     menuItemText: {
       fontSize: 14,
