@@ -145,6 +145,7 @@ describe('SettingsScreen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
+      refreshTokens: jest.fn(),
     });
 
     // Default: KJV Bible version
@@ -260,6 +261,7 @@ describe('SettingsScreen', () => {
         logout: jest.fn(),
         loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
+        refreshTokens: jest.fn(),
       });
 
       renderWithProviders(<SettingsScreen />);
@@ -278,6 +280,7 @@ describe('SettingsScreen', () => {
         logout: jest.fn(),
         loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
+        refreshTokens: jest.fn(),
       });
 
       renderWithProviders(<SettingsScreen />);
@@ -296,6 +299,7 @@ describe('SettingsScreen', () => {
         logout: jest.fn(),
         loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
+        refreshTokens: jest.fn(),
       });
 
       renderWithProviders(<SettingsScreen />);
@@ -400,6 +404,7 @@ describe('SettingsScreen', () => {
         logout: jest.fn(),
         loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
+        refreshTokens: jest.fn(),
       });
 
       renderWithProviders(<SettingsScreen />);
@@ -434,6 +439,7 @@ describe('SettingsScreen', () => {
         logout: mockLogout,
         loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
+        refreshTokens: jest.fn(),
       });
 
       renderWithProviders(<SettingsScreen />);
@@ -498,6 +504,7 @@ describe('SettingsScreen', () => {
         logout: jest.fn(),
         loginWithSSO: jest.fn(),
         restoreSession: jest.fn(),
+        refreshTokens: jest.fn(),
       });
 
       renderWithProviders(<SettingsScreen />);

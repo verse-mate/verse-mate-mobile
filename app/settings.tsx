@@ -56,7 +56,7 @@ interface Language {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated, logout, restoreSession } = useAuth();
+  const { user, isAuthenticated, logout, restoreSession, refreshTokens } = useAuth();
   const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
   const queryClient = useQueryClient();
@@ -66,7 +66,7 @@ export default function SettingsScreen() {
   const [showVersionPicker, setShowVersionPicker] = useState(false);
 
   // Language preferences state
-  const [selectedLanguage, setSelectedLanguage] = useState(user?.preferred_language || 'automatic');
+  const [selectedLanguage, setSelectedLanguage] = useState(user?.preferred_language || 'en-US');
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [availableLanguages, setAvailableLanguages] = useState<Language[]>([]);
 
@@ -95,7 +95,7 @@ export default function SettingsScreen() {
       setFirstName(user.firstName || '');
       setLastName(user.lastName || '');
       setEmail(user.email || '');
-      setSelectedLanguage(user.preferred_language || 'automatic');
+      setSelectedLanguage(user.preferred_language || 'en-US');
     }
   }, [user]);
 
@@ -279,16 +279,20 @@ export default function SettingsScreen() {
       setSelectedLanguage(languageCode);
       setShowLanguagePicker(false);
 
-      const languageToSave = languageCode === 'automatic' ? undefined : languageCode;
       const { error } = await patchUserPreferences({
-        body: { preferred_language: languageToSave },
+        body: { preferred_language: languageCode },
       });
 
       if (error) {
         throw error;
       }
 
-      // Invalidate topic-related queries to refresh with new language
+      // Refresh tokens to update claims (like language)
+      // Add a small delay to ensure backend DB consistency before issuing new token
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await refreshTokens();
+
+      // Invalidate topic and bible explanation queries to refresh with new language
       queryClient.invalidateQueries({
         predicate: (q) => {
           const k = q.queryKey as unknown as (string | undefined)[];
@@ -298,7 +302,8 @@ export default function SettingsScreen() {
               k[0] === 'topic-references' ||
               k[0] === 'topic-details-explanation' ||
               k[0] === 'topic-explanation' ||
-              k[0] === 'topics')
+              k[0] === 'topics' ||
+              k[0] === 'getBibleBookExplanationByBookIdByChapterNumber')
           );
         },
       });
@@ -544,14 +549,12 @@ export default function SettingsScreen() {
               onPress={() => setShowLanguagePicker(!showLanguagePicker)}
             >
               <Text style={styles.selectButtonText}>
-                {selectedLanguage === 'automatic'
-                  ? 'Automatic (Based on Bible Version)'
-                  : (() => {
-                      const selectedLang = availableLanguages.find(
-                        (lang) => lang.code === selectedLanguage
-                      );
-                      return selectedLang ? formatLanguageDisplay(selectedLang) : 'Select Language';
-                    })()}
+                {(() => {
+                  const selectedLang = availableLanguages.find(
+                    (lang) => lang.code === selectedLanguage
+                  );
+                  return selectedLang ? formatLanguageDisplay(selectedLang) : 'Select Language';
+                })()}
               </Text>
               <Ionicons
                 name={showLanguagePicker ? 'chevron-up' : 'chevron-down'}
@@ -563,25 +566,6 @@ export default function SettingsScreen() {
             {showLanguagePicker && (
               <View style={styles.pickerContainer}>
                 <ScrollView style={styles.pickerScrollView}>
-                  <Pressable
-                    style={[
-                      styles.pickerItem,
-                      selectedLanguage === 'automatic' && styles.pickerItemSelected,
-                    ]}
-                    onPress={() => handleLanguageChange('automatic')}
-                  >
-                    <Text
-                      style={[
-                        styles.pickerItemText,
-                        selectedLanguage === 'automatic' && styles.pickerItemTextSelected,
-                      ]}
-                    >
-                      Automatic (Based on Bible Version)
-                    </Text>
-                    {selectedLanguage === 'automatic' && (
-                      <Ionicons name="checkmark" size={20} color={colors.gold} />
-                    )}
-                  </Pressable>
                   {availableLanguages.map((language) => (
                     <Pressable
                       key={language.code}
