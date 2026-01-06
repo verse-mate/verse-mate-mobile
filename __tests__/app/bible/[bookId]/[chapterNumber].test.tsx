@@ -93,9 +93,10 @@ jest.mock('expo-haptics', () => ({
 
 // Mock ChapterPagerView to track ref usage
 const mockSetPage = jest.fn();
+const mockGoNext = jest.fn();
+const mockGoPrevious = jest.fn();
 
 // Center index constant from ChapterScreen (5-page window)
-const CENTER_INDEX = 3;
 
 jest.mock('@/components/bible/ChapterPagerView', () => {
   const React = require('react');
@@ -105,6 +106,8 @@ jest.mock('@/components/bible/ChapterPagerView', () => {
 
     React.useImperativeHandle(ref, () => ({
       setPage: mockSetPage,
+      goNext: mockGoNext,
+      goPrevious: mockGoPrevious,
     }));
 
     return (
@@ -451,7 +454,7 @@ describe('ChapterScreen - PagerView Integration', () => {
 
   describe('Button Navigation via PagerView ref', () => {
     /**
-     * Test 9: Next button calls pagerRef.setPage(3) instead of router.replace
+     * Test 9: Next button calls pagerRef.goNext()
      */
     it('calls pagerRef.setPage with CENTER_INDEX + 1 when next button is pressed', async () => {
       // Genesis 1 can navigate to next chapter
@@ -467,12 +470,12 @@ describe('ChapterScreen - PagerView Integration', () => {
         fireEvent.press(nextButton);
       });
 
-      // Should call setPage with CENTER_INDEX + 1 (3 + 1 = 4)
-      expect(mockSetPage).toHaveBeenCalledWith(4);
+      // Should call goNext
+      expect(mockGoNext).toHaveBeenCalled();
     });
 
     /**
-     * Test 10: Previous button calls pagerRef.setPage(1) instead of router.replace
+     * Test 10: Previous button calls pagerRef.goPrevious()
      */
     it('calls pagerRef.setPage with CENTER_INDEX - 1 when previous button is pressed', async () => {
       // Genesis 2 can navigate to previous chapter
@@ -494,8 +497,8 @@ describe('ChapterScreen - PagerView Integration', () => {
         fireEvent.press(prevButton);
       });
 
-      // Should call setPage with CENTER_INDEX - 1 (3 - 1 = 2)
-      expect(mockSetPage).toHaveBeenCalledWith(2);
+      // Should call goPrevious
+      expect(mockGoPrevious).toHaveBeenCalled();
     });
 
     /**
@@ -571,8 +574,8 @@ describe('ChapterScreen - PagerView Integration', () => {
         expect(() => fireEvent.press(nextButton)).not.toThrow();
       });
 
-      // Verify setPage was called (ref exists in normal case)
-      expect(mockSetPage).toHaveBeenCalledWith(CENTER_INDEX + 1);
+      // Verify goNext was called (ref exists in normal case)
+      expect(mockGoNext).toHaveBeenCalled();
     });
   });
 });
