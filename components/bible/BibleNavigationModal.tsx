@@ -617,9 +617,10 @@ function BibleNavigationModalComponent({
           accessibilityState={{ selected: selectedTab === 'OT' }}
           testID="tab-old-testament"
           onLayout={(event) => {
-            // Set the measured width of a single tab only once
-            if (singleMeasuredTabWidth === 0) {
-              setSingleMeasuredTabWidth(event.nativeEvent.layout.width);
+            // Update measured width whenever layout changes (e.g. orientation change)
+            const width = event.nativeEvent.layout.width;
+            if (Math.abs(singleMeasuredTabWidth - width) > 0.5) {
+              setSingleMeasuredTabWidth(width);
             }
           }}
         >
@@ -704,9 +705,9 @@ function BibleNavigationModalComponent({
           accessibilityRole="tab"
           accessibilityState={{ selected: selectedTopicCategory === 'EVENT' }}
           onLayout={(event) => {
-            if (singleMeasuredCategoryTabWidth === 0) {
-              // Only set once
-              setSingleMeasuredCategoryTabWidth(event.nativeEvent.layout.width);
+            const width = event.nativeEvent.layout.width;
+            if (Math.abs(singleMeasuredCategoryTabWidth - width) > 0.5) {
+              setSingleMeasuredCategoryTabWidth(width);
             }
           }}
         >
