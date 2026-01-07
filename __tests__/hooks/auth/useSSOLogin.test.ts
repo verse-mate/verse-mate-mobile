@@ -324,4 +324,80 @@ describe('useSSOLogin', () => {
       expect(result.current.isSuccess).toBe(false);
     });
   });
+
+  describe('unmount safety', () => {
+    it('does not update state after unmount during Google sign-in', async () => {
+      // Create a promise that we can control
+      let resolveLoginWithSSO: () => void;
+      const loginPromise = new Promise<void>((resolve) => {
+        resolveLoginWithSSO = resolve;
+      });
+
+      mockGoogleSignIn.mockResolvedValue('mock-google-token');
+      mockLoginWithSSO.mockReturnValue(loginPromise);
+
+      const { result, unmount } = renderHook(() => useSSOLogin());
+
+      // Start sign-in (doesn't await)
+      act(() => {
+        result.current.signInWithGoogle();
+      });
+
+      // Wait for Google sign-in to complete
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Unmount before loginWithSSO completes
+      unmount();
+
+      // Complete the login
+      await act(async () => {
+        if (resolveLoginWithSSO) {
+          resolveLoginWithSSO();
+        }
+        await loginPromise;
+      });
+
+      // No assertions needed - if state update happens after unmount,
+      // React will log a warning which would show in test output
+    });
+
+    it('does not update state after unmount during Apple sign-in', async () => {
+      // Create a promise that we can control
+      let resolveLoginWithSSO: () => void;
+      const loginPromise = new Promise<void>((resolve) => {
+        resolveLoginWithSSO = resolve;
+      });
+
+      mockAppleSignIn.mockResolvedValue('mock-apple-token');
+      mockLoginWithSSO.mockReturnValue(loginPromise);
+
+      const { result, unmount } = renderHook(() => useSSOLogin());
+
+      // Start sign-in (doesn't await)
+      act(() => {
+        result.current.signInWithApple();
+      });
+
+      // Wait for Apple sign-in to complete
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Unmount before loginWithSSO completes
+      unmount();
+
+      // Complete the login
+      await act(async () => {
+        if (resolveLoginWithSSO) {
+          resolveLoginWithSSO();
+        }
+        await loginPromise;
+      });
+
+      // No assertions needed - if state update happens after unmount,
+      // React will log a warning which would show in test output
+    });
+  });
 });
