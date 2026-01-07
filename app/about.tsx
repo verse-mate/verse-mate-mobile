@@ -12,6 +12,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import { router, Stack } from 'expo-router';
 import { useMemo } from 'react';
@@ -95,6 +96,9 @@ export default function AboutScreen() {
               </Text>
             </View>
 
+            {/* Version */}
+            <Text style={styles.version}>Version {Constants.expoConfig?.version || '0.1.1'}</Text>
+
             {/* Team Signatures - Easter Egg */}
             <Text style={styles.signatures}>SB · AC · AM · AZ · SZ · VB · VK · VK · AT</Text>
           </View>
@@ -164,12 +168,20 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       color: colors.textSecondary,
       lineHeight: 24,
     },
+    version: {
+      fontSize: 14,
+      fontWeight: '400',
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 32,
+      opacity: 0.6,
+    },
     signatures: {
       fontSize: 14,
       fontWeight: '300',
       color: colors.textTertiary,
       textAlign: 'center',
-      marginTop: 40,
+      marginTop: 16,
       opacity: 0.7,
       letterSpacing: 1,
     },

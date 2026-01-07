@@ -68,11 +68,12 @@ export default function Signup() {
     isAppleLoading,
     error: ssoError,
     resetError: resetSsoError,
+    isSuccess: isSSOSuccess,
   } = useSSOLogin();
 
-  // Navigate after successful signup
+  // Navigate after successful signup (email/password or SSO)
   useEffect(() => {
-    if (isSuccess) {
+    if (isSuccess || isSSOSuccess) {
       // If coming from onboarding, navigate to Genesis 1
       if (params.fromOnboarding === 'true') {
         router.replace('/bible/1/1');
@@ -81,7 +82,7 @@ export default function Signup() {
         router.dismiss();
       }
     }
-  }, [isSuccess, params.fromOnboarding]);
+  }, [isSuccess, isSSOSuccess, params.fromOnboarding]);
 
   // Validate email format
   const validateEmail = (email: string): boolean => {
