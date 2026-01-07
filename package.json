@@ -26,6 +26,7 @@
     "capture:page": "bun run scripts/visual-reference/capture-page.ts",
     "capture:journey": "bun run scripts/visual-reference/capture-journey-replay.ts",
     "generate:api": "npx @hey-api/openapi-ts",
+    "diagnose:google-sso": "bun run scripts/diagnose-google-sso.ts",
     "prepare": "husky",
     "validate": "bun run lint && bun run type-check && bun run test"
   },
