@@ -3,7 +3,7 @@
     "name": "VerseMate",
     "slug": "verse-mate-mobile",
     "owner": "versemate",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "versemate",
