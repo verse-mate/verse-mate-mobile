@@ -15,6 +15,7 @@
  * @see Task Group 8.4 - Integrate ProgressBar with chapter screen
  * @see Task Group 9.3 - Add deep link validation in chapter screen
  * @see Time-Based Analytics - Chapter reading duration tracking
+ * @see Circular Bible Navigation - Seamless wrap-around at Bible boundaries
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -89,6 +90,7 @@ type ViewMode = 'bible' | 'explanations';
  * - Background prefetching for inactive tabs
  * - Chapter navigation via floating buttons (Task 6.4)
  * - Chapter navigation via native page-based swipe (Task Group 4)
+ * - Circular navigation at Bible boundaries (Genesis 1 <-> Revelation 22)
  * - Progress bar display (Task 8.4)
  * - Hamburger menu (Task 8.5)
  * - Offline indicator (Task 8.6)
@@ -290,7 +292,8 @@ export default function ChapterScreen() {
   const prefetchPrevious = usePrefetchPreviousChapter(validBookId, validChapter);
 
   // Get navigation metadata using hook (Task 4.5)
-  const { nextChapter, prevChapter, canGoNext, canGoPrevious } = useChapterNavigation(
+  // With circular navigation, canGoNext and canGoPrevious are always true
+  const { canGoNext, canGoPrevious } = useChapterNavigation(
     validBookId,
     validChapter,
     booksMetadata
@@ -409,42 +412,36 @@ export default function ChapterScreen() {
   /**
    * Navigate to previous chapter using PagerView ref
    *
-   * Handles:
-   * - Triggers PagerView page change (horizontal slide animation)
-   * - Boundary checking (don't go before Genesis 1)
-   * - Haptic feedback
+   * With circular navigation enabled, this always triggers navigation:
+   * - At Genesis 1: navigates to Revelation 22 (wraps around)
+   * - At any other chapter: navigates to previous chapter
+   *
+   * Uses medium impact haptic feedback for all navigation.
    */
   const handlePrevious = useCallback(() => {
-    if (canGoPrevious && prevChapter) {
-      // Haptic feedback for button press
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      // Trigger PagerView page change (swipe right to previous chapter)
-      pagerRef.current?.goPrevious();
-    } else {
-      // Already at Genesis 1, show error haptic
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  }, [canGoPrevious, prevChapter]);
+    // With circular navigation, canGoPrevious is always true when metadata is loaded
+    // Haptic feedback for button press
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Trigger PagerView page change (swipe right to previous chapter)
+    pagerRef.current?.goPrevious();
+  }, []);
 
   /**
    * Navigate to next chapter using PagerView ref
    *
-   * Handles:
-   * - Triggers PagerView page change (horizontal slide animation)
-   * - Boundary checking (don't go past Revelation 22)
-   * - Haptic feedback
+   * With circular navigation enabled, this always triggers navigation:
+   * - At Revelation 22: navigates to Genesis 1 (wraps around)
+   * - At any other chapter: navigates to next chapter
+   *
+   * Uses medium impact haptic feedback for all navigation.
    */
   const handleNext = useCallback(() => {
-    if (canGoNext && nextChapter) {
-      // Haptic feedback for button press
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      // Trigger PagerView page change (swipe left to next chapter)
-      pagerRef.current?.goNext();
-    } else {
-      // Already at Revelation 22, show error haptic
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  }, [canGoNext, nextChapter]);
+    // With circular navigation, canGoNext is always true when metadata is loaded
+    // Haptic feedback for button press
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Trigger PagerView page change (swipe left to next chapter)
+    pagerRef.current?.goNext();
+  }, []);
 
   // Show skeleton loader while loading and no data is available
   if (isLoading && !chapter) {
@@ -570,12 +567,12 @@ export default function ChapterScreen() {
               onTap={handleTap}
             />
 
-            {/* Floating Action Buttons (Task 6.2, 6.4, 4.5) - Same fade behavior as portrait */}
+            {/* Floating Action Buttons - Always visible with circular navigation */}
             <FloatingActionButtons
               onPrevious={handlePrevious}
               onNext={handleNext}
-              showPrevious={canGoPrevious}
-              showNext={canGoNext}
+              showPrevious={true}
+              showNext={true}
               visible={fabVisible}
             />
 

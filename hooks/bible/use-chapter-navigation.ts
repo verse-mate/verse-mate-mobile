@@ -3,11 +3,14 @@
  *
  * Encapsulates cross-book navigation logic for Bible chapter reading.
  * Calculates next/previous chapter references considering:
- * - Within-book navigation (Genesis 1 → Genesis 2)
- * - Cross-book navigation (Genesis 50 → Exodus 1)
- * - Testament boundaries (Malachi 4 → Matthew 1)
- * - Bible boundaries (Genesis 1 has no previous, Revelation 22 has no next)
+ * - Within-book navigation (Genesis 1 -> Genesis 2)
+ * - Cross-book navigation (Genesis 50 -> Exodus 1)
+ * - Testament boundaries (Malachi 4 -> Matthew 1)
+ * - Circular Bible boundaries (Genesis 1 <-> Revelation 22)
  * - Single-chapter books (Obadiah, Philemon, 2 John, 3 John, Jude)
+ *
+ * Navigation is circular: swiping backward from Genesis 1 navigates to Revelation 22,
+ * and swiping forward from Revelation 22 navigates to Genesis 1.
  *
  * @example
  * ```tsx
@@ -21,9 +24,18 @@
  * // prevChapter: { bookId: 1, chapterNumber: 49 } (Genesis 49)
  * // canGoNext: true
  * // canGoPrevious: true
+ *
+ * // At Genesis 1 (Bible start):
+ * // prevChapter: { bookId: 66, chapterNumber: 22 } (Revelation 22 - wraps around)
+ * // canGoPrevious: true (circular navigation)
+ *
+ * // At Revelation 22 (Bible end):
+ * // nextChapter: { bookId: 1, chapterNumber: 1 } (Genesis 1 - wraps around)
+ * // canGoNext: true (circular navigation)
  * ```
  *
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 248-270)
+ * @see Spec: agent-os/specs/circular-bible-navigation/spec.md
  */
 
 import { useMemo } from 'react';
@@ -38,21 +50,26 @@ export interface ChapterLocation {
 }
 
 /**
- * Navigation result with next/previous chapter references
+ * Navigation result with next/previous chapter references.
+ *
+ * With circular navigation enabled:
+ * - `nextChapter` is always non-null (wraps from Revelation 22 to Genesis 1)
+ * - `prevChapter` is always non-null (wraps from Genesis 1 to Revelation 22)
+ * - `canGoNext` and `canGoPrevious` are always true when metadata is valid
  */
 export interface ChapterNavigation {
-  /** Next chapter reference, or null if at Bible end */
+  /** Next chapter reference (wraps from Revelation 22 to Genesis 1) */
   nextChapter: ChapterLocation | null;
-  /** Previous chapter reference, or null if at Bible start */
+  /** Previous chapter reference (wraps from Genesis 1 to Revelation 22) */
   prevChapter: ChapterLocation | null;
-  /** Whether next navigation is available */
+  /** Whether next navigation is available (always true with valid metadata) */
   canGoNext: boolean;
-  /** Whether previous navigation is available */
+  /** Whether previous navigation is available (always true with valid metadata) */
   canGoPrevious: boolean;
 }
 
 /**
- * Hook to calculate next/previous chapter navigation
+ * Hook to calculate next/previous chapter navigation with circular wrap-around.
  *
  * @param bookId - Current book ID (1-66)
  * @param chapterNumber - Current chapter number (1-based)
@@ -63,15 +80,15 @@ export interface ChapterNavigation {
  * ```ts
  * // Within book navigation
  * useChapterNavigation(1, 1, books)
- * // => { nextChapter: { bookId: 1, chapterNumber: 2 }, prevChapter: null, ... }
+ * // => { nextChapter: { bookId: 1, chapterNumber: 2 }, prevChapter: { bookId: 66, chapterNumber: 22 }, ... }
  *
  * // Cross-book navigation
  * useChapterNavigation(1, 50, books)
  * // => { nextChapter: { bookId: 2, chapterNumber: 1 }, ... }
  *
- * // Bible boundaries
+ * // Circular navigation at Bible end
  * useChapterNavigation(66, 22, books)
- * // => { nextChapter: null, ... }
+ * // => { nextChapter: { bookId: 1, chapterNumber: 1 }, ... }
  * ```
  */
 export function useChapterNavigation(
@@ -102,6 +119,10 @@ export function useChapterNavigation(
       };
     }
 
+    // Find Revelation (last book) for circular navigation
+    const revelationBook = booksMetadata.find((b) => b.id === 66);
+    const revelationChapterCount = revelationBook?.chapterCount ?? 22;
+
     // Calculate next chapter
     let nextChapter: ChapterLocation | null = null;
 
@@ -117,8 +138,13 @@ export function useChapterNavigation(
         bookId: bookId + 1,
         chapterNumber: 1,
       };
+    } else {
+      // At Revelation 22 (last chapter of Bible) - wrap to Genesis 1
+      nextChapter = {
+        bookId: 1,
+        chapterNumber: 1,
+      };
     }
-    // else: bookId === 66 && at last chapter => null (Revelation 22)
 
     // Calculate previous chapter
     let prevChapter: ChapterLocation | null = null;
@@ -138,9 +164,15 @@ export function useChapterNavigation(
           chapterNumber: prevBook.chapterCount,
         };
       }
+    } else {
+      // At Genesis 1 (first chapter of Bible) - wrap to Revelation 22
+      prevChapter = {
+        bookId: 66,
+        chapterNumber: revelationChapterCount,
+      };
     }
-    // else: bookId === 1 && chapterNumber === 1 => null (Genesis 1)
 
+    // With circular navigation, we can always navigate (as long as we have valid references)
     return {
       nextChapter,
       prevChapter,

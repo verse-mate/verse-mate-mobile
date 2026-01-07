@@ -3,8 +3,8 @@
  *
  * Tests navigation logic for:
  * - Next/previous within same book
- * - Cross-book navigation (Genesis 50 → Exodus 1, Exodus 1 → Genesis 50)
- * - Bible boundaries (Genesis 1, Revelation 22)
+ * - Cross-book navigation (Genesis 50 -> Exodus 1, Exodus 1 -> Genesis 50)
+ * - Circular navigation at Bible boundaries (Genesis 1 <-> Revelation 22)
  * - Single-chapter books (Obadiah, Philemon, 2 John, 3 John, Jude)
  */
 
@@ -68,20 +68,54 @@ describe('useChapterNavigation', () => {
     });
   });
 
-  describe('Bible boundaries', () => {
-    it('should not allow previous navigation from Genesis 1', () => {
+  describe('circular navigation at Bible boundaries', () => {
+    it('should wrap from Genesis 1 backward to Revelation 22', () => {
       const { result } = renderHook(() => useChapterNavigation(1, 1, mockTestamentBooks));
 
-      expect(result.current.prevChapter).toBeNull();
-      expect(result.current.canGoPrevious).toBe(false);
+      // prevChapter at Genesis 1 should wrap to Revelation 22
+      expect(result.current.prevChapter).toEqual({ bookId: 66, chapterNumber: 22 });
+      expect(result.current.canGoPrevious).toBe(true);
+    });
+
+    it('should allow previous navigation from Genesis 1 (circular)', () => {
+      const { result } = renderHook(() => useChapterNavigation(1, 1, mockTestamentBooks));
+
+      // canGoPrevious should always be true now (circular navigation)
+      expect(result.current.canGoPrevious).toBe(true);
+    });
+
+    it('should wrap from Revelation 22 forward to Genesis 1', () => {
+      const { result } = renderHook(() => useChapterNavigation(66, 22, mockTestamentBooks));
+
+      // nextChapter at Revelation 22 should wrap to Genesis 1
+      expect(result.current.nextChapter).toEqual({ bookId: 1, chapterNumber: 1 });
       expect(result.current.canGoNext).toBe(true);
     });
 
-    it('should not allow next navigation from Revelation 22', () => {
+    it('should allow next navigation from Revelation 22 (circular)', () => {
       const { result } = renderHook(() => useChapterNavigation(66, 22, mockTestamentBooks));
 
-      expect(result.current.nextChapter).toBeNull();
-      expect(result.current.canGoNext).toBe(false);
+      // canGoNext should always be true now (circular navigation)
+      expect(result.current.canGoNext).toBe(true);
+    });
+
+    it('should preserve mid-Bible within-book navigation (Genesis 25 to Genesis 26)', () => {
+      const { result } = renderHook(() => useChapterNavigation(1, 25, mockTestamentBooks));
+
+      // Mid-Bible navigation should remain unchanged
+      expect(result.current.nextChapter).toEqual({ bookId: 1, chapterNumber: 26 });
+      expect(result.current.prevChapter).toEqual({ bookId: 1, chapterNumber: 24 });
+      expect(result.current.canGoNext).toBe(true);
+      expect(result.current.canGoPrevious).toBe(true);
+    });
+
+    it('should preserve cross-book navigation at book boundaries (Genesis 50 to Exodus 1)', () => {
+      const { result } = renderHook(() => useChapterNavigation(1, 50, mockTestamentBooks));
+
+      // Cross-book navigation should remain unchanged
+      expect(result.current.nextChapter).toEqual({ bookId: 2, chapterNumber: 1 });
+      expect(result.current.prevChapter).toEqual({ bookId: 1, chapterNumber: 49 });
+      expect(result.current.canGoNext).toBe(true);
       expect(result.current.canGoPrevious).toBe(true);
     });
   });

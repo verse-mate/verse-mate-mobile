@@ -1,17 +1,23 @@
 /**
  * ChapterPagerView Component
  *
- * Wraps react-native-pager-view with a fixed 5-page sliding window.
+ * Wraps react-native-pager-view with a fixed 7-page sliding window.
  * Uses STABLE POSITIONAL KEYS to prevent "infinite swipe" bug.
  *
  * Architecture:
- * - Render exactly 5 pages: [prev-1, prev, current, next, next+1]
- * - Keys: ["page-0", "page-1", "page-2", "page-3", "page-4"] - NEVER CHANGE
- * - Center at index 2
- * - Re-center only when reaching edges (index 0 or 4)
+ * - Render exactly 7 pages with circular navigation at Bible boundaries
+ * - Keys: ["page-0", "page-1", "page-2", ..., "page-6"] - NEVER CHANGE
+ * - Center at index 3
+ * - Re-center when reaching edges (index 0 or 6)
  * - Pass chapter data as props that update when window shifts
  *
+ * Circular Navigation:
+ * - Swiping backward from Genesis 1 shows Revelation 22
+ * - Swiping forward from Revelation 22 shows Genesis 1
+ * - No boundary pages - continuous reading experience through entire Bible
+ *
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 103-218)
+ * @see Spec: agent-os/specs/circular-bible-navigation/spec.md
  */
 
 import * as Haptics from 'expo-haptics';
@@ -28,13 +34,12 @@ import {
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
-import { SwipeBoundaryPage } from '@/components/ui/SwipeBoundaryPage';
 import { useBibleTestaments } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import {
   getAbsolutePageIndex,
   getChapterFromPageIndex,
-  getMaxPageIndex,
+  wrapCircularIndex,
 } from '@/utils/bible/chapter-index-utils';
 import { ChapterPage } from './ChapterPage';
 
@@ -92,11 +97,15 @@ export interface ChapterPagerViewProps {
 /**
  * ChapterPagerView Component
  *
- * Implements 5-page fixed window with stable positional keys.
+ * Implements 7-page fixed window with stable positional keys and circular navigation.
  * Prevents "infinite swipe restarting at Genesis 1" bug by:
  * - Using stable keys based on window POSITION, not content
  * - Passing bookId/chapterNumber as PROPS that update
- * - Re-centering only at edges using setPageWithoutAnimation
+ * - Re-centering at edges using setPageWithoutAnimation
+ *
+ * Circular navigation enables seamless reading through the entire Bible:
+ * - Genesis 1 backward -> Revelation 22
+ * - Revelation 22 forward -> Genesis 1
  *
  * @example
  * ```tsx
@@ -143,7 +152,7 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       getAbsolutePageIndex(initialBookId, initialChapter, booksMetadata)
     );
 
-    // Track the currently selected position in the 5-page window (0-4)
+    // Track the currently selected position in the 7-page window (0-6)
     const [selectedPosition, setSelectedPosition] = useState(CENTER_INDEX);
 
     // Flag to tell pages NOT to reset scroll during a seamless snap
@@ -217,9 +226,12 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       if (newIndex === -1) return;
 
       // Calculate what absolute index is currently visible at the current pager position
-      const currentlyVisibleIndex = absIndexRef.current + (posRef.current - CENTER_INDEX);
+      // Use circular wrapping to handle negative indices (e.g., -1 wraps to 1188)
+      const rawVisibleIndex = absIndexRef.current + (posRef.current - CENTER_INDEX);
+      const currentlyVisibleIndex = wrapCircularIndex(rawVisibleIndex, booksMetadata);
 
       // Only re-center if the new index is DIFFERENT from what the user is already looking at.
+      // With circular wrapping, -1 and 1188 are the same chapter, so this comparison now works correctly.
       if (newIndex !== currentlyVisibleIndex) {
         setForceJump(true); // Tell pages to reset scroll for a true jump
         setCurrentAbsoluteIndex(newIndex);
@@ -235,35 +247,34 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
     /**
      * Calculate which chapter should display at a given window position
      *
-     * Returns null for out-of-bounds positions instead of clamping.
-     * This allows us to render boundary indicators at Genesis 1 (start)
-     * and Revelation 22 (end).
+     * Uses circular wrapping at Bible boundaries:
+     * - Negative indices wrap to end of Bible (Revelation)
+     * - Indices beyond max wrap to start of Bible (Genesis)
+     * This enables seamless circular navigation through the entire Bible.
      */
     const getChapterForPosition = useCallback(
       (windowPosition: number): { bookId: number; chapterNumber: number } | null => {
         const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
-        // Return null for out-of-bounds - don't clamp to boundaries
-        // This prevents showing duplicate content at Bible boundaries
-        if (absoluteIndex < 0) {
+        // Use circular wrapping for out-of-bounds indices
+        const wrappedIndex = wrapCircularIndex(absoluteIndex, booksMetadata);
+
+        // Return null if booksMetadata is invalid (wrapCircularIndex returns -1)
+        if (wrappedIndex === -1) {
           return null;
         }
 
-        const maxIndex = getMaxPageIndex(booksMetadata);
-        if (absoluteIndex > maxIndex) {
-          return null;
-        }
-
-        return getChapterFromPageIndex(absoluteIndex, booksMetadata);
+        return getChapterFromPageIndex(wrappedIndex, booksMetadata);
       },
       [currentAbsoluteIndex, booksMetadata]
     );
 
     /**
-     * Generate exactly 5 pages with STABLE POSITIONAL KEYS
+     * Generate exactly 7 pages with STABLE POSITIONAL KEYS
      *
-     * Keys never change - they're based on window position (0-4), not content.
+     * Keys never change - they're based on window position (0-6), not content.
      * Chapter data is passed as props that update when window shifts.
+     * All pages render actual chapter content - no boundary pages for chapter navigation.
      */
     const pages = useMemo(() => {
       // Handle case when books metadata not loaded yet
@@ -284,18 +295,19 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
 
       return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => {
         const chapter = getChapterForPosition(windowPosition);
-        const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
-        // Render boundary indicator for out-of-bounds pages
-        // This shows a helpful message instead of duplicate content at Bible boundaries
+        // With circular navigation, chapter should always be valid when booksMetadata exists
+        // This fallback is just for safety in case of unexpected state
         if (!chapter) {
-          const direction = absoluteIndex < 0 ? 'start' : 'end';
           return (
-            <SwipeBoundaryPage
+            <ChapterPage
               key={`page-${windowPosition}`}
-              direction={direction}
-              contentType="chapter"
-              testID={`chapter-page-boundary-${windowPosition}`}
+              bookId={1}
+              chapterNumber={1}
+              activeTab={activeTab}
+              activeView={activeView}
+              onScroll={onScroll}
+              onTap={onTap}
             />
           );
         }
@@ -337,7 +349,7 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       targetVerse,
       targetEndVerse,
       forceJump,
-      selectedPosition, // Added dependency
+      selectedPosition,
     ]);
 
     /**
@@ -345,11 +357,11 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
      *
      * SEAMLESS RESET STRATEGY:
      * To prevent the "every other swipe is laggy" bug, we re-center the pager
-     * to the middle index (2) after EVERY swipe.
+     * to the middle index (3) after reaching edge positions.
      *
-     * Because we update currentAbsoluteIndex BEFORE calling setPageWithoutAnimation,
-     * the content at the "new" index 2 is IDENTICAL to the content at the
-     * "old" index 1 or 3. This makes the snap visually invisible.
+     * With circular navigation, there are no out-of-bounds positions - all
+     * indices wrap to valid chapters. The edge reset logic re-centers the
+     * window while maintaining seamless content continuity.
      */
     const handlePageSelected = useCallback(
       (event: { nativeEvent: OnPageSelectedEventData }) => {
@@ -370,18 +382,8 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         const offset = newPosition - CENTER_INDEX;
         const newAbsoluteIndex = currentAbsoluteIndex + offset;
 
-        // Check if swipe would go out of bounds
-        const maxIndex = getMaxPageIndex(booksMetadata);
-        const isOutOfBounds = newAbsoluteIndex < 0 || newAbsoluteIndex > maxIndex;
-
-        if (isOutOfBounds) {
-          requestAnimationFrame(() => {
-            pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
-            setSelectedPosition(CENTER_INDEX);
-            posRef.current = CENTER_INDEX;
-          });
-          return;
-        }
+        // Use circular wrapping for the new index
+        const wrappedIndex = wrapCircularIndex(newAbsoluteIndex, booksMetadata);
 
         // Check if user reached edge positions (0 or 6) - EDGE RESET
         const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
@@ -390,18 +392,22 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         if (isAtEdge) {
-          // SEAMLESS EDGE SNAP
+          // SEAMLESS EDGE SNAP with circular index
+          // IMPORTANT: Re-center the pager BEFORE updating state to prevent flicker.
+          // If we update currentAbsoluteIndex first, the pages useMemo will recalculate
+          // with the new center (e.g., 1188 for Rev 22) but pager is still at position 0,
+          // causing wrong content to flash (e.g., Rev 19 instead of Rev 22).
+          pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+          setSelectedPosition(CENTER_INDEX);
+          posRef.current = CENTER_INDEX;
+
+          // Now update the absolute index - pages will recalculate correctly since
+          // pager is already centered at position 3
           setForceJump(false); // ENSURE we don't reset scroll during this snap
-          setCurrentAbsoluteIndex(newAbsoluteIndex);
-          absIndexRef.current = newAbsoluteIndex;
+          setCurrentAbsoluteIndex(wrappedIndex);
+          absIndexRef.current = wrappedIndex;
 
-          requestAnimationFrame(() => {
-            pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
-            setSelectedPosition(CENTER_INDEX);
-            posRef.current = CENTER_INDEX;
-          });
-
-          const chapter = getChapterFromPageIndex(newAbsoluteIndex, booksMetadata);
+          const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
           if (chapter) {
             routeUpdateTimeoutRef.current = setTimeout(() => {
               onPageChange(chapter.bookId, chapter.chapterNumber);
@@ -409,11 +415,8 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
             }, ROUTE_UPDATE_DELAY_MS);
           }
         } else {
-          // Proactive re-center logic:
-          // If we are at position 1 or 5, we are getting close to the wall.
-          // We can silently re-center when the user is idle, but for now
-          // we'll just let them swipe until 0 or 6 to minimize snaps.
-          const chapter = getChapterFromPageIndex(newAbsoluteIndex, booksMetadata);
+          // Non-edge position - use wrapped index for navigation
+          const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
           if (chapter) {
             routeUpdateTimeoutRef.current = setTimeout(() => {
               onPageChange(chapter.bookId, chapter.chapterNumber);
@@ -445,6 +448,9 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
 /**
  * Memoized PagerView to prevent unnecessary global re-renders
  * during URL synchronization.
+ *
+ * Supports circular navigation - swiping past Bible boundaries
+ * wraps around seamlessly to the other end.
  */
 export const ChapterPagerView = memo(ChapterPagerViewComponent);
 
