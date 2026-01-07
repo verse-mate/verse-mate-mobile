@@ -35,6 +35,7 @@ export function createAuthenticatedMock(
     loginWithSSO: jest.fn(),
     logout: jest.fn(),
     restoreSession: jest.fn(),
+    refreshTokens: jest.fn(),
     ...overrides,
   };
 }
@@ -52,6 +53,7 @@ export function createUnauthenticatedMock(overrides?: Partial<AuthContextValue>)
     loginWithSSO: jest.fn(),
     logout: jest.fn(),
     restoreSession: jest.fn(),
+    refreshTokens: jest.fn(),
     ...overrides,
   };
 }
@@ -69,6 +71,7 @@ export function createLoadingMock(overrides?: Partial<AuthContextValue>): AuthCo
     loginWithSSO: jest.fn(),
     logout: jest.fn(),
     restoreSession: jest.fn(),
+    refreshTokens: jest.fn(),
     ...overrides,
   };
 }

@@ -113,6 +113,7 @@ describe('ChapterReader Share Functionality (removed)', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
+      refreshTokens: jest.fn(),
     });
 
     // Mock bookmarks

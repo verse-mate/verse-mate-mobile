@@ -281,7 +281,11 @@ export const ChapterPage = React.memo(function ChapterPage({
   const [verseTooltipVisible, setVerseTooltipVisible] = useState(false);
   const verseTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+
+  // Get current language from user preferences (default to 'en-US')
+  // This ensures the query key changes when language changes
+  const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
 
   // Fetch highlights directly for THIS specific chapter
   // This ensures each page has its own highlights pre-loaded independently
@@ -402,19 +406,19 @@ export const ChapterPage = React.memo(function ChapterPage({
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
-  } = useBibleSummary(bookId, chapterNumber, undefined, { enabled: true });
+  } = useBibleSummary(bookId, chapterNumber, undefined, { enabled: true, language });
 
   const {
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
-  } = useBibleByLine(bookId, chapterNumber, undefined, { enabled: true });
+  } = useBibleByLine(bookId, chapterNumber, undefined, { enabled: true, language });
 
   const {
     data: detailedData,
     isLoading: isDetailedLoading,
     error: detailedError,
-  } = useBibleDetailed(bookId, chapterNumber, undefined, { enabled: true });
+  } = useBibleDetailed(bookId, chapterNumber, undefined, { enabled: true, language });
 
   /**
    * Attempt to scroll to target verse using Reanimated for smoothness
