@@ -21,9 +21,14 @@
  *
  * // Convert back from index to chapter reference
  * getChapterFromPageIndex(50, books) // => { bookId: 2, chapterNumber: 1 }
+ *
+ * // Circular wrapping for navigation beyond boundaries
+ * wrapCircularIndex(-1, books) // => 1188 (Revelation 22)
+ * wrapCircularIndex(1189, books) // => 0 (Genesis 1)
  * ```
  *
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md
+ * @see Spec: agent-os/specs/circular-bible-navigation/spec.md
  */
 
 import type { TestamentBook } from '@/src/api';
@@ -194,4 +199,47 @@ export function getMaxPageIndex(booksMetadata: TestamentBook[] | undefined): num
 
   // Return zero-indexed maximum (totalChapters - 1)
   return totalChapters - 1;
+}
+
+/**
+ * Wrap an absolute page index circularly within valid Bible range
+ *
+ * Enables circular navigation at Bible boundaries:
+ * - Negative indices wrap to end of Bible (e.g., -1 -> 1188 for Revelation 22)
+ * - Indices beyond max wrap to beginning (e.g., 1189 -> 0 for Genesis 1)
+ * - Valid indices (0-1188) pass through unchanged
+ *
+ * Uses modulo arithmetic: `((index % (maxIndex + 1)) + (maxIndex + 1)) % (maxIndex + 1)`
+ * This handles both negative and positive overflow correctly.
+ *
+ * @param absoluteIndex - The page index to wrap (can be negative or > maxIndex)
+ * @param booksMetadata - Array of all Bible books with chapter counts
+ * @returns Wrapped index always within 0 to maxIndex range, or -1 if metadata is invalid
+ *
+ * @example
+ * ```ts
+ * wrapCircularIndex(-1, books) // 1188 (Revelation 22)
+ * wrapCircularIndex(-2, books) // 1187 (Revelation 21)
+ * wrapCircularIndex(1189, books) // 0 (Genesis 1)
+ * wrapCircularIndex(1190, books) // 1 (Genesis 2)
+ * wrapCircularIndex(500, books) // 500 (unchanged, within valid range)
+ * ```
+ *
+ * @see Spec: agent-os/specs/circular-bible-navigation/spec.md
+ */
+export function wrapCircularIndex(
+  absoluteIndex: number,
+  booksMetadata: TestamentBook[] | undefined
+): number {
+  // Handle invalid metadata
+  if (!booksMetadata || booksMetadata.length === 0) {
+    return -1;
+  }
+
+  const maxIndex = getMaxPageIndex(booksMetadata);
+  const totalChapters = maxIndex + 1; // Total number of chapters (1189)
+
+  // Use modulo arithmetic that handles negative numbers correctly
+  // ((index % total) + total) % total ensures result is always positive
+  return ((absoluteIndex % totalChapters) + totalChapters) % totalChapters;
 }
