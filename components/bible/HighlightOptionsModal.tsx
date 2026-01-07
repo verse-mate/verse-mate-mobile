@@ -99,7 +99,7 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       backgroundColor: 'transparent',
       borderRadius: 12,
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.2)',
+      borderColor: colors.border,
     },
     cancelButtonText: {
       fontSize: 16,
@@ -113,9 +113,9 @@ const createThemedStyles = (colors: ReturnType<typeof getColors>, insets: EdgeIn
       paddingVertical: 12,
       paddingHorizontal: 4,
       borderRadius: 12,
-      backgroundColor: 'rgba(255,255,255,0.05)',
+      backgroundColor: colors.backgroundElevated,
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.2)',
+      borderColor: colors.border,
       height: 74,
     },
     iconContainer: {
@@ -563,9 +563,9 @@ function OptionItem({ Icon, label, onPress, isDestructive, colors }: OptionItemP
           paddingVertical: 12,
           paddingHorizontal: 4,
           borderRadius: 12,
-          backgroundColor: isDestructive ? 'rgba(176, 58, 66, 0.1)' : 'rgba(255,255,255,0.05)',
+          backgroundColor: isDestructive ? 'rgba(176, 58, 66, 0.1)' : colors.backgroundElevated,
           borderWidth: 1,
-          borderColor: isDestructive ? 'rgba(176, 58, 66, 0.4)' : 'rgba(255,255,255,0.2)',
+          borderColor: isDestructive ? 'rgba(176, 58, 66, 0.4)' : colors.border,
           height: 74,
         },
         iconContainer: {
@@ -586,7 +586,7 @@ function OptionItem({ Icon, label, onPress, isDestructive, colors }: OptionItemP
       style={({ pressed }) => [
         styles.optionItem,
         pressed && {
-          backgroundColor: isDestructive ? 'rgba(176, 58, 66, 0.2)' : 'rgba(255,255,255,0.1)',
+          backgroundColor: isDestructive ? 'rgba(176, 58, 66, 0.2)' : colors.backgroundSecondary,
         },
       ]}
       onPress={onPress}
