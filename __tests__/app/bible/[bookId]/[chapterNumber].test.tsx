@@ -3,6 +3,9 @@
  *
  * Tests focused on integration with ChapterPagerView component.
  * Covers: rendering with PagerView, URL updates after swipe, navigation modal, floating buttons.
+ *
+ * Note: With circular navigation enabled (see agent-os/specs/circular-bible-navigation),
+ * navigation buttons are always enabled and navigation wraps around at Bible boundaries.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -308,16 +311,22 @@ describe('ChapterScreen - PagerView Integration', () => {
   });
 
   /**
-   * Test 2: Floating action buttons render and are functional
+   * Test 2: Floating action buttons render and are always enabled (circular navigation)
+   *
+   * With circular navigation, both Previous and Next buttons are always enabled.
+   * At Genesis 1, Previous wraps to Revelation 22.
+   * At Revelation 22, Next wraps to Genesis 1.
    */
-  it('renders floating action buttons for navigation', async () => {
+  it('renders floating action buttons that are always enabled with circular navigation', async () => {
     const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
 
     await waitFor(() => {
-      // Next button should be visible for Genesis 1 (can go forward)
+      // Both buttons should be visible and enabled at Genesis 1 (circular navigation)
       expect(getByTestId('next-chapter-button')).toBeTruthy();
-      // Previous button should be present but disabled (Genesis 1 is first)
-      expect(getByTestId('previous-chapter-button')).toBeDisabled();
+      expect(getByTestId('next-chapter-button')).not.toBeDisabled();
+      // Previous button should be enabled (wraps to Revelation 22)
+      expect(getByTestId('previous-chapter-button')).toBeTruthy();
+      expect(getByTestId('previous-chapter-button')).not.toBeDisabled();
     });
   });
 
@@ -502,10 +511,13 @@ describe('ChapterScreen - PagerView Integration', () => {
     });
 
     /**
-     * Test 11: Button handlers respect boundary flags (canGoNext)
+     * Test 11: Navigation works at Revelation 22 with circular navigation
+     *
+     * With circular navigation enabled, pressing Next at Revelation 22
+     * triggers navigation to Genesis 1 (wraps around) instead of showing error.
      */
-    it('triggers error haptic when trying to navigate past Revelation 22', async () => {
-      // Revelation 22 - cannot go to next chapter
+    it('triggers navigation at Revelation 22 with circular navigation (wraps to Genesis 1)', async () => {
+      // Revelation 22 - with circular navigation, can go to Genesis 1
       (useLocalSearchParams as jest.Mock).mockReturnValue({
         bookId: '66',
         chapterNumber: '22',
@@ -518,14 +530,21 @@ describe('ChapterScreen - PagerView Integration', () => {
       });
 
       const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
+
       await waitFor(() => {
-        // Next button should be present but disabled at Revelation 22
-        expect(getByTestId('next-chapter-button')).toBeDisabled();
+        // Next button should be enabled with circular navigation
+        const nextButton = getByTestId('next-chapter-button');
+        expect(nextButton).not.toBeDisabled();
+        fireEvent.press(nextButton);
       });
 
-      // setPage should NOT have been called
-      expect(mockSetPage).not.toHaveBeenCalled();
-    }, 10000);
+      // Should call goNext (which will wrap to Genesis 1)
+      expect(mockGoNext).toHaveBeenCalled();
+      // Should trigger medium impact haptic (not error)
+      expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
+      // Should NOT trigger error notification
+      expect(Haptics.notificationAsync).not.toHaveBeenCalled();
+    });
 
     /**
      * Test 12: Haptic feedback fires on valid navigation
