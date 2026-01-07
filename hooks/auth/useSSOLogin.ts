@@ -7,7 +7,7 @@
  * @see Task Group 5: Login/Signup Screen Integration
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppleSignIn } from './useAppleSignIn';
 import { useGoogleSignIn } from './useGoogleSignIn';
@@ -32,6 +32,10 @@ export interface UseSSOLoginReturn {
   isGoogleAvailable: boolean;
   /** Whether Apple Sign-In is available */
   isAppleAvailable: boolean;
+  /** Whether SSO login was successful */
+  isSuccess: boolean;
+  /** Reset success state */
+  resetSuccess: () => void;
 }
 
 /**
@@ -53,6 +57,8 @@ export interface UseSSOLoginReturn {
  *   isAppleLoading,
  *   error,
  *   resetError,
+ *   isSuccess,
+ *   resetSuccess,
  * } = useSSOLogin();
  *
  * // Use with SSOButtons component
@@ -73,6 +79,16 @@ export function useSSOLogin(): UseSSOLoginReturn {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  // Track mounted state to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   /**
    * Reset error state
@@ -84,10 +100,18 @@ export function useSSOLogin(): UseSSOLoginReturn {
   }, [googleSignIn, appleSignIn]);
 
   /**
+   * Reset success state
+   */
+  const resetSuccess = useCallback(() => {
+    setIsSuccess(false);
+  }, []);
+
+  /**
    * Sign in with Google
    */
   const signInWithGoogle = useCallback(async () => {
     setError(null);
+    setIsSuccess(false);
     setIsGoogleLoading(true);
 
     try {
@@ -97,7 +121,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
       // If no token (user cancelled), just return
       if (!idToken) {
         // Check if there was an error from the hook
-        if (googleSignIn.error) {
+        if (googleSignIn.error && isMountedRef.current) {
           setError(googleSignIn.error);
         }
         return;
@@ -105,12 +129,23 @@ export function useSSOLogin(): UseSSOLoginReturn {
 
       // Authenticate with backend
       await loginWithSSO('google', idToken);
+
+      // Only update state if still mounted
+      if (isMountedRef.current) {
+        setIsSuccess(true);
+      }
     } catch (err) {
-      // Handle backend errors
-      const errorMessage = err instanceof Error ? err.message : 'Failed to complete Google Sign-In';
-      setError(errorMessage);
+      // Handle backend errors (only if still mounted)
+      if (isMountedRef.current) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to complete Google Sign-In';
+        setError(errorMessage);
+      }
     } finally {
-      setIsGoogleLoading(false);
+      // Only update loading state if still mounted
+      if (isMountedRef.current) {
+        setIsGoogleLoading(false);
+      }
     }
   }, [googleSignIn, loginWithSSO]);
 
@@ -119,6 +154,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
    */
   const signInWithApple = useCallback(async () => {
     setError(null);
+    setIsSuccess(false);
     setIsAppleLoading(true);
 
     try {
@@ -128,7 +164,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
       // If no token (user cancelled), just return
       if (!identityToken) {
         // Check if there was an error from the hook
-        if (appleSignIn.error) {
+        if (appleSignIn.error && isMountedRef.current) {
           setError(appleSignIn.error);
         }
         return;
@@ -136,12 +172,23 @@ export function useSSOLogin(): UseSSOLoginReturn {
 
       // Authenticate with backend
       await loginWithSSO('apple', identityToken);
+
+      // Only update state if still mounted
+      if (isMountedRef.current) {
+        setIsSuccess(true);
+      }
     } catch (err) {
-      // Handle backend errors
-      const errorMessage = err instanceof Error ? err.message : 'Failed to complete Apple Sign-In';
-      setError(errorMessage);
+      // Handle backend errors (only if still mounted)
+      if (isMountedRef.current) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to complete Apple Sign-In';
+        setError(errorMessage);
+      }
     } finally {
-      setIsAppleLoading(false);
+      // Only update loading state if still mounted
+      if (isMountedRef.current) {
+        setIsAppleLoading(false);
+      }
     }
   }, [appleSignIn, loginWithSSO]);
 
@@ -154,5 +201,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
     resetError,
     isGoogleAvailable: googleSignIn.isAvailable,
     isAppleAvailable: appleSignIn.isAvailable,
+    isSuccess,
+    resetSuccess,
   };
 }
