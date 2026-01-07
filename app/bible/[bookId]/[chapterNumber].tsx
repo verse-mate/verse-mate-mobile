@@ -76,7 +76,6 @@ type ViewMode = 'bible' | 'explanations';
 /**
  * Center index for 7-page window in ChapterPagerView
  */
-const CENTER_INDEX = 3;
 
 /**
  * Chapter Screen Component
@@ -420,7 +419,7 @@ export default function ChapterScreen() {
       // Haptic feedback for button press
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       // Trigger PagerView page change (swipe right to previous chapter)
-      pagerRef.current?.setPage(CENTER_INDEX - 1);
+      pagerRef.current?.goPrevious();
     } else {
       // Already at Genesis 1, show error haptic
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -440,7 +439,7 @@ export default function ChapterScreen() {
       // Haptic feedback for button press
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       // Trigger PagerView page change (swipe left to next chapter)
-      pagerRef.current?.setPage(CENTER_INDEX + 1);
+      pagerRef.current?.goNext();
     } else {
       // Already at Revelation 22, show error haptic
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

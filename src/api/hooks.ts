@@ -104,11 +104,14 @@ export const useBibleChapter = (bookId: number, chapterNumber: number, version?:
 };
 
 // Bible Chapter Explanation - wrapper for simpler API
-export const useBibleChapterExplanation = (bookId: number, chapterNumber: number, explanationType?: string) => {
+export const useBibleChapterExplanation = (bookId: number, chapterNumber: number, explanationType?: string, language?: string) => {
 	const query = useQuery({
 		...getBibleBookExplanationByBookIdByChapterNumberOptions({
 			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: explanationType ? { explanationType } : undefined,
+			query: {
+				...(explanationType && { explanationType }),
+				...(language && { lang: language }),
+			} as any,
 		}),
 		enabled: bookId > 0 && chapterNumber > 0 && Boolean(explanationType), // Only fetch when valid parameters
 	});
@@ -240,11 +243,14 @@ export const useBibleChapterContent = (bookId: number, chapterNumber: number) =>
 /**
  * Fetch explanation for a chapter
  */
-const useBibleExplanation = (bookId: number, chapterNumber: number, explanationType?: string) => {
+const useBibleExplanation = (bookId: number, chapterNumber: number, explanationType?: string, language?: string) => {
 	const query = useQuery({
 		...getBibleBookExplanationByBookIdByChapterNumberOptions({
 			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: explanationType ? { explanationType } : undefined,
+			query: {
+				...(explanationType && { explanationType }),
+				...(language && { lang: language }),
+			} as any,
 		}),
 		enabled: bookId > 0 && chapterNumber > 0 && Boolean(explanationType), // Only fetch when valid parameters
 	});
@@ -262,12 +268,15 @@ export const useBibleSummary = (
 	bookId: number,
 	chapterNumber: number,
 	_queryKey?: any,
-	options?: { enabled?: boolean }
+	options?: { enabled?: boolean; language?: string }
 ) => {
 	const query = useQuery({
 		...getBibleBookExplanationByBookIdByChapterNumberOptions({
 			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: { explanationType: 'summary' },
+			query: {
+				explanationType: 'summary',
+				...(options?.language && { lang: options.language }),
+			} as any,
 		}),
 		enabled: options?.enabled,
 	});
@@ -282,12 +291,15 @@ export const useBibleByLine = (
 	bookId: number,
 	chapterNumber: number,
 	_queryKey?: any,
-	options?: { enabled?: boolean }
+	options?: { enabled?: boolean; language?: string }
 ) => {
 	const query = useQuery({
 		...getBibleBookExplanationByBookIdByChapterNumberOptions({
 			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: { explanationType: 'byline' },
+			query: {
+				explanationType: 'byline',
+				...(options?.language && { lang: options.language }),
+			} as any,
 		}),
 		enabled: options?.enabled,
 	});
@@ -302,12 +314,15 @@ export const useBibleDetailed = (
 	bookId: number,
 	chapterNumber: number,
 	_queryKey?: any,
-	options?: { enabled?: boolean }
+	options?: { enabled?: boolean; language?: string }
 ) => {
 	const query = useQuery({
 		...getBibleBookExplanationByBookIdByChapterNumberOptions({
 			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: { explanationType: 'detailed' },
+			query: {
+				explanationType: 'detailed',
+				...(options?.language && { lang: options.language }),
+			} as any,
 		}),
 		enabled: options?.enabled,
 	});

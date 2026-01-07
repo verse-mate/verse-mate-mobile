@@ -59,6 +59,10 @@ const ROUTE_UPDATE_DELAY_MS = 75;
 export interface ChapterPagerViewRef {
   /** Programmatically navigate to a page index with animation */
   setPage: (pageIndex: number) => void;
+  /** Navigate to the next page */
+  goNext: () => void;
+  /** Navigate to the previous page */
+  goPrevious: () => void;
 }
 
 /**
@@ -110,7 +114,7 @@ export interface ChapterPagerViewProps {
  * />
  *
  * // Programmatically navigate
- * pagerRef.current?.setPage(3);
+ * pagerRef.current?.goNext();
  * ```
  */
 const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerViewProps>(
@@ -165,6 +169,18 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       () => ({
         setPage: (pageIndex: number) => {
           pagerRef.current?.setPage(pageIndex);
+        },
+        goNext: () => {
+          const nextPos = posRef.current + 1;
+          if (nextPos < WINDOW_SIZE) {
+            pagerRef.current?.setPage(nextPos);
+          }
+        },
+        goPrevious: () => {
+          const prevPos = posRef.current - 1;
+          if (prevPos >= 0) {
+            pagerRef.current?.setPage(prevPos);
+          }
         },
       }),
       []

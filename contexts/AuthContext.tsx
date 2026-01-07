@@ -21,6 +21,7 @@ import { analytics, AnalyticsEvent } from '@/lib/analytics';
 import {
   getAuthSession,
   postAuthLogin,
+  postAuthRefresh,
   postAuthSignup,
 } from '@/src/api/generated/sdk.gen';
 import type { GetAuthSessionResponse } from '@/src/api/generated/types.gen';
@@ -113,6 +114,12 @@ export interface AuthMethods {
    * Called automatically on app launch
    */
   restoreSession(): Promise<void>;
+
+  /**
+   * Force a token refresh
+   * Useful when user claims (like language) change
+   */
+  refreshTokens(): Promise<void>;
 }
 
 /**
@@ -458,6 +465,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  /**
+   * Refresh tokens manually
+   */
+  const refreshTokens = async (): Promise<void> => {
+    try {
+      const refreshToken = await getRefreshToken();
+      if (!refreshToken) return;
+
+      const { data, error } = await postAuthRefresh({
+        body: { refreshToken },
+      });
+
+      if (error || !data) {
+        throw new Error('Failed to refresh tokens');
+      }
+
+      await setAccessToken(data.accessToken);
+      if (data.refreshToken) {
+        await setRefreshToken(data.refreshToken);
+      }
+
+      // Fetch and update user session
+      const userSession = await fetchUserSession();
+      setUser(userSession);
+    } catch (error) {
+      console.error('Failed to refresh tokens manually:', error);
+    }
+  };
+
   // Restore session on mount
   useEffect(() => {
     restoreSession();
@@ -472,6 +508,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loginWithSSO,
     logout,
     restoreSession,
+    refreshTokens,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
