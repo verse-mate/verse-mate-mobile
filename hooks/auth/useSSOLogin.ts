@@ -32,6 +32,10 @@ export interface UseSSOLoginReturn {
   isGoogleAvailable: boolean;
   /** Whether Apple Sign-In is available */
   isAppleAvailable: boolean;
+  /** Whether SSO login was successful */
+  isSuccess: boolean;
+  /** Reset success state */
+  resetSuccess: () => void;
 }
 
 /**
@@ -53,6 +57,8 @@ export interface UseSSOLoginReturn {
  *   isAppleLoading,
  *   error,
  *   resetError,
+ *   isSuccess,
+ *   resetSuccess,
  * } = useSSOLogin();
  *
  * // Use with SSOButtons component
@@ -73,6 +79,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   /**
    * Reset error state
@@ -84,10 +91,18 @@ export function useSSOLogin(): UseSSOLoginReturn {
   }, [googleSignIn, appleSignIn]);
 
   /**
+   * Reset success state
+   */
+  const resetSuccess = useCallback(() => {
+    setIsSuccess(false);
+  }, []);
+
+  /**
    * Sign in with Google
    */
   const signInWithGoogle = useCallback(async () => {
     setError(null);
+    setIsSuccess(false);
     setIsGoogleLoading(true);
 
     try {
@@ -105,6 +120,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
 
       // Authenticate with backend
       await loginWithSSO('google', idToken);
+      setIsSuccess(true);
     } catch (err) {
       // Handle backend errors
       const errorMessage = err instanceof Error ? err.message : 'Failed to complete Google Sign-In';
@@ -119,6 +135,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
    */
   const signInWithApple = useCallback(async () => {
     setError(null);
+    setIsSuccess(false);
     setIsAppleLoading(true);
 
     try {
@@ -136,6 +153,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
 
       // Authenticate with backend
       await loginWithSSO('apple', identityToken);
+      setIsSuccess(true);
     } catch (err) {
       // Handle backend errors
       const errorMessage = err instanceof Error ? err.message : 'Failed to complete Apple Sign-In';
@@ -154,5 +172,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
     resetError,
     isGoogleAvailable: googleSignIn.isAvailable,
     isAppleAvailable: appleSignIn.isAvailable,
+    isSuccess,
+    resetSuccess,
   };
 }
