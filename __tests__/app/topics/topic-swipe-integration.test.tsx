@@ -17,7 +17,7 @@ import TopicDetailScreen from '@/app/topics/[topicId]';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useLastReadPosition } from '@/hooks/bible';
-import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api';
+import { useAllTopics, useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api';
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -47,6 +47,7 @@ jest.mock('@/src/api', () => ({
   useTopicById: jest.fn(),
   useTopicReferences: jest.fn(),
   useTopicsSearch: jest.fn(),
+  useAllTopics: jest.fn(),
 }));
 
 jest.mock('@/hooks/bible', () => {
@@ -84,6 +85,8 @@ jest.mock('expo-haptics', () => ({
 
 // Mock TopicPagerView to track ref usage
 const mockSetPage = jest.fn();
+const mockGoNext = jest.fn();
+const mockGoPrevious = jest.fn();
 
 // Center index constant from TopicPagerView (7-page window)
 const _CENTER_INDEX = 3;
@@ -96,6 +99,8 @@ jest.mock('@/components/topics/TopicPagerView', () => {
 
     React.useImperativeHandle(ref, () => ({
       setPage: mockSetPage,
+      goNext: mockGoNext,
+      goPrevious: mockGoPrevious,
     }));
 
     return (
@@ -215,6 +220,13 @@ describe('TopicDetailScreen - PagerView Integration', () => {
       isLoading: false,
       error: null,
     });
+
+    // Mock useAllTopics for global topic navigation (circular navigation)
+    (useAllTopics as jest.Mock).mockReturnValue({
+      data: mockSortedTopics,
+      isLoading: false,
+      isError: false,
+    });
   });
 
   afterEach(() => {
@@ -234,9 +246,9 @@ describe('TopicDetailScreen - PagerView Integration', () => {
   });
 
   /**
-   * Test 2: FAB button press triggers pagerRef.setPage()
+   * Test 2: FAB button press triggers pagerRef.goNext()
    */
-  it('calls pagerRef.setPage with CENTER_INDEX + 1 when next button is pressed', async () => {
+  it('calls pagerRef.goNext when next button is pressed', async () => {
     // Middle topic (The Flood) - can navigate both ways
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       topicId: 'topic-uuid-003',
@@ -250,15 +262,15 @@ describe('TopicDetailScreen - PagerView Integration', () => {
       fireEvent.press(nextButton);
     });
 
-    // Should call setPage with CENTER_INDEX + 1 (3 + 1 = 4)
-    expect(mockSetPage).toHaveBeenCalledWith(4);
+    // Should call goNext for relative position navigation
+    expect(mockGoNext).toHaveBeenCalled();
   });
 
   /**
-   * Test 3: Error haptic fires at category boundaries
+   * Test 3: Circular navigation - next button enabled at last topic
    */
-  it('triggers error haptic when trying to navigate past last topic', async () => {
-    // Last topic (Call of Abraham) - cannot go to next
+  it('enables next button at last topic (circular navigation wraps to first)', async () => {
+    // Last topic (Call of Abraham) - with circular navigation, can go to next (wraps to first)
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       topicId: 'topic-uuid-005',
       category: 'EVENT',
@@ -267,12 +279,16 @@ describe('TopicDetailScreen - PagerView Integration', () => {
     const { getByTestId } = renderWithProviders(<TopicDetailScreen />);
 
     await waitFor(() => {
-      // Next button should be present but disabled at last topic
-      expect(getByTestId('next-chapter-button')).toBeDisabled();
+      // Next button should be enabled at last topic (circular navigation)
+      expect(getByTestId('next-chapter-button')).not.toBeDisabled();
     });
 
-    // setPage should NOT have been called
-    expect(mockSetPage).not.toHaveBeenCalled();
+    // Press next button - should call goNext
+    const nextButton = getByTestId('next-chapter-button');
+    fireEvent.press(nextButton);
+
+    // goNext should have been called for relative position navigation
+    expect(mockGoNext).toHaveBeenCalled();
   });
 
   /**
@@ -295,9 +311,9 @@ describe('TopicDetailScreen - PagerView Integration', () => {
 
   describe('Button Navigation via PagerView ref', () => {
     /**
-     * Test 5: Previous button calls pagerRef.setPage(1)
+     * Test 5: Previous button calls pagerRef.goPrevious()
      */
-    it('calls pagerRef.setPage with CENTER_INDEX - 1 when previous button is pressed', async () => {
+    it('calls pagerRef.goPrevious when previous button is pressed', async () => {
       // Middle topic (The Flood) - can navigate both ways
       (useLocalSearchParams as jest.Mock).mockReturnValue({
         topicId: 'topic-uuid-003',
@@ -311,8 +327,8 @@ describe('TopicDetailScreen - PagerView Integration', () => {
         fireEvent.press(prevButton);
       });
 
-      // Should call setPage with CENTER_INDEX - 1 (3 - 1 = 2)
-      expect(mockSetPage).toHaveBeenCalledWith(2);
+      // Should call goPrevious for relative position navigation
+      expect(mockGoPrevious).toHaveBeenCalled();
     });
 
     /**
@@ -336,10 +352,10 @@ describe('TopicDetailScreen - PagerView Integration', () => {
     });
 
     /**
-     * Test 7: Previous button disabled for first topic
+     * Test 7: Previous button enabled for first topic (circular navigation)
      */
-    it('disables previous button for first topic in category', async () => {
-      // First topic (Creation) - cannot go to previous
+    it('enables previous button for first topic (circular navigation wraps to last)', async () => {
+      // First topic (Creation) - with circular navigation, can go to previous (wraps to last)
       (useLocalSearchParams as jest.Mock).mockReturnValue({
         topicId: 'topic-uuid-001',
         category: 'EVENT',
@@ -348,11 +364,17 @@ describe('TopicDetailScreen - PagerView Integration', () => {
       const { getByTestId } = renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        // Previous button should be disabled
-        expect(getByTestId('previous-chapter-button')).toBeDisabled();
-        // Next button should be enabled
+        // Both buttons should be enabled (circular navigation)
+        expect(getByTestId('previous-chapter-button')).not.toBeDisabled();
         expect(getByTestId('next-chapter-button')).not.toBeDisabled();
       });
+
+      // Press previous button - should call goPrevious
+      const prevButton = getByTestId('previous-chapter-button');
+      fireEvent.press(prevButton);
+
+      // goPrevious should have been called for relative position navigation
+      expect(mockGoPrevious).toHaveBeenCalled();
     });
   });
 

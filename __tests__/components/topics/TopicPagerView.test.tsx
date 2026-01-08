@@ -1,11 +1,13 @@
 /**
  * Tests for TopicPagerView component
  *
- * TopicPagerView implements a 7-page fixed window with stable positional keys.
+ * TopicPagerView implements a 7-page fixed window with stable positional keys
+ * and global circular navigation across all topic categories.
  * - Keys: "page-0", "page-1", "page-2", "page-3", "page-4", "page-5", "page-6" (NEVER change)
  * - Middle page (index 3) always shows current topic
  * - Re-centers to index 3 when user reaches edges (index 0 or 6)
  * - Props update when window shifts
+ * - Circular navigation wraps at boundaries (first topic -> last topic, last topic -> first topic)
  *
  * Tests:
  * - Renders 7 pages with stable positional keys
@@ -16,6 +18,7 @@
  * - Handles empty/loading topics array gracefully
  *
  * @see components/topics/TopicPagerView.tsx
+ * @see Spec: agent-os/specs/fix-topic-swipe-navigation/spec.md
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -70,13 +73,9 @@ jest.mock('react-native-pager-view', () => {
 
 // Mock TopicPage component
 jest.mock('@/components/topics/TopicPage', () => ({
-  TopicPage: ({ topicId, category }: any) => {
+  TopicPage: ({ topicId }: any) => {
     const { Text } = require('react-native');
-    return (
-      <Text testID={`topic-page-${topicId}`}>
-        Topic {topicId} ({category})
-      </Text>
-    );
+    return <Text testID={`topic-page-${topicId}`}>Topic {topicId}</Text>;
   },
 }));
 
@@ -96,7 +95,7 @@ jest.mock('@/contexts/AuthContext', () => ({
 }));
 
 /**
- * Mock topic data for testing
+ * Mock topic data for testing - global sorted topics across all categories
  */
 const mockSortedTopics: TopicListItem[] = [
   { topic_id: 'topic-001', name: 'Creation', sort_order: 1, category: 'EVENT' },
@@ -130,14 +129,13 @@ describe('TopicPagerView', () => {
   const renderPagerView = (
     initialTopicId: string = 'topic-004',
     sortedTopics: TopicListItem[] = mockSortedTopics,
-    onPageChange?: (topicId: string, category: string) => void
+    onPageChange?: (topicId: string) => void
   ) => {
     return render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <TopicPagerView
             initialTopicId={initialTopicId}
-            category="EVENT"
             sortedTopics={sortedTopics}
             activeTab="summary"
             activeView="bible"
@@ -206,12 +204,12 @@ describe('TopicPagerView', () => {
     // onPageChange should not be called immediately
     expect(onPageChange).not.toHaveBeenCalled();
 
-    // After 75ms, onPageChange should be called
+    // After 75ms, onPageChange should be called with only topicId (global navigation)
     act(() => {
       jest.advanceTimersByTime(75);
     });
 
-    expect(onPageChange).toHaveBeenCalledWith('topic-005', 'EVENT');
+    expect(onPageChange).toHaveBeenCalledWith('topic-005');
   });
 
   it('should expose imperative handle with setPage method', () => {
@@ -230,7 +228,6 @@ describe('TopicPagerView', () => {
           <TopicPagerView
             ref={pagerRef}
             initialTopicId="topic-004"
-            category="EVENT"
             sortedTopics={mockSortedTopics}
             activeTab="summary"
             activeView="bible"
@@ -257,19 +254,20 @@ describe('TopicPagerView', () => {
 
   it('should handle topic at start of list (first topic)', () => {
     // Topic 001 (Creation) at center - first topic
+    // With circular navigation, positions 0, 1, 2 wrap to last topics
     renderPagerView('topic-001');
 
-    // Window should have boundaries at negative positions
-    // At start: [boundary, boundary, boundary, 001, 002, 003, 004]
+    // At least one instance of topic-001 should be rendered at center
     const creationElements = screen.getAllByTestId('topic-page-topic-001');
     expect(creationElements.length).toBeGreaterThanOrEqual(1);
   });
 
   it('should handle topic at end of list (last topic)', () => {
     // Topic 008 (Joseph) at center - last topic
+    // With circular navigation, positions 4, 5, 6 wrap to first topics
     renderPagerView('topic-008');
 
-    // Window should clamp to valid topics
+    // At least one instance of topic-008 should be rendered
     const josephElements = screen.getAllByTestId('topic-page-topic-008');
     expect(josephElements.length).toBeGreaterThanOrEqual(1);
   });
@@ -293,7 +291,6 @@ describe('TopicPagerView', () => {
             <TopicPagerView
               ref={pagerRef}
               initialTopicId="topic-004"
-              category="EVENT"
               sortedTopics={mockSortedTopics}
               activeTab="summary"
               activeView="bible"
@@ -328,7 +325,6 @@ describe('TopicPagerView', () => {
             <TopicPagerView
               ref={pagerRef}
               initialTopicId="topic-004"
-              category="EVENT"
               sortedTopics={mockSortedTopics}
               activeTab="summary"
               activeView="bible"

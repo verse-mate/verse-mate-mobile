@@ -3,8 +3,8 @@
  *
  * Tests that circular navigation at Bible boundaries works correctly:
  * - getChapterForPosition returns valid chapters for out-of-bounds indices
- * - Swiping backward from Genesis 1 shows Revelation 22 (not SwipeBoundaryPage)
- * - Swiping forward from Revelation 22 shows Genesis 1 (not SwipeBoundaryPage)
+ * - Swiping backward from Genesis 1 shows Revelation 22 (circular navigation)
+ * - Swiping forward from Revelation 22 shows Genesis 1 (circular navigation)
  * - Normal cross-book navigation continues to work
  * - Haptic feedback fires on circular navigation
  *
@@ -69,18 +69,6 @@ jest.mock('@/components/bible/ChapterPage', () => ({
     return (
       <Text testID={`chapter-page-${bookId}-${chapterNumber}`}>
         Book {bookId} Chapter {chapterNumber}
-      </Text>
-    );
-  },
-}));
-
-// Mock SwipeBoundaryPage to verify it's NOT rendered
-jest.mock('@/components/ui/SwipeBoundaryPage', () => ({
-  SwipeBoundaryPage: ({ direction, contentType, testID }: any) => {
-    const { Text } = require('react-native');
-    return (
-      <Text testID={testID || `swipe-boundary-${direction}`}>
-        SwipeBoundaryPage {direction} {contentType}
       </Text>
     );
   },
@@ -176,25 +164,27 @@ describe('ChapterPagerView circular navigation', () => {
     });
   });
 
-  describe('SwipeBoundaryPage not rendered for chapter navigation', () => {
-    it('should NOT render SwipeBoundaryPage when at Genesis 1', () => {
+  describe('boundary pages not rendered for circular navigation', () => {
+    it('should NOT render boundary pages when at Genesis 1', () => {
       renderPagerView(1, 1);
 
-      // SwipeBoundaryPage should NOT be present
+      // Boundary pages should NOT be present - only actual chapter content
       expect(screen.queryByTestId('chapter-page-boundary-0')).toBeNull();
       expect(screen.queryByTestId('chapter-page-boundary-1')).toBeNull();
       expect(screen.queryByTestId('chapter-page-boundary-2')).toBeNull();
-      expect(screen.queryByText(/SwipeBoundaryPage/)).toBeNull();
+      expect(screen.queryByTestId('swipe-boundary-start')).toBeNull();
+      expect(screen.queryByTestId('swipe-boundary-end')).toBeNull();
     });
 
-    it('should NOT render SwipeBoundaryPage when at Revelation 22', () => {
+    it('should NOT render boundary pages when at Revelation 22', () => {
       renderPagerView(66, 22);
 
-      // SwipeBoundaryPage should NOT be present
+      // Boundary pages should NOT be present - only actual chapter content
       expect(screen.queryByTestId('chapter-page-boundary-4')).toBeNull();
       expect(screen.queryByTestId('chapter-page-boundary-5')).toBeNull();
       expect(screen.queryByTestId('chapter-page-boundary-6')).toBeNull();
-      expect(screen.queryByText(/SwipeBoundaryPage/)).toBeNull();
+      expect(screen.queryByTestId('swipe-boundary-start')).toBeNull();
+      expect(screen.queryByTestId('swipe-boundary-end')).toBeNull();
     });
   });
 
@@ -282,7 +272,7 @@ describe('ChapterPagerView circular navigation', () => {
   });
 
   describe('circular window rendering verification', () => {
-    it('should render 7 pages with no SwipeBoundaryPage at any position', () => {
+    it('should render 7 pages with only chapter content at all positions', () => {
       renderPagerView(1, 1);
 
       // All 7 pager page containers should exist
@@ -290,8 +280,9 @@ describe('ChapterPagerView circular navigation', () => {
         expect(screen.getByTestId(`pager-page-${i}`)).toBeTruthy();
       }
 
-      // No SwipeBoundaryPage should be rendered anywhere
-      expect(screen.queryByText(/SwipeBoundaryPage/)).toBeNull();
+      // Only chapter pages should be rendered, no boundary indicators
+      expect(screen.queryByTestId('swipe-boundary-start')).toBeNull();
+      expect(screen.queryByTestId('swipe-boundary-end')).toBeNull();
     });
   });
 });

@@ -1,7 +1,8 @@
 // Custom React Query hooks wrapping the generated options
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { getAccessToken } from '@/lib/auth/token-storage';
+import type { TopicCategory, TopicListItem } from '@/types/topics';
 import {
 	transformTestamentsToBooks,
 	transformChapterResponse,
@@ -34,6 +35,7 @@ import type {
 	GetTopicsByIdData,
 	GetTopicsByIdReferencesData,
 	GetTopicsByIdExplanationData,
+	GetTopicsSearchResponse,
 } from './generated/types.gen';
 import type { Options } from './generated/sdk.gen';
 
@@ -65,6 +67,12 @@ import {
 } from './generated/@tanstack/react-query.gen';
 
 // Note: Options type is already exported from sdk.gen via index.ts
+
+/**
+ * API topic item type from the search response
+ * This matches the shape returned by the /topics/search endpoint
+ */
+type ApiTopicItem = GetTopicsSearchResponse['topics'][number];
 
 // Bible Testaments
 export const useBibleTestaments = (
@@ -421,9 +429,113 @@ export const useTopicsSearch = (category: string, options?: { enabled?: boolean 
 		...(options as any), // Allow overriding options like enabled
 	});
 
+	// Extract topics array from response, defaulting to empty array
+	// Use type assertion since TypeScript can't narrow the type through property check
+	const topics: ApiTopicItem[] = query.data && typeof query.data === 'object' && 'topics' in query.data
+		? (query.data as GetTopicsSearchResponse).topics
+		: [];
+
 	return {
 		...query,
-		data: query.data && typeof query.data === 'object' && 'topics' in query.data ? query.data.topics : [],
+		data: topics,
+	};
+};
+
+/**
+ * Category order for global topic navigation
+ * This defines the canonical order of categories when navigating across all topics
+ */
+const CATEGORY_ORDER: TopicCategory[] = ['EVENT', 'PROPHECY', 'PARABLE', 'THEME'];
+
+/**
+ * Helper function to convert API topic items to TopicListItem with category
+ */
+function mapTopicsWithCategory(topics: ApiTopicItem[], category: TopicCategory): TopicListItem[] {
+	return topics.map((topic) => ({
+		topic_id: topic.topic_id,
+		name: topic.name,
+		description: typeof topic.description === 'string' ? topic.description : undefined,
+		sort_order: typeof topic.sort_order === 'number' ? topic.sort_order : 0,
+		category,
+	}));
+}
+
+/**
+ * Fetch all topics from all categories combined into a single sorted array
+ *
+ * This hook is used for global circular navigation across all topics.
+ * Topics are sorted by:
+ * 1. Category order: EVENT -> PROPHECY -> PARABLE -> THEME
+ * 2. Within each category: by sort_order
+ *
+ * @returns Combined loading/error states and the merged sorted array of all topics
+ */
+export const useAllTopics = () => {
+	// Fetch topics from each category
+	const eventQuery = useTopicsSearch('EVENT');
+	const prophecyQuery = useTopicsSearch('PROPHECY');
+	const parableQuery = useTopicsSearch('PARABLE');
+	const themeQuery = useTopicsSearch('THEME');
+
+	// Combined loading state - true if ANY category is still loading
+	const isLoading =
+		eventQuery.isLoading ||
+		prophecyQuery.isLoading ||
+		parableQuery.isLoading ||
+		themeQuery.isLoading;
+
+	// Combined error state - true if ANY category has an error
+	const isError =
+		eventQuery.isError ||
+		prophecyQuery.isError ||
+		parableQuery.isError ||
+		themeQuery.isError;
+
+	// Combine and sort all topics
+	// Memoized to prevent unnecessary recalculations
+	const data = useMemo((): TopicListItem[] => {
+		// If still loading, return empty array
+		if (isLoading) {
+			return [];
+		}
+
+		// Map each category's topics with their category field
+		const categoryDataMap: Record<TopicCategory, TopicListItem[]> = {
+			EVENT: mapTopicsWithCategory(eventQuery.data, 'EVENT'),
+			PROPHECY: mapTopicsWithCategory(prophecyQuery.data, 'PROPHECY'),
+			PARABLE: mapTopicsWithCategory(parableQuery.data, 'PARABLE'),
+			THEME: mapTopicsWithCategory(themeQuery.data, 'THEME'),
+		};
+
+		// Combine in category order, with topics within each category sorted by sort_order
+		const allTopics: TopicListItem[] = [];
+		for (const category of CATEGORY_ORDER) {
+			const categoryTopics = categoryDataMap[category];
+			// Sort by sort_order within category (API may not guarantee order)
+			categoryTopics.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+			allTopics.push(...categoryTopics);
+		}
+
+		return allTopics;
+	}, [
+		isLoading,
+		eventQuery.data,
+		prophecyQuery.data,
+		parableQuery.data,
+		themeQuery.data,
+	]);
+
+	return {
+		data,
+		isLoading,
+		isError,
+		// Expose individual query states for debugging if needed
+		queries: {
+			event: eventQuery,
+			prophecy: prophecyQuery,
+			parable: parableQuery,
+			theme: themeQuery,
+		},
 	};
 };
 
