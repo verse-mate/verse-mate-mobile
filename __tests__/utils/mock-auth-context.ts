@@ -17,6 +17,8 @@ export const mockUser: User = {
   lastName: 'User',
   is_admin: false,
   preferred_language: 'en',
+  imageSrc: undefined,
+  hasPassword: true,
 };
 
 /**

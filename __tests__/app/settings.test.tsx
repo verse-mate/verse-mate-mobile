@@ -121,6 +121,8 @@ const mockUser: User = {
   lastName: 'User',
   is_admin: false,
   preferred_language: 'en-US',
+  imageSrc: undefined,
+  hasPassword: true,
 };
 
 describe('SettingsScreen', () => {

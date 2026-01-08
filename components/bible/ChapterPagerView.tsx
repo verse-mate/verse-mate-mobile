@@ -340,7 +340,6 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       activeTab,
       activeView,
       booksMetadata,
-      currentAbsoluteIndex,
       getChapterForPosition,
       onScroll,
       onTap,

@@ -95,6 +95,8 @@ describe('Notes List Screen', () => {
         lastName: 'User',
         is_admin: false,
         preferred_language: 'en',
+        imageSrc: undefined,
+        hasPassword: true,
       },
       isAuthenticated: true,
       isLoading: false,
