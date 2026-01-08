@@ -3,10 +3,19 @@
  *
  * Displays topic content with Bible references and AI-generated explanations.
  * Features similar structure to Bible chapter screen but adapted for topics.
- * Includes horizontal swipe navigation between topics within the same category.
+ * Includes horizontal swipe navigation with global circular navigation across all categories.
+ *
+ * Global Circular Navigation:
+ * - Topics from ALL categories (EVENT, PROPHECY, PARABLE, THEME) are combined into one sorted array
+ * - Swiping backward from the first topic globally shows the last topic globally
+ * - Swiping forward from the last topic globally shows the first topic globally
+ * - FAB prev/next buttons are always enabled (no boundary restrictions)
  *
  * Route: /topics/[topicId]
  * Example: /topics/550e8400-e29b-41d4-a716-446655440000
+ *
+ * @see Spec: agent-os/specs/fix-topic-swipe-navigation/spec.md
+ * @see components/bible/ChapterPagerView.tsx - Reference implementation for circular navigation
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -43,9 +52,9 @@ import { useTopicNavigation } from '@/hooks/topics/use-topic-navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { useTopicById, useTopicsSearch } from '@/src/api';
+import { useAllTopics, useTopicById } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
-import type { TopicCategory, TopicListItem } from '@/types/topics';
+import type { TopicCategory } from '@/types/topics';
 import { generateTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
 import { generateTopicSlug } from '@/utils/topicSlugs';
 
@@ -59,9 +68,9 @@ type ViewMode = 'bible' | 'explanations';
  *
  * Handles:
  * - Loading topic details, references, and explanations from API
- * - Horizontal swipe navigation between topics in the same category
+ * - Horizontal swipe navigation with global circular navigation across all categories
  * - Tab switching between explanation types (summary, byline, detailed)
- * - Navigation to other topics via modal or FAB buttons
+ * - Navigation to other topics via modal or FAB buttons (always enabled)
  * - Split view layout for landscape/tablet mode
  */
 export default function TopicDetailScreen() {
@@ -80,10 +89,30 @@ export default function TopicDetailScreen() {
   // Extract topicId from route params
   const params = useLocalSearchParams<{ topicId: string; category?: string; tab?: string }>();
   const topicId = params.topicId;
-  const category = (params.category as TopicCategory) || 'EVENT';
 
   // Local state for immediate UI updates
   const [activeTopicId, setActiveTopicId] = useState(topicId);
+
+  // Fetch ALL topics globally for circular navigation across all categories
+  const { data: allTopics } = useAllTopics();
+
+  // Get current topic's category from the global topics array (needed for modal)
+  // This updates immediately when swiping to a topic in a different category
+  const currentTopicCategory = useMemo(() => {
+    if (!allTopics || !activeTopicId) return (params.category as TopicCategory) || 'EVENT';
+    const currentTopic = allTopics.find((t) => t.topic_id === activeTopicId);
+    return (
+      (currentTopic?.category as TopicCategory) || (params.category as TopicCategory) || 'EVENT'
+    );
+  }, [allTopics, activeTopicId, params.category]);
+
+  // Get current topic's name from the global topics array (immediate fallback for header)
+  // This updates immediately when swiping, before useTopicById refetches
+  const currentTopicName = useMemo(() => {
+    if (!allTopics || !activeTopicId) return '';
+    const currentTopic = allTopics.find((t) => t.topic_id === activeTopicId);
+    return currentTopic?.name || '';
+  }, [allTopics, activeTopicId]);
 
   // Sync local state from params (deep links, back button)
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeTopicId is intentionally omitted
@@ -99,12 +128,12 @@ export default function TopicDetailScreen() {
       if (params.topicId !== activeTopicId) {
         router.setParams({
           topicId: activeTopicId,
-          category: category,
+          category: currentTopicCategory,
         });
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [activeTopicId, category, params.topicId]);
+  }, [activeTopicId, currentTopicCategory, params.topicId]);
 
   // Ref for imperative pager control
   const pagerRef = useRef<TopicPagerViewRef>(null);
@@ -163,21 +192,9 @@ export default function TopicDetailScreen() {
     error: topicError,
   } = useTopicById(activeTopicId, bibleVersion);
 
-  // Fetch all topics in the category for navigation
-  const { data: categoryTopics = [] } = useTopicsSearch(category);
-
-  // Sort topics by sort_order
-  const sortedTopics = useMemo(() => {
-    return (categoryTopics as TopicListItem[]).sort(
-      (a, b) => (a.sort_order || 0) - (b.sort_order || 0)
-    );
-  }, [categoryTopics]);
-
-  // Calculate navigation state using the hook
-  const { canGoNext, canGoPrevious, nextTopic, prevTopic } = useTopicNavigation(
-    activeTopicId,
-    sortedTopics
-  );
+  // Calculate navigation state using the hook with global topics array
+  // With circular navigation, prevTopic and nextTopic are always available when topics exist
+  const { nextTopic, prevTopic } = useTopicNavigation(activeTopicId, allTopics);
 
   // Save reading position to AsyncStorage for app launch continuity
   // Save whenever topicId, category, tab, or view changes
@@ -186,11 +203,11 @@ export default function TopicDetailScreen() {
     savePosition({
       type: 'topic',
       topicId: activeTopicId,
-      topicCategory: category,
+      topicCategory: currentTopicCategory,
       activeTab,
       activeView,
     });
-  }, [activeTopicId, category, activeTab, activeView]);
+  }, [activeTopicId, currentTopicCategory, activeTab, activeView]);
 
   // Handle back navigation
   const handleBack = useCallback(() => {
@@ -235,48 +252,43 @@ export default function TopicDetailScreen() {
   /**
    * Handle page change from TopicPagerView swipe
    * Updates local state immediately to prevent flash
+   * Global navigation - no category parameter needed
    */
-  const handlePageChange = useCallback((newTopicId: string, _newCategory: TopicCategory) => {
+  const handlePageChange = useCallback((newTopicId: string) => {
     setActiveTopicId(newTopicId);
   }, []);
 
   /**
    * Handle previous topic navigation via FAB button
-   * Uses pagerRef.setPage for smooth animation in portrait, router.push for split view
+   * Uses pagerRef.goPrevious for smooth animation in portrait, direct state update for split view
+   * With circular navigation, prevTopic is always available - no error case needed
    */
   const handlePrevious = useCallback(() => {
-    if (prevTopic) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      if (useSplitView) {
-        // In split view, update local state
-        setActiveTopicId(prevTopic.topic_id);
-      } else {
-        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX - 1)
-        // 7-page window uses CENTER_INDEX = 3
-        pagerRef.current?.setPage(2);
-      }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (useSplitView && prevTopic) {
+      // In split view, update local state directly
+      setActiveTopicId(prevTopic.topic_id);
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // In portrait view, use goPrevious to navigate relative to current position
+      // This works correctly even if user has swiped manually
+      pagerRef.current?.goPrevious();
     }
   }, [prevTopic, useSplitView]);
 
   /**
    * Handle next topic navigation via FAB button
-   * Uses pagerRef.setPage for smooth animation in portrait, router.push for split view
+   * Uses pagerRef.goNext for smooth animation in portrait, direct state update for split view
+   * With circular navigation, nextTopic is always available - no error case needed
    */
   const handleNext = useCallback(() => {
-    if (nextTopic) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      if (useSplitView) {
-        // In split view, update local state
-        setActiveTopicId(nextTopic.topic_id);
-      } else {
-        // In portrait view, use setPage to trigger pager animation (CENTER_INDEX + 1)
-        // 7-page window uses CENTER_INDEX = 3
-        pagerRef.current?.setPage(4);
-      }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (useSplitView && nextTopic) {
+      // In split view, update local state directly
+      setActiveTopicId(nextTopic.topic_id);
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // In portrait view, use goNext to navigate relative to current position
+      // This works correctly even if user has swiped manually
+      pagerRef.current?.goNext();
     }
   }, [nextTopic, useSplitView]);
 
@@ -294,7 +306,7 @@ export default function TopicDetailScreen() {
       // Trigger haptic feedback for share action
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      const url = generateTopicShareUrl(category, currentTopic.name);
+      const url = generateTopicShareUrl(currentTopicCategory, currentTopic.name);
       const message = `Check out ${currentTopic.name} on VerseMate: ${url}`;
 
       const result = await Share.share({
@@ -306,7 +318,7 @@ export default function TopicDetailScreen() {
         // Track analytics: TOPIC_SHARED event on successful share
         const topicSlug = generateTopicSlug(currentTopic.name);
         analytics.track(AnalyticsEvent.TOPIC_SHARED, {
-          category,
+          category: currentTopicCategory,
           topicSlug,
         });
       }
@@ -317,7 +329,7 @@ export default function TopicDetailScreen() {
       // Trigger error haptic feedback
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [topicData, category]);
+  }, [topicData, currentTopicCategory]);
 
   /**
    * Handle scroll events from TopicPage for FAB visibility
@@ -415,14 +427,14 @@ export default function TopicDetailScreen() {
           leftContent={
             <TopicContentPanel
               topicId={activeTopicId}
-              topicName={topic?.name || ''}
+              topicName={currentTopicName || topic?.name || ''}
               topicDescription={topic?.description}
               onHeaderPress={() => setIsNavigationModalOpen(true)}
               onShare={handleShare}
               onNavigatePrev={handlePrevious}
               onNavigateNext={handleNext}
-              hasPrevTopic={canGoPrevious}
-              hasNextTopic={canGoNext}
+              hasPrevTopic={true}
+              hasNextTopic={true}
               onScroll={handleScroll}
               onTap={handleTap}
               onVersePress={handleVersePress}
@@ -432,7 +444,7 @@ export default function TopicDetailScreen() {
           rightContent={
             <TopicExplanationsPanel
               topicId={activeTopicId}
-              topicName={topic?.name || ''}
+              topicName={currentTopicName || topic?.name || ''}
               activeTab={activeTab}
               onTabChange={handleTabChange}
               onMenuPress={() => setIsMenuOpen(true)}
@@ -444,7 +456,7 @@ export default function TopicDetailScreen() {
         <>
           {/* Header */}
           <TopicHeader
-            topicName={topic?.name || ''}
+            topicName={currentTopicName || topic?.name || ''}
             activeView={activeView}
             onNavigationPress={() => setIsNavigationModalOpen(true)}
             navigationModalVisible={isNavigationModalOpen}
@@ -457,12 +469,11 @@ export default function TopicDetailScreen() {
             <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} />
           )}
 
-          {/* TopicPagerView - 7-page sliding window for swipe navigation */}
+          {/* TopicPagerView - 7-page sliding window with global circular navigation */}
           <TopicPagerView
             ref={pagerRef}
             initialTopicId={activeTopicId}
-            category={category}
-            sortedTopics={sortedTopics}
+            sortedTopics={allTopics}
             activeTab={activeTab}
             activeView={activeView}
             onPageChange={handlePageChange}
@@ -472,12 +483,12 @@ export default function TopicDetailScreen() {
             onVersePress={handleVersePress}
           />
 
-          {/* Floating Action Buttons for Topic Navigation - Same fade behavior as portrait */}
+          {/* Floating Action Buttons for Topic Navigation - Always enabled with circular navigation */}
           <FloatingActionButtons
             onPrevious={handlePrevious}
             onNext={handleNext}
-            showPrevious={canGoPrevious}
-            showNext={canGoNext}
+            showPrevious={true}
+            showNext={true}
             visible={fabVisible}
           />
 
@@ -493,7 +504,7 @@ export default function TopicDetailScreen() {
           currentBookId={1} // Default to Genesis
           currentChapter={1}
           initialTab="TOPICS"
-          initialTopicCategory={category}
+          initialTopicCategory={currentTopicCategory}
           onClose={() => setIsNavigationModalOpen(false)}
           onSelectChapter={handleSelectChapter}
           onSelectTopic={handleSelectTopic}
