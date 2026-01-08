@@ -26,9 +26,8 @@ import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet } from 'react-native';
 import { getHeaderSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 import type { ContentTabType } from '@/types/bible';
-// TODO: Import insight bookmark methods after API regeneration
-// import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 
 /**
  * Props for InsightBookmarkButton component
@@ -74,18 +73,15 @@ export function InsightBookmarkButton({
 }: InsightBookmarkButtonProps) {
   const { mode, colors } = useTheme();
   const specs = getHeaderSpecs(mode);
+  const { isInsightBookmarked, addInsightBookmark, removeInsightBookmark } = useBookmarks();
 
   // Use provided props or default to theme values
   const iconSize = size ?? specs.iconSize;
   const iconColor = color ?? colors.textPrimary;
   const bookmarkedColor = '#D4AF37'; // Gold color for bookmarked state
 
-  // TODO: After API regeneration, uncomment and use real bookmark hook methods
-  // const { isInsightBookmarked, addInsightBookmark, removeInsightBookmark } = useBookmarks();
-  // const bookmarked = isInsightBookmarked(bookId, chapterNumber, insightType);
-
-  // Temporary placeholder state (will be replaced with real hook)
-  const bookmarked = false;
+  // Check if insight is bookmarked
+  const bookmarked = isInsightBookmarked(bookId, chapterNumber, insightType);
 
   /**
    * Handle bookmark button press
@@ -100,16 +96,12 @@ export function InsightBookmarkButton({
       // Trigger haptic feedback
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      // TODO: After API regeneration, implement bookmark toggle logic
-      // if (bookmarked) {
-      //   await removeInsightBookmark(bookId, chapterNumber, insightType);
-      // } else {
-      //   await addInsightBookmark(bookId, chapterNumber, insightType);
-      // }
-
-      console.log(
-        `Insight bookmark toggled: Book ${bookId} Chapter ${chapterNumber} - ${insightType}`
-      );
+      // Toggle bookmark state
+      if (bookmarked) {
+        await removeInsightBookmark(bookId, chapterNumber, insightType);
+      } else {
+        await addInsightBookmark(bookId, chapterNumber, insightType);
+      }
     } catch (error) {
       console.error('Failed to toggle insight bookmark:', error);
 

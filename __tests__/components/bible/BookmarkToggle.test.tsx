@@ -17,6 +17,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { createMockBookmarksResult } from '@/__tests__/utils/mock-bookmarks';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -61,6 +62,8 @@ describe('BookmarkToggle', () => {
         lastName: 'User',
         is_admin: false,
         preferred_language: 'en',
+        imageSrc: undefined,
+        hasPassword: true,
       },
       isAuthenticated: true,
       isLoading: false,
@@ -76,16 +79,13 @@ describe('BookmarkToggle', () => {
     mockAddBookmark.mockResolvedValue(undefined);
     mockRemoveBookmark.mockResolvedValue(undefined);
 
-    mockUseBookmarks.mockReturnValue({
-      bookmarks: [],
-      isFetchingBookmarks: false,
-      isAddingBookmark: false,
-      isRemovingBookmark: false,
-      isBookmarked: mockIsBookmarked,
-      addBookmark: mockAddBookmark,
-      removeBookmark: mockRemoveBookmark,
-      refetchBookmarks: jest.fn(),
-    });
+    mockUseBookmarks.mockReturnValue(
+      createMockBookmarksResult({
+        isBookmarked: mockIsBookmarked,
+        addBookmark: mockAddBookmark,
+        removeBookmark: mockRemoveBookmark,
+      })
+    );
 
     mockIsBookmarked.mockReturnValue(false);
   });

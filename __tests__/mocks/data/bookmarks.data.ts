@@ -4,6 +4,10 @@
  * Sample bookmarked chapters for testing bookmark functionality
  */
 
+import type {
+  AugmentedBookmark,
+  AugmentedBookmarksResponse,
+} from '@/src/api/generated/types.augment';
 import type { GetBibleBookBookmarksByUserIdResponse } from '@/src/api/generated/types.gen';
 
 /**
@@ -15,7 +19,7 @@ export const MOCK_USER_ID = 'test-user-123';
  * Sample bookmarked chapters
  * Genesis 1, John 3, Psalms 23, Matthew 5
  */
-export const mockBookmarks: GetBibleBookBookmarksByUserIdResponse['favorites'] = [
+export const mockBookmarks: AugmentedBookmark[] = [
   {
     favorite_id: 1,
     chapter_number: 1,
@@ -45,13 +49,13 @@ export const mockBookmarks: GetBibleBookBookmarksByUserIdResponse['favorites'] =
 /**
  * Full response structure for GET bookmarks
  */
-export const mockBookmarksResponse: GetBibleBookBookmarksByUserIdResponse = {
+export const mockBookmarksResponse: AugmentedBookmarksResponse = {
   favorites: mockBookmarks,
 };
 
 /**
  * Empty bookmarks response for new users
  */
-export const mockEmptyBookmarksResponse: GetBibleBookBookmarksByUserIdResponse = {
+export const mockEmptyBookmarksResponse: AugmentedBookmarksResponse = {
   favorites: [],
 };

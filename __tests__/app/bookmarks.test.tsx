@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { createMockBookmarksResult } from '@/__tests__/utils/mock-bookmarks';
 import Bookmarks from '@/app/bookmarks';
 import type { User } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -61,6 +62,8 @@ const mockUser: User = {
   lastName: 'User',
   is_admin: false,
   preferred_language: 'en',
+  imageSrc: undefined,
+  hasPassword: true,
 };
 
 const renderWithProviders = (component: React.ReactElement) => {
@@ -91,20 +94,15 @@ describe('Bookmarks Screen', () => {
     });
 
     // Mock bookmarks data
-    mockUseBookmarks.mockReturnValue({
-      bookmarks: [
-        { favorite_id: 1, book_id: 1, chapter_number: 1, book_name: 'Genesis' },
-        { favorite_id: 2, book_id: 43, chapter_number: 3, book_name: 'John' },
-        { favorite_id: 3, book_id: 19, chapter_number: 23, book_name: 'Psalms' },
-      ],
-      isFetchingBookmarks: false,
-      isAddingBookmark: false,
-      isRemovingBookmark: false,
-      isBookmarked: jest.fn(),
-      addBookmark: jest.fn(),
-      removeBookmark: jest.fn(),
-      refetchBookmarks: jest.fn(),
-    });
+    mockUseBookmarks.mockReturnValue(
+      createMockBookmarksResult({
+        bookmarks: [
+          { favorite_id: 1, book_id: 1, chapter_number: 1, book_name: 'Genesis' },
+          { favorite_id: 2, book_id: 43, chapter_number: 3, book_name: 'John' },
+          { favorite_id: 3, book_id: 19, chapter_number: 23, book_name: 'Psalms' },
+        ],
+      })
+    );
 
     renderWithProviders(<Bookmarks />);
 
@@ -133,16 +131,11 @@ describe('Bookmarks Screen', () => {
       refreshTokens: jest.fn(),
     });
 
-    mockUseBookmarks.mockReturnValue({
-      bookmarks: [{ favorite_id: 1, book_id: 1, chapter_number: 1, book_name: 'Genesis' }],
-      isFetchingBookmarks: false,
-      isAddingBookmark: false,
-      isRemovingBookmark: false,
-      isBookmarked: jest.fn(),
-      addBookmark: jest.fn(),
-      removeBookmark: jest.fn(),
-      refetchBookmarks: jest.fn(),
-    });
+    mockUseBookmarks.mockReturnValue(
+      createMockBookmarksResult({
+        bookmarks: [{ favorite_id: 1, book_id: 1, chapter_number: 1, book_name: 'Genesis' }],
+      })
+    );
 
     renderWithProviders(<Bookmarks />);
 
@@ -177,16 +170,7 @@ describe('Bookmarks Screen', () => {
     });
 
     // Mock empty bookmarks array
-    mockUseBookmarks.mockReturnValue({
-      bookmarks: [],
-      isFetchingBookmarks: false,
-      isAddingBookmark: false,
-      isRemovingBookmark: false,
-      isBookmarked: jest.fn(),
-      addBookmark: jest.fn(),
-      removeBookmark: jest.fn(),
-      refetchBookmarks: jest.fn(),
-    });
+    mockUseBookmarks.mockReturnValue(createMockBookmarksResult());
 
     renderWithProviders(<Bookmarks />);
 
@@ -214,16 +198,7 @@ describe('Bookmarks Screen', () => {
       refreshTokens: jest.fn(),
     });
 
-    mockUseBookmarks.mockReturnValue({
-      bookmarks: [],
-      isFetchingBookmarks: false,
-      isAddingBookmark: false,
-      isRemovingBookmark: false,
-      isBookmarked: jest.fn(),
-      addBookmark: jest.fn(),
-      removeBookmark: jest.fn(),
-      refetchBookmarks: jest.fn(),
-    });
+    mockUseBookmarks.mockReturnValue(createMockBookmarksResult());
 
     renderWithProviders(<Bookmarks />);
 
@@ -251,16 +226,11 @@ describe('Bookmarks Screen', () => {
     });
 
     // Mock loading state
-    mockUseBookmarks.mockReturnValue({
-      bookmarks: [],
-      isFetchingBookmarks: true,
-      isAddingBookmark: false,
-      isRemovingBookmark: false,
-      isBookmarked: jest.fn(),
-      addBookmark: jest.fn(),
-      removeBookmark: jest.fn(),
-      refetchBookmarks: jest.fn(),
-    });
+    mockUseBookmarks.mockReturnValue(
+      createMockBookmarksResult({
+        isFetchingBookmarks: true,
+      })
+    );
 
     renderWithProviders(<Bookmarks />);
 
@@ -288,16 +258,7 @@ describe('Bookmarks Screen', () => {
       refreshTokens: jest.fn(),
     });
 
-    mockUseBookmarks.mockReturnValue({
-      bookmarks: [],
-      isFetchingBookmarks: false,
-      isAddingBookmark: false,
-      isRemovingBookmark: false,
-      isBookmarked: jest.fn(),
-      addBookmark: jest.fn(),
-      removeBookmark: jest.fn(),
-      refetchBookmarks: jest.fn(),
-    });
+    mockUseBookmarks.mockReturnValue(createMockBookmarksResult());
 
     renderWithProviders(<Bookmarks />);
 
@@ -324,16 +285,7 @@ describe('Bookmarks Screen', () => {
       refreshTokens: jest.fn(),
     });
 
-    mockUseBookmarks.mockReturnValue({
-      bookmarks: [],
-      isFetchingBookmarks: false,
-      isAddingBookmark: false,
-      isRemovingBookmark: false,
-      isBookmarked: jest.fn(),
-      addBookmark: jest.fn(),
-      removeBookmark: jest.fn(),
-      refetchBookmarks: jest.fn(),
-    });
+    mockUseBookmarks.mockReturnValue(createMockBookmarksResult());
 
     renderWithProviders(<Bookmarks />);
 
