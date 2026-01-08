@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView } from '@/hooks/bible';
-import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api';
+import { useAllTopics, useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api';
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -41,6 +41,7 @@ jest.mock('@/src/api', () => ({
   useTopicReferences: jest.fn(),
   useTopicsSearch: jest.fn(),
   useBibleTestaments: jest.fn(),
+  useAllTopics: jest.fn(),
 }));
 
 jest.mock('@/hooks/bible', () => ({
@@ -76,6 +77,8 @@ jest.mock('@react-native-community/netinfo', () => ({
 
 // Mock TopicPagerView to track ref usage
 const mockSetPage = jest.fn();
+const mockGoNext = jest.fn();
+const mockGoPrevious = jest.fn();
 
 jest.mock('@/components/topics/TopicPagerView', () => {
   const React = require('react');
@@ -85,6 +88,8 @@ jest.mock('@/components/topics/TopicPagerView', () => {
 
     React.useImperativeHandle(ref, () => ({
       setPage: mockSetPage,
+      goNext: mockGoNext,
+      goPrevious: mockGoPrevious,
     }));
 
     // Render content based on activeView for content tests
@@ -244,6 +249,13 @@ describe('TopicDetailScreen', () => {
       error: null,
     });
 
+    // Mock useAllTopics for global topic navigation (circular navigation)
+    (useAllTopics as jest.Mock).mockReturnValue({
+      data: mockCategoryTopics,
+      isLoading: false,
+      isError: false,
+    });
+
     // Mock useBibleTestaments for BibleNavigationModal
     const { useBibleTestaments } = require('@/src/api');
     (useBibleTestaments as jest.Mock).mockReturnValue({
@@ -342,7 +354,7 @@ describe('TopicDetailScreen', () => {
   });
 
   describe('Navigation via TopicPagerView', () => {
-    it('should call pagerRef.setPage when previous button is pressed', async () => {
+    it('should call pagerRef.goPrevious when previous button is pressed', async () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
@@ -353,12 +365,11 @@ describe('TopicDetailScreen', () => {
       const prevButton = screen.getByLabelText('Previous chapter');
       fireEvent.press(prevButton);
 
-      // With TopicPagerView, navigation uses setPage instead of router.push
-      // CENTER_INDEX - 1 = 3 - 1 = 2
-      expect(mockSetPage).toHaveBeenCalledWith(2);
+      // With TopicPagerView, navigation uses goPrevious for relative position navigation
+      expect(mockGoPrevious).toHaveBeenCalled();
     });
 
-    it('should call pagerRef.setPage when next button is pressed', async () => {
+    it('should call pagerRef.goNext when next button is pressed', async () => {
       renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
@@ -369,9 +380,8 @@ describe('TopicDetailScreen', () => {
       const nextButton = screen.getByLabelText('Next chapter');
       fireEvent.press(nextButton);
 
-      // With TopicPagerView, navigation uses setPage instead of router.push
-      // CENTER_INDEX + 1 = 3 + 1 = 4
-      expect(mockSetPage).toHaveBeenCalledWith(4);
+      // With TopicPagerView, navigation uses goNext for relative position navigation
+      expect(mockGoNext).toHaveBeenCalled();
     });
 
     it('should have navigation menu accessible', async () => {
@@ -478,7 +488,7 @@ describe('TopicDetailScreen', () => {
       });
     });
 
-    it('should disable previous button when on first topic', async () => {
+    it('should enable previous button on first topic (circular navigation)', async () => {
       // Mock current topic as first in list
       (useLocalSearchParams as jest.Mock).mockReturnValue({
         topicId: 'event-0',
@@ -506,12 +516,12 @@ describe('TopicDetailScreen', () => {
         expect(screen.getByText('Previous Topic')).toBeTruthy();
       });
 
-      // Previous button should be disabled
+      // With circular navigation, previous button should be enabled (wraps to last topic)
       const prevButton = screen.getByLabelText('Previous chapter');
-      expect(prevButton).toBeDisabled();
+      expect(prevButton).not.toBeDisabled();
     });
 
-    it('should disable next button when on last topic', async () => {
+    it('should enable next button on last topic (circular navigation)', async () => {
       // Mock current topic as last in list
       (useLocalSearchParams as jest.Mock).mockReturnValue({
         topicId: 'event-2',
@@ -539,9 +549,9 @@ describe('TopicDetailScreen', () => {
         expect(screen.getByText('The Flood')).toBeTruthy();
       });
 
-      // Next button should be disabled
+      // With circular navigation, next button should be enabled (wraps to first topic)
       const nextButton = screen.getByLabelText('Next chapter');
-      expect(nextButton).toBeDisabled();
+      expect(nextButton).not.toBeDisabled();
     });
   });
 
