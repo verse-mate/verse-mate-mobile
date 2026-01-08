@@ -17,6 +17,7 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
+import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -549,6 +550,13 @@ export const ChapterPage = React.memo(function ChapterPage({
    * Note Handlers
    */
   const handleOpenNotes = () => {
+    // Check if user is authenticated before opening notes modal
+    if (!isAuthenticated) {
+      // Redirect to login if not authenticated
+      router.push('/auth/login');
+      return;
+    }
+
     setNotesModalVisible(true);
   };
 

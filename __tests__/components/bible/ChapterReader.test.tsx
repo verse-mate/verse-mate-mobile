@@ -186,7 +186,8 @@ describe('ChapterReader', () => {
     );
 
     // Header "Summary" should be stripped out by the renderer
-    expect(screen.queryByText(/^Summary$/)).toBeNull();
+    // Header "Summary" should be rendered explicitly now
+    expect(screen.getByText(/^Summary$/)).toBeTruthy();
 
     // Content should be present
     expect(screen.getByText(/creation of the world/)).toBeTruthy();

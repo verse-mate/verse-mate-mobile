@@ -15,7 +15,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
-import { useActiveTab, useActiveView, useBookProgress } from '@/hooks/bible';
+import { useActiveTab, useBookProgress } from '@/hooks/bible';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import {
@@ -64,8 +64,11 @@ jest.mock('@/hooks/bible/use-bookmarks', () => ({
   useBookmarks: jest.fn(() => ({
     bookmarks: [],
     isBookmarked: jest.fn(() => false),
+    isInsightBookmarked: jest.fn(() => false),
     addBookmark: jest.fn(),
     removeBookmark: jest.fn(),
+    addInsightBookmark: jest.fn(),
+    removeInsightBookmark: jest.fn(),
     refetchBookmarks: jest.fn(),
     isFetchingBookmarks: false,
     isAddingBookmark: false,

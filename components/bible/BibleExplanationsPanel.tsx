@@ -34,7 +34,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
-import { InsightBookmarkButton } from './InsightBookmarkButton';
 import { ShareButton } from './ShareButton';
 
 /**
@@ -268,34 +267,10 @@ export function BibleExplanationsPanel({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header Bar */}
+      {/* Header Bar - Only for Menu now */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>
-            {bookName} {chapterNumber} Insights
-          </Text>
-
-          {/* Action buttons */}
-          <View style={styles.headerActions}>
-            <ShareButton
-              bookId={bookId}
-              chapterNumber={chapterNumber}
-              bookName={bookName}
-              insightType={activeTab}
-              size={20}
-              color={specs.headerTextColor}
-              testID={`${testID}-share-button`}
-            />
-            <InsightBookmarkButton
-              bookId={bookId}
-              chapterNumber={chapterNumber}
-              insightType={activeTab}
-              size={20}
-              color={specs.headerTextColor}
-              testID={`${testID}-bookmark-button`}
-            />
-          </View>
-
+          <View style={{ flex: 1 }} />
           {onMenuPress && (
             <Pressable
               style={styles.menuButton}
@@ -374,6 +349,41 @@ export function BibleExplanationsPanel({
           <SkeletonLoader />
         ) : content ? (
           <>
+            {/* Content Title Row (Moved from Header) */}
+            <View style={styles.contentTitleRow}>
+              <Text style={styles.contentTitle}>
+                {activeTab === 'summary'
+                  ? `Summary of ${bookName} ${chapterNumber}`
+                  : activeTab === 'byline'
+                    ? `Line-by-Line: ${bookName} ${chapterNumber}`
+                    : `Detailed Insight: ${bookName} ${chapterNumber}`}
+              </Text>
+              <View style={styles.contentActions}>
+                <ShareButton
+                  bookId={bookId}
+                  chapterNumber={chapterNumber}
+                  bookName={bookName}
+                  insightType={activeTab}
+                  size={22}
+                  color={colors.textSecondary}
+                  testID={`${testID}-share-button`}
+                />
+                {/* 
+                TODO: Re-enable when backend supports insight_type in bookmarks response.
+                Currently GET /bible/book/bookmarks does not return insight_type, so persistence fails.
+
+                <InsightBookmarkButton
+                  bookId={bookId}
+                  chapterNumber={chapterNumber}
+                  insightType={activeTab}
+                  size={22}
+                  color={colors.textSecondary}
+                  testID={`${testID}-bookmark-button`}
+                /> 
+                */}
+              </View>
+            </View>
+
             <Markdown style={markdownStyles}>{content}</Markdown>
             <BottomLogo />
           </>
@@ -493,6 +503,25 @@ function createStyles(
       fontSize: fontSizes.body,
       color: colors.textSecondary,
       textAlign: 'center',
+    },
+    contentTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.lg,
+    },
+    contentTitle: {
+      flex: 1,
+      fontSize: fontSizes.heading1,
+      fontWeight: fontWeights.bold,
+      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      color: colors.textPrimary,
+      marginRight: spacing.md,
+    },
+    contentActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
     },
   });
 

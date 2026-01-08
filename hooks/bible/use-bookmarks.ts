@@ -40,15 +40,20 @@ import {
   postBibleBookBookmarkAddMutation,
 } from '@/src/api/generated/@tanstack/react-query.gen';
 import type {
+  AugmentedBookmark,
+  AugmentedBookmarksResponse,
+} from '@/src/api/generated/types.augment';
+import type {
   DeleteBibleBookBookmarkRemoveData,
-  GetBibleBookBookmarksByUserIdResponse,
   PostBibleBookBookmarkAddData,
 } from '@/src/api/generated/types.gen';
+import type { ContentTabType } from '@/types/bible';
 
 /**
  * Bookmark item type from API response
+ * Using augmented type to include insight_type field
  */
-export type Bookmark = GetBibleBookBookmarksByUserIdResponse['favorites'][number];
+export type Bookmark = AugmentedBookmark;
 
 /**
  * Return type for useBookmarks hook
@@ -68,6 +73,24 @@ export interface UseBookmarksResult {
   addBookmark: (bookId: number, chapterNumber: number) => Promise<void>;
   /** Remove a bookmark with optimistic update */
   removeBookmark: (bookId: number, chapterNumber: number) => Promise<void>;
+  /** Check if an insight is bookmarked */
+  isInsightBookmarked: (
+    bookId: number,
+    chapterNumber: number,
+    insightType: ContentTabType
+  ) => boolean;
+  /** Add an insight bookmark with optimistic update */
+  addInsightBookmark: (
+    bookId: number,
+    chapterNumber: number,
+    insightType: ContentTabType
+  ) => Promise<void>;
+  /** Remove an insight bookmark with optimistic update */
+  removeInsightBookmark: (
+    bookId: number,
+    chapterNumber: number,
+    insightType: ContentTabType
+  ) => Promise<void>;
   /** Manually refetch bookmarks from API */
   refetchBookmarks: () => Promise<void>;
 }
@@ -126,16 +149,22 @@ export function useBookmarks(): UseBookmarksResult {
 
       // Snapshot previous value for rollback
       const previousBookmarks =
-        queryClient.getQueryData<GetBibleBookBookmarksByUserIdResponse>(bookmarksQueryKey);
+        queryClient.getQueryData<AugmentedBookmarksResponse>(bookmarksQueryKey);
 
       // Optimistically update to the new value
       if (previousBookmarks && variables.body) {
-        const { book_id, chapter_number } = variables.body;
+        const { book_id, chapter_number, insight_type } = variables.body;
 
         // Check if bookmark already exists
-        const exists = previousBookmarks.favorites.some(
-          (b) => b.book_id === book_id && b.chapter_number === chapter_number
-        );
+        const exists = previousBookmarks.favorites.some((b) => {
+          if (b.book_id !== book_id || b.chapter_number !== chapter_number) {
+            return false;
+          }
+          // Normalize null/undefined/empty for comparison
+          const storeInsightType = b.insight_type || undefined;
+          const newInsightType = insight_type || undefined;
+          return storeInsightType === newInsightType;
+        });
 
         if (!exists) {
           // Add optimistic bookmark (favorite_id will be set by server)
@@ -144,9 +173,10 @@ export function useBookmarks(): UseBookmarksResult {
             book_id,
             chapter_number,
             book_name: `Book ${book_id}`, // Will be updated from server response
+            insight_type,
           };
 
-          queryClient.setQueryData<GetBibleBookBookmarksByUserIdResponse>(bookmarksQueryKey, {
+          queryClient.setQueryData<AugmentedBookmarksResponse>(bookmarksQueryKey, {
             favorites: [...previousBookmarks.favorites, optimisticBookmark],
           });
         }
@@ -185,18 +215,28 @@ export function useBookmarks(): UseBookmarksResult {
 
       // Snapshot previous value for rollback
       const previousBookmarks =
-        queryClient.getQueryData<GetBibleBookBookmarksByUserIdResponse>(bookmarksQueryKey);
+        queryClient.getQueryData<AugmentedBookmarksResponse>(bookmarksQueryKey);
 
       // Optimistically update to the new value
       if (previousBookmarks && variables.query) {
-        const { book_id, chapter_number } = variables.query;
+        const { book_id, chapter_number, insight_type } = variables.query;
         const bookIdNum = Number(book_id);
         const chapterNum = Number(chapter_number);
 
-        queryClient.setQueryData<GetBibleBookBookmarksByUserIdResponse>(bookmarksQueryKey, {
-          favorites: previousBookmarks.favorites.filter(
-            (b) => !(b.book_id === bookIdNum && b.chapter_number === chapterNum)
-          ),
+        queryClient.setQueryData<AugmentedBookmarksResponse>(bookmarksQueryKey, {
+          favorites: previousBookmarks.favorites.filter((b) => {
+            // Keep if book/chapter don't match
+            if (b.book_id !== bookIdNum || b.chapter_number !== chapterNum) {
+              return true;
+            }
+
+            // For insight_type, normalize null/undefined/empty before comparing
+            const storeInsightType = b.insight_type || undefined;
+            const removeInsightType = insight_type || undefined;
+
+            // Remove if insight_type matches (including both being undefined)
+            return storeInsightType !== removeInsightType;
+          }),
         });
       }
 
@@ -289,6 +329,69 @@ export function useBookmarks(): UseBookmarksResult {
     }
   }, [isAuthenticated, user?.id, refetch]);
 
+  /**
+   * Check if an insight is bookmarked
+   */
+  const isInsightBookmarked = useCallback(
+    (bookId: number, chapterNumber: number, insightType: ContentTabType): boolean => {
+      return bookmarks.some(
+        (b: Bookmark) =>
+          b.book_id === bookId &&
+          b.chapter_number === chapterNumber &&
+          b.insight_type === insightType
+      );
+    },
+    [bookmarks]
+  );
+
+  /**
+   * Add an insight bookmark with optimistic update
+   */
+  const addInsightBookmark = useCallback(
+    async (bookId: number, chapterNumber: number, insightType: ContentTabType): Promise<void> => {
+      // Check authentication
+      if (!isAuthenticated || !user?.id) {
+        console.error('User must be authenticated to add insight bookmarks');
+        return;
+      }
+
+      // Call mutation with insight_type
+      await addMutation.mutateAsync({
+        body: {
+          user_id: user.id,
+          book_id: bookId,
+          chapter_number: chapterNumber,
+          insight_type: insightType,
+        },
+      } as PostBibleBookBookmarkAddData);
+    },
+    [isAuthenticated, user?.id, addMutation]
+  );
+
+  /**
+   * Remove an insight bookmark with optimistic update
+   */
+  const removeInsightBookmark = useCallback(
+    async (bookId: number, chapterNumber: number, insightType: ContentTabType): Promise<void> => {
+      // Check authentication
+      if (!isAuthenticated || !user?.id) {
+        console.error('User must be authenticated to remove insight bookmarks');
+        return;
+      }
+
+      // Call mutation with insight_type
+      await removeMutation.mutateAsync({
+        query: {
+          user_id: user.id,
+          book_id: String(bookId),
+          chapter_number: String(chapterNumber),
+          insight_type: insightType,
+        },
+      } as DeleteBibleBookBookmarkRemoveData);
+    },
+    [isAuthenticated, user?.id, removeMutation]
+  );
+
   // Combine auth and query loading states
   // Loading if:
   // 1. Auth is still loading, OR
@@ -305,6 +408,9 @@ export function useBookmarks(): UseBookmarksResult {
     isBookmarked,
     addBookmark,
     removeBookmark,
+    isInsightBookmarked,
+    addInsightBookmark,
+    removeInsightBookmark,
     refetchBookmarks,
   };
 }

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { createMockBookmarksResult } from '@/__tests__/utils/mock-bookmarks';
 import { ChapterReader } from '@/components/bible/ChapterReader';
 import { useAuth } from '@/contexts/AuthContext';
 import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
@@ -99,6 +100,8 @@ describe('ChapterReader - Notes Integration', () => {
         lastName: 'User',
         is_admin: false,
         preferred_language: 'en',
+        imageSrc: undefined,
+        hasPassword: true,
       },
       isAuthenticated: true,
       isLoading: false,
@@ -111,16 +114,7 @@ describe('ChapterReader - Notes Integration', () => {
     });
 
     // Default mock: no bookmarks
-    mockUseBookmarks.mockReturnValue({
-      bookmarks: [],
-      isBookmarked: jest.fn().mockReturnValue(false),
-      addBookmark: jest.fn().mockResolvedValue(undefined),
-      removeBookmark: jest.fn().mockResolvedValue(undefined),
-      refetchBookmarks: jest.fn(),
-      isFetchingBookmarks: false,
-      isAddingBookmark: false,
-      isRemovingBookmark: false,
-    });
+    mockUseBookmarks.mockReturnValue(createMockBookmarksResult());
 
     // Default mock: no highlights
     mockUseHighlights.mockReturnValue({

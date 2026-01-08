@@ -105,6 +105,7 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
   useEffect(() => {
     // If native module is missing, disable
     if (!GoogleSignin) {
+      console.warn('[Google Sign-In] Native module not available (Expo Go or missing plugin)');
       setIsAvailable(false);
       return;
     }
@@ -113,12 +114,20 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
 
     // Check if Google Sign-In is configured
     if (!config.webClientId) {
+      console.error('[Google Sign-In] Missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
       setIsAvailable(false);
       return;
     }
 
     // Configure Google Sign-In
     try {
+      console.log('[Google Sign-In] Configuring with:', {
+        webClientId: `${config.webClientId?.substring(0, 20)}...`,
+        iosClientId: `${config.iosClientId?.substring(0, 20)}...`,
+        hasWebClientId: Boolean(config.webClientId),
+        hasIosClientId: Boolean(config.iosClientId),
+      });
+
       GoogleSignin.configure({
         webClientId: config.webClientId,
         iosClientId: config.iosClientId,
@@ -126,8 +135,9 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
       });
       isConfigured.current = true;
       setIsAvailable(true);
+      console.log('[Google Sign-In] Configuration successful');
     } catch (err) {
-      console.error('Failed to configure Google Sign-In:', err);
+      console.error('[Google Sign-In] Failed to configure:', err);
       setIsAvailable(false);
     }
   }, []);
@@ -169,13 +179,16 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
       if (isSuccessResponse(response)) {
         const idToken = response.data?.idToken;
         if (!idToken) {
+          console.error('[Google Sign-In] No ID token in response:', response);
           setError('Failed to get ID token from Google');
           return null;
         }
+        console.log('[Google Sign-In] Sign-in successful');
         return idToken;
       }
 
       // Sign-in was not successful
+      console.error('[Google Sign-In] Sign-in failed - invalid response:', response);
       setError('Google Sign-In failed');
       return null;
     } catch (err) {
@@ -183,27 +196,43 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
       if (isErrorWithCode && statusCodes && isErrorWithCode(err)) {
         // biome-ignore lint/suspicious/noExplicitAny: Google Error type
         const googleError = err as any;
+
+        // Enhanced logging for debugging
+        console.error('[Google Sign-In] Error details:', {
+          code: googleError.code,
+          message: googleError.message,
+          error: googleError,
+        });
+
         switch (googleError.code) {
           case statusCodes.SIGN_IN_CANCELLED:
             // User cancelled - not an error state
+            console.log('[Google Sign-In] User cancelled sign-in');
             return null;
 
           case statusCodes.IN_PROGRESS:
+            console.warn('[Google Sign-In] Sign-in already in progress');
             setError('Sign-in already in progress');
             return null;
 
           case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            console.error('[Google Sign-In] Google Play Services not available');
             setError('Google Play Services not available');
             return null;
 
-          default:
+          default: {
+            // Log the specific error code for debugging
+            console.error(`[Google Sign-In] Unhandled error code: ${googleError.code}`);
             // biome-ignore lint/suspicious/noExplicitAny: Error type is unknown
-            setError((err as any).message || 'Google Sign-In failed');
+            const errorMsg = (err as any).message || 'Google Sign-In failed';
+            setError(errorMsg);
             return null;
+          }
         }
       }
 
-      // Unknown error
+      // Unknown error - log full error object
+      console.error('[Google Sign-In] Unknown error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
       return null;
