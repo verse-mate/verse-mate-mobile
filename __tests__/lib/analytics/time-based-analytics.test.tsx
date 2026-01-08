@@ -130,6 +130,8 @@ describe('Time-Based Analytics - Phase 1', () => {
       lastName: 'User',
       is_admin: false,
       preferred_language: 'en',
+      imageSrc: null,
+      hasPassword: true,
     };
 
     // Test 3: Verify last_login_at is set on login() method

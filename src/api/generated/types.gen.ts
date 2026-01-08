@@ -353,6 +353,8 @@ export type GetAuthSessionResponses = {
         lastName: string;
         is_admin: boolean;
         preferred_language: string | unknown;
+        imageSrc: string | unknown;
+        hasPassword: boolean;
     };
 };
 
@@ -412,6 +414,8 @@ export type PutAuthProfileResponses = {
         lastName: string;
         is_admin: boolean;
         preferred_language: string | unknown;
+        imageSrc: string | unknown;
+        hasPassword: boolean;
     };
 };
 
@@ -2902,6 +2906,7 @@ export type PostBibleBookBookmarkAddData = {
         user_id: string;
         book_id: number;
         chapter_number: number;
+        insight_type?: string;
     };
     path?: never;
     query?: never;
@@ -2958,6 +2963,7 @@ export type DeleteBibleBookBookmarkRemoveData = {
         user_id: string;
         book_id: string;
         chapter_number: string;
+        insight_type?: string;
     };
     url: '/bible/book/bookmark/remove';
 };
@@ -3010,6 +3016,7 @@ export type PostBibleBookBookmarkRemoveData = {
         user_id: string;
         book_id: number;
         chapter_number: number;
+        insight_type?: string;
     };
     path?: never;
     query?: never;

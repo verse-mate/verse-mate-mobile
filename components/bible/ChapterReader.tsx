@@ -39,6 +39,7 @@ import { ErrorModal } from '@/components/bible/ErrorModal';
 import type { WordTapEvent } from '@/components/bible/HighlightedText';
 import { HighlightedText } from '@/components/bible/HighlightedText';
 import { NotesButton } from '@/components/bible/NotesButton';
+import { ShareButton } from '@/components/bible/ShareButton';
 import { TextSelectionMenu } from '@/components/bible/TextSelectionMenu';
 import {
   fontSizes,
@@ -254,6 +255,7 @@ function getStartHighlight(
 
 export function ChapterReader({
   chapter,
+  activeTab,
   explanation,
   explanationsOnly = false,
   onContentLayout,
@@ -905,13 +907,67 @@ export function ChapterReader({
         ))}
 
       {/* Explanation Content */}
-      {explanation && (
-        <View style={styles.explanationContainer} collapsable={false}>
-          <Markdown style={markdownStyles}>
-            {explanation.content.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
-          </Markdown>
-        </View>
-      )}
+      {explanation &&
+        (() => {
+          // Construct deterministic title
+          const generatedTitle =
+            activeTab === 'summary'
+              ? `Summary of ${chapter.bookName} ${chapter.chapterNumber}`
+              : activeTab === 'byline'
+                ? `Line-by-Line: ${chapter.bookName} ${chapter.chapterNumber}`
+                : `Detailed Insight: ${chapter.bookName} ${chapter.chapterNumber}`;
+
+          // Extract title from markdown (H1, H2, etc.)
+          // Match heading at start of content, handling various line endings
+          const titleMatch = explanation.content.match(/^(#{1,6})\s+(.+?)(?:\r?\n|$)/);
+          const extractedTitle = titleMatch ? titleMatch[2].trim() : null;
+
+          // Use extracted title if found, otherwise fallback to generated title
+          const title = extractedTitle || generatedTitle;
+
+          // Remove the first heading line from content if found
+          const contentWithoutTitle = titleMatch
+            ? explanation.content.replace(/^#{1,6}\s+.+?(?:\r?\n|$)/, '')
+            : explanation.content;
+
+          return (
+            <View style={styles.explanationContainer} collapsable={false}>
+              {/* Title row with action buttons */}
+              {title && (
+                <View style={styles.explanationTitleRow}>
+                  <Text style={styles.explanationTitle}>{title}</Text>
+                  <View style={styles.explanationTitleActions}>
+                    <ShareButton
+                      bookId={chapter.bookId}
+                      chapterNumber={chapter.chapterNumber}
+                      bookName={chapter.bookName}
+                      insightType={activeTab}
+                      size={22}
+                      color={colors.textSecondary}
+                      testID="insight-title-share-button"
+                    />
+                    {/* 
+                      TODO: Re-enable when backend supports insight_type in bookmarks response.
+                      Currently GET /bible/book/bookmarks does not return insight_type, so persistence fails.
+
+                      <InsightBookmarkButton
+                        bookId={chapter.bookId}
+                        chapterNumber={chapter.chapterNumber}
+                        insightType={activeTab}
+                        size={22}
+                        color={colors.textSecondary}
+                        testID="insight-title-bookmark-button"
+                      /> 
+                    */}
+                  </View>
+                </View>
+              )}
+
+              {/* Markdown content */}
+              <Markdown style={markdownStyles}>{contentWithoutTitle}</Markdown>
+            </View>
+          );
+        })()}
 
       {/* 
           NOTE: Tooltips and Modals (VerseMateTooltip, HighlightSelectionSheet, etc.)
@@ -1031,6 +1087,26 @@ const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: b
       paddingTop: explanationsOnly ? 0 : spacing.xxl,
       borderTopWidth: explanationsOnly ? 0 : 1,
       borderTopColor: colors.border,
+    },
+    explanationTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.lg,
+    },
+    // Removed explanationTitleContainer as we are reverting to direct Text usage like titleRow
+    explanationTitle: {
+      flex: 1,
+      fontSize: fontSizes.heading1,
+      fontWeight: fontWeights.bold,
+      color: colors.textPrimary,
+      lineHeight: fontSizes.heading1 * lineHeights.heading, // Fixed: Multiply fontSize by lineHeight
+      marginRight: spacing.md,
+    },
+    explanationTitleActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
     },
   });
 

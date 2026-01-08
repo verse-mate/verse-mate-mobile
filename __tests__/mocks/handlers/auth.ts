@@ -33,6 +33,8 @@ const mockUsers = new Map<
     password: string;
     is_admin: boolean;
     preferred_language: string;
+    imageSrc?: string | null;
+    hasPassword?: boolean;
   }
 >();
 
@@ -266,6 +268,8 @@ export const getAuthSessionHandler = http.get(`${API_BASE_URL}/auth/session`, ({
     lastName: user.lastName,
     is_admin: user.is_admin,
     preferred_language: user.preferred_language,
+    imageSrc: user.imageSrc || null,
+    hasPassword: user.hasPassword !== undefined ? user.hasPassword : true,
   };
 
   return HttpResponse.json(response);

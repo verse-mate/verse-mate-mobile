@@ -86,6 +86,8 @@ describe('AuthContext', () => {
       lastName: 'User',
       is_admin: false,
       preferred_language: 'en',
+      imageSrc: null,
+      hasPassword: true,
     };
 
     mockPostAuthLogin.mockResolvedValue({
@@ -140,6 +142,8 @@ describe('AuthContext', () => {
       lastName: 'User',
       is_admin: false,
       preferred_language: 'en',
+      imageSrc: null,
+      hasPassword: true,
     };
 
     mockPostAuthSignup.mockResolvedValue({
@@ -194,6 +198,8 @@ describe('AuthContext', () => {
       lastName: 'User',
       is_admin: false,
       preferred_language: 'en',
+      imageSrc: null,
+      hasPassword: true,
     };
 
     mockPostAuthLogin.mockResolvedValue({
@@ -247,6 +253,8 @@ describe('AuthContext', () => {
       lastName: 'User',
       is_admin: false,
       preferred_language: 'en',
+      imageSrc: null,
+      hasPassword: true,
     };
 
     // Mock existing tokens

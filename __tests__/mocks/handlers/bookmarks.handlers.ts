@@ -6,6 +6,10 @@
 
 import { HttpResponse, http } from 'msw';
 import type {
+  AugmentedBookmark,
+  AugmentedBookmarksResponse,
+} from '@/src/api/generated/types.augment';
+import type {
   DeleteBibleBookBookmarkRemoveData,
   DeleteBibleBookBookmarkRemoveResponse,
   GetBibleBookBookmarksByUserIdResponse,
@@ -21,7 +25,7 @@ const BIBLE_API_BASE_URL = 'http://localhost:4000';
  * In-memory bookmark store for testing
  * This allows tests to add/remove bookmarks and see the changes
  */
-let bookmarkStore = [...mockBookmarksResponse.favorites];
+let bookmarkStore: AugmentedBookmark[] = [...mockBookmarksResponse.favorites];
 let nextFavoriteId = Math.max(...bookmarkStore.map((b) => b.favorite_id)) + 1;
 
 /**
@@ -43,10 +47,21 @@ export function clearBookmarkStore() {
 /**
  * Helper to add bookmark to store (for test setup)
  */
-export function addToBookmarkStore(bookId: number, chapterNumber: number, bookName: string) {
-  const existingIndex = bookmarkStore.findIndex(
-    (b) => b.book_id === bookId && b.chapter_number === chapterNumber
-  );
+export function addToBookmarkStore(
+  bookId: number,
+  chapterNumber: number,
+  bookName: string,
+  insightType?: string
+) {
+  const existingIndex = bookmarkStore.findIndex((b) => {
+    if (b.book_id !== bookId || b.chapter_number !== chapterNumber) {
+      return false;
+    }
+    // Normalize: treat null, undefined, and empty string as equivalent
+    const storeInsightType = b.insight_type || undefined;
+    const newInsightType = insightType || undefined;
+    return storeInsightType === newInsightType;
+  });
 
   if (existingIndex === -1) {
     bookmarkStore.push({
@@ -54,6 +69,7 @@ export function addToBookmarkStore(bookId: number, chapterNumber: number, bookNa
       chapter_number: chapterNumber,
       book_id: bookId,
       book_name: bookName,
+      insight_type: insightType || undefined,
     });
   }
 }
@@ -73,7 +89,7 @@ export const getBookmarksByUserIdHandler = http.get(
     }
 
     // Return bookmarks for the user
-    const response: GetBibleBookBookmarksByUserIdResponse = {
+    const response: AugmentedBookmarksResponse = {
       favorites: bookmarkStore,
     };
 
@@ -96,9 +112,15 @@ export const addBookmarkHandler = http.post(
     }
 
     // Check if bookmark already exists
-    const existingIndex = bookmarkStore.findIndex(
-      (b) => b.book_id === body.book_id && b.chapter_number === body.chapter_number
-    );
+    const existingIndex = bookmarkStore.findIndex((b) => {
+      if (b.book_id !== body.book_id || b.chapter_number !== body.chapter_number) {
+        return false;
+      }
+      // Normalize: treat null, undefined, and empty string as equivalent
+      const storeInsightType = b.insight_type || undefined;
+      const bodyInsightType = body.insight_type || undefined;
+      return storeInsightType === bodyInsightType;
+    });
 
     if (existingIndex !== -1) {
       // Bookmark already exists, return success anyway
@@ -123,6 +145,7 @@ export const addBookmarkHandler = http.post(
       chapter_number: body.chapter_number,
       book_id: body.book_id,
       book_name: bookNames[body.book_id] || `Book ${body.book_id}`,
+      insight_type: body.insight_type || undefined,
     });
 
     const response: PostBibleBookBookmarkAddResponse = {
@@ -144,6 +167,7 @@ export const removeBookmarkHandler = http.delete(
     const user_id = url.searchParams.get('user_id');
     const book_id = url.searchParams.get('book_id');
     const chapter_number = url.searchParams.get('chapter_number');
+    const insight_type = url.searchParams.get('insight_type');
 
     // Validate request
     if (!user_id || !book_id || !chapter_number) {
@@ -157,9 +181,17 @@ export const removeBookmarkHandler = http.delete(
     const bookIdNum = Number(book_id);
     const chapterNum = Number(chapter_number);
 
-    const index = bookmarkStore.findIndex(
-      (b) => b.book_id === bookIdNum && b.chapter_number === chapterNum
-    );
+    const index = bookmarkStore.findIndex((b) => {
+      // Match book and chapter
+      if (b.book_id !== bookIdNum || b.chapter_number !== chapterNum) {
+        return false;
+      }
+
+      // For insight_type, treat null, undefined, and empty string as equivalent
+      const storeInsightType = b.insight_type || undefined;
+      const queryInsightType = insight_type || undefined;
+      return storeInsightType === queryInsightType;
+    });
 
     if (index !== -1) {
       bookmarkStore.splice(index, 1);

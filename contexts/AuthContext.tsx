@@ -219,7 +219,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       throw new Error('Failed to fetch user session');
     }
 
-    return data;
+    return data as User;
   };
 
   /**
