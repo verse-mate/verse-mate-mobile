@@ -1,21 +1,24 @@
 /**
  * TopicPagerView Component
  *
- * Wraps react-native-pager-view with a fixed 5-page sliding window.
+ * Wraps react-native-pager-view with a fixed 7-page sliding window.
  * Uses STABLE POSITIONAL KEYS to prevent "infinite swipe" bug.
  *
  * Architecture:
- * - Render exactly 5 pages: [prev-1, prev, current, next, next+1]
- * - Keys: ["page-0", "page-1", "page-2", "page-3", "page-4"] - NEVER CHANGE
- * - Center at index 2
- * - Re-center only when reaching edges (index 0 or 4)
+ * - Render exactly 7 pages with circular navigation at global topic boundaries
+ * - Keys: ["page-0", "page-1", "page-2", ..., "page-6"] - NEVER CHANGE
+ * - Center at index 3
+ * - Re-center when reaching edges (index 0 or 6)
  * - Pass topic data as props that update when window shifts
  *
- * Unlike Bible chapters which use cumulative indices across all books,
- * topics are scoped to a single category and use simple array positions.
+ * Global Circular Navigation:
+ * - Topics from ALL categories (EVENT, PROPHECY, PARABLE, THEME) are combined into one sorted array
+ * - Swiping backward from first topic globally shows last topic globally
+ * - Swiping forward from last topic globally shows first topic globally
+ * - No boundary pages - continuous reading experience through all topics
  *
- * @see Spec: agent-os/specs/2025-12-08-topic-swipe-navigation/spec.md
- * @see components/bible/ChapterPagerView.tsx - Reference implementation
+ * @see Spec: agent-os/specs/fix-topic-swipe-navigation/spec.md
+ * @see components/bible/ChapterPagerView.tsx - Reference implementation for circular navigation
  */
 
 import * as Haptics from 'expo-haptics';
@@ -33,10 +36,13 @@ import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
 import type { VersePress } from '@/components/topics/TopicText';
-import { SwipeBoundaryPage } from '@/components/ui/SwipeBoundaryPage';
 import type { ContentTabType } from '@/types/bible';
-import type { TopicCategory, TopicListItem } from '@/types/topics';
-import { getTopicFromIndex, getTopicIndexInCategory } from '@/utils/topics/topic-index-utils';
+import type { TopicListItem } from '@/types/topics';
+import {
+  getTopicFromIndex,
+  getTopicIndexInCategory,
+  wrapCircularTopicIndex,
+} from '@/utils/topics/topic-index-utils';
 import { TopicPage } from './TopicPage';
 
 /**
@@ -60,6 +66,10 @@ const ROUTE_UPDATE_DELAY_MS = 75;
 export interface TopicPagerViewRef {
   /** Programmatically navigate to a page index with animation */
   setPage: (pageIndex: number) => void;
+  /** Navigate to the next page (relative to current position) */
+  goNext: () => void;
+  /** Navigate to the previous page (relative to current position) */
+  goPrevious: () => void;
 }
 
 /**
@@ -68,16 +78,14 @@ export interface TopicPagerViewRef {
 export interface TopicPagerViewProps {
   /** Initial topic ID (UUID) to display */
   initialTopicId: string;
-  /** Topic category (navigation is scoped to single category) */
-  category: TopicCategory;
-  /** Sorted array of topics in the category */
+  /** Sorted array of ALL topics globally (category order, then sort_order within category) */
   sortedTopics: TopicListItem[];
   /** Active reading mode tab */
   activeTab: ContentTabType;
   /** Current view mode (bible or explanations) */
   activeView: 'bible' | 'explanations';
-  /** Callback when page changes (after swipe completes) */
-  onPageChange: (topicId: string, category: TopicCategory) => void;
+  /** Callback when page changes (after swipe completes) - receives topicId only (global navigation) */
+  onPageChange: (topicId: string) => void;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
@@ -91,11 +99,15 @@ export interface TopicPagerViewProps {
 /**
  * TopicPagerView Component
  *
- * Implements 5-page fixed window with stable positional keys.
+ * Implements 7-page fixed window with stable positional keys and circular navigation.
  * Prevents "infinite swipe restarting at first topic" bug by:
  * - Using stable keys based on window POSITION, not content
  * - Passing topicId as PROPS that update
- * - Re-centering only at edges using setPageWithoutAnimation
+ * - Re-centering at edges using setPageWithoutAnimation
+ *
+ * Circular navigation enables seamless reading through all topics globally:
+ * - First topic backward -> Last topic globally
+ * - Last topic forward -> First topic globally
  *
  * @example
  * ```tsx
@@ -104,12 +116,11 @@ export interface TopicPagerViewProps {
  * <TopicPagerView
  *   ref={pagerRef}
  *   initialTopicId="topic-uuid-003"
- *   category="EVENT"
- *   sortedTopics={sortedTopics}
+ *   sortedTopics={allSortedTopics}
  *   activeTab="summary"
  *   activeView="bible"
- *   onPageChange={(topicId, category) => {
- *     router.replace(`/topics/${topicId}?category=${category}`);
+ *   onPageChange={(topicId) => {
+ *     router.setParams({ topicId });
  *   }}
  * />
  *
@@ -121,7 +132,6 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
   function TopicPagerView(
     {
       initialTopicId,
-      category,
       sortedTopics,
       activeTab,
       activeView,
@@ -152,12 +162,37 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
     const posRef = useRef(selectedPosition);
     const lastProcessedRef = useRef({ topicId: initialTopicId });
 
+    // Keep refs in sync with state
+    useEffect(() => {
+      absIndexRef.current = currentAbsoluteIndex;
+    }, [currentAbsoluteIndex]);
+
+    useEffect(() => {
+      posRef.current = selectedPosition;
+    }, [selectedPosition]);
+
     // Expose imperative methods to parent component
     useImperativeHandle(
       ref,
       () => ({
         setPage: (pageIndex: number) => {
           pagerRef.current?.setPage(pageIndex);
+        },
+        goNext: () => {
+          // Navigate relative to current position (not hardcoded)
+          // This ensures FAB buttons work correctly after manual swipes
+          const nextPos = posRef.current + 1;
+          if (nextPos < WINDOW_SIZE) {
+            pagerRef.current?.setPage(nextPos);
+          }
+        },
+        goPrevious: () => {
+          // Navigate relative to current position (not hardcoded)
+          // This ensures FAB buttons work correctly after manual swipes
+          const prevPos = posRef.current - 1;
+          if (prevPos >= 0) {
+            pagerRef.current?.setPage(prevPos);
+          }
         },
       }),
       []
@@ -174,8 +209,14 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
 
     // Update absolute index if initialTopicId changes externally (modal, back button, etc.)
     useEffect(() => {
-      if (routeUpdateTimeoutRef.current !== null) return;
+      // If we have a pending route update, it means WE initiated a change that hasn't propagated yet.
+      // Ignoring prop updates during this window prevents "Snap Back" where the parent
+      // forces us back to the old topic before processing our request.
+      if (routeUpdateTimeoutRef.current !== null) {
+        return;
+      }
 
+      // Only act if the props actually changed from what we last processed
       if (lastProcessedRef.current.topicId === initialTopicId) {
         return;
       }
@@ -184,9 +225,13 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
       const newIndex = getTopicIndexInCategory(initialTopicId, sortedTopics);
       if (newIndex === -1) return;
 
-      const currentlyVisibleIndex = absIndexRef.current + (posRef.current - CENTER_INDEX);
+      // Calculate what absolute index is currently visible at the current pager position
+      // Use circular wrapping to handle negative indices
+      const rawVisibleIndex = absIndexRef.current + (posRef.current - CENTER_INDEX);
+      const currentlyVisibleIndex = wrapCircularTopicIndex(rawVisibleIndex, sortedTopics);
 
-      // JUMP DETECTED (e.g. from Modal)
+      // Only re-center if the new index is DIFFERENT from what the user is already looking at.
+      // With circular wrapping, this comparison now works correctly for wrapped indices.
       if (newIndex !== currentlyVisibleIndex) {
         setForceJump(true); // Tell pages to reset scroll for a true jump
         setCurrentAbsoluteIndex(newIndex);
@@ -201,25 +246,40 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
 
     /**
      * Calculate which topic should display at a given window position
+     *
+     * Uses circular wrapping at topic boundaries:
+     * - Negative indices wrap to end of topics (last THEME topics)
+     * - Indices beyond max wrap to start of topics (first EVENT topics)
+     * This enables seamless circular navigation through all topics globally.
      */
     const getTopicForPosition = useCallback(
       (windowPosition: number): TopicListItem | null => {
         const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
-        if (absoluteIndex < 0 || absoluteIndex >= sortedTopics.length) {
+        // Use circular wrapping for out-of-bounds indices
+        const wrappedIndex = wrapCircularTopicIndex(absoluteIndex, sortedTopics);
+
+        // Return null if sortedTopics is invalid (wrapCircularTopicIndex returns -1)
+        if (wrappedIndex === -1) {
           return null;
         }
 
-        return getTopicFromIndex(absoluteIndex, sortedTopics);
+        return getTopicFromIndex(wrappedIndex, sortedTopics);
       },
       [currentAbsoluteIndex, sortedTopics]
     );
 
     /**
      * Generate exactly 7 pages with STABLE POSITIONAL KEYS
+     *
+     * Keys never change - they're based on window position (0-6), not content.
+     * Topic data is passed as props that update when window shifts.
+     * All pages render actual topic content - no boundary pages for topic navigation.
      */
     const pages = useMemo(() => {
+      // Handle case when topics not loaded yet
       if (!sortedTopics || sortedTopics.length === 0) {
+        // Return placeholder pages with initial topic
         return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => (
           <TopicPage
             // biome-ignore lint/suspicious/noArrayIndexKey: Stable positional keys are required for fixed-window pager
@@ -237,22 +297,29 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
 
       return Array.from({ length: WINDOW_SIZE }, (_, windowPosition) => {
         const topic = getTopicForPosition(windowPosition);
-        const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
+        // With circular navigation, topic should always be valid when sortedTopics exists
+        // This fallback is just for safety in case of unexpected state
         if (!topic) {
-          const direction = absoluteIndex < 0 ? 'start' : 'end';
           return (
-            <SwipeBoundaryPage
+            <TopicPage
               // biome-ignore lint/suspicious/noArrayIndexKey: Stable positional keys are required for fixed-window pager
               key={`page-${windowPosition}`}
-              direction={direction}
-              contentType="topic"
-              testID={`topic-page-boundary-${windowPosition}`}
+              topicId={initialTopicId}
+              activeTab={activeTab}
+              activeView={activeView}
+              onScroll={onScroll}
+              onTap={onTap}
+              onShare={onShare}
+              onVersePress={onVersePress}
             />
           );
         }
 
-        const isPreloading = windowPosition !== selectedPosition;
+        // isPreloading should only be true for pages that are far away from the user's view.
+        // We allow the current page AND its immediate neighbors (distance <= 1) to render
+        // their content so that swiping between them is visually seamless.
+        const isPreloading = Math.abs(windowPosition - selectedPosition) > 1;
 
         return (
           <TopicPage
@@ -261,8 +328,8 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
             topicId={topic.topic_id}
             activeTab={activeTab}
             activeView={activeView}
-            shouldResetScroll={forceJump} // ONLY reset scroll if this is a forced jump
-            isPreloading={isPreloading} // Optimize off-screen pages
+            shouldResetScroll={forceJump}
+            isPreloading={isPreloading}
             onScroll={onScroll}
             onTap={onTap}
             onShare={onShare}
@@ -273,41 +340,34 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
     }, [
       activeTab,
       activeView,
-      currentAbsoluteIndex,
+      sortedTopics,
       getTopicForPosition,
       initialTopicId,
       onScroll,
       onTap,
-      sortedTopics,
       onShare,
       onVersePress,
       forceJump,
-      selectedPosition, // Added dependency
+      selectedPosition,
     ]);
 
     /**
      * Handle page selection events
      *
-     * Re-centering strategy:
-     * 1. Initial: Topic 3 at index 2: [1, 2, 3, 4, 5]
-     * 2. Swipe right once: Position 3 (Topic 4) - NO re-center, just update absolute index
-     * 3. Swipe right again: Position 4 (Topic 5 - EDGE!) - Re-center to index 2
-     * 4. Result: [3, 4, 5, 6, 7] - User can continue swiping
+     * SEAMLESS RESET STRATEGY:
+     * To prevent the "every other swipe is laggy" bug, we re-center the pager
+     * to the middle index (3) after reaching edge positions.
      *
-     * User can swipe once without jarring re-center. Re-center only at edges.
-     *
-     * IMPORTANT: Adds 75ms delay before calling onPageChange to prevent double animation.
-     * PagerView handles the visual animation, router.replace() should only update URL silently.
-     *
-     * BOUNDARY HANDLING: When user swipes to an out-of-bounds page (empty placeholder),
-     * snap back to center immediately. This prevents navigation past category boundaries.
+     * With circular navigation, there are no out-of-bounds positions - all
+     * indices wrap to valid topics. The edge reset logic re-centers the
+     * window while maintaining seamless content continuity.
      */
     const handlePageSelected = useCallback(
       (event: { nativeEvent: OnPageSelectedEventData }) => {
         const newPosition = Math.floor(event.nativeEvent.position);
-        if (newPosition === posRef.current) return;
+        if (newPosition === CENTER_INDEX) return; // Already centered
 
-        // SYNC REFS IMMEDIATELY
+        // SYNC REFS IMMEDIATELY to prevent race conditions in useEffect
         posRef.current = newPosition;
         setSelectedPosition(newPosition);
 
@@ -321,55 +381,50 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
         const offset = newPosition - CENTER_INDEX;
         const newAbsoluteIndex = currentAbsoluteIndex + offset;
 
-        // Check if swipe would go out of bounds
-        const isOutOfBounds = newAbsoluteIndex < 0 || newAbsoluteIndex >= sortedTopics.length;
-
-        if (isOutOfBounds) {
-          requestAnimationFrame(() => {
-            pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
-            setSelectedPosition(CENTER_INDEX);
-            posRef.current = CENTER_INDEX;
-          });
-          return;
-        }
-
-        // Fire Haptics INSTANTLY
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // Use circular wrapping for the new index
+        const wrappedIndex = wrapCircularTopicIndex(newAbsoluteIndex, sortedTopics);
 
         // Check if user reached edge positions (0 or 6) - EDGE RESET
         const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
 
+        // Fire Haptics INSTANTLY on the native UI thread
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
         if (isAtEdge) {
-          // SEAMLESS EDGE SNAP
+          // SEAMLESS EDGE SNAP with circular index
+          // IMPORTANT: Re-center the pager BEFORE updating state to prevent flicker.
+          // If we update currentAbsoluteIndex first, the pages useMemo will recalculate
+          // with the new center but pager is still at position 0,
+          // causing wrong content to flash.
+          pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+          setSelectedPosition(CENTER_INDEX);
+          posRef.current = CENTER_INDEX;
+
+          // Now update the absolute index - pages will recalculate correctly since
+          // pager is already centered at position 3
           setForceJump(false); // ENSURE we don't reset scroll during this snap
-          setCurrentAbsoluteIndex(newAbsoluteIndex);
-          absIndexRef.current = newAbsoluteIndex;
+          setCurrentAbsoluteIndex(wrappedIndex);
+          absIndexRef.current = wrappedIndex;
 
-          requestAnimationFrame(() => {
-            pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
-            setSelectedPosition(CENTER_INDEX);
-            posRef.current = CENTER_INDEX;
-          });
-
-          const topic = getTopicFromIndex(newAbsoluteIndex, sortedTopics);
+          const topic = getTopicFromIndex(wrappedIndex, sortedTopics);
           if (topic) {
             routeUpdateTimeoutRef.current = setTimeout(() => {
-              onPageChange(topic.topic_id, category);
+              onPageChange(topic.topic_id);
               routeUpdateTimeoutRef.current = null;
             }, ROUTE_UPDATE_DELAY_MS);
           }
         } else {
-          // Normal swipe (1, 2, 4, 5) - Stay there, update parent
-          const topic = getTopicFromIndex(newAbsoluteIndex, sortedTopics);
+          // Non-edge position - use wrapped index for navigation
+          const topic = getTopicFromIndex(wrappedIndex, sortedTopics);
           if (topic) {
             routeUpdateTimeoutRef.current = setTimeout(() => {
-              onPageChange(topic.topic_id, category);
+              onPageChange(topic.topic_id);
               routeUpdateTimeoutRef.current = null;
             }, ROUTE_UPDATE_DELAY_MS);
           }
         }
       },
-      [currentAbsoluteIndex, sortedTopics, category, onPageChange]
+      [currentAbsoluteIndex, sortedTopics, onPageChange]
     );
 
     return (
@@ -392,6 +447,9 @@ const TopicPagerViewComponent = forwardRef<TopicPagerViewRef, TopicPagerViewProp
 /**
  * Memoized PagerView to prevent unnecessary global re-renders
  * during URL synchronization.
+ *
+ * Supports global circular navigation - swiping past topic boundaries
+ * wraps around seamlessly to the other end across all categories.
  */
 export const TopicPagerView = memo(TopicPagerViewComponent);
 

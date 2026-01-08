@@ -1,80 +1,102 @@
 /**
  * useTopicNavigation Hook
  *
- * Encapsulates navigation logic for topics within a single category.
- * Calculates next/previous topic references and boundary flags.
+ * Encapsulates circular navigation logic for topics across ALL categories globally.
+ * Calculates next/previous topic references with circular wrap-around at boundaries.
  *
- * Unlike Bible chapter navigation which spans across books,
- * topic navigation is scoped to a single category and uses
- * UUID-based IDs with sort_order for ordering.
+ * Navigation is circular across all categories (EVENT, PROPHECY, PARABLE, THEME):
+ * - At the first topic globally: prevTopic wraps to the last topic
+ * - At the last topic globally: nextTopic wraps to the first topic
+ * - Cross-category navigation is seamless (e.g., last EVENT -> first PROPHECY)
+ *
+ * This mirrors the circular Bible chapter navigation pattern where swiping
+ * backward from Genesis 1 goes to Revelation 22, and vice versa.
  *
  * @example
  * ```tsx
  * const { nextTopic, prevTopic, canGoNext, canGoPrevious, currentIndex } = useTopicNavigation(
  *   'topic-uuid-003', // The Flood
- *   sortedTopics      // Pre-sorted by sort_order
+ *   allSortedTopics   // Pre-sorted by category order, then sort_order within category
  * );
  *
  * // nextTopic: { topic_id: 'topic-uuid-004', name: 'Tower of Babel', ... }
  * // prevTopic: { topic_id: 'topic-uuid-002', name: 'The Fall', ... }
- * // canGoNext: true
- * // canGoPrevious: true
+ * // canGoNext: true (always true when valid topics exist)
+ * // canGoPrevious: true (always true when valid topics exist)
  * // currentIndex: 2
+ *
+ * // At first topic globally (index 0):
+ * // prevTopic: { topic_id: 'last-topic-uuid', name: 'Last Topic', ... } (wraps around)
+ * // canGoPrevious: true (circular navigation)
+ *
+ * // At last topic globally (index length-1):
+ * // nextTopic: { topic_id: 'first-topic-uuid', name: 'First Topic', ... } (wraps around)
+ * // canGoNext: true (circular navigation)
  * ```
  *
- * @see utils/topics/topic-index-utils.ts - Index calculation utilities
- * @see hooks/bible/use-chapter-navigation.ts - Similar pattern for Bible chapters
+ * @see utils/topics/topic-index-utils.ts - Index calculation utilities including wrapCircularTopicIndex
+ * @see hooks/bible/use-chapter-navigation.ts - Similar circular pattern for Bible chapters
+ * @see Spec: agent-os/specs/fix-topic-swipe-navigation/spec.md
  */
 
 import { useMemo } from 'react';
 import type { TopicListItem } from '@/types/topics';
-import { getTopicFromIndex, getTopicIndexInCategory } from '@/utils/topics/topic-index-utils';
+import {
+  getTopicFromIndex,
+  getTopicIndexInCategory,
+  wrapCircularTopicIndex,
+} from '@/utils/topics/topic-index-utils';
 
 /**
- * Navigation result with next/previous topic references
+ * Navigation result with next/previous topic references.
+ *
+ * With circular navigation enabled:
+ * - `nextTopic` is always non-null when valid topics exist (wraps from last to first)
+ * - `prevTopic` is always non-null when valid topics exist (wraps from first to last)
+ * - `canGoNext` and `canGoPrevious` are always true when valid topics exist
  */
 export interface TopicNavigation {
-  /** Next topic reference, or null if at category end */
+  /** Next topic reference (wraps from last topic to first topic when at end) */
   nextTopic: TopicListItem | null;
-  /** Previous topic reference, or null if at category start */
+  /** Previous topic reference (wraps from first topic to last topic when at start) */
   prevTopic: TopicListItem | null;
-  /** Whether next navigation is available */
+  /** Whether next navigation is available (always true when valid topics exist) */
   canGoNext: boolean;
-  /** Whether previous navigation is available */
+  /** Whether previous navigation is available (always true when valid topics exist) */
   canGoPrevious: boolean;
-  /** Current topic's zero-indexed position in the sorted array */
+  /** Current topic's zero-indexed position in the global sorted array */
   currentIndex: number;
 }
 
 /**
- * Hook to calculate next/previous topic navigation
+ * Hook to calculate next/previous topic navigation with circular wrap-around.
  *
  * @param topicId - Current topic UUID
- * @param sortedTopics - Array of topics sorted by sort_order (within same category)
- * @returns Navigation metadata with next/prev topic references
+ * @param allTopics - Array of ALL topics sorted globally (category order, then sort_order within category)
+ * @returns Navigation metadata with next/prev topic references (circular at boundaries)
  *
  * @example
  * ```ts
- * // First topic in category
- * useTopicNavigation('first-uuid', sortedTopics)
- * // => { prevTopic: null, canGoPrevious: false, currentIndex: 0, ... }
+ * // First topic globally - circular navigation wraps to last
+ * useTopicNavigation('first-uuid', allTopics)
+ * // => { prevTopic: { last topic }, canGoPrevious: true, currentIndex: 0, ... }
  *
- * // Middle topic in category
- * useTopicNavigation('middle-uuid', sortedTopics)
+ * // Middle topic - normal navigation
+ * useTopicNavigation('middle-uuid', allTopics)
  * // => { prevTopic: {...}, nextTopic: {...}, canGoNext: true, canGoPrevious: true, ... }
  *
- * // Last topic in category
- * useTopicNavigation('last-uuid', sortedTopics)
- * // => { nextTopic: null, canGoNext: false, currentIndex: length-1, ... }
+ * // Last topic globally - circular navigation wraps to first
+ * useTopicNavigation('last-uuid', allTopics)
+ * // => { nextTopic: { first topic }, canGoNext: true, currentIndex: length-1, ... }
  * ```
  */
 export function useTopicNavigation(
   topicId: string,
-  sortedTopics: TopicListItem[] | undefined | null
+  allTopics: TopicListItem[] | undefined | null
 ): TopicNavigation {
   return useMemo(() => {
     // Handle undefined or empty topics array
-    if (!sortedTopics || !Array.isArray(sortedTopics) || sortedTopics.length === 0) {
+    if (!allTopics || !Array.isArray(allTopics) || allTopics.length === 0) {
       return {
         nextTopic: null,
         prevTopic: null,
@@ -85,7 +107,7 @@ export function useTopicNavigation(
     }
 
     // Find current topic's index
-    const currentIndex = getTopicIndexInCategory(topicId, sortedTopics);
+    const currentIndex = getTopicIndexInCategory(topicId, allTopics);
 
     // Handle topic not found
     if (currentIndex === -1) {
@@ -98,12 +120,17 @@ export function useTopicNavigation(
       };
     }
 
-    // Calculate next topic (if not at end)
-    const nextTopic = getTopicFromIndex(currentIndex + 1, sortedTopics);
+    // Calculate next topic with circular wrapping
+    // wrapCircularTopicIndex handles overflow: (length) -> 0
+    const nextIndex = wrapCircularTopicIndex(currentIndex + 1, allTopics);
+    const nextTopic = getTopicFromIndex(nextIndex, allTopics);
 
-    // Calculate previous topic (if not at start)
-    const prevTopic = getTopicFromIndex(currentIndex - 1, sortedTopics);
+    // Calculate previous topic with circular wrapping
+    // wrapCircularTopicIndex handles underflow: (-1) -> (length - 1)
+    const prevIndex = wrapCircularTopicIndex(currentIndex - 1, allTopics);
+    const prevTopic = getTopicFromIndex(prevIndex, allTopics);
 
+    // With circular navigation, we can always navigate when valid topics exist
     return {
       nextTopic,
       prevTopic,
@@ -111,5 +138,5 @@ export function useTopicNavigation(
       canGoPrevious: prevTopic !== null,
       currentIndex,
     };
-  }, [topicId, sortedTopics]);
+  }, [topicId, allTopics]);
 }

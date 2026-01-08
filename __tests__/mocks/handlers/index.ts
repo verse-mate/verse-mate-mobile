@@ -18,6 +18,7 @@ import { highlightHandlers } from './highlights.handlers';
 import { languagesHandlers } from './languages';
 import { notesHandlers } from './notes.handlers';
 import { recentlyViewedBooksHandlers } from './recently-viewed-books.handlers';
+import { topicsHandlers } from './topics.handlers';
 import { userPreferencesHandlers } from './user-preferences';
 import { verseHandlers } from './verses';
 
@@ -36,6 +37,7 @@ export const handlers = [
   ...recentlyViewedBooksHandlers, // User-level handlers
   ...languagesHandlers, // Languages API handlers
   ...userPreferencesHandlers, // User preferences handlers
+  ...topicsHandlers, // Topics API handlers
   ...bibleHandlers,
 ];
 
@@ -52,5 +54,6 @@ export {
   languagesHandlers,
   notesHandlers,
   recentlyViewedBooksHandlers,
+  topicsHandlers,
   userPreferencesHandlers,
 };
