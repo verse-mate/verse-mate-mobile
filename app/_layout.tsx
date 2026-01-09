@@ -29,6 +29,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
+import { preloadAllTopicsCache } from '@/hooks/topics/use-cached-topics';
 import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
 import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
@@ -280,6 +281,11 @@ function RootLayoutInner() {
         }
       }
       hideSplash();
+
+      // Preload topics cache in background for instant navigation modal access
+      preloadAllTopicsCache().catch((err) => {
+        console.error('Error preloading topics cache:', err);
+      });
     }
   }, [themeLoading]);
 
