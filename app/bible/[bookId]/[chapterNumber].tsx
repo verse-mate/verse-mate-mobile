@@ -593,6 +593,8 @@ export default function ChapterScreen() {
             currentChapter={validChapter}
             onSelectChapter={(bookId, chapter) => {
               setIsNavigationModalOpen(false);
+              // Always default to Bible text view when switching books via modal
+              setActiveView('bible');
               router.setParams({
                 bookId: bookId.toString(),
                 chapterNumber: chapter.toString(),
@@ -602,6 +604,8 @@ export default function ChapterScreen() {
             }}
             onSelectTopic={(topicId, category) => {
               setIsNavigationModalOpen(false);
+              // Always default to Bible text view when navigating to topics
+              setActiveView('bible');
               router.push({
                 pathname: '/topics/[topicId]',
                 params: { topicId, category },

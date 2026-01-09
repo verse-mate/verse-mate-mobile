@@ -219,17 +219,27 @@ export default function TopicDetailScreen() {
   }, []);
 
   // Handle chapter selection from modal (redirect to Bible)
-  const handleSelectChapter = useCallback((bookId: number, chapter: number) => {
-    setIsNavigationModalOpen(false);
-    router.push(`/bible/${bookId}/${chapter}`);
-  }, []);
+  const handleSelectChapter = useCallback(
+    (bookId: number, chapter: number) => {
+      setIsNavigationModalOpen(false);
+      // Always default to Bible text view when navigating to Bible
+      setActiveView('bible');
+      router.push(`/bible/${bookId}/${chapter}`);
+    },
+    [setActiveView]
+  );
 
   // Handle topic selection from modal (navigate to different topic)
-  const handleSelectTopic = useCallback((newTopicId: string, _newCategory: TopicCategory) => {
-    setIsNavigationModalOpen(false);
-    setActiveTopicId(newTopicId);
-    // URL will catch up via debounce
-  }, []);
+  const handleSelectTopic = useCallback(
+    (newTopicId: string, _newCategory: TopicCategory) => {
+      setIsNavigationModalOpen(false);
+      // Always default to Bible text view when switching topics via modal
+      setActiveView('bible');
+      setActiveTopicId(newTopicId);
+      // URL will catch up via debounce
+    },
+    [setActiveView]
+  );
 
   // Handle tab change
   const handleTabChange = useCallback(

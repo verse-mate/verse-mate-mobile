@@ -67,8 +67,9 @@ import {
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
+import { useCachedTopics } from '@/hooks/topics/use-cached-topics';
 import { useDeviceInfo } from '@/hooks/use-device-info';
-import { useBibleTestaments, useTopicsSearch } from '@/src/api';
+import { useBibleTestaments } from '@/src/api';
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId } from '@/types/bible';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
@@ -212,47 +213,33 @@ function BibleNavigationModalComponent({
   });
   const { recentBooks } = useRecentBooks();
 
-  // Fetch topics data - only when modal is visible and Topics tab is selected
-  const shouldFetchTopics = !!shouldFetchData && selectedTab === 'TOPICS';
+  // Fetch topics data - always enabled for instant cache access
   const hasSearchText = topicFilterText.trim().length > 0;
 
-  // When searching, fetch all categories; otherwise fetch only selected category
-  const { data: eventTopics = [], isLoading: isEventsLoading } = useTopicsSearch('EVENT', {
-    enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'EVENT'),
-  });
-  const { data: prophecyTopics = [], isLoading: isPropheciesLoading } = useTopicsSearch(
-    'PROPHECY',
-    {
-      enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'PROPHECY'),
-    }
-  );
-  const { data: parableTopics = [], isLoading: isParablesLoading } = useTopicsSearch('PARABLE', {
-    enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'PARABLE'),
-  });
-  const { data: themeTopics = [], isLoading: isThemesLoading } = useTopicsSearch('THEME', {
-    enabled: shouldFetchTopics && (hasSearchText || selectedTopicCategory === 'THEME'),
-  });
+  // Always fetch all categories using cached hook for instant access
+  // Cache is loaded immediately, API updates happen in background
+  const { topics: eventTopics, isInitialLoad: isEventsInitialLoad } = useCachedTopics('EVENT');
+  const { topics: prophecyTopics, isInitialLoad: isPropheciesInitialLoad } =
+    useCachedTopics('PROPHECY');
+  const { topics: parableTopics, isInitialLoad: isParablesInitialLoad } =
+    useCachedTopics('PARABLE');
+  const { topics: themeTopics, isInitialLoad: isThemesInitialLoad } = useCachedTopics('THEME');
 
-  // Combine loading states
+  // Only show loading state if ALL categories are doing initial load (empty cache)
   const isTopicsLoading =
-    isEventsLoading || isPropheciesLoading || isParablesLoading || isThemesLoading;
+    isEventsInitialLoad && isPropheciesInitialLoad && isParablesInitialLoad && isThemesInitialLoad;
 
   // Get current category topics or all topics when searching
   const currentTopics = useMemo(() => {
     if (hasSearchText) {
       // When searching, combine all categories
-      return [
-        ...(eventTopics as TopicListItem[]),
-        ...(prophecyTopics as TopicListItem[]),
-        ...(parableTopics as TopicListItem[]),
-        ...(themeTopics as TopicListItem[]),
-      ];
+      return [...eventTopics, ...prophecyTopics, ...parableTopics, ...themeTopics];
     }
     // No search - return only selected category
-    if (selectedTopicCategory === 'EVENT') return eventTopics as TopicListItem[];
-    if (selectedTopicCategory === 'PROPHECY') return prophecyTopics as TopicListItem[];
-    if (selectedTopicCategory === 'PARABLE') return parableTopics as TopicListItem[];
-    if (selectedTopicCategory === 'THEME') return themeTopics as TopicListItem[];
+    if (selectedTopicCategory === 'EVENT') return eventTopics;
+    if (selectedTopicCategory === 'PROPHECY') return prophecyTopics;
+    if (selectedTopicCategory === 'PARABLE') return parableTopics;
+    if (selectedTopicCategory === 'THEME') return themeTopics;
     return [];
   }, [
     eventTopics,
