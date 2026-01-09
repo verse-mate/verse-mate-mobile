@@ -16,11 +16,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
+import { useCachedTopics } from '@/hooks/topics/use-cached-topics';
 import { useBibleTestaments, useTopicsSearch } from '@/src/api';
 
 // Mock dependencies
 jest.mock('@/src/api');
 jest.mock('@/hooks/bible/use-recent-books');
+jest.mock('@/hooks/topics/use-cached-topics');
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
   ImpactFeedbackStyle: {
@@ -135,7 +137,37 @@ describe('BibleNavigationModal - Topics Tab', () => {
       error: null,
     });
 
-    // Mock useTopicsSearch hook - return different data based on category
+    // Mock useCachedTopics hook - return different data based on category
+    (useCachedTopics as jest.Mock).mockImplementation((category: string) => {
+      if (category === 'EVENT') {
+        return {
+          topics: mockEventTopics,
+          isInitialLoad: false,
+          isRefreshing: false,
+        };
+      }
+      if (category === 'PROPHECY') {
+        return {
+          topics: mockProphecyTopics,
+          isInitialLoad: false,
+          isRefreshing: false,
+        };
+      }
+      if (category === 'PARABLE') {
+        return {
+          topics: mockParableTopics,
+          isInitialLoad: false,
+          isRefreshing: false,
+        };
+      }
+      return {
+        topics: [],
+        isInitialLoad: false,
+        isRefreshing: false,
+      };
+    });
+
+    // Mock useTopicsSearch hook - kept for backward compatibility if needed
     (useTopicsSearch as jest.Mock).mockImplementation((category: string) => {
       if (category === 'EVENT') {
         return {
@@ -241,14 +273,7 @@ describe('BibleNavigationModal - Topics Tab', () => {
 
   describe('Category Switching', () => {
     it('should switch to prophecy topics when Prophecies tab is pressed', async () => {
-      (useTopicsSearch as jest.Mock).mockImplementation((category: string, _options?: any) => {
-        if (category === 'PROPHECY') {
-          return { data: mockProphecyTopics, isLoading: false, error: null };
-        }
-        return { data: mockEventTopics, isLoading: false, error: null };
-      });
-
-      const { rerender } = renderWithTheme(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -265,35 +290,15 @@ describe('BibleNavigationModal - Topics Tab', () => {
       // Click Prophecies category
       fireEvent.press(screen.getByText('Prophecies'));
 
-      // Force re-render to simulate category change
-      rerender(
-        <BibleNavigationModal
-          visible={true}
-          currentBookId={1}
-          currentChapter={1}
-          onClose={mockOnClose}
-          onSelectChapter={mockOnSelectChapter}
-          onSelectTopic={mockOnSelectTopic}
-        />
-      );
-
+      // Verify prophecy topics are displayed
       await waitFor(() => {
-        expect(useTopicsSearch).toHaveBeenCalledWith(
-          'PROPHECY',
-          expect.objectContaining({ enabled: true })
-        );
+        expect(screen.getByText('The Messiah')).toBeTruthy();
+        expect(screen.getByText('Prophecies about the coming Messiah')).toBeTruthy();
       });
     });
 
     it('should switch to parable topics when Parables tab is pressed', async () => {
-      (useTopicsSearch as jest.Mock).mockImplementation((category: string, _options?: any) => {
-        if (category === 'PARABLE') {
-          return { data: mockParableTopics, isLoading: false, error: null };
-        }
-        return { data: mockEventTopics, isLoading: false, error: null };
-      });
-
-      const { rerender } = renderWithTheme(
+      renderWithTheme(
         <BibleNavigationModal
           visible={true}
           currentBookId={1}
@@ -310,23 +315,10 @@ describe('BibleNavigationModal - Topics Tab', () => {
       // Click Parables category
       fireEvent.press(screen.getByText('Parables'));
 
-      // Force re-render
-      rerender(
-        <BibleNavigationModal
-          visible={true}
-          currentBookId={1}
-          currentChapter={1}
-          onClose={mockOnClose}
-          onSelectChapter={mockOnSelectChapter}
-          onSelectTopic={mockOnSelectTopic}
-        />
-      );
-
+      // Verify parable topics are displayed
       await waitFor(() => {
-        expect(useTopicsSearch).toHaveBeenCalledWith(
-          'PARABLE',
-          expect.objectContaining({ enabled: true })
-        );
+        expect(screen.getByText('The Good Samaritan')).toBeTruthy();
+        expect(screen.getByText('Parable about loving your neighbor')).toBeTruthy();
       });
     });
   });
@@ -506,10 +498,11 @@ describe('BibleNavigationModal - Topics Tab', () => {
 
   describe('Loading States', () => {
     it('should show loading indicator while topics are loading', () => {
-      (useTopicsSearch as jest.Mock).mockReturnValue({
-        data: [],
-        isLoading: true,
-        error: null,
+      // Mock all categories as doing initial load (empty cache)
+      (useCachedTopics as jest.Mock).mockReturnValue({
+        topics: [],
+        isInitialLoad: true,
+        isRefreshing: false,
       });
 
       renderWithTheme(
@@ -532,10 +525,11 @@ describe('BibleNavigationModal - Topics Tab', () => {
 
   describe('Empty States', () => {
     it('should show "No topics found" when topics array is empty', () => {
-      (useTopicsSearch as jest.Mock).mockReturnValue({
-        data: [],
-        isLoading: false,
-        error: null,
+      // Mock all categories with empty topics (cache loaded but no data)
+      (useCachedTopics as jest.Mock).mockReturnValue({
+        topics: [],
+        isInitialLoad: false,
+        isRefreshing: false,
       });
 
       renderWithTheme(
