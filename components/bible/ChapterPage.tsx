@@ -17,6 +17,11 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
+import { router } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
@@ -37,11 +42,6 @@ import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
 import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
-import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
