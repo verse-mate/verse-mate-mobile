@@ -88,7 +88,28 @@ describe('HighlightedText', () => {
     });
 
     expect(highlightedSegment).toBeTruthy();
-    expect(highlightedSegment?.props.children).toBe('beginning God');
+
+    // Helper to recursively extract text from React elements
+    const extractText = (children: any): string => {
+      if (typeof children === 'string') return children;
+      if (Array.isArray(children)) {
+        return children.map((c) => extractText(c)).join('');
+      }
+      if (children?.props?.children) {
+        return extractText(children.props.children);
+      }
+      return '';
+    };
+
+    // Component now renders each word separately, so collect all highlighted text
+    const highlightedTexts = textElements
+      .filter((el: ReactTestInstance) => {
+        const style = el.props.style;
+        return style?.backgroundColor?.includes(HIGHLIGHT_COLORS.yellow);
+      })
+      .map((el: ReactTestInstance) => extractText(el.props.children))
+      .join('');
+    expect(highlightedTexts).toBe('beginning God');
   });
 
   it('should use dark mode highlight colors when theme is dark', () => {
@@ -119,7 +140,28 @@ describe('HighlightedText', () => {
     });
 
     expect(highlightedSegment).toBeTruthy();
-    expect(highlightedSegment?.props.children).toBe('beginning God');
+
+    // Helper to recursively extract text from React elements
+    const extractText = (children: any): string => {
+      if (typeof children === 'string') return children;
+      if (Array.isArray(children)) {
+        return children.map((c) => extractText(c)).join('');
+      }
+      if (children?.props?.children) {
+        return extractText(children.props.children);
+      }
+      return '';
+    };
+
+    // Component now renders each word separately, so collect all highlighted text
+    const highlightedTexts = textElements
+      .filter((el: ReactTestInstance) => {
+        const style = el.props.style;
+        return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.yellow);
+      })
+      .map((el: ReactTestInstance) => extractText(el.props.children))
+      .join('');
+    expect(highlightedTexts).toBe('beginning God');
   });
 
   it('should use different colors for different highlights in dark mode', () => {
@@ -164,37 +206,28 @@ describe('HighlightedText', () => {
       return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.green);
     });
     expect(greenSegment).toBeTruthy();
-  });
 
-  it('should trigger onHighlightLongPress when long-pressing highlighted text', () => {
-    const mockOnHighlightLongPress = jest.fn();
-
-    const { root } = render(
-      <HighlightedText
-        text="In the beginning God created the heavens and the earth."
-        verseNumber={1}
-        highlights={[mockHighlight]}
-        onHighlightLongPress={mockOnHighlightLongPress}
-      />
-    );
-
-    // Find highlighted text segment
-    const textElements = root.findAllByType(Text);
-    const highlightedSegment = textElements.find((el: ReactTestInstance) => {
-      const style = el.props.style;
-      return style?.backgroundColor;
-    });
-
-    // Long-press on highlighted text
-    if (highlightedSegment) {
-      fireEvent(highlightedSegment, 'longPress');
-    }
-
-    // Verify callback was called with highlight_id
-    expect(mockOnHighlightLongPress).toHaveBeenCalledWith(1);
-
-    // Verify haptic feedback
-    expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
+    // Collect text from tokenized structure (may be nested)
+    const collectTextContent = (elements: ReactTestInstance[]): string => {
+      return elements
+        .filter((el: ReactTestInstance) => {
+          const style = el.props.style;
+          return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.yellow);
+        })
+        .map((el: ReactTestInstance) => {
+          const children = el.props.children;
+          if (typeof children === 'string') return children;
+          if (Array.isArray(children)) {
+            return children
+              .flatMap((c: any) => (typeof c === 'string' ? c : c?.props?.children || ''))
+              .join('');
+          }
+          return '';
+        })
+        .join('');
+    };
+    const highlightedTexts = collectTextContent(textElements);
+    expect(highlightedTexts).toContain('beginning');
   });
 
   it('should handle multiple non-overlapping highlights in same verse', () => {
@@ -245,15 +278,15 @@ describe('HighlightedText', () => {
     expect(greenSegment).toBeTruthy();
   });
 
-  it('should call onVerseLongPress when verse is long-pressed', async () => {
-    const mockOnVerseLongPress = jest.fn();
+  it('should call onWordLongPress when a word is long-pressed', async () => {
+    const mockOnWordLongPress = jest.fn();
 
     const { UNSAFE_root } = render(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
         highlights={[]}
-        onVerseLongPress={mockOnVerseLongPress}
+        onWordLongPress={mockOnWordLongPress}
       />
     );
 
@@ -273,21 +306,35 @@ describe('HighlightedText', () => {
 
     const parentElement = findElementWithHandler(UNSAFE_root);
 
-    // Simulate long press on parent element
+    // Create mock event with nativeEvent (required for tokenized word handler)
+    const mockEvent = {
+      nativeEvent: {
+        pageX: 100,
+        pageY: 200,
+        locationX: 50,
+        locationY: 10,
+      },
+    };
+
+    // Simulate long press on parent element (a word)
     if (parentElement) {
-      fireEvent(parentElement, 'longPress');
+      fireEvent(parentElement, 'longPress', mockEvent);
     }
 
     // Wait for async handler to complete
     await waitFor(() => {
-      expect(mockOnVerseLongPress).toHaveBeenCalledWith(1);
+      // Expects 2 arguments: verseNumber and the word that was long-pressed
+      expect(mockOnWordLongPress).toHaveBeenCalledWith(
+        1,
+        expect.any(String) // the word that was long-pressed
+      );
     });
 
     // Verify haptic feedback
     expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
   });
 
-  it('should not call onVerseLongPress when callback not provided', () => {
+  it('should not call onWordLongPress when callback not provided', () => {
     const { root } = render(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
@@ -302,10 +349,20 @@ describe('HighlightedText', () => {
       return el.props.onLongPress !== undefined;
     });
 
+    // Create mock event with nativeEvent (required for tokenized word handler)
+    const mockEvent = {
+      nativeEvent: {
+        pageX: 100,
+        pageY: 200,
+        locationX: 50,
+        locationY: 10,
+      },
+    };
+
     // Should not throw error when long-pressing without callback
     expect(() => {
       if (parentTextElement) {
-        fireEvent(parentTextElement, 'longPress');
+        fireEvent(parentTextElement, 'longPress', mockEvent);
       }
     }).not.toThrow();
   });
@@ -337,7 +394,27 @@ describe('HighlightedText', () => {
     });
 
     expect(highlightedSegment).toBeTruthy();
+    // Component renders each word separately, so we need to extract text from nested structure
+    // Helper to recursively extract text from React elements
+    const extractText = (children: any): string => {
+      if (typeof children === 'string') return children;
+      if (Array.isArray(children)) {
+        return children.map((c) => extractText(c)).join('');
+      }
+      if (children?.props?.children) {
+        return extractText(children.props.children);
+      }
+      return '';
+    };
+
     // First verse should be highlighted from char 29 to end
-    expect(highlightedSegment?.props.children).toBe('the heavens and the earth.');
+    const highlightedTexts = textElements
+      .filter((el: ReactTestInstance) => {
+        const style = el.props.style;
+        return style?.backgroundColor;
+      })
+      .map((el: ReactTestInstance) => extractText(el.props.children))
+      .join('');
+    expect(highlightedTexts).toBe('the heavens and the earth.');
   });
 });

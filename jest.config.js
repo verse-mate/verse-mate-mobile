@@ -15,7 +15,13 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}', '**/*.test.{ts,tsx}'],
 
   // Files to exclude from testing
-  testPathIgnorePatterns: ['/node_modules/', '/.expo/', '/coverage/', '/agent-os/'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/.expo/',
+    '/coverage/',
+    '/agent-os/',
+    '/\\.agent-os/',
+  ],
 
   // Transform Expo, React Native, and MSW packages
   transformIgnorePatterns: [
@@ -41,6 +47,7 @@ module.exports = {
     '!**/.expo/**',
     '!**/coverage/**',
     '!**/agent-os/**',
+    '!**/.agent-os/**',
     '!**/.rnstorybook/**',
     '!**/babel.config.js',
     '!**/jest.config.js',
