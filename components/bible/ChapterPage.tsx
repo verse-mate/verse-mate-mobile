@@ -30,6 +30,7 @@ import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
@@ -287,6 +288,12 @@ export const ChapterPage = React.memo(function ChapterPage({
   // Get current language from user preferences (default to 'en-US')
   // This ensures the query key changes when language changes
   const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
+  // Text visibility tracking for hybrid tokenization
+  // Use state with debouncing to avoid re-renders on every scroll frame
+  const [visibleYRange, setVisibleYRange] = useState<VisibleYRange | null>(null);
+  const visibleYRangeRef = useRef<VisibleYRange | null>(null);
+  const visibilityUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewportHeightRef = useRef<number>(0);
 
   // Fetch highlights directly for THIS specific chapter
   // This ensures each page has its own highlights pre-loaded independently
@@ -339,12 +346,19 @@ export const ChapterPage = React.memo(function ChapterPage({
       animatedScrollRef.current?.scrollTo({ y: 0, animated: false });
     }
 
-    // Close tooltip and clear timer when changing book/chapter
+    // Close tooltip and clear timers when changing book/chapter
     setVerseTooltipVisible(false);
     if (verseTooltipTimerRef.current) {
       clearTimeout(verseTooltipTimerRef.current);
       verseTooltipTimerRef.current = null;
     }
+    if (visibilityUpdateTimerRef.current) {
+      clearTimeout(visibilityUpdateTimerRef.current);
+      visibilityUpdateTimerRef.current = null;
+    }
+    // Reset visible range on chapter change
+    setVisibleYRange(null);
+    visibleYRangeRef.current = null;
   }, [bookId, chapterNumber]);
 
   // Mark as scrolled when user switches to explanations view
@@ -517,17 +531,36 @@ export const ChapterPage = React.memo(function ChapterPage({
   }, [attemptScrollToVerse]);
 
   /**
-   * Handle scroll events - calculate velocity and detect bottom
+   * Handle scroll events - calculate velocity, detect bottom, and update visible range
    */
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     // Update current scroll ref for distance calculation
     currentScrollYRef.current = event.nativeEvent.contentOffset.y;
 
-    if (!onScroll) return;
-
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const currentScrollY = contentOffset.y;
     const currentTime = Date.now();
+
+    // Store viewport height for visibility calculations
+    viewportHeightRef.current = layoutMeasurement.height;
+
+    // Update visible Y range ref immediately (no re-render)
+    const newRange: VisibleYRange = {
+      startY: currentScrollY,
+      endY: currentScrollY + layoutMeasurement.height,
+    };
+    visibleYRangeRef.current = newRange;
+
+    // Debounce state update to avoid re-renders on every scroll frame
+    // Update every 150ms for smooth-enough tokenization transitions
+    if (visibilityUpdateTimerRef.current) {
+      clearTimeout(visibilityUpdateTimerRef.current);
+    }
+    visibilityUpdateTimerRef.current = setTimeout(() => {
+      setVisibleYRange(newRange);
+    }, 150);
+
+    if (!onScroll) return;
 
     // Calculate scroll velocity (pixels per second)
     const timeDelta = currentTime - lastScrollTime.current;
@@ -608,6 +641,9 @@ export const ChapterPage = React.memo(function ChapterPage({
     setEditModalVisible(false);
     setSelectedNote(null);
   };
+
+  // Memoize context value to avoid unnecessary re-renders
+  const textVisibilityContextValue = useMemo(() => ({ visibleYRange }), [visibleYRange]);
 
   return (
     <View style={styles.container} collapsable={false}>
@@ -701,21 +737,23 @@ export const ChapterPage = React.memo(function ChapterPage({
         onTouchEnd={handleTouchEnd}
         pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
       >
-        <View style={styles.readerContainer} collapsable={false}>
-          {displayChapter ? (
-            <ChapterReader
-              chapter={displayChapter}
-              activeTab={activeTab}
-              explanationsOnly={false}
-              onContentLayout={handleContentLayout}
-              onOpenNotes={handleOpenNotes}
-              filteredHighlights={chapterHighlights}
-              filteredAutoHighlights={autoHighlights}
-            />
-          ) : (
-            <SkeletonLoader />
-          )}
-        </View>
+        <TextVisibilityContext.Provider value={textVisibilityContextValue}>
+          <View style={styles.readerContainer} collapsable={false}>
+            {displayChapter ? (
+              <ChapterReader
+                chapter={displayChapter}
+                activeTab={activeTab}
+                explanationsOnly={false}
+                onContentLayout={handleContentLayout}
+                onOpenNotes={handleOpenNotes}
+                filteredHighlights={chapterHighlights}
+                filteredAutoHighlights={autoHighlights}
+              />
+            ) : (
+              <SkeletonLoader />
+            )}
+          </View>
+        </TextVisibilityContext.Provider>
         <BottomLogo />
       </Animated.ScrollView>
 
