@@ -76,7 +76,7 @@ describe('Topic Circular Navigation Integration', () => {
       expect(firstResult.current.prevTopic?.topic_id).toBe('theme-003'); // Hope - wraps to last
 
       // Navigate backward to last topic (Hope - index 9)
-      const prevTopicId = firstResult.current.prevTopic!.topic_id;
+      const prevTopicId = firstResult.current.prevTopic?.topic_id ?? '';
       const { result: lastResult } = renderHook(() =>
         useTopicNavigation(prevTopicId, mockGlobalTopics)
       );
@@ -85,13 +85,13 @@ describe('Topic Circular Navigation Integration', () => {
       expect(lastResult.current.nextTopic?.topic_id).toBe('event-001'); // Wraps back to first
 
       // Continue backward navigation through all topics
-      let currentTopicId = lastResult.current.prevTopic!.topic_id;
+      let currentTopicId = lastResult.current.prevTopic?.topic_id ?? '';
       const visitedTopics = [prevTopicId, currentTopicId];
 
       // Navigate through 8 more topics to complete the circle (10 topics - 2 already visited)
       for (let i = 0; i < 8; i++) {
         const { result } = renderHook(() => useTopicNavigation(currentTopicId, mockGlobalTopics));
-        currentTopicId = result.current.prevTopic!.topic_id;
+        currentTopicId = result.current.prevTopic?.topic_id ?? '';
         visitedTopics.push(currentTopicId);
       }
 
@@ -122,7 +122,7 @@ describe('Topic Circular Navigation Integration', () => {
       expect(lastResult.current.nextTopic?.topic_id).toBe('event-001'); // Wraps to first
 
       // Navigate forward to first topic (Creation - index 0)
-      const nextTopicId = lastResult.current.nextTopic!.topic_id;
+      const nextTopicId = lastResult.current.nextTopic?.topic_id ?? '';
       const { result: firstResult } = renderHook(() =>
         useTopicNavigation(nextTopicId, mockGlobalTopics)
       );
@@ -131,13 +131,13 @@ describe('Topic Circular Navigation Integration', () => {
       expect(firstResult.current.prevTopic?.topic_id).toBe('theme-003'); // Wraps back to last
 
       // Continue forward navigation through all topics
-      let currentTopicId = firstResult.current.nextTopic!.topic_id;
+      let currentTopicId = firstResult.current.nextTopic?.topic_id ?? '';
       const visitedTopics = [nextTopicId, currentTopicId];
 
       // Navigate through 8 more topics to complete the circle
       for (let i = 0; i < 8; i++) {
         const { result } = renderHook(() => useTopicNavigation(currentTopicId, mockGlobalTopics));
-        currentTopicId = result.current.nextTopic!.topic_id;
+        currentTopicId = result.current.nextTopic?.topic_id ?? '';
         visitedTopics.push(currentTopicId);
       }
 

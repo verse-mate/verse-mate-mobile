@@ -277,7 +277,7 @@ describe('WordDefinitionTooltip', () => {
 
       await waitFor(() => {
         expect(getByText('Derivation:')).toBeTruthy();
-        expect(getByText(mockStrongsEntry.derivation!)).toBeTruthy();
+        expect(getByText(mockStrongsEntry.derivation ?? '')).toBeTruthy();
       });
     });
 
@@ -288,7 +288,7 @@ describe('WordDefinitionTooltip', () => {
 
       await waitFor(() => {
         expect(getByText('KJV:')).toBeTruthy();
-        expect(getByText(mockStrongsEntry.kjvTranslation!)).toBeTruthy();
+        expect(getByText(mockStrongsEntry.kjvTranslation ?? '')).toBeTruthy();
       });
     });
 

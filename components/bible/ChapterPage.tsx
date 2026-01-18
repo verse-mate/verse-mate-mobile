@@ -405,10 +405,13 @@ export const ChapterPage = React.memo(function ChapterPage({
 
   // Fetch chapter content
 
-  const { data: chapter } = useBibleChapter(bookId, chapterNumber, undefined);
+  const { data: rawChapter } = useBibleChapter(bookId, chapterNumber, undefined);
+  // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure has varying properties not captured by generated types
+  const chapter = rawChapter as any;
 
   // Keep a reference to the last valid chapter data to prevent flickering during prop changes
-  const lastChapterRef = useRef<ChapterContent | null>(null);
+  // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure
+  const lastChapterRef = useRef<any>(null);
   if (chapter) {
     lastChapterRef.current = chapter;
   }
@@ -833,16 +836,20 @@ export const ChapterPage = React.memo(function ChapterPage({
           // Get verse text from chapter data
           let verseText = '';
           if (displayChapter) {
-            const verses = displayChapter.sections.flatMap((s) => s.verses);
+            // biome-ignore lint/suspicious/noExplicitAny: Hybrid structure
+            const verses = displayChapter.sections.flatMap((s: any) => s.verses);
             if (endVerse > targetVerse) {
               // Multi-verse: concatenate all verses in range
               const verseRange = verses.filter(
-                (v) => v.verseNumber >= targetVerse && v.verseNumber <= endVerse
+                // biome-ignore lint/suspicious/noExplicitAny: Hybrid structure
+                (v: any) => v.verseNumber >= targetVerse && v.verseNumber <= endVerse
               );
-              verseText = verseRange.map((v) => v.text).join(' ');
+              // biome-ignore lint/suspicious/noExplicitAny: Hybrid structure
+              verseText = verseRange.map((v: any) => v.text).join(' ');
             } else {
               // Single verse
-              const verse = verses.find((v) => v.verseNumber === targetVerse);
+              // biome-ignore lint/suspicious/noExplicitAny: Hybrid structure
+              const verse = verses.find((v: any) => v.verseNumber === targetVerse);
               verseText = verse?.text || '';
             }
           }

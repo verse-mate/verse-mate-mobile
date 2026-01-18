@@ -117,7 +117,9 @@ export function TopicExplanationsPanel({
   const { bibleVersion } = useBibleVersion();
 
   // Fetch topic data with explanations
-  const { data: topicData } = useTopicById(topicId, bibleVersion);
+  const { data: rawTopicData } = useTopicById(topicId, bibleVersion);
+  // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure
+  const topicData = rawTopicData as any;
 
   // Handle tab press with haptic feedback
   const handleTabPress = useCallback(

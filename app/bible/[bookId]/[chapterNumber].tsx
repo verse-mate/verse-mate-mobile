@@ -276,7 +276,9 @@ export default function ChapterScreen() {
   const { progress } = useBookProgress(validBookId, validChapter, totalChapters);
 
   // Fetch chapter data for loading state check
-  const { data: chapter, isLoading } = useBibleChapter(validBookId, validChapter);
+  const { data: rawChapter, isLoading } = useBibleChapter(validBookId, validChapter);
+  // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure has varying properties not captured by generated types
+  const chapter = rawChapter as any;
 
   // Save reading position mutation (API)
   const { mutate: saveLastRead } = useSaveLastRead();

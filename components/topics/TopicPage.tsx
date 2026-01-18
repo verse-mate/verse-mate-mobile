@@ -204,13 +204,15 @@ export const TopicPage = React.memo(function TopicPage({
   const { data: references } = useTopicReferences(topicId);
 
   // Keep references to last valid data to prevent flicker during transitions
-  const lastTopicDataRef = useRef<typeof topicData | null>(null);
+  // biome-ignore lint/suspicious/noExplicitAny: Hybrid data structure
+  const lastTopicDataRef = useRef<any | null>(null);
   const lastReferencesRef = useRef<typeof references | null>(null);
 
   if (topicData) lastTopicDataRef.current = topicData;
   if (references) lastReferencesRef.current = references;
 
-  const displayTopicData = topicData || lastTopicDataRef.current;
+  // biome-ignore lint/suspicious/noExplicitAny: Hybrid data structure
+  const displayTopicData = (topicData || lastTopicDataRef.current) as any;
   const displayReferences = references || lastReferencesRef.current;
 
   /**

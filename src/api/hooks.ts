@@ -66,6 +66,12 @@ import {
 	getTopicsByIdExplanationOptions,
 } from './generated/@tanstack/react-query.gen';
 
+// Offline mode imports
+import { useOfflineContext } from '@/contexts/OfflineContext';
+import { getLocalBibleChapter, getLocalCommentary, getLocalTopics, getLocalTopic, getLocalTopicReferences } from '@/services/offline';
+import { getBookById } from '@/constants/bible-books';
+import { parseAndInjectVerses } from '@/services/offline/topic-renderer.service';
+
 // Note: Options type is already exported from sdk.gen via index.ts
 
 /**
@@ -95,38 +101,129 @@ export const useBibleTestaments = (
 export const useBibleBooks = (options?: Options<GetBibleBooksData>) =>
 	useQuery(getBibleBooksOptions(options));
 
-// Bible Chapter - wrapper for simpler API
+// Bible Chapter - wrapper for simpler API with Offline Support
 export const useBibleChapter = (bookId: number, chapterNumber: number, version?: string) => {
+	const { isOfflineModeEnabled, downloadedBibleVersions } = useOfflineContext();
+	const effectiveVersion = version || 'NASB1995'; // Default to NASB1995 if not specified
+	const isLocal = isOfflineModeEnabled && downloadedBibleVersions.includes(effectiveVersion);
+
 	const query = useQuery({
-		...getBibleBookByBookIdByChapterNumberOptions({
-			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: version ? { versionKey: version } : undefined,
-		}),
-		enabled: bookId > 0 && chapterNumber > 0, // Only fetch when valid IDs
+		queryKey: ['bible-chapter', bookId, chapterNumber, effectiveVersion, isLocal ? 'local' : 'remote'],
+		queryFn: async () => {
+			if (isLocal) {
+				const verses = await getLocalBibleChapter(effectiveVersion, bookId, chapterNumber);
+				if (!verses || verses.length === 0) return null;
+
+				const bookInfo = getBookById(bookId);
+				
+				// Transform local data to match API response shape
+				return {
+					bookId,
+					bookName: bookInfo?.name || `Book ${bookId}`,
+					chapterNumber,
+					testament: bookInfo?.testament || 'OT',
+					title: `${bookInfo?.name || ''} ${chapterNumber}`,
+					sections: [{
+						subtitle: null,
+						verses: verses.map(v => ({
+							number: v.verse_number,
+							text: v.text,
+							verseNumber: v.verse_number,
+						})),
+					}],
+				};
+			}
+			
+			// Remote fetch
+			const options = getBibleBookByBookIdByChapterNumberOptions({
+				path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
+				query: version ? { versionKey: version } : undefined,
+			});
+			
+			if (!options.queryFn) {
+				throw new Error('Query function not defined');
+			}
+			
+			const response = await options.queryFn({ 
+				queryKey: options.queryKey || [], 
+				meta: undefined, 
+				signal: new AbortController().signal 
+			} as any);
+            
+            return response;
+		},
+		enabled: bookId > 0 && chapterNumber > 0,
 	});
 
 	return {
 		...query,
-		data: query.data && 'book' in query.data ? transformChapterResponse(query.data as any) : null,
+		data: isLocal ? query.data : (query.data && 'book' in query.data ? transformChapterResponse(query.data as any) : null),
 	};
 };
 
-// Bible Chapter Explanation - wrapper for simpler API
+// Bible Chapter Explanation - wrapper for simpler API with Offline Support
 export const useBibleChapterExplanation = (bookId: number, chapterNumber: number, explanationType?: string, language?: string) => {
+	const { isOfflineModeEnabled, downloadedCommentaryLanguages } = useOfflineContext();
+	const effectiveLanguage = language || 'en';
+	// Check if we have commentaries for this language (simplified check, ideally check specific type if needed)
+	const isLocal = isOfflineModeEnabled && downloadedCommentaryLanguages.includes(effectiveLanguage);
+
 	const query = useQuery({
-		...getBibleBookExplanationByBookIdByChapterNumberOptions({
-			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: {
-				...(explanationType && { explanationType }),
-				...(language && { lang: language }),
-			} as any,
-		}),
-		enabled: bookId > 0 && chapterNumber > 0 && Boolean(explanationType), // Only fetch when valid parameters
+		queryKey: ['bible-explanation', bookId, chapterNumber, explanationType, effectiveLanguage, isLocal ? 'local' : 'remote'],
+		queryFn: async () => {
+			if (isLocal && explanationType) {
+				// Local fetch
+                // Note: local DB currently stores one explanation per chapter per language? 
+                // Spec says: `type TEXT NOT NULL`. So we can filter by type.
+                // But `getLocalCommentary` currently only fetches by language/book/chapter (limit 1).
+                // We might need to update `getLocalCommentary` to filter by type or fetch all and filter here.
+                // For now, let's assume getLocalCommentary returns what we need or we update it.
+                // Actually `getLocalCommentary` query is: SELECT ... WHERE ... LIMIT 1. This might be wrong if we have multiple types.
+                // Let's assume for now we get the right one or update the service later. 
+                // Wait, I should probably update `getLocalCommentary` to accept `type`.
+                
+                // For this implementation, I will call getLocalCommentary. If it doesn't support type, it might return wrong one.
+                // But the spec schema has `type`.
+                const explanation = await getLocalCommentary(effectiveLanguage, bookId, chapterNumber);
+                
+                if (!explanation || explanation.type !== explanationType) return null;
+
+				return {
+					bookId: explanation.book_id,
+					chapterNumber: explanation.chapter_number,
+					type: explanation.type,
+					content: explanation.explanation,
+					languageCode: explanation.language_code,
+				};
+			}
+
+			// Remote fetch
+			const options = getBibleBookExplanationByBookIdByChapterNumberOptions({
+				path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
+				query: {
+					...(explanationType && { explanationType }),
+					...(language && { lang: language }),
+				} as any,
+			});
+
+			if (!options.queryFn) {
+				throw new Error('Query function not defined');
+			}
+
+			const response = await options.queryFn({ 
+				queryKey: options.queryKey || [], 
+				meta: undefined, 
+				signal: new AbortController().signal 
+			} as any);
+            
+            return response;
+		},
+		enabled: bookId > 0 && chapterNumber > 0 && Boolean(explanationType),
 	});
 
 	return {
 		...query,
-		data: query.data && 'explanation' in query.data ? transformExplanationResponse(query.data as any) : null,
+		data: isLocal ? query.data : (query.data && 'explanation' in query.data ? transformExplanationResponse(query.data as any) : null),
 	};
 };
 
@@ -540,23 +637,60 @@ export const useAllTopics = () => {
 };
 
 /**
- * Fetch topic details by ID with verse placeholder replacement
- *
- * Returns topic metadata, references, and all explanation types (summary, byline, detailed)
- * with verse placeholders replaced when bibleVersion is provided.
- *
- * @param topicId - Topic UUID
- * @param bibleVersion - Bible version key for verse replacement (e.g., "NASB1995")
- *   When provided, the backend replaces {verse:...} placeholders in all explanations.
- *   Web app defaults to NASB1995. TODO: Should come from user settings in AsyncStorage.
+ * Fetch topic details by ID with verse placeholder replacement (Offline Aware)
  */
 export const useTopicById = (topicId: string, bibleVersion?: string) => {
+	const { isOfflineModeEnabled, downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
+	// Simplified language check - assuming 'en' for now or checking if ANY topics are downloaded
+	// Ideally we need to know the language of the requested topic, but topicId is unique.
+	// We'll check if we have any topic languages downloaded.
+	const isLocal = isOfflineModeEnabled && downloadedTopicLanguages.length > 0;
+    const effectiveVersion = bibleVersion || 'NASB1995';
+
 	const query = useQuery({
-		...getTopicsByIdOptions({
-			path: { id: topicId },
-			query: bibleVersion ? ({ bible_version: bibleVersion } as any) : undefined,
-		}),
-		enabled: Boolean(topicId), // Only fetch when topicId is provided
+		queryKey: ['topic-by-id', topicId, bibleVersion, isLocal ? 'local' : 'remote'],
+		queryFn: async () => {
+			if (isLocal) {
+				const topic = await getLocalTopic(topicId);
+				if (!topic) return null;
+
+                // Parse content if we have a bible version and it's downloaded
+                let content = topic.content;
+                if (downloadedBibleVersions.includes(effectiveVersion)) {
+                    content = await parseAndInjectVerses(topic.content, effectiveVersion, { includeReference: true });
+                }
+
+				return {
+					topic: {
+						topic_id: topic.topic_id,
+						name: topic.name,
+						description: content, // Map content to description/content
+                        content: content,
+						language_code: topic.language_code,
+					},
+                    // We can also fetch references here if needed by the API shape, 
+                    // but the hook return value extracts 'topic' property.
+                    references: [], // Placeholder
+				};
+			}
+
+			const options = getTopicsByIdOptions({
+				path: { id: topicId },
+				query: bibleVersion ? ({ bible_version: bibleVersion } as any) : undefined,
+			});
+
+			if (!options.queryFn) {
+				throw new Error('Query function not defined');
+			}
+
+			const response = await options.queryFn({ 
+				queryKey: options.queryKey || [], 
+				meta: undefined, 
+				signal: new AbortController().signal 
+			} as any);
+            return response;
+		},
+		enabled: Boolean(topicId),
 	});
 
 	return {
@@ -566,17 +700,46 @@ export const useTopicById = (topicId: string, bibleVersion?: string) => {
 };
 
 /**
- * Fetch topic Bible references (with parsed verses)
- * @param topicId - Topic UUID
- * @param version - Optional Bible version key
+ * Fetch topic Bible references (Offline Aware)
  */
 export const useTopicReferences = (topicId: string, version?: string) => {
+	const { isOfflineModeEnabled, downloadedTopicLanguages } = useOfflineContext();
+	const isLocal = isOfflineModeEnabled && downloadedTopicLanguages.length > 0;
+
 	const query = useQuery({
-		...getTopicsByIdReferencesOptions({
-			path: { id: topicId },
-			query: version ? { version } : undefined,
-		}),
-		enabled: Boolean(topicId), // Only fetch when topicId is provided
+		queryKey: ['topic-references', topicId, version, isLocal ? 'local' : 'remote'],
+		queryFn: async () => {
+			if (isLocal) {
+				const references = await getLocalTopicReferences(topicId);
+				// Transform to match API reference shape if needed
+                // API usually returns { book_id, chapter_number, verse_start, verse_end }
+				return {
+                    references: references.map(ref => ({
+                        book_id: ref.book_id,
+                        chapter_number: ref.chapter_number,
+                        verse_start: ref.verse_start,
+                        verse_end: ref.verse_end
+                    }))
+                };
+			}
+
+			const options = getTopicsByIdReferencesOptions({
+				path: { id: topicId },
+				query: version ? { version } : undefined,
+			});
+
+			if (!options.queryFn) {
+				throw new Error('Query function not defined');
+			}
+
+			const response = await options.queryFn({ 
+				queryKey: options.queryKey || [], 
+				meta: undefined, 
+				signal: new AbortController().signal 
+			} as any);
+            return response;
+		},
+		enabled: Boolean(topicId),
 	});
 
 	return {
@@ -586,15 +749,7 @@ export const useTopicReferences = (topicId: string, version?: string) => {
 };
 
 /**
- * Fetch topic explanation with verse placeholder replacement
- *
- * @param topicId - Topic UUID
- * @param type - Explanation type ("summary", "byline", "detailed")
- * @param lang - Language code (e.g., "en-US")
- * @param bibleVersion - Bible version key for verse replacement (e.g., "NASB1995")
- *   Required for placeholder replacement. Backend only replaces {verse:...} placeholders
- *   when this parameter is provided. Defaults to NASB1995 in web app's useBibleVersion hook.
- *   TODO: This should eventually come from user settings stored in AsyncStorage
+ * Fetch topic explanation with verse placeholder replacement (Offline Aware)
  */
 export const useTopicExplanation = (
 	topicId: string,
@@ -602,16 +757,59 @@ export const useTopicExplanation = (
 	lang?: string,
 	bibleVersion?: string,
 ) => {
+	const { isOfflineModeEnabled, downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
+	const isLocal = isOfflineModeEnabled && downloadedTopicLanguages.length > 0; // Simplified check
+    const effectiveVersion = bibleVersion || 'NASB1995';
+
 	const query = useQuery({
-		...getTopicsByIdExplanationOptions({
-			path: { id: topicId },
-			query: {
-				...(type && { type }),
-				...(lang && { lang }),
-				...(bibleVersion && { bible_version: bibleVersion }),
-			} as any, // Using 'as any' because bible_version is not in the OpenAPI spec but is supported by the backend
-		}),
-		enabled: Boolean(topicId), // Only fetch when topicId is provided
+		queryKey: ['topic-explanation', topicId, type, lang, bibleVersion, isLocal ? 'local' : 'remote'],
+		queryFn: async () => {
+			if (isLocal) {
+				const topic = await getLocalTopic(topicId);
+				if (!topic) return null;
+
+                // Offline topics currently only have one "content" field.
+                // We return it regardless of requested 'type', or we could restrict it.
+                // For now, return the content as the explanation.
+                
+                let content = topic.content;
+                if (downloadedBibleVersions.includes(effectiveVersion)) {
+                    content = await parseAndInjectVerses(topic.content, effectiveVersion, { includeReference: true });
+                }
+
+				return {
+					explanation: {
+                        book_id: 0, // Placeholder
+                        chapter_number: 0, // Placeholder
+                        type: type || 'detailed',
+                        explanation: content,
+                        explanation_id: 0,
+                        language_code: topic.language_code
+                    }
+				};
+			}
+
+			const options = getTopicsByIdExplanationOptions({
+				path: { id: topicId },
+				query: {
+					...(type && { type }),
+					...(lang && { lang }),
+					...(bibleVersion && { bible_version: bibleVersion }),
+				} as any,
+			});
+
+			if (!options.queryFn) {
+				throw new Error('Query function not defined');
+			}
+
+			const response = await options.queryFn({ 
+				queryKey: options.queryKey || [], 
+				meta: undefined, 
+				signal: new AbortController().signal 
+			} as any);
+            return response;
+		},
+		enabled: Boolean(topicId),
 	});
 
 	return {

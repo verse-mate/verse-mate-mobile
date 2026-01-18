@@ -7,6 +7,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
+import { getBookById } from '../../constants/bible-books';
+import { useOfflineContext } from '../../contexts/OfflineContext';
+import { getLocalBibleChapter } from '../../services/offline';
 import {
   bibleKeys,
   useBibleChapter,
@@ -20,6 +23,10 @@ import {
   clearMockLastReadPosition,
   setMockLastReadPosition,
 } from '../mocks/handlers/bible.handlers';
+
+jest.mock('../../contexts/OfflineContext');
+jest.mock('../../services/offline');
+jest.mock('../../constants/bible-books');
 
 // Create a new QueryClient for each test
 function createTestQueryClient() {
@@ -104,6 +111,13 @@ describe('Bible API Hooks', () => {
   });
 
   describe('useBibleChapter', () => {
+    beforeEach(() => {
+      (useOfflineContext as jest.Mock).mockReturnValue({
+        isOfflineModeEnabled: false,
+        downloadedBibleVersions: [],
+      });
+    });
+
     it('should fetch Genesis Chapter 1', async () => {
       const { result } = renderHook(() => useBibleChapter(1, 1), {
         wrapper: createWrapper(),
@@ -112,6 +126,8 @@ describe('Bible API Hooks', () => {
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
+
+      const data = result.current.data as any;
 
       expect(result.current.data).toMatchObject({
         bookId: 1,
@@ -122,12 +138,12 @@ describe('Bible API Hooks', () => {
       });
 
       // Check sections
-      expect(result.current.data?.sections).toHaveLength(1);
-      expect(result.current.data?.sections[0].subtitle).toBe('The Creation');
+      expect(data.sections).toHaveLength(1);
+      expect(data.sections[0].subtitle).toBe('The Creation');
 
       // Check verses
-      expect(result.current.data?.sections[0].verses.length).toBeGreaterThan(0);
-      expect(result.current.data?.sections[0].verses[0]).toMatchObject({
+      expect(data.sections[0].verses.length).toBeGreaterThan(0);
+      expect(data.sections[0].verses[0]).toMatchObject({
         verseNumber: 1,
         text: expect.stringContaining('In the beginning'),
       });
@@ -142,6 +158,8 @@ describe('Bible API Hooks', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
+      const data = result.current.data as any;
+
       expect(result.current.data).toMatchObject({
         bookId: 40,
         bookName: 'Matthew',
@@ -151,8 +169,38 @@ describe('Bible API Hooks', () => {
       });
 
       // Check multiple sections
-      expect(result.current.data?.sections.length).toBeGreaterThan(1);
-      expect(result.current.data?.sections[0].subtitle).toBe('The Beatitudes');
+      expect(data.sections.length).toBeGreaterThan(1);
+      expect(data.sections[0].subtitle).toBe('The Beatitudes');
+    });
+
+    it('should handle offline mode with local data', async () => {
+      // Enable offline mode
+      (useOfflineContext as jest.Mock).mockReturnValue({
+        isOfflineModeEnabled: true,
+        downloadedBibleVersions: ['NASB1995'],
+      });
+
+      // Mock local data
+      (getLocalBibleChapter as jest.Mock).mockResolvedValue([
+        { verse_number: 1, text: 'In the beginning' },
+        { verse_number: 2, text: 'The earth was formless' },
+      ]);
+
+      (getBookById as jest.Mock).mockReturnValue({
+        id: 1,
+        name: 'Genesis',
+        testament: 'OT',
+      });
+
+      const { result } = renderHook(() => useBibleChapter(1, 1), { wrapper: createWrapper() });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      const data = result.current.data as any;
+      expect(getLocalBibleChapter).toHaveBeenCalledWith('NASB1995', 1, 1);
+      expect(data.bookName).toBe('Genesis');
+      expect(data.sections.length).toBeGreaterThan(0);
+      expect(data.sections[0].verses[0].text).toBe('In the beginning');
     });
 
     it('should not fetch when bookId is 0', () => {
