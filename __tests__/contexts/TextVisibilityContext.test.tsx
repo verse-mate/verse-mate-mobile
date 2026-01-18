@@ -43,7 +43,7 @@ describe('TextVisibilityContext', () => {
       );
 
       expect(capturedValue).toBeDefined();
-      expect(capturedValue!.visibleYRange).toBeNull();
+      expect(capturedValue?.visibleYRange).toBeNull();
     });
 
     it('should provide visible range from provider', () => {
@@ -60,7 +60,7 @@ describe('TextVisibilityContext', () => {
         </TextVisibilityContext.Provider>
       );
 
-      expect(capturedValue!.visibleYRange).toEqual(testRange);
+      expect(capturedValue?.visibleYRange).toEqual(testRange);
     });
 
     it('should update when provider value changes', () => {
@@ -78,7 +78,7 @@ describe('TextVisibilityContext', () => {
         </TextVisibilityContext.Provider>
       );
 
-      expect(capturedValue!.visibleYRange).toEqual(initialRange);
+      expect(capturedValue?.visibleYRange).toEqual(initialRange);
 
       rerender(
         <TextVisibilityContext.Provider value={{ visibleYRange: updatedRange }}>
@@ -90,12 +90,12 @@ describe('TextVisibilityContext', () => {
         </TextVisibilityContext.Provider>
       );
 
-      expect(capturedValue!.visibleYRange).toEqual(updatedRange);
+      expect(capturedValue?.visibleYRange).toEqual(updatedRange);
     });
   });
 
   describe('isElementVisible', () => {
-    const defaultBuffer = 200;
+    const _defaultBuffer = 200;
 
     describe('with null visibleRange', () => {
       it('should return true (safe default) when visibleRange is null', () => {

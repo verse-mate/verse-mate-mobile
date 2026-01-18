@@ -61,6 +61,7 @@
     "expo-sensors": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "expo-splash-screen": "~31.0.12",
+    "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",
     "expo-system-ui": "~6.0.9",
@@ -126,7 +127,7 @@
   "bun": {
     "test": {
       "preload": "./test-setup.ts",
-      "timeout": 10000
+      "timeout": 1e4
     }
   },
   "private": true

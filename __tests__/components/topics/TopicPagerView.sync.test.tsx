@@ -21,7 +21,7 @@ import type { TopicListItem } from '@/types/topics';
 
 // Store all setPageWithoutAnimation calls across renders
 const setPageWithoutAnimationCalls: number[] = [];
-let capturedOnPageSelected: ((event: { nativeEvent: { position: number } }) => void) | null = null;
+let _capturedOnPageSelected: ((event: { nativeEvent: { position: number } }) => void) | null = null;
 
 // Mock react-native-pager-view to capture onPageSelected callback
 jest.mock('react-native-pager-view', () => {
@@ -29,7 +29,7 @@ jest.mock('react-native-pager-view', () => {
   const { View } = require('react-native');
 
   const MockPagerView = React.forwardRef(({ children, testID, onPageSelected }: any, ref: any) => {
-    capturedOnPageSelected = onPageSelected;
+    _capturedOnPageSelected = onPageSelected;
 
     React.useImperativeHandle(ref, () => ({
       setPage: jest.fn(),
@@ -120,7 +120,7 @@ describe('TopicPagerView click/display sync', () => {
 
     // Clear the calls array
     setPageWithoutAnimationCalls.length = 0;
-    capturedOnPageSelected = null;
+    _capturedOnPageSelected = null;
   });
 
   const renderPagerView = (

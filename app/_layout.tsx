@@ -27,6 +27,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
+import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { preloadAllTopicsCache } from '@/hooks/topics/use-cached-topics';
@@ -356,6 +357,12 @@ function RootLayoutInner() {
               animation: 'fade',
             }}
           />
+          <Stack.Screen
+            name="manage-downloads"
+            options={{
+              headerShown: false,
+            }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
@@ -382,9 +389,11 @@ export default function RootLayout() {
           <AuthProvider>
             <CustomThemeProvider>
               <DeviceInfoProvider>
-                <ToastProvider>
-                  <RootLayoutInner />
-                </ToastProvider>
+                <OfflineProvider>
+                  <ToastProvider>
+                    <RootLayoutInner />
+                  </ToastProvider>
+                </OfflineProvider>
               </DeviceInfoProvider>
             </CustomThemeProvider>
           </AuthProvider>
