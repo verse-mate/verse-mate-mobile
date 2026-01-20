@@ -323,6 +323,10 @@ describe('ChapterScreen - External Navigation (Task Group 10)', () => {
    * When user selects a chapter from BibleNavigationModal:
    * 1. Context state should be updated via jumpToChapter
    * 2. Pager should snap to CENTER_INDEX (3) via setPageWithoutAnimation
+   *
+   * Note: In real usage, handleModalSelectChapter calls jumpToChapter AND updates
+   * the URL. In this test, we simulate that by updating the URL mock before calling
+   * jumpToChapter, since the mock doesn't auto-update when router.setParams is called.
    */
   it('should update context and snap pager when modal selects chapter', async () => {
     const { getByTestId } = renderWithProviders(<ChapterScreen />);
@@ -338,7 +342,12 @@ describe('ChapterScreen - External Navigation (Task Group 10)', () => {
     expect(capturedContextState?.currentChapter).toBe(1);
     expect(capturedContextState?.bookName).toBe('Genesis');
 
-    // Call jumpToChapter to simulate modal selecting John 3
+    // Simulate modal selection: update URL mock AND call jumpToChapter
+    // (In real usage, handleModalSelectChapter does both)
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      bookId: '43',
+      chapterNumber: '3',
+    });
     act(() => {
       capturedJumpToChapter?.(43, 3, 'John');
     });
@@ -391,12 +400,13 @@ describe('ChapterScreen - External Navigation (Task Group 10)', () => {
   });
 
   /**
-   * Test 10.1.3: Context preserves state after URL param changes (URL is passive follower)
+   * Test 10.1.3: External URL changes sync to context (warm-start deep links)
    *
-   * After initial mount, URL param changes should NOT update context.
-   * Context is authoritative - URL is a passive follower.
+   * After initial mount, URL param changes from external navigation (bookmarks,
+   * topics, etc.) SHOULD update context via the external sync effect.
+   * This enables warm-start deep links to work correctly.
    */
-  it('should ignore URL param changes after mount (context is authoritative)', async () => {
+  it('should sync external URL param changes to context (warm-start deep links)', async () => {
     jest.useFakeTimers();
 
     const { rerender } = renderWithProviders(<ChapterScreen />);
@@ -407,13 +417,13 @@ describe('ChapterScreen - External Navigation (Task Group 10)', () => {
       expect(capturedContextState?.currentChapter).toBe(1);
     });
 
-    // Simulate URL params changing (external factor)
+    // Simulate external URL params changing (e.g., user tapped a bookmark)
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       bookId: '66',
       chapterNumber: '22',
     });
 
-    // Force re-render (simulating URL param change)
+    // Force re-render (simulating URL param change from external navigation)
     rerender(<ChapterScreen />);
 
     // Advance past any potential URL sync debounces
@@ -421,11 +431,14 @@ describe('ChapterScreen - External Navigation (Task Group 10)', () => {
       jest.advanceTimersByTime(2000);
     });
 
-    // Context should still have ORIGINAL values (not the new URL params)
-    // because ChapterScreen reads URL params ONCE on mount
-    // The memoized initialBookId and initialChapter don't change after mount
-    expect(capturedContextState?.currentBookId).toBe(1);
-    expect(capturedContextState?.currentChapter).toBe(1);
+    // Context should now have NEW values (synced from external URL params)
+    // This is the warm-start deep link behavior
+    expect(capturedContextState?.currentBookId).toBe(66);
+    expect(capturedContextState?.currentChapter).toBe(22);
+    expect(capturedContextState?.bookName).toBe('Revelation');
+
+    // Pager should have been snapped to center index
+    expect(mockSetPageWithoutAnimation).toHaveBeenCalledWith(3);
 
     jest.useRealTimers();
   });
@@ -435,6 +448,11 @@ describe('ChapterScreen - External Navigation (Task Group 10)', () => {
    *
    * The handleJumpToChapter callback should always snap to index 3 (CENTER_INDEX).
    * This ensures the pager window is correctly positioned for the new chapter.
+   *
+   * Note: When jumpToChapter is called, if URL params don't match context, the
+   * external sync effect will also call jumpToChapter. In this test, we update
+   * the mock URL params after each jump to simulate real behavior where
+   * router.setParams updates the URL.
    */
   it('should snap pager to CENTER_INDEX (3) on jumpToChapter', async () => {
     renderWithProviders(<ChapterScreen />);
@@ -447,19 +465,29 @@ describe('ChapterScreen - External Navigation (Task Group 10)', () => {
     // Clear previous calls
     mockSetPageWithoutAnimation.mockClear();
 
-    // Jump to multiple different chapters
+    // Jump to Exodus 5 - also update mock URL params to simulate real behavior
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      bookId: '2',
+      chapterNumber: '5',
+    });
     act(() => {
       capturedJumpToChapter?.(2, 5, 'Exodus');
     });
     expect(mockSetPageWithoutAnimation).toHaveBeenLastCalledWith(3);
 
     mockSetPageWithoutAnimation.mockClear();
+
+    // Jump to Revelation 22 - also update mock URL params
+    (useLocalSearchParams as jest.Mock).mockReturnValue({
+      bookId: '66',
+      chapterNumber: '22',
+    });
     act(() => {
       capturedJumpToChapter?.(66, 22, 'Revelation');
     });
     expect(mockSetPageWithoutAnimation).toHaveBeenLastCalledWith(3);
 
-    // Verify it was called twice total (once per jump)
+    // Each jump should snap pager exactly once
     expect(mockSetPageWithoutAnimation).toHaveBeenCalledTimes(1);
   });
 });

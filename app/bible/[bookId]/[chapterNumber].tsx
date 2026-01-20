@@ -227,6 +227,23 @@ function ChapterScreenContent({
     chapterNumber: string;
   }>();
 
+  // Fetch book metadata to get book name for external navigation
+  const { data: booksMetadata } = useBibleTestaments();
+
+  // Track if we're currently doing an internal URL sync (context → URL)
+  // This prevents the external sync effect from triggering on our own updates
+  const isInternalSyncRef = useRef(false);
+
+  // Track context values that were set via internal navigation (modal, etc.)
+  // When jumpToChapter is called internally, we store the target context values here.
+  // The external sync effect skips if context already matches these values, since
+  // we don't need to re-sync what was just set internally.
+  const internalJumpTargetRef = useRef<{ bookId: number; chapter: number } | null>(null);
+
+  // Track previous context values to detect internal vs external changes
+  // External sync should only fire when URL changes WITHOUT a corresponding context change
+  const prevContextRef = useRef<{ bookId: number; chapter: number } | null>(null);
+
   // Debounced URL sync (The "Follower")
   // Updates the URL silently after user stops swiping to prevent global re-renders during animation
   // Reads from CONTEXT state, not local state (Task Group 4.4)
@@ -237,6 +254,8 @@ function ChapterScreenContent({
         Number(params.bookId) !== currentBookId ||
         Number(params.chapterNumber) !== currentChapter
       ) {
+        // Mark that we're doing an internal sync
+        isInternalSyncRef.current = true;
         router.setParams({
           bookId: currentBookId.toString(),
           chapterNumber: currentChapter.toString(),
@@ -244,11 +263,95 @@ function ChapterScreenContent({
           verse: undefined,
           endVerse: undefined,
         });
+        // Reset after a short delay to allow the params to update
+        setTimeout(() => {
+          isInternalSyncRef.current = false;
+        }, 100);
       }
     }, 1000); // 1000ms debounce for stability
 
     return () => clearTimeout(timer);
   }, [currentBookId, currentChapter, params.bookId, params.chapterNumber]);
+
+  /**
+   * External URL Navigation Sync (warm-start deep links)
+   *
+   * Detects when URL params change from external navigation (bookmarks, topics,
+   * external deep links) and syncs them to context via jumpToChapter.
+   *
+   * This handles the case where the app is already running (warm-start) and
+   * receives a deep link to a different chapter. Without this, the context
+   * would remain at the old chapter while the URL shows the new one.
+   *
+   * Important: This effect ONLY fires for TRUE external navigation, not when:
+   * 1. Context was just updated internally (modal, swipe) and URL is catching up
+   * 2. We just did an internal URL sync
+   *
+   * @see Task Group 10: Handle External Navigation
+   */
+  useEffect(() => {
+    // Skip if this is an internal sync (we just updated the URL from context)
+    if (isInternalSyncRef.current) {
+      return;
+    }
+
+    const urlBookId = Number(params.bookId);
+    const urlChapter = Number(params.chapterNumber);
+
+    // Skip if URL params are invalid
+    if (Number.isNaN(urlBookId) || Number.isNaN(urlChapter)) {
+      return;
+    }
+
+    // Skip if context matches what was set by internal navigation (modal selection, etc.)
+    const internalTarget = internalJumpTargetRef.current;
+    if (
+      internalTarget &&
+      currentBookId === internalTarget.bookId &&
+      currentChapter === internalTarget.chapter
+    ) {
+      // Context already has the internal target values - no external sync needed
+      // Clear the ref if URL has caught up with context (internal navigation complete)
+      if (urlBookId === currentBookId && urlChapter === currentChapter) {
+        internalJumpTargetRef.current = null;
+      }
+      return;
+    }
+
+    // Check if context changed since last render (internal navigation via swipe/FAB)
+    // If context changed, URL just needs to catch up - this is NOT external navigation
+    const prevContext = prevContextRef.current;
+    const contextJustChanged =
+      prevContext !== null &&
+      (prevContext.bookId !== currentBookId || prevContext.chapter !== currentChapter);
+
+    // Update the previous context ref for next render
+    prevContextRef.current = { bookId: currentBookId, chapter: currentChapter };
+
+    // If context just changed internally, skip external sync (URL will catch up via debounce)
+    if (contextJustChanged) {
+      return;
+    }
+
+    // Check if URL differs from context (external navigation detected)
+    // At this point, we know context DIDN'T just change, so if URL differs, it's external
+    if (urlBookId !== currentBookId || urlChapter !== currentChapter) {
+      // Get book name from metadata for context update
+      const book = booksMetadata?.find((b) => b.id === urlBookId);
+      const bookName = book?.name || 'Genesis';
+
+      // Sync context to match the external URL via jumpToChapter
+      // This also triggers pager snap via the onJumpToChapter callback
+      jumpToChapter(urlBookId, urlChapter, bookName);
+    }
+  }, [
+    params.bookId,
+    params.chapterNumber,
+    currentBookId,
+    currentChapter,
+    booksMetadata,
+    jumpToChapter,
+  ]);
 
   // Auth - get current user for saving reading progress
   const { user } = useAuth();
@@ -326,8 +429,8 @@ function ChapterScreenContent({
     initialVisible: true,
   });
 
-  // Fetch book metadata to get total chapters for validation
-  const { data: booksMetadata } = useBibleTestaments();
+  // Get book metadata for total chapters validation
+  // Note: booksMetadata is already fetched above for external navigation sync
   const bookMetadata = useMemo(
     () => booksMetadata?.find((book) => book.id === currentBookId),
     [booksMetadata, currentBookId]
@@ -537,6 +640,9 @@ function ChapterScreenContent({
       // Get book name from metadata for context update
       const selectedBook = booksMetadata?.find((b) => b.id === selectedBookId);
       const selectedBookName = selectedBook?.name || 'Genesis';
+
+      // Track this as an internal navigation to prevent external sync effect from firing
+      internalJumpTargetRef.current = { bookId: selectedBookId, chapter: selectedChapter };
 
       // Update context via jumpToChapter (also triggers pager snap via callback)
       jumpToChapter(selectedBookId, selectedChapter, selectedBookName);
