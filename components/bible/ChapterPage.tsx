@@ -232,6 +232,19 @@ export interface ChapterPageProps {
  * - Wrapped with React.memo to prevent unnecessary re-renders
  * - Memoized active content calculation with useMemo
  * - Only re-renders when bookId, chapterNumber, activeTab, or activeView changes
+ * - Query-state-based rendering: tabs render immediately when data is available
+ *   (no artificial delays from staggered timeouts)
+ *
+ * Scroll-to-Verse (Task 7):
+ * - Uses layout-event-based scrolling via onContentLayout callback
+ * - ChapterReader reports section positions when layout completes
+ * - Scrolls immediately when positions are available (no polling)
+ * - Shows tooltip after scroll animation completes
+ *
+ * Ref Cleanup (Task 9):
+ * - Removed visibleYRangeRef - visibility tracking now uses state directly
+ * - State-based visibility is debounced (150ms) to avoid re-renders on every scroll frame
+ * - Context consumers receive visibility updates via TextVisibilityContext
  *
  * @example
  * ```tsx
@@ -288,10 +301,11 @@ export const ChapterPage = React.memo(function ChapterPage({
   // Get current language from user preferences (default to 'en-US')
   // This ensures the query key changes when language changes
   const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
+
   // Text visibility tracking for hybrid tokenization
-  // Use state with debouncing to avoid re-renders on every scroll frame
+  // Uses state with debouncing to avoid re-renders on every scroll frame
+  // NOTE (Task 9): visibleYRangeRef was removed - state is now the single source of truth
   const [visibleYRange, setVisibleYRange] = useState<VisibleYRange | null>(null);
-  const visibleYRangeRef = useRef<VisibleYRange | null>(null);
   const visibilityUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportHeightRef = useRef<number>(0);
 
@@ -307,30 +321,7 @@ export const ChapterPage = React.memo(function ChapterPage({
     chapterNumber,
   });
 
-  // Staggered rendering state to prevent UI freeze (waterfall loading)
-  // 0: Initial (only active view)
-  // 1: Mount Explanations container (active tab renders)
-  // 2: Mount Summary tab (if hidden)
-  // 3: Mount Byline tab (if hidden)
-  // 4: Mount Detailed tab (if hidden)
-  const [delayedRenderStage, setDelayedRenderStage] = useState(0);
-
   const { deleteNote, isDeletingNote } = useNotes();
-
-  // Trigger staggered delayed render
-  useEffect(() => {
-    const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
-    const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
-    const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
-    const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  }, []);
 
   // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
@@ -356,9 +347,8 @@ export const ChapterPage = React.memo(function ChapterPage({
       clearTimeout(visibilityUpdateTimerRef.current);
       visibilityUpdateTimerRef.current = null;
     }
-    // Reset visible range on chapter change
+    // Reset visible range state on chapter change
     setVisibleYRange(null);
-    visibleYRangeRef.current = null;
   }, [bookId, chapterNumber]);
 
   // Mark as scrolled when user switches to explanations view
@@ -439,11 +429,49 @@ export const ChapterPage = React.memo(function ChapterPage({
   } = useBibleDetailed(bookId, chapterNumber, undefined, { enabled: true, language });
 
   /**
-   * Attempt to scroll to target verse using Reanimated for smoothness
+   * Determine if a tab should be rendered when hidden.
+   * Query-state-based rendering: render hidden tabs when their data is available
+   * This eliminates the 2+ second delay from staggered timeouts.
+   *
+   * @param tabType - The tab type to check
+   * @returns true if the tab should be rendered even when hidden
+   */
+  const shouldRenderTabWhenHidden = useCallback(
+    (tabType: ContentTabType): boolean => {
+      switch (tabType) {
+        case 'summary':
+          // Render summary when not loading (data available or error)
+          return !isSummaryLoading;
+        case 'byline':
+          // Render byline when not loading
+          return !isByLineLoading;
+        case 'detailed':
+          // Render detailed when not loading
+          return !isDetailedLoading;
+        default:
+          return false;
+      }
+    },
+    [isSummaryLoading, isByLineLoading, isDetailedLoading]
+  );
+
+  /**
+   * Attempt to scroll to target verse using Reanimated for smoothness.
+   *
+   * This function is called:
+   * 1. When layout positions are reported via handleContentLayout (primary trigger)
+   * 2. When targetVerse prop changes (in case positions are already available)
+   *
+   * Uses layout-event-based scrolling instead of polling for better performance
+   * and to prevent memory leaks from timers.
    */
   const attemptScrollToVerse = useCallback(() => {
     if (activeView !== 'bible') return;
     if (!targetVerse || hasScrolledRef.current) return;
+
+    // Check if we have any section positions reported from layout
+    const hasPositions = Object.keys(sectionPositionsRef.current).length > 0;
+    if (!hasPositions) return;
 
     // Find the section that contains the target verse
     const startVerses = Object.keys(sectionPositionsRef.current)
@@ -491,50 +519,45 @@ export const ChapterPage = React.memo(function ChapterPage({
   }, [activeView, targetVerse, animatedScrollRef]);
 
   /**
-   * Handle content layout report from ChapterReader
+   * Handle content layout report from ChapterReader.
+   *
+   * This is the primary trigger for scroll-to-verse functionality.
+   * ChapterReader reports Y positions of verse sections via onLayout callbacks.
+   * When positions are available, we immediately attempt to scroll to the target verse.
+   *
+   * This layout-event-based approach replaces the previous polling implementation
+   * (Task Group 7), eliminating timers and potential memory leaks.
    */
   const handleContentLayout = useCallback(
     (positions: Record<number, number>) => {
       sectionPositionsRef.current = positions;
+      // Immediately attempt scroll when layout positions are available
       attemptScrollToVerse();
     },
     [attemptScrollToVerse]
   );
 
-  // Attempt scroll when targetVerse changes (if layouts are ready)
+  // Attempt scroll when targetVerse changes (if layouts are already ready)
+  // This handles the case where layout is already complete when targetVerse is set
   useEffect(() => {
     if (targetVerse) {
       attemptScrollToVerse();
     }
   }, [targetVerse, attemptScrollToVerse]);
 
-  // Fallback: if initial layout was late, retry after mount
-  useEffect(() => {
-    // Quick one-shot retry
-    const timeout = setTimeout(() => {
-      attemptScrollToVerse();
-    }, 300);
-
-    // Short polling until positions available or 2s elapsed
-    const start = Date.now();
-    const interval = setInterval(() => {
-      const havePositions = Object.keys(sectionPositionsRef.current).length > 0;
-      if (havePositions) {
-        attemptScrollToVerse();
-        clearInterval(interval);
-      } else if (Date.now() - start > 2000) {
-        clearInterval(interval);
-      }
-    }, 150);
-
-    return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
-    };
-  }, [attemptScrollToVerse]);
+  // NOTE: Polling fallback removed (Task Group 7)
+  // The previous implementation used setTimeout + setInterval to poll for layout positions.
+  // This has been replaced with layout-event-based scrolling via handleContentLayout.
+  // Benefits:
+  // - No memory leaks from uncleaned timers
+  // - Faster, more reliable verse navigation
+  // - Scrolls immediately when layout is ready instead of waiting for polling interval
 
   /**
    * Handle scroll events - calculate velocity, detect bottom, and update visible range
+   *
+   * NOTE (Task 9): visibleYRangeRef was removed. Visibility is now tracked via state only.
+   * The state update is debounced (150ms) to avoid re-renders on every scroll frame.
    */
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     // Update current scroll ref for distance calculation
@@ -547,12 +570,11 @@ export const ChapterPage = React.memo(function ChapterPage({
     // Store viewport height for visibility calculations
     viewportHeightRef.current = layoutMeasurement.height;
 
-    // Update visible Y range ref immediately (no re-render)
+    // Calculate visible Y range for text visibility context
     const newRange: VisibleYRange = {
       startY: currentScrollY,
       endY: currentScrollY + layoutMeasurement.height,
     };
-    visibleYRangeRef.current = newRange;
 
     // Debounce state update to avoid re-renders on every scroll frame
     // Update every 150ms for smooth-enough tokenization transitions
@@ -648,10 +670,16 @@ export const ChapterPage = React.memo(function ChapterPage({
   // Memoize context value to avoid unnecessary re-renders
   const textVisibilityContextValue = useMemo(() => ({ visibleYRange }), [visibleYRange]);
 
+  // Determine if explanations container should be rendered
+  // Render when in explanations view OR when any explanation data has loaded (not preloading)
+  const shouldRenderExplanationsContainer =
+    !isPreloading &&
+    (activeView === 'explanations' || !isSummaryLoading || !isByLineLoading || !isDetailedLoading);
+
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Explanations View - Render if active OR if delayed render stage >= 1 (And NOT preloading) */}
-      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
+      {/* Explanations View - Render when active OR when any explanation data is ready */}
+      {shouldRenderExplanationsContainer && (
         <View
           style={[
             styles.container,
@@ -675,7 +703,7 @@ export const ChapterPage = React.memo(function ChapterPage({
             isLoading={isSummaryLoading}
             error={summaryError}
             visible={activeTab === 'summary'}
-            shouldRenderHidden={delayedRenderStage >= 2}
+            shouldRenderHidden={shouldRenderTabWhenHidden('summary')}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
@@ -690,7 +718,7 @@ export const ChapterPage = React.memo(function ChapterPage({
             isLoading={isByLineLoading}
             error={byLineError}
             visible={activeTab === 'byline'}
-            shouldRenderHidden={delayedRenderStage >= 3}
+            shouldRenderHidden={shouldRenderTabWhenHidden('byline')}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
@@ -705,7 +733,7 @@ export const ChapterPage = React.memo(function ChapterPage({
             isLoading={isDetailedLoading}
             error={detailedError}
             visible={activeTab === 'detailed'}
-            shouldRenderHidden={delayedRenderStage >= 4}
+            shouldRenderHidden={shouldRenderTabWhenHidden('detailed')}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}

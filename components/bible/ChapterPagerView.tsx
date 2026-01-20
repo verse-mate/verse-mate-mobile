@@ -11,6 +11,12 @@
  * - Re-center when reaching edges (index 0 or 6)
  * - Pass chapter data as props that update when window shifts
  *
+ * Single Writer Pattern:
+ * - This component is the SINGLE WRITER to ChapterNavigationContext
+ * - `onPageSelected` callback is the ONLY place that updates navigation state
+ * - Calls `setCurrentChapter()` from context instead of callback props
+ * - Context replaces callback-based communication
+ *
  * Circular Navigation:
  * - Swiping backward from Genesis 1 shows Revelation 22
  * - Swiping forward from Revelation 22 shows Genesis 1
@@ -18,6 +24,7 @@
  *
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 103-218)
  * @see Spec: agent-os/specs/circular-bible-navigation/spec.md
+ * @see Spec: agent-os/specs/2026-01-19-chapter-view-state-refactor/spec.md
  */
 
 import * as Haptics from 'expo-haptics';
@@ -34,6 +41,7 @@ import {
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
+import { useChapterNavigation } from '@/contexts/ChapterNavigationContext';
 import { useBibleTestaments } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import {
@@ -50,12 +58,12 @@ const WINDOW_SIZE = 7;
 const CENTER_INDEX = 3;
 
 /**
- * Delay in milliseconds before calling onPageChange after swipe
+ * Delay in milliseconds before updating context after swipe
  * This prevents double animation (PagerView + router.replace)
  * Kept short (75ms) to ensure snappy UI updates (Header/Fab), while
  * parent component handles URL debouncing to prevent global re-renders.
  */
-const ROUTE_UPDATE_DELAY_MS = 75;
+const CONTEXT_UPDATE_DELAY_MS = 75;
 
 /**
  * Imperative handle interface for ChapterPagerView
@@ -64,6 +72,8 @@ const ROUTE_UPDATE_DELAY_MS = 75;
 export interface ChapterPagerViewRef {
   /** Programmatically navigate to a page index with animation */
   setPage: (pageIndex: number) => void;
+  /** Programmatically navigate to a page index without animation (for external navigation) */
+  setPageWithoutAnimation: (pageIndex: number) => void;
   /** Navigate to the next page */
   goNext: () => void;
   /** Navigate to the previous page */
@@ -72,11 +82,14 @@ export interface ChapterPagerViewRef {
 
 /**
  * Props for ChapterPagerView component
+ *
+ * Note: `onPageChange` prop has been removed. Navigation state updates
+ * now go through ChapterNavigationContext via `setCurrentChapter()`.
  */
 export interface ChapterPagerViewProps {
-  /** Initial book ID to display (1-66) */
+  /** Initial book ID to display (1-66) - read ONCE on mount */
   initialBookId: number;
-  /** Initial chapter number to display (1-based) */
+  /** Initial chapter number to display (1-based) - read ONCE on mount */
   initialChapter: number;
   /** Active reading mode tab */
   activeTab: ContentTabType;
@@ -86,8 +99,6 @@ export interface ChapterPagerViewProps {
   targetVerse?: number;
   /** Target end verse for multi-verse highlights (optional) */
   targetEndVerse?: number;
-  /** Callback when page changes (after swipe completes) */
-  onPageChange: (bookId: number, chapterNumber: number) => void;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
@@ -103,6 +114,11 @@ export interface ChapterPagerViewProps {
  * - Passing bookId/chapterNumber as PROPS that update
  * - Re-centering at edges using setPageWithoutAnimation
  *
+ * Single Writer Pattern:
+ * - This component is the SINGLE WRITER to ChapterNavigationContext
+ * - The `onPageSelected` callback calls `setCurrentChapter()` from context
+ * - No `onPageChange` prop - context replaces callback-based communication
+ *
  * Circular navigation enables seamless reading through the entire Bible:
  * - Genesis 1 backward -> Revelation 22
  * - Revelation 22 forward -> Genesis 1
@@ -111,16 +127,19 @@ export interface ChapterPagerViewProps {
  * ```tsx
  * const pagerRef = useRef<ChapterPagerViewRef>(null);
  *
- * <ChapterPagerView
- *   ref={pagerRef}
+ * <ChapterNavigationProvider
  *   initialBookId={1}
  *   initialChapter={5}
- *   activeTab="summary"
- *   activeView="bible"
- *   onPageChange={(bookId, chapter) => {
- *     router.replace(`/bible/${bookId}/${chapter}`);
- *   }}
- * />
+ *   initialBookName="Genesis"
+ * >
+ *   <ChapterPagerView
+ *     ref={pagerRef}
+ *     initialBookId={1}
+ *     initialChapter={5}
+ *     activeTab="summary"
+ *     activeView="bible"
+ *   />
+ * </ChapterNavigationProvider>
  *
  * // Programmatically navigate
  * pagerRef.current?.goNext();
@@ -135,7 +154,6 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       activeView,
       targetVerse,
       targetEndVerse,
-      onPageChange,
       onScroll,
       onTap,
     },
@@ -144,10 +162,14 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
     const pagerRef = useRef<PagerView>(null);
     const routeUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Access context for single writer pattern
+    const { setCurrentChapter } = useChapterNavigation();
+
     // Fetch books metadata for navigation calculations
     const { data: booksMetadata } = useBibleTestaments();
 
     // Track current absolute index (which chapter is at center)
+    // Read from props ONCE on mount for initialization
     const [currentAbsoluteIndex, setCurrentAbsoluteIndex] = useState(() =>
       getAbsolutePageIndex(initialBookId, initialChapter, booksMetadata)
     );
@@ -158,41 +180,31 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
     // Flag to tell pages NOT to reset scroll during a seamless snap
     const [forceJump, setForceJump] = useState(false);
 
-    // Refs to track state for the useEffect without causing it to re-run on every swipe
-    const absIndexRef = useRef(currentAbsoluteIndex);
-    const posRef = useRef(selectedPosition);
-    const lastProcessedRef = useRef({ bookId: initialBookId, chapter: initialChapter });
-
-    // Keep refs in sync with state
-    useEffect(() => {
-      absIndexRef.current = currentAbsoluteIndex;
-    }, [currentAbsoluteIndex]);
-
-    useEffect(() => {
-      posRef.current = selectedPosition;
-    }, [selectedPosition]);
-
     // Expose imperative methods to parent component
+    // Note: Using selectedPosition state directly instead of posRef (simplicity over optimization)
     useImperativeHandle(
       ref,
       () => ({
         setPage: (pageIndex: number) => {
           pagerRef.current?.setPage(pageIndex);
         },
+        setPageWithoutAnimation: (pageIndex: number) => {
+          pagerRef.current?.setPageWithoutAnimation(pageIndex);
+        },
         goNext: () => {
-          const nextPos = posRef.current + 1;
+          const nextPos = selectedPosition + 1;
           if (nextPos < WINDOW_SIZE) {
             pagerRef.current?.setPage(nextPos);
           }
         },
         goPrevious: () => {
-          const prevPos = posRef.current - 1;
+          const prevPos = selectedPosition - 1;
           if (prevPos >= 0) {
             pagerRef.current?.setPage(prevPos);
           }
         },
       }),
-      []
+      [selectedPosition]
     );
 
     // Cleanup timeout on unmount
@@ -203,46 +215,6 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         }
       };
     }, []);
-
-    // Update absolute index if initialBookId/initialChapter changes externally (modal, back button, etc.)
-    useEffect(() => {
-      // If we have a pending route update, it means WE initiated a change that hasn't propagated yet.
-      // Ignoring prop updates during this window prevents "Snap Back" where the parent
-      // forces us back to the old chapter before processing our request.
-      if (routeUpdateTimeoutRef.current !== null) {
-        return;
-      }
-
-      // Only act if the props actually changed from what we last processed
-      if (
-        lastProcessedRef.current.bookId === initialBookId &&
-        lastProcessedRef.current.chapter === initialChapter
-      ) {
-        return;
-      }
-      lastProcessedRef.current = { bookId: initialBookId, chapter: initialChapter };
-
-      const newIndex = getAbsolutePageIndex(initialBookId, initialChapter, booksMetadata);
-      if (newIndex === -1) return;
-
-      // Calculate what absolute index is currently visible at the current pager position
-      // Use circular wrapping to handle negative indices (e.g., -1 wraps to 1188)
-      const rawVisibleIndex = absIndexRef.current + (posRef.current - CENTER_INDEX);
-      const currentlyVisibleIndex = wrapCircularIndex(rawVisibleIndex, booksMetadata);
-
-      // Only re-center if the new index is DIFFERENT from what the user is already looking at.
-      // With circular wrapping, -1 and 1188 are the same chapter, so this comparison now works correctly.
-      if (newIndex !== currentlyVisibleIndex) {
-        setForceJump(true); // Tell pages to reset scroll for a true jump
-        setCurrentAbsoluteIndex(newIndex);
-        absIndexRef.current = newIndex;
-        setSelectedPosition(CENTER_INDEX);
-        posRef.current = CENTER_INDEX;
-        pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
-        // Reset jump flag after a frame
-        requestAnimationFrame(() => setForceJump(false));
-      }
-    }, [initialBookId, initialChapter, booksMetadata]); // Removed currentAbsoluteIndex and selectedPosition from deps
 
     /**
      * Calculate which chapter should display at a given window position
@@ -352,7 +324,23 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
     ]);
 
     /**
+     * Get the book name for a given book ID
+     */
+    const getBookName = useCallback(
+      (bookId: number): string => {
+        if (!booksMetadata) return '';
+        const book = booksMetadata.find((b) => b.id === bookId);
+        return book?.name ?? '';
+      },
+      [booksMetadata]
+    );
+
+    /**
      * Handle page selection events
+     *
+     * SINGLE WRITER PATTERN:
+     * This is the ONLY place that updates navigation state via context.
+     * Calls `setCurrentChapter()` from ChapterNavigationContext.
      *
      * SEAMLESS RESET STRATEGY:
      * To prevent the "every other swipe is laggy" bug, we re-center the pager
@@ -367,11 +355,10 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         const newPosition = Math.floor(event.nativeEvent.position);
         if (newPosition === CENTER_INDEX) return; // Already centered
 
-        // SYNC REFS IMMEDIATELY to prevent race conditions in useEffect
-        posRef.current = newPosition;
+        // Update selected position state
         setSelectedPosition(newPosition);
 
-        // Clear any pending route update timeout
+        // Clear any pending context update timeout
         if (routeUpdateTimeoutRef.current) {
           clearTimeout(routeUpdateTimeoutRef.current);
           routeUpdateTimeoutRef.current = null;
@@ -398,33 +385,35 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
           // causing wrong content to flash (e.g., Rev 19 instead of Rev 22).
           pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
           setSelectedPosition(CENTER_INDEX);
-          posRef.current = CENTER_INDEX;
 
           // Now update the absolute index - pages will recalculate correctly since
           // pager is already centered at position 3
           setForceJump(false); // ENSURE we don't reset scroll during this snap
           setCurrentAbsoluteIndex(wrappedIndex);
-          absIndexRef.current = wrappedIndex;
 
           const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
           if (chapter) {
+            const bookName = getBookName(chapter.bookId);
             routeUpdateTimeoutRef.current = setTimeout(() => {
-              onPageChange(chapter.bookId, chapter.chapterNumber);
+              // SINGLE WRITER: Update context via setCurrentChapter
+              setCurrentChapter(chapter.bookId, chapter.chapterNumber, bookName);
               routeUpdateTimeoutRef.current = null;
-            }, ROUTE_UPDATE_DELAY_MS);
+            }, CONTEXT_UPDATE_DELAY_MS);
           }
         } else {
           // Non-edge position - use wrapped index for navigation
           const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
           if (chapter) {
+            const bookName = getBookName(chapter.bookId);
             routeUpdateTimeoutRef.current = setTimeout(() => {
-              onPageChange(chapter.bookId, chapter.chapterNumber);
+              // SINGLE WRITER: Update context via setCurrentChapter
+              setCurrentChapter(chapter.bookId, chapter.chapterNumber, bookName);
               routeUpdateTimeoutRef.current = null;
-            }, ROUTE_UPDATE_DELAY_MS);
+            }, CONTEXT_UPDATE_DELAY_MS);
           }
         }
       },
-      [currentAbsoluteIndex, booksMetadata, onPageChange]
+      [currentAbsoluteIndex, booksMetadata, setCurrentChapter, getBookName]
     );
 
     return (

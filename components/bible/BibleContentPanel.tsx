@@ -10,7 +10,11 @@
  * - Progress bar showing reading position
  * - Floating navigation buttons for prev/next chapter
  *
+ * Note: ChapterPagerView now uses ChapterNavigationContext for navigation state.
+ * The onPageChange callback has been removed - context handles navigation updates.
+ *
  * @see Spec: agent-os/specs/landscape-tablet-optimization/plan.md
+ * @see Spec: agent-os/specs/2026-01-19-chapter-view-state-refactor/spec.md
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -57,9 +61,6 @@ export interface BibleContentPanelProps {
   /** Callback when header dropdown is pressed (for navigation modal) */
   onHeaderPress?: () => void;
 
-  /** Callback when page changes from swipe */
-  onPageChange: (bookId: number, chapterNumber: number) => void;
-
   /** Callback when navigating to previous chapter */
   onNavigatePrev?: () => void;
 
@@ -90,6 +91,9 @@ export interface BibleContentPanelProps {
  *
  * Displays Bible chapter content in the left panel of split view.
  * This is the "Bible reading" side in landscape/tablet mode.
+ *
+ * Note: Navigation state updates are handled by ChapterNavigationContext.
+ * ChapterPagerView is the single writer to the context.
  */
 export function BibleContentPanel({
   bookId,
@@ -99,7 +103,6 @@ export function BibleContentPanel({
   canGoPrevious,
   canGoNext,
   onHeaderPress,
-  onPageChange,
   onNavigatePrev,
   onNavigateNext,
   onScroll,
@@ -124,7 +127,7 @@ export function BibleContentPanel({
   const handlePrevious = useCallback(() => {
     if (canGoPrevious) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      pagerRef.current?.setPage(1); // Previous page in 5-page window
+      pagerRef.current?.goPrevious();
       onNavigatePrev?.();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -135,7 +138,7 @@ export function BibleContentPanel({
   const handleNext = useCallback(() => {
     if (canGoNext) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      pagerRef.current?.setPage(3); // Next page in 5-page window
+      pagerRef.current?.goNext();
       onNavigateNext?.();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -154,7 +157,7 @@ export function BibleContentPanel({
         </View>
       </Pressable>
 
-      {/* Chapter Pager View */}
+      {/* Chapter Pager View - Uses ChapterNavigationContext for state updates */}
       <View style={styles.pagerContainer}>
         <ChapterPagerView
           ref={pagerRef}
@@ -164,7 +167,6 @@ export function BibleContentPanel({
           activeView="bible"
           targetVerse={targetVerse}
           targetEndVerse={targetEndVerse}
-          onPageChange={onPageChange}
           onScroll={onScroll}
           onTap={onTap}
         />

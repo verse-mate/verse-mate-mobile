@@ -5,6 +5,12 @@
  * with persistence to AsyncStorage. The selected tab persists across app restarts
  * and chapter navigation.
  *
+ * Task Group 8.3: Refactored to remove module-level cache
+ * - Cache is now stored in React state within the hook
+ * - Eliminates stale state bugs between component instances
+ * - Improves testability (no need for manual cache resets)
+ * - Removed __TEST_ONLY_RESET_CACHE() function as it's no longer needed
+ *
  * @example
  * ```tsx
  * const { activeTab, setActiveTab, isLoading } = useActiveTab();
@@ -22,21 +28,10 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { ContentTabType, UseActiveTabResult } from '@/types/bible';
 import { isContentTabType, STORAGE_KEYS } from '@/types/bible';
-
-// Module-level cache to prevent flickering on remount
-let inMemoryCache: ContentTabType | null = null;
-
-/**
- * FOR TEST ENVIRONMENTS ONLY
- * Resets the in-memory cache for this hook.
- */
-export function __TEST_ONLY_RESET_CACHE() {
-  inMemoryCache = null;
-}
 
 /**
  * Hook to manage active tab state with AsyncStorage persistence
@@ -48,15 +43,21 @@ export function __TEST_ONLY_RESET_CACHE() {
  *   - error: Error object if loading or saving failed
  */
 export function useActiveTab(): UseActiveTabResult {
-  const [activeTab, setActiveTabState] = useState<ContentTabType>(inMemoryCache || 'summary');
-  const [isLoading, setIsLoading] = useState(!inMemoryCache);
+  const [activeTab, setActiveTabState] = useState<ContentTabType>('summary');
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Use ref to track if we've already loaded from storage
+  // This prevents re-loading on every render while still allowing proper cleanup
+  const hasLoadedRef = useRef(false);
 
   // Load persisted tab from AsyncStorage on mount
   useEffect(() => {
     let isMounted = true;
+
     async function loadPersistedTab() {
-      if (inMemoryCache) {
+      // Skip if already loaded in this hook instance
+      if (hasLoadedRef.current) {
         return;
       }
 
@@ -68,13 +69,13 @@ export function useActiveTab(): UseActiveTabResult {
         if (isMounted) {
           const finalTab = storedTab && isContentTabType(storedTab) ? storedTab : 'summary';
           setActiveTabState(finalTab);
-          inMemoryCache = finalTab;
+          hasLoadedRef.current = true;
         }
       } catch (err) {
         if (isMounted) {
           setError(err instanceof Error ? err : new Error('Failed to load active tab'));
           setActiveTabState('summary');
-          inMemoryCache = 'summary';
+          hasLoadedRef.current = true;
         }
       } finally {
         if (isMounted) {
@@ -95,8 +96,9 @@ export function useActiveTab(): UseActiveTabResult {
       if (!isContentTabType(tab)) {
         throw new Error(`Invalid tab type: ${tab}. Must be 'summary', 'byline', or 'detailed'.`);
       }
+
+      // Update state immediately
       setActiveTabState(tab);
-      inMemoryCache = tab;
 
       // Track analytics: EXPLANATION_TAB_CHANGED event
       analytics.track(AnalyticsEvent.EXPLANATION_TAB_CHANGED, {

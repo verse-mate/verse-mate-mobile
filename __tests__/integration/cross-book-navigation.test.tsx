@@ -8,17 +8,22 @@
  * - Single-chapter books navigation (Obadiah, Philemon, 2 John, 3 John, Jude)
  * - Bible boundaries (Genesis 1, Revelation 22)
  *
+ * Note: ChapterPagerView now uses ChapterNavigationContext for navigation state.
+ * Tests wrap the component with the provider.
+ *
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 248-270, 308-318)
+ * @see Spec: agent-os/specs/2026-01-19-chapter-view-state-refactor/spec.md
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react-native';
 import type React from 'react';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ChapterNavigationProvider } from '@/contexts/ChapterNavigationContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { getAbsolutePageIndex, getChapterFromPageIndex } from '@/utils/bible/chapter-index-utils';
-import { mockTestamentBooks } from '../mocks/data/bible-books.data';
+import { getMockBook, mockTestamentBooks } from '../mocks/data/bible-books.data';
 
 // Mock Safe Area Context
 jest.mock('react-native-safe-area-context', () => {
@@ -103,7 +108,6 @@ jest.mock('react-native-pager-view', () => {
 
 describe('Cross-Book Navigation', () => {
   let queryClient: QueryClient;
-  let mockOnPageChange: jest.Mock;
 
   beforeEach(() => {
     queryClient = new QueryClient({
@@ -113,25 +117,39 @@ describe('Cross-Book Navigation', () => {
         },
       },
     });
-    mockOnPageChange = jest.fn();
   });
 
   afterEach(() => {
     queryClient.clear();
   });
 
+  /**
+   * Helper to get book name from mock data
+   */
+  const getBookName = (bookId: number): string => {
+    const book = getMockBook(bookId);
+    return book?.name ?? 'Unknown';
+  };
+
   const renderPagerView = (bookId: number, chapterNumber: number) => {
+    const bookName = getBookName(bookId);
+
     return render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <ToastProvider>
-            <ChapterPagerView
+            <ChapterNavigationProvider
               initialBookId={bookId}
               initialChapter={chapterNumber}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={mockOnPageChange}
-            />
+              initialBookName={bookName}
+            >
+              <ChapterPagerView
+                initialBookId={bookId}
+                initialChapter={chapterNumber}
+                activeTab="summary"
+                activeView="bible"
+              />
+            </ChapterNavigationProvider>
           </ToastProvider>
         </ThemeProvider>
       </QueryClientProvider>
