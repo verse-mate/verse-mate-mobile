@@ -318,18 +318,24 @@ function ChapterScreenContent({
       return;
     }
 
+    // Check if this is the initial mount or if context changed since last render
+    // On initial mount (prevContext is null), skip external sync because context is
+    // already correctly initialized with validated/clamped values from URL params
+    const prevContext = prevContextRef.current;
+    const isInitialMount = prevContext === null;
+
     // Check if context changed since last render (internal navigation via swipe/FAB)
     // If context changed, URL just needs to catch up - this is NOT external navigation
-    const prevContext = prevContextRef.current;
     const contextJustChanged =
-      prevContext !== null &&
+      !isInitialMount &&
       (prevContext.bookId !== currentBookId || prevContext.chapter !== currentChapter);
 
     // Update the previous context ref for next render
     prevContextRef.current = { bookId: currentBookId, chapter: currentChapter };
 
-    // If context just changed internally, skip external sync (URL will catch up via debounce)
-    if (contextJustChanged) {
+    // Skip external sync on initial mount (context is correctly initialized)
+    // or if context just changed internally (URL will catch up via debounce)
+    if (isInitialMount || contextJustChanged) {
       return;
     }
 
