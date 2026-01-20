@@ -175,9 +175,10 @@ describe('ChapterScreen - Integration Tests (Task Group 11)', () => {
     });
 
     // After rapid swipes, context state should reflect final value
-    expect(contextRef?.currentChapter).toBe(5);
-    expect(contextRef?.currentBookId).toBe(1);
-    expect(contextRef?.bookName).toBe('Genesis');
+    // Note: We use non-null assertion here since waitFor confirmed contextRef is set
+    expect(contextRef!.currentChapter).toBe(5);
+    expect(contextRef!.currentBookId).toBe(1);
+    expect(contextRef!.bookName).toBe('Genesis');
 
     // UI should also reflect final value (no desync)
     expect(screen.getByTestId('chapter')).toHaveTextContent('5');
@@ -221,9 +222,9 @@ describe('ChapterScreen - Integration Tests (Task Group 11)', () => {
     });
 
     // Final state should be John 3 (jump overrides swipe)
-    expect(contextRef?.currentBookId).toBe(43);
-    expect(contextRef?.currentChapter).toBe(3);
-    expect(contextRef?.bookName).toBe('John');
+    expect(contextRef!.currentBookId).toBe(43);
+    expect(contextRef!.currentChapter).toBe(3);
+    expect(contextRef!.bookName).toBe('John');
 
     // onJumpToChapter callback should have been called for pager snap
     expect(mockOnJump).toHaveBeenCalledWith(43, 3);
@@ -259,18 +260,18 @@ describe('ChapterScreen - Integration Tests (Task Group 11)', () => {
       contextRef?.setCurrentChapter(66, 22, 'Revelation');
     });
 
-    expect(contextRef?.currentBookId).toBe(66);
-    expect(contextRef?.currentChapter).toBe(22);
-    expect(contextRef?.bookName).toBe('Revelation');
+    expect(contextRef!.currentBookId).toBe(66);
+    expect(contextRef!.currentChapter).toBe(22);
+    expect(contextRef!.bookName).toBe('Revelation');
 
     // Navigate back to Genesis 1 (forward circular navigation)
     act(() => {
       contextRef?.setCurrentChapter(1, 1, 'Genesis');
     });
 
-    expect(contextRef?.currentBookId).toBe(1);
-    expect(contextRef?.currentChapter).toBe(1);
-    expect(contextRef?.bookName).toBe('Genesis');
+    expect(contextRef!.currentBookId).toBe(1);
+    expect(contextRef!.currentChapter).toBe(1);
+    expect(contextRef!.bookName).toBe('Genesis');
   });
 
   /**
@@ -298,9 +299,9 @@ describe('ChapterScreen - Integration Tests (Task Group 11)', () => {
     });
 
     const initialState = {
-      bookId: contextRef?.currentBookId,
-      chapter: contextRef?.currentChapter,
-      bookName: contextRef?.bookName,
+      bookId: contextRef!.currentBookId,
+      chapter: contextRef!.currentChapter,
+      bookName: contextRef!.bookName,
     };
 
     // Simulate time passing (external state changes like view mode toggle)
@@ -309,9 +310,9 @@ describe('ChapterScreen - Integration Tests (Task Group 11)', () => {
     });
 
     // Navigation state should remain unchanged
-    expect(contextRef?.currentBookId).toBe(initialState.bookId);
-    expect(contextRef?.currentChapter).toBe(initialState.chapter);
-    expect(contextRef?.bookName).toBe(initialState.bookName);
+    expect(contextRef!.currentBookId).toBe(initialState.bookId);
+    expect(contextRef!.currentChapter).toBe(initialState.chapter);
+    expect(contextRef!.bookName).toBe(initialState.bookName);
   });
 
   /**
@@ -343,14 +344,14 @@ describe('ChapterScreen - Integration Tests (Task Group 11)', () => {
       contextRef?.setCurrentChapter(1, 2, 'Genesis');
     });
 
-    expect(contextRef?.currentChapter).toBe(2);
+    expect(contextRef!.currentChapter).toBe(2);
 
     // FAB "previous" button
     act(() => {
       contextRef?.setCurrentChapter(1, 1, 'Genesis');
     });
 
-    expect(contextRef?.currentChapter).toBe(1);
+    expect(contextRef!.currentChapter).toBe(1);
   });
 
   /**
