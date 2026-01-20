@@ -8,6 +8,9 @@
  * - Normal cross-book navigation continues to work
  * - Haptic feedback fires on circular navigation
  *
+ * @note ChapterPagerView now requires ChapterNavigationProvider as it uses context
+ *       for navigation state instead of onPageChange callback.
+ *
  * @see Spec: agent-os/specs/circular-bible-navigation/spec.md
  */
 
@@ -16,9 +19,13 @@ import { act, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import {
+  ChapterNavigationProvider,
+  useChapterNavigation,
+} from '@/contexts/ChapterNavigationContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBibleTestaments } from '@/src/api';
-import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
+import { getMockBook, mockTestamentBooks } from '../../mocks/data/bible-books.data';
 
 // Store mock functions for PagerView
 let mockSetPage: jest.Mock;
@@ -91,6 +98,19 @@ jest.mock('expo-haptics', () => ({
 
 const mockUseBibleTestaments = useBibleTestaments as jest.MockedFunction<typeof useBibleTestaments>;
 
+// Helper component to capture context values
+function ContextCapture({
+  onCapture,
+}: {
+  onCapture: (value: ReturnType<typeof useChapterNavigation>) => void;
+}) {
+  const contextValue = useChapterNavigation();
+  React.useEffect(() => {
+    onCapture(contextValue);
+  });
+  return null;
+}
+
 describe('ChapterPagerView circular navigation', () => {
   let queryClient: QueryClient;
 
@@ -114,24 +134,43 @@ describe('ChapterPagerView circular navigation', () => {
     capturedOnPageSelected = null;
   });
 
-  const renderPagerView = (
-    initialBookId: number = 1,
-    initialChapter: number = 1,
-    onPageChange?: (bookId: number, chapterNumber: number) => void
-  ) => {
-    return render(
+  /**
+   * Helper to get book name from mock data
+   */
+  const getBookName = (bookId: number): string => {
+    const book = getMockBook(bookId);
+    return book?.name ?? 'Unknown';
+  };
+
+  const renderPagerView = (initialBookId: number = 1, initialChapter: number = 1) => {
+    const initialBookName = getBookName(initialBookId);
+    let capturedContext: ReturnType<typeof useChapterNavigation> | undefined;
+
+    const result = render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
+          <ChapterNavigationProvider
             initialBookId={initialBookId}
             initialChapter={initialChapter}
-            activeTab="summary"
-            activeView="bible"
-            onPageChange={onPageChange || jest.fn()}
-          />
+            initialBookName={initialBookName}
+          >
+            <ChapterPagerView
+              initialBookId={initialBookId}
+              initialChapter={initialChapter}
+              activeTab="summary"
+              activeView="bible"
+            />
+            <ContextCapture
+              onCapture={(value) => {
+                capturedContext = value;
+              }}
+            />
+          </ChapterNavigationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
+
+    return { ...result, getContext: () => capturedContext };
   };
 
   describe('getChapterForPosition circular wrapping', () => {
@@ -206,8 +245,7 @@ describe('ChapterPagerView circular navigation', () => {
 
   describe('handlePageSelected circular navigation', () => {
     it('should trigger haptic feedback on circular navigation from Genesis 1 backward', async () => {
-      const onPageChange = jest.fn();
-      renderPagerView(1, 1, onPageChange);
+      renderPagerView(1, 1);
 
       // Verify capturedOnPageSelected is set
       expect(capturedOnPageSelected).not.toBeNull();
@@ -224,8 +262,7 @@ describe('ChapterPagerView circular navigation', () => {
     });
 
     it('should trigger haptic feedback on circular navigation from Revelation 22 forward', async () => {
-      const onPageChange = jest.fn();
-      renderPagerView(66, 22, onPageChange);
+      renderPagerView(66, 22);
 
       expect(capturedOnPageSelected).not.toBeNull();
 
@@ -240,15 +277,14 @@ describe('ChapterPagerView circular navigation', () => {
       });
     });
 
-    it('should call onPageChange with circular wrapped chapter when swiping at boundary', async () => {
+    it('should update context with circular wrapped chapter when swiping at boundary', async () => {
       jest.useFakeTimers();
-      const onPageChange = jest.fn();
-      renderPagerView(1, 1, onPageChange);
+      const { getContext } = renderPagerView(1, 1);
 
       expect(capturedOnPageSelected).not.toBeNull();
 
       // Simulate swiping to position 0 (edge position at Genesis 1)
-      // This should wrap to Revelation 22 (the previous chapter in circular navigation)
+      // This should wrap to Revelation 20 (the chapter at position 0 is -3 from center)
       act(() => {
         capturedOnPageSelected?.({ nativeEvent: { position: 0 } });
       });
@@ -256,16 +292,15 @@ describe('ChapterPagerView circular navigation', () => {
       // Haptics should fire immediately
       expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
 
-      // Advance timers to trigger the route update
-      act(() => {
+      // Advance timers to trigger the context update
+      await act(async () => {
         jest.advanceTimersByTime(100);
       });
 
-      // onPageChange should be called with the wrapped chapter (Revelation 20, since position 0 is -3 from center)
+      // Context should be updated with the wrapped chapter (Revelation 20)
       // absoluteIndex = 0 + (0 - 3) = -3 -> wraps to 1186 which is Revelation 20
-      await waitFor(() => {
-        expect(onPageChange).toHaveBeenCalledWith(66, 20);
-      });
+      expect(getContext()?.currentBookId).toBe(66);
+      expect(getContext()?.currentChapter).toBe(20);
 
       jest.useRealTimers();
     });

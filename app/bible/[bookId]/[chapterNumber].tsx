@@ -16,6 +16,8 @@
  * @see Task Group 9.3 - Add deep link validation in chapter screen
  * @see Time-Based Analytics - Chapter reading duration tracking
  * @see Circular Bible Navigation - Seamless wrap-around at Bible boundaries
+ * @see Chapter View State Refactor - Single Source of Truth pattern (Task Group 4)
+ * @see Task Group 5 - Consolidated Cascading Effects with debouncing
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -46,6 +48,10 @@ import { SplitView } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
+import {
+  ChapterNavigationProvider,
+  useChapterNavigation as useChapterNavigationContext,
+} from '@/contexts/ChapterNavigationContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   useActiveTab,
@@ -77,6 +83,14 @@ type ViewMode = 'bible' | 'explanations';
 /**
  * Center index for 7-page window in ChapterPagerView
  */
+const CENTER_INDEX = 3;
+
+/**
+ * Debounce timing constants for consolidated effects (Task Group 5)
+ * These prevent excessive calls during rapid navigation (swiping)
+ */
+const DEBOUNCE_ANALYTICS_MS = 1000; // Analytics tracking fires after user stops swiping
+const DEBOUNCE_SAVE_MS = 1500; // API/AsyncStorage saves combined into single debounced effect
 
 /**
  * Chapter Screen Component
@@ -97,9 +111,22 @@ type ViewMode = 'bible' | 'explanations';
  * - View mode switching (Bible vs Explanations)
  * - Analytics tracking for CHAPTER_VIEWED (Task 4.2)
  * - Chapter reading duration tracking (Time-Based Analytics)
+ *
+ * Task Group 4 (Chapter View State Refactor):
+ * - Wraps children with ChapterNavigationProvider
+ * - Does NOT own navigation state (context is authoritative)
+ * - Reads URL params ONCE on mount to initialize context
+ * - Updates URL from context via debounced effect (passive follower pattern)
+ * - Modal navigation calls context jumpToChapter
+ *
+ * Task Group 5 (Consolidated Cascading Effects):
+ * - Analytics tracking debounced at 1000ms
+ * - API + AsyncStorage saves consolidated and debounced at 1500ms
+ * - URL sync debounced at 1000ms (existing)
+ * - Prevents excessive effect chains during rapid swiping
  */
 export default function ChapterScreen() {
-  // Extract and validate route params
+  // Extract and validate route params (read ONCE for initialization)
   const params = useLocalSearchParams<{
     bookId: string;
     chapterNumber: string;
@@ -110,48 +137,118 @@ export default function ChapterScreen() {
   const targetVerse = params.verse ? Number(params.verse) : undefined;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
 
-  // Local state for immediate UI updates (Source of Truth for UI)
-  // Initialized from params, but can diverge during swiping
-  const [activeBookId, setActiveBookId] = useState(Number(params.bookId));
-  const [activeChapter, setActiveChapter] = useState(Number(params.chapterNumber));
+  // Initial values from URL params (read ONCE on mount)
+  // These are used to initialize the context provider and are not updated after mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Intentional - read params only on mount
+  const initialBookId = useMemo(() => {
+    const bookId = Number(params.bookId);
+    return Number.isNaN(bookId) ? 1 : Math.max(1, Math.min(66, bookId));
+  }, []);
 
-  // Sync local state from params ONLY when params change significantly (e.g. deep link, menu nav)
-  // avoiding loops with our own debounced updates
-  // biome-ignore lint/correctness/useExhaustiveDependencies: activeBookId and activeChapter are intentionally omitted to prevent snap-back during swiping
-  useEffect(() => {
-    const paramBookId = Number(params.bookId);
-    const paramChapter = Number(params.chapterNumber);
-    if (
-      !Number.isNaN(paramBookId) &&
-      !Number.isNaN(paramChapter) &&
-      (paramBookId !== activeBookId || paramChapter !== activeChapter)
-    ) {
-      setActiveBookId(paramBookId);
-      setActiveChapter(paramChapter);
-    }
-  }, [params.bookId, params.chapterNumber]); // Sync correctly without loops
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Intentional - read params only on mount
+  const initialChapter = useMemo(() => {
+    const chapter = Number(params.chapterNumber);
+    return Number.isNaN(chapter) ? 1 : Math.max(1, chapter);
+  }, []);
+
+  // Ref to ChapterPagerView for programmatic navigation
+  const pagerRef = useRef<ChapterPagerViewRef>(null);
+
+  // Fetch book metadata to get initial book name and total chapters
+  const { data: booksMetadata } = useBibleTestaments();
+  const initialBookMetadata = useMemo(
+    () => booksMetadata?.find((book) => book.id === initialBookId),
+    [booksMetadata, initialBookId]
+  );
+  const initialBookName = initialBookMetadata?.name || 'Genesis';
+
+  /**
+   * Handle jump to chapter from external navigation (modal, deep link)
+   * This callback is passed to ChapterNavigationProvider and called when
+   * jumpToChapter is invoked. It snaps the pager to CENTER_INDEX.
+   *
+   * @see spec: jumpToChapter pager integration pattern
+   */
+  const handleJumpToChapter = useCallback((_bookId: number, _chapter: number) => {
+    // Snap pager to center index without animation
+    // This resets the pager position for the new chapter
+    pagerRef.current?.setPageWithoutAnimation?.(CENTER_INDEX);
+  }, []);
+
+  // Wrap the main content with ChapterNavigationProvider
+  // Provider is initialized with URL params and handles all navigation state
+  return (
+    <ChapterNavigationProvider
+      initialBookId={initialBookId}
+      initialChapter={initialChapter}
+      initialBookName={initialBookName}
+      onJumpToChapter={handleJumpToChapter}
+    >
+      <ChapterScreenContent
+        pagerRef={pagerRef}
+        targetVerse={targetVerse}
+        targetEndVerse={targetEndVerse}
+        initialBookId={initialBookId}
+        initialChapter={initialChapter}
+        initialTab={params.tab}
+      />
+    </ChapterNavigationProvider>
+  );
+}
+
+/**
+ * Inner content component wrapped by ChapterNavigationProvider
+ * This component can use useChapterNavigationContext() because it's inside the provider
+ */
+interface ChapterScreenContentProps {
+  pagerRef: React.RefObject<ChapterPagerViewRef | null>;
+  targetVerse?: number;
+  targetEndVerse?: number;
+  initialBookId: number;
+  initialChapter: number;
+  initialTab?: string;
+}
+
+function ChapterScreenContent({
+  pagerRef,
+  targetVerse,
+  targetEndVerse,
+  initialBookId,
+  initialChapter,
+  initialTab,
+}: ChapterScreenContentProps) {
+  // Get navigation state from context (Single Source of Truth)
+  // ChapterPagerView updates context via setCurrentChapter
+  const { currentBookId, currentChapter, jumpToChapter } = useChapterNavigationContext();
+
+  // Get URL params for comparison in URL sync effect
+  const params = useLocalSearchParams<{
+    bookId: string;
+    chapterNumber: string;
+  }>();
 
   // Debounced URL sync (The "Follower")
   // Updates the URL silently after user stops swiping to prevent global re-renders during animation
+  // Reads from CONTEXT state, not local state (Task Group 4.4)
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Only update if URL is different from current state
+      // Only update if URL is different from current context state
       if (
-        Number(params.bookId) !== activeBookId ||
-        Number(params.chapterNumber) !== activeChapter
+        Number(params.bookId) !== currentBookId ||
+        Number(params.chapterNumber) !== currentChapter
       ) {
         router.setParams({
-          bookId: activeBookId.toString(),
-          chapterNumber: activeChapter.toString(),
+          bookId: currentBookId.toString(),
+          chapterNumber: currentChapter.toString(),
           // Clear verse params when chapter changes to prevent "sticky" highlighting
           verse: undefined,
           endVerse: undefined,
         });
       }
-    }, 1000); // Increased to 1000ms for stability
+    }, 1000); // 1000ms debounce for stability
 
     return () => clearTimeout(timer);
-  }, [activeBookId, activeChapter, params.bookId, params.chapterNumber]);
+  }, [currentBookId, currentChapter, params.bookId, params.chapterNumber]);
 
   // Auth - get current user for saving reading progress
   const { user } = useAuth();
@@ -173,9 +270,9 @@ export default function ChapterScreen() {
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
 
-  // Use local state for API calls (defined early for hooks)
-  const validBookId = Math.max(1, Math.min(66, activeBookId));
-  const validChapter = Math.max(1, activeChapter);
+  // Use context state for API calls and calculations
+  const validBookId = Math.max(1, Math.min(66, currentBookId));
+  const validChapter = Math.max(1, currentChapter);
 
   // Track chapter reading duration (Time-Based Analytics)
   // Hook fires CHAPTER_READING_DURATION event on unmount with AppState awareness
@@ -201,19 +298,18 @@ export default function ChapterScreen() {
   // When user opens a shared insight URL, navigate to that specific tab
   const hasSetInitialTab = useRef(false);
   useEffect(() => {
-    const deeplinkTab = params.tab;
-    if (deeplinkTab && !hasSetInitialTab.current) {
+    if (initialTab && !hasSetInitialTab.current) {
       hasSetInitialTab.current = true;
       // Validate that the tab parameter is a valid ContentTabType
-      if (deeplinkTab === 'summary' || deeplinkTab === 'byline' || deeplinkTab === 'detailed') {
-        setActiveTab(deeplinkTab);
+      if (initialTab === 'summary' || initialTab === 'byline' || initialTab === 'detailed') {
+        setActiveTab(initialTab);
         // Force explanations view to show the insight tab
         if (activeView !== 'explanations') {
           setActiveView('explanations');
         }
       }
     }
-  }, [params.tab, setActiveTab, activeView, setActiveView]);
+  }, [initialTab, setActiveTab, activeView, setActiveView]);
 
   // Navigation modal state (Task 7.9)
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
@@ -230,47 +326,13 @@ export default function ChapterScreen() {
     initialVisible: true,
   });
 
-  // Ref to ChapterPagerView for programmatic navigation
-  const pagerRef = useRef<ChapterPagerViewRef>(null);
-
   // Fetch book metadata to get total chapters for validation
   const { data: booksMetadata } = useBibleTestaments();
   const bookMetadata = useMemo(
-    () => booksMetadata?.find((book) => book.id === activeBookId),
-    [booksMetadata, activeBookId]
+    () => booksMetadata?.find((book) => book.id === currentBookId),
+    [booksMetadata, currentBookId]
   );
   const totalChapters = bookMetadata?.chapterCount || 50; // Default to 50 if not loaded
-
-  /**
-   * Validate bookId and chapter parameters (Task 9.3)
-   *
-   * - bookId must be between 1-66
-   * - chapterNumber must be between 1-maxChapters for the book
-   * - Invalid bookId redirects to Genesis 1
-   * - Invalid chapter redirects to book's first chapter
-   */
-  useEffect(() => {
-    // Validate bookId (1-66)
-    if (activeBookId < 1 || activeBookId > 66) {
-      // Invalid bookId, redirect to Genesis 1
-      setActiveBookId(1);
-      setActiveChapter(1);
-      return;
-    }
-
-    // Validate chapter number (must be positive and within book's range)
-    if (activeChapter < 1) {
-      // Invalid chapter, redirect to book's first chapter
-      setActiveChapter(1);
-      return;
-    }
-
-    // If we have book metadata, validate against actual chapter count
-    if (bookMetadata && activeChapter > bookMetadata.chapterCount) {
-      // Chapter exceeds book's chapter count, redirect to first chapter
-      setActiveChapter(1);
-    }
-  }, [activeBookId, activeChapter, bookMetadata]);
 
   // Calculate progress percentage (Task 8.4)
   const { progress } = useBookProgress(validBookId, validChapter, totalChapters);
@@ -301,30 +363,57 @@ export default function ChapterScreen() {
     booksMetadata
   );
 
-  // Save reading position on mount and navigation (API) - only for authenticated users
-  // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
-  useEffect(() => {
-    if (user?.id) {
-      saveLastRead({
-        user_id: user.id,
-        book_id: validBookId,
-        chapter_number: validChapter,
-      });
-    }
-  }, [validBookId, validChapter, user?.id]);
+  // ============================================================================
+  // Task Group 5: Consolidated Debounced Effects
+  // ============================================================================
 
-  // Save reading position to AsyncStorage for app launch continuity
-  // Save whenever bookId, chapter, tab, or view changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: savePosition is a stable function
+  // Refs for debounce timers to ensure proper cleanup
+  const analyticsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /**
+   * Consolidated debounced save effect (Task Group 5.5)
+   *
+   * Combines API save (saveLastRead) and AsyncStorage save (savePosition) into
+   * a single debounced effect. This prevents excessive writes during rapid
+   * swiping navigation.
+   *
+   * Debounce: 1500ms - fires once after user stops navigating
+   */
   useEffect(() => {
-    savePosition({
-      type: 'bible',
-      bookId: validBookId,
-      chapterNumber: validChapter,
-      activeTab,
-      activeView,
-    });
-  }, [validBookId, validChapter, activeTab, activeView]);
+    // Clear any pending save timer
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    // Set up debounced save
+    saveTimerRef.current = setTimeout(() => {
+      // Save to API (for authenticated users)
+      if (user?.id) {
+        saveLastRead({
+          user_id: user.id,
+          book_id: validBookId,
+          chapter_number: validChapter,
+        });
+      }
+
+      // Save to AsyncStorage (for app launch continuity)
+      savePosition({
+        type: 'bible',
+        bookId: validBookId,
+        chapterNumber: validChapter,
+        activeTab,
+        activeView,
+      });
+    }, DEBOUNCE_SAVE_MS);
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [validBookId, validChapter, activeTab, activeView, user?.id, saveLastRead, savePosition]);
 
   // Track recently viewed book when chapter changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: addRecentBook is a stable function
@@ -333,17 +422,38 @@ export default function ChapterScreen() {
     addRecentBook(validBookId);
   }, [validBookId]);
 
-  // Track CHAPTER_VIEWED analytics event (Task 4.2)
-  // Fires once per chapter navigation, not on re-renders
+  /**
+   * Debounced analytics tracking effect (Task Group 5.4)
+   *
+   * Tracks CHAPTER_VIEWED analytics event with debouncing to prevent
+   * high-frequency calls during rapid swiping.
+   *
+   * Debounce: 1000ms - fires once after user settles on a chapter
+   */
   useEffect(() => {
-    // Only track when we have valid params
-    if (validBookId >= 1 && validBookId <= 66 && validChapter >= 1) {
-      analytics.track(AnalyticsEvent.CHAPTER_VIEWED, {
-        bookId: validBookId,
-        chapterNumber: validChapter,
-        bibleVersion,
-      });
+    // Clear any pending analytics timer
+    if (analyticsTimerRef.current) {
+      clearTimeout(analyticsTimerRef.current);
     }
+
+    // Set up debounced analytics
+    analyticsTimerRef.current = setTimeout(() => {
+      // Only track when we have valid params
+      if (validBookId >= 1 && validBookId <= 66 && validChapter >= 1) {
+        analytics.track(AnalyticsEvent.CHAPTER_VIEWED, {
+          bookId: validBookId,
+          chapterNumber: validChapter,
+          bibleVersion,
+        });
+      }
+    }, DEBOUNCE_ANALYTICS_MS);
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (analyticsTimerRef.current) {
+        clearTimeout(analyticsTimerRef.current);
+      }
+    };
   }, [validBookId, validChapter, bibleVersion]);
 
   // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5, 4.6)
@@ -377,41 +487,6 @@ export default function ChapterScreen() {
   );
 
   /**
-   * Handle page change from ChapterPagerView (Task 4.4)
-   *
-   * Updates:
-   * - Local state immediately (instant UI update)
-   * - URL via debounced effect (silent background sync)
-   * - Save last read position
-   * - Trigger prefetch after 1s delay
-   * - Haptic feedback (INSTANTLY handled by PagerView natively)
-   */
-  // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
-  const handlePageChange = useCallback(
-    (newBookId: number, newChapterNumber: number) => {
-      // Update local state IMMEDIATELY to prevent flash
-      setActiveBookId(newBookId);
-      setActiveChapter(newChapterNumber);
-
-      // Save reading position - only for authenticated users
-      if (user?.id) {
-        saveLastRead({
-          user_id: user.id,
-          book_id: newBookId,
-          chapter_number: newChapterNumber,
-        });
-      }
-
-      // Prefetch adjacent chapters after 1 second delay (Task 4.6)
-      setTimeout(() => {
-        prefetchNext();
-        prefetchPrevious();
-      }, 1000);
-    },
-    [prefetchNext, prefetchPrevious, user?.id]
-  );
-
-  /**
    * Navigate to previous chapter using PagerView ref
    *
    * With circular navigation enabled, this always triggers navigation:
@@ -426,7 +501,7 @@ export default function ChapterScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Trigger PagerView page change (swipe right to previous chapter)
     pagerRef.current?.goPrevious();
-  }, []);
+  }, [pagerRef]);
 
   /**
    * Navigate to next chapter using PagerView ref
@@ -443,15 +518,45 @@ export default function ChapterScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Trigger PagerView page change (swipe left to next chapter)
     pagerRef.current?.goNext();
-  }, []);
+  }, [pagerRef]);
+
+  /**
+   * Handle chapter selection from BibleNavigationModal
+   * Uses context's jumpToChapter which:
+   * 1. Updates context state
+   * 2. Calls onJumpToChapter callback (which snaps pager to center)
+   *
+   * @see Task Group 4.5: Modal calls context jumpToChapter
+   */
+  const handleModalSelectChapter = useCallback(
+    (selectedBookId: number, selectedChapter: number) => {
+      setIsNavigationModalOpen(false);
+      // Always default to Bible text view when switching books via modal
+      setActiveView('bible');
+
+      // Get book name from metadata for context update
+      const selectedBook = booksMetadata?.find((b) => b.id === selectedBookId);
+      const selectedBookName = selectedBook?.name || 'Genesis';
+
+      // Update context via jumpToChapter (also triggers pager snap via callback)
+      jumpToChapter(selectedBookId, selectedChapter, selectedBookName);
+
+      // Update URL immediately for modal navigation (doesn't wait for debounce)
+      router.setParams({
+        bookId: selectedBookId.toString(),
+        chapterNumber: selectedChapter.toString(),
+        verse: undefined,
+        endVerse: undefined,
+      });
+    },
+    [booksMetadata, jumpToChapter, setActiveView]
+  );
 
   // Show skeleton loader while loading and no data is available
   if (isLoading && !chapter) {
     return (
       <View style={styles.container}>
         <ChapterHeader
-          bookName="Loading..."
-          chapterNumber={validChapter}
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
@@ -467,8 +572,6 @@ export default function ChapterScreen() {
     return (
       <View style={styles.container}>
         <ChapterHeader
-          bookName="Error"
-          chapterNumber={validChapter}
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
@@ -506,7 +609,6 @@ export default function ChapterScreen() {
                   canGoPrevious={canGoPrevious}
                   canGoNext={canGoNext}
                   onHeaderPress={() => setIsNavigationModalOpen(true)}
-                  onPageChange={handlePageChange}
                   onNavigatePrev={handlePrevious}
                   onNavigateNext={handleNext}
                   onScroll={handleScroll}
@@ -537,8 +639,6 @@ export default function ChapterScreen() {
           <>
             {/* Fixed Header (Task 8.6 - includes OfflineIndicator) */}
             <ChapterHeader
-              bookName={chapter.bookName}
-              chapterNumber={chapter.chapterNumber}
               activeView={activeView}
               onNavigationPress={() => {
                 setIsNavigationModalOpen(true); // Task 7.9
@@ -555,16 +655,17 @@ export default function ChapterScreen() {
               <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </View>
 
-            {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
+            {/* ChapterPagerView with 7-page fixed window
+                Uses ChapterNavigationContext for state updates (single writer pattern)
+                initialBookId/initialChapter read from URL params once on mount (Task Group 4.6) */}
             <ChapterPagerView
               ref={pagerRef}
-              initialBookId={validBookId}
-              initialChapter={validChapter}
+              initialBookId={initialBookId}
+              initialChapter={initialChapter}
               activeTab={activeTab}
               activeView={activeView}
               targetVerse={targetVerse}
               targetEndVerse={targetEndVerse}
-              onPageChange={handlePageChange}
               onScroll={handleScroll}
               onTap={handleTap}
             />
@@ -586,24 +687,15 @@ export default function ChapterScreen() {
           </>
         )}
 
-        {/* Navigation Modal (Task 7.9) - Consolidated outside conditional blocks */}
+        {/* Navigation Modal (Task 7.9) - Consolidated outside conditional blocks
+            onSelectChapter uses context jumpToChapter (Task Group 4.5) */}
         {isNavigationModalOpen && (
           <BibleNavigationModal
             visible={isNavigationModalOpen}
             onClose={() => setIsNavigationModalOpen(false)}
             currentBookId={validBookId}
             currentChapter={validChapter}
-            onSelectChapter={(bookId, chapter) => {
-              setIsNavigationModalOpen(false);
-              // Always default to Bible text view when switching books via modal
-              setActiveView('bible');
-              router.setParams({
-                bookId: bookId.toString(),
-                chapterNumber: chapter.toString(),
-                verse: undefined,
-                endVerse: undefined,
-              });
-            }}
+            onSelectChapter={handleModalSelectChapter}
             onSelectTopic={(topicId, category) => {
               setIsNavigationModalOpen(false);
               // Always default to Bible text view when navigating to topics
@@ -624,17 +716,16 @@ export default function ChapterScreen() {
  * Chapter Header Component
  *
  * Fixed header with book/chapter title and action icons
- * - Chapter text (clickable to open chapter selector)
+ * - Chapter text (clickable to open chapter selector) - reads from ChapterNavigationContext
  * - Bible view icon (shows Bible reading mode)
  * - Explanations view icon (shows AI explanations mode)
  * - Offline indicator (shows when offline) - Task 8.6
  * - Hamburger menu icon (opens menu)
  *
  * @see Spec lines 226-237 (Header specs)
+ * @see Task Group 3: ChapterHeader reads from ChapterNavigationContext
  */
 interface ChapterHeaderProps {
-  bookName: string;
-  chapterNumber: number;
   activeView: ViewMode;
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
@@ -643,14 +734,16 @@ interface ChapterHeaderProps {
 }
 
 function ChapterHeader({
-  bookName,
-  chapterNumber,
   activeView,
   onNavigationPress,
   onViewChange,
   onMenuPress,
   navigationModalVisible,
 }: ChapterHeaderProps) {
+  // Read navigation state from context (Task Group 3)
+  // This ensures header always shows what context says, never a stale prop value
+  const { currentChapter, bookName } = useChapterNavigationContext();
+
   // Get theme directly inside ChapterHeader (no props drilling)
   const { colors, mode } = useTheme();
   const headerSpecs = getHeaderSpecs(mode);
@@ -708,14 +801,14 @@ function ChapterHeader({
       <Pressable
         onPress={handleNavigationPress}
         style={styles.chapterButton}
-        accessibilityLabel={`Select chapter, currently ${bookName} ${chapterNumber}`}
+        accessibilityLabel={`Select chapter, currently ${bookName} ${currentChapter}`}
         accessibilityRole="button"
         accessibilityHint="Opens chapter selection menu"
         testID="chapter-selector-button"
       >
         <View style={styles.chapterButtonContent}>
           <Text style={styles.headerTitle}>
-            {bookName} {chapterNumber}
+            {bookName} {currentChapter}
           </Text>
           <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
         </View>

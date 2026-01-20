@@ -1,20 +1,23 @@
 /**
  * Tests for ChapterPagerView component
  *
- * ChapterPagerView implements a 5-page fixed window with stable positional keys.
- * - Keys: "page-0", "page-1", "page-2", "page-3", "page-4" (NEVER change)
- * - Middle page (index 2) always shows current chapter
- * - Re-centers to index 2 when user reaches edges (index 0 or 4)
+ * ChapterPagerView implements a 7-page fixed window with stable positional keys.
+ * - Keys: "page-0", "page-1", "page-2", ..., "page-6" (NEVER change)
+ * - Middle page (index 3) always shows current chapter
+ * - Re-centers to index 3 when user reaches edges (index 0 or 6)
  * - Props update when window shifts
  *
  * Tests:
- * - Renders 5 children with stable keys
- * - initialPage is set to CENTER_INDEX (2)
+ * - Renders 7 children with stable keys
+ * - initialPage is set to CENTER_INDEX (3)
  * - Middle page has correct bookId/chapterNumber props
- * - onPageSelected callback fires
+ * - Context updates correctly on page selection
  * - Re-centers after edge swipe
  * - Props update on window shift
  * - Ref functionality and imperative API (setPage method)
+ *
+ * @note ChapterPagerView now requires ChapterNavigationProvider as it uses context
+ *       for navigation state instead of onPageChange callback.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -22,10 +25,11 @@ import { render, screen } from '@testing-library/react-native';
 import React, { useRef } from 'react';
 import type { ChapterPagerViewRef } from '@/components/bible/ChapterPagerView';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ChapterNavigationProvider } from '@/contexts/ChapterNavigationContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBibleTestaments } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
-import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
+import { getMockBook, mockTestamentBooks } from '../../mocks/data/bible-books.data';
 
 // Store mock setPage for testing
 let mockSetPage: jest.Mock;
@@ -106,23 +110,37 @@ describe('ChapterPagerView', () => {
     jest.clearAllMocks();
   });
 
+  /**
+   * Helper to get book name from mock data
+   */
+  const getBookName = (bookId: number): string => {
+    const book = getMockBook(bookId);
+    return book?.name ?? 'Unknown';
+  };
+
   const renderPagerView = (
     initialBookId: number = 1,
     initialChapter: number = 1,
     activeTab: ContentTabType = 'summary',
-    activeView: 'bible' | 'explanations' = 'bible',
-    onPageChange?: (bookId: number, chapterNumber: number) => void
+    activeView: 'bible' | 'explanations' = 'bible'
   ) => {
+    const initialBookName = getBookName(initialBookId);
+
     return render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
+          <ChapterNavigationProvider
             initialBookId={initialBookId}
             initialChapter={initialChapter}
-            activeTab={activeTab}
-            activeView={activeView}
-            onPageChange={onPageChange || jest.fn()}
-          />
+            initialBookName={initialBookName}
+          >
+            <ChapterPagerView
+              initialBookId={initialBookId}
+              initialChapter={initialChapter}
+              activeTab={activeTab}
+              activeView={activeView}
+            />
+          </ChapterNavigationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
@@ -133,65 +151,74 @@ describe('ChapterPagerView', () => {
     expect(result.root).toBeTruthy();
   });
 
-  it('should render exactly 5 pages', () => {
+  it('should render exactly 7 pages', () => {
     renderPagerView();
 
-    // Should have 5 pager pages
-    for (let i = 0; i < 5; i++) {
+    // Should have 7 pager pages (WINDOW_SIZE = 7)
+    for (let i = 0; i < 7; i++) {
       expect(screen.getByTestId(`pager-page-${i}`)).toBeTruthy();
     }
   });
 
-  it('should render middle page (index 2) with correct bookId and chapterNumber', () => {
+  it('should render middle page (index 3) with correct bookId and chapterNumber', () => {
     renderPagerView(1, 5); // Genesis 5
 
     // Middle page should show Genesis 5
     expect(screen.getByTestId('chapter-page-1-5')).toBeTruthy();
   });
 
-  it('should render 5-page window around current chapter', () => {
-    // Genesis 3 at center
-    renderPagerView(1, 3);
+  it('should render 7-page window around current chapter', () => {
+    // Genesis 5 at center
+    renderPagerView(1, 5);
 
-    // Window: [Gen 1, Gen 2, Gen 3, Gen 4, Gen 5]
-    // Positions: [0, 1, 2, 3, 4]
-    expect(screen.getByTestId('chapter-page-1-1')).toBeTruthy(); // position 0
-    expect(screen.getByTestId('chapter-page-1-2')).toBeTruthy(); // position 1
-    expect(screen.getByTestId('chapter-page-1-3')).toBeTruthy(); // position 2 (center)
-    expect(screen.getByTestId('chapter-page-1-4')).toBeTruthy(); // position 3
-    expect(screen.getByTestId('chapter-page-1-5')).toBeTruthy(); // position 4
+    // Window: [Gen 2, Gen 3, Gen 4, Gen 5, Gen 6, Gen 7, Gen 8]
+    // Positions: [0, 1, 2, 3, 4, 5, 6]
+    expect(screen.getByTestId('chapter-page-1-2')).toBeTruthy(); // position 0
+    expect(screen.getByTestId('chapter-page-1-3')).toBeTruthy(); // position 1
+    expect(screen.getByTestId('chapter-page-1-4')).toBeTruthy(); // position 2
+    expect(screen.getByTestId('chapter-page-1-5')).toBeTruthy(); // position 3 (center)
+    expect(screen.getByTestId('chapter-page-1-6')).toBeTruthy(); // position 4
+    expect(screen.getByTestId('chapter-page-1-7')).toBeTruthy(); // position 5
+    expect(screen.getByTestId('chapter-page-1-8')).toBeTruthy(); // position 6
   });
 
   it('should handle cross-book window (Genesis 50 at center)', () => {
     // Genesis 50 at center
     renderPagerView(1, 50);
 
-    // Window: [Gen 48, Gen 49, Gen 50, Exo 1, Exo 2]
-    expect(screen.getByTestId('chapter-page-1-48')).toBeTruthy(); // position 0
-    expect(screen.getByTestId('chapter-page-1-49')).toBeTruthy(); // position 1
-    expect(screen.getByTestId('chapter-page-1-50')).toBeTruthy(); // position 2 (center)
-    expect(screen.getByTestId('chapter-page-2-1')).toBeTruthy(); // position 3 (Exodus 1)
-    expect(screen.getByTestId('chapter-page-2-2')).toBeTruthy(); // position 4 (Exodus 2)
+    // Window: [Gen 47, Gen 48, Gen 49, Gen 50, Exo 1, Exo 2, Exo 3]
+    expect(screen.getByTestId('chapter-page-1-47')).toBeTruthy(); // position 0
+    expect(screen.getByTestId('chapter-page-1-48')).toBeTruthy(); // position 1
+    expect(screen.getByTestId('chapter-page-1-49')).toBeTruthy(); // position 2
+    expect(screen.getByTestId('chapter-page-1-50')).toBeTruthy(); // position 3 (center)
+    expect(screen.getByTestId('chapter-page-2-1')).toBeTruthy(); // position 4 (Exodus 1)
+    expect(screen.getByTestId('chapter-page-2-2')).toBeTruthy(); // position 5 (Exodus 2)
+    expect(screen.getByTestId('chapter-page-2-3')).toBeTruthy(); // position 6 (Exodus 3)
   });
 
-  it('should handle Bible start boundary (Genesis 1)', () => {
-    // Genesis 1 at center - window extends beyond Bible start
+  it('should handle Bible start boundary (Genesis 1) with circular navigation', () => {
+    // Genesis 1 at center - window extends to end of Bible (circular)
     renderPagerView(1, 1);
 
-    // Component should clamp to Genesis 1 for positions before Bible start
-    const genesisOne = screen.getAllByTestId('chapter-page-1-1');
-    // Center page (index 2) should show Genesis 1
-    expect(genesisOne.length).toBeGreaterThanOrEqual(1);
+    // With circular navigation, positions before Genesis 1 wrap to Revelation
+    // Center page (index 3) should show Genesis 1
+    expect(screen.getByTestId('chapter-page-1-1')).toBeTruthy();
+    // Positions 0, 1, 2 wrap to end of Bible (Revelation 20, 21, 22)
+    expect(screen.getByTestId('chapter-page-66-20')).toBeTruthy();
+    expect(screen.getByTestId('chapter-page-66-21')).toBeTruthy();
+    expect(screen.getByTestId('chapter-page-66-22')).toBeTruthy();
   });
 
-  it('should handle Bible end boundary (Revelation 22)', () => {
-    // Revelation 22 at center - window extends beyond Bible end
+  it('should handle Bible end boundary (Revelation 22) with circular navigation', () => {
+    // Revelation 22 at center - window extends to start of Bible (circular)
     renderPagerView(66, 22);
 
-    // Component should clamp to Revelation 22 for positions after Bible end
-    const revelationTwentyTwo = screen.getAllByTestId('chapter-page-66-22');
-    // Center page (index 2) should show Revelation 22
-    expect(revelationTwentyTwo.length).toBeGreaterThanOrEqual(1);
+    // Center page (index 3) should show Revelation 22
+    expect(screen.getByTestId('chapter-page-66-22')).toBeTruthy();
+    // Positions 4, 5, 6 wrap to start of Bible (Genesis 1, 2, 3)
+    expect(screen.getByTestId('chapter-page-1-1')).toBeTruthy();
+    expect(screen.getByTestId('chapter-page-1-2')).toBeTruthy();
+    expect(screen.getByTestId('chapter-page-1-3')).toBeTruthy();
   });
 
   it('should pass activeTab and activeView props to all pages', () => {
@@ -200,18 +227,6 @@ describe('ChapterPagerView', () => {
     // All pages should receive the same activeTab and activeView
     // This is verified by the component rendering without errors
     expect(screen.getByTestId('chapter-page-1-3')).toBeTruthy();
-  });
-
-  it('should call onPageChange callback with correct bookId and chapterNumber', async () => {
-    const onPageChange = jest.fn();
-
-    renderPagerView(1, 1, 'summary', 'bible', onPageChange);
-
-    // Initial render should not call onPageChange
-    expect(onPageChange).not.toHaveBeenCalled();
-
-    // Note: Testing actual page changes requires simulating native events
-    // which is complex with PagerView. Integration tests will verify this.
   });
 
   it('should handle loading state when books metadata is not available', () => {
@@ -234,11 +249,9 @@ describe('ChapterPagerView', () => {
 
     // The component should render pages with stable keys
     // Keys are internal to React, but we can verify by checking renders are stable
-    expect(screen.getByTestId('pager-page-0')).toBeTruthy();
-    expect(screen.getByTestId('pager-page-1')).toBeTruthy();
-    expect(screen.getByTestId('pager-page-2')).toBeTruthy();
-    expect(screen.getByTestId('pager-page-3')).toBeTruthy();
-    expect(screen.getByTestId('pager-page-4')).toBeTruthy();
+    for (let i = 0; i < 7; i++) {
+      expect(screen.getByTestId(`pager-page-${i}`)).toBeTruthy();
+    }
   });
 
   describe('Ref Functionality', () => {
@@ -248,14 +261,19 @@ describe('ChapterPagerView', () => {
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={1}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={1}
+                activeTab="summary"
+                activeView="bible"
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };
@@ -279,14 +297,19 @@ describe('ChapterPagerView', () => {
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={1}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={1}
+                activeTab="summary"
+                activeView="bible"
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };
@@ -308,14 +331,19 @@ describe('ChapterPagerView', () => {
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={1}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={1}
+                activeTab="summary"
+                activeView="bible"
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };
@@ -330,23 +358,28 @@ describe('ChapterPagerView', () => {
 
         React.useEffect(() => {
           if (pagerRef.current) {
-            // Test boundary values
+            // Test boundary values (for 7-page window)
             pagerRef.current.setPage(0); // First page
-            pagerRef.current.setPage(4); // Last page (WINDOW_SIZE - 1)
-            pagerRef.current.setPage(2); // Center index
+            pagerRef.current.setPage(6); // Last page (WINDOW_SIZE - 1)
+            pagerRef.current.setPage(3); // Center index
           }
         }, []);
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={5}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={5}
+                activeTab="summary"
+                activeView="bible"
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };
@@ -355,8 +388,8 @@ describe('ChapterPagerView', () => {
 
       // Verify all boundary values were called
       expect(mockSetPage).toHaveBeenCalledWith(0);
-      expect(mockSetPage).toHaveBeenCalledWith(4);
-      expect(mockSetPage).toHaveBeenCalledWith(2);
+      expect(mockSetPage).toHaveBeenCalledWith(6);
+      expect(mockSetPage).toHaveBeenCalledWith(3);
     });
 
     it('should support multiple setPage calls', () => {
@@ -373,14 +406,19 @@ describe('ChapterPagerView', () => {
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={1}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={1}
+                activeTab="summary"
+                activeView="bible"
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };

@@ -5,6 +5,11 @@
  * with persistence to AsyncStorage. The selected view persists across app restarts
  * and chapter navigation.
  *
+ * Task Group 8.2: Refactored to remove module-level cache
+ * - Cache is now stored in React state within the hook
+ * - Eliminates stale state bugs between component instances
+ * - Improves testability (no need for manual cache resets)
+ *
  * @example
  * ```tsx
  * const { activeView, setActiveView, isLoading } = useActiveView();
@@ -20,13 +25,10 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { UseActiveViewResult, ViewModeType } from '@/types/bible';
 import { isViewModeType, STORAGE_KEYS } from '@/types/bible';
-
-// Module-level cache to prevent flickering on remount
-let inMemoryCache: ViewModeType | null = null;
 
 /**
  * Hook to manage active view state with AsyncStorage persistence
@@ -38,16 +40,21 @@ let inMemoryCache: ViewModeType | null = null;
  *   - error: Error object if loading or saving failed
  */
 export function useActiveView(): UseActiveViewResult {
-  const [activeView, setActiveViewState] = useState<ViewModeType>(inMemoryCache || 'bible');
-  const [isLoading, setIsLoading] = useState(!inMemoryCache);
+  const [activeView, setActiveViewState] = useState<ViewModeType>('bible');
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+
+  // Use ref to track if we've already loaded from storage
+  // This prevents re-loading on every render while still allowing proper cleanup
+  const hasLoadedRef = useRef(false);
 
   // Load persisted view from AsyncStorage on mount
   useEffect(() => {
     let isMounted = true;
+
     async function loadPersistedView() {
-      // Skip loading if cache is already populated
-      if (inMemoryCache) {
+      // Skip if already loaded in this hook instance
+      if (hasLoadedRef.current) {
         return;
       }
 
@@ -60,13 +67,13 @@ export function useActiveView(): UseActiveViewResult {
         if (isMounted) {
           const finalView = storedView && isViewModeType(storedView) ? storedView : 'bible';
           setActiveViewState(finalView);
-          inMemoryCache = finalView; // Update cache
+          hasLoadedRef.current = true;
         }
       } catch (err) {
         if (isMounted) {
           setError(err instanceof Error ? err : new Error('Failed to load active view'));
           setActiveViewState('bible');
-          inMemoryCache = 'bible'; // Update cache on error
+          hasLoadedRef.current = true;
         }
       } finally {
         if (isMounted) {
@@ -91,9 +98,8 @@ export function useActiveView(): UseActiveViewResult {
         throw new Error(`Invalid view type: ${view}. Must be 'bible' or 'explanations'.`);
       }
 
-      // Update state and cache immediately
+      // Update state immediately
       setActiveViewState(view);
-      inMemoryCache = view;
 
       // Track analytics: VIEW_MODE_SWITCHED event
       analytics.track(AnalyticsEvent.VIEW_MODE_SWITCHED, {
