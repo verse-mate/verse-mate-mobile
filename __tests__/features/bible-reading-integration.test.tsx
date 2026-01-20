@@ -564,13 +564,19 @@ describe('Bible Reading Interface - Integration Tests', () => {
     );
 
     // Verify reading position saved for Matthew with authenticated user's UUID
+    // Note: The save is debounced at 1500ms, so we need to wait for it to fire
     const mockMutate = (useSaveLastRead as jest.Mock).mock.results[0].value.mutate;
-    expect(mockMutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user_id: mockAuthUserId,
-        book_id: 40,
-        chapter_number: 5,
-      })
+    await waitFor(
+      () => {
+        expect(mockMutate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            user_id: mockAuthUserId,
+            book_id: 40,
+            chapter_number: 5,
+          })
+        );
+      },
+      { timeout: 3000 } // Allow time for 1500ms debounce to fire
     );
   }, 25000); // 25 second timeout for skeleton + content loading
 
