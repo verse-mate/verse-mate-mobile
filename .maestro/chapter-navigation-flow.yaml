@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Chapter Navigation Flow
 description: Tests chapter navigation using buttons and swipe gestures
 tags:
@@ -24,7 +24,7 @@ tags:
 # 6. Tap previous chapter button -> Genesis 1
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

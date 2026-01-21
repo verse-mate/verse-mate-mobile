@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Content Tab Switching Flow
 description: Tests switching between Summary, By Line, and Detailed tabs
 tags:
@@ -25,7 +25,7 @@ tags:
 # 6. Navigate to next chapter -> verify tab persists
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

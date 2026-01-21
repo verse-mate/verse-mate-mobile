@@ -1,0 +1,223 @@
+---
+appId: org.versemate.app
+name: Chapter State Refactor - Header/Content Sync
+description: Tests that header title stays in sync with visible content after state refactor
+tags:
+  - critical
+  - navigation
+  - header-sync
+  - regression
+
+---
+
+# Chapter State Refactor E2E Test
+#
+# Tests the Single Source of Truth pattern for chapter navigation.
+# Verifies that header title always matches visible content.
+#
+# Test Scenarios:
+# 1. Swipe navigation with header sync
+# 2. Modal navigation
+# 3. Circular navigation (Genesis 1 -> Revelation 22)
+
+- launchApp:
+    appId: org.versemate.app
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Handle onboarding if present
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+- tapOn:
+    text: "Skip for now"
+    optional: true
+
+- waitForAnimationToEnd
+
+# Wait for app to fully load
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 1: Modal Navigation + Swipe
+# ============================================
+# Navigate to Matthew 3 via modal, then swipe to verify header sync
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- assertVisible:
+    id: "bible-navigation-modal"
+
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-matthew"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-3"
+
+- waitForAnimationToEnd
+
+- assertNotVisible:
+    id: "bible-navigation-modal"
+
+# Verify header shows Matthew 3
+- assertVisible:
+    text: "Matthew 3"
+
+# Swipe to Matthew 4
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header updated
+- assertVisible:
+    text: "Matthew 4"
+
+# Swipe to Matthew 5
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Matthew 5"
+
+# Swipe back to Matthew 4
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Matthew 4"
+
+# ============================================
+# Test 2: Swipe-then-Modal Sequence
+# ============================================
+# Swipe to Matthew 5, then immediately open modal and select Mark 1
+
+# Swipe to Matthew 5
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Matthew 5"
+
+# Immediately open modal and select Mark 1
+- tapOn:
+    id: "chapter-selector-button"
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "bible-navigation-modal"
+
+# NT tab should already be selected, Mark is right after Matthew
+- tapOn:
+    id: "book-item-mark"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+- assertNotVisible:
+    id: "bible-navigation-modal"
+
+# Verify both header and content show Mark 1 (no race condition)
+- assertVisible:
+    text: "Mark 1"
+
+# ============================================
+# Test 3: Circular Navigation (Genesis 1 -> Revelation 22)
+# ============================================
+# Navigate to Genesis 1, then swipe backward to Revelation 22
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "bible-navigation-modal"
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+- assertNotVisible:
+    id: "bible-navigation-modal"
+
+# Verify we're on Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+
+# Swipe RIGHT (backward) - should go to Revelation 22
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify circular navigation worked
+- assertVisible:
+    text: "Revelation 22"
+
+# Swipe LEFT (forward) to go back to Genesis 1
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify back to Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+
+# ============================================
+# Test Complete - Header/Content Sync Verified
+# ============================================

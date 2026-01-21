@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Settings Flow
 description: Tests settings screen navigation and basic functionality
 tags:
@@ -23,7 +23,7 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

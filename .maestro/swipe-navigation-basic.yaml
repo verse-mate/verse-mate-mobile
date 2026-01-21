@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Swipe Navigation - Basic
 description: Tests basic swipe navigation within same book (Genesis 1->2->1)
 tags:
@@ -22,7 +22,7 @@ tags:
 # 3. Swipe right -> Genesis 1
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
