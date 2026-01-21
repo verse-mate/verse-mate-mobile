@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Bookmark Feature Flow (Unauthenticated)
 description: Tests bookmark feature navigation for unauthenticated users
 tags:
@@ -26,7 +26,7 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

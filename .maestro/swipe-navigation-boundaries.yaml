@@ -1,25 +1,25 @@
 ---
-appId: org.versemate.mobile
-name: Swipe Navigation - Boundaries
-description: Tests that swipe navigation respects Bible boundaries (Genesis 1)
+appId: org.versemate.app
+name: Swipe Navigation - Circular Boundaries
+description: Tests that swipe navigation wraps around Bible boundaries (Genesis 1 <-> Revelation 22)
 tags:
   - swipe
   - navigation
   - boundaries
+  - circular
 
 ---
 
-# Boundary Testing for Swipe Navigation
+# Circular Navigation Boundary Testing
 #
-# This flow tests navigation boundaries:
-# - At Genesis 1: right swipe should not navigate (stay on Genesis 1)
-# - Verify we can still swipe left to go to Genesis 2
+# Tests that the Bible navigation is circular (no boundaries):
+# - At Genesis 1: swipe right -> Revelation 22
+# - At Revelation 22: swipe left -> Genesis 1
 #
-# Note: Testing Revelation 22 boundary is complex and better tested manually
-# due to the navigation modal behavior.
+# This enables seamless reading through the entire Bible.
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -41,7 +41,7 @@ tags:
     timeout: 30000
 
 # ============================================
-# Test 1: Genesis 1 Left Boundary
+# Test 1: Genesis 1 -> Revelation 22 (Backward Wrap)
 # ============================================
 
 # First ensure we're on Genesis 1 by opening modal and navigating there
@@ -81,38 +81,86 @@ tags:
 
 # Verify we're on Genesis 1
 - assertVisible:
-    id: "chapter-selector-button"
+    text: "Genesis 1"
 
-# ============================================
-# Test 2: Try to Swipe Right (Should Stay on Genesis 1)
-# ============================================
-
-# Try to swipe right from Genesis 1 - should not navigate
+# Swipe RIGHT from Genesis 1 - should wrap to Revelation 22
 - swipe:
     direction: RIGHT
     duration: 500
 
 - waitForAnimationToEnd
 
-# Should still be on a chapter screen (we cannot go before Genesis 1)
+# Verify circular navigation: should now be on Revelation 22
 - assertVisible:
-    id: "chapter-selector-button"
+    text: "Revelation 22"
 
 # ============================================
-# Test 3: Verify Swipe Left Still Works
+# Test 2: Revelation 22 -> Genesis 1 (Forward Wrap)
 # ============================================
 
-# Swipe left to go to Genesis 2
+# Swipe LEFT from Revelation 22 - should wrap to Genesis 1
 - swipe:
     direction: LEFT
     duration: 500
 
 - waitForAnimationToEnd
 
-# Should still have chapter selector visible (navigated to Genesis 2)
+# Verify circular navigation: should now be back on Genesis 1
 - assertVisible:
-    id: "chapter-selector-button"
+    text: "Genesis 1"
 
 # ============================================
-# Test Complete
+# Test 3: Navigate to Revelation 22 via Modal, verify backward wrap
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+# Scroll down to find Revelation
+- scrollUntilVisible:
+    element:
+      id: "book-item-revelation"
+
+- tapOn:
+    id: "book-item-revelation"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-22"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're on Revelation 22
+- assertVisible:
+    text: "Revelation 22"
+
+# Swipe LEFT (forward) - should wrap to Genesis 1
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify circular navigation to Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+
+# ============================================
+# Test Complete - Circular Navigation Verified
 # ============================================

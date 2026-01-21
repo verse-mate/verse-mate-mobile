@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Bible Reading Critical Path
 description: Tests the core user flow for reading Bible chapters
 tags:
@@ -20,7 +20,7 @@ tags:
 # 4. Verify view switcher icons work
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: tap on localhost to connect to dev server if shown
 - tapOn:

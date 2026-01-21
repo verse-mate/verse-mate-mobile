@@ -81,11 +81,6 @@ import {
 type ViewMode = 'bible' | 'explanations';
 
 /**
- * Center index for 7-page window in ChapterPagerView
- */
-const CENTER_INDEX = 3;
-
-/**
  * Debounce timing constants for consolidated effects (Task Group 5)
  * These prevent excessive calls during rapid navigation (swiping)
  */
@@ -165,14 +160,14 @@ export default function ChapterScreen() {
   /**
    * Handle jump to chapter from external navigation (modal, deep link)
    * This callback is passed to ChapterNavigationProvider and called when
-   * jumpToChapter is invoked. It snaps the pager to CENTER_INDEX.
+   * jumpToChapter is invoked. It updates pager internal state and snaps to center.
    *
    * @see spec: jumpToChapter pager integration pattern
    */
-  const handleJumpToChapter = useCallback((_bookId: number, _chapter: number) => {
-    // Snap pager to center index without animation
-    // This resets the pager position for the new chapter
-    pagerRef.current?.setPageWithoutAnimation?.(CENTER_INDEX);
+  const handleJumpToChapter = useCallback((bookId: number, chapter: number) => {
+    // Use jumpToChapter to update BOTH the pager's internal state AND snap to center
+    // This ensures the pager renders the correct chapter content after modal navigation
+    pagerRef.current?.jumpToChapter?.(bookId, chapter);
   }, []);
 
   // Wrap the main content with ChapterNavigationProvider
@@ -919,7 +914,7 @@ function ChapterHeader({
         testID="chapter-selector-button"
       >
         <View style={styles.chapterButtonContent}>
-          <Text style={styles.headerTitle}>
+          <Text style={styles.headerTitle} testID="chapter-header-title">
             {bookName} {currentChapter}
           </Text>
           <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
