@@ -16,6 +16,8 @@
  * @see Task Group 9.3 - Add deep link validation in chapter screen
  * @see Time-Based Analytics - Chapter reading duration tracking
  * @see Circular Bible Navigation - Seamless wrap-around at Bible boundaries
+ * @see Task Group 3 - ChapterScreen State Simplification (ChapterNavigationContext integration)
+ * @see Task Group 4 - ChapterHeader Context Integration (header reads from context)
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -46,6 +48,10 @@ import { SplitView } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
+import {
+  ChapterNavigationProvider,
+  useChapterNavigation as useChapterNavigationContext,
+} from '@/contexts/ChapterNavigationContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   useActiveTab,
@@ -59,6 +65,7 @@ import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import type { SplitViewMode } from '@/hooks/use-device-info';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
@@ -68,6 +75,7 @@ import {
   usePrefetchPreviousChapter,
   useSaveLastRead,
 } from '@/src/api';
+import type { ContentTabType } from '@/types/bible';
 
 /**
  * View mode type for Bible reading interface
@@ -75,8 +83,9 @@ import {
 type ViewMode = 'bible' | 'explanations';
 
 /**
- * Center index for 7-page window in ChapterPagerView
+ * Center index for 5-page window in ChapterPagerView
  */
+const CENTER_INDEX = 2;
 
 /**
  * Chapter Screen Component
@@ -110,49 +119,6 @@ export default function ChapterScreen() {
   const targetVerse = params.verse ? Number(params.verse) : undefined;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
 
-  // Local state for immediate UI updates (Source of Truth for UI)
-  // Initialized from params, but can diverge during swiping
-  const [activeBookId, setActiveBookId] = useState(Number(params.bookId));
-  const [activeChapter, setActiveChapter] = useState(Number(params.chapterNumber));
-
-  // Sync local state from params ONLY when params change significantly (e.g. deep link, menu nav)
-  // avoiding loops with our own debounced updates
-  // biome-ignore lint/correctness/useExhaustiveDependencies: activeBookId and activeChapter are intentionally omitted to prevent snap-back during swiping
-  useEffect(() => {
-    const paramBookId = Number(params.bookId);
-    const paramChapter = Number(params.chapterNumber);
-    if (
-      !Number.isNaN(paramBookId) &&
-      !Number.isNaN(paramChapter) &&
-      (paramBookId !== activeBookId || paramChapter !== activeChapter)
-    ) {
-      setActiveBookId(paramBookId);
-      setActiveChapter(paramChapter);
-    }
-  }, [params.bookId, params.chapterNumber]); // Sync correctly without loops
-
-  // Debounced URL sync (The "Follower")
-  // Updates the URL silently after user stops swiping to prevent global re-renders during animation
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Only update if URL is different from current state
-      if (
-        Number(params.bookId) !== activeBookId ||
-        Number(params.chapterNumber) !== activeChapter
-      ) {
-        router.setParams({
-          bookId: activeBookId.toString(),
-          chapterNumber: activeChapter.toString(),
-          // Clear verse params when chapter changes to prevent "sticky" highlighting
-          verse: undefined,
-          endVerse: undefined,
-        });
-      }
-    }, 1000); // Increased to 1000ms for stability
-
-    return () => clearTimeout(timer);
-  }, [activeBookId, activeChapter, params.bookId, params.chapterNumber]);
-
   // Auth - get current user for saving reading progress
   const { user } = useAuth();
 
@@ -173,9 +139,12 @@ export default function ChapterScreen() {
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
 
-  // Use local state for API calls (defined early for hooks)
-  const validBookId = Math.max(1, Math.min(66, activeBookId));
-  const validChapter = Math.max(1, activeChapter);
+  // Calculate valid bookId and chapter from URL params (derived once on mount)
+  // These are used to initialize the context and for API calls
+  const paramBookId = Number(params.bookId);
+  const paramChapter = Number(params.chapterNumber);
+  const validBookId = Math.max(1, Math.min(66, Number.isNaN(paramBookId) ? 1 : paramBookId));
+  const validChapter = Math.max(1, Number.isNaN(paramChapter) ? 1 : paramChapter);
 
   // Track chapter reading duration (Time-Based Analytics)
   // Hook fires CHAPTER_READING_DURATION event on unmount with AppState awareness
@@ -233,44 +202,20 @@ export default function ChapterScreen() {
   // Ref to ChapterPagerView for programmatic navigation
   const pagerRef = useRef<ChapterPagerViewRef>(null);
 
-  // Fetch book metadata to get total chapters for validation
+  // Fetch book metadata to get total chapters for validation and book name lookup
   const { data: booksMetadata } = useBibleTestaments();
   const bookMetadata = useMemo(
-    () => booksMetadata?.find((book) => book.id === activeBookId),
-    [booksMetadata, activeBookId]
+    () => booksMetadata?.find((book) => book.id === validBookId),
+    [booksMetadata, validBookId]
   );
   const totalChapters = bookMetadata?.chapterCount || 50; // Default to 50 if not loaded
 
-  /**
-   * Validate bookId and chapter parameters (Task 9.3)
-   *
-   * - bookId must be between 1-66
-   * - chapterNumber must be between 1-maxChapters for the book
-   * - Invalid bookId redirects to Genesis 1
-   * - Invalid chapter redirects to book's first chapter
-   */
-  useEffect(() => {
-    // Validate bookId (1-66)
-    if (activeBookId < 1 || activeBookId > 66) {
-      // Invalid bookId, redirect to Genesis 1
-      setActiveBookId(1);
-      setActiveChapter(1);
-      return;
-    }
-
-    // Validate chapter number (must be positive and within book's range)
-    if (activeChapter < 1) {
-      // Invalid chapter, redirect to book's first chapter
-      setActiveChapter(1);
-      return;
-    }
-
-    // If we have book metadata, validate against actual chapter count
-    if (bookMetadata && activeChapter > bookMetadata.chapterCount) {
-      // Chapter exceeds book's chapter count, redirect to first chapter
-      setActiveChapter(1);
-    }
-  }, [activeBookId, activeChapter, bookMetadata]);
+  // Look up initial book name from metadata for context initialization
+  // This enables instant header updates without waiting for API
+  const initialBookName = useMemo(
+    () => booksMetadata?.find((b) => b.id === validBookId)?.name || 'Loading...',
+    [booksMetadata, validBookId]
+  );
 
   // Calculate progress percentage (Task 8.4)
   const { progress } = useBookProgress(validBookId, validChapter, totalChapters);
@@ -377,39 +322,20 @@ export default function ChapterScreen() {
   );
 
   /**
-   * Handle page change from ChapterPagerView (Task 4.4)
-   *
-   * Updates:
-   * - Local state immediately (instant UI update)
-   * - URL via debounced effect (silent background sync)
-   * - Save last read position
-   * - Trigger prefetch after 1s delay
-   * - Haptic feedback (INSTANTLY handled by PagerView natively)
+   * Handle jump to chapter from modal navigation
+   * Snaps PagerView to center after context update
    */
-  // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
-  const handlePageChange = useCallback(
-    (newBookId: number, newChapterNumber: number) => {
-      // Update local state IMMEDIATELY to prevent flash
-      setActiveBookId(newBookId);
-      setActiveChapter(newChapterNumber);
-
-      // Save reading position - only for authenticated users
-      if (user?.id) {
-        saveLastRead({
-          user_id: user.id,
-          book_id: newBookId,
-          chapter_number: newChapterNumber,
-        });
-      }
-
-      // Prefetch adjacent chapters after 1 second delay (Task 4.6)
-      setTimeout(() => {
-        prefetchNext();
-        prefetchPrevious();
-      }, 1000);
-    },
-    [prefetchNext, prefetchPrevious, user?.id]
-  );
+  const handleJumpToChapter = useCallback((targetBookId: number, targetChapter: number) => {
+    // Update URL params - this will trigger a re-render with new validBookId/validChapter
+    router.setParams({
+      bookId: targetBookId.toString(),
+      chapterNumber: targetChapter.toString(),
+      verse: undefined,
+      endVerse: undefined,
+    });
+    // Snap PagerView to center after state update
+    pagerRef.current?.setPage(CENTER_INDEX);
+  }, []);
 
   /**
    * Navigate to previous chapter using PagerView ref
@@ -446,10 +372,11 @@ export default function ChapterScreen() {
   }, []);
 
   // Show skeleton loader while loading and no data is available
+  // Note: Loading/error states use hardcoded values since context is not yet available
   if (isLoading && !chapter) {
     return (
       <View style={styles.container}>
-        <ChapterHeader
+        <ChapterHeaderStatic
           bookName="Loading..."
           chapterNumber={validChapter}
           activeView={activeView}
@@ -463,10 +390,11 @@ export default function ChapterScreen() {
   }
 
   // Show error state (shouldn't happen due to redirect, but handle gracefully)
+  // Note: Error state uses hardcoded values since context is not yet available
   if (!chapter) {
     return (
       <View style={styles.container}>
-        <ChapterHeader
+        <ChapterHeaderStatic
           bookName="Error"
           chapterNumber={validChapter}
           activeView={activeView}
@@ -487,143 +415,332 @@ export default function ChapterScreen() {
       chapterNumber={validChapter}
       bookName={chapter.bookName}
     >
-      <View style={styles.container}>
-        {/* Split View Layout for Landscape/Tablet */}
-        {useSplitView ? (
-          <>
-            <SplitView
-              splitRatio={splitRatio}
-              onSplitRatioChange={setSplitRatio}
-              viewMode={splitViewMode}
-              onViewModeChange={setSplitViewMode}
-              edgeTabsVisible={fabVisible}
-              leftContent={
-                <BibleContentPanel
-                  bookId={validBookId}
-                  chapterNumber={validChapter}
-                  bookName={chapter.bookName}
-                  totalChapters={totalChapters}
-                  canGoPrevious={canGoPrevious}
-                  canGoNext={canGoNext}
-                  onHeaderPress={() => setIsNavigationModalOpen(true)}
-                  onPageChange={handlePageChange}
-                  onNavigatePrev={handlePrevious}
-                  onNavigateNext={handleNext}
-                  onScroll={handleScroll}
-                  onTap={handleTap}
-                  targetVerse={targetVerse}
-                  targetEndVerse={targetEndVerse}
-                  visible={fabVisible}
-                />
-              }
-              rightContent={
-                <BibleExplanationsPanel
-                  bookId={validBookId}
-                  chapterNumber={validChapter}
-                  bookName={chapter.bookName}
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                  onMenuPress={() => setIsMenuOpen(true)}
-                  onScroll={handleScroll}
-                  onTap={handleTap}
-                />
-              }
-            />
-
-            {/* Hamburger Menu (Task 8.5) */}
-            <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-          </>
-        ) : (
-          <>
-            {/* Fixed Header (Task 8.6 - includes OfflineIndicator) */}
-            <ChapterHeader
-              bookName={chapter.bookName}
-              chapterNumber={chapter.chapterNumber}
-              activeView={activeView}
-              onNavigationPress={() => {
-                setIsNavigationModalOpen(true); // Task 7.9
-              }}
-              navigationModalVisible={isNavigationModalOpen}
-              onViewChange={handleViewChange}
-              onMenuPress={() => {
-                setIsMenuOpen(true); // Task 8.5
-              }}
-            />
-
-            {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
-            <View style={activeView !== 'explanations' && { height: 0, overflow: 'hidden' }}>
-              <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
-            </View>
-
-            {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
-            <ChapterPagerView
-              ref={pagerRef}
-              initialBookId={validBookId}
-              initialChapter={validChapter}
-              activeTab={activeTab}
-              activeView={activeView}
-              targetVerse={targetVerse}
-              targetEndVerse={targetEndVerse}
-              onPageChange={handlePageChange}
-              onScroll={handleScroll}
-              onTap={handleTap}
-            />
-
-            {/* Floating Action Buttons - Always visible with circular navigation */}
-            <FloatingActionButtons
-              onPrevious={handlePrevious}
-              onNext={handleNext}
-              showPrevious={true}
-              showNext={true}
-              visible={fabVisible}
-            />
-
-            {/* Progress Bar (Task 8.4) */}
-            <ProgressBar percentage={progress.percentage} />
-
-            {/* Hamburger Menu (Task 8.5) */}
-            <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-          </>
-        )}
-
-        {/* Navigation Modal (Task 7.9) - Consolidated outside conditional blocks */}
-        {isNavigationModalOpen && (
-          <BibleNavigationModal
-            visible={isNavigationModalOpen}
-            onClose={() => setIsNavigationModalOpen(false)}
-            currentBookId={validBookId}
-            currentChapter={validChapter}
-            onSelectChapter={(bookId, chapter) => {
-              setIsNavigationModalOpen(false);
-              // Always default to Bible text view when switching books via modal
-              setActiveView('bible');
-              router.setParams({
-                bookId: bookId.toString(),
-                chapterNumber: chapter.toString(),
-                verse: undefined,
-                endVerse: undefined,
-              });
-            }}
-            onSelectTopic={(topicId, category) => {
-              setIsNavigationModalOpen(false);
-              // Always default to Bible text view when navigating to topics
-              setActiveView('bible');
-              router.push({
-                pathname: '/topics/[topicId]',
-                params: { topicId, category },
-              });
-            }}
-          />
-        )}
-      </View>
+      <ChapterNavigationProvider
+        initialBookId={validBookId}
+        initialChapter={validChapter}
+        initialBookName={initialBookName}
+        onJumpToChapter={handleJumpToChapter}
+      >
+        <ChapterScreenContent
+          validBookId={validBookId}
+          validChapter={validChapter}
+          chapter={chapter}
+          totalChapters={totalChapters}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          activeView={activeView}
+          setActiveView={setActiveView}
+          handleViewChange={handleViewChange}
+          canGoNext={canGoNext}
+          canGoPrevious={canGoPrevious}
+          fabVisible={fabVisible}
+          handleScroll={handleScroll}
+          handleTap={handleTap}
+          handlePrevious={handlePrevious}
+          handleNext={handleNext}
+          pagerRef={pagerRef}
+          targetVerse={targetVerse}
+          targetEndVerse={targetEndVerse}
+          isNavigationModalOpen={isNavigationModalOpen}
+          setIsNavigationModalOpen={setIsNavigationModalOpen}
+          isMenuOpen={isMenuOpen}
+          setIsMenuOpen={setIsMenuOpen}
+          useSplitView={useSplitView}
+          splitRatio={splitRatio}
+          setSplitRatio={setSplitRatio}
+          splitViewMode={splitViewMode}
+          setSplitViewMode={setSplitViewMode}
+          styles={styles}
+          progress={progress}
+          user={user}
+          saveLastRead={saveLastRead}
+          prefetchNext={prefetchNext}
+          prefetchPrevious={prefetchPrevious}
+        />
+      </ChapterNavigationProvider>
     </BibleInteractionProvider>
   );
 }
 
 /**
- * Chapter Header Component
+ * Inner component that has access to ChapterNavigationContext
+ * Separated to allow useChapterNavigation hook usage after provider wraps content
+ */
+interface ChapterScreenContentProps {
+  validBookId: number;
+  validChapter: number;
+  // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure
+  chapter: any;
+  totalChapters: number;
+  activeTab: ContentTabType;
+  setActiveTab: (tab: ContentTabType) => Promise<void>;
+  activeView: ViewMode;
+  setActiveView: (view: ViewMode) => void;
+  handleViewChange: (view: ViewMode) => void;
+  canGoNext: boolean;
+  canGoPrevious: boolean;
+  fabVisible: boolean;
+  handleScroll: (velocity: number, isAtBottom: boolean) => void;
+  handleTap: () => void;
+  handlePrevious: () => void;
+  handleNext: () => void;
+  pagerRef: React.RefObject<ChapterPagerViewRef | null>;
+  targetVerse?: number;
+  targetEndVerse?: number;
+  isNavigationModalOpen: boolean;
+  setIsNavigationModalOpen: (open: boolean) => void;
+  isMenuOpen: boolean;
+  setIsMenuOpen: (open: boolean) => void;
+  useSplitView: boolean;
+  splitRatio: number;
+  setSplitRatio: (ratio: number) => void;
+  splitViewMode: SplitViewMode;
+  setSplitViewMode: (mode: SplitViewMode) => void;
+  styles: ReturnType<typeof createStyles>;
+  progress: { percentage: number };
+  user: { id: string } | null;
+  saveLastRead: (params: { user_id: string; book_id: number; chapter_number: number }) => void;
+  prefetchNext: () => void;
+  prefetchPrevious: () => void;
+}
+
+function ChapterScreenContent({
+  validBookId,
+  validChapter,
+  chapter,
+  totalChapters,
+  activeTab,
+  setActiveTab,
+  activeView,
+  setActiveView,
+  handleViewChange,
+  canGoNext,
+  canGoPrevious,
+  fabVisible,
+  handleScroll,
+  handleTap,
+  handlePrevious,
+  handleNext,
+  pagerRef,
+  targetVerse,
+  targetEndVerse,
+  isNavigationModalOpen,
+  setIsNavigationModalOpen,
+  isMenuOpen,
+  setIsMenuOpen,
+  useSplitView,
+  splitRatio,
+  setSplitRatio,
+  splitViewMode,
+  setSplitViewMode,
+  styles,
+  progress,
+  user,
+  saveLastRead,
+  prefetchNext,
+  prefetchPrevious,
+}: ChapterScreenContentProps) {
+  // Get URL params for debounced URL sync
+  const params = useLocalSearchParams<{
+    bookId: string;
+    chapterNumber: string;
+  }>();
+
+  // Read navigation state from context (set by PagerView on swipe)
+  const { currentBookId, currentChapter, bookName } = useChapterNavigationContext();
+
+  // Debounced URL sync (The "Follower")
+  // Updates the URL silently after user stops swiping to prevent global re-renders during animation
+  // Now reads from context state instead of local state (Task 3.4)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Only update if URL is different from context state
+      if (
+        Number(params.bookId) !== currentBookId ||
+        Number(params.chapterNumber) !== currentChapter
+      ) {
+        router.setParams({
+          bookId: currentBookId.toString(),
+          chapterNumber: currentChapter.toString(),
+          // Clear verse params when chapter changes to prevent "sticky" highlighting
+          verse: undefined,
+          endVerse: undefined,
+        });
+      }
+    }, 1000); // 1000ms debounce for stability
+
+    return () => clearTimeout(timer);
+  }, [currentBookId, currentChapter, params.bookId, params.chapterNumber]);
+
+  /**
+   * Handle page change from ChapterPagerView (Task 4.4)
+   *
+   * Now only handles side effects:
+   * - Save last read position (API)
+   * - Trigger prefetch after 1s delay
+   *
+   * Context update happens synchronously in PagerView's handlePageSelected (Task Group 2).
+   * URL sync happens via debounced effect above (Task 3.4).
+   */
+  const handlePageChange = useCallback(
+    (newBookId: number, newChapterNumber: number) => {
+      // Save reading position - only for authenticated users
+      if (user?.id) {
+        saveLastRead({
+          user_id: user.id,
+          book_id: newBookId,
+          chapter_number: newChapterNumber,
+        });
+      }
+
+      // Prefetch adjacent chapters after 1 second delay (Task 4.6)
+      setTimeout(() => {
+        prefetchNext();
+        prefetchPrevious();
+      }, 1000);
+    },
+    [prefetchNext, prefetchPrevious, user?.id, saveLastRead]
+  );
+
+  return (
+    <View style={styles.container}>
+      {/* Split View Layout for Landscape/Tablet */}
+      {useSplitView ? (
+        <>
+          <SplitView
+            splitRatio={splitRatio}
+            onSplitRatioChange={setSplitRatio}
+            viewMode={splitViewMode}
+            onViewModeChange={setSplitViewMode}
+            edgeTabsVisible={fabVisible}
+            leftContent={
+              <BibleContentPanel
+                bookId={currentBookId}
+                chapterNumber={currentChapter}
+                bookName={bookName}
+                totalChapters={totalChapters}
+                canGoPrevious={canGoPrevious}
+                canGoNext={canGoNext}
+                onHeaderPress={() => setIsNavigationModalOpen(true)}
+                onPageChange={handlePageChange}
+                onNavigatePrev={handlePrevious}
+                onNavigateNext={handleNext}
+                onScroll={handleScroll}
+                onTap={handleTap}
+                targetVerse={targetVerse}
+                targetEndVerse={targetEndVerse}
+                visible={fabVisible}
+              />
+            }
+            rightContent={
+              <BibleExplanationsPanel
+                bookId={currentBookId}
+                chapterNumber={currentChapter}
+                bookName={bookName}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                onMenuPress={() => setIsMenuOpen(true)}
+                onScroll={handleScroll}
+                onTap={handleTap}
+              />
+            }
+          />
+
+          {/* Hamburger Menu (Task 8.5) */}
+          <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+        </>
+      ) : (
+        <>
+          {/* Fixed Header (Task 8.6 - includes OfflineIndicator) */}
+          {/* Header now reads bookName and currentChapter from context (Task 4.2) */}
+          <ChapterHeader
+            activeView={activeView}
+            onNavigationPress={() => {
+              setIsNavigationModalOpen(true); // Task 7.9
+            }}
+            navigationModalVisible={isNavigationModalOpen}
+            onViewChange={handleViewChange}
+            onMenuPress={() => {
+              setIsMenuOpen(true); // Task 8.5
+            }}
+          />
+
+          {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
+          <View style={activeView !== 'explanations' && { height: 0, overflow: 'hidden' }}>
+            <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          </View>
+
+          {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
+          {/* initialBookId/initialChapter are from URL params (initial context values) */}
+          <ChapterPagerView
+            ref={pagerRef}
+            initialBookId={validBookId}
+            initialChapter={validChapter}
+            activeTab={activeTab}
+            activeView={activeView}
+            targetVerse={targetVerse}
+            targetEndVerse={targetEndVerse}
+            onPageChange={handlePageChange}
+            onScroll={handleScroll}
+            onTap={handleTap}
+          />
+
+          {/* Floating Action Buttons - Always visible with circular navigation */}
+          <FloatingActionButtons
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            showPrevious={true}
+            showNext={true}
+            visible={fabVisible}
+          />
+
+          {/* Progress Bar (Task 8.4) */}
+          <ProgressBar percentage={progress.percentage} />
+
+          {/* Hamburger Menu (Task 8.5) */}
+          <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+        </>
+      )}
+
+      {/* Navigation Modal (Task 7.9) - Consolidated outside conditional blocks */}
+      {isNavigationModalOpen && (
+        <BibleNavigationModal
+          visible={isNavigationModalOpen}
+          onClose={() => setIsNavigationModalOpen(false)}
+          currentBookId={currentBookId}
+          currentChapter={currentChapter}
+          onSelectChapter={(bookId, chapterNum) => {
+            setIsNavigationModalOpen(false);
+            // Always default to Bible text view when switching books via modal
+            setActiveView('bible');
+            router.setParams({
+              bookId: bookId.toString(),
+              chapterNumber: chapterNum.toString(),
+              verse: undefined,
+              endVerse: undefined,
+            });
+          }}
+          onSelectTopic={(topicId, category) => {
+            setIsNavigationModalOpen(false);
+            // Always default to Bible text view when navigating to topics
+            setActiveView('bible');
+            router.push({
+              pathname: '/topics/[topicId]',
+              params: { topicId, category },
+            });
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
+/**
+ * Chapter Header Component (Context-Integrated)
  *
- * Fixed header with book/chapter title and action icons
+ * Fixed header with book/chapter title and action icons.
+ * Reads bookName and currentChapter from ChapterNavigationContext for instant updates.
+ *
  * - Chapter text (clickable to open chapter selector)
  * - Bible view icon (shows Bible reading mode)
  * - Explanations view icon (shows AI explanations mode)
@@ -631,8 +748,159 @@ export default function ChapterScreen() {
  * - Hamburger menu icon (opens menu)
  *
  * @see Spec lines 226-237 (Header specs)
+ * @see Task Group 4.2 - Modify ChapterHeader to use context
  */
 interface ChapterHeaderProps {
+  activeView: ViewMode;
+  onNavigationPress: () => void;
+  onViewChange: (view: ViewMode) => void;
+  onMenuPress: () => void;
+  navigationModalVisible?: boolean;
+}
+
+export function ChapterHeader({
+  activeView,
+  onNavigationPress,
+  onViewChange,
+  onMenuPress,
+  navigationModalVisible,
+}: ChapterHeaderProps) {
+  // Read bookName and currentChapter from context (Task 4.2)
+  const { bookName, currentChapter } = useChapterNavigationContext();
+
+  // Get theme directly inside ChapterHeader (no props drilling)
+  const { colors, mode } = useTheme();
+  const headerSpecs = getHeaderSpecs(mode);
+  const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
+  const insets = useSafeAreaInsets();
+
+  // Animation for sliding toggle indicator (using Reanimated for native thread performance)
+  const toggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
+  const [bibleButtonWidth, setBibleButtonWidth] = useState(0);
+  const [insightButtonWidth, setInsightButtonWidth] = useState(0);
+
+  // Animate toggle indicator when activeView changes
+  useEffect(() => {
+    toggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [activeView, toggleProgress]);
+
+  // Measure individual button widths
+  const handleBibleLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setBibleButtonWidth(width);
+  };
+
+  const handleInsightLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setInsightButtonWidth(width);
+  };
+
+  // Animated style for the indicator (runs on native thread)
+  const indicatorAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    const translateX = toggleProgress.value * Math.max(0, bibleButtonWidth + 4);
+    const width = bibleButtonWidth + toggleProgress.value * (insightButtonWidth - bibleButtonWidth);
+
+    return {
+      transform: [{ translateX }],
+      width: Math.max(0, width),
+    };
+  }, [bibleButtonWidth, insightButtonWidth]);
+
+  /**
+   * Safe navigation press handler to prevent double-triggering
+   */
+  const handleNavigationPress = () => {
+    if (!navigationModalVisible) {
+      onNavigationPress();
+    }
+  };
+
+  return (
+    <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="chapter-header">
+      {/* Chapter Title Button (clickable to open navigation) */}
+      <Pressable
+        onPress={handleNavigationPress}
+        style={styles.chapterButton}
+        accessibilityLabel={`Select chapter, currently ${bookName} ${currentChapter}`}
+        accessibilityRole="button"
+        accessibilityHint="Opens chapter selection menu"
+        testID="chapter-selector-button"
+      >
+        <View style={styles.chapterButtonContent}>
+          <Text style={styles.headerTitle}>
+            {bookName} {currentChapter}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
+        </View>
+      </Pressable>
+
+      {/* Action Icons */}
+      <View style={styles.headerActions}>
+        {/* Bible/Commentary Toggle (Figma pill-style) */}
+        <View style={styles.toggleContainer}>
+          {/* Sliding indicator background */}
+          <Animated.View style={[styles.toggleIndicator, indicatorAnimatedStyle]} />
+          <Pressable
+            onPress={() => onViewChange('bible')}
+            style={({ pressed }) => [styles.toggleButton, pressed && styles.toggleButtonPressed]}
+            onLayout={handleBibleLayout}
+            accessibilityLabel="Bible reading view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'bible' }}
+            testID="bible-view-toggle"
+          >
+            <Text style={[styles.toggleText, activeView === 'bible' && styles.toggleTextActive]}>
+              Bible
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => onViewChange('explanations')}
+            style={({ pressed }) => [styles.toggleButton, pressed && styles.toggleButtonPressed]}
+            onLayout={handleInsightLayout}
+            accessibilityLabel="Insight view"
+            accessibilityRole="button"
+            accessibilityState={{ selected: activeView === 'explanations' }}
+            testID="commentary-view-toggle"
+          >
+            <Text
+              style={[styles.toggleText, activeView === 'explanations' && styles.toggleTextActive]}
+            >
+              Insight
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Offline Indicator (Task 8.6) */}
+        <OfflineIndicator />
+
+        {/* Hamburger Menu Icon (Task 8.5) */}
+        <Pressable
+          onPress={onMenuPress}
+          style={styles.iconButton}
+          accessibilityLabel="Open menu"
+          accessibilityRole="button"
+          testID="hamburger-menu-button"
+        >
+          <Ionicons name="menu" size={headerSpecs.iconSize} color={headerSpecs.iconColor} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Static Chapter Header Component (for loading/error states)
+ *
+ * Used when ChapterNavigationContext is not yet available (loading/error states).
+ * Accepts bookName and chapterNumber as props instead of reading from context.
+ *
+ * @see Task 4.3 - Loading/error states keep hardcoded values
+ */
+interface ChapterHeaderStaticProps {
   bookName: string;
   chapterNumber: number;
   activeView: ViewMode;
@@ -642,7 +910,7 @@ interface ChapterHeaderProps {
   navigationModalVisible?: boolean;
 }
 
-function ChapterHeader({
+function ChapterHeaderStatic({
   bookName,
   chapterNumber,
   activeView,
@@ -650,7 +918,7 @@ function ChapterHeader({
   onViewChange,
   onMenuPress,
   navigationModalVisible,
-}: ChapterHeaderProps) {
+}: ChapterHeaderStaticProps) {
   // Get theme directly inside ChapterHeader (no props drilling)
   const { colors, mode } = useTheme();
   const headerSpecs = getHeaderSpecs(mode);

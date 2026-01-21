@@ -15,6 +15,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react-native';
 import type React from 'react';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ChapterNavigationProvider } from '@/contexts/ChapterNavigationContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { getAbsolutePageIndex, getChapterFromPageIndex } from '@/utils/bible/chapter-index-utils';
@@ -101,6 +102,14 @@ jest.mock('react-native-pager-view', () => {
   return MockPagerView;
 });
 
+/**
+ * Helper to get book name from mock data
+ */
+function getBookName(bookId: number): string {
+  const book = mockTestamentBooks.find((b) => b.id === bookId);
+  return book?.name || 'Unknown';
+}
+
 describe('Cross-Book Navigation', () => {
   let queryClient: QueryClient;
   let mockOnPageChange: jest.Mock;
@@ -121,17 +130,26 @@ describe('Cross-Book Navigation', () => {
   });
 
   const renderPagerView = (bookId: number, chapterNumber: number) => {
+    const bookName = getBookName(bookId);
+
     return render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <ToastProvider>
-            <ChapterPagerView
+            <ChapterNavigationProvider
               initialBookId={bookId}
               initialChapter={chapterNumber}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={mockOnPageChange}
-            />
+              initialBookName={bookName}
+              onJumpToChapter={jest.fn()}
+            >
+              <ChapterPagerView
+                initialBookId={bookId}
+                initialChapter={chapterNumber}
+                activeTab="summary"
+                activeView="bible"
+                onPageChange={mockOnPageChange}
+              />
+            </ChapterNavigationProvider>
           </ToastProvider>
         </ThemeProvider>
       </QueryClientProvider>

@@ -1,14 +1,14 @@
 /**
  * ChapterPagerView Component
  *
- * Wraps react-native-pager-view with a fixed 7-page sliding window.
+ * Wraps react-native-pager-view with a fixed 5-page sliding window.
  * Uses STABLE POSITIONAL KEYS to prevent "infinite swipe" bug.
  *
  * Architecture:
- * - Render exactly 7 pages with circular navigation at Bible boundaries
- * - Keys: ["page-0", "page-1", "page-2", ..., "page-6"] - NEVER CHANGE
- * - Center at index 3
- * - Re-center when reaching edges (index 0 or 6)
+ * - Render exactly 5 pages with circular navigation at Bible boundaries
+ * - Keys: ["page-0", "page-1", "page-2", "page-3", "page-4"] - NEVER CHANGE
+ * - Center at index 2
+ * - Re-center when reaching edges (index 0 or 4)
  * - Pass chapter data as props that update when window shifts
  *
  * Circular Navigation:
@@ -16,8 +16,14 @@
  * - Swiping forward from Revelation 22 shows Genesis 1
  * - No boundary pages - continuous reading experience through entire Bible
  *
+ * Context Integration:
+ * - Updates ChapterNavigationContext synchronously on swipe completion
+ * - Extracts bookName from booksMetadata (no API call needed)
+ * - Header reads from context for instant updates
+ *
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 103-218)
  * @see Spec: agent-os/specs/circular-bible-navigation/spec.md
+ * @see Spec: agent-os/specs/2026-01-21-chapter-header-slide-sync/spec.md
  */
 
 import * as Haptics from 'expo-haptics';
@@ -25,6 +31,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
+import { useChapterNavigation } from '@/contexts/ChapterNavigationContext';
 import { useBibleTestaments } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import {
@@ -35,16 +42,15 @@ import {
 import { ChapterPage } from './ChapterPage';
 
 /**
- * Constants for 7-page fixed window
+ * Constants for 5-page fixed window (reduced from 7 for performance)
  */
-const WINDOW_SIZE = 7;
-const CENTER_INDEX = 3;
+const WINDOW_SIZE = 5;
+const CENTER_INDEX = 2;
 
 /**
  * Delay in milliseconds before calling onPageChange after swipe
  * This prevents double animation (PagerView + router.replace)
- * Kept short (75ms) to ensure snappy UI updates (Header/Fab), while
- * parent component handles URL debouncing to prevent global re-renders.
+ * Note: Context updates happen synchronously - this delay is ONLY for URL sync.
  */
 const ROUTE_UPDATE_DELAY_MS = 75;
 
@@ -77,7 +83,7 @@ export interface ChapterPagerViewProps {
   targetVerse?: number;
   /** Target end verse for multi-verse highlights (optional) */
   targetEndVerse?: number;
-  /** Callback when page changes (after swipe completes) */
+  /** Callback when page changes (after swipe completes) - used for URL sync */
   onPageChange: (bookId: number, chapterNumber: number) => void;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
@@ -88,7 +94,7 @@ export interface ChapterPagerViewProps {
 /**
  * ChapterPagerView Component
  *
- * Implements 7-page fixed window with stable positional keys and circular navigation.
+ * Implements 5-page fixed window with stable positional keys and circular navigation.
  * Prevents "infinite swipe restarting at Genesis 1" bug by:
  * - Using stable keys based on window POSITION, not content
  * - Passing bookId/chapterNumber as PROPS that update
@@ -135,6 +141,9 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
     const pagerRef = useRef<PagerView>(null);
     const routeUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Get context setter for synchronous navigation state updates
+    const { setCurrentChapter } = useChapterNavigation();
+
     // Fetch books metadata for navigation calculations
     const { data: booksMetadata } = useBibleTestaments();
 
@@ -143,7 +152,7 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       getAbsolutePageIndex(initialBookId, initialChapter, booksMetadata)
     );
 
-    // Track the currently selected position in the 7-page window (0-6)
+    // Track the currently selected position in the 5-page window (0-4)
     const [selectedPosition, setSelectedPosition] = useState(CENTER_INDEX);
 
     // Flag to tell pages NOT to reset scroll during a seamless snap
@@ -260,9 +269,9 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
     };
 
     /**
-     * Generate exactly 7 pages with STABLE POSITIONAL KEYS
+     * Generate exactly 5 pages with STABLE POSITIONAL KEYS
      *
-     * Keys never change - they're based on window position (0-6), not content.
+     * Keys never change - they're based on window position (0-4), not content.
      * Chapter data is passed as props that update when window shifts.
      * All pages render actual chapter content - no boundary pages for chapter navigation.
      */
@@ -347,11 +356,16 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
      *
      * SEAMLESS RESET STRATEGY:
      * To prevent the "every other swipe is laggy" bug, we re-center the pager
-     * to the middle index (3) after reaching edge positions.
+     * to the middle index (2) after reaching edge positions.
      *
      * With circular navigation, there are no out-of-bounds positions - all
      * indices wrap to valid chapters. The edge reset logic re-centers the
      * window while maintaining seamless content continuity.
+     *
+     * CONTEXT UPDATE:
+     * Updates ChapterNavigationContext SYNCHRONOUSLY (no setTimeout) so the
+     * header displays the correct chapter instantly. The onPageChange callback
+     * still has a 75ms delay for URL sync to prevent double animations.
      */
     const handlePageSelected = (event: { nativeEvent: OnPageSelectedEventData }) => {
       const newPosition = Math.floor(event.nativeEvent.position);
@@ -374,11 +388,21 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       // Use circular wrapping for the new index
       const wrappedIndex = wrapCircularIndex(newAbsoluteIndex, booksMetadata);
 
-      // Check if user reached edge positions (0 or 6) - EDGE RESET
-      const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
+      // Get chapter info for context and route updates
+      const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
 
       // Fire Haptics INSTANTLY on the native UI thread
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // UPDATE CONTEXT SYNCHRONOUSLY - this makes the header update instantly
+      // Extract bookName from booksMetadata (no API call needed)
+      if (chapter) {
+        const bookName = booksMetadata?.find((b) => b.id === chapter.bookId)?.name || '';
+        setCurrentChapter(chapter.bookId, chapter.chapterNumber, bookName);
+      }
+
+      // Check if user reached edge positions (0 or 4) - EDGE RESET
+      const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
 
       if (isAtEdge) {
         // SEAMLESS EDGE SNAP with circular index
@@ -391,12 +415,12 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         posRef.current = CENTER_INDEX;
 
         // Now update the absolute index - pages will recalculate correctly since
-        // pager is already centered at position 3
+        // pager is already centered at position 2
         setForceJump(false); // ENSURE we don't reset scroll during this snap
         setCurrentAbsoluteIndex(wrappedIndex);
         absIndexRef.current = wrappedIndex;
 
-        const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
+        // Delayed URL sync (75ms) - context already updated synchronously above
         if (chapter) {
           routeUpdateTimeoutRef.current = setTimeout(() => {
             onPageChange(chapter.bookId, chapter.chapterNumber);
@@ -405,7 +429,7 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         }
       } else {
         // Non-edge position - use wrapped index for navigation
-        const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
+        // Delayed URL sync (75ms) - context already updated synchronously above
         if (chapter) {
           routeUpdateTimeoutRef.current = setTimeout(() => {
             onPageChange(chapter.bookId, chapter.chapterNumber);
@@ -423,7 +447,7 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         onPageSelected={handlePageSelected}
         testID="chapter-pager-view"
         removeClippedSubviews={false}
-        offscreenPageLimit={4}
+        offscreenPageLimit={2}
         overScrollMode="never"
       >
         {pages}

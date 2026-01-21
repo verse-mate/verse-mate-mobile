@@ -288,10 +288,10 @@ export function ChapterPage({
   // Get current language from user preferences (default to 'en-US')
   // This ensures the query key changes when language changes
   const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
+
   // Text visibility tracking for hybrid tokenization
   // Use state with debouncing to avoid re-renders on every scroll frame
   const [visibleYRange, setVisibleYRange] = useState<VisibleYRange | null>(null);
-  const visibleYRangeRef = useRef<VisibleYRange | null>(null);
   const visibilityUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportHeightRef = useRef<number>(0);
 
@@ -307,30 +307,7 @@ export function ChapterPage({
     chapterNumber,
   });
 
-  // Staggered rendering state to prevent UI freeze (waterfall loading)
-  // 0: Initial (only active view)
-  // 1: Mount Explanations container (active tab renders)
-  // 2: Mount Summary tab (if hidden)
-  // 3: Mount Byline tab (if hidden)
-  // 4: Mount Detailed tab (if hidden)
-  const [delayedRenderStage, setDelayedRenderStage] = useState(0);
-
   const { deleteNote, isDeletingNote } = useNotes();
-
-  // Trigger staggered delayed render
-  useEffect(() => {
-    const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
-    const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
-    const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
-    const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  }, []);
 
   // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
@@ -358,7 +335,6 @@ export function ChapterPage({
     }
     // Reset visible range on chapter change
     setVisibleYRange(null);
-    visibleYRangeRef.current = null;
   }, [bookId, chapterNumber]);
 
   // Mark as scrolled when user switches to explanations view
@@ -506,28 +482,42 @@ export function ChapterPage({
     // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of attemptScrollToVerse
   }, [targetVerse, attemptScrollToVerse]);
 
-  // Fallback: if initial layout was late, retry after mount
+  // Use requestAnimationFrame-based approach for scroll-to-verse retry
+  // This is cleaner than polling with setInterval and avoids memory leaks
   useEffect(() => {
-    // Quick one-shot retry
-    const timeout = setTimeout(() => {
-      attemptScrollToVerse();
-    }, 300);
+    if (!targetVerse || hasScrolledRef.current) return;
 
-    // Short polling until positions available or 2s elapsed
-    const start = Date.now();
-    const interval = setInterval(() => {
+    let frameId: number | null = null;
+    const startTime = Date.now();
+    const maxDuration = 2000; // Maximum time to retry (2 seconds)
+
+    const checkAndScroll = () => {
+      // Stop if we've already scrolled or exceeded max duration
+      if (hasScrolledRef.current || Date.now() - startTime > maxDuration) {
+        return;
+      }
+
+      // Check if positions are available
       const havePositions = Object.keys(sectionPositionsRef.current).length > 0;
       if (havePositions) {
         attemptScrollToVerse();
-        clearInterval(interval);
-      } else if (Date.now() - start > 2000) {
-        clearInterval(interval);
+        return;
       }
-    }, 150);
+
+      // Schedule next check
+      frameId = requestAnimationFrame(checkAndScroll);
+    };
+
+    // Initial check after a short delay to allow layout
+    const initialTimeout = setTimeout(() => {
+      frameId = requestAnimationFrame(checkAndScroll);
+    }, 100);
 
     return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
+      clearTimeout(initialTimeout);
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
     };
     // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of attemptScrollToVerse
   }, [attemptScrollToVerse]);
@@ -546,12 +536,11 @@ export function ChapterPage({
     // Store viewport height for visibility calculations
     viewportHeightRef.current = layoutMeasurement.height;
 
-    // Update visible Y range ref immediately (no re-render)
+    // Update visible Y range with debouncing to avoid re-renders on every scroll frame
     const newRange: VisibleYRange = {
       startY: currentScrollY,
       endY: currentScrollY + layoutMeasurement.height,
     };
-    visibleYRangeRef.current = newRange;
 
     // Debounce state update to avoid re-renders on every scroll frame
     // Update every 150ms for smooth-enough tokenization transitions
@@ -647,10 +636,17 @@ export function ChapterPage({
   // Memoize context value to avoid unnecessary re-renders
   const textVisibilityContextValue = useMemo(() => ({ visibleYRange }), [visibleYRange]);
 
+  // Determine which tabs should be rendered based on query loading states
+  // Render tabs immediately when their data is available (no artificial delays)
+  const shouldRenderExplanations = activeView === 'explanations' || !isPreloading;
+  const shouldRenderSummary = !isSummaryLoading || summaryData != null;
+  const shouldRenderByLine = !isByLineLoading || byLineData != null;
+  const shouldRenderDetailed = !isDetailedLoading || detailedData != null;
+
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Explanations View - Render if active OR if delayed render stage >= 1 (And NOT preloading) */}
-      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
+      {/* Explanations View - Render immediately when not preloading */}
+      {shouldRenderExplanations && (
         <View
           style={[
             styles.container,
@@ -674,7 +670,7 @@ export function ChapterPage({
             isLoading={isSummaryLoading}
             error={summaryError}
             visible={activeTab === 'summary'}
-            shouldRenderHidden={delayedRenderStage >= 2}
+            shouldRenderHidden={shouldRenderSummary}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
@@ -689,7 +685,7 @@ export function ChapterPage({
             isLoading={isByLineLoading}
             error={byLineError}
             visible={activeTab === 'byline'}
-            shouldRenderHidden={delayedRenderStage >= 3}
+            shouldRenderHidden={shouldRenderByLine}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}
@@ -704,7 +700,7 @@ export function ChapterPage({
             isLoading={isDetailedLoading}
             error={detailedError}
             visible={activeTab === 'detailed'}
-            shouldRenderHidden={delayedRenderStage >= 4}
+            shouldRenderHidden={shouldRenderDetailed}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
             onScroll={handleScroll}
             onTouchStart={handleTouchStart}

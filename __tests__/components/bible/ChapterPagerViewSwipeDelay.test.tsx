@@ -4,6 +4,8 @@
  * Tests focused on delayed route updates after swipe gesture completion.
  * Ensures PagerView animation completes before router.replace() is called.
  *
+ * Note: Window size is now 5 pages with CENTER_INDEX = 2
+ *
  * Test Coverage:
  * - onPageChange called with delay after swipe
  * - Timeout cleanup on unmount
@@ -13,6 +15,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react-native';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ChapterNavigationProvider } from '@/contexts/ChapterNavigationContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBibleTestaments } from '@/src/api';
 import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
@@ -30,6 +33,16 @@ jest.mock('@/components/bible/ChapterPage', () => ({
         Book {bookId} Chapter {chapterNumber}
       </Text>
     );
+  },
+}));
+
+// Mock expo-haptics
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(),
+  ImpactFeedbackStyle: {
+    Light: 'light',
+    Medium: 'medium',
+    Heavy: 'heavy',
   },
 }));
 
@@ -60,6 +73,13 @@ jest.mock('react-native-pager-view', () => {
 });
 
 const mockUseBibleTestaments = useBibleTestaments as jest.MockedFunction<typeof useBibleTestaments>;
+
+/**
+ * Helper to get book name from mock data
+ */
+function getBookName(bookId: number): string {
+  return mockTestamentBooks.find((b) => b.id === bookId)?.name || 'Unknown';
+}
 
 describe('ChapterPagerView - Swipe Route Update Delay', () => {
   let queryClient: QueryClient;
@@ -93,19 +113,26 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
+          <ChapterNavigationProvider
             initialBookId={1}
             initialChapter={5}
-            activeTab="summary"
-            activeView="bible"
-            onPageChange={onPageChange}
-          />
+            initialBookName="Genesis"
+            onJumpToChapter={jest.fn()}
+          >
+            <ChapterPagerView
+              initialBookId={1}
+              initialChapter={5}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={onPageChange}
+            />
+          </ChapterNavigationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
 
-    // Simulate swipe to next page (position 4, since CENTER_INDEX is 3)
-    mockOnPageSelected?.({ nativeEvent: { position: 4 } });
+    // Simulate swipe to next page (position 3, since CENTER_INDEX is 2)
+    mockOnPageSelected?.({ nativeEvent: { position: 3 } });
 
     // onPageChange should NOT be called immediately
     expect(onPageChange).not.toHaveBeenCalled();
@@ -125,19 +152,26 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
     const { unmount } = render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
+          <ChapterNavigationProvider
             initialBookId={1}
             initialChapter={5}
-            activeTab="summary"
-            activeView="bible"
-            onPageChange={onPageChange}
-          />
+            initialBookName="Genesis"
+            onJumpToChapter={jest.fn()}
+          >
+            <ChapterPagerView
+              initialBookId={1}
+              initialChapter={5}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={onPageChange}
+            />
+          </ChapterNavigationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
 
     // Simulate swipe
-    mockOnPageSelected?.({ nativeEvent: { position: 4 } });
+    mockOnPageSelected?.({ nativeEvent: { position: 3 } });
 
     // Unmount before delay completes
     unmount();
@@ -148,31 +182,39 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
     // onPageChange should NOT be called (timeout was cleaned up)
     expect(onPageChange).not.toHaveBeenCalled();
   });
+
   it('handles rapid swipes without stale route updates', () => {
     const onPageChange = jest.fn();
 
     render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
+          <ChapterNavigationProvider
             initialBookId={1}
             initialChapter={5}
-            activeTab="summary"
-            activeView="bible"
-            onPageChange={onPageChange}
-          />
+            initialBookName="Genesis"
+            onJumpToChapter={jest.fn()}
+          >
+            <ChapterPagerView
+              initialBookId={1}
+              initialChapter={5}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={onPageChange}
+            />
+          </ChapterNavigationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
 
-    // Simulate first swipe to position 4
-    mockOnPageSelected?.({ nativeEvent: { position: 4 } });
+    // Simulate first swipe to position 3 (next page with 5-page window)
+    mockOnPageSelected?.({ nativeEvent: { position: 3 } });
 
     // Advance by 30ms (not enough to trigger first callback)
     jest.advanceTimersByTime(30);
 
-    // Simulate second rapid swipe to position 2 (should cancel first timeout)
-    mockOnPageSelected?.({ nativeEvent: { position: 2 } });
+    // Simulate second rapid swipe to position 1 (should cancel first timeout)
+    mockOnPageSelected?.({ nativeEvent: { position: 1 } });
 
     // Advance past when first delay would have fired
     jest.advanceTimersByTime(50); // Total 80ms from first swipe, 50ms from second
@@ -193,19 +235,26 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
+          <ChapterNavigationProvider
             initialBookId={1}
             initialChapter={1}
-            activeTab="summary"
-            activeView="bible"
-            onPageChange={onPageChange}
-          />
+            initialBookName="Genesis"
+            onJumpToChapter={jest.fn()}
+          >
+            <ChapterPagerView
+              initialBookId={1}
+              initialChapter={1}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={onPageChange}
+            />
+          </ChapterNavigationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
 
-    // Simulate swipe to next chapter (position 4, since CENTER_INDEX is 3)
-    mockOnPageSelected?.({ nativeEvent: { position: 4 } });
+    // Simulate swipe to next chapter (position 3, since CENTER_INDEX is 2)
+    mockOnPageSelected?.({ nativeEvent: { position: 3 } });
 
     // Verify callback not called immediately
     expect(onPageChange).not.toHaveBeenCalled();
@@ -223,18 +272,25 @@ describe('ChapterPagerView - Swipe Route Update Delay', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
+          <ChapterNavigationProvider
             initialBookId={1}
             initialChapter={5}
-            activeTab="summary"
-            activeView="bible"
-            onPageChange={onPageChange}
-          />
+            initialBookName="Genesis"
+            onJumpToChapter={jest.fn()}
+          >
+            <ChapterPagerView
+              initialBookId={1}
+              initialChapter={5}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={onPageChange}
+            />
+          </ChapterNavigationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
 
-    // Simulate swipe to edge position (position 4)
+    // Simulate swipe to edge position (position 4 for 5-page window)
     mockOnPageSelected?.({ nativeEvent: { position: 4 } });
 
     // Verify callback not called immediately

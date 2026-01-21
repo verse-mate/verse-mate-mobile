@@ -8,7 +8,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { __TEST_ONLY_RESET_CACHE, useActiveTab } from '@/hooks/bible/use-active-tab';
+import { useActiveTab } from '@/hooks/bible/use-active-tab';
 import { STORAGE_KEYS } from '@/types/bible';
 
 // AsyncStorage is automatically mocked by @react-native-async-storage/async-storage
@@ -17,8 +17,8 @@ describe('useActiveTab', () => {
   beforeEach(async () => {
     // Clear AsyncStorage before each test
     await AsyncStorage.clear();
-    // Reset module cache to clear in-memory cache
-    __TEST_ONLY_RESET_CACHE();
+    // Reset modules to clear any cached state in hooks
+    jest.resetModules();
   });
 
   afterEach(async () => {
