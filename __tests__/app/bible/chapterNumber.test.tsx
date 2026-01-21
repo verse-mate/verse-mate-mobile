@@ -352,13 +352,15 @@ describe('ChapterScreen', () => {
   });
 
   /**
-   * Test 5: Invalid bookId redirects to Genesis 1
+   * Test 5: Shows error state when chapter data is not available
+   *
+   * Note: The ChapterScreen validates bookId client-side and clamps to 1-66 range.
+   * When API returns no chapter data (error), it shows an error state.
+   * URL sync only happens in ChapterScreenContent which requires valid chapter data.
    */
-  it('redirects to Genesis 1 when bookId is invalid', () => {
-    jest.useFakeTimers();
-
+  it('shows error state when chapter data is not available', () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
-      bookId: '999', // Invalid book ID (only 66 books)
+      bookId: '999', // Invalid book ID (will be clamped to 66)
       chapterNumber: '1',
     });
 
@@ -368,22 +370,11 @@ describe('ChapterScreen', () => {
       error: new Error('Book not found'),
     });
 
-    renderWithSafeArea(<ChapterScreen />);
+    const { getByTestId, getByText } = renderWithSafeArea(<ChapterScreen />);
 
-    // Validation sets state immediately, then debounced URL sync happens after 1000ms
-    act(() => {
-      jest.advanceTimersByTime(1000);
-    });
-
-    // Should update URL params to Genesis 1 (bookId: 1, chapterNumber: 1)
-    expect(router.setParams).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bookId: '1',
-        chapterNumber: '1',
-      })
-    );
-
-    jest.useRealTimers();
+    // Should show error state with header and error message
+    expect(getByTestId('chapter-header')).toBeTruthy();
+    expect(getByText('Chapter not found')).toBeTruthy();
   });
 
   /**

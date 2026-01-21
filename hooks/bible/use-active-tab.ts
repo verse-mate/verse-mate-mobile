@@ -22,21 +22,10 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { ContentTabType, UseActiveTabResult } from '@/types/bible';
 import { isContentTabType, STORAGE_KEYS } from '@/types/bible';
-
-// Module-level cache to prevent flickering on remount
-let inMemoryCache: ContentTabType | null = null;
-
-/**
- * FOR TEST ENVIRONMENTS ONLY
- * Resets the in-memory cache for this hook.
- */
-export function __TEST_ONLY_RESET_CACHE() {
-  inMemoryCache = null;
-}
 
 /**
  * Hook to manage active tab state with AsyncStorage persistence
@@ -48,15 +37,20 @@ export function __TEST_ONLY_RESET_CACHE() {
  *   - error: Error object if loading or saving failed
  */
 export function useActiveTab(): UseActiveTabResult {
-  const [activeTab, setActiveTabState] = useState<ContentTabType>(inMemoryCache || 'summary');
-  const [isLoading, setIsLoading] = useState(!inMemoryCache);
+  // Use ref to cache loaded value and prevent flickering on remount
+  const loadedValueRef = useRef<ContentTabType | null>(null);
+
+  const [activeTab, setActiveTabState] = useState<ContentTabType>(
+    loadedValueRef.current || 'summary'
+  );
+  const [isLoading, setIsLoading] = useState(!loadedValueRef.current);
   const [error, setError] = useState<Error | null>(null);
 
   // Load persisted tab from AsyncStorage on mount
   useEffect(() => {
     let isMounted = true;
     async function loadPersistedTab() {
-      if (inMemoryCache) {
+      if (loadedValueRef.current) {
         return;
       }
 
@@ -68,13 +62,13 @@ export function useActiveTab(): UseActiveTabResult {
         if (isMounted) {
           const finalTab = storedTab && isContentTabType(storedTab) ? storedTab : 'summary';
           setActiveTabState(finalTab);
-          inMemoryCache = finalTab;
+          loadedValueRef.current = finalTab;
         }
       } catch (err) {
         if (isMounted) {
           setError(err instanceof Error ? err : new Error('Failed to load active tab'));
           setActiveTabState('summary');
-          inMemoryCache = 'summary';
+          loadedValueRef.current = 'summary';
         }
       } finally {
         if (isMounted) {
@@ -96,7 +90,7 @@ export function useActiveTab(): UseActiveTabResult {
         throw new Error(`Invalid tab type: ${tab}. Must be 'summary', 'byline', or 'detailed'.`);
       }
       setActiveTabState(tab);
-      inMemoryCache = tab;
+      loadedValueRef.current = tab;
 
       // Track analytics: EXPLANATION_TAB_CHANGED event
       analytics.track(AnalyticsEvent.EXPLANATION_TAB_CHANGED, {

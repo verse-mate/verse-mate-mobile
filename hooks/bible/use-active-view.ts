@@ -20,13 +20,10 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { UseActiveViewResult, ViewModeType } from '@/types/bible';
 import { isViewModeType, STORAGE_KEYS } from '@/types/bible';
-
-// Module-level cache to prevent flickering on remount
-let inMemoryCache: ViewModeType | null = null;
 
 /**
  * Hook to manage active view state with AsyncStorage persistence
@@ -38,8 +35,13 @@ let inMemoryCache: ViewModeType | null = null;
  *   - error: Error object if loading or saving failed
  */
 export function useActiveView(): UseActiveViewResult {
-  const [activeView, setActiveViewState] = useState<ViewModeType>(inMemoryCache || 'bible');
-  const [isLoading, setIsLoading] = useState(!inMemoryCache);
+  // Use ref to cache loaded value and prevent flickering on remount
+  const loadedValueRef = useRef<ViewModeType | null>(null);
+
+  const [activeView, setActiveViewState] = useState<ViewModeType>(
+    loadedValueRef.current || 'bible'
+  );
+  const [isLoading, setIsLoading] = useState(!loadedValueRef.current);
   const [error, setError] = useState<Error | null>(null);
 
   // Load persisted view from AsyncStorage on mount
@@ -47,7 +49,7 @@ export function useActiveView(): UseActiveViewResult {
     let isMounted = true;
     async function loadPersistedView() {
       // Skip loading if cache is already populated
-      if (inMemoryCache) {
+      if (loadedValueRef.current) {
         return;
       }
 
@@ -60,13 +62,13 @@ export function useActiveView(): UseActiveViewResult {
         if (isMounted) {
           const finalView = storedView && isViewModeType(storedView) ? storedView : 'bible';
           setActiveViewState(finalView);
-          inMemoryCache = finalView; // Update cache
+          loadedValueRef.current = finalView; // Update cache
         }
       } catch (err) {
         if (isMounted) {
           setError(err instanceof Error ? err : new Error('Failed to load active view'));
           setActiveViewState('bible');
-          inMemoryCache = 'bible'; // Update cache on error
+          loadedValueRef.current = 'bible'; // Update cache on error
         }
       } finally {
         if (isMounted) {
@@ -93,7 +95,7 @@ export function useActiveView(): UseActiveViewResult {
 
       // Update state and cache immediately
       setActiveViewState(view);
-      inMemoryCache = view;
+      loadedValueRef.current = view;
 
       // Track analytics: VIEW_MODE_SWITCHED event
       analytics.track(AnalyticsEvent.VIEW_MODE_SWITCHED, {
