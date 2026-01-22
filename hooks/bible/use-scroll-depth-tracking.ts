@@ -17,7 +17,7 @@
  * ```
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 
 /**
@@ -63,7 +63,7 @@ export function useScrollDepthTracking(
   /**
    * Handle scroll event - update max depth if current scroll is greater
    */
-  const handleScroll = useCallback((scrollPercent: number) => {
+  const handleScroll = (scrollPercent: number) => {
     // Clamp scroll percent to 0-100
     const clampedPercent = Math.max(0, Math.min(100, scrollPercent));
 
@@ -71,7 +71,7 @@ export function useScrollDepthTracking(
     if (clampedPercent > maxScrollDepthRef.current) {
       maxScrollDepthRef.current = clampedPercent;
     }
-  }, []);
+  };
 
   // Fire event on unmount with max scroll depth
   useEffect(() => {

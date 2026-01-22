@@ -12,7 +12,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -149,7 +149,7 @@ export function AutoHighlightTooltip({
   }, [byLineData, autoHighlight]);
 
   // Helper to animate open
-  const animateOpen = useCallback(() => {
+  const animateOpen = () => {
     setInternalVisible(true);
     Animated.parallel([
       Animated.timing(backdropOpacity, {
@@ -164,40 +164,37 @@ export function AutoHighlightTooltip({
         stiffness: 90,
       }),
     ]).start();
-  }, [backdropOpacity, slideAnim]);
+  };
 
   // Helper to animate close
-  const animateClose = useCallback(
-    (callback?: () => void) => {
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: screenHeight,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 90,
-          overshootClamping: true,
-          restDisplacementThreshold: 40,
-          restSpeedThreshold: 40,
-        }),
-      ]).start();
+  const animateClose = (callback?: () => void) => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: screenHeight,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+        overshootClamping: true,
+        restDisplacementThreshold: 40,
+        restSpeedThreshold: 40,
+      }),
+    ]).start();
 
-      // Force cleanup after 150ms to prevent "spring tail" blocking the UI
-      // This ensures the modal unmounts deterministically, fixing the double-click bug
-      setTimeout(() => {
-        setInternalVisible(false);
-        setExpanded(true); // Reset expansion state
-        expansionAnim.setValue(1);
-        hasTrackedOpen.current = false; // Reset tracking flag
-        if (callback) callback();
-      }, 150);
-    },
-    [backdropOpacity, slideAnim, screenHeight, expansionAnim]
-  );
+    // Force cleanup after 150ms to prevent "spring tail" blocking the UI
+    // This ensures the modal unmounts deterministically, fixing the double-click bug
+    setTimeout(() => {
+      setInternalVisible(false);
+      setExpanded(true); // Reset expansion state
+      expansionAnim.setValue(1);
+      hasTrackedOpen.current = false; // Reset tracking flag
+      if (callback) callback();
+    }, 150);
+  };
 
   // Handle expansion animation
   useEffect(() => {
@@ -230,14 +227,15 @@ export function AutoHighlightTooltip({
     } else if (internalVisible) {
       animateClose();
     }
-  }, [visible, animateOpen, animateClose, internalVisible, expansionAnim, autoHighlight]);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of animateOpen/animateClose
+  }, [visible, internalVisible, expansionAnim, autoHighlight, animateOpen, animateClose]);
 
   // Handle explicit dismiss (user action)
-  const handleDismiss = useCallback(() => {
+  const handleDismiss = () => {
     animateClose(() => {
       onClose();
     });
-  }, [animateClose, onClose]);
+  };
 
   // Auto-close tooltip when switching to insight-only screen (right-full mode)
   // Tooltips are supported in split view and full Bible screen, but not in insight-only
@@ -245,6 +243,7 @@ export function AutoHighlightTooltip({
     if (visible && splitViewMode === 'right-full') {
       handleDismiss();
     }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of handleDismiss
   }, [visible, splitViewMode, handleDismiss]);
 
   // Keep refs for PanResponder closure

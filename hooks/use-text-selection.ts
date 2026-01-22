@@ -31,7 +31,7 @@
  * ```
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 /**
  * Selection state for a word or phrase
@@ -155,7 +155,7 @@ export function useTextSelection(): UseTextSelectionReturn {
   /**
    * Select a word at the given position
    */
-  const selectWord = useCallback((input: SelectWordInput) => {
+  const selectWord = (input: SelectWordInput) => {
     const { verseNumber, text, startChar, endChar, tapPosition } = input;
 
     // Clear any pending menu timer
@@ -182,12 +182,12 @@ export function useTextSelection(): UseTextSelectionReturn {
     menuTimerRef.current = setTimeout(() => {
       setIsMenuVisible(true);
     }, 300);
-  }, []);
+  };
 
   /**
    * Clear the current selection
    */
-  const clearSelection = useCallback(() => {
+  const clearSelection = () => {
     if (menuTimerRef.current) {
       clearTimeout(menuTimerRef.current);
       menuTimerRef.current = null;
@@ -195,12 +195,12 @@ export function useTextSelection(): UseTextSelectionReturn {
     setSelection(null);
     setIsMenuVisible(false);
     setMenuPosition({ x: 0, y: 0 });
-  }, []);
+  };
 
   /**
    * Show the menu immediately
    */
-  const showMenu = useCallback(() => {
+  const showMenu = () => {
     if (selection) {
       if (menuTimerRef.current) {
         clearTimeout(menuTimerRef.current);
@@ -208,14 +208,14 @@ export function useTextSelection(): UseTextSelectionReturn {
       }
       setIsMenuVisible(true);
     }
-  }, [selection]);
+  };
 
   /**
    * Hide the menu
    */
-  const hideMenu = useCallback(() => {
+  const hideMenu = () => {
     setIsMenuVisible(false);
-  }, []);
+  };
 
   return {
     selection,

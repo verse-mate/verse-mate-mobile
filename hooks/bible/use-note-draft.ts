@@ -36,7 +36,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NOTES_CONFIG } from '@/constants/notes';
 import type { NoteDraft } from '@/types/notes';
 
@@ -96,40 +96,37 @@ export function useNoteDraft(chapterId: number, noteId?: string): UseNoteDraftRe
   /**
    * Save draft to AsyncStorage (debounced)
    */
-  const saveDraft = useCallback(
-    (content: string) => {
-      // Clear existing timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
+  const saveDraft = (content: string) => {
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Update local state immediately
+    setDraftContent(content);
+
+    // Set new timer
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        const draft: NoteDraft = {
+          content,
+          savedAt: new Date().toISOString(),
+          bookId: Math.floor(chapterId / 1000), // Extract bookId (would come from parent)
+          chapterNumber: chapterId % 1000, // Extract chapterNumber (would come from parent)
+          noteId,
+        };
+
+        await AsyncStorage.setItem(storageKey, JSON.stringify(draft));
+      } catch (error) {
+        console.error('Failed to save draft:', error);
       }
-
-      // Update local state immediately
-      setDraftContent(content);
-
-      // Set new timer
-      debounceTimerRef.current = setTimeout(async () => {
-        try {
-          const draft: NoteDraft = {
-            content,
-            savedAt: new Date().toISOString(),
-            bookId: Math.floor(chapterId / 1000), // Extract bookId (would come from parent)
-            chapterNumber: chapterId % 1000, // Extract chapterNumber (would come from parent)
-            noteId,
-          };
-
-          await AsyncStorage.setItem(storageKey, JSON.stringify(draft));
-        } catch (error) {
-          console.error('Failed to save draft:', error);
-        }
-      }, NOTES_CONFIG.DRAFT_DEBOUNCE_MS);
-    },
-    [storageKey, chapterId, noteId]
-  );
+    }, NOTES_CONFIG.DRAFT_DEBOUNCE_MS);
+  };
 
   /**
    * Clear draft from AsyncStorage
    */
-  const clearDraft = useCallback(async () => {
+  const clearDraft = async () => {
     try {
       // Clear debounce timer
       if (debounceTimerRef.current) {
@@ -142,7 +139,7 @@ export function useNoteDraft(chapterId: number, noteId?: string): UseNoteDraftRe
     } catch (error) {
       console.error('Failed to clear draft:', error);
     }
-  }, [storageKey]);
+  };
 
   /**
    * Cleanup debounce timer on unmount

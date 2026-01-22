@@ -21,7 +21,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -198,7 +198,7 @@ export function VerseMateTooltip({
   }, [byLineData, chapterNumber, startVerse, endVerse, targetVerseNumber]);
 
   // Helper to animate open
-  const animateOpen = useCallback(() => {
+  const animateOpen = () => {
     setInternalVisible(true);
     // Record the open timestamp for duration tracking
     openTimestampRef.current = Date.now();
@@ -216,64 +216,53 @@ export function VerseMateTooltip({
         stiffness: 90,
       }),
     ]).start();
-  }, [backdropOpacity, slideAnim]);
+  };
 
   // Helper to animate close
-  const animateClose = useCallback(
-    (callback?: () => void) => {
-      // Calculate and track duration (Time-Based Analytics)
-      if (openTimestampRef.current && targetVerseNumber) {
-        const durationMs = Date.now() - openTimestampRef.current;
-        const durationSeconds = Math.floor(durationMs / 1000);
+  const animateClose = (callback?: () => void) => {
+    // Calculate and track duration (Time-Based Analytics)
+    if (openTimestampRef.current && targetVerseNumber) {
+      const durationMs = Date.now() - openTimestampRef.current;
+      const durationSeconds = Math.floor(durationMs / 1000);
 
-        // Only track if tooltip was open for >= 3 seconds (filter accidental taps)
-        if (durationSeconds >= TOOLTIP_DURATION_THRESHOLD_SECONDS) {
-          analytics.track(AnalyticsEvent.TOOLTIP_READING_DURATION, {
-            duration_seconds: durationSeconds,
-            bookId,
-            chapterNumber,
-            verseNumber: targetVerseNumber,
-          });
-        }
+      // Only track if tooltip was open for >= 3 seconds (filter accidental taps)
+      if (durationSeconds >= TOOLTIP_DURATION_THRESHOLD_SECONDS) {
+        analytics.track(AnalyticsEvent.TOOLTIP_READING_DURATION, {
+          duration_seconds: durationSeconds,
+          bookId,
+          chapterNumber,
+          verseNumber: targetVerseNumber,
+        });
       }
+    }
 
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: screenHeight,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 90,
-          overshootClamping: true,
-          restDisplacementThreshold: 40,
-          restSpeedThreshold: 40,
-        }),
-      ]).start();
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: screenHeight,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+        overshootClamping: true,
+        restDisplacementThreshold: 40,
+        restSpeedThreshold: 40,
+      }),
+    ]).start();
 
-      // Force cleanup after 150ms to prevent "spring tail" blocking the UI
-      setTimeout(() => {
-        setInternalVisible(false);
-        setExpanded(true); // Reset to default state
-        expansionAnim.setValue(1);
-        hasTrackedOpen.current = false; // Reset tracking flag
-        openTimestampRef.current = null; // Reset open timestamp
-        if (callback) callback();
-      }, 150);
-    },
-    [
-      backdropOpacity,
-      slideAnim,
-      screenHeight,
-      expansionAnim,
-      bookId,
-      chapterNumber,
-      targetVerseNumber,
-    ]
-  );
+    // Force cleanup after 150ms to prevent "spring tail" blocking the UI
+    setTimeout(() => {
+      setInternalVisible(false);
+      setExpanded(true); // Reset to default state
+      expansionAnim.setValue(1);
+      hasTrackedOpen.current = false; // Reset tracking flag
+      openTimestampRef.current = null; // Reset open timestamp
+      if (callback) callback();
+    }, 150);
+  };
 
   // Handle expansion animation
   useEffect(() => {
@@ -309,7 +298,9 @@ export function VerseMateTooltip({
     }
   }, [
     visible,
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization
     animateOpen,
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization
     animateClose,
     internalVisible,
     expansionAnim,
@@ -319,11 +310,11 @@ export function VerseMateTooltip({
   ]);
 
   // Handle explicit dismiss (user action)
-  const handleDismiss = useCallback(() => {
+  const handleDismiss = () => {
     animateClose(() => {
       onClose();
     });
-  }, [animateClose, onClose]);
+  };
 
   // Auto-close tooltip when switching to insight-only screen (right-full mode)
   // Tooltips are supported in split view and full Bible screen, but not in insight-only
@@ -331,6 +322,7 @@ export function VerseMateTooltip({
     if (visible && splitViewMode === 'right-full') {
       handleDismiss();
     }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of handleDismiss
   }, [visible, splitViewMode, handleDismiss]);
 
   // Handle save as highlight (plain verse only)

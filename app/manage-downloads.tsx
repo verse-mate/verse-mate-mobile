@@ -13,7 +13,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -190,7 +190,7 @@ export default function ManageDownloadsScreen() {
     }
   }, [isInitialized, refreshManifest]);
 
-  const handleRefresh = useCallback(async () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
       await refreshManifest();
@@ -199,18 +199,18 @@ export default function ManageDownloadsScreen() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [refreshManifest]);
+  };
 
-  const handleCheckForUpdates = useCallback(async () => {
+  const handleCheckForUpdates = async () => {
     try {
       await checkForUpdates();
       Alert.alert('Success', 'Content is up to date!');
     } catch {
       Alert.alert('Error', 'Failed to check for updates. Please try again.');
     }
-  }, [checkForUpdates]);
+  };
 
-  const handleDeleteAll = useCallback(() => {
+  const handleDeleteAll = () => {
     Alert.alert(
       'Delete All Offline Data',
       'Are you sure you want to delete all downloaded content? This cannot be undone.',
@@ -230,91 +230,73 @@ export default function ManageDownloadsScreen() {
         },
       ]
     );
-  }, [deleteAllData]);
+  };
 
-  const handleDownloadBible = useCallback(
-    async (versionKey: string) => {
-      setProcessingItem(`bible:${versionKey}`);
-      try {
-        await downloadBibleVersion(versionKey);
-      } catch {
-        Alert.alert('Error', 'Failed to download Bible version. Please try again.');
-      } finally {
-        setProcessingItem(null);
-      }
-    },
-    [downloadBibleVersion]
-  );
+  const handleDownloadBible = async (versionKey: string) => {
+    setProcessingItem(`bible:${versionKey}`);
+    try {
+      await downloadBibleVersion(versionKey);
+    } catch {
+      Alert.alert('Error', 'Failed to download Bible version. Please try again.');
+    } finally {
+      setProcessingItem(null);
+    }
+  };
 
-  const handleDeleteBible = useCallback(
-    async (versionKey: string) => {
-      setProcessingItem(`bible:${versionKey}`);
-      try {
-        await deleteBibleVersion(versionKey);
-      } catch {
-        Alert.alert('Error', 'Failed to delete Bible version.');
-      } finally {
-        setProcessingItem(null);
-      }
-    },
-    [deleteBibleVersion]
-  );
+  const handleDeleteBible = async (versionKey: string) => {
+    setProcessingItem(`bible:${versionKey}`);
+    try {
+      await deleteBibleVersion(versionKey);
+    } catch {
+      Alert.alert('Error', 'Failed to delete Bible version.');
+    } finally {
+      setProcessingItem(null);
+    }
+  };
 
-  const handleDownloadCommentary = useCallback(
-    async (languageCode: string) => {
-      setProcessingItem(`commentary:${languageCode}`);
-      try {
-        await downloadCommentaries(languageCode);
-      } catch {
-        Alert.alert('Error', 'Failed to download commentaries. Please try again.');
-      } finally {
-        setProcessingItem(null);
-      }
-    },
-    [downloadCommentaries]
-  );
+  const handleDownloadCommentary = async (languageCode: string) => {
+    setProcessingItem(`commentary:${languageCode}`);
+    try {
+      await downloadCommentaries(languageCode);
+    } catch {
+      Alert.alert('Error', 'Failed to download commentaries. Please try again.');
+    } finally {
+      setProcessingItem(null);
+    }
+  };
 
-  const handleDeleteCommentary = useCallback(
-    async (languageCode: string) => {
-      setProcessingItem(`commentary:${languageCode}`);
-      try {
-        await deleteCommentaries(languageCode);
-      } catch {
-        Alert.alert('Error', 'Failed to delete commentaries.');
-      } finally {
-        setProcessingItem(null);
-      }
-    },
-    [deleteCommentaries]
-  );
+  const handleDeleteCommentary = async (languageCode: string) => {
+    setProcessingItem(`commentary:${languageCode}`);
+    try {
+      await deleteCommentaries(languageCode);
+    } catch {
+      Alert.alert('Error', 'Failed to delete commentaries.');
+    } finally {
+      setProcessingItem(null);
+    }
+  };
 
-  const handleDownloadTopics = useCallback(
-    async (languageCode: string) => {
-      setProcessingItem(`topics:${languageCode}`);
-      try {
-        await downloadTopics(languageCode);
-      } catch {
-        Alert.alert('Error', 'Failed to download topics. Please try again.');
-      } finally {
-        setProcessingItem(null);
-      }
-    },
-    [downloadTopics]
-  );
+  const handleDownloadTopics = async (languageCode: string) => {
+    setProcessingItem(`topics:${languageCode}`);
+    try {
+      await downloadTopics(languageCode);
+    } catch {
+      Alert.alert('Error', 'Failed to download topics. Please try again.');
+    } finally {
+      setProcessingItem(null);
+    }
+  };
 
-  const handleDeleteTopics = useCallback(
-    async (languageCode: string) => {
-      setProcessingItem(`topics:${languageCode}`);
-      try {
-        await deleteTopics(languageCode);
-      } catch {
-        Alert.alert('Error', 'Failed to delete topics.');
-      } finally {
-        setProcessingItem(null);
-      }
-    },
-    [deleteTopics]
-  );
+  const handleDeleteTopics = async (languageCode: string) => {
+    setProcessingItem(`topics:${languageCode}`);
+    try {
+      await deleteTopics(languageCode);
+    } catch {
+      Alert.alert('Error', 'Failed to delete topics.');
+    } finally {
+      setProcessingItem(null);
+    }
+  };
 
   const toggleSection = (section: 'bible' | 'commentary' | 'topics') => {
     setExpandedSections((prev) => ({

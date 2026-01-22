@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -140,7 +140,7 @@ function groupHighlightsByChapter(highlights: Highlight[]): ChapterGroup[] {
  */
 export default function HighlightsScreen() {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { allHighlights, isFetchingHighlights, refetchHighlights } = useHighlights();

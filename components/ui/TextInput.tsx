@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type React from 'react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { TextInput as RNTextInput, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -74,7 +74,7 @@ export const TextInput: React.FC<TextInputProps> = ({
   textContentType,
 }) => {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const togglePasswordVisibility = () => {

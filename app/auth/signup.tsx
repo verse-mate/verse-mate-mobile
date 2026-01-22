@@ -10,7 +10,7 @@
  */
 
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -46,7 +46,7 @@ import { validatePassword } from '@/lib/auth/password-validation';
  */
 export default function Signup() {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const params = useLocalSearchParams<{ fromOnboarding?: string }>();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');

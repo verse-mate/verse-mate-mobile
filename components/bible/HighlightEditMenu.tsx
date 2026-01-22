@@ -30,7 +30,6 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useMemo } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -86,7 +85,7 @@ export function HighlightEditMenu({
   // Calculate left padding to center over right panel in split view
   const leftPadding = useSplitView && splitViewMode !== 'left-full' ? windowWidth * splitRatio : 0;
 
-  const styles = useMemo(() => createStyles(colors, leftPadding), [colors, leftPadding]);
+  const styles = createStyles(colors, leftPadding);
 
   /**
    * Handle color change with haptic feedback

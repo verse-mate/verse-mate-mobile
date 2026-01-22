@@ -38,7 +38,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { LastReadPosition, UseLastReadPositionResult } from '@/types/bible';
 import { STORAGE_KEYS } from '@/types/bible';
 
@@ -127,64 +127,61 @@ export function useLastReadPosition(): UseLastReadPositionResult {
    * Save current reading position to AsyncStorage
    * Automatically adds timestamp
    */
-  const savePosition = useCallback(
-    async (position: Omit<LastReadPosition, 'timestamp'>): Promise<void> => {
-      try {
-        // Validate position data based on type
-        if (position.type === 'bible') {
-          if (
-            typeof position.bookId !== 'number' ||
-            typeof position.chapterNumber !== 'number' ||
-            position.bookId < 1 ||
-            position.bookId > 66 ||
-            position.chapterNumber < 1
-          ) {
-            throw new Error(
-              'Invalid Bible position: bookId must be 1-66 and chapterNumber must be >= 1'
-            );
-          }
-        } else if (position.type === 'topic') {
-          if (typeof position.topicId !== 'string' || position.topicId.length === 0) {
-            throw new Error('Invalid topic position: topicId must be a non-empty string');
-          }
-        } else {
-          throw new Error(`Invalid position type: ${position.type}`);
+  const savePosition = async (position: Omit<LastReadPosition, 'timestamp'>): Promise<void> => {
+    try {
+      // Validate position data based on type
+      if (position.type === 'bible') {
+        if (
+          typeof position.bookId !== 'number' ||
+          typeof position.chapterNumber !== 'number' ||
+          position.bookId < 1 ||
+          position.bookId > 66 ||
+          position.chapterNumber < 1
+        ) {
+          throw new Error(
+            'Invalid Bible position: bookId must be 1-66 and chapterNumber must be >= 1'
+          );
         }
-
-        // Create position object with timestamp
-        const positionWithTimestamp: LastReadPosition = {
-          ...position,
-          timestamp: Date.now(),
-        };
-
-        // Update state immediately for responsive UI
-        setLastPosition(positionWithTimestamp);
-
-        // Persist to storage (async, but don't block UI)
-        await AsyncStorage.setItem(
-          STORAGE_KEYS.LAST_READ_POSITION,
-          JSON.stringify(positionWithTimestamp)
-        );
-
-        // Clear any previous errors
-        setError(null);
-      } catch (err) {
-        // Handle storage write error
-        const storageError =
-          err instanceof Error ? err : new Error('Failed to save last read position');
-        setError(storageError);
-
-        // Log error for debugging but don't throw (graceful degradation)
-        console.error('useLastReadPosition: Failed to persist position to storage:', storageError);
+      } else if (position.type === 'topic') {
+        if (typeof position.topicId !== 'string' || position.topicId.length === 0) {
+          throw new Error('Invalid topic position: topicId must be a non-empty string');
+        }
+      } else {
+        throw new Error(`Invalid position type: ${position.type}`);
       }
-    },
-    []
-  );
+
+      // Create position object with timestamp
+      const positionWithTimestamp: LastReadPosition = {
+        ...position,
+        timestamp: Date.now(),
+      };
+
+      // Update state immediately for responsive UI
+      setLastPosition(positionWithTimestamp);
+
+      // Persist to storage (async, but don't block UI)
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.LAST_READ_POSITION,
+        JSON.stringify(positionWithTimestamp)
+      );
+
+      // Clear any previous errors
+      setError(null);
+    } catch (err) {
+      // Handle storage write error
+      const storageError =
+        err instanceof Error ? err : new Error('Failed to save last read position');
+      setError(storageError);
+
+      // Log error for debugging but don't throw (graceful degradation)
+      console.error('useLastReadPosition: Failed to persist position to storage:', storageError);
+    }
+  };
 
   /**
    * Clear saved reading position from AsyncStorage
    */
-  const clearPosition = useCallback(async (): Promise<void> => {
+  const clearPosition = async (): Promise<void> => {
     try {
       setLastPosition(null);
       await AsyncStorage.removeItem(STORAGE_KEYS.LAST_READ_POSITION);
@@ -195,7 +192,7 @@ export function useLastReadPosition(): UseLastReadPositionResult {
       setError(storageError);
       console.error('useLastReadPosition: Failed to clear position from storage:', storageError);
     }
-  }, []);
+  };
 
   return {
     lastPosition,

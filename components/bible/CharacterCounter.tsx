@@ -27,7 +27,6 @@
  * ```
  */
 
-import { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { fontSizes, fontWeights, type getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -56,7 +55,7 @@ export interface CharacterCounterProps {
  */
 export function CharacterCounter({ currentLength, maxLength, threshold }: CharacterCounterProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
 
   // Hide counter if below threshold
   if (currentLength < threshold) {

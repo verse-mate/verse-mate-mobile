@@ -8,7 +8,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -50,7 +50,7 @@ export function AutoHighlightSettings({
   alwaysExpanded = false,
 }: AutoHighlightSettingsProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const queryClient = useQueryClient();
   const [themes, setThemes] = useState<HighlightTheme[]>([]);
   const [isLoading, setIsLoading] = useState(true);

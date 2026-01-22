@@ -39,7 +39,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
@@ -292,127 +292,114 @@ export function useNotes(): UseNotesResult {
   /**
    * Get notes filtered by chapter
    */
-  const getNotesByChapter = useCallback(
-    (bookId: number, chapterNumber: number): Note[] => {
-      return notes.filter(
-        (note) => note.book_id === bookId && note.chapter_number === chapterNumber
-      );
-    },
-    [notes]
-  );
+  const getNotesByChapter = (bookId: number, chapterNumber: number): Note[] => {
+    return notes.filter((note) => note.book_id === bookId && note.chapter_number === chapterNumber);
+  };
 
   /**
    * Check if a chapter has any notes
    */
-  const hasNotes = useCallback(
-    (bookId: number, chapterNumber: number): boolean => {
-      return notes.some((note) => note.book_id === bookId && note.chapter_number === chapterNumber);
-    },
-    [notes]
-  );
+  const hasNotes = (bookId: number, chapterNumber: number): boolean => {
+    return notes.some((note) => note.book_id === bookId && note.chapter_number === chapterNumber);
+  };
 
   /**
    * Add a note with optimistic update
    */
-  const addNote = useCallback(
-    async (bookId: number, chapterNumber: number, content: string): Promise<Note | null> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to add notes');
-        return null;
-      }
-
-      // Validate content
-      if (!content.trim()) {
-        console.error('Note content cannot be empty');
-        return null;
-      }
-
-      // Call mutation
-      const response = await addMutation.mutateAsync({
-        body: {
-          user_id: user.id,
-          book_id: bookId,
-          chapter_number: chapterNumber,
-          content: content.trim(),
-        },
-      } as PostBibleBookNoteAddData);
-
-      if (response?.note) {
-        return {
-          note_id: response.note.note_id,
-          content: response.note.content,
-          created_at: response.note.created_at,
-          updated_at: response.note.updated_at,
-          book_id: bookId,
-          chapter_number: chapterNumber,
-          book_name: '', // Will be populated by UI context
-          verse_number: typeof response.note.verse_id === 'number' ? response.note.verse_id : null,
-        };
-      }
-
+  const addNote = async (
+    bookId: number,
+    chapterNumber: number,
+    content: string
+  ): Promise<Note | null> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to add notes');
       return null;
-    },
-    [isAuthenticated, user?.id, addMutation]
-  );
+    }
+
+    // Validate content
+    if (!content.trim()) {
+      console.error('Note content cannot be empty');
+      return null;
+    }
+
+    // Call mutation
+    const response = await addMutation.mutateAsync({
+      body: {
+        user_id: user.id,
+        book_id: bookId,
+        chapter_number: chapterNumber,
+        content: content.trim(),
+      },
+    } as PostBibleBookNoteAddData);
+
+    if (response?.note) {
+      return {
+        note_id: response.note.note_id,
+        content: response.note.content,
+        created_at: response.note.created_at,
+        updated_at: response.note.updated_at,
+        book_id: bookId,
+        chapter_number: chapterNumber,
+        book_name: '', // Will be populated by UI context
+        verse_number: typeof response.note.verse_id === 'number' ? response.note.verse_id : null,
+      };
+    }
+
+    return null;
+  };
 
   /**
    * Update a note with optimistic update
    */
-  const updateNote = useCallback(
-    async (noteId: string, content: string): Promise<void> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to update notes');
-        return;
-      }
+  const updateNote = async (noteId: string, content: string): Promise<void> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to update notes');
+      return;
+    }
 
-      // Validate content
-      if (!content.trim()) {
-        console.error('Note content cannot be empty');
-        return;
-      }
+    // Validate content
+    if (!content.trim()) {
+      console.error('Note content cannot be empty');
+      return;
+    }
 
-      // Call mutation
-      await updateMutation.mutateAsync({
-        body: {
-          note_id: noteId,
-          content: content.trim(),
-        },
-      } as PutBibleBookNoteUpdateData);
-    },
-    [isAuthenticated, user?.id, updateMutation]
-  );
+    // Call mutation
+    await updateMutation.mutateAsync({
+      body: {
+        note_id: noteId,
+        content: content.trim(),
+      },
+    } as PutBibleBookNoteUpdateData);
+  };
 
   /**
    * Delete a note with optimistic update
    */
-  const deleteNote = useCallback(
-    async (noteId: string): Promise<void> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to delete notes');
-        return;
-      }
+  const deleteNote = async (noteId: string): Promise<void> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to delete notes');
+      return;
+    }
 
-      // Call mutation
-      await deleteMutation.mutateAsync({
-        query: {
-          note_id: noteId,
-        },
-      } as DeleteBibleBookNoteRemoveData);
-    },
-    [isAuthenticated, user?.id, deleteMutation]
-  );
+    // Call mutation
+    await deleteMutation.mutateAsync({
+      query: {
+        note_id: noteId,
+      },
+    } as DeleteBibleBookNoteRemoveData);
+  };
 
   /**
    * Manually refetch notes from API
    */
-  const refetchNotes = useCallback(async (): Promise<void> => {
+  const refetchNotes = async (): Promise<void> => {
     if (isAuthenticated && user?.id) {
       await refetch();
     }
-  }, [isAuthenticated, user?.id, refetch]);
+  };
 
   // Combine auth and query loading states
   // Loading if:

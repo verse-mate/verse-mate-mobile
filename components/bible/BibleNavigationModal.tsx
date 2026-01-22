@@ -20,7 +20,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   Modal,
@@ -251,6 +251,7 @@ function BibleNavigationModalComponent({
   ]);
 
   const backdropOpacity = useDerivedValue(() => {
+    'worklet';
     return interpolate(translateY.value, [-1000, 0], [0, 1], Extrapolation.CLAMP);
   });
   const [internalVisible, setInternalVisible] = useState(visible);
@@ -1120,7 +1121,7 @@ function BibleNavigationModalComponent({
  * Memoized BibleNavigationModal to prevent unnecessary re-renders
  * when parent component updates but modal is not visible
  */
-export const BibleNavigationModal = memo(BibleNavigationModalComponent);
+export const BibleNavigationModal = BibleNavigationModalComponent;
 
 const createStyles = (
   colors: ReturnType<typeof getColors>,

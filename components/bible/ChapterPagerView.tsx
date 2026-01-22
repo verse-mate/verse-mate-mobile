@@ -21,16 +21,7 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import {
-  forwardRef,
-  memo,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
@@ -252,22 +243,21 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
      * - Indices beyond max wrap to start of Bible (Genesis)
      * This enables seamless circular navigation through the entire Bible.
      */
-    const getChapterForPosition = useCallback(
-      (windowPosition: number): { bookId: number; chapterNumber: number } | null => {
-        const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
+    const getChapterForPosition = (
+      windowPosition: number
+    ): { bookId: number; chapterNumber: number } | null => {
+      const absoluteIndex = currentAbsoluteIndex + (windowPosition - CENTER_INDEX);
 
-        // Use circular wrapping for out-of-bounds indices
-        const wrappedIndex = wrapCircularIndex(absoluteIndex, booksMetadata);
+      // Use circular wrapping for out-of-bounds indices
+      const wrappedIndex = wrapCircularIndex(absoluteIndex, booksMetadata);
 
-        // Return null if booksMetadata is invalid (wrapCircularIndex returns -1)
-        if (wrappedIndex === -1) {
-          return null;
-        }
+      // Return null if booksMetadata is invalid (wrapCircularIndex returns -1)
+      if (wrappedIndex === -1) {
+        return null;
+      }
 
-        return getChapterFromPageIndex(wrappedIndex, booksMetadata);
-      },
-      [currentAbsoluteIndex, booksMetadata]
-    );
+      return getChapterFromPageIndex(wrappedIndex, booksMetadata);
+    };
 
     /**
      * Generate exactly 7 pages with STABLE POSITIONAL KEYS
@@ -340,6 +330,7 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       activeTab,
       activeView,
       booksMetadata,
+      // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of getChapterForPosition
       getChapterForPosition,
       onScroll,
       onTap,
@@ -362,70 +353,67 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
      * indices wrap to valid chapters. The edge reset logic re-centers the
      * window while maintaining seamless content continuity.
      */
-    const handlePageSelected = useCallback(
-      (event: { nativeEvent: OnPageSelectedEventData }) => {
-        const newPosition = Math.floor(event.nativeEvent.position);
-        if (newPosition === CENTER_INDEX) return; // Already centered
+    const handlePageSelected = (event: { nativeEvent: OnPageSelectedEventData }) => {
+      const newPosition = Math.floor(event.nativeEvent.position);
+      if (newPosition === CENTER_INDEX) return; // Already centered
 
-        // SYNC REFS IMMEDIATELY to prevent race conditions in useEffect
-        posRef.current = newPosition;
-        setSelectedPosition(newPosition);
+      // SYNC REFS IMMEDIATELY to prevent race conditions in useEffect
+      posRef.current = newPosition;
+      setSelectedPosition(newPosition);
 
-        // Clear any pending route update timeout
-        if (routeUpdateTimeoutRef.current) {
-          clearTimeout(routeUpdateTimeoutRef.current);
-          routeUpdateTimeoutRef.current = null;
+      // Clear any pending route update timeout
+      if (routeUpdateTimeoutRef.current) {
+        clearTimeout(routeUpdateTimeoutRef.current);
+        routeUpdateTimeoutRef.current = null;
+      }
+
+      // Calculate would-be absolute index for this page
+      const offset = newPosition - CENTER_INDEX;
+      const newAbsoluteIndex = currentAbsoluteIndex + offset;
+
+      // Use circular wrapping for the new index
+      const wrappedIndex = wrapCircularIndex(newAbsoluteIndex, booksMetadata);
+
+      // Check if user reached edge positions (0 or 6) - EDGE RESET
+      const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
+
+      // Fire Haptics INSTANTLY on the native UI thread
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      if (isAtEdge) {
+        // SEAMLESS EDGE SNAP with circular index
+        // IMPORTANT: Re-center the pager BEFORE updating state to prevent flicker.
+        // If we update currentAbsoluteIndex first, the pages useMemo will recalculate
+        // with the new center (e.g., 1188 for Rev 22) but pager is still at position 0,
+        // causing wrong content to flash (e.g., Rev 19 instead of Rev 22).
+        pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
+        setSelectedPosition(CENTER_INDEX);
+        posRef.current = CENTER_INDEX;
+
+        // Now update the absolute index - pages will recalculate correctly since
+        // pager is already centered at position 3
+        setForceJump(false); // ENSURE we don't reset scroll during this snap
+        setCurrentAbsoluteIndex(wrappedIndex);
+        absIndexRef.current = wrappedIndex;
+
+        const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
+        if (chapter) {
+          routeUpdateTimeoutRef.current = setTimeout(() => {
+            onPageChange(chapter.bookId, chapter.chapterNumber);
+            routeUpdateTimeoutRef.current = null;
+          }, ROUTE_UPDATE_DELAY_MS);
         }
-
-        // Calculate would-be absolute index for this page
-        const offset = newPosition - CENTER_INDEX;
-        const newAbsoluteIndex = currentAbsoluteIndex + offset;
-
-        // Use circular wrapping for the new index
-        const wrappedIndex = wrapCircularIndex(newAbsoluteIndex, booksMetadata);
-
-        // Check if user reached edge positions (0 or 6) - EDGE RESET
-        const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
-
-        // Fire Haptics INSTANTLY on the native UI thread
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        if (isAtEdge) {
-          // SEAMLESS EDGE SNAP with circular index
-          // IMPORTANT: Re-center the pager BEFORE updating state to prevent flicker.
-          // If we update currentAbsoluteIndex first, the pages useMemo will recalculate
-          // with the new center (e.g., 1188 for Rev 22) but pager is still at position 0,
-          // causing wrong content to flash (e.g., Rev 19 instead of Rev 22).
-          pagerRef.current?.setPageWithoutAnimation(CENTER_INDEX);
-          setSelectedPosition(CENTER_INDEX);
-          posRef.current = CENTER_INDEX;
-
-          // Now update the absolute index - pages will recalculate correctly since
-          // pager is already centered at position 3
-          setForceJump(false); // ENSURE we don't reset scroll during this snap
-          setCurrentAbsoluteIndex(wrappedIndex);
-          absIndexRef.current = wrappedIndex;
-
-          const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
-          if (chapter) {
-            routeUpdateTimeoutRef.current = setTimeout(() => {
-              onPageChange(chapter.bookId, chapter.chapterNumber);
-              routeUpdateTimeoutRef.current = null;
-            }, ROUTE_UPDATE_DELAY_MS);
-          }
-        } else {
-          // Non-edge position - use wrapped index for navigation
-          const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
-          if (chapter) {
-            routeUpdateTimeoutRef.current = setTimeout(() => {
-              onPageChange(chapter.bookId, chapter.chapterNumber);
-              routeUpdateTimeoutRef.current = null;
-            }, ROUTE_UPDATE_DELAY_MS);
-          }
+      } else {
+        // Non-edge position - use wrapped index for navigation
+        const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
+        if (chapter) {
+          routeUpdateTimeoutRef.current = setTimeout(() => {
+            onPageChange(chapter.bookId, chapter.chapterNumber);
+            routeUpdateTimeoutRef.current = null;
+          }, ROUTE_UPDATE_DELAY_MS);
         }
-      },
-      [currentAbsoluteIndex, booksMetadata, onPageChange]
-    );
+      }
+    };
 
     return (
       <PagerView
@@ -451,7 +439,7 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
  * Supports circular navigation - swiping past Bible boundaries
  * wraps around seamlessly to the other end.
  */
-export const ChapterPagerView = memo(ChapterPagerViewComponent);
+export const ChapterPagerView = ChapterPagerViewComponent;
 
 const styles = StyleSheet.create({
   pagerView: {

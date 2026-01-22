@@ -14,7 +14,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
@@ -142,7 +142,7 @@ export function TopicContentPanel({
 }: TopicContentPanelProps) {
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
-  const { styles, markdownStyles } = useMemo(() => createStyles(specs, colors), [specs, colors]);
+  const { styles, markdownStyles } = createStyles(specs, colors);
   const insets = useSafeAreaInsets();
 
   // Reading progress state
@@ -157,45 +157,39 @@ export function TopicContentPanel({
   const { data: references } = useTopicReferences(topicId);
 
   // Handle scroll to calculate reading progress and velocity
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
 
-      // Calculate progress
-      const scrollableHeight = contentSize.height - layoutMeasurement.height;
-      if (scrollableHeight > 0) {
-        const scrollProgress = Math.min(
-          100,
-          Math.max(0, (contentOffset.y / scrollableHeight) * 100)
-        );
-        setProgress(Math.round(scrollProgress));
+    // Calculate progress
+    const scrollableHeight = contentSize.height - layoutMeasurement.height;
+    if (scrollableHeight > 0) {
+      const scrollProgress = Math.min(100, Math.max(0, (contentOffset.y / scrollableHeight) * 100));
+      setProgress(Math.round(scrollProgress));
+    }
+
+    // Calculate velocity for FAB visibility
+    if (onScroll) {
+      const currentY = contentOffset.y;
+      const currentTime = Date.now();
+      const dt = currentTime - lastScrollTime.current;
+
+      // Calculate velocity (px/ms) if sufficient time has passed (e.g. 16ms frame)
+      if (dt > 10) {
+        const dy = currentY - lastScrollY.current;
+        // Calculate velocity (px/s) - multiply by 1000
+        // Positive = scrolling down, Negative = scrolling up
+        const velocity = (dy / dt) * 1000;
+
+        // Check if at bottom
+        const isAtBottom = currentY + layoutMeasurement.height >= contentSize.height - 20;
+
+        onScroll(velocity, isAtBottom);
+
+        lastScrollY.current = currentY;
+        lastScrollTime.current = currentTime;
       }
-
-      // Calculate velocity for FAB visibility
-      if (onScroll) {
-        const currentY = contentOffset.y;
-        const currentTime = Date.now();
-        const dt = currentTime - lastScrollTime.current;
-
-        // Calculate velocity (px/ms) if sufficient time has passed (e.g. 16ms frame)
-        if (dt > 10) {
-          const dy = currentY - lastScrollY.current;
-          // Calculate velocity (px/s) - multiply by 1000
-          // Positive = scrolling down, Negative = scrolling up
-          const velocity = (dy / dt) * 1000;
-
-          // Check if at bottom
-          const isAtBottom = currentY + layoutMeasurement.height >= contentSize.height - 20;
-
-          onScroll(velocity, isAtBottom);
-
-          lastScrollY.current = currentY;
-          lastScrollTime.current = currentTime;
-        }
-      }
-    },
-    [onScroll]
-  );
+    }
+  };
 
   // Check if we have content
   const hasContent =

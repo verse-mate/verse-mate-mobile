@@ -30,7 +30,6 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { NOTES_CONFIG } from '@/constants/notes';
@@ -77,7 +76,7 @@ export function NoteCard({
   isExpanded = false,
 }: NoteCardProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
 
   const isTruncated = note.content.length > truncateLength;
 
