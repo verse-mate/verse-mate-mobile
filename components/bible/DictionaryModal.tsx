@@ -25,7 +25,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -79,7 +79,7 @@ interface DictionaryState {
  */
 export function DictionaryModal({ visible, word, strongsNumber, onClose }: DictionaryModalProps) {
   const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+  const styles = createStyles(colors, mode);
   const { showDefinition, hasDefinition, isAvailable: nativeAvailable } = useNativeDictionary();
 
   const [state, setState] = useState<DictionaryState>({
@@ -159,22 +159,22 @@ export function DictionaryModal({ visible, word, strongsNumber, onClose }: Dicti
   /**
    * Handle close button press
    */
-  const handleClose = useCallback(async () => {
+  const handleClose = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
-  }, [onClose]);
+  };
 
   /**
    * Handle "Open in Dictionary" button press
    */
-  const handleOpenNative = useCallback(async () => {
+  const handleOpenNative = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const shown = await showDefinition(word);
     if (shown) {
       // Optionally close modal after opening native dictionary
       // onClose();
     }
-  }, [word, showDefinition]);
+  };
 
   /**
    * Clean up word for display (capitalize first letter)

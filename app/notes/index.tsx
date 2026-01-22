@@ -20,7 +20,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -84,7 +84,7 @@ function groupNotesByChapter(notes: Note[]): ChapterGroup[] {
 export default function NotesScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { notes, isFetchingNotes, refetchNotes } = useNotes();
 

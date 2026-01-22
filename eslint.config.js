@@ -1,6 +1,7 @@
 // https://docs.expo.dev/guides/using-eslint/
 const { defineConfig } = require('eslint/config');
 const expoConfig = require('eslint-config-expo/flat');
+const reactCompilerPlugin = require('eslint-plugin-react-compiler');
 const biomeConfig = require('eslint-config-biome');
 
 module.exports = defineConfig([
@@ -10,6 +11,9 @@ module.exports = defineConfig([
   // Custom configuration for React Native specific rules
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
+    plugins: {
+      'react-compiler': reactCompilerPlugin,
+    },
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -23,6 +27,8 @@ module.exports = defineConfig([
       // React Native specific rules that complement Biome
       'react-hooks/exhaustive-deps': 'warn',
       'react-hooks/rules-of-hooks': 'error',
+      // React Compiler rules for Rules of React violations
+      'react-compiler/react-compiler': 'error',
     },
   },
 
@@ -64,6 +70,8 @@ module.exports = defineConfig([
     ],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
+      // Disable React Compiler rules for test files - they don't go through the compiler
+      'react-compiler/react-compiler': 'off',
     },
   },
 

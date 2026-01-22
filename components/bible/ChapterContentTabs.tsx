@@ -18,7 +18,7 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   type getColors,
@@ -66,7 +66,7 @@ export function ChapterContentTabs({
   disabled = false,
 }: ChapterContentTabsProps) {
   const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+  const styles = createStyles(colors, mode);
 
   // Animation value for sliding indicator
   const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;

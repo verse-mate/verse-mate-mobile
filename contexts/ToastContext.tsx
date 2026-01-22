@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { Toast } from '@/components/ui/Toast';
 
 interface ToastContextType {
@@ -13,15 +13,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState('');
   const [duration, setDuration] = useState(2000);
 
-  const showToast = useCallback((msg: string, dur = 2000) => {
+  const showToast = (msg: string, dur = 2000) => {
     setMessage(msg);
     setDuration(dur);
     setVisible(true);
-  }, []);
+  };
 
-  const hideToast = useCallback(() => {
+  const hideToast = () => {
     setVisible(false);
-  }, []);
+  };
 
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>

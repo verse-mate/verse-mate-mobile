@@ -10,7 +10,7 @@
  */
 
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -42,7 +42,7 @@ import { useLogin } from '@/hooks/useLogin';
  */
 export default function Login() {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const params = useLocalSearchParams<{ fromOnboarding?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

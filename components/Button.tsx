@@ -1,5 +1,4 @@
 import type React from 'react';
-import { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -26,7 +25,7 @@ export const Button: React.FC<ButtonProps> = ({
   testID,
 }) => {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
 
   return (
     <TouchableOpacity

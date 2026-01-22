@@ -22,7 +22,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { ContentTabType, UseActiveTabResult } from '@/types/bible';
 import { isContentTabType, STORAGE_KEYS } from '@/types/bible';
@@ -90,7 +90,7 @@ export function useActiveTab(): UseActiveTabResult {
     };
   }, []);
 
-  const setActiveTab = useCallback(async (tab: ContentTabType): Promise<void> => {
+  const setActiveTab = async (tab: ContentTabType): Promise<void> => {
     try {
       if (!isContentTabType(tab)) {
         throw new Error(`Invalid tab type: ${tab}. Must be 'summary', 'byline', or 'detailed'.`);
@@ -110,7 +110,7 @@ export function useActiveTab(): UseActiveTabResult {
       setError(storageError);
       console.error('useActiveTab: Failed to persist tab to storage:', storageError);
     }
-  }, []);
+  };
 
   return {
     activeTab,

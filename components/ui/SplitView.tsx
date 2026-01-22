@@ -86,7 +86,7 @@ export function SplitView({
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const insets = useSafeAreaInsets();
-  const styles = useMemo(() => createStyles(specs, colors, insets), [specs, colors, insets]);
+  const styles = createStyles(specs, colors, insets);
 
   // Container dimensions
   const containerWidth = useSharedValue(0);

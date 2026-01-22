@@ -27,7 +27,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -84,7 +84,7 @@ export function NoteViewModal({
   onClose,
 }: NoteViewModalProps) {
   const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+  const styles = createStyles(colors, mode);
 
   // Animation state for swipe-to-dismiss
   const screenHeight = Dimensions.get('window').height;
@@ -93,7 +93,7 @@ export function NoteViewModal({
   const [internalVisible, setInternalVisible] = useState(false);
 
   // Animate open/close
-  const animateOpen = useCallback(() => {
+  const animateOpen = () => {
     setInternalVisible(true);
     Animated.parallel([
       Animated.timing(backdropOpacity, {
@@ -108,33 +108,30 @@ export function NoteViewModal({
         stiffness: 90,
       }),
     ]).start();
-  }, [backdropOpacity, slideAnim]);
+  };
 
-  const animateClose = useCallback(
-    (callback?: () => void) => {
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: screenHeight,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 90,
-          overshootClamping: true,
-          restDisplacementThreshold: 40,
-          restSpeedThreshold: 40,
-        }),
-      ]).start();
-      setTimeout(() => {
-        setInternalVisible(false);
-        if (callback) callback();
-      }, 300);
-    },
-    [backdropOpacity, slideAnim, screenHeight]
-  );
+  const animateClose = (callback?: () => void) => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: screenHeight,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+        overshootClamping: true,
+        restDisplacementThreshold: 40,
+        restSpeedThreshold: 40,
+      }),
+    ]).start();
+    setTimeout(() => {
+      setInternalVisible(false);
+      if (callback) callback();
+    }, 300);
+  };
 
   useEffect(() => {
     if (visible && !internalVisible) {
@@ -142,13 +139,14 @@ export function NoteViewModal({
     } else if (!visible && internalVisible) {
       animateClose();
     }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of animateOpen/animateClose
   }, [visible, internalVisible, animateOpen, animateClose]);
 
-  const handleDismiss = useCallback(() => {
+  const handleDismiss = () => {
     animateClose(() => {
       onClose();
     });
-  }, [animateClose, onClose]);
+  };
 
   // Pan responder for swipe-to-dismiss – matches tooltip/menus behavior
   const panResponder = useRef(

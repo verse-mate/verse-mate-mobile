@@ -24,7 +24,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -61,7 +60,7 @@ import { useBookmarks } from '@/hooks/bible/use-bookmarks';
 export default function Bookmarks() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { bookmarks, isFetchingBookmarks, removeBookmark } = useBookmarks();
   const { setActiveView } = useActiveView();

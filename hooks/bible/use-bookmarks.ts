@@ -30,7 +30,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
@@ -267,130 +267,122 @@ export function useBookmarks(): UseBookmarksResult {
   /**
    * Check if a chapter is bookmarked
    */
-  const isBookmarked = useCallback(
-    (bookId: number, chapterNumber: number): boolean => {
-      return bookmarks.some((b) => b.book_id === bookId && b.chapter_number === chapterNumber);
-    },
-    [bookmarks]
-  );
+  const isBookmarked = (bookId: number, chapterNumber: number): boolean => {
+    return bookmarks.some((b) => b.book_id === bookId && b.chapter_number === chapterNumber);
+  };
 
   /**
    * Add a bookmark with optimistic update
    */
-  const addBookmark = useCallback(
-    async (bookId: number, chapterNumber: number): Promise<void> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to add bookmarks');
-        return;
-      }
+  const addBookmark = async (bookId: number, chapterNumber: number): Promise<void> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to add bookmarks');
+      return;
+    }
 
-      // Call mutation
-      await addMutation.mutateAsync({
-        body: {
-          user_id: user.id,
-          book_id: bookId,
-          chapter_number: chapterNumber,
-        },
-      } as PostBibleBookBookmarkAddData);
-    },
-    [isAuthenticated, user?.id, addMutation]
-  );
+    // Call mutation
+    await addMutation.mutateAsync({
+      body: {
+        user_id: user.id,
+        book_id: bookId,
+        chapter_number: chapterNumber,
+      },
+    } as PostBibleBookBookmarkAddData);
+  };
 
   /**
    * Remove a bookmark with optimistic update
    */
-  const removeBookmark = useCallback(
-    async (bookId: number, chapterNumber: number): Promise<void> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to remove bookmarks');
-        return;
-      }
+  const removeBookmark = async (bookId: number, chapterNumber: number): Promise<void> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to remove bookmarks');
+      return;
+    }
 
-      // Call mutation
-      await removeMutation.mutateAsync({
-        query: {
-          user_id: user.id,
-          book_id: String(bookId),
-          chapter_number: String(chapterNumber),
-        },
-      } as DeleteBibleBookBookmarkRemoveData);
-    },
-    [isAuthenticated, user?.id, removeMutation]
-  );
+    // Call mutation
+    await removeMutation.mutateAsync({
+      query: {
+        user_id: user.id,
+        book_id: String(bookId),
+        chapter_number: String(chapterNumber),
+      },
+    } as DeleteBibleBookBookmarkRemoveData);
+  };
 
   /**
    * Manually refetch bookmarks from API
    */
-  const refetchBookmarks = useCallback(async (): Promise<void> => {
+  const refetchBookmarks = async (): Promise<void> => {
     if (isAuthenticated && user?.id) {
       await refetch();
     }
-  }, [isAuthenticated, user?.id, refetch]);
+  };
 
   /**
    * Check if an insight is bookmarked
    */
-  const isInsightBookmarked = useCallback(
-    (bookId: number, chapterNumber: number, insightType: ContentTabType): boolean => {
-      return bookmarks.some(
-        (b: Bookmark) =>
-          b.book_id === bookId &&
-          b.chapter_number === chapterNumber &&
-          b.insight_type === insightType
-      );
-    },
-    [bookmarks]
-  );
+  const isInsightBookmarked = (
+    bookId: number,
+    chapterNumber: number,
+    insightType: ContentTabType
+  ): boolean => {
+    return bookmarks.some(
+      (b: Bookmark) =>
+        b.book_id === bookId && b.chapter_number === chapterNumber && b.insight_type === insightType
+    );
+  };
 
   /**
    * Add an insight bookmark with optimistic update
    */
-  const addInsightBookmark = useCallback(
-    async (bookId: number, chapterNumber: number, insightType: ContentTabType): Promise<void> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to add insight bookmarks');
-        return;
-      }
+  const addInsightBookmark = async (
+    bookId: number,
+    chapterNumber: number,
+    insightType: ContentTabType
+  ): Promise<void> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to add insight bookmarks');
+      return;
+    }
 
-      // Call mutation with insight_type
-      await addMutation.mutateAsync({
-        body: {
-          user_id: user.id,
-          book_id: bookId,
-          chapter_number: chapterNumber,
-          insight_type: insightType,
-        },
-      } as PostBibleBookBookmarkAddData);
-    },
-    [isAuthenticated, user?.id, addMutation]
-  );
+    // Call mutation with insight_type
+    await addMutation.mutateAsync({
+      body: {
+        user_id: user.id,
+        book_id: bookId,
+        chapter_number: chapterNumber,
+        insight_type: insightType,
+      },
+    } as PostBibleBookBookmarkAddData);
+  };
 
   /**
    * Remove an insight bookmark with optimistic update
    */
-  const removeInsightBookmark = useCallback(
-    async (bookId: number, chapterNumber: number, insightType: ContentTabType): Promise<void> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to remove insight bookmarks');
-        return;
-      }
+  const removeInsightBookmark = async (
+    bookId: number,
+    chapterNumber: number,
+    insightType: ContentTabType
+  ): Promise<void> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to remove insight bookmarks');
+      return;
+    }
 
-      // Call mutation with insight_type
-      await removeMutation.mutateAsync({
-        query: {
-          user_id: user.id,
-          book_id: String(bookId),
-          chapter_number: String(chapterNumber),
-          insight_type: insightType,
-        },
-      } as DeleteBibleBookBookmarkRemoveData);
-    },
-    [isAuthenticated, user?.id, removeMutation]
-  );
+    // Call mutation with insight_type
+    await removeMutation.mutateAsync({
+      query: {
+        user_id: user.id,
+        book_id: String(bookId),
+        chapter_number: String(chapterNumber),
+        insight_type: insightType,
+      },
+    } as DeleteBibleBookBookmarkRemoveData);
+  };
 
   // Combine auth and query loading states
   // Loading if:

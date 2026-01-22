@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -235,7 +235,7 @@ export function HighlightOptionsModal({
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
-  const animateOpen = useCallback(() => {
+  const animateOpen = () => {
     setInternalVisible(true);
     Animated.parallel([
       Animated.timing(backdropOpacity, {
@@ -250,38 +250,35 @@ export function HighlightOptionsModal({
         stiffness: 90,
       }),
     ]).start();
-  }, [backdropOpacity, slideAnim]);
+  };
 
-  const animateClose = useCallback(
-    (callback?: () => void) => {
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: screenHeight,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 90,
-          overshootClamping: true,
-          restDisplacementThreshold: 40,
-          restSpeedThreshold: 40,
-        }),
-      ]).start();
+  const animateClose = (callback?: () => void) => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: screenHeight,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+        overshootClamping: true,
+        restDisplacementThreshold: 40,
+        restSpeedThreshold: 40,
+      }),
+    ]).start();
 
-      setTimeout(() => {
-        setInternalVisible(false);
-        setIsConfirmDeleteVisible(false);
-        setIsSuccessVisible(false);
-        setIsErrorVisible(false);
-        setStatusMessage('');
-        if (callback) callback();
-      }, 300);
-    },
-    [backdropOpacity, slideAnim, screenHeight]
-  );
+    setTimeout(() => {
+      setInternalVisible(false);
+      setIsConfirmDeleteVisible(false);
+      setIsSuccessVisible(false);
+      setIsErrorVisible(false);
+      setStatusMessage('');
+      if (callback) callback();
+    }, 300);
+  };
 
   useEffect(() => {
     if (visible && !internalVisible) {
@@ -293,6 +290,7 @@ export function HighlightOptionsModal({
     } else if (!visible && internalVisible) {
       animateClose(onClose);
     }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of animateOpen/animateClose
   }, [visible, internalVisible, animateOpen, animateClose, onClose]);
 
   const panResponder = useRef(

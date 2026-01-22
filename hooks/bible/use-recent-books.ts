@@ -32,7 +32,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getUserRecentlyViewedBooksOptions,
@@ -165,82 +165,79 @@ export function useRecentBooks(): UseRecentBooksResult {
    * - Limits list to MAX_RECENT_BOOKS (4)
    * - Automatically syncs to backend if authenticated
    */
-  const addRecentBook = useCallback(
-    async (bookId: number): Promise<void> => {
-      try {
-        // Validate bookId
-        if (!Number.isInteger(bookId) || bookId < 1 || bookId > 66) {
-          throw new Error(`Invalid bookId: ${bookId}. Must be an integer between 1 and 66.`);
-        }
-
-        const now = Date.now();
-        const expiryMs = RECENT_BOOKS_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-
-        // Load current list from storage
-        const stored = await AsyncStorage.getItem(STORAGE_KEYS.RECENT_BOOKS);
-        let currentBooks: RecentBook[] = [];
-
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            // Handle both old and new format
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              if (typeof parsed[0] === 'string') {
-                currentBooks = parsed.map((id: string) => ({
-                  bookId: Number.parseInt(id, 10),
-                  timestamp: Date.now(),
-                }));
-              } else {
-                currentBooks = parsed;
-              }
-            }
-          } catch (parseError) {
-            console.error('Failed to parse recently viewed books:', parseError);
-          }
-        }
-
-        // Filter out expired entries and the current bookId (we'll add it back at top)
-        const filteredBooks = currentBooks.filter(
-          (book) => book.bookId !== bookId && now - book.timestamp < expiryMs
-        );
-
-        // Add new entry at the top
-        const newBook: RecentBook = { bookId, timestamp: now };
-        const updatedBooks = [newBook, ...filteredBooks].slice(0, MAX_RECENT_BOOKS);
-
-        // Save to AsyncStorage
-        await AsyncStorage.setItem(STORAGE_KEYS.RECENT_BOOKS, JSON.stringify(updatedBooks));
-
-        // Update state immediately (optimistic update)
-        setRecentBooks(updatedBooks);
-        setError(null);
-
-        // Sync with backend if authenticated (fire and forget)
-        if (isAuthenticated && user?.id) {
-          syncMutation.mutate({
-            body: {
-              books: [
-                {
-                  bookId: bookId.toString(),
-                  timestamp: now,
-                },
-              ],
-            },
-          });
-        }
-      } catch (err) {
-        const storageError = err instanceof Error ? err : new Error('Failed to save recent book');
-        setError(storageError);
-        console.error('useRecentBooks: Failed to persist recent book to storage:', storageError);
+  const addRecentBook = async (bookId: number): Promise<void> => {
+    try {
+      // Validate bookId
+      if (!Number.isInteger(bookId) || bookId < 1 || bookId > 66) {
+        throw new Error(`Invalid bookId: ${bookId}. Must be an integer between 1 and 66.`);
       }
-    },
-    [isAuthenticated, user?.id, syncMutation]
-  );
+
+      const now = Date.now();
+      const expiryMs = RECENT_BOOKS_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+
+      // Load current list from storage
+      const stored = await AsyncStorage.getItem(STORAGE_KEYS.RECENT_BOOKS);
+      let currentBooks: RecentBook[] = [];
+
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          // Handle both old and new format
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            if (typeof parsed[0] === 'string') {
+              currentBooks = parsed.map((id: string) => ({
+                bookId: Number.parseInt(id, 10),
+                timestamp: Date.now(),
+              }));
+            } else {
+              currentBooks = parsed;
+            }
+          }
+        } catch (parseError) {
+          console.error('Failed to parse recently viewed books:', parseError);
+        }
+      }
+
+      // Filter out expired entries and the current bookId (we'll add it back at top)
+      const filteredBooks = currentBooks.filter(
+        (book) => book.bookId !== bookId && now - book.timestamp < expiryMs
+      );
+
+      // Add new entry at the top
+      const newBook: RecentBook = { bookId, timestamp: now };
+      const updatedBooks = [newBook, ...filteredBooks].slice(0, MAX_RECENT_BOOKS);
+
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(STORAGE_KEYS.RECENT_BOOKS, JSON.stringify(updatedBooks));
+
+      // Update state immediately (optimistic update)
+      setRecentBooks(updatedBooks);
+      setError(null);
+
+      // Sync with backend if authenticated (fire and forget)
+      if (isAuthenticated && user?.id) {
+        syncMutation.mutate({
+          body: {
+            books: [
+              {
+                bookId: bookId.toString(),
+                timestamp: now,
+              },
+            ],
+          },
+        });
+      }
+    } catch (err) {
+      const storageError = err instanceof Error ? err : new Error('Failed to save recent book');
+      setError(storageError);
+      console.error('useRecentBooks: Failed to persist recent book to storage:', storageError);
+    }
+  };
 
   /**
    * Clear all recent books from storage and state
    */
-  const clearRecentBooks = useCallback(async (): Promise<void> => {
+  const clearRecentBooks = async (): Promise<void> => {
     try {
       await AsyncStorage.removeItem(STORAGE_KEYS.RECENT_BOOKS);
       setRecentBooks([]);
@@ -250,7 +247,7 @@ export function useRecentBooks(): UseRecentBooksResult {
       setError(storageError);
       console.error('useRecentBooks: Failed to clear recent books from storage:', storageError);
     }
-  }, []);
+  };
 
   return {
     recentBooks,
