@@ -48,10 +48,6 @@ import { SplitView } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
-import {
-  ChapterNavigationProvider,
-  useChapterNavigation as useChapterNavigationContext,
-} from '@/contexts/ChapterNavigationContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   useActiveTab,
@@ -62,6 +58,7 @@ import {
   useViewModeDuration,
 } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
+import { useChapterNavigationStore } from '@/hooks/bible/use-chapter-navigation-store';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
@@ -75,6 +72,7 @@ import {
   usePrefetchPreviousChapter,
   useSaveLastRead,
 } from '@/src/api';
+import { initializeState as initializeNavigationStore } from '@/stores/chapter-navigation-store';
 import type { ContentTabType } from '@/types/bible';
 
 /**
@@ -85,7 +83,7 @@ type ViewMode = 'bible' | 'explanations';
 /**
  * Center index for 5-page window in ChapterPagerView
  */
-const CENTER_INDEX = 2;
+const _CENTER_INDEX = 2;
 
 /**
  * Chapter Screen Component
@@ -322,22 +320,6 @@ export default function ChapterScreen() {
   );
 
   /**
-   * Handle jump to chapter from modal navigation
-   * Snaps PagerView to center after context update
-   */
-  const handleJumpToChapter = useCallback((targetBookId: number, targetChapter: number) => {
-    // Update URL params - this will trigger a re-render with new validBookId/validChapter
-    router.setParams({
-      bookId: targetBookId.toString(),
-      chapterNumber: targetChapter.toString(),
-      verse: undefined,
-      endVerse: undefined,
-    });
-    // Snap PagerView to center after state update
-    pagerRef.current?.setPage(CENTER_INDEX);
-  }, []);
-
-  /**
    * Navigate to previous chapter using PagerView ref
    *
    * With circular navigation enabled, this always triggers navigation:
@@ -370,6 +352,13 @@ export default function ChapterScreen() {
     // Trigger PagerView page change (swipe left to next chapter)
     pagerRef.current?.goNext();
   }, []);
+
+  // Initialize navigation store with URL params (before render)
+  // This ensures the store is in sync for the header's first render
+  // IMPORTANT: Must be called before any early returns to satisfy React hooks rules
+  useEffect(() => {
+    initializeNavigationStore(validBookId, validChapter, initialBookName);
+  }, [validBookId, validChapter, initialBookName]);
 
   // Show skeleton loader while loading and no data is available
   // Note: Loading/error states use hardcoded values since context is not yet available
@@ -415,49 +404,42 @@ export default function ChapterScreen() {
       chapterNumber={validChapter}
       bookName={chapter.bookName}
     >
-      <ChapterNavigationProvider
-        initialBookId={validBookId}
-        initialChapter={validChapter}
-        initialBookName={initialBookName}
-        onJumpToChapter={handleJumpToChapter}
-      >
-        <ChapterScreenContent
-          validBookId={validBookId}
-          validChapter={validChapter}
-          chapter={chapter}
-          totalChapters={totalChapters}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          activeView={activeView}
-          setActiveView={setActiveView}
-          handleViewChange={handleViewChange}
-          canGoNext={canGoNext}
-          canGoPrevious={canGoPrevious}
-          fabVisible={fabVisible}
-          handleScroll={handleScroll}
-          handleTap={handleTap}
-          handlePrevious={handlePrevious}
-          handleNext={handleNext}
-          pagerRef={pagerRef}
-          targetVerse={targetVerse}
-          targetEndVerse={targetEndVerse}
-          isNavigationModalOpen={isNavigationModalOpen}
-          setIsNavigationModalOpen={setIsNavigationModalOpen}
-          isMenuOpen={isMenuOpen}
-          setIsMenuOpen={setIsMenuOpen}
-          useSplitView={useSplitView}
-          splitRatio={splitRatio}
-          setSplitRatio={setSplitRatio}
-          splitViewMode={splitViewMode}
-          setSplitViewMode={setSplitViewMode}
-          styles={styles}
-          progress={progress}
-          user={user}
-          saveLastRead={saveLastRead}
-          prefetchNext={prefetchNext}
-          prefetchPrevious={prefetchPrevious}
-        />
-      </ChapterNavigationProvider>
+      <ChapterScreenContent
+        validBookId={validBookId}
+        validChapter={validChapter}
+        chapter={chapter}
+        totalChapters={totalChapters}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        activeView={activeView}
+        setActiveView={setActiveView}
+        handleViewChange={handleViewChange}
+        canGoNext={canGoNext}
+        canGoPrevious={canGoPrevious}
+        fabVisible={fabVisible}
+        handleScroll={handleScroll}
+        handleTap={handleTap}
+        handlePrevious={handlePrevious}
+        handleNext={handleNext}
+        pagerRef={pagerRef}
+        targetVerse={targetVerse}
+        targetEndVerse={targetEndVerse}
+        isNavigationModalOpen={isNavigationModalOpen}
+        setIsNavigationModalOpen={setIsNavigationModalOpen}
+        isMenuOpen={isMenuOpen}
+        setIsMenuOpen={setIsMenuOpen}
+        useSplitView={useSplitView}
+        splitRatio={splitRatio}
+        setSplitRatio={setSplitRatio}
+        splitViewMode={splitViewMode}
+        setSplitViewMode={setSplitViewMode}
+        styles={styles}
+        progress={progress}
+        user={user}
+        saveLastRead={saveLastRead}
+        prefetchNext={prefetchNext}
+        prefetchPrevious={prefetchPrevious}
+      />
     </BibleInteractionProvider>
   );
 }
@@ -546,8 +528,8 @@ function ChapterScreenContent({
     chapterNumber: string;
   }>();
 
-  // Read navigation state from context (set by PagerView on swipe)
-  const { currentBookId, currentChapter, bookName } = useChapterNavigationContext();
+  // Read navigation state from external store (no re-render cascade)
+  const { bookId: currentBookId, chapter: currentChapter, bookName } = useChapterNavigationStore();
 
   // Debounced URL sync (The "Follower")
   // Updates the URL silently after user stops swiping to prevent global re-renders during animation
@@ -765,8 +747,8 @@ export function ChapterHeader({
   onMenuPress,
   navigationModalVisible,
 }: ChapterHeaderProps) {
-  // Read bookName and currentChapter from context (Task 4.2)
-  const { bookName, currentChapter } = useChapterNavigationContext();
+  // Read bookName and chapter from external store (no context re-renders)
+  const { bookName, chapter: currentChapter } = useChapterNavigationStore();
 
   // Get theme directly inside ChapterHeader (no props drilling)
   const { colors, mode } = useTheme();

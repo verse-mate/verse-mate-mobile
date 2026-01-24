@@ -1,23 +1,22 @@
 /**
- * ChapterHeader Context Integration Tests
+ * ChapterHeader Store Integration Tests
  *
- * Tests for the ChapterHeader component's integration with ChapterNavigationContext.
- * The header reads bookName and currentChapter from context for instant updates.
+ * Tests for the ChapterHeader component's integration with the chapter navigation store.
+ * The header reads bookName and chapter from the external store for instant updates
+ * without triggering parent re-renders.
  *
- * @see Task Group 4.1 - Write 3-4 focused tests for ChapterHeader context usage
+ * @see stores/chapter-navigation-store.ts
+ * @see hooks/bible/use-chapter-navigation-store.ts
  */
 
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
 import type React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 // Import ChapterHeader after mocks are set up
 import { ChapterHeader } from '@/app/bible/[bookId]/[chapterNumber]';
-// Import the context
-import {
-  ChapterNavigationProvider,
-  useChapterNavigation,
-} from '@/contexts/ChapterNavigationContext';
+// Import the store functions
+import { initializeState, resetStore, setCurrentChapter } from '@/stores/chapter-navigation-store';
 
 // Mock expo-haptics before imports
 jest.mock('expo-haptics', () => ({
@@ -59,45 +58,13 @@ jest.mock('@expo/vector-icons', () => ({
 }));
 
 /**
- * Helper wrapper that provides ChapterNavigationContext with given initial values
+ * Component that allows triggering store updates in tests
  */
-interface TestWrapperProps {
-  children: React.ReactNode;
-  initialBookId?: number;
-  initialChapter?: number;
-  initialBookName?: string;
-  onJumpToChapter?: (bookId: number, chapter: number) => void;
-}
-
-function TestWrapper({
-  children,
-  initialBookId = 1,
-  initialChapter = 1,
-  initialBookName = 'Genesis',
-  onJumpToChapter = jest.fn(),
-}: TestWrapperProps) {
-  return (
-    <ChapterNavigationProvider
-      initialBookId={initialBookId}
-      initialChapter={initialChapter}
-      initialBookName={initialBookName}
-      onJumpToChapter={onJumpToChapter}
-    >
-      {children}
-    </ChapterNavigationProvider>
-  );
-}
-
-/**
- * Component that allows triggering context updates in tests
- */
-interface ContextUpdaterProps {
+interface StoreUpdaterProps {
   children: React.ReactNode;
 }
 
-function ContextUpdater({ children }: ContextUpdaterProps) {
-  const { setCurrentChapter } = useChapterNavigation();
-
+function StoreUpdater({ children }: StoreUpdaterProps) {
   return (
     <View>
       {children}
@@ -114,62 +81,70 @@ function ContextUpdater({ children }: ContextUpdaterProps) {
   );
 }
 
-describe('ChapterHeader Context Integration', () => {
-  describe('renders values from context', () => {
-    it('should render bookName from context', () => {
+describe('ChapterHeader Store Integration', () => {
+  // Reset store before each test
+  beforeEach(() => {
+    resetStore();
+  });
+
+  describe('renders values from store', () => {
+    it('should render bookName from store', () => {
+      // Initialize store with test values
+      initializeState(19, 23, 'Psalms');
+
       render(
-        <TestWrapper initialBookId={19} initialChapter={23} initialBookName="Psalms">
+        <ChapterHeader
+          activeView="bible"
+          onNavigationPress={jest.fn()}
+          onViewChange={jest.fn()}
+          onMenuPress={jest.fn()}
+        />
+      );
+
+      // The header should display "Psalms 23" from store
+      expect(screen.getByText('Psalms 23')).toBeTruthy();
+    });
+
+    it('should render chapterNumber from store', () => {
+      // Initialize store with test values
+      initializeState(43, 3, 'John');
+
+      render(
+        <ChapterHeader
+          activeView="explanations"
+          onNavigationPress={jest.fn()}
+          onViewChange={jest.fn()}
+          onMenuPress={jest.fn()}
+        />
+      );
+
+      // The header should display "John 3" from store
+      expect(screen.getByText('John 3')).toBeTruthy();
+    });
+  });
+
+  describe('updates immediately when store changes', () => {
+    it('should update header immediately when setCurrentChapter is called', async () => {
+      // Initialize store with Genesis 1
+      initializeState(1, 1, 'Genesis');
+
+      render(
+        <StoreUpdater>
           <ChapterHeader
             activeView="bible"
             onNavigationPress={jest.fn()}
             onViewChange={jest.fn()}
             onMenuPress={jest.fn()}
           />
-        </TestWrapper>
-      );
-
-      // The header should display "Psalms 23" from context
-      expect(screen.getByText('Psalms 23')).toBeTruthy();
-    });
-
-    it('should render chapterNumber from context', () => {
-      render(
-        <TestWrapper initialBookId={43} initialChapter={3} initialBookName="John">
-          <ChapterHeader
-            activeView="explanations"
-            onNavigationPress={jest.fn()}
-            onViewChange={jest.fn()}
-            onMenuPress={jest.fn()}
-          />
-        </TestWrapper>
-      );
-
-      // The header should display "John 3" from context
-      expect(screen.getByText('John 3')).toBeTruthy();
-    });
-  });
-
-  describe('updates immediately when context changes', () => {
-    it('should update header immediately when setCurrentChapter is called', async () => {
-      render(
-        <TestWrapper initialBookId={1} initialChapter={1} initialBookName="Genesis">
-          <ContextUpdater>
-            <ChapterHeader
-              activeView="bible"
-              onNavigationPress={jest.fn()}
-              onViewChange={jest.fn()}
-              onMenuPress={jest.fn()}
-            />
-          </ContextUpdater>
-        </TestWrapper>
+        </StoreUpdater>
       );
 
       // Initial state
       expect(screen.getByText('Genesis 1')).toBeTruthy();
 
-      // Update context to Exodus 5
+      // Update store to Exodus 5
       await act(async () => {
-        fireEvent.press(screen.getByTestId('update-to-exodus'));
+        setCurrentChapter(2, 5, 'Exodus');
       });
 
       // Header should immediately reflect the new values
@@ -177,18 +152,19 @@ describe('ChapterHeader Context Integration', () => {
       expect(screen.queryByText('Genesis 1')).toBeNull();
     });
 
-    it('should handle multiple sequential context updates', async () => {
+    it('should handle multiple sequential store updates', async () => {
+      // Initialize store with Genesis 1
+      initializeState(1, 1, 'Genesis');
+
       render(
-        <TestWrapper initialBookId={1} initialChapter={1} initialBookName="Genesis">
-          <ContextUpdater>
-            <ChapterHeader
-              activeView="bible"
-              onNavigationPress={jest.fn()}
-              onViewChange={jest.fn()}
-              onMenuPress={jest.fn()}
-            />
-          </ContextUpdater>
-        </TestWrapper>
+        <StoreUpdater>
+          <ChapterHeader
+            activeView="bible"
+            onNavigationPress={jest.fn()}
+            onViewChange={jest.fn()}
+            onMenuPress={jest.fn()}
+          />
+        </StoreUpdater>
       );
 
       // Initial state
@@ -196,13 +172,13 @@ describe('ChapterHeader Context Integration', () => {
 
       // First update to Exodus 5
       await act(async () => {
-        fireEvent.press(screen.getByTestId('update-to-exodus'));
+        setCurrentChapter(2, 5, 'Exodus');
       });
       expect(screen.getByText('Exodus 5')).toBeTruthy();
 
       // Second update to Revelation 22
       await act(async () => {
-        fireEvent.press(screen.getByTestId('update-to-revelation'));
+        setCurrentChapter(66, 22, 'Revelation');
       });
       expect(screen.getByText('Revelation 22')).toBeTruthy();
       expect(screen.queryByText('Exodus 5')).toBeNull();
