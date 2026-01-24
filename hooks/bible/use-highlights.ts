@@ -45,7 +45,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
@@ -462,110 +462,106 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   /**
    * Check if a verse range has a highlight
    */
-  const isHighlighted = useCallback(
-    (startVerse: number, endVerse: number, startChar?: number, endChar?: number): boolean => {
-      const highlights = fetchAllHighlights ? allHighlights : chapterHighlights;
+  const isHighlighted = (
+    startVerse: number,
+    endVerse: number,
+    startChar?: number,
+    endChar?: number
+  ): boolean => {
+    const highlights = fetchAllHighlights ? allHighlights : chapterHighlights;
 
-      return highlights.some((h) => {
-        // Check verse range overlap
-        const verseOverlap = h.start_verse <= endVerse && h.end_verse >= startVerse;
+    return highlights.some((h) => {
+      // Check verse range overlap
+      const verseOverlap = h.start_verse <= endVerse && h.end_verse >= startVerse;
 
-        if (!verseOverlap) return false;
+      if (!verseOverlap) return false;
 
-        // If character positions are specified, only consider highlights with character positions
-        if (startChar !== undefined && endChar !== undefined) {
-          // If highlight doesn't have character positions, it doesn't match character-level query
-          if (h.start_char === null || h.end_char === null) return false;
+      // If character positions are specified, only consider highlights with character positions
+      if (startChar !== undefined && endChar !== undefined) {
+        // If highlight doesn't have character positions, it doesn't match character-level query
+        if (h.start_char === null || h.end_char === null) return false;
 
-          // Check character overlap
-          return (h.start_char as number) <= endChar && (h.end_char as number) >= startChar;
-        }
+        // Check character overlap
+        return (h.start_char as number) <= endChar && (h.end_char as number) >= startChar;
+      }
 
-        // For verse-level queries (no character positions), any verse overlap matches
-        return true;
-      });
-    },
-    [allHighlights, chapterHighlights, fetchAllHighlights]
-  );
+      // For verse-level queries (no character positions), any verse overlap matches
+      return true;
+    });
+  };
 
   /**
    * Add a highlight with optimistic update
    */
-  const addHighlight = useCallback(
-    async (params: AddHighlightParams): Promise<void> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to add highlights');
-        return;
-      }
+  const addHighlight = async (params: AddHighlightParams): Promise<void> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to add highlights');
+      return;
+    }
 
-      await addMutation.mutateAsync({
-        body: {
-          user_id: user.id,
-          book_id: params.bookId,
-          chapter_number: params.chapterNumber,
-          start_verse: params.startVerse,
-          end_verse: params.endVerse,
-          color: params.color,
-          start_char: params.startChar,
-          end_char: params.endChar,
-          selected_text: params.selectedText,
-        },
-      });
-    },
-    [isAuthenticated, user?.id, addMutation]
-  );
+    await addMutation.mutateAsync({
+      body: {
+        user_id: user.id,
+        book_id: params.bookId,
+        chapter_number: params.chapterNumber,
+        start_verse: params.startVerse,
+        end_verse: params.endVerse,
+        color: params.color,
+        start_char: params.startChar,
+        end_char: params.endChar,
+        selected_text: params.selectedText,
+      },
+    });
+  };
 
   /**
    * Update highlight color with optimistic update
    */
-  const updateHighlightColor = useCallback(
-    async (highlightId: number, color: HighlightColor): Promise<void> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to update highlights');
-        return;
-      }
+  const updateHighlightColor = async (
+    highlightId: number,
+    color: HighlightColor
+  ): Promise<void> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to update highlights');
+      return;
+    }
 
-      // Call mutation
-      await updateMutation.mutateAsync({
-        path: {
-          highlight_id: highlightId,
-        },
-        body: {
-          user_id: user.id,
-          color,
-        },
-      } as PutBibleHighlightByHighlightIdData);
-    },
-    [isAuthenticated, user?.id, updateMutation]
-  );
+    // Call mutation
+    await updateMutation.mutateAsync({
+      path: {
+        highlight_id: highlightId,
+      },
+      body: {
+        user_id: user.id,
+        color,
+      },
+    } as PutBibleHighlightByHighlightIdData);
+  };
 
   /**
    * Delete highlight with optimistic update
    */
-  const deleteHighlight = useCallback(
-    async (highlightId: number): Promise<void> => {
-      // Check authentication
-      if (!isAuthenticated || !user?.id) {
-        console.error('User must be authenticated to delete highlights');
-        return;
-      }
+  const deleteHighlight = async (highlightId: number): Promise<void> => {
+    // Check authentication
+    if (!isAuthenticated || !user?.id) {
+      console.error('User must be authenticated to delete highlights');
+      return;
+    }
 
-      // Call mutation
-      await deleteMutation.mutateAsync({
-        path: {
-          highlight_id: highlightId,
-        },
-      } as DeleteBibleHighlightByHighlightIdData);
-    },
-    [isAuthenticated, user?.id, deleteMutation]
-  );
+    // Call mutation
+    await deleteMutation.mutateAsync({
+      path: {
+        highlight_id: highlightId,
+      },
+    } as DeleteBibleHighlightByHighlightIdData);
+  };
 
   /**
    * Manually refetch highlights from API
    */
-  const refetchHighlights = useCallback(async (): Promise<void> => {
+  const refetchHighlights = async (): Promise<void> => {
     if (isAuthenticated && user?.id) {
       if (fetchAllHighlights) {
         await refetchAll();
@@ -573,7 +569,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         await refetchChapter();
       }
     }
-  }, [isAuthenticated, user?.id, fetchAllHighlights, refetchAll, refetchChapter]);
+  };
 
   // Combine auth and query loading states
   const isFetchingHighlights =

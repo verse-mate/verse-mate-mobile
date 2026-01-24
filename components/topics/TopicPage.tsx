@@ -17,7 +17,7 @@
  * @see Spec: agent-os/specs/2025-12-08-topic-swipe-navigation/spec.md
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
@@ -132,7 +132,7 @@ export interface TopicPageProps {
  * />
  * ```
  */
-export const TopicPage = React.memo(function TopicPage({
+export function TopicPage({
   topicId,
   activeTab,
   activeView,
@@ -144,7 +144,7 @@ export const TopicPage = React.memo(function TopicPage({
   onVersePress,
 }: TopicPageProps) {
   const { colors } = useTheme();
-  const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
+  const { styles, markdownStyles } = createStyles(colors);
 
   // TODO: Implement Bible version selection in Settings page
   // For now, hardcoded to NASB1995 (backend default)
@@ -218,10 +218,10 @@ export const TopicPage = React.memo(function TopicPage({
   /**
    * Handle touch start - record time and position
    */
-  const handleTouchStart = useCallback((event: GestureResponderEvent) => {
+  const handleTouchStart = (event: GestureResponderEvent) => {
     touchStartTime.current = Date.now();
     touchStartY.current = event.nativeEvent.pageY;
-  }, []);
+  };
 
   /**
    * Handle touch end - detect if it was a tap (not a scroll)
@@ -229,50 +229,44 @@ export const TopicPage = React.memo(function TopicPage({
    * - Touch duration < 200ms
    * - Movement < 10 pixels
    */
-  const handleTouchEnd = useCallback(
-    (event: GestureResponderEvent) => {
-      if (!onTap) return;
+  const handleTouchEnd = (event: GestureResponderEvent) => {
+    if (!onTap) return;
 
-      const touchDuration = Date.now() - touchStartTime.current;
-      const touchMovement = Math.abs(event.nativeEvent.pageY - touchStartY.current);
+    const touchDuration = Date.now() - touchStartTime.current;
+    const touchMovement = Math.abs(event.nativeEvent.pageY - touchStartY.current);
 
-      // Only trigger tap if it was quick and didn't move much
-      if (touchDuration < 200 && touchMovement < 10) {
-        onTap();
-      }
-    },
-    [onTap]
-  );
+    // Only trigger tap if it was quick and didn't move much
+    if (touchDuration < 200 && touchMovement < 10) {
+      onTap();
+    }
+  };
 
   /**
    * Handle scroll events - calculate velocity and detect bottom
    */
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (!onScroll) return;
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!onScroll) return;
 
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      const currentScrollY = contentOffset.y;
-      const currentTime = Date.now();
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const currentScrollY = contentOffset.y;
+    const currentTime = Date.now();
 
-      // Calculate scroll velocity (pixels per second)
-      const timeDelta = currentTime - lastScrollTime.current;
-      const scrollDelta = currentScrollY - lastScrollY.current; // Signed value to track direction
-      const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
+    // Calculate scroll velocity (pixels per second)
+    const timeDelta = currentTime - lastScrollTime.current;
+    const scrollDelta = currentScrollY - lastScrollY.current; // Signed value to track direction
+    const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
 
-      // Check if at bottom
-      const scrollHeight = contentSize.height - layoutMeasurement.height;
-      const isAtBottom = scrollHeight - currentScrollY <= BOTTOM_THRESHOLD;
+    // Check if at bottom
+    const scrollHeight = contentSize.height - layoutMeasurement.height;
+    const isAtBottom = scrollHeight - currentScrollY <= BOTTOM_THRESHOLD;
 
-      // Update refs
-      lastScrollY.current = currentScrollY;
-      lastScrollTime.current = currentTime;
+    // Update refs
+    lastScrollY.current = currentScrollY;
+    lastScrollTime.current = currentTime;
 
-      // Call parent callback
-      onScroll(velocity, isAtBottom);
-    },
-    [onScroll]
-  );
+    // Call parent callback
+    onScroll(velocity, isAtBottom);
+  };
 
   // Type guard for topic
   const topic =
@@ -526,7 +520,7 @@ export const TopicPage = React.memo(function TopicPage({
       )}
     </View>
   );
-});
+}
 
 /**
  * Creates all styles for TopicPage component

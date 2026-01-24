@@ -21,7 +21,7 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type NativeSyntheticEvent,
   StyleSheet,
@@ -260,7 +260,7 @@ export function ChapterReader({
 }: ChapterReaderProps) {
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
-  const styles = useMemo(() => createStyles(colors, explanationsOnly), [colors, explanationsOnly]);
+  const styles = createStyles(colors, explanationsOnly);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
   const { showToast } = useToast();
 
@@ -344,17 +344,14 @@ export function ChapterReader({
   /**
    * Check if a verse group is visible in the viewport
    */
-  const isVerseVisible = useCallback(
-    (startVerse: number): boolean => {
-      const layout = sectionLayouts.current[startVerse];
-      if (!layout) {
-        // If layout not yet calculated, assume visible (safe default)
-        return true;
-      }
-      return isElementVisible(layout.y, layout.height, visibleYRange);
-    },
-    [visibleYRange]
-  );
+  const isVerseVisible = (startVerse: number): boolean => {
+    const layout = sectionLayouts.current[startVerse];
+    if (!layout) {
+      // If layout not yet calculated, assume visible (safe default)
+      return true;
+    }
+    return isElementVisible(layout.y, layout.height, visibleYRange);
+  };
 
   /**
    * Handle notes button press
@@ -367,7 +364,7 @@ export function ChapterReader({
    * Handle word selection from HighlightedText
    * Directly opens dictionary definition (no intermediate selection UI)
    */
-  const handleWordSelect = useCallback((selection: WordSelection, clearSelection: () => void) => {
+  const handleWordSelect = (selection: WordSelection, clearSelection: () => void) => {
     // Directly open definition
     setWordToDefine({
       word: selection.word,
@@ -377,7 +374,7 @@ export function ChapterReader({
 
     // Clear any selection highlight
     clearSelection();
-  }, []);
+  };
 
   /**
    * Handle tap on highlighted text
@@ -435,40 +432,37 @@ export function ChapterReader({
   /**
    * Handle close word definition tooltip
    */
-  const handleWordDefinitionClose = useCallback(() => {
+  const handleWordDefinitionClose = () => {
     setWordDefinitionVisible(false);
     setWordToDefine(null);
-  }, []);
+  };
 
   /**
    * Handle copy from word definition tooltip
    */
-  const handleWordDefinitionCopy = useCallback(() => {
+  const handleWordDefinitionCopy = () => {
     showToast('Copied to clipboard');
-  }, [showToast]);
+  };
 
   /**
    * Handle text layout event to capture line positions
    */
-  const handleTextLayout = useCallback(
-    (groupKey: string, event: NativeSyntheticEvent<TextLayoutEventData>) => {
-      const { lines } = event.nativeEvent;
-      let charOffset = 0;
-      const lineInfo = lines.map((line) => {
-        const info = {
-          text: line.text,
-          y: line.y,
-          height: line.height,
-          width: line.width,
-          startCharOffset: charOffset,
-        };
-        charOffset += line.text.length;
-        return info;
-      });
-      paragraphLineLayoutsRef.current.set(groupKey, lineInfo);
-    },
-    []
-  );
+  const handleTextLayout = (groupKey: string, event: NativeSyntheticEvent<TextLayoutEventData>) => {
+    const { lines } = event.nativeEvent;
+    let charOffset = 0;
+    const lineInfo = lines.map((line) => {
+      const info = {
+        text: line.text,
+        y: line.y,
+        height: line.height,
+        width: line.width,
+        startCharOffset: charOffset,
+      };
+      charOffset += line.text.length;
+      return info;
+    });
+    paragraphLineLayoutsRef.current.set(groupKey, lineInfo);
+  };
 
   return (
     <View style={styles.container} collapsable={false}>

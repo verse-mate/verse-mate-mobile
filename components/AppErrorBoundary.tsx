@@ -7,11 +7,12 @@
 
 import { router } from 'expo-router';
 import { usePostHog } from 'posthog-react-native';
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 interface Props {
   children: ReactNode;
+  posthog?: ReturnType<typeof usePostHog> | null;
 }
 
 interface State {
@@ -20,17 +21,18 @@ interface State {
   errorInfo: ErrorInfo | null;
 }
 
-// PostHog instance needs to be accessed outside of React components in class components
-// We'll use a module-level variable that gets set by a wrapper hook
-let posthogInstance: ReturnType<typeof usePostHog> | null = null;
-
 /**
  * Wrapper component to inject PostHog into error boundary
  */
-export function AppErrorBoundary({ children }: Props) {
-  posthogInstance = usePostHog();
+export function AppErrorBoundary({ children }: Omit<Props, 'posthog'>) {
+  const posthog = usePostHog();
+  const posthogRef = useRef(posthog);
 
-  return <AppErrorBoundaryClass>{children}</AppErrorBoundaryClass>;
+  useEffect(() => {
+    posthogRef.current = posthog;
+  }, [posthog]);
+
+  return <AppErrorBoundaryClass posthog={posthogRef.current}>{children}</AppErrorBoundaryClass>;
 }
 
 class AppErrorBoundaryClass extends Component<Props, State> {
@@ -65,7 +67,7 @@ class AppErrorBoundaryClass extends Component<Props, State> {
 
     // Capture error with PostHog analytics
     // Cast componentStack to string since it may be null/undefined in some cases
-    posthogInstance?.captureException(error, {
+    this.props.posthog?.captureException(error, {
       componentStack: errorInfo.componentStack ?? '',
     });
   }

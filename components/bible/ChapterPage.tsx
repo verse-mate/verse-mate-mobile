@@ -18,7 +18,7 @@
  */
 
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
@@ -115,7 +115,7 @@ function TabContent({
   filteredAutoHighlights?: AutoHighlight[];
 }) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]); // Use local createStyles for TabContent
+  const styles = createStyles(colors); // Use local createStyles for TabContent
 
   const isHidden = !visible;
   if (isHidden && !shouldRenderHidden) return null;
@@ -245,7 +245,7 @@ export interface ChapterPageProps {
  * />
  * ```
  */
-export const ChapterPage = React.memo(function ChapterPage({
+export function ChapterPage({
   bookId,
   chapterNumber,
   activeTab,
@@ -258,7 +258,7 @@ export const ChapterPage = React.memo(function ChapterPage({
   onTap,
 }: ChapterPageProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]); // Use local createStyles for ChapterPage
+  const styles = createStyles(colors); // Use local createStyles for ChapterPage
 
   // Use Reanimated ref for the animated ScrollView
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -441,7 +441,7 @@ export const ChapterPage = React.memo(function ChapterPage({
   /**
    * Attempt to scroll to target verse using Reanimated for smoothness
    */
-  const attemptScrollToVerse = useCallback(() => {
+  const attemptScrollToVerse = () => {
     if (activeView !== 'bible') return;
     if (!targetVerse || hasScrolledRef.current) return;
 
@@ -488,24 +488,22 @@ export const ChapterPage = React.memo(function ChapterPage({
         hasScrolledRef.current = true;
       }
     }
-  }, [activeView, targetVerse, animatedScrollRef]);
+  };
 
   /**
    * Handle content layout report from ChapterReader
    */
-  const handleContentLayout = useCallback(
-    (positions: Record<number, number>) => {
-      sectionPositionsRef.current = positions;
-      attemptScrollToVerse();
-    },
-    [attemptScrollToVerse]
-  );
+  const handleContentLayout = (positions: Record<number, number>) => {
+    sectionPositionsRef.current = positions;
+    attemptScrollToVerse();
+  };
 
   // Attempt scroll when targetVerse changes (if layouts are ready)
   useEffect(() => {
     if (targetVerse) {
       attemptScrollToVerse();
     }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of attemptScrollToVerse
   }, [targetVerse, attemptScrollToVerse]);
 
   // Fallback: if initial layout was late, retry after mount
@@ -531,6 +529,7 @@ export const ChapterPage = React.memo(function ChapterPage({
       clearTimeout(timeout);
       clearInterval(interval);
     };
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of attemptScrollToVerse
   }, [attemptScrollToVerse]);
 
   /**
@@ -872,4 +871,4 @@ export const ChapterPage = React.memo(function ChapterPage({
         })()}
     </View>
   );
-});
+}

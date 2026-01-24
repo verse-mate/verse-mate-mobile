@@ -11,7 +11,7 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ShareButton } from '@/components/bible/ShareButton';
 import {
@@ -72,7 +72,7 @@ function toSuperscript(num: number): string {
 
 export function TopicText({ topicName, markdownContent, onShare, onVersePress }: TopicTextProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
 
   // Parse the markdown content into structured data
   const parsedContent: ParsedTopicContent = useMemo(() => {
@@ -80,41 +80,38 @@ export function TopicText({ topicName, markdownContent, onShare, onVersePress }:
   }, [markdownContent]);
 
   // Helper function to handle verse press
-  const handleVersePress = useCallback(
-    (verseText: string, reference: string, verseNumberOverride?: string) => {
-      if (!onVersePress) return;
+  const handleVersePress = (verseText: string, reference: string, verseNumberOverride?: string) => {
+    if (!onVersePress) return;
 
-      // Parse the reference to extract components
-      const parsed = parseVerseReference(reference);
-      if (!parsed) {
-        console.warn(`Failed to parse verse reference: ${reference}`);
-        return;
+    // Parse the reference to extract components
+    const parsed = parseVerseReference(reference);
+    if (!parsed) {
+      console.warn(`Failed to parse verse reference: ${reference}`);
+      return;
+    }
+
+    // If we have an explicit verse number from the text content (e.g. clicking on Verse 5 in a 1-5 block),
+    // use that instead of what the reference string says (which might be "1-5" -> 1).
+    if (verseNumberOverride) {
+      const overrideNum = Number.parseInt(verseNumberOverride, 10);
+      if (!Number.isNaN(overrideNum)) {
+        parsed.verseNumber = overrideNum;
       }
+    }
 
-      // If we have an explicit verse number from the text content (e.g. clicking on Verse 5 in a 1-5 block),
-      // use that instead of what the reference string says (which might be "1-5" -> 1).
-      if (verseNumberOverride) {
-        const overrideNum = Number.parseInt(verseNumberOverride, 10);
-        if (!Number.isNaN(overrideNum)) {
-          parsed.verseNumber = overrideNum;
-        }
-      }
+    // Trigger haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      // Trigger haptic feedback
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      // Call the callback with parsed data
-      onVersePress({
-        bookId: parsed.bookId,
-        bookName: parsed.bookName,
-        chapterNumber: parsed.chapterNumber,
-        verseNumber: parsed.verseNumber,
-        verseText: verseText.trim(),
-        verseReference: reference,
-      });
-    },
-    [onVersePress]
-  );
+    // Call the callback with parsed data
+    onVersePress({
+      bookId: parsed.bookId,
+      bookName: parsed.bookName,
+      chapterNumber: parsed.chapterNumber,
+      verseNumber: parsed.verseNumber,
+      verseText: verseText.trim(),
+      verseReference: reference,
+    });
+  };
 
   // Helper function to render reference list with proper styling
   const renderReferenceList = (referenceList: string) => {

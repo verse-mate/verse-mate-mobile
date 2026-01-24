@@ -18,6 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
+// NOTE: useCallback is still used for useFocusEffect which requires it
 import {
   ActivityIndicator,
   Alert,
@@ -135,15 +136,15 @@ export default function SettingsScreen() {
     }
   }, [isAuthenticated]);
 
-  const hasProfileChanges = useCallback(() => {
+  const hasProfileChanges = () => {
     return (
       firstName !== (user?.firstName || '') ||
       lastName !== (user?.lastName || '') ||
       email !== (user?.email || '')
     );
-  }, [firstName, lastName, email, user]);
+  };
 
-  const saveProfile = useCallback(async () => {
+  const saveProfile = async () => {
     // Check for changes inline to avoid dependency on hasProfileChanges
     const hasChanges =
       firstName !== (user?.firstName || '') ||
@@ -220,17 +221,20 @@ export default function SettingsScreen() {
       setGlobalError(errorMessage);
       setSaveStatus('error');
     }
-  }, [firstName, lastName, email, user, restoreSession]);
+  };
 
   // Track pending changes
+  // Note: hasProfileChanges is auto-memoized by React Compiler
   useEffect(() => {
     hasPendingChangesRef.current = hasProfileChanges();
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization
   }, [hasProfileChanges]);
 
   // Store latest saveProfile in a ref to avoid re-running effect when it changes
   const saveProfileRef = useRef(saveProfile);
   useEffect(() => {
     saveProfileRef.current = saveProfile;
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization
   }, [saveProfile]);
 
   // Auto-save profile changes
@@ -253,6 +257,7 @@ export default function SettingsScreen() {
   }, [isAuthenticated, user, firstName, lastName, email]);
 
   // Save pending changes when screen loses focus
+  // Note: saveProfile is auto-memoized by React Compiler
   useFocusEffect(
     useCallback(() => {
       // Cleanup function runs when screen loses focus
@@ -262,6 +267,7 @@ export default function SettingsScreen() {
           saveProfile();
         }
       };
+      // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization
     }, [isAuthenticated, saveProfile])
   );
 

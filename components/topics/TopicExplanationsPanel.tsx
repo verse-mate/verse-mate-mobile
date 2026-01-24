@@ -15,7 +15,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
@@ -89,16 +89,13 @@ export function TopicExplanationsPanel({
 }: TopicExplanationsPanelProps) {
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
-  const { styles, markdownStyles } = useMemo(() => createStyles(specs, colors), [specs, colors]);
+  const { styles, markdownStyles } = createStyles(specs, colors);
   const insets = useSafeAreaInsets();
 
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Animation for sliding tab indicator
-  const getTabIndex = useCallback(
-    (tab: ContentTabType) => TAB_OPTIONS.findIndex((t) => t.id === tab),
-    []
-  );
+  const getTabIndex = (tab: ContentTabType) => TAB_OPTIONS.findIndex((t) => t.id === tab);
   const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
   const [tabWidth, setTabWidth] = useState(0);
 
@@ -111,6 +108,7 @@ export function TopicExplanationsPanel({
       friction: 8,
       tension: 50,
     }).start();
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of getTabIndex
   }, [activeTab, slideAnim, getTabIndex]);
 
   // Get Bible version from settings
@@ -122,20 +120,17 @@ export function TopicExplanationsPanel({
   const topicData = rawTopicData as any;
 
   // Handle tab press with haptic feedback
-  const handleTabPress = useCallback(
-    (tab: ContentTabType) => {
-      if (tab !== activeTab) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onTabChange(tab);
-        // Scroll to top when switching tabs
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      }
-    },
-    [activeTab, onTabChange]
-  );
+  const handleTabPress = (tab: ContentTabType) => {
+    if (tab !== activeTab) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onTabChange(tab);
+      // Scroll to top when switching tabs
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }
+  };
 
   // Get explanation content for active tab
-  const getExplanationContent = useCallback(() => {
+  const getExplanationContent = () => {
     if (!topicData?.explanation) return null;
 
     switch (activeTab) {
@@ -148,13 +143,13 @@ export function TopicExplanationsPanel({
       default:
         return null;
     }
-  }, [topicData, activeTab]);
+  };
 
   const explanationContent = getExplanationContent();
   const hasContent = explanationContent && typeof explanationContent === 'string';
 
   // Custom share handler for topics
-  const handleShare = useCallback(async () => {
+  const handleShare = async () => {
     if (!topicData) return;
 
     const { generateTopicShareUrl } = await import('@/utils/sharing/generate-topic-share-url');
@@ -188,7 +183,7 @@ export function TopicExplanationsPanel({
     } catch (error) {
       console.error('Failed to share topic:', error);
     }
-  }, [topicData, topicName, activeTab]);
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.sm }]} testID={testID}>

@@ -158,7 +158,7 @@ export default function ChapterScreen() {
 
   // Theme
   const { colors, mode } = useTheme();
-  const styles = useMemo(() => createStyles(colors, mode), [colors, mode]);
+  const styles = createStyles(colors, mode);
 
   // Device info for split view detection
   const { useSplitView, splitRatio, setSplitRatio, splitViewMode, setSplitViewMode } =

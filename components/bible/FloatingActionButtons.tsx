@@ -16,7 +16,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { animationDurations, getFabSpecs, type ThemeMode } from '@/constants/bible-design-tokens';
@@ -53,7 +53,7 @@ export function FloatingActionButtons({
   visible = true,
 }: FloatingActionButtonsProps) {
   const { mode } = useTheme();
-  const styles = useMemo(() => createStyles(mode), [mode]);
+  const styles = createStyles(mode);
   const specs = getFabSpecs(mode);
 
   // Animated opacity value

@@ -8,7 +8,7 @@
  */
 
 import Constants from 'expo-constants';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Safely import Google Sign-In module to prevent crashes in Expo Go
 // biome-ignore lint/suspicious/noExplicitAny: Dynamic import for optional native module
@@ -145,16 +145,16 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
   /**
    * Reset error state
    */
-  const reset = useCallback(() => {
+  const reset = () => {
     setError(null);
-  }, []);
+  };
 
   /**
    * Trigger Google Sign-In flow
    *
    * @returns ID token on success, null on failure or cancellation
    */
-  const signIn = useCallback(async (): Promise<string | null> => {
+  const signIn = async (): Promise<string | null> => {
     if (!GoogleSignin) {
       setError('Google Sign-In is not supported in this environment');
       return null;
@@ -239,7 +239,7 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
   return {
     signIn,

@@ -21,7 +21,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import { Alert, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -75,7 +75,7 @@ type ViewMode = 'bible' | 'explanations';
  */
 export default function TopicDetailScreen() {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -210,70 +210,58 @@ export default function TopicDetailScreen() {
   }, [activeTopicId, currentTopicCategory, activeTab, activeView]);
 
   // Handle back navigation
-  const handleBack = useCallback(() => {
+  const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/');
     }
-  }, []);
+  };
 
   // Handle chapter selection from modal (redirect to Bible)
-  const handleSelectChapter = useCallback(
-    (bookId: number, chapter: number) => {
-      setIsNavigationModalOpen(false);
-      // Always default to Bible text view when navigating to Bible
-      setActiveView('bible');
-      router.push(`/bible/${bookId}/${chapter}`);
-    },
-    [setActiveView]
-  );
+  const handleSelectChapter = (bookId: number, chapter: number) => {
+    setIsNavigationModalOpen(false);
+    // Always default to Bible text view when navigating to Bible
+    setActiveView('bible');
+    router.push(`/bible/${bookId}/${chapter}`);
+  };
 
   // Handle topic selection from modal (navigate to different topic)
-  const handleSelectTopic = useCallback(
-    (newTopicId: string, _newCategory: TopicCategory) => {
-      setIsNavigationModalOpen(false);
-      // Always default to Bible text view when switching topics via modal
-      setActiveView('bible');
-      setActiveTopicId(newTopicId);
-      // URL will catch up via debounce
-    },
-    [setActiveView]
-  );
+  const handleSelectTopic = (newTopicId: string, _newCategory: TopicCategory) => {
+    setIsNavigationModalOpen(false);
+    // Always default to Bible text view when switching topics via modal
+    setActiveView('bible');
+    setActiveTopicId(newTopicId);
+    // URL will catch up via debounce
+  };
 
   // Handle tab change
-  const handleTabChange = useCallback(
-    (tab: ContentTabType) => {
-      setActiveTab(tab);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    },
-    [setActiveTab]
-  );
+  const handleTabChange = (tab: ContentTabType) => {
+    setActiveTab(tab);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
   // Handle view mode change (Bible references vs Explanations)
-  const handleViewChange = useCallback(
-    (view: ViewMode) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setActiveView(view);
-    },
-    [setActiveView]
-  );
+  const handleViewChange = (view: ViewMode) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveView(view);
+  };
 
   /**
    * Handle page change from TopicPagerView swipe
    * Updates local state immediately to prevent flash
    * Global navigation - no category parameter needed
    */
-  const handlePageChange = useCallback((newTopicId: string) => {
+  const handlePageChange = (newTopicId: string) => {
     setActiveTopicId(newTopicId);
-  }, []);
+  };
 
   /**
    * Handle previous topic navigation via FAB button
    * Uses pagerRef.goPrevious for smooth animation in portrait, direct state update for split view
    * With circular navigation, prevTopic is always available - no error case needed
    */
-  const handlePrevious = useCallback(() => {
+  const handlePrevious = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (useSplitView && prevTopic) {
       // In split view, update local state directly
@@ -283,14 +271,14 @@ export default function TopicDetailScreen() {
       // This works correctly even if user has swiped manually
       pagerRef.current?.goPrevious();
     }
-  }, [prevTopic, useSplitView]);
+  };
 
   /**
    * Handle next topic navigation via FAB button
    * Uses pagerRef.goNext for smooth animation in portrait, direct state update for split view
    * With circular navigation, nextTopic is always available - no error case needed
    */
-  const handleNext = useCallback(() => {
+  const handleNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (useSplitView && nextTopic) {
       // In split view, update local state directly
@@ -300,10 +288,10 @@ export default function TopicDetailScreen() {
       // This works correctly even if user has swiped manually
       pagerRef.current?.goNext();
     }
-  }, [nextTopic, useSplitView]);
+  };
 
   // Handle share topic
-  const handleShare = useCallback(async () => {
+  const handleShare = async () => {
     // Extract topic from topicData
     const currentTopic =
       topicData?.topic && typeof topicData.topic === 'object' && 'name' in topicData.topic
@@ -339,41 +327,38 @@ export default function TopicDetailScreen() {
       // Trigger error haptic feedback
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [topicData, currentTopicCategory]);
+  };
 
   /**
    * Handle scroll events from TopicPage for FAB visibility
    */
-  const handleScroll = useCallback(
-    (velocity: number, isAtBottom: boolean) => {
-      handleFABScroll(velocity, isAtBottom);
-    },
-    [handleFABScroll]
-  );
+  const handleScroll = (velocity: number, isAtBottom: boolean) => {
+    handleFABScroll(velocity, isAtBottom);
+  };
 
   /**
    * Handle verse press from TopicText component
    */
-  const handleVersePress = useCallback((verseData: VersePress) => {
+  const handleVersePress = (verseData: VersePress) => {
     setSelectedVerse(verseData);
     setTooltipVisible(true);
-  }, []);
+  };
 
   /**
    * Handle tooltip close
    */
-  const handleTooltipClose = useCallback(() => {
+  const handleTooltipClose = () => {
     setTooltipVisible(false);
     // Clear selected verse after animation completes
     setTimeout(() => setSelectedVerse(null), 300);
-  }, []);
+  };
 
   /**
    * Handle copy action from tooltip - show toast notification
    */
-  const handleCopy = useCallback(() => {
+  const handleCopy = () => {
     showToast('Verse copied to clipboard');
-  }, [showToast]);
+  };
 
   // Type guard for topic
   const topic =
