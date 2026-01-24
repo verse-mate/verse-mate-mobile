@@ -22,6 +22,7 @@ import { render, screen } from '@testing-library/react-native';
 import React, { useRef } from 'react';
 import type { ChapterPagerViewRef } from '@/components/bible/ChapterPagerView';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ChapterNavigationProvider } from '@/contexts/ChapterNavigationContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBibleTestaments } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
@@ -82,7 +83,24 @@ jest.mock('@/src/api/hooks', () => ({
   useBibleTestaments: jest.fn(),
 }));
 
+// Mock expo-haptics
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(),
+  ImpactFeedbackStyle: {
+    Light: 'light',
+    Medium: 'medium',
+    Heavy: 'heavy',
+  },
+}));
+
 const mockUseBibleTestaments = useBibleTestaments as jest.MockedFunction<typeof useBibleTestaments>;
+
+/**
+ * Helper to get book name from mock data
+ */
+function getBookName(bookId: number): string {
+  return mockTestamentBooks.find((b) => b.id === bookId)?.name || 'Unknown';
+}
 
 describe('ChapterPagerView', () => {
   let queryClient: QueryClient;
@@ -116,13 +134,20 @@ describe('ChapterPagerView', () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
+          <ChapterNavigationProvider
             initialBookId={initialBookId}
             initialChapter={initialChapter}
-            activeTab={activeTab}
-            activeView={activeView}
-            onPageChange={onPageChange || jest.fn()}
-          />
+            initialBookName={getBookName(initialBookId)}
+            onJumpToChapter={jest.fn()}
+          >
+            <ChapterPagerView
+              initialBookId={initialBookId}
+              initialChapter={initialChapter}
+              activeTab={activeTab}
+              activeView={activeView}
+              onPageChange={onPageChange || jest.fn()}
+            />
+          </ChapterNavigationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
@@ -248,14 +273,21 @@ describe('ChapterPagerView', () => {
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={1}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+              onJumpToChapter={jest.fn()}
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={1}
+                activeTab="summary"
+                activeView="bible"
+                onPageChange={jest.fn()}
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };
@@ -279,14 +311,21 @@ describe('ChapterPagerView', () => {
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={1}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+              onJumpToChapter={jest.fn()}
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={1}
+                activeTab="summary"
+                activeView="bible"
+                onPageChange={jest.fn()}
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };
@@ -308,14 +347,21 @@ describe('ChapterPagerView', () => {
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={1}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+              onJumpToChapter={jest.fn()}
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={1}
+                activeTab="summary"
+                activeView="bible"
+                onPageChange={jest.fn()}
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };
@@ -339,14 +385,21 @@ describe('ChapterPagerView', () => {
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={5}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+              onJumpToChapter={jest.fn()}
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={5}
+                activeTab="summary"
+                activeView="bible"
+                onPageChange={jest.fn()}
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };
@@ -373,14 +426,21 @@ describe('ChapterPagerView', () => {
 
         return (
           <QueryClientProvider client={queryClient}>
-            <ChapterPagerView
-              ref={pagerRef}
+            <ChapterNavigationProvider
               initialBookId={1}
               initialChapter={1}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={jest.fn()}
-            />
+              initialBookName="Genesis"
+              onJumpToChapter={jest.fn()}
+            >
+              <ChapterPagerView
+                ref={pagerRef}
+                initialBookId={1}
+                initialChapter={1}
+                activeTab="summary"
+                activeView="bible"
+                onPageChange={jest.fn()}
+              />
+            </ChapterNavigationProvider>
           </QueryClientProvider>
         );
       };

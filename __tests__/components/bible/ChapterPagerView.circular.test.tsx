@@ -8,6 +8,8 @@
  * - Normal cross-book navigation continues to work
  * - Haptic feedback fires on circular navigation
  *
+ * Note: Window size is now 5 pages with CENTER_INDEX = 2
+ *
  * @see Spec: agent-os/specs/circular-bible-navigation/spec.md
  */
 
@@ -16,6 +18,7 @@ import { act, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ChapterNavigationProvider } from '@/contexts/ChapterNavigationContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useBibleTestaments } from '@/src/api';
 import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
@@ -91,6 +94,13 @@ jest.mock('expo-haptics', () => ({
 
 const mockUseBibleTestaments = useBibleTestaments as jest.MockedFunction<typeof useBibleTestaments>;
 
+/**
+ * Helper to get book name from mock data
+ */
+function getBookName(bookId: number): string {
+  return mockTestamentBooks.find((b) => b.id === bookId)?.name || 'Unknown';
+}
+
 describe('ChapterPagerView circular navigation', () => {
   let queryClient: QueryClient;
 
@@ -122,13 +132,20 @@ describe('ChapterPagerView circular navigation', () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChapterPagerView
+          <ChapterNavigationProvider
             initialBookId={initialBookId}
             initialChapter={initialChapter}
-            activeTab="summary"
-            activeView="bible"
-            onPageChange={onPageChange || jest.fn()}
-          />
+            initialBookName={getBookName(initialBookId)}
+            onJumpToChapter={jest.fn()}
+          >
+            <ChapterPagerView
+              initialBookId={initialBookId}
+              initialChapter={initialChapter}
+              activeTab="summary"
+              activeView="bible"
+              onPageChange={onPageChange || jest.fn()}
+            />
+          </ChapterNavigationProvider>
         </ThemeProvider>
       </QueryClientProvider>
     );
@@ -136,31 +153,28 @@ describe('ChapterPagerView circular navigation', () => {
 
   describe('getChapterForPosition circular wrapping', () => {
     it('should render Revelation 22 for positions before Genesis 1 (absoluteIndex -1)', () => {
-      // Genesis 1 at center (index 3) means position 0 would be at absoluteIndex -3
-      // Position 2 would be at absoluteIndex -1
+      // Genesis 1 at center (index 2) means position 0 would be at absoluteIndex -2
+      // Position 1 would be at absoluteIndex -1
+      // With 5-page window and CENTER_INDEX = 2:
+      // Position 0: absoluteIndex = 0 + (0 - 2) = -2 -> wraps to Rev 21
+      // Position 1: absoluteIndex = 0 + (1 - 2) = -1 -> wraps to Rev 22
       renderPagerView(1, 1);
 
-      // At Genesis 1 centered, positions 0, 1, 2 would have negative absolute indices
-      // These should now wrap to Revelation 22, 21, 20 (the last chapters)
-      // Position 0: absoluteIndex = 0 + (0 - 3) = -3 -> should wrap to 1186 (Rev 20)
-      // Position 1: absoluteIndex = 0 + (1 - 3) = -2 -> should wrap to 1187 (Rev 21)
-      // Position 2: absoluteIndex = 0 + (2 - 3) = -1 -> should wrap to 1188 (Rev 22)
+      // At Genesis 1 centered, positions 0, 1 would have negative absolute indices
+      // These should now wrap to Revelation 22, 21 (the last chapters)
       expect(screen.getByTestId('chapter-page-66-22')).toBeTruthy();
       expect(screen.getByTestId('chapter-page-66-21')).toBeTruthy();
-      expect(screen.getByTestId('chapter-page-66-20')).toBeTruthy();
     });
 
     it('should render Genesis 1 for positions after Revelation 22 (absoluteIndex 1189)', () => {
-      // Revelation 22 at center means positions 4, 5, 6 would have indices > 1188
+      // Revelation 22 at center means positions 3, 4 would have indices > 1188
+      // With 5-page window and CENTER_INDEX = 2:
+      // Position 3: absoluteIndex = 1188 + (3 - 2) = 1189 -> wraps to Gen 1
+      // Position 4: absoluteIndex = 1188 + (4 - 2) = 1190 -> wraps to Gen 2
       renderPagerView(66, 22);
 
-      // At Revelation 22 centered (index 1188), positions 4, 5, 6 would exceed max
-      // Position 4: absoluteIndex = 1188 + (4 - 3) = 1189 -> should wrap to 0 (Gen 1)
-      // Position 5: absoluteIndex = 1188 + (5 - 3) = 1190 -> should wrap to 1 (Gen 2)
-      // Position 6: absoluteIndex = 1188 + (6 - 3) = 1191 -> should wrap to 2 (Gen 3)
       expect(screen.getByTestId('chapter-page-1-1')).toBeTruthy();
       expect(screen.getByTestId('chapter-page-1-2')).toBeTruthy();
-      expect(screen.getByTestId('chapter-page-1-3')).toBeTruthy();
     });
   });
 
@@ -171,7 +185,6 @@ describe('ChapterPagerView circular navigation', () => {
       // Boundary pages should NOT be present - only actual chapter content
       expect(screen.queryByTestId('chapter-page-boundary-0')).toBeNull();
       expect(screen.queryByTestId('chapter-page-boundary-1')).toBeNull();
-      expect(screen.queryByTestId('chapter-page-boundary-2')).toBeNull();
       expect(screen.queryByTestId('swipe-boundary-start')).toBeNull();
       expect(screen.queryByTestId('swipe-boundary-end')).toBeNull();
     });
@@ -180,9 +193,8 @@ describe('ChapterPagerView circular navigation', () => {
       renderPagerView(66, 22);
 
       // Boundary pages should NOT be present - only actual chapter content
+      expect(screen.queryByTestId('chapter-page-boundary-3')).toBeNull();
       expect(screen.queryByTestId('chapter-page-boundary-4')).toBeNull();
-      expect(screen.queryByTestId('chapter-page-boundary-5')).toBeNull();
-      expect(screen.queryByTestId('chapter-page-boundary-6')).toBeNull();
       expect(screen.queryByTestId('swipe-boundary-start')).toBeNull();
       expect(screen.queryByTestId('swipe-boundary-end')).toBeNull();
     });
@@ -192,15 +204,13 @@ describe('ChapterPagerView circular navigation', () => {
     it('should render correct chapters around Genesis 50 to Exodus 1 boundary', () => {
       renderPagerView(1, 50);
 
-      // Window around Genesis 50 should show:
-      // - Genesis 47, 48, 49, 50 (center), Exodus 1, 2, 3
-      expect(screen.getByTestId('chapter-page-1-47')).toBeTruthy();
+      // Window around Genesis 50 with 5-page window should show:
+      // [Gen 48, Gen 49, Gen 50 (center), Exo 1, Exo 2]
       expect(screen.getByTestId('chapter-page-1-48')).toBeTruthy();
       expect(screen.getByTestId('chapter-page-1-49')).toBeTruthy();
       expect(screen.getByTestId('chapter-page-1-50')).toBeTruthy();
       expect(screen.getByTestId('chapter-page-2-1')).toBeTruthy();
       expect(screen.getByTestId('chapter-page-2-2')).toBeTruthy();
-      expect(screen.getByTestId('chapter-page-2-3')).toBeTruthy();
     });
   });
 
@@ -212,7 +222,7 @@ describe('ChapterPagerView circular navigation', () => {
       // Verify capturedOnPageSelected is set
       expect(capturedOnPageSelected).not.toBeNull();
 
-      // Simulate swiping to position 0 (would be out of bounds without circular nav)
+      // Simulate swiping to position 0 (edge position, would be out of bounds without circular nav)
       act(() => {
         capturedOnPageSelected?.({ nativeEvent: { position: 0 } });
       });
@@ -229,9 +239,9 @@ describe('ChapterPagerView circular navigation', () => {
 
       expect(capturedOnPageSelected).not.toBeNull();
 
-      // Simulate swiping to position 6 (would be out of bounds without circular nav)
+      // Simulate swiping to position 4 (edge position for 5-page window)
       act(() => {
-        capturedOnPageSelected?.({ nativeEvent: { position: 6 } });
+        capturedOnPageSelected?.({ nativeEvent: { position: 4 } });
       });
 
       // Haptic feedback should be triggered
@@ -248,7 +258,8 @@ describe('ChapterPagerView circular navigation', () => {
       expect(capturedOnPageSelected).not.toBeNull();
 
       // Simulate swiping to position 0 (edge position at Genesis 1)
-      // This should wrap to Revelation 22 (the previous chapter in circular navigation)
+      // With 5-page window and CENTER_INDEX = 2:
+      // absoluteIndex = 0 + (0 - 2) = -2 -> wraps to Rev 21
       act(() => {
         capturedOnPageSelected?.({ nativeEvent: { position: 0 } });
       });
@@ -261,10 +272,10 @@ describe('ChapterPagerView circular navigation', () => {
         jest.advanceTimersByTime(100);
       });
 
-      // onPageChange should be called with the wrapped chapter (Revelation 20, since position 0 is -3 from center)
-      // absoluteIndex = 0 + (0 - 3) = -3 -> wraps to 1186 which is Revelation 20
+      // onPageChange should be called with the wrapped chapter
+      // Position 0 is -2 from center, so it wraps to Rev 21
       await waitFor(() => {
-        expect(onPageChange).toHaveBeenCalledWith(66, 20);
+        expect(onPageChange).toHaveBeenCalledWith(66, 21);
       });
 
       jest.useRealTimers();
@@ -272,11 +283,11 @@ describe('ChapterPagerView circular navigation', () => {
   });
 
   describe('circular window rendering verification', () => {
-    it('should render 7 pages with only chapter content at all positions', () => {
+    it('should render 5 pages with only chapter content at all positions', () => {
       renderPagerView(1, 1);
 
-      // All 7 pager page containers should exist
-      for (let i = 0; i < 7; i++) {
+      // All 5 pager page containers should exist (reduced from 7)
+      for (let i = 0; i < 5; i++) {
         expect(screen.getByTestId(`pager-page-${i}`)).toBeTruthy();
       }
 
