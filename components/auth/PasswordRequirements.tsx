@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import type React from 'react';
-import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -25,7 +24,7 @@ export interface PasswordRequirementsProps {
 
 export const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ password }) => {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const requirements = getPasswordRequirements(password);
 
   return (

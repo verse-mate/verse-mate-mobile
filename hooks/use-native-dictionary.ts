@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import * as Dictionary from '@/modules/dictionary';
 
 interface UseNativeDictionaryResult {
@@ -34,38 +34,32 @@ export function useNativeDictionary(): UseNativeDictionaryResult {
 
   const isAvailable = Dictionary.isNativeDictionaryAvailable();
 
-  const showDefinition = useCallback(
-    async (word: string): Promise<boolean> => {
-      if (!isAvailable) {
-        return false;
-      }
+  const showDefinition = async (word: string): Promise<boolean> => {
+    if (!isAvailable) {
+      return false;
+    }
 
-      setIsLoading(true);
-      setLastWord(word);
+    setIsLoading(true);
+    setLastWord(word);
 
-      try {
-        return await Dictionary.showDefinition(word);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [isAvailable]
-  );
+    try {
+      return await Dictionary.showDefinition(word);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const hasDefinition = useCallback(
-    async (word: string): Promise<boolean> => {
-      if (!isAvailable) {
-        return false;
-      }
+  const hasDefinition = async (word: string): Promise<boolean> => {
+    if (!isAvailable) {
+      return false;
+    }
 
-      try {
-        return await Dictionary.hasDefinition(word);
-      } catch {
-        return false;
-      }
-    },
-    [isAvailable]
-  );
+    try {
+      return await Dictionary.hasDefinition(word);
+    } catch {
+      return false;
+    }
+  };
 
   return {
     showDefinition,

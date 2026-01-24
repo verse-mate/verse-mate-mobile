@@ -15,7 +15,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, Stack } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ImageBackground,
   KeyboardAvoidingView,
@@ -38,7 +38,7 @@ export default function GivingScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { user, isAuthenticated } = useAuth();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
 
   // Form state
   const [firstName, setFirstName] = useState('');

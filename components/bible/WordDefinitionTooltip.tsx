@@ -18,7 +18,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -197,7 +197,7 @@ export function WordDefinitionTooltip({
   }, [visible, word, nativeAvailable, hasDefinition]);
 
   // Helper to animate open
-  const animateOpen = useCallback(() => {
+  const animateOpen = () => {
     setInternalVisible(true);
     Animated.parallel([
       Animated.timing(backdropOpacity, {
@@ -212,36 +212,33 @@ export function WordDefinitionTooltip({
         stiffness: 90,
       }),
     ]).start();
-  }, [backdropOpacity, slideAnim]);
+  };
 
   // Helper to animate close
-  const animateClose = useCallback(
-    (callback?: () => void) => {
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: screenHeight,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 90,
-          overshootClamping: true,
-          restDisplacementThreshold: 40,
-          restSpeedThreshold: 40,
-        }),
-      ]).start();
+  const animateClose = (callback?: () => void) => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: screenHeight,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+        overshootClamping: true,
+        restDisplacementThreshold: 40,
+        restSpeedThreshold: 40,
+      }),
+    ]).start();
 
-      // Force cleanup after 150ms (store ref for cleanup on unmount)
-      closeTimeoutRef.current = setTimeout(() => {
-        setInternalVisible(false);
-        if (callback) callback();
-      }, 150);
-    },
-    [backdropOpacity, slideAnim, screenHeight]
-  );
+    // Force cleanup after 150ms (store ref for cleanup on unmount)
+    closeTimeoutRef.current = setTimeout(() => {
+      setInternalVisible(false);
+      if (callback) callback();
+    }, 150);
+  };
 
   // Watch for prop changes to trigger animations
   useEffect(() => {
@@ -250,20 +247,22 @@ export function WordDefinitionTooltip({
     } else if (internalVisible) {
       animateClose();
     }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of animateOpen/animateClose
   }, [visible, animateOpen, animateClose, internalVisible]);
 
   // Handle explicit dismiss (user action)
-  const handleDismiss = useCallback(() => {
+  const handleDismiss = () => {
     animateClose(() => {
       onClose();
     });
-  }, [animateClose, onClose]);
+  };
 
   // Auto-close tooltip when switching to insight-only screen
   useEffect(() => {
     if (visible && splitViewMode === 'right-full') {
       handleDismiss();
     }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of handleDismiss
   }, [visible, splitViewMode, handleDismiss]);
 
   /**

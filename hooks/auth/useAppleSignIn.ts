@@ -9,7 +9,7 @@
 
 import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
 /**
@@ -96,16 +96,16 @@ export function useAppleSignIn(): UseAppleSignInReturn {
   /**
    * Reset error state
    */
-  const reset = useCallback(() => {
+  const reset = () => {
     setError(null);
-  }, []);
+  };
 
   /**
    * Trigger Apple Sign-In flow
    *
    * @returns Identity token on success, null on failure or cancellation
    */
-  const signIn = useCallback(async (): Promise<string | null> => {
+  const signIn = async (): Promise<string | null> => {
     if (!isAvailable) {
       setError('Apple Sign-In is not available');
       return null;
@@ -171,7 +171,7 @@ export function useAppleSignIn(): UseAppleSignInReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [isAvailable]);
+  };
 
   return {
     signIn,

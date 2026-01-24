@@ -21,7 +21,7 @@ export default function ChapterNotesScreen() {
   }>();
 
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
   const insets = useSafeAreaInsets();
   const parsedBookId = parseInt(bookId || '0', 10);
   const parsedChapterNumber = parseInt(chapterNumber || '0', 10);

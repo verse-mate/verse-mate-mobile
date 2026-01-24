@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -28,7 +28,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 export function SkeletonLoader() {
   const { mode } = useTheme();
   const skeletonSpecs = getSkeletonSpecs(mode);
-  const styles = useMemo(() => createStyles(skeletonSpecs), [skeletonSpecs]);
+  const styles = createStyles(skeletonSpecs);
 
   const opacity = useSharedValue(1);
 

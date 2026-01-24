@@ -44,7 +44,7 @@ export function TopicProgressBar({
 }: TopicProgressBarProps) {
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
-  const styles = useMemo(() => createStyles(specs, colors), [specs, colors]);
+  const styles = createStyles(specs, colors);
 
   // Clamp progress between 0 and 100
   const clampedProgress = Math.max(0, Math.min(100, progress));

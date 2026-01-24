@@ -15,7 +15,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
@@ -112,7 +112,7 @@ export function BibleContentPanel({
   const { mode, colors } = useTheme();
   const insets = useSafeAreaInsets();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
-  const styles = useMemo(() => createStyles(specs, colors, insets), [specs, colors, insets]);
+  const styles = createStyles(specs, colors, insets);
 
   // Ref for ChapterPagerView imperative control
   const pagerRef = useRef<ChapterPagerViewRef>(null);
@@ -121,7 +121,7 @@ export function BibleContentPanel({
   const { progress } = useBookProgress(bookId, chapterNumber, totalChapters);
 
   // Handle previous navigation
-  const handlePrevious = useCallback(() => {
+  const handlePrevious = () => {
     if (canGoPrevious) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       pagerRef.current?.setPage(1); // Previous page in 5-page window
@@ -129,10 +129,10 @@ export function BibleContentPanel({
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [canGoPrevious, onNavigatePrev]);
+  };
 
   // Handle next navigation
-  const handleNext = useCallback(() => {
+  const handleNext = () => {
     if (canGoNext) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       pagerRef.current?.setPage(3); // Next page in 5-page window
@@ -140,7 +140,7 @@ export function BibleContentPanel({
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [canGoNext, onNavigateNext]);
+  };
 
   return (
     <View style={styles.container} testID={testID}>

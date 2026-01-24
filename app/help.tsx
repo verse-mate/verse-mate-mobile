@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+// NOTE: useCallback is still used for some callbacks that are dependencies in effects
 import {
   ActivityIndicator,
   BackHandler,
@@ -59,7 +60,7 @@ export default function HelpScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { isAuthenticated } = useAuth();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
 
   // -- State --
   const [view, setView] = useState<ViewState>('list');

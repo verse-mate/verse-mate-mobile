@@ -15,7 +15,7 @@
 
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -65,7 +65,7 @@ export function NoteEditModal({
 }: NoteEditModalProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
+  const styles = createStyles(colors, insets.bottom);
   const { showToast } = useToast();
   const { updateNote, isUpdatingNote } = useNotes();
   const { draftContent, isDraftRestored, saveDraft, clearDraft } = useNoteDraft(
@@ -116,7 +116,7 @@ export function NoteEditModal({
 
   // -- Animation Logic --
 
-  const animateOpen = useCallback(() => {
+  const animateOpen = () => {
     setInternalVisible(true);
     Animated.parallel([
       Animated.timing(backdropOpacity, {
@@ -131,35 +131,32 @@ export function NoteEditModal({
         stiffness: 90,
       }),
     ]).start();
-  }, [backdropOpacity, slideAnim]);
+  };
 
-  const animateClose = useCallback(
-    (callback?: () => void) => {
-      Keyboard.dismiss();
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: screenHeight,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 90,
-          overshootClamping: true,
-          restDisplacementThreshold: 40,
-          restSpeedThreshold: 40,
-        }),
-      ]).start();
+  const animateClose = (callback?: () => void) => {
+    Keyboard.dismiss();
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: screenHeight,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+        overshootClamping: true,
+        restDisplacementThreshold: 40,
+        restSpeedThreshold: 40,
+      }),
+    ]).start();
 
-      setTimeout(() => {
-        setInternalVisible(false);
-        if (callback) callback();
-      }, 200);
-    },
-    [backdropOpacity, slideAnim, screenHeight]
-  );
+    setTimeout(() => {
+      setInternalVisible(false);
+      if (callback) callback();
+    }, 200);
+  };
 
   useEffect(() => {
     if (visible) {
@@ -167,6 +164,7 @@ export function NoteEditModal({
     } else if (internalVisible) {
       animateClose();
     }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of animateOpen/animateClose
   }, [visible, animateOpen, animateClose, internalVisible]);
 
   // -- Gestures --

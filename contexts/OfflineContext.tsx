@@ -6,14 +6,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from 'react';
+import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
   type DownloadInfo,
   type OfflineManifest,
@@ -167,19 +160,19 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Set offline mode
-  const setOfflineModeEnabled = useCallback((enabled: boolean) => {
+  const setOfflineModeEnabled = (enabled: boolean) => {
     setOfflineModeEnabledState(enabled);
     AsyncStorage.setItem(OFFLINE_MODE_KEY, enabled.toString()).catch(console.warn);
-  }, []);
+  };
 
   // Set auto-sync
-  const setAutoSyncEnabled = useCallback((enabled: boolean) => {
+  const setAutoSyncEnabled = (enabled: boolean) => {
     setAutoSyncEnabledState(enabled);
     AsyncStorage.setItem(AUTO_SYNC_KEY, enabled.toString()).catch(console.warn);
-  }, []);
+  };
 
   // Refresh manifest and download info
-  const refreshManifest = useCallback(async () => {
+  const refreshManifest = async () => {
     try {
       const newManifest = await fetchManifest();
       setManifest(newManifest);
@@ -198,145 +191,127 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       console.error('Failed to refresh manifest:', error);
       throw error;
     }
-  }, []);
+  };
 
   // Download Bible version
-  const downloadBibleVersion = useCallback(
-    async (versionKey: string) => {
-      if (!manifest) {
-        await refreshManifest();
-      }
-      const currentManifest = manifest || (await fetchManifest());
+  const downloadBibleVersion = async (versionKey: string) => {
+    if (!manifest) {
+      await refreshManifest();
+    }
+    const currentManifest = manifest || (await fetchManifest());
 
-      setIsSyncing(true);
-      try {
-        await downloadBibleVersionService(versionKey, currentManifest, setSyncProgress);
+    setIsSyncing(true);
+    try {
+      await downloadBibleVersionService(versionKey, currentManifest, setSyncProgress);
 
-        // Update state
-        setDownloadedBibleVersions((prev) => [...new Set([...prev, versionKey])]);
-        const storage = await getTotalStorageUsed();
-        setTotalStorageUsed(storage);
+      // Update state
+      setDownloadedBibleVersions((prev) => [...new Set([...prev, versionKey])]);
+      const storage = await getTotalStorageUsed();
+      setTotalStorageUsed(storage);
 
-        // Refresh download info
-        const bibleInfo = await getBibleVersionsDownloadInfo(currentManifest);
-        setBibleVersionsInfo(bibleInfo);
-      } finally {
-        setIsSyncing(false);
-        setSyncProgress(null);
-      }
-    },
-    [manifest, refreshManifest]
-  );
+      // Refresh download info
+      const bibleInfo = await getBibleVersionsDownloadInfo(currentManifest);
+      setBibleVersionsInfo(bibleInfo);
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(null);
+    }
+  };
 
   // Download commentaries
-  const downloadCommentaries = useCallback(
-    async (languageCode: string) => {
-      if (!manifest) {
-        await refreshManifest();
-      }
-      const currentManifest = manifest || (await fetchManifest());
+  const downloadCommentaries = async (languageCode: string) => {
+    if (!manifest) {
+      await refreshManifest();
+    }
+    const currentManifest = manifest || (await fetchManifest());
 
-      setIsSyncing(true);
-      try {
-        await downloadCommentariesService(languageCode, currentManifest, setSyncProgress);
+    setIsSyncing(true);
+    try {
+      await downloadCommentariesService(languageCode, currentManifest, setSyncProgress);
 
-        // Update state
-        setDownloadedCommentaryLanguages((prev) => [...new Set([...prev, languageCode])]);
-        const storage = await getTotalStorageUsed();
-        setTotalStorageUsed(storage);
+      // Update state
+      setDownloadedCommentaryLanguages((prev) => [...new Set([...prev, languageCode])]);
+      const storage = await getTotalStorageUsed();
+      setTotalStorageUsed(storage);
 
-        // Refresh download info
-        const commInfo = await getCommentaryDownloadInfo(currentManifest);
-        setCommentaryInfo(commInfo);
-      } finally {
-        setIsSyncing(false);
-        setSyncProgress(null);
-      }
-    },
-    [manifest, refreshManifest]
-  );
+      // Refresh download info
+      const commInfo = await getCommentaryDownloadInfo(currentManifest);
+      setCommentaryInfo(commInfo);
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(null);
+    }
+  };
 
   // Download topics
-  const downloadTopics = useCallback(
-    async (languageCode: string) => {
-      if (!manifest) {
-        await refreshManifest();
-      }
-      const currentManifest = manifest || (await fetchManifest());
+  const downloadTopics = async (languageCode: string) => {
+    if (!manifest) {
+      await refreshManifest();
+    }
+    const currentManifest = manifest || (await fetchManifest());
 
-      setIsSyncing(true);
-      try {
-        await downloadTopicsService(languageCode, currentManifest, setSyncProgress);
+    setIsSyncing(true);
+    try {
+      await downloadTopicsService(languageCode, currentManifest, setSyncProgress);
 
-        // Update state
-        setDownloadedTopicLanguages((prev) => [...new Set([...prev, languageCode])]);
-        const storage = await getTotalStorageUsed();
-        setTotalStorageUsed(storage);
+      // Update state
+      setDownloadedTopicLanguages((prev) => [...new Set([...prev, languageCode])]);
+      const storage = await getTotalStorageUsed();
+      setTotalStorageUsed(storage);
 
-        // Refresh download info
-        const topicInfo = await getTopicsDownloadInfo(currentManifest);
-        setTopicsInfo(topicInfo);
-      } finally {
-        setIsSyncing(false);
-        setSyncProgress(null);
-      }
-    },
-    [manifest, refreshManifest]
-  );
+      // Refresh download info
+      const topicInfo = await getTopicsDownloadInfo(currentManifest);
+      setTopicsInfo(topicInfo);
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(null);
+    }
+  };
 
   // Delete Bible version
-  const deleteBibleVersion = useCallback(
-    async (versionKey: string) => {
-      await removeBibleVersion(versionKey);
-      setDownloadedBibleVersions((prev) => prev.filter((k) => k !== versionKey));
+  const deleteBibleVersion = async (versionKey: string) => {
+    await removeBibleVersion(versionKey);
+    setDownloadedBibleVersions((prev) => prev.filter((k) => k !== versionKey));
 
-      const storage = await getTotalStorageUsed();
-      setTotalStorageUsed(storage);
+    const storage = await getTotalStorageUsed();
+    setTotalStorageUsed(storage);
 
-      if (manifest) {
-        const bibleInfo = await getBibleVersionsDownloadInfo(manifest);
-        setBibleVersionsInfo(bibleInfo);
-      }
-    },
-    [manifest]
-  );
+    if (manifest) {
+      const bibleInfo = await getBibleVersionsDownloadInfo(manifest);
+      setBibleVersionsInfo(bibleInfo);
+    }
+  };
 
   // Delete commentaries
-  const deleteCommentaries = useCallback(
-    async (languageCode: string) => {
-      await removeCommentaries(languageCode);
-      setDownloadedCommentaryLanguages((prev) => prev.filter((c) => c !== languageCode));
+  const deleteCommentaries = async (languageCode: string) => {
+    await removeCommentaries(languageCode);
+    setDownloadedCommentaryLanguages((prev) => prev.filter((c) => c !== languageCode));
 
-      const storage = await getTotalStorageUsed();
-      setTotalStorageUsed(storage);
+    const storage = await getTotalStorageUsed();
+    setTotalStorageUsed(storage);
 
-      if (manifest) {
-        const commInfo = await getCommentaryDownloadInfo(manifest);
-        setCommentaryInfo(commInfo);
-      }
-    },
-    [manifest]
-  );
+    if (manifest) {
+      const commInfo = await getCommentaryDownloadInfo(manifest);
+      setCommentaryInfo(commInfo);
+    }
+  };
 
   // Delete topics
-  const deleteTopics = useCallback(
-    async (languageCode: string) => {
-      await removeTopics(languageCode);
-      setDownloadedTopicLanguages((prev) => prev.filter((c) => c !== languageCode));
+  const deleteTopics = async (languageCode: string) => {
+    await removeTopics(languageCode);
+    setDownloadedTopicLanguages((prev) => prev.filter((c) => c !== languageCode));
 
-      const storage = await getTotalStorageUsed();
-      setTotalStorageUsed(storage);
+    const storage = await getTotalStorageUsed();
+    setTotalStorageUsed(storage);
 
-      if (manifest) {
-        const topicInfo = await getTopicsDownloadInfo(manifest);
-        setTopicsInfo(topicInfo);
-      }
-    },
-    [manifest]
-  );
+    if (manifest) {
+      const topicInfo = await getTopicsDownloadInfo(manifest);
+      setTopicsInfo(topicInfo);
+    }
+  };
 
   // Delete all data
-  const deleteAllData = useCallback(async () => {
+  const deleteAllData = async () => {
     await deleteAllOfflineData();
     setDownloadedBibleVersions([]);
     setDownloadedCommentaryLanguages([]);
@@ -345,10 +320,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setBibleVersionsInfo([]);
     setCommentaryInfo([]);
     setTopicsInfo([]);
-  }, []);
+  };
 
   // Check for updates
-  const checkForUpdates = useCallback(async () => {
+  const checkForUpdates = async () => {
     setIsSyncing(true);
     try {
       await checkAndSyncUpdates(setSyncProgress);
@@ -385,7 +360,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       setIsSyncing(false);
       setSyncProgress(null);
     }
-  }, [manifest]);
+  };
 
   const value: OfflineContextType = {
     // Mode

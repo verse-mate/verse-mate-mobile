@@ -7,7 +7,7 @@
  * @see Task Group 5: Login/Signup Screen Integration
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppleSignIn } from './useAppleSignIn';
 import { useGoogleSignIn } from './useGoogleSignIn';
@@ -93,23 +93,23 @@ export function useSSOLogin(): UseSSOLoginReturn {
   /**
    * Reset error state
    */
-  const resetError = useCallback(() => {
+  const resetError = () => {
     setError(null);
     googleSignIn.reset();
     appleSignIn.reset();
-  }, [googleSignIn, appleSignIn]);
+  };
 
   /**
    * Reset success state
    */
-  const resetSuccess = useCallback(() => {
+  const resetSuccess = () => {
     setIsSuccess(false);
-  }, []);
+  };
 
   /**
    * Sign in with Google
    */
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = async () => {
     setError(null);
     setIsSuccess(false);
     setIsGoogleLoading(true);
@@ -147,12 +147,12 @@ export function useSSOLogin(): UseSSOLoginReturn {
         setIsGoogleLoading(false);
       }
     }
-  }, [googleSignIn, loginWithSSO]);
+  };
 
   /**
    * Sign in with Apple
    */
-  const signInWithApple = useCallback(async () => {
+  const signInWithApple = async () => {
     setError(null);
     setIsSuccess(false);
     setIsAppleLoading(true);
@@ -190,7 +190,7 @@ export function useSSOLogin(): UseSSOLoginReturn {
         setIsAppleLoading(false);
       }
     }
-  }, [appleSignIn, loginWithSSO]);
+  };
 
   return {
     signInWithGoogle,

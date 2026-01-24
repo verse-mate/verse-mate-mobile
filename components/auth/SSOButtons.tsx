@@ -8,7 +8,6 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -92,7 +91,7 @@ export function SSOButtons({
   error,
 }: SSOButtonsProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
 
   // Check which SSO providers are available
   const showGoogleButton = isGoogleSignInConfigured();

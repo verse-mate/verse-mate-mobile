@@ -14,7 +14,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
@@ -107,7 +107,7 @@ export function BibleExplanationsPanel({
   const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
 
   // Animation for sliding tab indicator
-  const getTabIndex = useCallback((tab: ContentTabType) => TABS.findIndex((t) => t.id === tab), []);
+  const getTabIndex = (tab: ContentTabType) => TABS.findIndex((t) => t.id === tab);
   const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
   const [tabWidth, setTabWidth] = useState(0);
 
@@ -128,6 +128,7 @@ export function BibleExplanationsPanel({
       friction: 8,
       tension: 50,
     }).start();
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of getTabIndex
   }, [activeTab, slideAnim, getTabIndex]);
 
   // Fetch explanations based on active tab
@@ -181,13 +182,10 @@ export function BibleExplanationsPanel({
     (activeTab === 'detailed' && detailedLoading);
 
   // Handle tab change with haptic feedback
-  const handleTabChange = useCallback(
-    (tab: ContentTabType) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onTabChange(tab);
-    },
-    [onTabChange]
-  );
+  const handleTabChange = (tab: ContentTabType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onTabChange(tab);
+  };
 
   // Get content string from data
   const content = useMemo(() => {
@@ -202,10 +200,10 @@ export function BibleExplanationsPanel({
    * Handle touch start - record time and position
    * Used to differentiate tap from scroll gestures
    */
-  const handleTouchStart = useCallback((event: GestureResponderEvent) => {
+  const handleTouchStart = (event: GestureResponderEvent) => {
     touchStartTime.current = Date.now();
     touchStartY.current = event.nativeEvent.pageY;
-  }, []);
+  };
 
   /**
    * Handle touch end - detect if it was a tap (not a scroll)
@@ -214,51 +212,45 @@ export function BibleExplanationsPanel({
    * - Movement < 10 pixels
    * Matches logic from ChapterPage.tsx for consistent behavior
    */
-  const handleTouchEnd = useCallback(
-    (event: GestureResponderEvent) => {
-      if (!onTap) return;
+  const handleTouchEnd = (event: GestureResponderEvent) => {
+    if (!onTap) return;
 
-      const touchDuration = Date.now() - touchStartTime.current;
-      const touchMovement = Math.abs(event.nativeEvent.pageY - touchStartY.current);
+    const touchDuration = Date.now() - touchStartTime.current;
+    const touchMovement = Math.abs(event.nativeEvent.pageY - touchStartY.current);
 
-      // Only trigger tap if it was quick and didn't move much
-      if (touchDuration < 200 && touchMovement < 10) {
-        onTap();
-      }
-    },
-    [onTap]
-  );
+    // Only trigger tap if it was quick and didn't move much
+    if (touchDuration < 200 && touchMovement < 10) {
+      onTap();
+    }
+  };
 
   /**
    * Handle scroll events - calculate velocity and check if at bottom
    * Matches logic from ChapterPage.tsx for consistent FAB behavior
    */
-  const handleInternalScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (!onScroll) return;
+  const handleInternalScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!onScroll) return;
 
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      const currentScrollY = contentOffset.y;
-      const currentTime = Date.now();
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const currentScrollY = contentOffset.y;
+    const currentTime = Date.now();
 
-      // Calculate scroll velocity (pixels per second)
-      const timeDelta = currentTime - lastScrollTime.current;
-      const scrollDelta = currentScrollY - lastScrollY.current;
-      const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
+    // Calculate scroll velocity (pixels per second)
+    const timeDelta = currentTime - lastScrollTime.current;
+    const scrollDelta = currentScrollY - lastScrollY.current;
+    const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
 
-      // Check if at bottom
-      const scrollHeight = contentSize.height - layoutMeasurement.height;
-      const isAtBottom = scrollHeight - currentScrollY <= BOTTOM_THRESHOLD;
+    // Check if at bottom
+    const scrollHeight = contentSize.height - layoutMeasurement.height;
+    const isAtBottom = scrollHeight - currentScrollY <= BOTTOM_THRESHOLD;
 
-      // Update refs
-      lastScrollY.current = currentScrollY;
-      lastScrollTime.current = currentTime;
+    // Update refs
+    lastScrollY.current = currentScrollY;
+    lastScrollTime.current = currentTime;
 
-      // Call parent callback
-      onScroll(velocity, isAtBottom);
-    },
-    [onScroll]
-  );
+    // Call parent callback
+    onScroll(velocity, isAtBottom);
+  };
 
   return (
     <View

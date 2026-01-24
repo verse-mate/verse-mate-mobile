@@ -12,7 +12,7 @@
  * - Identical animations/UX to AutoHighlightTooltip
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -84,7 +84,7 @@ export function SimpleColorPickerModal({
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
 
   // Helper to animate open
-  const animateOpen = useCallback(() => {
+  const animateOpen = () => {
     setInternalVisible(true);
     Animated.parallel([
       Animated.timing(backdropOpacity, {
@@ -99,37 +99,34 @@ export function SimpleColorPickerModal({
         stiffness: 90,
       }),
     ]).start();
-  }, [backdropOpacity, slideAnim]);
+  };
 
   // Helper to animate close
-  const animateClose = useCallback(
-    (callback?: () => void) => {
-      Animated.parallel([
-        Animated.timing(backdropOpacity, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: screenHeight,
-          useNativeDriver: true,
-          damping: 20,
-          stiffness: 90,
-          overshootClamping: true,
-          restDisplacementThreshold: 40,
-          restSpeedThreshold: 40,
-        }),
-      ]).start();
+  const animateClose = (callback?: () => void) => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: screenHeight,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+        overshootClamping: true,
+        restDisplacementThreshold: 40,
+        restSpeedThreshold: 40,
+      }),
+    ]).start();
 
-      // Force cleanup after 150ms to prevent "spring tail" blocking the UI
-      setTimeout(() => {
-        setInternalVisible(false);
-        setSelectedColor(DEFAULT_HIGHLIGHT_COLOR); // Reset color
-        if (callback) callback();
-      }, 150);
-    },
-    [backdropOpacity, slideAnim, screenHeight]
-  );
+    // Force cleanup after 150ms to prevent "spring tail" blocking the UI
+    setTimeout(() => {
+      setInternalVisible(false);
+      setSelectedColor(DEFAULT_HIGHLIGHT_COLOR); // Reset color
+      if (callback) callback();
+    }, 150);
+  };
 
   // Watch for prop changes to trigger animations
   useEffect(() => {
@@ -138,6 +135,7 @@ export function SimpleColorPickerModal({
     } else if (internalVisible) {
       animateClose();
     }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of animateOpen/animateClose
   }, [visible, animateOpen, animateClose, internalVisible]);
 
   // Handle explicit dismiss (user action)

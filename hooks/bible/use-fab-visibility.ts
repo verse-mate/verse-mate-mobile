@@ -15,7 +15,7 @@
  * - User scrolls slowly (reading pace)
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Scroll velocity threshold in pixels/second
@@ -57,18 +57,18 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
   /**
    * Clear any pending idle timeout
    */
-  const clearIdleTimeout = useCallback(() => {
+  const clearIdleTimeout = () => {
     if (idleTimeoutRef.current) {
       clearTimeout(idleTimeoutRef.current);
       idleTimeoutRef.current = null;
     }
-  }, []);
+  };
 
   /**
    * Start idle timeout to hide buttons after delay
    * Only starts timeout if not at bottom
    */
-  const startIdleTimeout = useCallback(() => {
+  const startIdleTimeout = () => {
     clearIdleTimeout();
     // Don't start timeout if at bottom - keep buttons visible
     if (isAtBottomRef.current) {
@@ -77,15 +77,15 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
     idleTimeoutRef.current = setTimeout(() => {
       setVisible(false);
     }, IDLE_TIMEOUT_MS);
-  }, [clearIdleTimeout]);
+  };
 
   /**
    * Show buttons and restart idle timeout
    */
-  const showButtons = useCallback(() => {
+  const showButtons = () => {
     setVisible(true);
     startIdleTimeout();
-  }, [startIdleTimeout]);
+  };
 
   /**
    * Handle scroll events
@@ -94,44 +94,44 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
    * @param velocity - Scroll velocity in pixels/second (signed value: negative = up, positive = down)
    * @param isAtBottom - Whether user is at/near bottom of content
    */
-  const handleScroll = useCallback(
-    (velocity: number, isAtBottom: boolean) => {
-      // Update bottom state
-      isAtBottomRef.current = isAtBottom;
+  const handleScroll = (velocity: number, isAtBottom: boolean) => {
+    // Update bottom state
+    isAtBottomRef.current = isAtBottom;
 
-      if (isAtBottom) {
-        // At bottom - show buttons and keep them visible (no timeout)
-        clearIdleTimeout();
+    if (isAtBottom) {
+      // At bottom - show buttons and keep them visible (no timeout)
+      clearIdleTimeout();
+      setVisible(true);
+    } else if (velocity < -SCROLL_VELOCITY_THRESHOLD) {
+      // Fast scroll UP - show buttons with 3s timeout
+      if (!visibleRef.current) {
         setVisible(true);
-      } else if (velocity < -SCROLL_VELOCITY_THRESHOLD) {
-        // Fast scroll UP - show buttons with 3s timeout
-        if (!visibleRef.current) {
-          setVisible(true);
-        }
-        startIdleTimeout();
-      } else if (velocity > SCROLL_VELOCITY_THRESHOLD) {
-        // Fast scroll DOWN - hide buttons immediately
-        if (visibleRef.current) {
-          setVisible(false);
-        }
-        clearIdleTimeout();
       }
-      // Note: On slow scroll, let existing timeout continue (buttons will hide after 3s of inactivity)
-    },
-    [clearIdleTimeout, startIdleTimeout]
-  );
+      startIdleTimeout();
+    } else if (velocity > SCROLL_VELOCITY_THRESHOLD) {
+      // Fast scroll DOWN - hide buttons immediately
+      if (visibleRef.current) {
+        setVisible(false);
+      }
+      clearIdleTimeout();
+    }
+    // Note: On slow scroll, let existing timeout continue (buttons will hide after 3s of inactivity)
+  };
 
   /**
    * Handle tap events
    * Shows buttons and starts idle timeout
    */
-  const handleTap = useCallback(() => {
+  const handleTap = () => {
     showButtons();
-  }, [showButtons]);
+  };
 
   /**
    * Cleanup timeout on unmount
+   * Note: Dependencies intentionally empty - startIdleTimeout and clearIdleTimeout
+   * are stable function references (React Compiler handles memoization)
    */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Functions are stable, only run on mount/unmount
   useEffect(() => {
     // Start initial timeout
     startIdleTimeout();
@@ -139,7 +139,7 @@ export function useFABVisibility(options: UseFABVisibilityOptions = {}) {
     return () => {
       clearIdleTimeout();
     };
-  }, [startIdleTimeout, clearIdleTimeout]);
+  }, []);
 
   return {
     visible,

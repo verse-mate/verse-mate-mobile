@@ -6,7 +6,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Dimensions } from 'react-native';
 import {
   DEFAULT_SPLIT_RATIO,
@@ -111,23 +111,23 @@ export function DeviceInfoProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   // Update split ratio
-  const setSplitRatio = useCallback((ratio: number) => {
+  const setSplitRatio = (ratio: number) => {
     const clampedRatio = Math.max(0.1, Math.min(0.9, ratio));
     cachedSplitRatio = clampedRatio;
     setSplitRatioState(clampedRatio);
     AsyncStorage.setItem(SPLIT_RATIO_STORAGE_KEY, clampedRatio.toString()).catch((error) => {
       console.warn('Failed to save split ratio:', error);
     });
-  }, []);
+  };
 
   // Update view mode
-  const setSplitViewMode = useCallback((mode: SplitViewMode) => {
+  const setSplitViewMode = (mode: SplitViewMode) => {
     cachedSplitViewMode = mode;
     setSplitViewModeState(mode);
     AsyncStorage.setItem(SPLIT_VIEW_MODE_STORAGE_KEY, mode).catch((error) => {
       console.warn('Failed to save split view mode:', error);
     });
-  }, []);
+  };
 
   const value = {
     ...deviceInfo,

@@ -20,7 +20,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { UseActiveViewResult, ViewModeType } from '@/types/bible';
 import { isViewModeType, STORAGE_KEYS } from '@/types/bible';
@@ -85,7 +85,7 @@ export function useActiveView(): UseActiveViewResult {
   /**
    * Set active view and persist to AsyncStorage
    */
-  const setActiveView = useCallback(async (view: ViewModeType): Promise<void> => {
+  const setActiveView = async (view: ViewModeType): Promise<void> => {
     try {
       if (!isViewModeType(view)) {
         throw new Error(`Invalid view type: ${view}. Must be 'bible' or 'explanations'.`);
@@ -108,7 +108,7 @@ export function useActiveView(): UseActiveViewResult {
       setError(storageError);
       console.error('useActiveView: Failed to persist view to storage:', storageError);
     }
-  }, []);
+  };
 
   return {
     activeView,
