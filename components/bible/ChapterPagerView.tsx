@@ -31,8 +31,8 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
-import { useChapterNavigation } from '@/contexts/ChapterNavigationContext';
 import { useBibleTestaments } from '@/src/api';
+import { setCurrentChapter as setStoreChapter } from '@/stores/chapter-navigation-store';
 import type { ContentTabType } from '@/types/bible';
 import {
   getAbsolutePageIndex,
@@ -140,9 +140,6 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
   ) {
     const pagerRef = useRef<PagerView>(null);
     const routeUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    // Get context setter for synchronous navigation state updates
-    const { setCurrentChapter } = useChapterNavigation();
 
     // Fetch books metadata for navigation calculations
     const { data: booksMetadata } = useBibleTestaments();
@@ -398,7 +395,7 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       // Extract bookName from booksMetadata (no API call needed)
       if (chapter) {
         const bookName = booksMetadata?.find((b) => b.id === chapter.bookId)?.name || '';
-        setCurrentChapter(chapter.bookId, chapter.chapterNumber, bookName);
+        setStoreChapter(chapter.bookId, chapter.chapterNumber, bookName);
       }
 
       // Check if user reached edge positions (0 or 4) - EDGE RESET
