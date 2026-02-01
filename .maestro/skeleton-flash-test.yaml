@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Skeleton Flash Test - Explanations View
 description: Tests that skeleton doesn't flash when swiping in Explanations view with cached data
 tags:
@@ -30,7 +30,7 @@ tags:
 # - Header should update at same time as content updates
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

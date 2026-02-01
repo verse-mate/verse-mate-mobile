@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Rapid Swipe Test
 description: Tests header sync during rapid consecutive swipes (10+ swipes in quick succession)
 tags:
@@ -36,7 +36,7 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

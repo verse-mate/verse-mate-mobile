@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Modal Jump Test
 description: Tests header sync when jumping chapters via navigation modal
 tags:
@@ -37,7 +37,7 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
