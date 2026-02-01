@@ -1,0 +1,308 @@
+---
+appId: org.versemate.mobile
+name: Circular Navigation Test
+description: Tests circular Bible navigation (Genesis 1 <-> Revelation 22) with header sync
+tags:
+  - header-sync
+  - navigation
+  - circular
+  - boundaries
+  - critical
+  - regression
+
+---
+
+# Circular Navigation E2E Test
+#
+# This flow tests circular Bible navigation at boundaries:
+# - From Genesis 1, swipe backward to reach Revelation 22
+# - From Revelation 22, swipe forward to reach Genesis 1
+# - Verify header matches content at all boundary transitions
+# - Test rapid swiping through circular boundary
+#
+# User Journey:
+# 1. Navigate to Genesis 1
+# 2. Swipe backward, verify Revelation 22
+# 3. Swipe forward, verify Genesis 1
+# 4. Navigate to Revelation 22 via modal
+# 5. Swipe forward, verify Genesis 1
+# 6. Test rapid swiping through boundary
+#
+# Success Criteria:
+# - Circular navigation works seamlessly (no flicker at boundaries)
+# - Header shows correct book/chapter at all times
+# - Rapid swiping through boundary doesn't cause desync
+
+# ============================================
+# Test Setup: Launch App
+# ============================================
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Genesis 1 (First Chapter of Bible)
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify starting at Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 5000
+
+# ============================================
+# Test 2: Swipe Backward from Genesis 1 -> Revelation 22
+# ============================================
+
+# Swipe right (backward) from Genesis 1
+# This should wrap around to Revelation 22 (last chapter of Bible)
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Wait for content to load after circular navigation
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Verify header shows Revelation 22
+- assertVisible:
+    text: "Revelation 22"
+    timeout: 5000
+
+# ============================================
+# Test 3: Swipe Forward from Revelation 22 -> Genesis 1
+# ============================================
+
+# Swipe left (forward) from Revelation 22
+# This should wrap around to Genesis 1 (first chapter of Bible)
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Wait for content to load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Verify header shows Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 5000
+
+# ============================================
+# Test 4: Navigate to Revelation 22 via Modal
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+# Scroll to find Revelation (last book in NT)
+- scroll
+- scroll
+- scroll
+
+- tapOn:
+    id: "book-item-revelation"
+
+- waitForAnimationToEnd
+
+# Scroll to find chapter 22 (last chapter)
+- scroll
+- scroll
+
+- tapOn:
+    id: "chapter-22"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Revelation 22
+- assertVisible:
+    text: "Revelation 22"
+    timeout: 5000
+
+# ============================================
+# Test 5: Swipe Forward from Revelation 22 (Second Test)
+# ============================================
+
+# Swipe left to wrap to Genesis 1
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 5000
+
+# ============================================
+# Test 6: Rapid Swipes Through Circular Boundary
+# ============================================
+
+# Swipe back to Revelation 22
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Revelation 22"
+    timeout: 5000
+
+# Rapid swipes forward through boundary (Revelation -> Genesis -> Genesis 2...)
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- waitForAnimationToEnd
+
+# Should be in Genesis, verify header shows Genesis
+- assertVisible:
+    text: "Genesis"
+    timeout: 5000
+
+# ============================================
+# Test 7: Rapid Swipes Backward Through Boundary
+# ============================================
+
+# Navigate back to Genesis 1 first
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify at Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 5000
+
+# Rapid swipes backward through boundary (Genesis -> Revelation...)
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+- waitForAnimationToEnd
+
+# Should be in Revelation, verify header shows Revelation
+- assertVisible:
+    text: "Revelation"
+    timeout: 5000
+
+# ============================================
+# Test Complete
+# ============================================
+
+# Final stability check
+- assertVisible:
+    id: "chapter-selector-button"

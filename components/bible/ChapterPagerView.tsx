@@ -16,8 +16,15 @@
  * - Swiping forward from Revelation 22 shows Genesis 1
  * - No boundary pages - continuous reading experience through entire Bible
  *
+ * Header Sync (V2):
+ * - Uses Reanimated shared values via useChapterDisplay hook
+ * - Shared values update synchronously in onPageSelected (no setTimeout)
+ * - Header updates on UI thread without React re-renders
+ * - Guard flag prevents updates during edge recentering
+ *
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 103-218)
  * @see Spec: agent-os/specs/circular-bible-navigation/spec.md
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v2/spec.md
  */
 
 import * as Haptics from 'expo-haptics';
@@ -25,6 +32,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { StyleSheet } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { OnPageSelectedEventData } from 'react-native-pager-view/lib/typescript/PagerViewNativeComponent';
+import { useChapterDisplay } from '@/hooks/bible/use-chapter-display';
 import { useBibleTestaments } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import {
@@ -41,10 +49,14 @@ const WINDOW_SIZE = 7;
 const CENTER_INDEX = 3;
 
 /**
- * Delay in milliseconds before calling onPageChange after swipe
- * This prevents double animation (PagerView + router.replace)
- * Kept short (75ms) to ensure snappy UI updates (Header/Fab), while
- * parent component handles URL debouncing to prevent global re-renders.
+ * Delay in milliseconds before calling onPageChange after swipe.
+ * This prevents double animation (PagerView + router.replace).
+ *
+ * Note: This delay is ONLY for the onPageChange callback (URL sync).
+ * Shared values update SYNCHRONOUSLY in handlePageSelected for instant header updates.
+ * The parent component handles URL debouncing (1000ms) to prevent global re-renders.
+ *
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v2/spec.md
  */
 const ROUTE_UPDATE_DELAY_MS = 75;
 
@@ -98,6 +110,11 @@ export interface ChapterPagerViewProps {
  * - Genesis 1 backward -> Revelation 22
  * - Revelation 22 forward -> Genesis 1
  *
+ * Header sync is achieved via Reanimated shared values:
+ * - useChapterDisplay hook provides setChapter() for synchronous updates
+ * - Header reads from shared values without React re-renders
+ * - Guard flag prevents updates during edge recentering
+ *
  * @example
  * ```tsx
  * const pagerRef = useRef<ChapterPagerViewRef>(null);
@@ -135,8 +152,45 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
     const pagerRef = useRef<PagerView>(null);
     const routeUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    /**
+     * Guards against processing intermediate callbacks during edge recentering.
+     *
+     * When the pager reaches an edge (position 0 or 6) and we call setPageWithoutAnimation(CENTER_INDEX),
+     * react-native-pager-view may fire onPageSelected for intermediate pages (e.g., 2, 3 when jumping to 3).
+     * This bug (documented in react-native-pager-view issue #454) causes the "backwards swipe glitch"
+     * where the header briefly shows wrong chapters during rapid swiping.
+     *
+     * This flag is set to true BEFORE calling setPageWithoutAnimation and reset to false
+     * after requestAnimationFrame, ensuring all intermediate callbacks are ignored.
+     *
+     * CRITICAL: The guard check must happen BEFORE any shared value updates in handlePageSelected.
+     *
+     * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v2/spec.md
+     */
+    const isRecenteringRef = useRef(false);
+
     // Fetch books metadata for navigation calculations
     const { data: booksMetadata } = useBibleTestaments();
+
+    /**
+     * Chapter display hook provides shared values for header sync.
+     * - setChapter: Updates shared values synchronously (no delay)
+     * - setBooksMetadata: Sets metadata for book name derivation
+     * - currentBookIdValue, currentChapterValue: Shared values for header
+     *
+     * @see hooks/bible/use-chapter-display.ts
+     */
+    const { setChapter, setBooksMetadata } = useChapterDisplay({
+      initialBookId,
+      initialChapter,
+    });
+
+    // Update books metadata in the hook when it becomes available
+    useEffect(() => {
+      if (booksMetadata && booksMetadata.length > 0) {
+        setBooksMetadata(booksMetadata);
+      }
+    }, [booksMetadata, setBooksMetadata]);
 
     // Track current absolute index (which chapter is at center)
     const [currentAbsoluteIndex, setCurrentAbsoluteIndex] = useState(() =>
@@ -225,6 +279,10 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       // With circular wrapping, -1 and 1188 are the same chapter, so this comparison now works correctly.
       if (newIndex !== currentlyVisibleIndex) {
         setForceJump(true); // Tell pages to reset scroll for a true jump
+
+        // Update shared values synchronously for external navigation (modal, back button, etc.)
+        setChapter(initialBookId, initialChapter);
+
         setCurrentAbsoluteIndex(newIndex);
         absIndexRef.current = newIndex;
         setSelectedPosition(CENTER_INDEX);
@@ -233,7 +291,7 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         // Reset jump flag after a frame
         requestAnimationFrame(() => setForceJump(false));
       }
-    }, [initialBookId, initialChapter, booksMetadata]); // Removed currentAbsoluteIndex and selectedPosition from deps
+    }, [initialBookId, initialChapter, booksMetadata, setChapter]); // Added setChapter to deps
 
     /**
      * Calculate which chapter should display at a given window position
@@ -345,6 +403,17 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
     /**
      * Handle page selection events
      *
+     * CRITICAL: Guard flag check must be the VERY FIRST LINE to prevent processing
+     * intermediate callbacks during edge recentering operations.
+     *
+     * Flow:
+     * 1. Guard check (FIRST): if (isRecenteringRef.current) return;
+     * 2. Calculate chapter: wrappedIndex, chapter = getChapterFromPageIndex(...)
+     * 3. Update shared values: setChapter(chapter.bookId, chapter.chapterNumber) - SYNCHRONOUS
+     * 4. Fire haptic feedback - INSTANT
+     * 5. Edge handling (recentering if at edge position)
+     * 6. Schedule URL sync with delay (debounced)
+     *
      * SEAMLESS RESET STRATEGY:
      * To prevent the "every other swipe is laggy" bug, we re-center the pager
      * to the middle index (3) after reaching edge positions.
@@ -352,8 +421,15 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
      * With circular navigation, there are no out-of-bounds positions - all
      * indices wrap to valid chapters. The edge reset logic re-centers the
      * window while maintaining seamless content continuity.
+     *
+     * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v2/spec.md
      */
     const handlePageSelected = (event: { nativeEvent: OnPageSelectedEventData }) => {
+      // 1. CRITICAL: Guard check MUST be the VERY FIRST LINE
+      // This prevents processing intermediate callbacks during edge recentering
+      // If we update shared values first, the header briefly shows wrong data
+      if (isRecenteringRef.current) return;
+
       const newPosition = Math.floor(event.nativeEvent.position);
       if (newPosition === CENTER_INDEX) return; // Already centered
 
@@ -367,22 +443,35 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         routeUpdateTimeoutRef.current = null;
       }
 
-      // Calculate would-be absolute index for this page
+      // 2. Calculate would-be absolute index for this page
       const offset = newPosition - CENTER_INDEX;
       const newAbsoluteIndex = currentAbsoluteIndex + offset;
 
       // Use circular wrapping for the new index
       const wrappedIndex = wrapCircularIndex(newAbsoluteIndex, booksMetadata);
 
-      // Check if user reached edge positions (0 or 6) - EDGE RESET
-      const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
+      // Get chapter info for shared value update
+      const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
 
-      // Fire Haptics INSTANTLY on the native UI thread
+      // 3. Update shared values SYNCHRONOUSLY (no setTimeout)
+      // This happens AFTER the guard check, so it won't execute during recentering
+      if (chapter) {
+        setChapter(chapter.bookId, chapter.chapterNumber);
+      }
+
+      // 4. Fire Haptics INSTANTLY on the native UI thread
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // 5. Check if user reached edge positions (0 or 6) - EDGE RESET
+      const isAtEdge = newPosition === 0 || newPosition === WINDOW_SIZE - 1;
 
       if (isAtEdge) {
         // SEAMLESS EDGE SNAP with circular index
-        // IMPORTANT: Re-center the pager BEFORE updating state to prevent flicker.
+        // IMPORTANT: Set guard flag BEFORE calling setPageWithoutAnimation
+        // This prevents intermediate callbacks from being processed
+        isRecenteringRef.current = true;
+
+        // Re-center the pager BEFORE updating state to prevent flicker.
         // If we update currentAbsoluteIndex first, the pages useMemo will recalculate
         // with the new center (e.g., 1188 for Rev 22) but pager is still at position 0,
         // causing wrong content to flash (e.g., Rev 19 instead of Rev 22).
@@ -396,22 +485,20 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
         setCurrentAbsoluteIndex(wrappedIndex);
         absIndexRef.current = wrappedIndex;
 
-        const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
-        if (chapter) {
-          routeUpdateTimeoutRef.current = setTimeout(() => {
-            onPageChange(chapter.bookId, chapter.chapterNumber);
-            routeUpdateTimeoutRef.current = null;
-          }, ROUTE_UPDATE_DELAY_MS);
-        }
-      } else {
-        // Non-edge position - use wrapped index for navigation
-        const chapter = getChapterFromPageIndex(wrappedIndex, booksMetadata);
-        if (chapter) {
-          routeUpdateTimeoutRef.current = setTimeout(() => {
-            onPageChange(chapter.bookId, chapter.chapterNumber);
-            routeUpdateTimeoutRef.current = null;
-          }, ROUTE_UPDATE_DELAY_MS);
-        }
+        // Reset guard flag after recentering completes
+        // Using requestAnimationFrame ensures the native animation is complete
+        requestAnimationFrame(() => {
+          isRecenteringRef.current = false;
+        });
+      }
+
+      // 6. Schedule URL sync with delay (only affects deep-linking, not header)
+      // This is the same for both edge and non-edge positions
+      if (chapter) {
+        routeUpdateTimeoutRef.current = setTimeout(() => {
+          onPageChange(chapter.bookId, chapter.chapterNumber);
+          routeUpdateTimeoutRef.current = null;
+        }, ROUTE_UPDATE_DELAY_MS);
       }
     };
 

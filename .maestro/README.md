@@ -53,11 +53,17 @@ maestro studio
 | `auth-flow.yaml` | User Flow | Login, signup, and authentication flows | `critical`, `auth` |
 | `bible-reading-flow.yaml` | User Flow | Core Bible reading and view switching | `critical`, `user-flow` |
 | `bookmark-flow.yaml` | User Flow | Bookmark creation, viewing, and navigation | `user-flow` |
+| `chapter-header-sync-test.yaml` | Regression | Basic header/content sync after swipe | `header-sync`, `critical`, `regression` |
 | `chapter-navigation-flow.yaml` | User Flow | Chapter navigation via buttons | `navigation` |
+| `circular-navigation-test.yaml` | Regression | Genesis 1 <-> Revelation 22 circular navigation | `header-sync`, `circular`, `critical`, `regression` |
+| `combined-interactions-test.yaml` | Regression | Complex navigation pattern combinations | `header-sync`, `combined`, `critical`, `regression` |
+| `deep-link-header-test.yaml` | Regression | Header sync with deep link navigation | `header-sync`, `deep-link`, `regression` |
 | `hamburger-menu-flow.yaml` | User Flow | Hamburger menu navigation to all destinations | `navigation` |
 | `highlights-flow.yaml` | User Flow | Highlight creation and management | `user-flow` |
+| `modal-jump-test.yaml` | Regression | Header sync when jumping via navigation modal | `header-sync`, `modal`, `regression` |
 | `navigation-modal-flow.yaml` | User Flow | Bible navigation modal (book/chapter selection) | `navigation` |
 | `notes-flow.yaml` | User Flow | Note creation and management | `user-flow` |
+| `rapid-swipe-test.yaml` | Regression | Header sync during rapid consecutive swipes | `header-sync`, `rapid-swipe`, `critical`, `regression` |
 | `settings-flow.yaml` | User Flow | Settings, theme switching, profile editing | `critical`, `settings` |
 | `skeleton-flash-test.yaml` | Regression | Skeleton loader display during loading | `regression` |
 | `swipe-navigation-basic.yaml` | User Flow | Basic swipe gesture navigation | `navigation` |
@@ -67,7 +73,7 @@ maestro studio
 | `topics-reading-flow.yaml` | User Flow | Topic navigation and reading | `user-flow` |
 | `view-switcher-flow.yaml` | User Flow | Bible/Explanations view switching | `navigation` |
 
-**Total**: 16 test files
+**Total**: 22 test files
 
 ---
 
@@ -88,6 +94,12 @@ maestro studio
 | `regression` | Prevents specific bugs from recurring |
 | `navigation` | Tests navigation features and flows |
 | `settings` | Settings and configuration tests |
+| `header-sync` | Tests for chapter header/content synchronization |
+| `rapid-swipe` | Tests involving rapid consecutive swipe gestures |
+| `circular` | Tests for circular Bible navigation (Genesis <-> Revelation) |
+| `deep-link` | Tests involving deep link navigation |
+| `modal` | Tests involving navigation modal interactions |
+| `combined` | Tests combining multiple navigation patterns |
 
 ### Directory Structure
 
@@ -97,11 +109,17 @@ maestro studio
 ├── auth-flow.yaml                   # Authentication flows
 ├── bible-reading-flow.yaml          # Core Bible reading
 ├── bookmark-flow.yaml               # Bookmarks feature
+├── chapter-header-sync-test.yaml    # Header sync regression (new)
 ├── chapter-navigation-flow.yaml     # Button navigation
+├── circular-navigation-test.yaml    # Circular navigation regression (new)
+├── combined-interactions-test.yaml  # Combined interactions regression (new)
+├── deep-link-header-test.yaml       # Deep link header sync regression (new)
 ├── hamburger-menu-flow.yaml         # Menu navigation
 ├── highlights-flow.yaml             # Highlights feature
+├── modal-jump-test.yaml             # Modal jump header sync regression (new)
 ├── navigation-modal-flow.yaml       # Navigation modal
 ├── notes-flow.yaml                  # Notes feature
+├── rapid-swipe-test.yaml            # Rapid swipe regression (new)
 ├── settings-flow.yaml               # Settings management
 ├── skeleton-flash-test.yaml         # Loading skeleton regression
 ├── swipe-navigation-basic.yaml      # Basic swipe gestures
@@ -368,6 +386,13 @@ For continuous integration, use iOS as the primary E2E testing platform until An
 
 ## Recent Changes
 
+- **2026-02-01**: Added 6 new header sync regression tests for Chapter Header Slide Sync V2 feature
+  - `chapter-header-sync-test.yaml` - Basic swipe header sync verification
+  - `rapid-swipe-test.yaml` - Rapid consecutive swipe testing
+  - `circular-navigation-test.yaml` - Genesis 1 <-> Revelation 22 boundary testing
+  - `deep-link-header-test.yaml` - Deep link navigation header sync
+  - `modal-jump-test.yaml` - Modal jump header sync
+  - `combined-interactions-test.yaml` - Complex combined navigation patterns
 - **2025-11-28**: Major cleanup - migrated all tests to testID selectors, removed obsolete files
 - **2025-11-28**: Created new tests: highlights, notes, settings, hamburger-menu, topics-reading
 - **2025-11-28**: Promoted WIP tests: navigation-modal, view-switcher, tab-switching

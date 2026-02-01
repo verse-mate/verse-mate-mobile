@@ -1,0 +1,377 @@
+---
+appId: org.versemate.mobile
+name: Modal Jump Test
+description: Tests header sync when jumping chapters via navigation modal
+tags:
+  - header-sync
+  - navigation
+  - modal
+  - regression
+
+---
+
+# Modal Jump Header Sync E2E Test
+#
+# This flow tests header/content sync with modal-based chapter navigation:
+# - Open modal, jump to specific chapter
+# - Verify header shows correct book/chapter
+# - Swipe after modal jump
+# - Return to original chapter via modal
+#
+# User Journey:
+# 1. Start at Genesis 1
+# 2. Open modal, jump to Exodus 20
+# 3. Verify header shows "Exodus 20"
+# 4. Swipe forward, verify header updates
+# 5. Open modal, return to Genesis 1
+# 6. Verify header shows "Genesis 1"
+# 7. Test rapid modal jumps
+#
+# Success Criteria:
+# - Header immediately shows correct chapter after modal selection
+# - Swipe after modal jump works correctly
+# - No desync between header and content after modal jump
+
+# ============================================
+# Test Setup: Launch App
+# ============================================
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Ensure Starting at Genesis 1
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify starting at Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 5000
+
+# ============================================
+# Test 2: Modal Jump to Exodus 20
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-exodus"
+
+- waitForAnimationToEnd
+
+# Scroll to find chapter 20
+- scroll
+
+- tapOn:
+    id: "chapter-20"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Exodus 20
+- assertVisible:
+    text: "Exodus 20"
+    timeout: 5000
+
+# ============================================
+# Test 3: Swipe After Modal Jump
+# ============================================
+
+# Swipe forward to Exodus 21
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Exodus 21
+- assertVisible:
+    text: "Exodus 21"
+    timeout: 5000
+
+# Swipe back to Exodus 20
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Exodus 20
+- assertVisible:
+    text: "Exodus 20"
+    timeout: 5000
+
+# ============================================
+# Test 4: Return to Genesis 1 via Modal
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+# Scroll up to find Genesis
+- scrollUp
+- scrollUp
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 5000
+
+# ============================================
+# Test 5: Swipe After Return to Original Chapter
+# ============================================
+
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Genesis 2
+- assertVisible:
+    text: "Genesis 2"
+    timeout: 5000
+
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 5000
+
+# ============================================
+# Test 6: Rapid Modal Jumps (Different Books)
+# ============================================
+
+# Jump to Matthew 5
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-matthew"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-5"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Matthew 5
+- assertVisible:
+    text: "Matthew 5"
+    timeout: 5000
+
+# Immediately jump to John 3
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-john"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-3"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows John 3
+- assertVisible:
+    text: "John 3"
+    timeout: 5000
+
+# Immediately jump to Romans 8
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+# Scroll to find Romans
+- scroll
+
+- tapOn:
+    id: "book-item-romans"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-8"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Romans 8
+- assertVisible:
+    text: "Romans 8"
+    timeout: 5000
+
+# ============================================
+# Test 7: Swipe After Rapid Modal Jumps
+# ============================================
+
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Romans 9
+- assertVisible:
+    text: "Romans 9"
+    timeout: 5000
+
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Romans 8
+- assertVisible:
+    text: "Romans 8"
+    timeout: 5000
+
+# ============================================
+# Test Complete
+# ============================================
+
+# Final stability check
+- assertVisible:
+    id: "chapter-selector-button"
