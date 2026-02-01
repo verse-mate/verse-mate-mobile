@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Chapter Header Sync Test
 description: Tests that header displays correct chapter after swipe navigation (basic sync verification)
 tags:
@@ -34,7 +34,7 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -89,10 +89,14 @@ tags:
       id: "bible-navigation-modal"
     timeout: 5000
 
-# Verify header shows Genesis 1
+# Wait and verify header shows Genesis 1
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 1"
+    timeout: 5000
+
 - assertVisible:
     text: "Genesis 1"
-    timeout: 5000
 
 # ============================================
 # Test 2: Swipe Forward (Genesis 1 -> 2 -> 3)
@@ -105,10 +109,14 @@ tags:
 
 - waitForAnimationToEnd
 
-# Verify header shows Genesis 2
+# Wait and verify header shows Genesis 2
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 2"
+    timeout: 3000
+
 - assertVisible:
     text: "Genesis 2"
-    timeout: 3000
 
 # Swipe left to go to Genesis 3
 - swipe:
@@ -117,10 +125,14 @@ tags:
 
 - waitForAnimationToEnd
 
-# Verify header shows Genesis 3
+# Wait and verify header shows Genesis 3
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 3"
+    timeout: 3000
+
 - assertVisible:
     text: "Genesis 3"
-    timeout: 3000
 
 # ============================================
 # Test 3: Swipe Backward (Genesis 3 -> 2 -> 1)
@@ -133,10 +145,14 @@ tags:
 
 - waitForAnimationToEnd
 
-# Verify header shows Genesis 2
+# Wait and verify header shows Genesis 2
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 2"
+    timeout: 3000
+
 - assertVisible:
     text: "Genesis 2"
-    timeout: 3000
 
 # Swipe right to go back to Genesis 1
 - swipe:
@@ -145,10 +161,14 @@ tags:
 
 - waitForAnimationToEnd
 
-# Verify header shows Genesis 1
+# Wait and verify header shows Genesis 1
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 1"
+    timeout: 3000
+
 - assertVisible:
     text: "Genesis 1"
-    timeout: 3000
 
 # ============================================
 # Test 4: Additional Swipe Verification
@@ -161,9 +181,13 @@ tags:
 
 - waitForAnimationToEnd
 
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 2"
+    timeout: 3000
+
 - assertVisible:
     text: "Genesis 2"
-    timeout: 3000
 
 - swipe:
     direction: RIGHT
@@ -172,9 +196,13 @@ tags:
 - waitForAnimationToEnd
 
 # Final verification - header shows Genesis 1
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 1"
+    timeout: 3000
+
 - assertVisible:
     text: "Genesis 1"
-    timeout: 3000
 
 # ============================================
 # Test Complete

@@ -444,8 +444,11 @@ const ChapterPagerViewComponent = forwardRef<ChapterPagerViewRef, ChapterPagerVi
       }
 
       // 2. Calculate would-be absolute index for this page
+      // CRITICAL: Use absIndexRef.current (synchronously updated) instead of currentAbsoluteIndex
+      // (React state, updated asynchronously). During rapid swiping, currentAbsoluteIndex may be
+      // stale from the previous frame, causing the header to show the wrong chapter.
       const offset = newPosition - CENTER_INDEX;
-      const newAbsoluteIndex = currentAbsoluteIndex + offset;
+      const newAbsoluteIndex = absIndexRef.current + offset;
 
       // Use circular wrapping for the new index
       const wrappedIndex = wrapCircularIndex(newAbsoluteIndex, booksMetadata);

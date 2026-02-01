@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Notes Feature Flow (Unauthenticated)
 description: Tests notes feature navigation for unauthenticated users
 tags:
@@ -22,7 +22,7 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

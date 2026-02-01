@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Bible View Switcher Flow
 description: Tests view switching between Bible and Explanations views
 tags:
@@ -20,7 +20,7 @@ tags:
 # 4. Tab persistence across chapter changes
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

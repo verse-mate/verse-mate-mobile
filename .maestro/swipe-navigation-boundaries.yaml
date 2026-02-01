@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Swipe Navigation - Boundaries
 description: Tests that swipe navigation respects Bible boundaries (Genesis 1)
 tags:
@@ -19,7 +19,7 @@ tags:
 # due to the navigation modal behavior.
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

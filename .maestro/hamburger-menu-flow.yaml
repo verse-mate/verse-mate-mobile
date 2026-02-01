@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Hamburger Menu Flow
 description: Tests hamburger menu opening, navigation to all destinations, and menu close behavior
 tags:
@@ -24,7 +24,7 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:

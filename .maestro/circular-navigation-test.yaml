@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Circular Navigation Test
 description: Tests circular Bible navigation (Genesis 1 <-> Revelation 22) with header sync
 tags:
@@ -38,7 +38,7 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
