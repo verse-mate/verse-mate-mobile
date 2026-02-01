@@ -13,6 +13,8 @@ export { useActiveView } from './use-active-view';
 export { useBookProgress } from './use-book-progress';
 // Bookmarks management hook
 export { useBookmarks } from './use-bookmarks';
+// Chapter display shared values hook (Header sync with Reanimated)
+export { useChapterDisplay } from './use-chapter-display';
 // Chapter reading duration tracking hook (Time-Based Analytics)
 export { useChapterReadingDuration } from './use-chapter-reading-duration';
 // Last read position hook (wraps API hook)

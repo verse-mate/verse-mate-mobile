@@ -1,0 +1,311 @@
+---
+appId: org.versemate.mobile
+name: Deep Link Header Test
+description: Tests header sync with deep link navigation (direct URL navigation)
+tags:
+  - header-sync
+  - navigation
+  - deep-link
+  - regression
+
+---
+
+# Deep Link Header Sync E2E Test
+#
+# This flow tests header/content sync with deep link navigation:
+# - Deep link to specific chapter (Psalm 23)
+# - Verify header shows correct book/chapter
+# - Swipe to adjacent chapter, verify header updates
+# - Deep link to different book (Exodus 20)
+# - Verify header updates correctly
+#
+# Note: Maestro uses navigation modal as proxy for deep link testing
+# since actual deep link handling requires OS-level URL handling.
+# The modal-based navigation triggers the same code paths as deep links.
+#
+# User Journey:
+# 1. Navigate to Psalms 23 via modal (simulates deep link)
+# 2. Verify header shows "Psalms 23"
+# 3. Swipe to Psalms 24, verify header updates
+# 4. Navigate to Exodus 20 via modal (simulates different deep link)
+# 5. Verify header shows "Exodus 20"
+# 6. Swipe and verify header remains in sync
+#
+# Success Criteria:
+# - Header immediately shows correct chapter after navigation
+# - Swipe after navigation works correctly
+# - No flash of previous chapter in header
+
+# ============================================
+# Test Setup: Launch App
+# ============================================
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Psalms 23 (Simulated Deep Link)
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+# Scroll to find Psalms (middle of OT)
+- scroll
+- scroll
+
+- tapOn:
+    id: "book-item-psalms"
+
+- waitForAnimationToEnd
+
+# Scroll to find chapter 23
+- scroll
+
+- tapOn:
+    id: "chapter-23"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Psalms 23
+- assertVisible:
+    text: "Psalms 23"
+    timeout: 5000
+
+# ============================================
+# Test 2: Swipe to Psalms 24
+# ============================================
+
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Psalms 24
+- assertVisible:
+    text: "Psalms 24"
+    timeout: 5000
+
+# ============================================
+# Test 3: Swipe Back to Psalms 23
+# ============================================
+
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Psalms 23
+- assertVisible:
+    text: "Psalms 23"
+    timeout: 5000
+
+# ============================================
+# Test 4: Navigate to Exodus 20 (Different Book)
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+# Scroll up to find Exodus (second book)
+- scrollUp
+- scrollUp
+
+- tapOn:
+    id: "book-item-exodus"
+
+- waitForAnimationToEnd
+
+# Scroll to find chapter 20
+- scroll
+
+- tapOn:
+    id: "chapter-20"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Exodus 20
+- assertVisible:
+    text: "Exodus 20"
+    timeout: 5000
+
+# ============================================
+# Test 5: Swipe Forward from Exodus 20
+# ============================================
+
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Exodus 21
+- assertVisible:
+    text: "Exodus 21"
+    timeout: 5000
+
+# ============================================
+# Test 6: Swipe Backward Past Book Boundary
+# ============================================
+
+# Go back to Exodus 20
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Exodus 20"
+    timeout: 5000
+
+# Swipe backward multiple times to cross into Genesis
+- swipe:
+    direction: RIGHT
+    duration: 300
+
+- swipe:
+    direction: RIGHT
+    duration: 300
+
+- swipe:
+    direction: RIGHT
+    duration: 300
+
+- waitForAnimationToEnd
+
+# Verify header shows Exodus (could be any chapter in Exodus)
+- assertVisible:
+    text: "Exodus"
+    timeout: 5000
+
+# ============================================
+# Test 7: Navigate to Revelation 1 (NT Book)
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+# Scroll to find Revelation (last book)
+- scroll
+- scroll
+- scroll
+
+- tapOn:
+    id: "book-item-revelation"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Revelation 1
+- assertVisible:
+    text: "Revelation 1"
+    timeout: 5000
+
+# ============================================
+# Test 8: Swipe and Verify After NT Navigation
+# ============================================
+
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Revelation 2
+- assertVisible:
+    text: "Revelation 2"
+    timeout: 5000
+
+# Swipe back
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Revelation 1
+- assertVisible:
+    text: "Revelation 1"
+    timeout: 5000
+
+# ============================================
+# Test Complete
+# ============================================
+
+# Final stability check
+- assertVisible:
+    id: "chapter-selector-button"

@@ -8,13 +8,19 @@
  * Features:
  * - Fetches chapter content using useBibleChapter hook
  * - Fetches explanation content based on active tab and view mode
- * - Shows SkeletonLoader while loading
+ * - Shows SkeletonLoader while loading (query-state-based, no artificial delays)
  * - Renders ChapterReader when loaded
  * - Contains ScrollView for vertical scrolling
  * - Props update when window shifts (key stays stable)
  * - Manages Notes Modals to prevent ScrollView interaction issues
  *
+ * Performance Note:
+ * - Previously used staggered setTimeout delays (600ms, 1100ms, 1600ms, 2100ms)
+ * - Now uses query-state-based rendering for faster initial render
+ * - React Compiler handles performance optimization; artificial delays removed
+ *
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v2/spec.md (Task Group 5)
  */
 
 import { router } from 'expo-router';
@@ -84,6 +90,11 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
  *
  * Renders the content for a single explanation tab within its own ScrollView.
  * This ensures each tab maintains its own independent scroll position.
+ *
+ * Pre-rendering behavior:
+ * - When data is available, tabs are always pre-rendered (hidden via absolute positioning)
+ * - This eliminates freeze when switching between tabs
+ * - Uses query loading states to determine when to show skeleton vs content
  */
 function TabContent({
   chapter,
@@ -233,6 +244,12 @@ export interface ChapterPageProps {
  * - Memoized active content calculation with useMemo
  * - Only re-renders when bookId, chapterNumber, activeTab, or activeView changes
  *
+ * Query-State-Based Rendering (Task Group 5):
+ * - Removed artificial setTimeout delays (600ms, 1100ms, 1600ms, 2100ms)
+ * - Now uses query loading states to determine when to render content
+ * - Tabs are pre-rendered when data is available (eliminates freeze on switch)
+ * - React Compiler handles performance; artificial delays cause sluggishness
+ *
  * @example
  * ```tsx
  * // Parent sets stable key based on position
@@ -307,30 +324,7 @@ export function ChapterPage({
     chapterNumber,
   });
 
-  // Staggered rendering state to prevent UI freeze (waterfall loading)
-  // 0: Initial (only active view)
-  // 1: Mount Explanations container (active tab renders)
-  // 2: Mount Summary tab (if hidden)
-  // 3: Mount Byline tab (if hidden)
-  // 4: Mount Detailed tab (if hidden)
-  const [delayedRenderStage, setDelayedRenderStage] = useState(0);
-
   const { deleteNote, isDeletingNote } = useNotes();
-
-  // Trigger staggered delayed render
-  useEffect(() => {
-    const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
-    const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
-    const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
-    const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
-
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  }, []);
 
   // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
@@ -647,73 +641,81 @@ export function ChapterPage({
   // Memoize context value to avoid unnecessary re-renders
   const textVisibilityContextValue = useMemo(() => ({ visibleYRange }), [visibleYRange]);
 
+  // Determine if explanation data is available for pre-rendering tabs
+  // When data is available, allow pre-rendering of hidden tabs to eliminate freeze on switch
+  // When isPreloading is true (pages far from current view), skip heavy content entirely
+  const hasSummaryData = summaryData !== null && summaryData !== undefined;
+  const hasByLineData = byLineData !== null && byLineData !== undefined;
+  const hasDetailedData = detailedData !== null && detailedData !== undefined;
+
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Explanations View - Render if active OR if delayed render stage >= 1 (And NOT preloading) */}
-      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
-        <View
-          style={[
-            styles.container,
-            activeView !== 'explanations' && {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              opacity: 0,
-              zIndex: -1,
-            },
-          ]}
-          collapsable={false}
-          pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
-        >
-          <TabContent
-            chapter={displayChapter}
-            activeTab="summary"
-            content={summaryData}
-            isLoading={isSummaryLoading}
-            error={summaryError}
-            visible={activeTab === 'summary'}
-            shouldRenderHidden={delayedRenderStage >= 2}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
-            onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-          />
-          <TabContent
-            chapter={displayChapter}
-            activeTab="byline"
-            content={byLineData}
-            isLoading={isByLineLoading}
-            error={byLineError}
-            visible={activeTab === 'byline'}
-            shouldRenderHidden={delayedRenderStage >= 3}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
-            onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-          />
-          <TabContent
-            chapter={displayChapter}
-            activeTab="detailed"
-            content={detailedData}
-            isLoading={isDetailedLoading}
-            error={detailedError}
-            visible={activeTab === 'detailed'}
-            shouldRenderHidden={delayedRenderStage >= 4}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
-            onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-          />
-        </View>
-      )}
+      {/* Explanations View - Render if active OR if data is available for pre-rendering (and NOT preloading) */}
+      {!isPreloading &&
+        (activeView === 'explanations' || hasSummaryData || hasByLineData || hasDetailedData) && (
+          <View
+            style={[
+              styles.container,
+              activeView !== 'explanations' && {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                opacity: 0,
+                zIndex: -1,
+              },
+            ]}
+            collapsable={false}
+            pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
+          >
+            <TabContent
+              chapter={displayChapter}
+              activeTab="summary"
+              content={summaryData}
+              isLoading={isSummaryLoading}
+              error={summaryError}
+              visible={activeTab === 'summary'}
+              shouldRenderHidden={hasSummaryData}
+              testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
+              onScroll={handleScroll}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              filteredHighlights={chapterHighlights}
+              filteredAutoHighlights={autoHighlights}
+            />
+            <TabContent
+              chapter={displayChapter}
+              activeTab="byline"
+              content={byLineData}
+              isLoading={isByLineLoading}
+              error={byLineError}
+              visible={activeTab === 'byline'}
+              shouldRenderHidden={hasByLineData}
+              testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
+              onScroll={handleScroll}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              filteredHighlights={chapterHighlights}
+              filteredAutoHighlights={autoHighlights}
+            />
+            <TabContent
+              chapter={displayChapter}
+              activeTab="detailed"
+              content={detailedData}
+              isLoading={isDetailedLoading}
+              error={detailedError}
+              visible={activeTab === 'detailed'}
+              shouldRenderHidden={hasDetailedData}
+              testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
+              onScroll={handleScroll}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              filteredHighlights={chapterHighlights}
+              filteredAutoHighlights={autoHighlights}
+            />
+          </View>
+        )}
 
       {/* Bible reading view (no explanations) - Always rendered but hidden if inactive */}
       <Animated.ScrollView

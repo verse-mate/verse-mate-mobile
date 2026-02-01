@@ -49,6 +49,24 @@ export const useBookmarks = jest.fn(() => ({
   error: null,
 }));
 
+/**
+ * Chapter display shared values hook (Header sync with Reanimated)
+ *
+ * Provides mock shared values for testing header updates.
+ * The mock uses simple objects with .value property to simulate
+ * Reanimated shared values behavior in tests.
+ *
+ * @see hooks/bible/use-chapter-display.ts
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v2/spec.md
+ */
+export const useChapterDisplay = jest.fn(() => ({
+  currentBookIdValue: { value: 1 },
+  currentChapterValue: { value: 1 },
+  bookNameValue: { value: 'Genesis' },
+  setChapter: jest.fn(),
+  setBooksMetadata: jest.fn(),
+}));
+
 // Chapter reading duration tracking hook (Time-Based Analytics)
 export const useChapterReadingDuration = jest.fn();
 

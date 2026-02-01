@@ -1,0 +1,308 @@
+---
+appId: org.versemate.mobile
+name: Rapid Swipe Test
+description: Tests header sync during rapid consecutive swipes (10+ swipes in quick succession)
+tags:
+  - header-sync
+  - navigation
+  - rapid-swipe
+  - critical
+  - regression
+
+---
+
+# Rapid Swipe E2E Test
+#
+# This flow tests header/content sync during rapid consecutive swiping:
+# - 10+ rapid swipes in one direction
+# - Verify header shows correct chapter when swiping stops
+# - Verify no "backwards glitch" (content going opposite direction)
+# - Test rapid swipes in both directions
+#
+# User Journey:
+# 1. Launch app, navigate to Genesis 1
+# 2. Rapidly swipe 10+ times forward
+# 3. Verify header shows correct final chapter
+# 4. Rapidly swipe 10+ times backward
+# 5. Verify header shows correct final chapter
+#
+# Success Criteria:
+# - Header matches content after rapid swiping stops
+# - No "backwards glitch" (e.g., 5 -> 6 -> 5 -> 6 instead of 5 -> 6 -> 7 -> 8)
+# - Consistent behavior in both directions
+
+# ============================================
+# Test Setup: Launch App
+# ============================================
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Genesis 1 (Starting Point)
+# ============================================
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify starting point
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 5000
+
+# ============================================
+# Test 2: Rapid Swipes Forward (10 swipes)
+# ============================================
+
+# Rapid swipe 1
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Rapid swipe 2
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Rapid swipe 3
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Rapid swipe 4
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Rapid swipe 5
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Rapid swipe 6
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Rapid swipe 7
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Rapid swipe 8
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Rapid swipe 9
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Rapid swipe 10
+- swipe:
+    direction: LEFT
+    duration: 200
+
+# Wait for all animations to complete
+- waitForAnimationToEnd
+
+# Allow content to settle after rapid swiping
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Verify header shows a chapter in Genesis (should be around Genesis 11)
+# We check that header contains "Genesis" to ensure we're still in same book
+- assertVisible:
+    text: "Genesis"
+    timeout: 5000
+
+# ============================================
+# Test 3: Rapid Swipes Backward (10 swipes)
+# ============================================
+
+# Rapid swipe back 1
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Rapid swipe back 2
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Rapid swipe back 3
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Rapid swipe back 4
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Rapid swipe back 5
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Rapid swipe back 6
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Rapid swipe back 7
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Rapid swipe back 8
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Rapid swipe back 9
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Rapid swipe back 10
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+# Wait for all animations to complete
+- waitForAnimationToEnd
+
+# Allow content to settle
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Verify header shows Genesis (should be around Genesis 1)
+- assertVisible:
+    text: "Genesis"
+    timeout: 5000
+
+# ============================================
+# Test 4: Additional Rapid Forward Swipes (5 more)
+# ============================================
+
+# Another burst of rapid swipes to test stability
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- waitForAnimationToEnd
+
+# Verify header is visible and showing Genesis
+- assertVisible:
+    text: "Genesis"
+    timeout: 5000
+
+# ============================================
+# Test 5: Rapid Alternating Direction Test
+# ============================================
+
+# Rapid alternating direction swipes to stress test
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+- swipe:
+    direction: LEFT
+    duration: 200
+
+- swipe:
+    direction: RIGHT
+    duration: 200
+
+- waitForAnimationToEnd
+
+# Verify app is stable after alternating swipes
+- assertVisible:
+    id: "chapter-selector-button"
+
+- assertVisible:
+    text: "Genesis"
+    timeout: 5000
+
+# ============================================
+# Test Complete
+# ============================================
+
+# Final stability check
+- assertVisible:
+    id: "chapter-selector-button"

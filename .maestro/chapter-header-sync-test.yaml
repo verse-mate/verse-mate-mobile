@@ -1,0 +1,185 @@
+---
+appId: org.versemate.mobile
+name: Chapter Header Sync Test
+description: Tests that header displays correct chapter after swipe navigation (basic sync verification)
+tags:
+  - header-sync
+  - navigation
+  - critical
+  - regression
+
+---
+
+# Chapter Header Sync E2E Test
+#
+# This flow tests basic header/content synchronization:
+# - Swipe forward through chapters and verify header updates
+# - Swipe backward through chapters and verify header updates
+# - Header should always match visible content
+#
+# User Journey:
+# 1. Launch app (starts at Genesis 1)
+# 2. Swipe left to Genesis 2, verify header shows "Genesis 2"
+# 3. Swipe left to Genesis 3, verify header shows "Genesis 3"
+# 4. Swipe right to Genesis 2, verify header shows "Genesis 2"
+# 5. Swipe right to Genesis 1, verify header shows "Genesis 1"
+#
+# Success Criteria:
+# - Header text matches visible chapter at all times
+# - No perceptible delay between swipe completion and header update
+# - No "backwards glitch" where header shows wrong direction
+
+# ============================================
+# Test Setup: Launch App
+# ============================================
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Ensure Starting Point (Genesis 1)
+# ============================================
+
+# Navigate to Genesis 1 to ensure consistent starting point
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 5000
+
+# ============================================
+# Test 2: Swipe Forward (Genesis 1 -> 2 -> 3)
+# ============================================
+
+# Swipe left to go to Genesis 2
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Genesis 2
+- assertVisible:
+    text: "Genesis 2"
+    timeout: 3000
+
+# Swipe left to go to Genesis 3
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Genesis 3
+- assertVisible:
+    text: "Genesis 3"
+    timeout: 3000
+
+# ============================================
+# Test 3: Swipe Backward (Genesis 3 -> 2 -> 1)
+# ============================================
+
+# Swipe right to go back to Genesis 2
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Genesis 2
+- assertVisible:
+    text: "Genesis 2"
+    timeout: 3000
+
+# Swipe right to go back to Genesis 1
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Verify header shows Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 3000
+
+# ============================================
+# Test 4: Additional Swipe Verification
+# ============================================
+
+# Swipe forward and back one more time to ensure stability
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Genesis 2"
+    timeout: 3000
+
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+# Final verification - header shows Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+    timeout: 3000
+
+# ============================================
+# Test Complete
+# ============================================
+
+# Verify chapter selector button is still functional
+- assertVisible:
+    id: "chapter-selector-button"

@@ -8,6 +8,17 @@
  * Route: /bible/[bookId]/[chapterNumber]
  * Example: /bible/1/1 (Genesis 1)
  *
+ * State Management Architecture (Task Group 6):
+ * =============================================
+ * - HEADER: Uses Reanimated shared values from useChapterDisplay hook (UI thread, no re-renders)
+ * - REST OF UI: Uses local React state for API calls, providers, and other React-based features
+ * - URL: Passive follower - reads ONCE on mount, writes with 1000ms debounce
+ *
+ * Single Source of Truth:
+ * - Shared values are authoritative for header display (updated in ChapterPagerView.handlePageSelected)
+ * - Local state is kept for React-based UI needs (BibleInteractionProvider, API hooks, etc.)
+ * - URL params are a passive follower for deep-linking support
+ *
  * @see Spec lines 517-607 (ChapterScreen implementation)
  * @see Task Group 5.3 - Integrate tabs with chapter screen
  * @see Task Group 5.4 - Implement tab content loading
@@ -16,6 +27,8 @@
  * @see Task Group 9.3 - Add deep link validation in chapter screen
  * @see Time-Based Analytics - Chapter reading duration tracking
  * @see Circular Bible Navigation - Seamless wrap-around at Bible boundaries
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v2/spec.md - Header sync with shared values
+ * @see Task Group 6 - Clean Up ChapterScreen State Management
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +39,8 @@ import type { LayoutChangeEvent } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
+  runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -51,6 +66,7 @@ import {
   useActiveTab,
   useActiveView,
   useBookProgress,
+  useChapterDisplay,
   useChapterReadingDuration,
   useLastReadPosition,
   useViewModeDuration,
@@ -110,13 +126,66 @@ export default function ChapterScreen() {
   const targetVerse = params.verse ? Number(params.verse) : undefined;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
 
-  // Local state for immediate UI updates (Source of Truth for UI)
-  // Initialized from params, but can diverge during swiping
+  /**
+   * Local state for React-based UI needs (Task Group 6.2)
+   *
+   * This local state is kept intentionally for:
+   * - API calls (useBibleChapter, prefetch hooks)
+   * - BibleInteractionProvider context
+   * - Navigation modal current position
+   * - Validation logic
+   * - Analytics tracking
+   * - Save last read position
+   *
+   * The HEADER uses Reanimated shared values instead (see ChapterHeader component).
+   * This separation ensures:
+   * - Header updates instantly on UI thread without React re-renders
+   * - Rest of UI can use React's rendering cycle normally
+   * - No snap-back during swiping
+   */
   const [activeBookId, setActiveBookId] = useState(Number(params.bookId));
   const [activeChapter, setActiveChapter] = useState(Number(params.chapterNumber));
 
-  // Sync local state from params ONLY when params change significantly (e.g. deep link, menu nav)
-  // avoiding loops with our own debounced updates
+  /**
+   * Initialize shared values from URL params ONCE on mount (Task Group 6.3)
+   *
+   * This ref tracks whether we've initialized the shared values from URL params.
+   * After initialization, shared values are authoritative - we NEVER read URL params
+   * to update shared values again (which would cause snap-back during swiping).
+   *
+   * The shared values are updated by ChapterPagerView.handlePageSelected during swiping
+   * and by external navigation (modal, back button) via the same hook.
+   */
+  const hasInitializedSharedValues = useRef(false);
+  const { setChapter } = useChapterDisplay();
+
+  // Initialize shared values ONCE on mount
+  // The ref guard ensures this only runs once even if dependencies change
+  useEffect(() => {
+    if (!hasInitializedSharedValues.current) {
+      const initialBookId = Number(params.bookId);
+      const initialChapter = Number(params.chapterNumber);
+
+      if (!Number.isNaN(initialBookId) && !Number.isNaN(initialChapter)) {
+        setChapter(initialBookId, initialChapter);
+        hasInitializedSharedValues.current = true;
+      }
+    }
+  }, [params.bookId, params.chapterNumber, setChapter]);
+
+  /**
+   * Sync local state from params for EXTERNAL navigation only (Task Group 6.3)
+   *
+   * This effect syncs local state from URL params ONLY when:
+   * - Deep links arrive (user taps a shared URL)
+   * - Navigation modal selects a chapter (router.setParams called)
+   * - Back button is pressed
+   *
+   * It does NOT cause snap-back during swiping because:
+   * 1. During swiping, URL params don't change until 1000ms debounce fires
+   * 2. By the time debounce fires, local state already matches the swiped-to chapter
+   * 3. The condition (paramBookId !== activeBookId || paramChapter !== activeChapter) is false
+   */
   // biome-ignore lint/correctness/useExhaustiveDependencies: activeBookId and activeChapter are intentionally omitted to prevent snap-back during swiping
   useEffect(() => {
     const paramBookId = Number(params.bookId);
@@ -128,11 +197,26 @@ export default function ChapterScreen() {
     ) {
       setActiveBookId(paramBookId);
       setActiveChapter(paramChapter);
-    }
-  }, [params.bookId, params.chapterNumber]); // Sync correctly without loops
 
-  // Debounced URL sync (The "Follower")
-  // Updates the URL silently after user stops swiping to prevent global re-renders during animation
+      // Also update shared values for external navigation (modal, back button)
+      // This is safe because this only runs when URL params actually change externally
+      if (hasInitializedSharedValues.current) {
+        setChapter(paramBookId, paramChapter);
+      }
+    }
+  }, [params.bookId, params.chapterNumber, setChapter]); // Sync correctly without loops
+
+  /**
+   * Debounced URL sync - URL is a passive follower (Task Group 6.3)
+   *
+   * Updates the URL silently after user stops swiping (1000ms debounce).
+   * This ensures:
+   * - Deep linking works (users can share URLs)
+   * - No global re-renders during swipe animation
+   * - URL reflects current position for back button behavior
+   *
+   * The URL is NOT the source of truth - shared values are.
+   */
   useEffect(() => {
     const timer = setTimeout(() => {
       // Only update if URL is different from current state
@@ -148,7 +232,7 @@ export default function ChapterScreen() {
           endVerse: undefined,
         });
       }
-    }, 1000); // Increased to 1000ms for stability
+    }, 1000); // 1000ms debounce for stability
 
     return () => clearTimeout(timer);
   }, [activeBookId, activeChapter, params.bookId, params.chapterNumber]);
@@ -377,19 +461,23 @@ export default function ChapterScreen() {
   );
 
   /**
-   * Handle page change from ChapterPagerView (Task 4.4)
+   * Handle page change from ChapterPagerView (Task 4.4, Task Group 6.4)
    *
    * Updates:
-   * - Local state immediately (instant UI update)
+   * - Local state immediately (instant UI update for React-based features)
    * - URL via debounced effect (silent background sync)
    * - Save last read position
    * - Trigger prefetch after 1s delay
-   * - Haptic feedback (INSTANTLY handled by PagerView natively)
+   *
+   * Note: Shared values for header are updated SYNCHRONOUSLY by ChapterPagerView.handlePageSelected,
+   * not by this callback. This ensures header updates on UI thread without React re-renders.
+   * Haptic feedback is also handled INSTANTLY by ChapterPagerView.
    */
   // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   const handlePageChange = useCallback(
     (newBookId: number, newChapterNumber: number) => {
-      // Update local state IMMEDIATELY to prevent flash
+      // Update local state for React-based UI features
+      // This does NOT update the header - shared values do that
       setActiveBookId(newBookId);
       setActiveChapter(newChapterNumber);
 
@@ -450,8 +538,6 @@ export default function ChapterScreen() {
     return (
       <View style={styles.container}>
         <ChapterHeader
-          bookName="Loading..."
-          chapterNumber={validChapter}
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
@@ -467,8 +553,6 @@ export default function ChapterScreen() {
     return (
       <View style={styles.container}>
         <ChapterHeader
-          bookName="Error"
-          chapterNumber={validChapter}
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
@@ -535,10 +619,13 @@ export default function ChapterScreen() {
           </>
         ) : (
           <>
-            {/* Fixed Header (Task 8.6 - includes OfflineIndicator) */}
+            {/* Fixed Header (Task 8.6 - includes OfflineIndicator)
+                Header uses shared values from useChapterDisplay hook for instant updates.
+                Book name and chapter number are read from shared values, not props.
+                This ensures header updates on UI thread without React re-renders.
+                @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v2/spec.md
+                @see Task Group 6 - Clean Up ChapterScreen State Management */}
             <ChapterHeader
-              bookName={chapter.bookName}
-              chapterNumber={chapter.chapterNumber}
               activeView={activeView}
               onNavigationPress={() => {
                 setIsNavigationModalOpen(true); // Task 7.9
@@ -555,7 +642,9 @@ export default function ChapterScreen() {
               <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </View>
 
-            {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
+            {/* ChapterPagerView with 7-page fixed window (Task 4.3)
+                The PagerView updates shared values SYNCHRONOUSLY in handlePageSelected
+                for instant header updates. Local state updates happen via onPageChange. */}
             <ChapterPagerView
               ref={pagerRef}
               initialBookId={validBookId}
@@ -623,18 +712,21 @@ export default function ChapterScreen() {
 /**
  * Chapter Header Component
  *
- * Fixed header with book/chapter title and action icons
- * - Chapter text (clickable to open chapter selector)
+ * Fixed header with book/chapter title and action icons.
+ * Uses Reanimated shared values from useChapterDisplay hook for instant updates
+ * during swiping without React re-renders.
+ *
+ * Features:
+ * - Chapter text (clickable to open chapter selector) - reads from shared values
  * - Bible view icon (shows Bible reading mode)
  * - Explanations view icon (shows AI explanations mode)
  * - Offline indicator (shows when offline) - Task 8.6
  * - Hamburger menu icon (opens menu)
  *
  * @see Spec lines 226-237 (Header specs)
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v2/spec.md
  */
 interface ChapterHeaderProps {
-  bookName: string;
-  chapterNumber: number;
   activeView: ViewMode;
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
@@ -643,8 +735,6 @@ interface ChapterHeaderProps {
 }
 
 function ChapterHeader({
-  bookName,
-  chapterNumber,
   activeView,
   onNavigationPress,
   onViewChange,
@@ -656,6 +746,44 @@ function ChapterHeader({
   const headerSpecs = getHeaderSpecs(mode);
   const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
+
+  /**
+   * Use shared values from useChapterDisplay hook for instant header updates.
+   *
+   * The hook provides:
+   * - bookNameValue: Derived shared value containing book name from booksMetadata
+   * - currentChapterValue: Shared value containing current chapter number
+   *
+   * These values are updated synchronously in ChapterPagerView's onPageSelected
+   * callback, ensuring the header updates on the UI thread without React re-renders.
+   *
+   * @see hooks/bible/use-chapter-display.ts
+   * @see components/bible/ChapterPagerView.tsx handlePageSelected
+   */
+  const { bookNameValue, currentChapterValue } = useChapterDisplay();
+
+  // Local React state for text rendering - synced from shared values via useAnimatedReaction
+  // This avoids reading .value during render (which triggers Reanimated warnings)
+  // and allows React to properly manage text updates
+  const [bookName, setBookName] = useState('Loading...');
+  const [chapterNumber, setChapterNumber] = useState(1);
+
+  // Sync shared values to React state using useAnimatedReaction
+  // This runs on the UI thread and uses runOnJS to update React state
+  useAnimatedReaction(
+    () => ({
+      book: bookNameValue.value,
+      chapter: currentChapterValue.value,
+    }),
+    (current, previous) => {
+      'worklet';
+      if (current.book !== previous?.book || current.chapter !== previous?.chapter) {
+        runOnJS(setBookName)(current.book || 'Loading...');
+        runOnJS(setChapterNumber)(current.chapter);
+      }
+    },
+    [bookNameValue, currentChapterValue]
+  );
 
   // Animation for sliding toggle indicator (using Reanimated for native thread performance)
   const toggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
