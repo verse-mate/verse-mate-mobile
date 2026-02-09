@@ -5,6 +5,11 @@
  * Features similar structure to Bible chapter screen but adapted for topics.
  * Includes horizontal swipe navigation with global circular navigation across all categories.
  *
+ * Architecture (V3 Rewrite):
+ * - UI Layer: SimpleTopicPager renders pages, TopicHeader displays text from props
+ * - State Layer: Local state with debounced URL sync (single source of truth)
+ * - Logic Layer: useTopicNavigation calculates next/prev topics with circular wrap
+ *
  * Global Circular Navigation:
  * - Topics from ALL categories (EVENT, PROPHECY, PARABLE, THEME) are combined into one sorted array
  * - Swiping backward from the first topic globally shows the last topic globally
@@ -14,14 +19,14 @@
  * Route: /topics/[topicId]
  * Example: /topics/550e8400-e29b-41d4-a716-446655440000
  *
- * @see Spec: agent-os/specs/fix-topic-swipe-navigation/spec.md
- * @see components/bible/ChapterPagerView.tsx - Reference implementation for circular navigation
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v3/spec.md
+ * @see components/topics/SimpleTopicPager.tsx - V3 3-page pager with circular navigation
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import { Alert, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,9 +36,10 @@ import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons'
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { SimpleTopicPager } from '@/components/topics/SimpleTopicPager';
 import { TopicContentPanel } from '@/components/topics/TopicContentPanel';
 import { TopicExplanationsPanel } from '@/components/topics/TopicExplanationsPanel';
-import { TopicPagerView, type TopicPagerViewRef } from '@/components/topics/TopicPagerView';
+import { TopicPage } from '@/components/topics/TopicPage';
 import type { VersePress } from '@/components/topics/TopicText';
 import { TopicVerseTooltip } from '@/components/topics/TopicVerseTooltip';
 import { SplitView } from '@/components/ui/SplitView';
@@ -135,9 +141,6 @@ export default function TopicDetailScreen() {
     return () => clearTimeout(timer);
   }, [activeTopicId, currentTopicCategory, params.topicId]);
 
-  // Ref for imperative pager control
-  const pagerRef = useRef<TopicPagerViewRef>(null);
-
   // Get active tab from persistence (reuse Bible tab hook)
   const { activeTab, setActiveTab } = useActiveTab();
 
@@ -178,7 +181,7 @@ export default function TopicDetailScreen() {
   // FAB visibility state and handlers
   const {
     visible: fabVisible,
-    handleScroll: handleFABScroll,
+    handleScroll,
     handleTap,
   } = useFABVisibility({
     initialVisible: true,
@@ -248,50 +251,42 @@ export default function TopicDetailScreen() {
   };
 
   /**
-   * Handle page change from TopicPagerView swipe
+   * Handle topic change from SimpleTopicPager swipe
    * Updates local state immediately to prevent flash
-   * Global navigation - no category parameter needed
+   * V3: No imperative pager ref calls - just state updates
    */
-  const handlePageChange = (newTopicId: string) => {
+  const handleTopicChange = (newTopicId: string) => {
     setActiveTopicId(newTopicId);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   /**
    * Handle previous topic navigation via FAB button
-   * Uses pagerRef.goPrevious for smooth animation in portrait, direct state update for split view
+   * V3: Direct state update only - no imperative pagerRef calls
    * With circular navigation, prevTopic is always available - no error case needed
    */
   const handlePrevious = () => {
+    if (!prevTopic) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (useSplitView && prevTopic) {
-      // In split view, update local state directly
-      setActiveTopicId(prevTopic.topic_id);
-    } else {
-      // In portrait view, use goPrevious to navigate relative to current position
-      // This works correctly even if user has swiped manually
-      pagerRef.current?.goPrevious();
-    }
+    setActiveTopicId(prevTopic.topic_id);
   };
 
   /**
    * Handle next topic navigation via FAB button
-   * Uses pagerRef.goNext for smooth animation in portrait, direct state update for split view
+   * V3: Direct state update only - no imperative pagerRef calls
    * With circular navigation, nextTopic is always available - no error case needed
    */
   const handleNext = () => {
+    if (!nextTopic) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (useSplitView && nextTopic) {
-      // In split view, update local state directly
-      setActiveTopicId(nextTopic.topic_id);
-    } else {
-      // In portrait view, use goNext to navigate relative to current position
-      // This works correctly even if user has swiped manually
-      pagerRef.current?.goNext();
-    }
+    setActiveTopicId(nextTopic.topic_id);
   };
 
-  // Handle share topic
-  const handleShare = async () => {
+  /**
+   * Handle share topic
+   * Wrapped in useCallback for stable reference in renderTopicPage dependency array
+   */
+  const handleShare = useCallback(async () => {
     // Extract topic from topicData
     const currentTopic =
       topicData?.topic && typeof topicData.topic === 'object' && 'name' in topicData.topic
@@ -327,22 +322,16 @@ export default function TopicDetailScreen() {
       // Trigger error haptic feedback
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  };
-
-  /**
-   * Handle scroll events from TopicPage for FAB visibility
-   */
-  const handleScroll = (velocity: number, isAtBottom: boolean) => {
-    handleFABScroll(velocity, isAtBottom);
-  };
+  }, [topicData, currentTopicCategory]);
 
   /**
    * Handle verse press from TopicText component
+   * Wrapped in useCallback for stable reference in renderTopicPage dependency array
    */
-  const handleVersePress = (verseData: VersePress) => {
+  const handleVersePress = useCallback((verseData: VersePress) => {
     setSelectedVerse(verseData);
     setTooltipVisible(true);
-  };
+  }, []);
 
   /**
    * Handle tooltip close
@@ -359,6 +348,29 @@ export default function TopicDetailScreen() {
   const handleCopy = () => {
     showToast('Verse copied to clipboard');
   };
+
+  /**
+   * Render topic page content for SimpleTopicPager
+   *
+   * This is passed to SimpleTopicPager.renderTopicPage prop.
+   * Similar to the Bible screen's renderChapterPage callback.
+   */
+  const renderTopicPage = useCallback(
+    (pageTopicId: string) => {
+      return (
+        <TopicPage
+          topicId={pageTopicId}
+          activeTab={activeTab}
+          activeView={activeView}
+          onScroll={handleScroll}
+          onTap={handleTap}
+          onShare={handleShare}
+          onVersePress={handleVersePress}
+        />
+      );
+    },
+    [activeTab, activeView, handleScroll, handleTap, handleShare, handleVersePress]
+  );
 
   // Type guard for topic
   const topic =
@@ -464,18 +476,13 @@ export default function TopicDetailScreen() {
             <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} />
           )}
 
-          {/* TopicPagerView - 7-page sliding window with global circular navigation */}
-          <TopicPagerView
-            ref={pagerRef}
-            initialTopicId={activeTopicId}
+          {/* SimpleTopicPager - V3 3-page window with global circular navigation */}
+          <SimpleTopicPager
+            key={activeTopicId}
+            topicId={activeTopicId}
             sortedTopics={allTopics}
-            activeTab={activeTab}
-            activeView={activeView}
-            onPageChange={handlePageChange}
-            onScroll={handleScroll}
-            onTap={handleTap}
-            onShare={handleShare}
-            onVersePress={handleVersePress}
+            onTopicChange={handleTopicChange}
+            renderTopicPage={renderTopicPage}
           />
 
           {/* Floating Action Buttons for Topic Navigation - Always enabled with circular navigation */}
