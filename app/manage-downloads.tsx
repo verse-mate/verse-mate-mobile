@@ -181,8 +181,6 @@ export default function ManageDownloadsScreen() {
 
   const {
     isInitialized,
-    isOfflineModeEnabled,
-    setOfflineModeEnabled,
     isAutoSyncEnabled,
     setAutoSyncEnabled,
     languageBundles,
@@ -368,19 +366,6 @@ export default function ManageDownloadsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Settings</Text>
           <View style={styles.settingsCard}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Offline Mode</Text>
-                <Text style={styles.settingDescription}>Use downloaded content when available</Text>
-              </View>
-              <Switch
-                value={isOfflineModeEnabled}
-                onValueChange={setOfflineModeEnabled}
-                trackColor={{ false: colors.borderSecondary, true: colors.gold }}
-                thumbColor={colors.textPrimary}
-              />
-            </View>
-            <View style={styles.settingDivider} />
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
                 <Text style={styles.settingLabel}>Auto-Sync</Text>
