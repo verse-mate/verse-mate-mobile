@@ -100,3 +100,58 @@ export interface SyncProgress {
   total: number;
   message?: string;
 }
+
+// User data types (from GET /offline/user-data)
+export interface OfflineNote {
+  note_id: string;
+  book_id: number;
+  chapter_number: number;
+  verse_number: number | null;
+  content: string;
+  updated_at: string;
+}
+
+export interface OfflineHighlight {
+  highlight_id: number;
+  book_id: number;
+  chapter_number: number;
+  start_verse: number;
+  end_verse: number;
+  color: string;
+  start_char: number | null;
+  end_char: number | null;
+  updated_at: string;
+}
+
+export interface OfflineBookmark {
+  favorite_id: number;
+  book_id: number;
+  chapter_number: number;
+  created_at: string;
+}
+
+export interface UserDataDownload {
+  notes: OfflineNote[];
+  highlights: OfflineHighlight[];
+  bookmarks: OfflineBookmark[];
+}
+
+// Language bundle types for grouped downloads
+export type LanguageBundleStatus =
+  | 'not_downloaded'
+  | 'downloading'
+  | 'partially_downloaded'
+  | 'downloaded'
+  | 'update_available';
+
+export interface LanguageBundle {
+  languageCode: string;
+  languageName: string;
+  bibleVersions: BibleVersionManifest[];
+  hasCommentaries: boolean;
+  hasTopics: boolean;
+  commentaryInfo?: CommentaryLanguageManifest;
+  topicsInfo?: TopicLanguageManifest;
+  totalSizeBytes: number;
+  status: LanguageBundleStatus;
+}

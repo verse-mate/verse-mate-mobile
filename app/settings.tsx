@@ -603,6 +603,31 @@ export default function SettingsScreen() {
         {/* Theme Selector Section */}
         <ThemeSelector />
 
+        {/* Downloads & Offline */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Downloads & Offline</Text>
+          <Pressable
+            style={[styles.selectButton, { flexDirection: 'row', alignItems: 'center' }]}
+            onPress={() => router.push('/manage-downloads')}
+            accessibilityLabel="Manage offline downloads"
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name="cloud-download-outline"
+              size={20}
+              color={colors.textPrimary}
+              style={{ marginRight: 12 }}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.selectButtonText}>Manage Downloads</Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
+                Download content for offline use
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+
         {/* Logout Button - Authenticated Only */}
         {isAuthenticated && (
           <View style={styles.section}>
