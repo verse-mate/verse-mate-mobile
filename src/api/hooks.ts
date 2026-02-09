@@ -103,9 +103,9 @@ export const useBibleBooks = (options?: Options<GetBibleBooksData>) =>
 
 // Bible Chapter - wrapper for simpler API with Offline Support
 export const useBibleChapter = (bookId: number, chapterNumber: number, version?: string) => {
-	const { isOfflineModeEnabled, downloadedBibleVersions } = useOfflineContext();
+	const { downloadedBibleVersions } = useOfflineContext();
 	const effectiveVersion = version || 'NASB1995'; // Default to NASB1995 if not specified
-	const isLocal = isOfflineModeEnabled && downloadedBibleVersions.includes(effectiveVersion);
+	const isLocal = downloadedBibleVersions.includes(effectiveVersion);
 
 	const query = useQuery({
 		queryKey: ['bible-chapter', bookId, chapterNumber, effectiveVersion, isLocal ? 'local' : 'remote'],
@@ -163,10 +163,9 @@ export const useBibleChapter = (bookId: number, chapterNumber: number, version?:
 
 // Bible Chapter Explanation - wrapper for simpler API with Offline Support
 export const useBibleChapterExplanation = (bookId: number, chapterNumber: number, explanationType?: string, language?: string) => {
-	const { isOfflineModeEnabled, downloadedCommentaryLanguages } = useOfflineContext();
+	const { downloadedCommentaryLanguages } = useOfflineContext();
 	const effectiveLanguage = language || 'en';
-	// Check if we have commentaries for this language (simplified check, ideally check specific type if needed)
-	const isLocal = isOfflineModeEnabled && downloadedCommentaryLanguages.includes(effectiveLanguage);
+	const isLocal = downloadedCommentaryLanguages.includes(effectiveLanguage);
 
 	const query = useQuery({
 		queryKey: ['bible-explanation', bookId, chapterNumber, explanationType, effectiveLanguage, isLocal ? 'local' : 'remote'],
@@ -640,11 +639,8 @@ export const useAllTopics = () => {
  * Fetch topic details by ID with verse placeholder replacement (Offline Aware)
  */
 export const useTopicById = (topicId: string, bibleVersion?: string) => {
-	const { isOfflineModeEnabled, downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
-	// Simplified language check - assuming 'en' for now or checking if ANY topics are downloaded
-	// Ideally we need to know the language of the requested topic, but topicId is unique.
-	// We'll check if we have any topic languages downloaded.
-	const isLocal = isOfflineModeEnabled && downloadedTopicLanguages.length > 0;
+	const { downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
+	const isLocal = downloadedTopicLanguages.length > 0;
     const effectiveVersion = bibleVersion || 'NASB1995';
 
 	const query = useQuery({
@@ -703,8 +699,8 @@ export const useTopicById = (topicId: string, bibleVersion?: string) => {
  * Fetch topic Bible references (Offline Aware)
  */
 export const useTopicReferences = (topicId: string, version?: string) => {
-	const { isOfflineModeEnabled, downloadedTopicLanguages } = useOfflineContext();
-	const isLocal = isOfflineModeEnabled && downloadedTopicLanguages.length > 0;
+	const { downloadedTopicLanguages } = useOfflineContext();
+	const isLocal = downloadedTopicLanguages.length > 0;
 
 	const query = useQuery({
 		queryKey: ['topic-references', topicId, version, isLocal ? 'local' : 'remote'],
@@ -757,8 +753,8 @@ export const useTopicExplanation = (
 	lang?: string,
 	bibleVersion?: string,
 ) => {
-	const { isOfflineModeEnabled, downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
-	const isLocal = isOfflineModeEnabled && downloadedTopicLanguages.length > 0; // Simplified check
+	const { downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
+	const isLocal = downloadedTopicLanguages.length > 0;
     const effectiveVersion = bibleVersion || 'NASB1995';
 
 	const query = useQuery({

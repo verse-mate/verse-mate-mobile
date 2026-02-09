@@ -41,13 +41,10 @@ import {
   runAutoSyncIfNeeded,
 } from '@/services/offline';
 
-const OFFLINE_MODE_KEY = 'versemate:offline:mode_enabled';
 const AUTO_SYNC_KEY = 'versemate:offline:auto_sync_enabled';
 
 export interface OfflineContextType {
   // Mode
-  isOfflineModeEnabled: boolean;
-  setOfflineModeEnabled: (enabled: boolean) => void;
   isAutoSyncEnabled: boolean;
   setAutoSyncEnabled: (enabled: boolean) => void;
 
@@ -100,7 +97,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
 
   // Mode state
-  const [isOfflineModeEnabled, setOfflineModeEnabledState] = useState(false);
   const [isAutoSyncEnabled, setAutoSyncEnabledState] = useState(true);
 
   // Initialization state
@@ -176,14 +172,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       try {
         await initDatabase();
 
-        const [offlineMode, autoSync] = await Promise.all([
-          AsyncStorage.getItem(OFFLINE_MODE_KEY),
-          AsyncStorage.getItem(AUTO_SYNC_KEY),
-        ]);
+        const autoSync = await AsyncStorage.getItem(AUTO_SYNC_KEY);
 
-        if (offlineMode === 'true') {
-          setOfflineModeEnabledState(true);
-        }
         if (autoSync !== 'false') {
           setAutoSyncEnabledState(true);
         }
@@ -222,9 +212,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     initialize();
   }, []);
 
-  // Auto-sync user data when authenticated and offline mode enabled
+  // Auto-sync user data when authenticated
   useEffect(() => {
-    if (!isInitialized || !isAuthenticated || !isOfflineModeEnabled) return;
+    if (!isInitialized || !isAuthenticated) return;
 
     const syncUserDataIfNeeded = async () => {
       try {
@@ -236,13 +226,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     };
 
     syncUserDataIfNeeded();
-  }, [isInitialized, isAuthenticated, isOfflineModeEnabled]);
-
-  // Set offline mode
-  const setOfflineModeEnabled = (enabled: boolean) => {
-    setOfflineModeEnabledState(enabled);
-    AsyncStorage.setItem(OFFLINE_MODE_KEY, enabled.toString()).catch(console.warn);
-  };
+  }, [isInitialized, isAuthenticated]);
 
   // Set auto-sync
   const setAutoSyncEnabled = (enabled: boolean) => {
@@ -455,8 +439,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   const value: OfflineContextType = {
     // Mode
-    isOfflineModeEnabled,
-    setOfflineModeEnabled,
     isAutoSyncEnabled,
     setAutoSyncEnabled,
 
