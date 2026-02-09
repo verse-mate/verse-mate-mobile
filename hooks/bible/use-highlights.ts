@@ -48,7 +48,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { getLocalAllHighlights, getLocalHighlights } from '@/services/offline';
 import {
   deleteBibleHighlightByHighlightIdMutation,
   getBibleHighlightsByUserIdByBookIdByChapterNumberOptions,
@@ -146,9 +148,11 @@ export interface UseHighlightsResult {
  */
 export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isOfflineModeEnabled, isUserDataSynced } = useOfflineContext();
   const queryClient = useQueryClient();
 
   const { bookId, chapterNumber } = options || {};
+  const isOffline = isOfflineModeEnabled && isUserDataSynced;
 
   // Determine which query to use based on options
   const fetchAllHighlights = !bookId || !chapterNumber;
@@ -185,34 +189,63 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
     [chapterHighlightsQueryOptions]
   );
 
-  // Fetch all highlights
+  // Fetch all highlights (disabled in offline mode)
   const {
     data: allHighlightsData,
     isFetching: isAllFetching,
     refetch: refetchAll,
   } = useQuery({
     ...getBibleHighlightsByUserIdOptions(allHighlightsQueryOptions),
-    enabled: isAuthenticated && !!user?.id && fetchAllHighlights,
+    enabled: isAuthenticated && !!user?.id && fetchAllHighlights && !isOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Fetch chapter-specific highlights
+  // Fetch chapter-specific highlights (disabled in offline mode)
   const {
     data: chapterHighlightsData,
     isFetching: isChapterFetching,
     refetch: refetchChapter,
   } = useQuery({
     ...getBibleHighlightsByUserIdByBookIdByChapterNumberOptions(chapterHighlightsQueryOptions),
-    enabled: isAuthenticated && !!user?.id && !fetchAllHighlights && !!bookId && !!chapterNumber,
+    enabled:
+      isAuthenticated &&
+      !!user?.id &&
+      !fetchAllHighlights &&
+      !!bookId &&
+      !!chapterNumber &&
+      !isOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Extract highlights arrays from responses
-  const allHighlights = useMemo(() => allHighlightsData?.highlights || [], [allHighlightsData]);
-  const chapterHighlights = useMemo(
-    () => chapterHighlightsData?.highlights || [],
-    [chapterHighlightsData]
-  );
+  // Fetch highlights from local storage when offline
+  const { data: localAllHighlights } = useQuery({
+    queryKey: ['local-all-highlights-offline-fallback'],
+    queryFn: () => getLocalAllHighlights(),
+    enabled: isOffline && fetchAllHighlights,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  const { data: localChapterHighlights } = useQuery({
+    queryKey: ['local-chapter-highlights-offline-fallback', bookId, chapterNumber],
+    queryFn: () => getLocalHighlights(bookId, chapterNumber),
+    enabled: isOffline && !fetchAllHighlights && !!bookId && !!chapterNumber,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  // Extract highlights arrays from responses (offline or remote)
+  const allHighlights = useMemo(() => {
+    if (isOffline && localAllHighlights) {
+      return localAllHighlights as unknown as Highlight[];
+    }
+    return allHighlightsData?.highlights || [];
+  }, [isOffline, localAllHighlights, allHighlightsData]);
+
+  const chapterHighlights = useMemo(() => {
+    if (isOffline && localChapterHighlights) {
+      return localChapterHighlights as unknown as Highlight[];
+    }
+    return chapterHighlightsData?.highlights || [];
+  }, [isOffline, localChapterHighlights, chapterHighlightsData]);
 
   // Add highlight mutation
   const addMutation = useMutation({

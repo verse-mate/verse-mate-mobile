@@ -32,7 +32,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { getLocalBookmarks } from '@/services/offline';
 import {
   deleteBibleBookBookmarkRemoveMutation,
   getBibleBookBookmarksByUserIdOptions,
@@ -109,7 +111,10 @@ export interface UseBookmarksResult {
  */
 export function useBookmarks(): UseBookmarksResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isOfflineModeEnabled, isUserDataSynced } = useOfflineContext();
   const queryClient = useQueryClient();
+
+  const isOffline = isOfflineModeEnabled && isUserDataSynced;
 
   // Create query options with user ID
   const queryOptions = useMemo(
@@ -125,7 +130,7 @@ export function useBookmarks(): UseBookmarksResult {
     [queryOptions]
   );
 
-  // Fetch bookmarks from API
+  // Fetch bookmarks from API (disabled in offline mode)
   const {
     data: bookmarksData,
     isFetching: isQueryFetching,
@@ -133,12 +138,33 @@ export function useBookmarks(): UseBookmarksResult {
     dataUpdatedAt,
   } = useQuery({
     ...getBibleBookBookmarksByUserIdOptions(queryOptions),
-    enabled: isAuthenticated && !!user?.id,
+    enabled: isAuthenticated && !!user?.id && !isOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Extract bookmarks array from response
-  const bookmarks = useMemo(() => bookmarksData?.favorites || [], [bookmarksData]);
+  // Fetch bookmarks from local storage when offline
+  const { data: localBookmarksData } = useQuery({
+    queryKey: ['local-bookmarks-offline-fallback'],
+    queryFn: async () => {
+      const localBookmarks = await getLocalBookmarks();
+      return localBookmarks.map((b) => ({
+        favorite_id: b.favorite_id,
+        book_id: b.book_id,
+        chapter_number: b.chapter_number,
+        book_name: `Book ${b.book_id}`,
+      }));
+    },
+    enabled: isOffline,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  // Extract bookmarks array from response (offline or remote)
+  const bookmarks = useMemo(() => {
+    if (isOffline && localBookmarksData) {
+      return localBookmarksData as Bookmark[];
+    }
+    return bookmarksData?.favorites || [];
+  }, [isOffline, localBookmarksData, bookmarksData]);
 
   // Add bookmark mutation
   const addMutation = useMutation({

@@ -3,33 +3,42 @@
  *
  * Provides global state management for offline mode functionality.
  * Handles download state, sync operations, and offline mode toggling.
+ * Supports language-based bundled downloads and user data sync.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   type DownloadInfo,
+  type LanguageBundle,
   type OfflineManifest,
   type SyncProgress,
-  fetchManifest,
+  buildLanguageBundles,
+  checkAndSyncUpdates,
+  deleteAllOfflineData,
+  deleteLanguageBundle as deleteLanguageBundleService,
   downloadBibleVersion as downloadBibleVersionService,
   downloadCommentaries as downloadCommentariesService,
+  downloadLanguageBundle as downloadLanguageBundleService,
   downloadTopics as downloadTopicsService,
-  removeBibleVersion,
-  removeCommentaries,
-  removeTopics,
+  downloadUserData as downloadUserDataService,
+  fetchManifest,
   getBibleVersionsDownloadInfo,
   getCommentaryDownloadInfo,
-  getTopicsDownloadInfo,
   getDownloadedBibleVersions,
   getDownloadedCommentaryLanguages,
   getDownloadedTopicLanguages,
-  checkAndSyncUpdates,
+  getLanguageBundleStatus,
   getLastSyncTime,
-  runAutoSyncIfNeeded,
-  initDatabase,
+  getTopicsDownloadInfo,
   getTotalStorageUsed,
-  deleteAllOfflineData,
+  initDatabase,
+  isUserDataDownloaded,
+  removeBibleVersion,
+  removeCommentaries,
+  removeTopics,
+  runAutoSyncIfNeeded,
 } from '@/services/offline';
 
 const OFFLINE_MODE_KEY = 'versemate:offline:mode_enabled';
@@ -56,6 +65,12 @@ export interface OfflineContextType {
   commentaryInfo: DownloadInfo[];
   topicsInfo: DownloadInfo[];
 
+  // Language bundles
+  languageBundles: LanguageBundle[];
+
+  // User data
+  isUserDataSynced: boolean;
+
   // Sync state
   isSyncing: boolean;
   syncProgress: SyncProgress | null;
@@ -74,11 +89,16 @@ export interface OfflineContextType {
   deleteTopics: (languageCode: string) => Promise<void>;
   deleteAllData: () => Promise<void>;
   checkForUpdates: () => Promise<void>;
+  downloadLanguage: (languageCode: string) => Promise<void>;
+  deleteLanguage: (languageCode: string) => Promise<void>;
+  syncUserData: () => Promise<void>;
 }
 
 const OfflineContext = createContext<OfflineContextType | null>(null);
 
 export function OfflineProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
+
   // Mode state
   const [isOfflineModeEnabled, setOfflineModeEnabledState] = useState(false);
   const [isAutoSyncEnabled, setAutoSyncEnabledState] = useState(true);
@@ -97,6 +117,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const [commentaryInfo, setCommentaryInfo] = useState<DownloadInfo[]>([]);
   const [topicsInfo, setTopicsInfo] = useState<DownloadInfo[]>([]);
 
+  // Language bundles
+  const [languageBundles, setLanguageBundles] = useState<LanguageBundle[]>([]);
+
+  // User data
+  const [isUserDataSynced, setIsUserDataSynced] = useState(false);
+
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
@@ -105,14 +131,51 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   // Storage
   const [totalStorageUsed, setTotalStorageUsed] = useState(0);
 
+  // Helper to refresh language bundle statuses
+  const refreshLanguageBundles = async (m: OfflineManifest) => {
+    const bundles = buildLanguageBundles(m);
+    const bundlesWithStatus = await Promise.all(
+      bundles.map(async (bundle) => ({
+        ...bundle,
+        status: await getLanguageBundleStatus(bundle, m),
+      }))
+    );
+    setLanguageBundles(bundlesWithStatus);
+  };
+
+  // Helper to refresh all download state
+  const refreshDownloadState = async (m: OfflineManifest) => {
+    const [bibleVersions, commentaryLangs, topicLangs, storage] = await Promise.all([
+      getDownloadedBibleVersions(),
+      getDownloadedCommentaryLanguages(),
+      getDownloadedTopicLanguages(),
+      getTotalStorageUsed(),
+    ]);
+
+    setDownloadedBibleVersions(bibleVersions);
+    setDownloadedCommentaryLanguages(commentaryLangs);
+    setDownloadedTopicLanguages(topicLangs);
+    setTotalStorageUsed(storage);
+
+    const [bibleInfo, commInfo, topicInfo] = await Promise.all([
+      getBibleVersionsDownloadInfo(m),
+      getCommentaryDownloadInfo(m),
+      getTopicsDownloadInfo(m),
+    ]);
+
+    setBibleVersionsInfo(bibleInfo);
+    setCommentaryInfo(commInfo);
+    setTopicsInfo(topicInfo);
+
+    await refreshLanguageBundles(m);
+  };
+
   // Initialize database and load state
   useEffect(() => {
     async function initialize() {
       try {
-        // Initialize SQLite database
         await initDatabase();
 
-        // Load persisted settings
         const [offlineMode, autoSync] = await Promise.all([
           AsyncStorage.getItem(OFFLINE_MODE_KEY),
           AsyncStorage.getItem(AUTO_SYNC_KEY),
@@ -125,7 +188,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
           setAutoSyncEnabledState(true);
         }
 
-        // Load downloaded content lists
         const [bibleVersions, commentaryLangs, topicLangs] = await Promise.all([
           getDownloadedBibleVersions(),
           getDownloadedCommentaryLanguages(),
@@ -136,17 +198,18 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         setDownloadedCommentaryLanguages(commentaryLangs);
         setDownloadedTopicLanguages(topicLangs);
 
-        // Load last sync time
-        const syncTime = await getLastSyncTime();
-        setLastSyncTime(syncTime);
+        const [syncTime, storage, userDataSynced] = await Promise.all([
+          getLastSyncTime(),
+          getTotalStorageUsed(),
+          isUserDataDownloaded(),
+        ]);
 
-        // Load storage used
-        const storage = await getTotalStorageUsed();
+        setLastSyncTime(syncTime);
         setTotalStorageUsed(storage);
+        setIsUserDataSynced(userDataSynced);
 
         setIsInitialized(true);
 
-        // Run auto-sync if enabled
         if (autoSync !== 'false') {
           runAutoSyncIfNeeded().catch(console.warn);
         }
@@ -158,6 +221,22 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
     initialize();
   }, []);
+
+  // Auto-sync user data when authenticated and offline mode enabled
+  useEffect(() => {
+    if (!isInitialized || !isAuthenticated || !isOfflineModeEnabled) return;
+
+    const syncUserDataIfNeeded = async () => {
+      try {
+        await downloadUserDataService();
+        setIsUserDataSynced(true);
+      } catch (error) {
+        console.warn('User data auto-sync failed:', error);
+      }
+    };
+
+    syncUserDataIfNeeded();
+  }, [isInitialized, isAuthenticated, isOfflineModeEnabled]);
 
   // Set offline mode
   const setOfflineModeEnabled = (enabled: boolean) => {
@@ -177,7 +256,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       const newManifest = await fetchManifest();
       setManifest(newManifest);
 
-      // Update download info
       const [bibleInfo, commInfo, topicInfo] = await Promise.all([
         getBibleVersionsDownloadInfo(newManifest),
         getCommentaryDownloadInfo(newManifest),
@@ -187,6 +265,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       setBibleVersionsInfo(bibleInfo);
       setCommentaryInfo(commInfo);
       setTopicsInfo(topicInfo);
+
+      await refreshLanguageBundles(newManifest);
     } catch (error) {
       console.error('Failed to refresh manifest:', error);
       throw error;
@@ -203,15 +283,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setIsSyncing(true);
     try {
       await downloadBibleVersionService(versionKey, currentManifest, setSyncProgress);
-
-      // Update state
-      setDownloadedBibleVersions((prev) => [...new Set([...prev, versionKey])]);
-      const storage = await getTotalStorageUsed();
-      setTotalStorageUsed(storage);
-
-      // Refresh download info
-      const bibleInfo = await getBibleVersionsDownloadInfo(currentManifest);
-      setBibleVersionsInfo(bibleInfo);
+      await refreshDownloadState(currentManifest);
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
@@ -228,15 +300,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setIsSyncing(true);
     try {
       await downloadCommentariesService(languageCode, currentManifest, setSyncProgress);
-
-      // Update state
-      setDownloadedCommentaryLanguages((prev) => [...new Set([...prev, languageCode])]);
-      const storage = await getTotalStorageUsed();
-      setTotalStorageUsed(storage);
-
-      // Refresh download info
-      const commInfo = await getCommentaryDownloadInfo(currentManifest);
-      setCommentaryInfo(commInfo);
+      await refreshDownloadState(currentManifest);
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
@@ -253,19 +317,36 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setIsSyncing(true);
     try {
       await downloadTopicsService(languageCode, currentManifest, setSyncProgress);
-
-      // Update state
-      setDownloadedTopicLanguages((prev) => [...new Set([...prev, languageCode])]);
-      const storage = await getTotalStorageUsed();
-      setTotalStorageUsed(storage);
-
-      // Refresh download info
-      const topicInfo = await getTopicsDownloadInfo(currentManifest);
-      setTopicsInfo(topicInfo);
+      await refreshDownloadState(currentManifest);
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
     }
+  };
+
+  // Download all content for a language
+  const downloadLanguage = async (languageCode: string) => {
+    if (!manifest) {
+      await refreshManifest();
+    }
+    const currentManifest = manifest || (await fetchManifest());
+
+    setIsSyncing(true);
+    try {
+      await downloadLanguageBundleService(languageCode, currentManifest, setSyncProgress);
+      await refreshDownloadState(currentManifest);
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(null);
+    }
+  };
+
+  // Delete all content for a language
+  const deleteLanguage = async (languageCode: string) => {
+    if (!manifest) return;
+
+    await deleteLanguageBundleService(languageCode, manifest);
+    await refreshDownloadState(manifest);
   };
 
   // Delete Bible version
@@ -279,6 +360,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     if (manifest) {
       const bibleInfo = await getBibleVersionsDownloadInfo(manifest);
       setBibleVersionsInfo(bibleInfo);
+      await refreshLanguageBundles(manifest);
     }
   };
 
@@ -293,6 +375,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     if (manifest) {
       const commInfo = await getCommentaryDownloadInfo(manifest);
       setCommentaryInfo(commInfo);
+      await refreshLanguageBundles(manifest);
     }
   };
 
@@ -307,6 +390,22 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     if (manifest) {
       const topicInfo = await getTopicsDownloadInfo(manifest);
       setTopicsInfo(topicInfo);
+      await refreshLanguageBundles(manifest);
+    }
+  };
+
+  // Sync user data manually
+  const syncUserData = async () => {
+    setIsSyncing(true);
+    try {
+      await downloadUserDataService(setSyncProgress);
+      setIsUserDataSynced(true);
+
+      const storage = await getTotalStorageUsed();
+      setTotalStorageUsed(storage);
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(null);
     }
   };
 
@@ -320,6 +419,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setBibleVersionsInfo([]);
     setCommentaryInfo([]);
     setTopicsInfo([]);
+    setLanguageBundles((prev) => prev.map((b) => ({ ...b, status: 'not_downloaded' as const })));
+    setIsUserDataSynced(false);
   };
 
   // Check for updates
@@ -328,33 +429,23 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     try {
       await checkAndSyncUpdates(setSyncProgress);
 
-      // Refresh all state
       const syncTime = await getLastSyncTime();
       setLastSyncTime(syncTime);
 
-      const [bibleVersions, commentaryLangs, topicLangs] = await Promise.all([
-        getDownloadedBibleVersions(),
-        getDownloadedCommentaryLanguages(),
-        getDownloadedTopicLanguages(),
-      ]);
-
-      setDownloadedBibleVersions(bibleVersions);
-      setDownloadedCommentaryLanguages(commentaryLangs);
-      setDownloadedTopicLanguages(topicLangs);
-
-      const storage = await getTotalStorageUsed();
-      setTotalStorageUsed(storage);
-
       if (manifest) {
-        const [bibleInfo, commInfo, topicInfo] = await Promise.all([
-          getBibleVersionsDownloadInfo(manifest),
-          getCommentaryDownloadInfo(manifest),
-          getTopicsDownloadInfo(manifest),
+        await refreshDownloadState(manifest);
+      } else {
+        const [bibleVersions, commentaryLangs, topicLangs, storage] = await Promise.all([
+          getDownloadedBibleVersions(),
+          getDownloadedCommentaryLanguages(),
+          getDownloadedTopicLanguages(),
+          getTotalStorageUsed(),
         ]);
 
-        setBibleVersionsInfo(bibleInfo);
-        setCommentaryInfo(commInfo);
-        setTopicsInfo(topicInfo);
+        setDownloadedBibleVersions(bibleVersions);
+        setDownloadedCommentaryLanguages(commentaryLangs);
+        setDownloadedTopicLanguages(topicLangs);
+        setTotalStorageUsed(storage);
       }
     } finally {
       setIsSyncing(false);
@@ -383,6 +474,12 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     commentaryInfo,
     topicsInfo,
 
+    // Language bundles
+    languageBundles,
+
+    // User data
+    isUserDataSynced,
+
     // Sync state
     isSyncing,
     syncProgress,
@@ -401,6 +498,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     deleteTopics,
     deleteAllData,
     checkForUpdates,
+    downloadLanguage,
+    deleteLanguage,
+    syncUserData,
   };
 
   return <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>;

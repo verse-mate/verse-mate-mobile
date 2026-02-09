@@ -41,7 +41,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { getLocalAllNotes } from '@/services/offline';
 import {
   deleteBibleBookNoteRemoveMutation,
   getBibleBookNotesByUserIdOptions,
@@ -100,7 +102,10 @@ export interface UseNotesResult {
  */
 export function useNotes(): UseNotesResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isOfflineModeEnabled, isUserDataSynced } = useOfflineContext();
   const queryClient = useQueryClient();
+
+  const isOffline = isOfflineModeEnabled && isUserDataSynced;
 
   // Create query options with user ID
   const queryOptions = useMemo(
@@ -116,7 +121,7 @@ export function useNotes(): UseNotesResult {
     [queryOptions]
   );
 
-  // Fetch notes from API
+  // Fetch notes from API (disabled in offline mode)
   const {
     data: notesData,
     isFetching: isQueryFetching,
@@ -124,12 +129,37 @@ export function useNotes(): UseNotesResult {
     dataUpdatedAt,
   } = useQuery({
     ...getBibleBookNotesByUserIdOptions(queryOptions),
-    enabled: isAuthenticated && !!user?.id,
+    enabled: isAuthenticated && !!user?.id && !isOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Extract notes array from response
-  const notes = useMemo(() => notesData?.notes || [], [notesData]);
+  // Fetch notes from local storage when offline
+  const { data: localNotesData } = useQuery({
+    queryKey: ['local-notes-offline-fallback'],
+    queryFn: async () => {
+      const localNotes = await getLocalAllNotes();
+      return localNotes.map((n) => ({
+        note_id: n.note_id,
+        book_id: n.book_id,
+        chapter_number: n.chapter_number,
+        verse_number: n.verse_number,
+        content: n.content,
+        created_at: n.updated_at,
+        updated_at: n.updated_at,
+        book_name: `Book ${n.book_id}`,
+      }));
+    },
+    enabled: isOffline,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  // Extract notes array from response (offline or remote)
+  const notes = useMemo(() => {
+    if (isOffline && localNotesData) {
+      return localNotesData as Note[];
+    }
+    return notesData?.notes || [];
+  }, [isOffline, localNotesData, notesData]);
 
   // Add note mutation
   const addMutation = useMutation({
