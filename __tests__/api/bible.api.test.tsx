@@ -24,7 +24,15 @@ import {
   setMockLastReadPosition,
 } from '../mocks/handlers/bible.handlers';
 
-jest.mock('../../contexts/OfflineContext');
+jest.mock('../../contexts/OfflineContext', () => ({
+  useOfflineContext: jest.fn().mockReturnValue({
+    isOfflineModeEnabled: false,
+    downloadedBibleVersions: [],
+    downloadedCommentaryLanguages: [],
+    downloadedTopicLanguages: [],
+    isUserDataSynced: false,
+  }),
+}));
 jest.mock('../../services/offline');
 jest.mock('../../constants/bible-books');
 

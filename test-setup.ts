@@ -3,6 +3,43 @@ import { FormData, fetch, Headers, Request, Response } from 'undici';
 import { resetPostHogMock } from './__tests__/mocks/posthog-mock';
 import { server } from './__tests__/mocks/server';
 
+// Mock offline context to avoid SQLite initialization in tests
+jest.mock('@/contexts/OfflineContext', () => ({
+  useOfflineContext: () => ({
+    isOfflineModeEnabled: false,
+    setOfflineModeEnabled: jest.fn(),
+    isAutoSyncEnabled: false,
+    setAutoSyncEnabled: jest.fn(),
+    isInitialized: true,
+    manifest: null,
+    downloadedBibleVersions: [],
+    downloadedCommentaryLanguages: [],
+    downloadedTopicLanguages: [],
+    bibleVersionsInfo: [],
+    commentaryInfo: [],
+    topicsInfo: [],
+    languageBundles: [],
+    isUserDataSynced: false,
+    isSyncing: false,
+    syncProgress: null,
+    lastSyncTime: null,
+    totalStorageUsed: 0,
+    refreshManifest: jest.fn(),
+    downloadBibleVersion: jest.fn(),
+    downloadCommentaries: jest.fn(),
+    downloadTopics: jest.fn(),
+    deleteBibleVersion: jest.fn(),
+    deleteCommentaries: jest.fn(),
+    deleteTopics: jest.fn(),
+    deleteAllData: jest.fn(),
+    checkForUpdates: jest.fn(),
+    downloadLanguage: jest.fn(),
+    deleteLanguage: jest.fn(),
+    syncUserData: jest.fn(),
+  }),
+  OfflineProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock device info to avoid AsyncStorage and Dimensions listeners in tests
 jest.mock('@/hooks/use-device-info', () => ({
   useDeviceInfo: () => ({
