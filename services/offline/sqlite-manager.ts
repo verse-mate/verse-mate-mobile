@@ -10,7 +10,10 @@ import { getBookByName } from '../../constants/bible-books';
 import type {
   BibleVerseData,
   CommentaryData,
+  OfflineBookmark,
+  OfflineHighlight,
   OfflineMetadata,
+  OfflineNote,
   TopicData,
   TopicReferenceData,
 } from './types';
@@ -76,6 +79,40 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       verse_end INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_topic_refs_lookup ON offline_topic_references(language_code, book_id, chapter_number);
+
+    -- User notes (offline copy)
+    CREATE TABLE IF NOT EXISTS offline_notes (
+      note_id TEXT PRIMARY KEY,
+      book_id INTEGER NOT NULL,
+      chapter_number INTEGER NOT NULL,
+      verse_number INTEGER,
+      content TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_notes_chapter ON offline_notes(book_id, chapter_number);
+
+    -- User highlights (offline copy)
+    CREATE TABLE IF NOT EXISTS offline_highlights (
+      highlight_id INTEGER PRIMARY KEY,
+      book_id INTEGER NOT NULL,
+      chapter_number INTEGER NOT NULL,
+      start_verse INTEGER NOT NULL,
+      end_verse INTEGER NOT NULL,
+      color TEXT NOT NULL,
+      start_char INTEGER,
+      end_char INTEGER,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_highlights_chapter ON offline_highlights(book_id, chapter_number);
+
+    -- User bookmarks (offline copy)
+    CREATE TABLE IF NOT EXISTS offline_bookmarks (
+      favorite_id INTEGER PRIMARY KEY,
+      book_id INTEGER NOT NULL,
+      chapter_number INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_bookmarks_chapter ON offline_bookmarks(book_id, chapter_number);
 
     -- Sync metadata
     CREATE TABLE IF NOT EXISTS offline_metadata (
@@ -468,6 +505,199 @@ export async function getLocalTopicReferences(topicId: string): Promise<TopicRef
 }
 
 // ============================================================================
+// User Data Operations
+// ============================================================================
+
+/**
+ * Insert user notes (bulk insert with transaction)
+ */
+export async function insertUserNotes(notes: OfflineNote[]): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('DELETE FROM offline_notes');
+
+  const batchSize = 500;
+  for (let i = 0; i < notes.length; i += batchSize) {
+    const batch = notes.slice(i, i + batchSize);
+    await database.withTransactionAsync(async () => {
+      const statement = await database.prepareAsync(
+        'INSERT INTO offline_notes (note_id, book_id, chapter_number, verse_number, content, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      );
+      try {
+        for (const note of batch) {
+          await statement.executeAsync([
+            note.note_id,
+            note.book_id,
+            note.chapter_number,
+            note.verse_number,
+            note.content,
+            note.updated_at,
+          ]);
+        }
+      } finally {
+        await statement.finalizeAsync();
+      }
+    });
+  }
+}
+
+/**
+ * Insert user highlights (bulk insert with transaction)
+ */
+export async function insertUserHighlights(highlights: OfflineHighlight[]): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('DELETE FROM offline_highlights');
+
+  const batchSize = 500;
+  for (let i = 0; i < highlights.length; i += batchSize) {
+    const batch = highlights.slice(i, i + batchSize);
+    await database.withTransactionAsync(async () => {
+      const statement = await database.prepareAsync(
+        'INSERT INTO offline_highlights (highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+      try {
+        for (const highlight of batch) {
+          await statement.executeAsync([
+            highlight.highlight_id,
+            highlight.book_id,
+            highlight.chapter_number,
+            highlight.start_verse,
+            highlight.end_verse,
+            highlight.color,
+            highlight.start_char,
+            highlight.end_char,
+            highlight.updated_at,
+          ]);
+        }
+      } finally {
+        await statement.finalizeAsync();
+      }
+    });
+  }
+}
+
+/**
+ * Insert user bookmarks (bulk insert with transaction)
+ */
+export async function insertUserBookmarks(bookmarks: OfflineBookmark[]): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync('DELETE FROM offline_bookmarks');
+
+  const batchSize = 500;
+  for (let i = 0; i < bookmarks.length; i += batchSize) {
+    const batch = bookmarks.slice(i, i + batchSize);
+    await database.withTransactionAsync(async () => {
+      const statement = await database.prepareAsync(
+        'INSERT INTO offline_bookmarks (favorite_id, book_id, chapter_number, created_at) VALUES (?, ?, ?, ?)'
+      );
+      try {
+        for (const bookmark of batch) {
+          await statement.executeAsync([
+            bookmark.favorite_id,
+            bookmark.book_id,
+            bookmark.chapter_number,
+            bookmark.created_at,
+          ]);
+        }
+      } finally {
+        await statement.finalizeAsync();
+      }
+    });
+  }
+}
+
+/**
+ * Get notes for a chapter, or all notes if no filter
+ */
+export async function getLocalNotes(
+  bookId?: number,
+  chapterNumber?: number
+): Promise<OfflineNote[]> {
+  const database = await getDatabase();
+  if (bookId !== undefined && chapterNumber !== undefined) {
+    return database.getAllAsync<OfflineNote>(
+      'SELECT note_id, book_id, chapter_number, verse_number, content, updated_at FROM offline_notes WHERE book_id = ? AND chapter_number = ? ORDER BY verse_number',
+      [bookId, chapterNumber]
+    );
+  }
+  return database.getAllAsync<OfflineNote>(
+    'SELECT note_id, book_id, chapter_number, verse_number, content, updated_at FROM offline_notes ORDER BY updated_at DESC'
+  );
+}
+
+/**
+ * Get all notes
+ */
+export async function getLocalAllNotes(): Promise<OfflineNote[]> {
+  const database = await getDatabase();
+  return database.getAllAsync<OfflineNote>(
+    'SELECT note_id, book_id, chapter_number, verse_number, content, updated_at FROM offline_notes ORDER BY updated_at DESC'
+  );
+}
+
+/**
+ * Get highlights for a chapter, or all highlights if no filter
+ */
+export async function getLocalHighlights(
+  bookId?: number,
+  chapterNumber?: number
+): Promise<OfflineHighlight[]> {
+  const database = await getDatabase();
+  if (bookId !== undefined && chapterNumber !== undefined) {
+    return database.getAllAsync<OfflineHighlight>(
+      'SELECT highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at FROM offline_highlights WHERE book_id = ? AND chapter_number = ? ORDER BY start_verse',
+      [bookId, chapterNumber]
+    );
+  }
+  return database.getAllAsync<OfflineHighlight>(
+    'SELECT highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at FROM offline_highlights ORDER BY updated_at DESC'
+  );
+}
+
+/**
+ * Get all highlights
+ */
+export async function getLocalAllHighlights(): Promise<OfflineHighlight[]> {
+  const database = await getDatabase();
+  return database.getAllAsync<OfflineHighlight>(
+    'SELECT highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at FROM offline_highlights ORDER BY updated_at DESC'
+  );
+}
+
+/**
+ * Get all bookmarks
+ */
+export async function getLocalBookmarks(): Promise<OfflineBookmark[]> {
+  const database = await getDatabase();
+  return database.getAllAsync<OfflineBookmark>(
+    'SELECT favorite_id, book_id, chapter_number, created_at FROM offline_bookmarks ORDER BY created_at DESC'
+  );
+}
+
+/**
+ * Check if user data is downloaded
+ */
+export async function isUserDataDownloaded(): Promise<boolean> {
+  const database = await getDatabase();
+  const result = await database.getFirstAsync<{ count: number }>(
+    "SELECT COUNT(*) as count FROM offline_metadata WHERE resource_key = 'user-data'"
+  );
+  return (result?.count ?? 0) > 0;
+}
+
+/**
+ * Delete all user data
+ */
+export async function deleteAllUserData(): Promise<void> {
+  const database = await getDatabase();
+  await database.execAsync(`
+    DELETE FROM offline_notes;
+    DELETE FROM offline_highlights;
+    DELETE FROM offline_bookmarks;
+  `);
+  await database.runAsync("DELETE FROM offline_metadata WHERE resource_key = 'user-data'");
+}
+
+// ============================================================================
 // Metadata Operations
 // ============================================================================
 
@@ -515,6 +745,9 @@ export async function deleteAllOfflineData(): Promise<void> {
     DELETE FROM offline_explanations;
     DELETE FROM offline_topics;
     DELETE FROM offline_topic_references;
+    DELETE FROM offline_notes;
+    DELETE FROM offline_highlights;
+    DELETE FROM offline_bookmarks;
     DELETE FROM offline_metadata;
   `);
 }

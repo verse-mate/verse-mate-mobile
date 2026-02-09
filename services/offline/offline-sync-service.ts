@@ -6,6 +6,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import {
   deleteBibleVersion,
   deleteCommentaries,
@@ -15,6 +16,9 @@ import {
   insertBibleVerses,
   insertCommentaries,
   insertTopics,
+  insertUserBookmarks,
+  insertUserHighlights,
+  insertUserNotes,
   isBibleVersionDownloaded,
   isCommentaryDownloaded,
   isTopicsDownloaded,
@@ -25,9 +29,12 @@ import type {
   CommentaryData,
   DownloadInfo,
   DownloadStatus,
+  LanguageBundle,
+  LanguageBundleStatus,
   OfflineManifest,
   SyncProgress,
   TopicsDownloadData,
+  UserDataDownload,
 } from './types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
@@ -437,4 +444,245 @@ export async function runAutoSyncIfNeeded(): Promise<void> {
   } catch (error) {
     console.warn('Auto-sync failed:', error);
   }
+}
+
+// ============================================================================
+// Language Bundle Operations
+// ============================================================================
+
+/**
+ * Normalize language codes for grouping.
+ * Bible versions use "en-US" style, commentaries/topics use "en" style.
+ */
+export function normalizeLanguageCode(code: string): string {
+  return code.split('-')[0].toLowerCase();
+}
+
+/**
+ * Build language bundles from manifest by grouping content by language
+ */
+export function buildLanguageBundles(manifest: OfflineManifest): LanguageBundle[] {
+  const languageMap = new Map<string, LanguageBundle>();
+
+  for (const version of manifest.bible_versions) {
+    const code = normalizeLanguageCode(version.language);
+    if (!languageMap.has(code)) {
+      languageMap.set(code, {
+        languageCode: code,
+        languageName: '',
+        bibleVersions: [],
+        hasCommentaries: false,
+        hasTopics: false,
+        totalSizeBytes: 0,
+        status: 'not_downloaded',
+      });
+    }
+    const bundle = languageMap.get(code)!;
+    bundle.bibleVersions.push(version);
+    bundle.totalSizeBytes += version.size_bytes;
+  }
+
+  for (const commentary of manifest.commentary_languages) {
+    const code = commentary.code;
+    if (!languageMap.has(code)) {
+      languageMap.set(code, {
+        languageCode: code,
+        languageName: commentary.name,
+        bibleVersions: [],
+        hasCommentaries: false,
+        hasTopics: false,
+        totalSizeBytes: 0,
+        status: 'not_downloaded',
+      });
+    }
+    const bundle = languageMap.get(code)!;
+    bundle.hasCommentaries = true;
+    bundle.commentaryInfo = commentary;
+    bundle.totalSizeBytes += commentary.size_bytes;
+    if (!bundle.languageName) bundle.languageName = commentary.name;
+  }
+
+  for (const topic of manifest.topic_languages) {
+    const code = topic.code;
+    if (!languageMap.has(code)) {
+      languageMap.set(code, {
+        languageCode: code,
+        languageName: topic.name,
+        bibleVersions: [],
+        hasCommentaries: false,
+        hasTopics: false,
+        totalSizeBytes: 0,
+        status: 'not_downloaded',
+      });
+    }
+    const bundle = languageMap.get(code)!;
+    bundle.hasTopics = true;
+    bundle.topicsInfo = topic;
+    bundle.totalSizeBytes += topic.size_bytes;
+    if (!bundle.languageName) bundle.languageName = topic.name;
+  }
+
+  return Array.from(languageMap.values());
+}
+
+/**
+ * Determine the download status for a language bundle
+ */
+export async function getLanguageBundleStatus(
+  bundle: LanguageBundle,
+  manifest: OfflineManifest
+): Promise<LanguageBundleStatus> {
+  let totalItems = bundle.bibleVersions.length;
+  if (bundle.hasCommentaries) totalItems++;
+  if (bundle.hasTopics) totalItems++;
+
+  let downloadedItems = 0;
+  let hasUpdate = false;
+
+  for (const version of bundle.bibleVersions) {
+    const status = await getBibleVersionStatus(version.key, manifest);
+    if (status === 'downloaded') downloadedItems++;
+    if (status === 'update_available') {
+      downloadedItems++;
+      hasUpdate = true;
+    }
+  }
+
+  if (bundle.hasCommentaries) {
+    const status = await getCommentaryStatus(bundle.languageCode, manifest);
+    if (status === 'downloaded') downloadedItems++;
+    if (status === 'update_available') {
+      downloadedItems++;
+      hasUpdate = true;
+    }
+  }
+
+  if (bundle.hasTopics) {
+    const status = await getTopicsStatus(bundle.languageCode, manifest);
+    if (status === 'downloaded') downloadedItems++;
+    if (status === 'update_available') {
+      downloadedItems++;
+      hasUpdate = true;
+    }
+  }
+
+  if (downloadedItems === 0) return 'not_downloaded';
+  if (hasUpdate) return 'update_available';
+  if (downloadedItems < totalItems) return 'partially_downloaded';
+  return 'downloaded';
+}
+
+/**
+ * Download all content for a language (Bible versions + commentaries + topics)
+ */
+export async function downloadLanguageBundle(
+  languageCode: string,
+  manifest: OfflineManifest,
+  onProgress?: ProgressCallback
+): Promise<void> {
+  const bibleVersions = manifest.bible_versions.filter(
+    (v) => normalizeLanguageCode(v.language) === languageCode
+  );
+  const hasCommentary = manifest.commentary_languages.some((c) => c.code === languageCode);
+  const hasTopics = manifest.topic_languages.some((t) => t.code === languageCode);
+
+  const steps: { label: string; fn: () => Promise<void> }[] = [];
+
+  for (const version of bibleVersions) {
+    steps.push({
+      label: `Bible: ${version.name}`,
+      fn: () => downloadBibleVersion(version.key, manifest),
+    });
+  }
+  if (hasCommentary) {
+    steps.push({
+      label: 'Commentaries',
+      fn: () => downloadCommentaries(languageCode, manifest),
+    });
+  }
+  if (hasTopics) {
+    steps.push({
+      label: 'Topics',
+      fn: () => downloadTopics(languageCode, manifest),
+    });
+  }
+
+  const total = steps.length;
+  for (let i = 0; i < steps.length; i++) {
+    onProgress?.({
+      current: i,
+      total,
+      message: `Downloading ${steps[i].label}...`,
+    });
+    await steps[i].fn();
+  }
+
+  onProgress?.({ current: total, total, message: 'Complete!' });
+}
+
+/**
+ * Delete all content for a language
+ */
+export async function deleteLanguageBundle(
+  languageCode: string,
+  manifest: OfflineManifest
+): Promise<void> {
+  const bibleVersions = manifest.bible_versions.filter(
+    (v) => normalizeLanguageCode(v.language) === languageCode
+  );
+
+  for (const version of bibleVersions) {
+    await removeBibleVersion(version.key);
+  }
+
+  const hasCommentary = manifest.commentary_languages.some((c) => c.code === languageCode);
+  if (hasCommentary) {
+    await removeCommentaries(languageCode);
+  }
+
+  const hasTopics = manifest.topic_languages.some((t) => t.code === languageCode);
+  if (hasTopics) {
+    await removeTopics(languageCode);
+  }
+}
+
+// ============================================================================
+// User Data Operations
+// ============================================================================
+
+/**
+ * Download and store user data (notes, highlights, bookmarks)
+ */
+export async function downloadUserData(onProgress?: ProgressCallback): Promise<void> {
+  onProgress?.({ current: 0, total: 100, message: 'Syncing user data...' });
+
+  const response = await authenticatedFetch(`${API_URL}/offline/user-data`);
+  if (!response.ok) {
+    throw new Error(`Failed to download user data: ${response.status}`);
+  }
+
+  onProgress?.({ current: 30, total: 100, message: 'Processing user data...' });
+
+  const data: UserDataDownload = await response.json();
+
+  onProgress?.({ current: 50, total: 100, message: 'Storing notes...' });
+  await insertUserNotes(data.notes);
+
+  onProgress?.({ current: 70, total: 100, message: 'Storing highlights...' });
+  await insertUserHighlights(data.highlights);
+
+  onProgress?.({ current: 85, total: 100, message: 'Storing bookmarks...' });
+  await insertUserBookmarks(data.bookmarks);
+
+  onProgress?.({ current: 95, total: 100, message: 'Saving metadata...' });
+
+  const estimatedSize = JSON.stringify(data).length;
+  await saveMetadata({
+    resource_key: 'user-data',
+    last_updated_at: new Date().toISOString(),
+    downloaded_at: new Date().toISOString(),
+    size_bytes: estimatedSize,
+  });
+
+  onProgress?.({ current: 100, total: 100, message: 'User data synced!' });
 }
