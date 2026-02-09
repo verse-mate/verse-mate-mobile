@@ -148,11 +148,11 @@ export interface UseHighlightsResult {
  */
 export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const { isOfflineModeEnabled, isUserDataSynced } = useOfflineContext();
+  const { isUserDataSynced } = useOfflineContext();
   const queryClient = useQueryClient();
 
   const { bookId, chapterNumber } = options || {};
-  const isOffline = isOfflineModeEnabled && isUserDataSynced;
+  const isOffline = isUserDataSynced;
 
   // Determine which query to use based on options
   const fetchAllHighlights = !bookId || !chapterNumber;

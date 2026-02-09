@@ -6,8 +6,6 @@ import { server } from './__tests__/mocks/server';
 // Mock offline context to avoid SQLite initialization in tests
 jest.mock('@/contexts/OfflineContext', () => ({
   useOfflineContext: () => ({
-    isOfflineModeEnabled: false,
-    setOfflineModeEnabled: jest.fn(),
     isAutoSyncEnabled: false,
     setAutoSyncEnabled: jest.fn(),
     isInitialized: true,

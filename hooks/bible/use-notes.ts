@@ -102,10 +102,10 @@ export interface UseNotesResult {
  */
 export function useNotes(): UseNotesResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const { isOfflineModeEnabled, isUserDataSynced } = useOfflineContext();
+  const { isUserDataSynced } = useOfflineContext();
   const queryClient = useQueryClient();
 
-  const isOffline = isOfflineModeEnabled && isUserDataSynced;
+  const isOffline = isUserDataSynced;
 
   // Create query options with user ID
   const queryOptions = useMemo(
