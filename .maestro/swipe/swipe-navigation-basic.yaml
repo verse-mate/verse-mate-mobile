@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Swipe Navigation - Basic
 description: Tests basic swipe navigation within same book (Genesis 1->2->1)
 tags:
@@ -22,7 +22,8 @@ tags:
 # 3. Swipe right -> Genesis 1
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -37,6 +38,14 @@ tags:
     point: "50%,15%"
     optional: true
 
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
 # Wait for app to load - verify chapter selector is visible
 - assertVisible:
     id: "chapter-selector-button"
@@ -44,12 +53,14 @@ tags:
 # Wait for content to load
 - waitForAnimationToEnd
 
+
 # Swipe left to go to next chapter
 - swipe:
     direction: LEFT
     duration: 500
 
 - waitForAnimationToEnd
+
 
 # Verify chapter selector still visible (chapter loaded)
 - assertVisible:
@@ -62,9 +73,11 @@ tags:
 
 - waitForAnimationToEnd
 
+
 # Verify chapter selector still visible
 - assertVisible:
     id: "chapter-selector-button"
 
 # Final wait for content to settle
 - waitForAnimationToEnd
+

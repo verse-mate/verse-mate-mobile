@@ -5,73 +5,124 @@ This directory contains end-to-end tests for VerseMate Mobile using [Maestro](ht
 ## Table of Contents
 
 - [Running Tests](#running-tests)
-- [Test Files](#test-files)
 - [Test Organization](#test-organization)
+- [Test Files](#test-files)
 - [testID Inventory](#testid-inventory)
 - [Writing New Tests](#writing-new-tests)
 - [Troubleshooting](#troubleshooting)
+- [CI/CD Integration](#cicd-integration)
 
 ---
 
 ## Running Tests
 
-### iOS (Recommended)
+### Run All Tests
+
+Maestro recursively discovers tests in subfolders, so running all tests is the same as before:
 
 ```bash
-# Run all tests
 maestro test .maestro
+```
 
-# Run a specific test
-maestro test .maestro/auth-flow.yaml
+### Run Tests by Feature Folder
 
-# Run in Maestro Studio for interactive debugging
+Target a specific feature area by passing the subfolder path:
+
+```bash
+# Run only swipe tests
+maestro test .maestro/swipe/
+
+# Run only auth tests
+maestro test .maestro/auth/
+
+# Run only navigation tests
+maestro test .maestro/navigation/
+
+# Run only split-view tests (requires tablet emulator or iPad in landscape)
+maestro test .maestro/split-view/
+```
+
+### Run a Specific Test
+
+```bash
+maestro test .maestro/auth/auth-flow.yaml
+maestro test .maestro/swipe/book-crossing-swipe-test.yaml
+```
+
+### Interactive Debugging
+
+```bash
 maestro studio
 ```
 
-### Android (Limited Support)
+### iOS (Local Development)
 
-**Current Limitation**: Maestro does not currently support Android API 35. If you're using an Android emulator with API 35, Maestro tests will fail with a gRPC connection error.
+iOS remains the recommended platform for local E2E testing. Run on an iOS simulator:
 
-**Workarounds**:
+```bash
+maestro test .maestro
+```
 
-1. **Use iOS for E2E testing** (recommended)
-2. **Create Android emulator with API 34 or lower**:
-   ```bash
-   # Install API 34 system image
-   $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "system-images;android-34;google_apis;arm64-v8a"
+### Android (Local Development)
 
-   # Create new AVD with API 34
-   avdmanager create avd -n Pixel_API_34 -k "system-images;android-34;google_apis;arm64-v8a" -d pixel_6
-   ```
+**Limitation**: Maestro does not support Android API 35. Use API 34 or lower.
 
----
+```bash
+# Install API 34 system image
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "system-images;android-34;google_apis;arm64-v8a"
 
-## Test Files
-
-| File | Type | Description | Tags |
-|------|------|-------------|------|
-| `auth-flow.yaml` | User Flow | Login, signup, and authentication flows | `critical`, `auth` |
-| `bible-reading-flow.yaml` | User Flow | Core Bible reading and view switching | `critical`, `user-flow` |
-| `bookmark-flow.yaml` | User Flow | Bookmark creation, viewing, and navigation | `user-flow` |
-| `chapter-navigation-flow.yaml` | User Flow | Chapter navigation via buttons | `navigation` |
-| `hamburger-menu-flow.yaml` | User Flow | Hamburger menu navigation to all destinations | `navigation` |
-| `highlights-flow.yaml` | User Flow | Highlight creation and management | `user-flow` |
-| `navigation-modal-flow.yaml` | User Flow | Bible navigation modal (book/chapter selection) | `navigation` |
-| `notes-flow.yaml` | User Flow | Note creation and management | `user-flow` |
-| `settings-flow.yaml` | User Flow | Settings, theme switching, profile editing | `critical`, `settings` |
-| `skeleton-flash-test.yaml` | Regression | Skeleton loader display during loading | `regression` |
-| `swipe-navigation-basic.yaml` | User Flow | Basic swipe gesture navigation | `navigation` |
-| `swipe-navigation-boundaries.yaml` | User Flow | Genesis 1 and Revelation 22 boundary cases | `navigation` |
-| `swipe-navigation-cross-book.yaml` | User Flow | Cross-book navigation via swipe | `navigation` |
-| `tab-switching-flow.yaml` | User Flow | Content tab switching (Summary/By-Line/Detailed) | `navigation` |
-| `topics-reading-flow.yaml` | User Flow | Topic navigation and reading | `user-flow` |
-| `view-switcher-flow.yaml` | User Flow | Bible/Explanations view switching | `navigation` |
-
-**Total**: 16 test files
+# Create new AVD with API 34
+avdmanager create avd -n Pixel_API_34 -k "system-images;android-34;google_apis;arm64-v8a" -d pixel_6
+```
 
 ---
 
 ## Test Organization
+
+### Directory Structure
+
+Tests are organized into feature-based subfolders for easier navigation and selective execution:
+
+```
+.maestro/
+├── README.md                                    # This documentation
+├── auth/
+│   └── auth-flow.yaml                           # Authentication flows
+├── bible-reading/
+│   ├── bible-reading-flow.yaml                  # Core Bible reading
+│   └── view-switcher-flow.yaml                  # View switching
+├── bookmarks/
+│   └── bookmark-flow.yaml                       # Bookmarks feature
+├── highlights/
+│   └── highlights-flow.yaml                     # Highlights feature
+├── navigation/
+│   ├── chapter-navigation-flow.yaml             # Button navigation
+│   ├── hamburger-menu-flow.yaml                 # Menu navigation
+│   ├── navigation-modal-flow.yaml               # Navigation modal
+│   └── tab-switching-flow.yaml                  # Content tab switching
+├── notes/
+│   └── notes-flow.yaml                          # Notes feature
+├── regression/
+│   ├── content-rendering-assertions.yaml        # No placeholder/TODO text
+│   └── skeleton-flash-test.yaml                 # Loading skeleton
+├── settings/
+│   └── settings-flow.yaml                       # Settings management
+├── split-view/
+│   ├── landscape-split-view-basic.yaml          # Split view rendering (landscape)
+│   └── split-view-bible-sync.yaml               # Split view panel sync (landscape)
+├── swipe/
+│   ├── book-crossing-swipe-test.yaml            # Cross-book swipe header sync
+│   ├── swipe-boundary-test.yaml                 # Bible boundary handling
+│   ├── swipe-header-sync-test.yaml              # Header sync during rapid swiping
+│   ├── swipe-navigation-basic.yaml              # Basic swipe gestures
+│   └── swipe-navigation-boundaries.yaml         # Boundary edge cases
+└── topics/
+    ├── topics-reading-flow.yaml                 # Topics reading
+    ├── topics-swipe-navigation.yaml             # Topic swipe with circular wrap
+    └── topics-view-switching.yaml               # Topic Bible/Insight view switching
+```
+
+**Total**: 23 test files across 11 feature folders
 
 ### File Naming Conventions
 
@@ -88,29 +139,40 @@ maestro studio
 | `regression` | Prevents specific bugs from recurring |
 | `navigation` | Tests navigation features and flows |
 | `settings` | Settings and configuration tests |
+| `split-view` | Split view / landscape tests (require tablet emulator) |
+| `landscape` | Tests requiring landscape orientation |
 
-### Directory Structure
+---
 
-```
-.maestro/
-├── README.md                        # This documentation
-├── auth-flow.yaml                   # Authentication flows
-├── bible-reading-flow.yaml          # Core Bible reading
-├── bookmark-flow.yaml               # Bookmarks feature
-├── chapter-navigation-flow.yaml     # Button navigation
-├── hamburger-menu-flow.yaml         # Menu navigation
-├── highlights-flow.yaml             # Highlights feature
-├── navigation-modal-flow.yaml       # Navigation modal
-├── notes-flow.yaml                  # Notes feature
-├── settings-flow.yaml               # Settings management
-├── skeleton-flash-test.yaml         # Loading skeleton regression
-├── swipe-navigation-basic.yaml      # Basic swipe gestures
-├── swipe-navigation-boundaries.yaml # Boundary edge cases
-├── swipe-navigation-cross-book.yaml # Cross-book navigation
-├── tab-switching-flow.yaml          # Content tab switching
-├── topics-reading-flow.yaml         # Topics reading
-└── view-switcher-flow.yaml          # View switching
-```
+## Test Files
+
+| Folder | File | Type | Description | Tags |
+|--------|------|------|-------------|------|
+| `auth/` | `auth-flow.yaml` | User Flow | Login, signup, and authentication flows | `critical`, `auth` |
+| `bible-reading/` | `bible-reading-flow.yaml` | User Flow | Core Bible reading and view switching | `critical`, `user-flow` |
+| `bible-reading/` | `view-switcher-flow.yaml` | User Flow | Bible/Explanations view switching | `navigation` |
+| `bookmarks/` | `bookmark-flow.yaml` | User Flow | Bookmark creation, viewing, and navigation | `user-flow` |
+| `highlights/` | `highlights-flow.yaml` | User Flow | Highlight creation and management | `user-flow` |
+| `navigation/` | `chapter-navigation-flow.yaml` | User Flow | Chapter navigation via buttons | `navigation` |
+| `navigation/` | `hamburger-menu-flow.yaml` | User Flow | Hamburger menu navigation to all destinations | `navigation` |
+| `navigation/` | `navigation-modal-flow.yaml` | User Flow | Bible navigation modal (book/chapter selection) | `navigation` |
+| `navigation/` | `tab-switching-flow.yaml` | User Flow | Content tab switching (Summary/By-Line/Detailed) | `navigation` |
+| `notes/` | `notes-flow.yaml` | User Flow | Note creation and management | `user-flow` |
+| `regression/` | `content-rendering-assertions.yaml` | Regression | No placeholder/TODO text on any screen | `critical`, `regression`, `content-rendering` |
+| `regression/` | `skeleton-flash-test.yaml` | Regression | Skeleton loader display during loading | `regression` |
+| `settings/` | `settings-flow.yaml` | User Flow | Settings, theme switching, profile editing | `critical`, `settings` |
+| `split-view/` | `landscape-split-view-basic.yaml` | Regression | Split view renders both panels (requires landscape) | `critical`, `split-view`, `landscape`, `regression` |
+| `split-view/` | `split-view-bible-sync.yaml` | Regression | Split view panels stay in sync (requires landscape) | `critical`, `split-view`, `landscape`, `sync`, `regression` |
+| `swipe/` | `book-crossing-swipe-test.yaml` | Regression | Cross-book swipe updates header correctly | `critical`, `cross-book` |
+| `swipe/` | `swipe-boundary-test.yaml` | Regression | Bible boundaries block navigation correctly | `critical`, `boundary-handling`, `swipe` |
+| `swipe/` | `swipe-header-sync-test.yaml` | Regression | Header syncs correctly during rapid swiping | `critical`, `header-sync`, `swipe` |
+| `swipe/` | `swipe-navigation-basic.yaml` | User Flow | Basic swipe gesture navigation | `navigation` |
+| `swipe/` | `swipe-navigation-boundaries.yaml` | User Flow | Genesis 1 and Revelation 22 boundary cases | `navigation` |
+| `topics/` | `topics-reading-flow.yaml` | User Flow | Topic navigation and reading | `user-flow` |
+| `topics/` | `topics-swipe-navigation.yaml` | User Flow | Topic swipe navigation with circular wrap | `critical`, `topics`, `swipe`, `navigation` |
+| `topics/` | `topics-view-switching.yaml` | User Flow | Topic Bible/Insight view switching | `topics`, `navigation`, `view-switching` |
+
+**Note**: Tests in `split-view/` require running on an Android tablet emulator in landscape orientation (or iPad simulator in landscape for local testing). See the split-view test files for setup instructions.
 
 ---
 
@@ -269,6 +331,10 @@ All tests use `id:` (testID) selectors for stability. Below is the complete inve
 
 ## Writing New Tests
 
+### Choosing the Right Folder
+
+Place new test files in the feature folder that best matches the area being tested. If a test spans multiple features, choose the primary feature being validated.
+
 ### testID Naming Conventions
 
 - **Component-based**: `{component}-{element}` (e.g., `skeleton-loader`, `menu-close-button`)
@@ -362,12 +428,37 @@ curl -Ls "https://get.maestro.mobile.dev" | bash  # Upgrade if needed
 
 ## CI/CD Integration
 
-For continuous integration, use iOS as the primary E2E testing platform until Android API 35 support is added to Maestro.
+### GitHub Actions Workflow
+
+The `maestro-e2e.yml` workflow runs Maestro E2E tests on Android emulators in GitHub Actions CI using `ubuntu-latest` runners with KVM hardware acceleration.
+
+**Trigger**: Manual only via `workflow_dispatch` (non-blocking, does not gate PRs or deployments)
+
+**How to run from GitHub**:
+1. Go to Actions > "Maestro E2E Tests"
+2. Click "Run workflow"
+3. Optionally specify a `test-folder` (e.g., `swipe`, `auth`, `topics`) to run only that feature folder
+4. Leave `test-folder` empty to run all tests
+
+**Android CI Details**:
+- Android API 34 (highest supported by Maestro)
+- Phone tests: Standard emulator runs all folders except `split-view/`
+- Tablet tests: Nexus 10 AVD in landscape runs `split-view/` tests only
+- APK built via EAS CLI using the `e2e-test` profile (cached via `@expo/fingerprint` hash)
+- Test artifacts (screenshots, logs) uploaded on every run for debugging
+
+### Local Testing
+
+For local development, iOS remains the recommended platform. Use `maestro test .maestro` to run all tests or target a specific folder.
 
 ---
 
 ## Recent Changes
 
+- **2026-02-09**: Reorganized 23 test files from flat directory into 11 feature-based subfolders
+- **2026-02-09**: Adapted split-view tests from iPad to Android tablet emulator
+- **2026-02-09**: Added CI/CD integration with GitHub Actions (`maestro-e2e.yml`)
+- **2026-02-09**: Added 5 new tests from Maestro audit: landscape-split-view-basic, content-rendering-assertions, topics-swipe-navigation, topics-view-switching, split-view-bible-sync
 - **2025-11-28**: Major cleanup - migrated all tests to testID selectors, removed obsolete files
 - **2025-11-28**: Created new tests: highlights, notes, settings, hamburger-menu, topics-reading
 - **2025-11-28**: Promoted WIP tests: navigation-modal, view-switcher, tab-switching

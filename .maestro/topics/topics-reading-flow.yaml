@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Topics Reading Flow
 description: Tests topics navigation and selection functionality
 tags:
@@ -21,7 +21,8 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -36,6 +37,14 @@ tags:
     point: "50%,15%"
     optional: true
 
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
 # Wait for app to fully load (either chapter or topic screen)
 - extendedWaitUntil:
     visible:
@@ -49,11 +58,9 @@ tags:
 # Open navigation modal (try chapter selector first, then topic selector)
 - tapOn:
     id: "chapter-selector-button"
-    optional: true
 
 - tapOn:
     id: "topic-selector-button"
-    optional: true
 
 # Wait for modal to open
 - extendedWaitUntil:
@@ -67,6 +74,7 @@ tags:
 
 # Wait for topics to load
 - waitForAnimationToEnd
+
 
 # ============================================
 # Test 2: Verify Topics Categories
@@ -95,6 +103,7 @@ tags:
 
 # Wait for topic to load
 - waitForAnimationToEnd
+
 
 # Modal should close
 - extendedWaitUntil:
@@ -131,6 +140,7 @@ tags:
 # Wait for tab switch
 - waitForAnimationToEnd
 
+
 # Select Genesis
 - tapOn:
     id: "book-item-genesis"
@@ -138,12 +148,14 @@ tags:
 # Wait for chapter grid
 - waitForAnimationToEnd
 
+
 # Select chapter 1
 - tapOn:
     id: "chapter-1"
 
 # Wait for chapter to load
 - waitForAnimationToEnd
+
 
 # Modal should close
 - extendedWaitUntil:

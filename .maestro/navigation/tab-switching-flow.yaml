@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Content Tab Switching Flow
 description: Tests switching between Summary, By Line, and Detailed tabs
 tags:
@@ -25,7 +25,8 @@ tags:
 # 6. Navigate to next chapter -> verify tab persists
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -40,8 +41,17 @@ tags:
     point: "50%,15%"
     optional: true
 
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
 # Wait for app to load
 - waitForAnimationToEnd
+
 
 # Verify app loaded (chapter selector visible)
 - assertVisible:
@@ -53,10 +63,11 @@ tags:
 
 # Switch to Explanations view to access tabs
 - tapOn:
-    id: "explanations-view-icon"
+    id: "commentary-view-toggle"
 
 # Wait for view to switch
 - waitForAnimationToEnd
+
 
 # Verify tabs container is visible
 - assertVisible:
@@ -81,6 +92,7 @@ tags:
 # Wait for content to switch
 - waitForAnimationToEnd
 
+
 # Verify By Line tab is now selected
 - assertVisible:
     id: "tab-byline"
@@ -95,6 +107,7 @@ tags:
 
 # Wait for content to switch
 - waitForAnimationToEnd
+
 
 # Verify Detailed tab is now selected
 - assertVisible:
@@ -116,6 +129,7 @@ tags:
 # Wait for chapter to load
 - waitForAnimationToEnd
 
+
 # Verify chapter loaded (chapter selector visible)
 - assertVisible:
     id: "chapter-selector-button"
@@ -134,6 +148,7 @@ tags:
 
 # Wait for tab switch
 - waitForAnimationToEnd
+
 
 # Verify Summary tab is now selected
 - assertVisible:

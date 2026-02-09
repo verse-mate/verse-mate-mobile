@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Skeleton Flash Test - Explanations View
 description: Tests that skeleton doesn't flash when swiping in Explanations view with cached data
 tags:
@@ -30,7 +30,8 @@ tags:
 # - Header should update at same time as content updates
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -45,6 +46,14 @@ tags:
     point: "50%,15%"
     optional: true
 
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
 # Wait for chapter to load - verify chapter selector is visible
 - assertVisible:
     id: "chapter-selector-button"
@@ -52,12 +61,14 @@ tags:
 # Wait for content to load
 - waitForAnimationToEnd
 
+
 # Switch to Explanations view by tapping the explanations icon
 - tapOn:
-    id: "explanations-view-icon"
+    id: "commentary-view-toggle"
 
 # Wait for explanations to load
 - waitForAnimationToEnd
+
 
 # Verify we're in Explanations view (tabs should be visible)
 - assertVisible:
@@ -65,6 +76,7 @@ tags:
 
 # Wait a moment to ensure explanation is cached
 - waitForAnimationToEnd
+
 
 # Take screenshot before swipe
 - takeScreenshot: before-swipe-chapter-1
@@ -77,6 +89,7 @@ tags:
 
 # Wait for animation to complete
 - waitForAnimationToEnd
+
 
 # Take screenshot after swipe
 - takeScreenshot: after-swipe-chapter-2
@@ -101,6 +114,7 @@ tags:
 
 - waitForAnimationToEnd
 
+
 # Take screenshot after second swipe
 - takeScreenshot: after-swipe-chapter-3
 
@@ -119,6 +133,7 @@ tags:
 
 - waitForAnimationToEnd
 
+
 # Take screenshot after reverse swipe
 - takeScreenshot: after-swipe-back-chapter-2
 
@@ -132,9 +147,10 @@ tags:
 
 # Switch back to Bible view to verify view switching works
 - tapOn:
-    id: "bible-view-icon"
+    id: "bible-view-toggle"
 
 - waitForAnimationToEnd
+
 
 # Tabs should not be visible in Bible view
 - assertNotVisible:
