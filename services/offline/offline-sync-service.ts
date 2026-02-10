@@ -44,14 +44,31 @@ const AUTO_SYNC_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 type ProgressCallback = (progress: SyncProgress) => void;
 
 /**
+ * Fetch JSON from the offline API without compression.
+ * React Native's fetch doesn't reliably handle gzip auto-decompression,
+ * so we request identity encoding to get plain JSON.
+ */
+async function fetchOfflineJSON<T>(url: string): Promise<T> {
+  console.log(`[Offline Sync] Fetching: ${url}`);
+  const start = Date.now();
+  const response = await fetch(url, {
+    headers: { 'Accept-Encoding': 'identity' },
+  });
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+  const text = await response.text();
+  console.log(
+    `[Offline Sync] Received ${(text.length / 1024).toFixed(0)}KB in ${Date.now() - start}ms`
+  );
+  return JSON.parse(text);
+}
+
+/**
  * Fetch the offline manifest from the server
  */
 export async function fetchManifest(): Promise<OfflineManifest> {
-  const response = await fetch(`${API_URL}/offline/manifest`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch manifest: ${response.status}`);
-  }
-  return response.json();
+  return fetchOfflineJSON<OfflineManifest>(`${API_URL}/offline/manifest`);
 }
 
 /**
@@ -64,14 +81,9 @@ export async function downloadBibleVersion(
 ): Promise<void> {
   onProgress?.({ current: 0, total: 100, message: `Downloading ${versionKey}...` });
 
-  const response = await fetch(`${API_URL}/offline/bible/${versionKey}`);
-  if (!response.ok) {
-    throw new Error(`Failed to download Bible version: ${response.status}`);
-  }
-
   onProgress?.({ current: 30, total: 100, message: 'Processing data...' });
 
-  const verses: BibleVerseData[] = await response.json();
+  const verses = await fetchOfflineJSON<BibleVerseData[]>(`${API_URL}/offline/bible/${versionKey}`);
 
   onProgress?.({ current: 50, total: 100, message: 'Storing locally...' });
 
@@ -106,14 +118,11 @@ export async function downloadCommentaries(
     message: `Downloading commentaries (${languageCode})...`,
   });
 
-  const response = await fetch(`${API_URL}/offline/commentaries/${languageCode}`);
-  if (!response.ok) {
-    throw new Error(`Failed to download commentaries: ${response.status}`);
-  }
-
   onProgress?.({ current: 30, total: 100, message: 'Processing data...' });
 
-  const commentaries: CommentaryData[] = await response.json();
+  const commentaries = await fetchOfflineJSON<CommentaryData[]>(
+    `${API_URL}/offline/commentaries/${languageCode}`
+  );
 
   onProgress?.({ current: 50, total: 100, message: 'Storing locally...' });
 
@@ -144,14 +153,11 @@ export async function downloadTopics(
 ): Promise<void> {
   onProgress?.({ current: 0, total: 100, message: `Downloading topics (${languageCode})...` });
 
-  const response = await fetch(`${API_URL}/offline/topics/${languageCode}`);
-  if (!response.ok) {
-    throw new Error(`Failed to download topics: ${response.status}`);
-  }
-
   onProgress?.({ current: 30, total: 100, message: 'Processing data...' });
 
-  const data: TopicsDownloadData = await response.json();
+  const data = await fetchOfflineJSON<TopicsDownloadData>(
+    `${API_URL}/offline/topics/${languageCode}`
+  );
 
   onProgress?.({ current: 50, total: 100, message: 'Storing locally...' });
 
@@ -477,7 +483,8 @@ export function buildLanguageBundles(manifest: OfflineManifest): LanguageBundle[
         status: 'not_downloaded',
       });
     }
-    const bundle = languageMap.get(code)!;
+    const bundle = languageMap.get(code);
+    if (!bundle) continue;
     bundle.bibleVersions.push(version);
     bundle.totalSizeBytes += version.size_bytes;
   }
@@ -495,7 +502,8 @@ export function buildLanguageBundles(manifest: OfflineManifest): LanguageBundle[
         status: 'not_downloaded',
       });
     }
-    const bundle = languageMap.get(code)!;
+    const bundle = languageMap.get(code);
+    if (!bundle) continue;
     bundle.hasCommentaries = true;
     bundle.commentaryInfo = commentary;
     bundle.totalSizeBytes += commentary.size_bytes;
@@ -515,7 +523,8 @@ export function buildLanguageBundles(manifest: OfflineManifest): LanguageBundle[
         status: 'not_downloaded',
       });
     }
-    const bundle = languageMap.get(code)!;
+    const bundle = languageMap.get(code);
+    if (!bundle) continue;
     bundle.hasTopics = true;
     bundle.topicsInfo = topic;
     bundle.totalSizeBytes += topic.size_bytes;
@@ -656,14 +665,17 @@ export async function deleteLanguageBundle(
 export async function downloadUserData(onProgress?: ProgressCallback): Promise<void> {
   onProgress?.({ current: 0, total: 100, message: 'Syncing user data...' });
 
-  const response = await authenticatedFetch(`${API_URL}/offline/user-data`);
+  const response = await authenticatedFetch(`${API_URL}/offline/user-data`, {
+    headers: { 'Accept-Encoding': 'identity' },
+  });
   if (!response.ok) {
     throw new Error(`Failed to download user data: ${response.status}`);
   }
 
   onProgress?.({ current: 30, total: 100, message: 'Processing user data...' });
 
-  const data: UserDataDownload = await response.json();
+  const text = await response.text();
+  const data: UserDataDownload = JSON.parse(text);
 
   onProgress?.({ current: 50, total: 100, message: 'Storing notes...' });
   await insertUserNotes(data.notes);
