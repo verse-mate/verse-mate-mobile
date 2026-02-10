@@ -200,7 +200,7 @@ export default function ManageDownloadsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [processingItem, setProcessingItem] = useState<string | null>(null);
 
-  // Refresh manifest on mount
+  // Refresh manifest on mount (only once when initialized)
   useEffect(() => {
     if (isInitialized) {
       refreshManifest().catch(console.warn);
@@ -253,8 +253,12 @@ export default function ManageDownloadsScreen() {
     setProcessingItem(`lang:${languageCode}`);
     try {
       await downloadLanguage(languageCode);
-    } catch {
-      Alert.alert('Error', 'Failed to download content. Please try again.');
+    } catch (error) {
+      console.error('Download failed:', error);
+      Alert.alert(
+        'Error',
+        `Failed to download: ${error instanceof Error ? error.message : String(error)}`
+      );
     } finally {
       setProcessingItem(null);
     }
