@@ -15,7 +15,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
-import { useActiveTab, useBookProgress } from '@/hooks/bible';
+import { useActiveTab, useBookProgress, useChapterState } from '@/hooks/bible';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import {
@@ -216,6 +216,19 @@ describe('Bible Reading Interface - Integration Tests', () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       bookId: '1',
       chapterNumber: '1',
+    });
+
+    // V3: useChapterState is the single source of truth for navigation
+    (useChapterState as jest.Mock).mockReturnValue({
+      bookId: 1,
+      chapterNumber: 1,
+      bookName: 'Genesis',
+      navigateToChapter: jest.fn(),
+      booksMetadata: [
+        { id: 1, name: 'Genesis', testament: 'OT', chapterCount: 50 },
+        { id: 40, name: 'Matthew', testament: 'NT', chapterCount: 28 },
+      ],
+      totalChapters: 50,
     });
 
     // Default mock implementations
@@ -517,6 +530,19 @@ describe('Bible Reading Interface - Integration Tests', () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       bookId: '40',
       chapterNumber: '5',
+    });
+
+    // V3: useChapterState returns the deep-linked values
+    (useChapterState as jest.Mock).mockReturnValue({
+      bookId: 40,
+      chapterNumber: 5,
+      bookName: 'Matthew',
+      navigateToChapter: jest.fn(),
+      booksMetadata: [
+        { id: 1, name: 'Genesis', testament: 'OT', chapterCount: 50 },
+        { id: 40, name: 'Matthew', testament: 'NT', chapterCount: 28 },
+      ],
+      totalChapters: 28,
     });
 
     (useBibleChapter as jest.Mock).mockReturnValue({

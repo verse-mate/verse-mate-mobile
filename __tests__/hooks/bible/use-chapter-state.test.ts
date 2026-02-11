@@ -176,11 +176,13 @@ describe('useChapterState', () => {
       jest.advanceTimersByTime(1100);
     });
 
-    // URL should now be updated
+    // URL should now be updated (with verse params cleared)
     await waitFor(() => {
       expect(mockSetParams).toHaveBeenCalledWith({
         bookId: '5',
         chapterNumber: '10',
+        verse: undefined,
+        endVerse: undefined,
       });
     });
   });
@@ -207,11 +209,85 @@ describe('useChapterState', () => {
       jest.advanceTimersByTime(1100);
     });
 
-    // URL sync should only happen once with final values
+    // URL sync should only happen once with final values (with verse params cleared)
     expect(mockSetParams).toHaveBeenCalledTimes(1);
     expect(mockSetParams).toHaveBeenCalledWith({
       bookId: '1',
       chapterNumber: '5',
+      verse: undefined,
+      endVerse: undefined,
+    });
+  });
+
+  /**
+   * Test: booksMetadata is exposed from hook
+   */
+  it('exposes booksMetadata from useBibleTestaments', () => {
+    const { result } = renderHook(() => useChapterState());
+
+    expect(result.current.booksMetadata).toBeDefined();
+    expect(result.current.booksMetadata).toEqual(mockTestamentBooks);
+  });
+
+  /**
+   * Test: totalChapters computed correctly
+   */
+  it('computes totalChapters from book metadata', () => {
+    mockUseLocalSearchParams.mockReturnValue({
+      bookId: '1',
+      chapterNumber: '1',
+    });
+
+    const { result } = renderHook(() => useChapterState());
+
+    // Genesis has 50 chapters
+    expect(result.current.totalChapters).toBe(50);
+
+    // Navigate to Exodus (40 chapters)
+    act(() => {
+      result.current.navigateToChapter(2, 1);
+    });
+    expect(result.current.totalChapters).toBe(40);
+  });
+
+  /**
+   * Test: max-chapter clamping
+   */
+  it('clamps chapterNumber to book max when metadata loads', () => {
+    mockUseLocalSearchParams.mockReturnValue({
+      bookId: '1',
+      chapterNumber: '999',
+    });
+
+    const { result } = renderHook(() => useChapterState());
+
+    // Genesis has 50 chapters, so 999 should be clamped to 1
+    expect(result.current.chapterNumber).toBe(1);
+    expect(result.current.bookId).toBe(1);
+  });
+
+  /**
+   * Test: verse params cleared on URL sync
+   */
+  it('clears verse and endVerse params on URL sync', async () => {
+    const { result } = renderHook(() => useChapterState());
+
+    act(() => {
+      result.current.navigateToChapter(3, 5);
+    });
+
+    // Fast-forward past debounce
+    act(() => {
+      jest.advanceTimersByTime(1100);
+    });
+
+    await waitFor(() => {
+      expect(mockSetParams).toHaveBeenCalledWith(
+        expect.objectContaining({
+          verse: undefined,
+          endVerse: undefined,
+        })
+      );
     });
   });
 });

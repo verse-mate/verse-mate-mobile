@@ -38,6 +38,7 @@
 
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import type { TestamentBook } from '@/src/api';
 import { useBibleTestaments } from '@/src/api';
 
 /**
@@ -93,6 +94,10 @@ export interface ChapterStateResult {
   bookName: string;
   /** Navigate to a specific chapter */
   navigateToChapter: (bookId: number, chapterNumber: number) => void;
+  /** Book metadata array from useBibleTestaments (undefined while loading) */
+  booksMetadata: TestamentBook[] | undefined;
+  /** Total chapters for the current book (defaults to 50 while loading) */
+  totalChapters: number;
 }
 
 /**
@@ -131,14 +136,20 @@ export function useChapterState(): ChapterStateResult {
   // Get book metadata
   const { data: booksMetadata } = useBibleTestaments();
 
+  // Derive book metadata and total chapters
+  const bookMetadata = useMemo(
+    () => booksMetadata?.find((b) => b.id === state.bookId),
+    [booksMetadata, state.bookId]
+  );
+  const totalChapters = bookMetadata?.chapterCount || 50;
+
   // Compute book name from bookId
   const bookName = useMemo(() => {
     if (!booksMetadata || booksMetadata.length === 0) {
       return 'Loading...';
     }
-    const book = booksMetadata.find((b) => b.id === state.bookId);
-    return book?.name || 'Unknown';
-  }, [booksMetadata, state.bookId]);
+    return bookMetadata?.name || 'Unknown';
+  }, [booksMetadata, bookMetadata]);
 
   /**
    * Initialize state from URL params (once on mount)
@@ -165,6 +176,25 @@ export function useChapterState(): ChapterStateResult {
 
     hasInitialized.current = true;
   }, [params.bookId, params.chapterNumber]);
+
+  /**
+   * Max-chapter validation
+   *
+   * When book metadata loads (or bookId changes), clamp chapterNumber to the
+   * book's actual chapter count. This handles deep links like /bible/1/999.
+   */
+  useEffect(() => {
+    if (!bookMetadata) return;
+
+    if (state.bookId < 1 || state.bookId > 66) {
+      dispatch({ type: 'NAVIGATE', bookId: 1, chapterNumber: 1 });
+      return;
+    }
+
+    if (state.chapterNumber > bookMetadata.chapterCount) {
+      dispatch({ type: 'NAVIGATE', bookId: state.bookId, chapterNumber: 1 });
+    }
+  }, [state.bookId, state.chapterNumber, bookMetadata]);
 
   /**
    * Navigate to a specific chapter
@@ -208,6 +238,9 @@ export function useChapterState(): ChapterStateResult {
         router.setParams({
           bookId: state.bookId.toString(),
           chapterNumber: state.chapterNumber.toString(),
+          // Clear verse params when chapter changes to prevent "sticky" highlighting
+          verse: undefined,
+          endVerse: undefined,
         });
       }
     }, URL_SYNC_DEBOUNCE_MS);
@@ -225,5 +258,7 @@ export function useChapterState(): ChapterStateResult {
     chapterNumber: state.chapterNumber,
     bookName,
     navigateToChapter,
+    booksMetadata,
+    totalChapters,
   };
 }
