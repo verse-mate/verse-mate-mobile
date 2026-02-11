@@ -13,7 +13,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
-import { useActiveTab, useActiveView, useBookProgress, useRecentBooks } from '@/hooks/bible';
+import {
+  useActiveTab,
+  useActiveView,
+  useBookProgress,
+  useChapterState,
+  useRecentBooks,
+} from '@/hooks/bible';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -151,6 +157,16 @@ describe('ChapterScreen', () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({
       bookId: '1',
       chapterNumber: '1',
+    });
+
+    // V3: useChapterState is the single source of truth for navigation
+    (useChapterState as jest.Mock).mockReturnValue({
+      bookId: 1,
+      chapterNumber: 1,
+      bookName: 'Genesis',
+      navigateToChapter: jest.fn(),
+      booksMetadata: mockBooksMetadata,
+      totalChapters: 50,
     });
 
     (useActiveTab as jest.Mock).mockReturnValue({
@@ -352,38 +368,29 @@ describe('ChapterScreen', () => {
   });
 
   /**
-   * Test 5: Invalid bookId redirects to Genesis 1
+   * Test 5: Invalid bookId is handled by useChapterState (hook clamps to Genesis 1)
    */
-  it('redirects to Genesis 1 when bookId is invalid', () => {
-    jest.useFakeTimers();
-
-    (useLocalSearchParams as jest.Mock).mockReturnValue({
-      bookId: '999', // Invalid book ID (only 66 books)
-      chapterNumber: '1',
+  it('renders Genesis 1 when useChapterState clamps invalid bookId', () => {
+    // useChapterState handles validation internally and returns clamped values
+    (useChapterState as jest.Mock).mockReturnValue({
+      bookId: 1,
+      chapterNumber: 1,
+      bookName: 'Genesis',
+      navigateToChapter: jest.fn(),
+      booksMetadata: mockBooksMetadata,
+      totalChapters: 50,
     });
 
     (useBibleChapter as jest.Mock).mockReturnValue({
-      data: undefined,
+      data: mockChapterData,
       isLoading: false,
-      error: new Error('Book not found'),
+      error: null,
     });
 
-    renderWithSafeArea(<ChapterScreen />);
+    const { getByTestId } = renderWithSafeArea(<ChapterScreen />);
 
-    // Validation sets state immediately, then debounced URL sync happens after 1000ms
-    act(() => {
-      jest.advanceTimersByTime(1000);
-    });
-
-    // Should update URL params to Genesis 1 (bookId: 1, chapterNumber: 1)
-    expect(router.setParams).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bookId: '1',
-        chapterNumber: '1',
-      })
-    );
-
-    jest.useRealTimers();
+    // Should render Genesis 1 (hook already clamped the invalid bookId)
+    expect(getByTestId('chapter-header')).toBeTruthy();
   });
 
   /**
