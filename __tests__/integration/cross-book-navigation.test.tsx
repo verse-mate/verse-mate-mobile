@@ -2,152 +2,41 @@
  * Integration Tests: Cross-Book Navigation
  *
  * Tests for seamless transitions between books and edge cases:
- * - Last chapter of book → First chapter of next book
- * - First chapter of book → Last chapter of previous book
- * - Old Testament to New Testament transition (Malachi 4 → Matthew 1)
+ * - Last chapter of book -> First chapter of next book
+ * - First chapter of book -> Last chapter of previous book
+ * - Old Testament to New Testament transition (Malachi 4 -> Matthew 1)
  * - Single-chapter books navigation (Obadiah, Philemon, 2 John, 3 John, Jude)
  * - Bible boundaries (Genesis 1, Revelation 22)
  *
- * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 248-270, 308-318)
+ * NOTE: V3 Rewrite - ChapterPagerView has been deleted. This file will be adapted
+ * to test SimpleChapterPager once implemented. For now, only pure logic tests run.
+ *
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v3/spec.md
+ * @see Original spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md
  */
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, waitFor } from '@testing-library/react-native';
-import type React from 'react';
-import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-import { ToastProvider } from '@/contexts/ToastContext';
+// TODO: V3 Rewrite - Uncomment once SimpleChapterPager is implemented
+// import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+// import { render, waitFor } from '@testing-library/react-native';
+// import type React from 'react';
+// import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
+// import { ThemeProvider } from '@/contexts/ThemeContext';
+// import { ToastProvider } from '@/contexts/ToastContext';
+
 import { getAbsolutePageIndex, getChapterFromPageIndex } from '@/utils/bible/chapter-index-utils';
 import { mockTestamentBooks } from '../mocks/data/bible-books.data';
 
-// Mock Safe Area Context
-jest.mock('react-native-safe-area-context', () => {
-  return {
-    SafeAreaProvider: jest.fn(({ children }) => children),
-    SafeAreaView: jest.fn(({ children }) => children),
-    useSafeAreaInsets: jest.fn(() => ({ top: 0, right: 0, bottom: 0, left: 0 })),
-  };
-});
-
-// Mock AuthContext
-jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: jest.fn(() => ({
-    isAuthenticated: true,
-    user: { id: 'test-user' },
-    isLoading: false,
-  })),
-}));
-
-// Mock child components to avoid rendering complexity
-jest.mock('@/components/bible/SkeletonLoader', () => ({
-  SkeletonLoader: () => {
-    const { Text } = require('react-native');
-    return <Text testID="skeleton-loader">Loading...</Text>;
-  },
-}));
-
-jest.mock('@/components/bible/ChapterReader', () => ({
-  ChapterReader: ({ chapter }: any) => {
-    const { Text } = require('react-native');
-    return <Text testID="chapter-reader">{chapter?.title || 'Chapter'}</Text>;
-  },
-}));
-
-jest.mock('@/components/bible/ChapterContentTabs', () => ({
-  ChapterContentTabs: () => {
-    const { Text } = require('react-native');
-    return <Text testID="chapter-tabs">Tabs</Text>;
-  },
-}));
-
-// Mock the API hooks
-jest.mock('@/src/api/hooks', () => ({
-  useBibleTestaments: jest.fn(() => ({
-    data: mockTestamentBooks,
-    isLoading: false,
-  })),
-  useBibleChapter: jest.fn((bookId: number, chapterNumber: number) => ({
-    data: {
-      id: `${bookId}-${chapterNumber}`,
-      bookId,
-      chapterNumber,
-      title: `Book ${bookId} Chapter ${chapterNumber}`,
-      content: 'Mock chapter content',
-      sections: [],
-    },
-    isLoading: false,
-  })),
-  useBibleSummary: jest.fn(() => ({ data: null, isLoading: false })),
-  useBibleByLine: jest.fn(() => ({ data: null, isLoading: false })),
-  useBibleDetailed: jest.fn(() => ({ data: null, isLoading: false })),
-}));
-
-// Mock PagerView component
-jest.mock('react-native-pager-view', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-
-  const MockPagerView = React.forwardRef(({ children }: any, ref: any) => {
-    // Expose setPageWithoutAnimation method for tests
-    React.useImperativeHandle(ref, () => ({
-      setPageWithoutAnimation: jest.fn(),
-    }));
-
-    return <View testID="pager-view">{children}</View>;
-  });
-
-  MockPagerView.displayName = 'PagerView';
-
-  return MockPagerView;
-});
-
-describe('Cross-Book Navigation', () => {
-  let queryClient: QueryClient;
-  let mockOnPageChange: jest.Mock;
-
-  beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-        },
-      },
-    });
-    mockOnPageChange = jest.fn();
-  });
-
-  afterEach(() => {
-    queryClient.clear();
-  });
-
-  const renderPagerView = (bookId: number, chapterNumber: number) => {
-    return render(
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <ToastProvider>
-            <ChapterPagerView
-              initialBookId={bookId}
-              initialChapter={chapterNumber}
-              activeTab="summary"
-              activeView="bible"
-              onPageChange={mockOnPageChange}
-            />
-          </ToastProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
-    );
-  };
-
+/**
+ * Pure Logic Tests - chapter-index-utils
+ *
+ * These tests don't require a UI component and verify the core navigation logic.
+ * They remain useful regardless of which pager implementation is used.
+ */
+describe('Cross-Book Navigation - Pure Logic Tests', () => {
   /**
-   * Test 1: Last chapter of Genesis → First chapter of Exodus
+   * Test 1: Last chapter of Genesis -> First chapter of Exodus
    */
-  it('transitions from last chapter of book to first chapter of next book (Genesis 50 → Exodus 1)', async () => {
-    const { getByTestId } = renderPagerView(1, 50); // Genesis 50
-
-    await waitFor(() => {
-      expect(getByTestId('pager-view')).toBeTruthy();
-    });
-
+  it('calculates correct indices for Genesis 50 -> Exodus 1 transition', () => {
     // Verify Genesis 50 is at absolute index 49 (Genesis has 50 chapters, 0-indexed)
     const genesis50Index = getAbsolutePageIndex(1, 50, mockTestamentBooks);
     expect(genesis50Index).toBe(49);
@@ -165,15 +54,9 @@ describe('Cross-Book Navigation', () => {
   });
 
   /**
-   * Test 2: First chapter of Exodus → Last chapter of Genesis
+   * Test 2: First chapter of Exodus -> Last chapter of Genesis
    */
-  it('transitions from first chapter of book to last chapter of previous book (Exodus 1 → Genesis 50)', async () => {
-    const { getByTestId } = renderPagerView(2, 1); // Exodus 1
-
-    await waitFor(() => {
-      expect(getByTestId('pager-view')).toBeTruthy();
-    });
-
+  it('calculates correct indices for Exodus 1 -> Genesis 50 transition', () => {
     // Verify Exodus 1 is at absolute index 50
     const exodus1Index = getAbsolutePageIndex(2, 1, mockTestamentBooks);
     expect(exodus1Index).toBe(50);
@@ -191,15 +74,9 @@ describe('Cross-Book Navigation', () => {
   });
 
   /**
-   * Test 3: Old Testament to New Testament transition (Malachi 4 → Matthew 1)
+   * Test 3: Old Testament to New Testament transition (Malachi 4 -> Matthew 1)
    */
-  it('transitions seamlessly from OT to NT (Malachi 4 → Matthew 1)', async () => {
-    const { getByTestId } = renderPagerView(39, 4); // Malachi 4 (last OT chapter)
-
-    await waitFor(() => {
-      expect(getByTestId('pager-view')).toBeTruthy();
-    });
-
+  it('calculates correct indices for OT to NT transition (Malachi 4 -> Matthew 1)', () => {
     // Verify Malachi 4 is the last OT chapter
     const malachiBook = mockTestamentBooks.find((b) => b.id === 39);
     expect(malachiBook?.name).toBe('Malachi');
@@ -228,13 +105,7 @@ describe('Cross-Book Navigation', () => {
   /**
    * Test 4: Single-chapter book navigation (Obadiah)
    */
-  it('navigates correctly from single-chapter book Obadiah (id:31)', async () => {
-    const { getByTestId } = renderPagerView(31, 1); // Obadiah 1 (single chapter)
-
-    await waitFor(() => {
-      expect(getByTestId('pager-view')).toBeTruthy();
-    });
-
+  it('calculates correct indices for single-chapter book Obadiah (id:31)', () => {
     // Verify Obadiah has only 1 chapter
     const obadiahBook = mockTestamentBooks.find((b) => b.id === 31);
     expect(obadiahBook?.name).toBe('Obadiah');
@@ -257,13 +128,7 @@ describe('Cross-Book Navigation', () => {
   /**
    * Test 5: Single-chapter book navigation (Philemon)
    */
-  it('navigates correctly from single-chapter book Philemon (id:57)', async () => {
-    const { getByTestId } = renderPagerView(57, 1); // Philemon 1 (single chapter)
-
-    await waitFor(() => {
-      expect(getByTestId('pager-view')).toBeTruthy();
-    });
-
+  it('calculates correct indices for single-chapter book Philemon (id:57)', () => {
     // Verify Philemon has only 1 chapter
     const philemonBook = mockTestamentBooks.find((b) => b.id === 57);
     expect(philemonBook?.name).toBe('Philemon');
@@ -286,13 +151,7 @@ describe('Cross-Book Navigation', () => {
   /**
    * Test 6: Bible boundaries - Genesis 1 (first chapter)
    */
-  it('handles Genesis 1 boundary correctly (cannot navigate to previous)', async () => {
-    const { getByTestId } = renderPagerView(1, 1); // Genesis 1
-
-    await waitFor(() => {
-      expect(getByTestId('pager-view')).toBeTruthy();
-    });
-
+  it('handles Genesis 1 boundary correctly (cannot navigate to previous)', () => {
     // Verify Genesis 1 is at absolute index 0
     const genesis1Index = getAbsolutePageIndex(1, 1, mockTestamentBooks);
     expect(genesis1Index).toBe(0);
@@ -309,13 +168,7 @@ describe('Cross-Book Navigation', () => {
   /**
    * Test 7: Bible boundaries - Revelation 22 (last chapter)
    */
-  it('handles Revelation 22 boundary correctly (cannot navigate to next)', async () => {
-    const { getByTestId } = renderPagerView(66, 22); // Revelation 22
-
-    await waitFor(() => {
-      expect(getByTestId('pager-view')).toBeTruthy();
-    });
-
+  it('handles Revelation 22 boundary correctly (cannot navigate to next)', () => {
     // Verify Revelation 22 is at absolute index 1188 (last chapter)
     const revelation22Index = getAbsolutePageIndex(66, 22, mockTestamentBooks);
     expect(revelation22Index).toBe(1188);
@@ -328,26 +181,19 @@ describe('Cross-Book Navigation', () => {
     const revelation21Chapter = getChapterFromPageIndex(1187, mockTestamentBooks);
     expect(revelation21Chapter).toEqual({ bookId: 66, chapterNumber: 21 });
   });
+});
 
-  /**
-   * Test 8: Metadata loading edge case
-   */
-  it('handles metadata loading gracefully (shows loading state until booksMetadata available)', async () => {
-    // Mock useBibleTestaments to return undefined initially
-    const { useBibleTestaments } = require('@/src/api/hooks');
-    useBibleTestaments.mockReturnValueOnce({
-      data: undefined,
-      isLoading: true,
-    });
-
-    const { getByTestId } = renderPagerView(1, 1);
-
-    await waitFor(() => {
-      expect(getByTestId('pager-view')).toBeTruthy();
-    });
-
-    // Component should render without crashing when metadata is undefined
-    // It should default to Genesis 1 until metadata loads
-    expect(getByTestId('pager-view')).toBeTruthy();
-  });
+/**
+ * TODO: V3 Rewrite - Component Integration Tests
+ *
+ * These tests will be re-enabled once SimpleChapterPager is implemented.
+ * They test the actual UI component behavior with swipe navigation.
+ *
+ * See Task Group 9 in tasks.md for adaptation instructions.
+ */
+describe.skip('Cross-Book Navigation - Component Tests (V3 Pending)', () => {
+  it.todo('renders SimpleChapterPager at Genesis 50');
+  it.todo('transitions from Genesis 50 to Exodus 1 on swipe left');
+  it.todo('renders boundary page at Genesis 1 when swiping right');
+  it.todo('renders boundary page at Revelation 22 when swiping left');
 });

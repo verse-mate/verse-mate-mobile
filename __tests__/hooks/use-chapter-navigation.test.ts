@@ -4,8 +4,13 @@
  * Tests navigation logic for:
  * - Next/previous within same book
  * - Cross-book navigation (Genesis 50 -> Exodus 1, Exodus 1 -> Genesis 50)
- * - Circular navigation at Bible boundaries (Genesis 1 <-> Revelation 22)
+ * - Circular navigation at Bible boundaries (Genesis 1 <-> Revelation 22) - requires circular: true
  * - Single-chapter books (Obadiah, Philemon, 2 John, 3 John, Jude)
+ *
+ * V3 Update: Default mode is now LINEAR (circular: false)
+ * Circular navigation tests must explicitly pass circular: true
+ *
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v3/spec.md
  */
 
 import { renderHook } from '@testing-library/react-native';
@@ -69,8 +74,14 @@ describe('useChapterNavigation', () => {
   });
 
   describe('circular navigation at Bible boundaries', () => {
-    it('should wrap from Genesis 1 backward to Revelation 22', () => {
-      const { result } = renderHook(() => useChapterNavigation(1, 1, mockTestamentBooks));
+    /**
+     * V3 Update: These tests require circular: true
+     * Default mode is now LINEAR which blocks navigation at boundaries
+     */
+
+    it('should wrap from Genesis 1 backward to Revelation 22 (circular mode)', () => {
+      // V3: Must explicitly enable circular navigation
+      const { result } = renderHook(() => useChapterNavigation(1, 1, mockTestamentBooks, true));
 
       // prevChapter at Genesis 1 should wrap to Revelation 22
       expect(result.current.prevChapter).toEqual({ bookId: 66, chapterNumber: 22 });
@@ -78,14 +89,16 @@ describe('useChapterNavigation', () => {
     });
 
     it('should allow previous navigation from Genesis 1 (circular)', () => {
-      const { result } = renderHook(() => useChapterNavigation(1, 1, mockTestamentBooks));
+      // V3: Must explicitly enable circular navigation
+      const { result } = renderHook(() => useChapterNavigation(1, 1, mockTestamentBooks, true));
 
-      // canGoPrevious should always be true now (circular navigation)
+      // canGoPrevious should be true in circular mode
       expect(result.current.canGoPrevious).toBe(true);
     });
 
-    it('should wrap from Revelation 22 forward to Genesis 1', () => {
-      const { result } = renderHook(() => useChapterNavigation(66, 22, mockTestamentBooks));
+    it('should wrap from Revelation 22 forward to Genesis 1 (circular mode)', () => {
+      // V3: Must explicitly enable circular navigation
+      const { result } = renderHook(() => useChapterNavigation(66, 22, mockTestamentBooks, true));
 
       // nextChapter at Revelation 22 should wrap to Genesis 1
       expect(result.current.nextChapter).toEqual({ bookId: 1, chapterNumber: 1 });
@@ -93,9 +106,10 @@ describe('useChapterNavigation', () => {
     });
 
     it('should allow next navigation from Revelation 22 (circular)', () => {
-      const { result } = renderHook(() => useChapterNavigation(66, 22, mockTestamentBooks));
+      // V3: Must explicitly enable circular navigation
+      const { result } = renderHook(() => useChapterNavigation(66, 22, mockTestamentBooks, true));
 
-      // canGoNext should always be true now (circular navigation)
+      // canGoNext should be true in circular mode
       expect(result.current.canGoNext).toBe(true);
     });
 

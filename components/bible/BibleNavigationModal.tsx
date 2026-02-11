@@ -875,6 +875,10 @@ function BibleNavigationModalComponent({
                 accessibilityLabel={`Current book: ${
                   allBooks.find((b) => b.id === currentBookId)?.name
                 }`}
+                testID={`book-item-${allBooks
+                  .find((b) => b.id === currentBookId)
+                  ?.name.toLowerCase()
+                  .replace(/\s+/g, '-')}`}
               >
                 <View
                   style={{

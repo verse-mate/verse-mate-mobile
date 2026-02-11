@@ -25,7 +25,7 @@
  * ```
  *
  * @see hooks/topics/use-topic-navigation.ts - Uses these utilities for navigation
- * @see components/topics/TopicPagerView.tsx - Uses these for sliding window calculations
+ * @see components/topics/SimpleTopicPager.tsx - Uses these for 3-page window calculations
  * @see utils/bible/chapter-index-utils.ts - Reference implementation for circular navigation
  * @see Spec: agent-os/specs/fix-topic-swipe-navigation/spec.md
  */

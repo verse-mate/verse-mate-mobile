@@ -15,6 +15,8 @@ export { useBookProgress } from './use-book-progress';
 export { useBookmarks } from './use-bookmarks';
 // Chapter reading duration tracking hook (Time-Based Analytics)
 export { useChapterReadingDuration } from './use-chapter-reading-duration';
+// Chapter state hook - single source of truth for navigation (V3 architecture)
+export { useChapterState } from './use-chapter-state';
 // Last read position hook (wraps API hook)
 export { useLastRead } from './use-last-read';
 // Last read position persistence hook (for app launch continuity)
