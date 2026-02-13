@@ -120,39 +120,7 @@ jobs:
           force-avd-creation: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
-          script: |
-            # Install APK
-            adb install app.apk
-
-            # Warm launch: trigger EAS Update download
-            adb shell monkey -p org.versemate.app -c android.intent.category.LAUNCHER 1
-            sleep 15
-            adb shell am force-stop org.versemate.app
-            echo "Warm launch complete - update pre-downloaded"
-
-            # Determine what to run based on test-folder input
-            TEST_FOLDER="${{ github.event.inputs.test-folder }}"
-
-            if [ -z "$TEST_FOLDER" ]; then
-              # Run all folders except split-view (split-view requires tablet emulator)
-              echo "Running all phone test folders..."
-              OVERALL_EXIT=0
-              for folder in auth bible-reading bookmarks highlights navigation notes regression settings swipe topics; do
-                echo "=========================================="
-                echo "Running tests in .maestro/$folder/"
-                echo "=========================================="
-                maestro test ".maestro/$folder/" || OVERALL_EXIT=1
-              done
-              if [ $OVERALL_EXIT -ne 0 ]; then
-                echo "Some phone tests failed"
-                exit 1
-              fi
-            elif [ "$TEST_FOLDER" = "split-view" ]; then
-              echo "Skipping phone step (split-view tests run on tablet emulator only)"
-            else
-              echo "Running tests in .maestro/$TEST_FOLDER/"
-              maestro test ".maestro/$TEST_FOLDER/"
-            fi
+          script: bash .github/scripts/run-phone-tests.sh "${{ github.event.inputs.test-folder }}"
 
       - name: Run split-view tests on Android tablet emulator
         if: success() || failure()
@@ -165,25 +133,7 @@ jobs:
           force-avd-creation: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -skin 2560x1600
           disable-animations: true
-          script: |
-            # Install APK
-            adb install app.apk
-
-            # Warm launch: trigger EAS Update download
-            adb shell monkey -p org.versemate.app -c android.intent.category.LAUNCHER 1
-            sleep 15
-            adb shell am force-stop org.versemate.app
-            echo "Warm launch complete - update pre-downloaded"
-
-            TEST_FOLDER="${{ github.event.inputs.test-folder }}"
-
-            # Run split-view tests only when no folder specified or split-view folder requested
-            if [ -z "$TEST_FOLDER" ] || [ "$TEST_FOLDER" = "split-view" ]; then
-              echo "Running split-view tests on tablet emulator..."
-              maestro test .maestro/split-view/
-            else
-              echo "Skipping split-view tests (requested folder: $TEST_FOLDER)"
-            fi
+          script: bash .github/scripts/run-tablet-tests.sh "${{ github.event.inputs.test-folder }}"
 
       - name: Upload Maestro test results
         if: always()
