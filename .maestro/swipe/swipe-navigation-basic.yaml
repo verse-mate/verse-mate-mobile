@@ -21,30 +21,7 @@ tags:
 # 2. Swipe left -> Genesis 2
 # 3. Swipe right -> Genesis 1
 
-- launchApp:
-    clearState: true
-    appId: org.versemate.app
-
-# For development builds: dismiss dev menu if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-- tapOn:
-    text: "Continue"
-    optional: true
-
-- tapOn:
-    point: "50%,15%"
-    optional: true
-
-# Handle onboarding screen if shown
-- tapOn:
-    text: "Skip"
-    optional: true
-
-- waitForAnimationToEnd
-
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to load - verify chapter selector is visible
 - assertVisible:

@@ -26,35 +26,7 @@ tags:
 # - Each swipe advances exactly one chapter
 # - Header text updates correctly after each swipe
 
-- launchApp:
-    appId: org.versemate.app
-    clearState: true
-
-# For development builds: dismiss dev menu if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-- tapOn:
-    text: "Continue"
-    optional: true
-
-- tapOn:
-    point: "50%,15%"
-    optional: true
-
-# Wait for any overlays to clear
-- waitForAnimationToEnd
-
-
-# Handle onboarding screen if shown (when clearState was used previously)
-- tapOn:
-    text: "Skip"
-    optional: true
-
-# Wait after skipping onboarding
-- waitForAnimationToEnd
-
+- runFlow: ../shared/setup.yaml
 
 # ============================================
 # Setup: Ensure we start at Genesis 1

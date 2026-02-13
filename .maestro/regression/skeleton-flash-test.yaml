@@ -29,30 +29,7 @@ tags:
 # - Should NOT show skeleton loader between transitions
 # - Header should update at same time as content updates
 
-- launchApp:
-    clearState: true
-    appId: org.versemate.app
-
-# For development builds: dismiss dev menu if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-- tapOn:
-    text: "Continue"
-    optional: true
-
-- tapOn:
-    point: "50%,15%"
-    optional: true
-
-# Handle onboarding screen if shown
-- tapOn:
-    text: "Skip"
-    optional: true
-
-- waitForAnimationToEnd
-
+- runFlow: ../shared/setup.yaml
 
 # Wait for chapter to load - verify chapter selector is visible
 - assertVisible:
