@@ -12,7 +12,7 @@ const config = {
     icon: './assets/images/ios-icon.png',
     bundleIdentifier: 'org.versemate.app',
     supportsTablet: true,
-    associatedDomains: ['applinks:app.versemate.org', 'applinks:app.versemate.org'],
+    associatedDomains: ['applinks:app.versemate.org'],
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       CFBundleURLTypes: [
