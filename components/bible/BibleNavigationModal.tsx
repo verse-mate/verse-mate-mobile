@@ -778,7 +778,7 @@ function BibleNavigationModalComponent({
     return (
       <View style={styles.filterContainer}>
         <View style={styles.filterInputWrapper}>
-          <Ionicons name="search" size={24} color={colors.textTertiary} />
+          <Ionicons name="search" size={18} color={colors.textTertiary} />
           <TextInput
             style={styles.filterInput}
             placeholder={placeholder}
@@ -1243,20 +1243,16 @@ const createStyles = (
       borderRadius: 100,
       height: 36,
       paddingHorizontal: spacing.lg,
-      paddingVertical: 4,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: spacing.sm,
     },
     filterInput: {
       flex: 1,
       fontSize: 14,
       color: colors.textPrimary,
       padding: 0,
-    },
-    searchIcon: {
-      width: 24,
-      height: 24,
+      includeFontPadding: false,
     },
     filterClearButton: {
       position: 'absolute',
