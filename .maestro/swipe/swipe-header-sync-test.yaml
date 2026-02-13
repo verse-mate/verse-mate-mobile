@@ -1,0 +1,177 @@
+---
+appId: org.versemate.app
+name: Swipe Header Sync Test
+description: Tests that the header correctly syncs with swipe navigation - swipe left 5 times and verify header shows correct chapter after each swipe
+tags:
+  - critical
+  - header-sync
+  - swipe
+
+---
+
+# Swipe Header Sync Test (V3 Rewrite)
+#
+# This test verifies the core bug that V1 and V2 failed to fix:
+# - Header must ALWAYS show the correct chapter after swiping
+# - No duplicate chapters (e.g., 3 -> 4 -> 5 -> 6 -> 5 -> 6 -> 7)
+# - No backwards navigation during forward swiping
+#
+# Test Flow:
+# 1. Launch app and navigate to Genesis 1
+# 2. Swipe left 5 times rapidly
+# 3. After each swipe, verify header shows correct chapter:
+#    Genesis 2, Genesis 3, Genesis 4, Genesis 5, Genesis 6
+#
+# Expected Behavior:
+# - Each swipe advances exactly one chapter
+# - Header text updates correctly after each swipe
+
+- launchApp:
+    appId: org.versemate.app
+    clearState: true
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for any overlays to clear
+- waitForAnimationToEnd
+
+
+# Handle onboarding screen if shown (when clearState was used previously)
+- tapOn:
+    text: "Skip"
+    optional: true
+
+# Wait after skipping onboarding
+- waitForAnimationToEnd
+
+
+# ============================================
+# Setup: Ensure we start at Genesis 1
+# ============================================
+
+# Wait for app to fully load (chapter selector should be visible)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Open navigation modal to go to Genesis 1
+- tapOn:
+    id: "chapter-selector-button"
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Go to Old Testament tab
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+# Select Genesis from book list
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+# Select chapter 1
+- tapOn:
+    id: "chapter-1"
+
+# Wait for Genesis 1 to load
+- waitForAnimationToEnd
+
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're on Genesis 1 - header should show "Genesis 1"
+- assertVisible:
+    text: "Genesis 1"
+
+# ============================================
+# Test: Swipe left 5 times and verify header
+# ============================================
+
+# Swipe 1: Genesis 1 -> Genesis 2
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify header shows Genesis 2
+- assertVisible:
+    text: "Genesis 2"
+
+# Swipe 2: Genesis 2 -> Genesis 3
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify header shows Genesis 3
+- assertVisible:
+    text: "Genesis 3"
+
+# Swipe 3: Genesis 3 -> Genesis 4
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify header shows Genesis 4
+- assertVisible:
+    text: "Genesis 4"
+
+# Swipe 4: Genesis 4 -> Genesis 5
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify header shows Genesis 5
+- assertVisible:
+    text: "Genesis 5"
+
+# Swipe 5: Genesis 5 -> Genesis 6
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify header shows Genesis 6
+- assertVisible:
+    text: "Genesis 6"
+
+# ============================================
+# Test Complete: Header correctly synced
+# ============================================

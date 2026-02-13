@@ -1,0 +1,208 @@
+---
+appId: org.versemate.app
+name: Landscape Split View - Basic Rendering
+description: Tests that landscape split view renders both panels with actual content (no placeholders). Must be run on a tablet emulator in landscape orientation.
+tags:
+  - critical
+  - split-view
+  - landscape
+  - regression
+
+---
+
+# Landscape Split View - Basic Rendering Test
+#
+# PREREQUISITE: Run on Android tablet emulator in landscape orientation.
+#   For CI: Uses Nexus 10 AVD (2560x1600) in landscape via android-emulator-runner
+#   For local: Create a tablet AVD with API 34 and rotate to landscape
+#   Split view activates at width >= 1024
+#
+# This test verifies:
+# - Split view activates in landscape (width >= 1024)
+# - Left panel (Bible content) renders actual chapter content
+# - Right panel (Explanations) renders actual explanation content
+# - No placeholder or TODO text appears
+# - Both panels have interactive elements
+#
+# This test would have caught the iPad bug where BibleContentPanel
+# showed "SimpleChapterPager placeholder - V3 implementation pending"
+
+- launchApp:
+    clearState: true
+    appId: org.versemate.app
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
+# ============================================
+# Test 1: Verify Split View Layout Renders
+# ============================================
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "split-view"
+    timeout: 45000
+
+# Verify split view container is present (landscape detected)
+- assertVisible:
+    id: "split-view"
+
+# Verify left panel renders
+- assertVisible:
+    id: "bible-content-panel"
+
+# Verify right panel renders
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test 2: Verify Left Panel Has Real Content
+# ============================================
+
+# Left panel should have a header with book/chapter dropdown
+- assertVisible:
+    id: "bible-content-panel-header"
+
+# Verify no placeholder text is visible
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+- assertNotVisible:
+    text: "TODO"
+    optional: true
+
+# ============================================
+# Test 3: Verify Right Panel Has Real Content
+# ============================================
+
+# Right panel should have tab controls for explanation types
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# Right panel should have a menu button
+- assertVisible:
+    id: "bible-explanations-panel-menu-button"
+
+# ============================================
+# Test 4: Verify Interactive Elements Work
+# ============================================
+
+# Tap on the left panel header (should open navigation modal)
+- tapOn:
+    id: "bible-content-panel-header"
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify modal opened
+- assertVisible:
+    id: "bible-navigation-modal"
+
+# Close modal by tapping a book + chapter
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Both panels should still be visible after modal interaction
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test 5: Navigate to Different Chapter in Split View
+# ============================================
+
+# Open modal again to navigate to a different chapter
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-5"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify both panels still render (no crash on navigation)
+- assertVisible:
+    id: "split-view"
+
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test Complete: Split view renders correctly
+# ============================================

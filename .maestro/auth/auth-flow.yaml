@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Authentication Flow
 description: Tests authentication UI navigation including signup and login screens
 tags:
@@ -24,7 +24,8 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -38,6 +39,14 @@ tags:
 - tapOn:
     point: "50%,15%"
     optional: true
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
 
 # Wait for app to fully load
 - extendedWaitUntil:
@@ -70,6 +79,7 @@ tags:
 # Wait for navigation
 - waitForAnimationToEnd
 
+
 # Verify login screen is visible
 - assertVisible:
     text: "Welcome back"
@@ -95,6 +105,7 @@ tags:
 
 # Wait for navigation
 - waitForAnimationToEnd
+
 
 # Verify signup screen is visible
 - assertVisible:
@@ -127,6 +138,7 @@ tags:
 
 # Wait for navigation
 - waitForAnimationToEnd
+
 
 # Verify login screen is visible
 - assertVisible:

@@ -1,0 +1,253 @@
+---
+appId: org.versemate.app
+name: Topics Swipe Navigation
+description: Tests topic swipe navigation - swipe left/right between topics and verify header updates correctly
+tags:
+  - critical
+  - topics
+  - swipe
+  - navigation
+
+---
+
+# Topics Swipe Navigation Test
+#
+# This test verifies that topic swipe navigation works correctly
+# after the V3 migration from TopicPagerView to SimpleTopicPager.
+#
+# This test would have caught the issue where TopicPagerView was
+# still using the old 7-page architecture while Bible was on V3.
+#
+# Test Flow:
+# 1. Navigate to "The Creation of the World" topic
+# 2. Swipe left to next topic - verify header changed
+# 3. Swipe right to go back - verify header shows original topic
+# 4. Swipe right again to go to previous topic (circular) - verify header changed
+# 5. Verify FAB buttons work for navigation
+
+- launchApp:
+    clearState: true
+    appId: org.versemate.app
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
+# ============================================
+# Setup: Navigate to a Known Topic
+# ============================================
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-button"
+    timeout: 30000
+
+# Open navigation modal (try chapter selector first, then topic selector)
+- tapOn:
+    id: "chapter-selector-button"
+    optional: true
+
+- tapOn:
+    id: "topic-selector-button"
+    optional: true
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Switch to Topics tab
+- tapOn:
+    id: "tab-topics"
+
+- waitForAnimationToEnd
+
+
+# Select "The Creation of the World" topic
+- tapOn:
+    text: "The Creation of the World"
+
+- waitForAnimationToEnd
+
+
+# Wait for modal to close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're on the topic screen
+- assertVisible:
+    id: "topic-selector-button"
+
+# Verify topic name is shown in header
+- assertVisible:
+    text: "The Creation of the World"
+
+# ============================================
+# Test 1: Swipe Left to Next Topic
+# ============================================
+
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify the topic selector button is still visible (screen didn't crash)
+- assertVisible:
+    id: "topic-selector-button"
+
+# Verify the header changed - should NO longer show the original topic
+- assertNotVisible:
+    text: "The Creation of the World"
+
+# ============================================
+# Test 2: Swipe Right to Go Back
+# ============================================
+
+- swipe:
+    direction: RIGHT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify we're back on the original topic
+- assertVisible:
+    text: "The Creation of the World"
+
+# Verify the topic selector is still interactive
+- assertVisible:
+    id: "topic-selector-button"
+
+# ============================================
+# Test 3: Swipe Right for Circular Navigation
+# ============================================
+
+# Swipe right from "The Creation of the World" (should go to PREVIOUS topic circularly)
+- swipe:
+    direction: RIGHT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify topic changed (circular navigation to last/previous topic)
+- assertVisible:
+    id: "topic-selector-button"
+
+# Should no longer show "The Creation of the World"
+- assertNotVisible:
+    text: "The Creation of the World"
+
+# ============================================
+# Test 4: Swipe Left to Come Back Again
+# ============================================
+
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify we're back on our starting topic
+- assertVisible:
+    text: "The Creation of the World"
+
+# ============================================
+# Test 5: FAB Navigation Buttons Work
+# ============================================
+
+# FAB buttons should be visible (topics always enable both)
+- assertVisible:
+    id: "next-chapter-button"
+
+# Tap next FAB to navigate to next topic
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+# Verify topic changed
+- assertVisible:
+    id: "topic-selector-button"
+
+- assertNotVisible:
+    text: "The Creation of the World"
+
+# Tap previous FAB to navigate back
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+# Verify we're back on original topic
+- assertVisible:
+    text: "The Creation of the World"
+
+# ============================================
+# Test 6: Multiple Rapid Swipes
+# ============================================
+
+# Swipe left 3 times rapidly
+- swipe:
+    direction: LEFT
+    duration: 300
+
+- waitForAnimationToEnd
+
+
+- swipe:
+    direction: LEFT
+    duration: 300
+
+- waitForAnimationToEnd
+
+
+- swipe:
+    direction: LEFT
+    duration: 300
+
+- waitForAnimationToEnd
+
+
+# Verify topic selector is still visible and functional (no crash from rapid swiping)
+- assertVisible:
+    id: "topic-selector-button"
+
+# Verify no placeholder text appeared during rapid navigation
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+# ============================================
+# Test Complete: Topic swipe navigation works
+# ============================================

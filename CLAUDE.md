@@ -26,7 +26,9 @@ VerseMate Mobile is a React Native application built with Expo Router for Bible 
 - `npm run test:coverage` - Run tests with coverage report
 - `npm run test:ci` - Run tests in CI mode with coverage
 - `npm run test:slow` - Run slow/memory-intensive tests (skipped by default)
-- `maestro test .maestro` - Run E2E tests with Maestro
+- `maestro test .maestro` - Run all E2E tests with Maestro (recursively discovers tests in subfolders)
+- `maestro test .maestro/swipe/` - Run E2E tests for a specific feature folder
+- `maestro test .maestro/auth/auth-flow.yaml` - Run a specific E2E test
 - `maestro studio` - Open Maestro Studio for interactive E2E testing
 
 **Important**: Always use `npm` for test commands, not `bun`, due to Expo compatibility requirements with the jest-expo preset.
@@ -134,17 +136,21 @@ The project uses a comprehensive testing setup:
 - Test setup files: `test-setup.ts` (global setup) and `jest-env-setup.js` (environment)
 
 **E2E Tests (Maestro)**:
-- Test flows in `.maestro/` directory (YAML format)
+- Test flows organized in feature-based subfolders under `.maestro/` (YAML format)
+- 11 feature folders: `auth/`, `bible-reading/`, `bookmarks/`, `highlights/`, `navigation/`, `notes/`, `regression/`, `settings/`, `split-view/`, `swipe/`, `topics/`
 - Run all tests: `maestro test .maestro`
-- Run specific test: `maestro test .maestro/{file}.yaml`
+- Run feature folder: `maestro test .maestro/swipe/`
+- Run specific test: `maestro test .maestro/auth/auth-flow.yaml`
 - Interactive debugging: `maestro studio`
+- Android CI: The `maestro-e2e.yml` workflow runs tests on Android API 34 emulators via GitHub Actions (manual trigger)
 - See `.maestro/README.md` for complete documentation
 
 **Maestro Test Organization**:
+- Tests organized into 11 feature-based subfolders under `.maestro/`
 - File naming: `{feature}-flow.yaml` for user journeys, `{feature}-test.yaml` for regression tests
 - All tests use `id:` (testID) selectors for stability across UI text changes
 - Tags: `critical` (must pass), `auth`, `user-flow`, `regression`, `navigation`
-- iOS is the primary E2E platform (Android API 35 has Maestro compatibility issues)
+- iOS is the primary local E2E platform; Android API 34 is supported in CI via `maestro-e2e.yml`
 
 **Maestro testID Conventions**:
 - Component-based: `{component}-{element}` (e.g., `skeleton-loader`, `menu-close-button`)

@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Bible View Switcher Flow
 description: Tests view switching between Bible and Explanations views
 tags:
@@ -20,7 +20,8 @@ tags:
 # 4. Tab persistence across chapter changes
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -35,6 +36,14 @@ tags:
     point: "50%,15%"
     optional: true
 
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
 # Wait for app to fully load
 - extendedWaitUntil:
     visible:
@@ -43,17 +52,18 @@ tags:
 
 # Verify view icons are visible
 - assertVisible:
-    id: "bible-view-icon"
+    id: "bible-view-toggle"
 
 - assertVisible:
-    id: "explanations-view-icon"
+    id: "commentary-view-toggle"
 
 # Scenario 1: Basic View Switching
 # First, ensure we're in Bible view (app may have persisted Explanations view)
 - tapOn:
-    id: "bible-view-icon"
+    id: "bible-view-toggle"
 
 - waitForAnimationToEnd
+
 
 # Tabs should NOT be visible in Bible view
 - assertNotVisible:
@@ -61,10 +71,11 @@ tags:
 
 # Switch to Explanations view
 - tapOn:
-    id: "explanations-view-icon"
+    id: "commentary-view-toggle"
 
 # Wait for view to switch
 - waitForAnimationToEnd
+
 
 # Tabs SHOULD be visible in Explanations view
 - assertVisible:
@@ -83,10 +94,11 @@ tags:
 
 # Switch back to Bible view
 - tapOn:
-    id: "bible-view-icon"
+    id: "bible-view-toggle"
 
 # Wait for view to switch
 - waitForAnimationToEnd
+
 
 # Tabs should be hidden again
 - assertNotVisible:
@@ -95,10 +107,11 @@ tags:
 # Scenario 2: Tab Persistence Across View Switches
 # Switch to Explanations view
 - tapOn:
-    id: "explanations-view-icon"
+    id: "commentary-view-toggle"
 
 # Wait for tabs to appear
 - waitForAnimationToEnd
+
 
 - assertVisible:
     id: "chapter-content-tabs"
@@ -110,12 +123,14 @@ tags:
 # Wait for tab switch
 - waitForAnimationToEnd
 
+
 # Switch back to Bible view
 - tapOn:
-    id: "bible-view-icon"
+    id: "bible-view-toggle"
 
 # Wait for view switch
 - waitForAnimationToEnd
+
 
 # Tabs should be hidden
 - assertNotVisible:
@@ -123,10 +138,11 @@ tags:
 
 # Switch back to Explanations view
 - tapOn:
-    id: "explanations-view-icon"
+    id: "commentary-view-toggle"
 
 # Wait for tabs to reappear
 - waitForAnimationToEnd
+
 
 # Tabs should be visible
 - assertVisible:
@@ -144,6 +160,7 @@ tags:
 # Wait for tab switch
 - waitForAnimationToEnd
 
+
 # Navigate to next chapter using floating action button
 - scroll
 - scroll
@@ -154,6 +171,7 @@ tags:
 
 # Wait for chapter to load
 - waitForAnimationToEnd
+
 
 # Verify chapter selector button visible (chapter loaded)
 - assertVisible:

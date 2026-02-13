@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Bible Reading Critical Path
 description: Tests the core user flow for reading Bible chapters
 tags:
@@ -20,7 +20,8 @@ tags:
 # 4. Verify view switcher icons work
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: tap on localhost to connect to dev server if shown
 - tapOn:
@@ -37,6 +38,14 @@ tags:
     point: "50%,15%"
     optional: true
 
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
 # Wait for app to fully load (either Bible chapter or Topic screen)
 - extendedWaitUntil:
     visible:
@@ -50,19 +59,21 @@ tags:
 # Wait for content to load
 - waitForAnimationToEnd
 
+
 # Verify Bible view icon is present (testID)
 - assertVisible:
-    id: "bible-view-icon"
+    id: "bible-view-toggle"
 
 # Verify Explanations view icon is present
 - assertVisible:
-    id: "explanations-view-icon"
+    id: "commentary-view-toggle"
 
 # First, ensure we're in Bible view by tapping the Bible view icon
 - tapOn:
-    id: "bible-view-icon"
+    id: "bible-view-toggle"
 
 - waitForAnimationToEnd
+
 
 # Tabs should NOT be visible in Bible view (key differentiator)
 - assertNotVisible:
@@ -70,7 +81,7 @@ tags:
 
 # Switch to Explanations view
 - tapOn:
-    id: "explanations-view-icon"
+    id: "commentary-view-toggle"
 
 # Tabs should now be visible in Explanations view
 - assertVisible:

@@ -1,0 +1,129 @@
+---
+appId: org.versemate.app
+name: Chapter Navigation Flow
+description: Tests chapter navigation using floating action buttons
+tags:
+  - critical
+  - navigation
+  - bible
+
+---
+
+# Chapter Navigation E2E Test
+#
+# This flow tests chapter navigation using floating action buttons:
+# - Next chapter button
+# - Previous chapter button
+#
+# Note: FABs auto-hide after scrolling, so we tap the screen to show them
+
+- launchApp:
+    appId: org.versemate.app
+    clearState: true
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Handle onboarding
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
+# Wait for app to load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Verify we start at Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+
+# Tap screen center to ensure FABs are visible (they auto-hide)
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd
+
+
+# Test next chapter button -> Genesis 2
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+# Verify chapter selector still visible
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Verify we're on Genesis 2
+- assertVisible:
+    text: "Genesis 2"
+
+# Tap screen to show FABs again
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd
+
+
+# Test next chapter again -> Genesis 3
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+# Verify we're on Genesis 3
+- assertVisible:
+    text: "Genesis 3"
+
+# Tap screen to show FABs
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd
+
+
+# Test previous chapter -> Genesis 2
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+# Verify we're on Genesis 2
+- assertVisible:
+    text: "Genesis 2"
+
+# Tap screen to show FABs
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd
+
+
+# Test previous chapter again -> Genesis 1
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+# Verify we're back on Genesis 1
+- assertVisible:
+    text: "Genesis 1"

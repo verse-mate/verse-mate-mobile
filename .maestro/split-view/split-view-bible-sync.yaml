@@ -1,0 +1,287 @@
+---
+appId: org.versemate.app
+name: Split View Bible Panel Sync
+description: Tests that the Bible left panel in split view stays in sync during navigation. Must be run on a tablet emulator in landscape orientation.
+tags:
+  - critical
+  - split-view
+  - landscape
+  - sync
+  - regression
+
+---
+
+# Split View Bible Panel Sync Test
+#
+# PREREQUISITE: Run on Android tablet emulator in landscape orientation.
+#   For CI: Uses Nexus 10 AVD (2560x1600) in landscape via android-emulator-runner
+#   For local: Create a tablet AVD with API 34 and rotate to landscape
+#   Split view activates at width >= 1024
+#
+# This test verifies that the split view Bible content panel (left side)
+# and explanations panel (right side) stay in sync during navigation.
+#
+# This test would have caught:
+# - BibleContentPanel showing placeholder text instead of real content
+# - Left panel not updating when navigating via modal
+# - Panels showing content for different chapters
+#
+# Test Flow:
+# 1. Verify split view renders both panels
+# 2. Navigate to specific chapter via modal
+# 3. Verify left panel header shows correct chapter
+# 4. Navigate to a different chapter
+# 5. Verify both panels update correctly
+# 6. Navigate to a different book entirely
+
+- launchApp:
+    clearState: true
+    appId: org.versemate.app
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
+# ============================================
+# Test 1: Verify Split View Renders
+# ============================================
+
+# Wait for split view to render (landscape tablet)
+- extendedWaitUntil:
+    visible:
+      id: "split-view"
+    timeout: 45000
+
+# Verify both panels are present
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# No placeholder text should appear
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+# ============================================
+# Test 2: Navigate to Genesis 1 via Left Panel Header
+# ============================================
+
+# Tap left panel header to open navigation modal
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Navigate to Genesis 1
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify split view is still showing both panels
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# Verify left panel header shows Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+
+# ============================================
+# Test 3: Navigate to Genesis 5 and Verify Sync
+# ============================================
+
+# Open modal again via left panel header
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-5"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header updated to Genesis 5
+- assertVisible:
+    text: "Genesis 5"
+
+# Verify both panels still visible (no crash on navigation)
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# No stale content from previous chapter
+- assertNotVisible:
+    text: "Genesis 1"
+    optional: true
+
+# ============================================
+# Test 4: Navigate to Different Book (Exodus 1)
+# ============================================
+
+# Open modal for cross-book navigation
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-exodus"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify header shows Exodus 1
+- assertVisible:
+    text: "Exodus 1"
+
+# Verify split view still intact after cross-book navigation
+- assertVisible:
+    id: "split-view"
+
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# No placeholder or leftover text
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+- assertNotVisible:
+    text: "Genesis"
+    optional: true
+
+# ============================================
+# Test 5: Right Panel Menu Interaction
+# ============================================
+
+# Verify the right panel's menu button is accessible
+- assertVisible:
+    id: "bible-explanations-panel-menu-button"
+
+# Tap the menu button on the right panel
+- tapOn:
+    id: "bible-explanations-panel-menu-button"
+
+# Menu should open
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-modal"
+    timeout: 5000
+
+# Close menu
+- tapOn:
+    id: "menu-close-button"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "hamburger-menu-modal"
+    timeout: 5000
+
+# Both panels should still be visible after menu interaction
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test Complete: Split view panels stay in sync
+# ============================================

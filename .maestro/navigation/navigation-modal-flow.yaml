@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Navigation Modal Flow
 description: Tests book and chapter selection through navigation modal
 tags:
@@ -26,7 +26,8 @@ tags:
 # 6. Verify Matthew 5 loads
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -41,8 +42,17 @@ tags:
     point: "50%,15%"
     optional: true
 
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
 # Wait for app to load
 - waitForAnimationToEnd
+
 
 # Verify chapter selector button is visible (app loaded)
 - assertVisible:
@@ -63,6 +73,7 @@ tags:
 # Wait for tab switch animation
 - waitForAnimationToEnd
 
+
 # Select Matthew from book list (lowercase hyphenated per testID convention)
 - tapOn:
     id: "book-item-matthew"
@@ -70,12 +81,14 @@ tags:
 # Wait for chapter grid to appear
 - waitForAnimationToEnd
 
+
 # Select chapter 5
 - tapOn:
     id: "chapter-5"
 
 # Modal should close and navigate to Matthew 5
 - waitForAnimationToEnd
+
 
 # Verify modal closed
 - assertNotVisible:
@@ -100,6 +113,7 @@ tags:
 # Wait for tab switch animation
 - waitForAnimationToEnd
 
+
 # Select Genesis from Old Testament
 - tapOn:
     id: "book-item-genesis"
@@ -107,12 +121,14 @@ tags:
 # Wait for chapter grid
 - waitForAnimationToEnd
 
+
 # Select chapter 1 (back to start)
 - tapOn:
     id: "chapter-1"
 
 # Modal should close
 - waitForAnimationToEnd
+
 
 # Verify modal closed
 - assertNotVisible:

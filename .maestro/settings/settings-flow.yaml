@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Settings Flow
 description: Tests settings screen navigation and basic functionality
 tags:
@@ -23,7 +23,8 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -37,6 +38,14 @@ tags:
 - tapOn:
     point: "50%,15%"
     optional: true
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
 
 # Wait for app to fully load
 - extendedWaitUntil:
@@ -65,6 +74,7 @@ tags:
 # Wait for navigation to settings screen
 - waitForAnimationToEnd
 
+
 # ============================================
 # Test 2: Verify Settings Screen Elements
 # ============================================
@@ -80,7 +90,6 @@ tags:
 # For unauthenticated user, sign in button should be visible
 - assertVisible:
     id: "settings-sign-in-button"
-    optional: true
 
 # ============================================
 # Test 3: Navigate Back to Chapter
@@ -92,6 +101,7 @@ tags:
 
 # Wait for navigation
 - waitForAnimationToEnd
+
 
 # Verify we're back on chapter screen
 - assertVisible:
