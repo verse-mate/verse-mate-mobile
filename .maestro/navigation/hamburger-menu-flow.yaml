@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Hamburger Menu Flow
 description: Tests hamburger menu opening, navigation to all destinations, and menu close behavior
 tags:
@@ -24,7 +24,8 @@ tags:
 # ============================================
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -38,6 +39,14 @@ tags:
 - tapOn:
     point: "50%,15%"
     optional: true
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
 
 # Wait for app to fully load
 - extendedWaitUntil:
@@ -98,6 +107,7 @@ tags:
 # Wait for navigation
 - waitForAnimationToEnd
 
+
 # Menu should close after navigation
 - assertNotVisible:
     id: "hamburger-menu"
@@ -105,7 +115,6 @@ tags:
 # Verify bookmarks list is visible
 - assertVisible:
     id: "bookmarks-list"
-    optional: true
 
 # Go back to chapter screen
 - tapOn:
@@ -113,6 +122,7 @@ tags:
 
 # Wait for navigation
 - waitForAnimationToEnd
+
 
 # Verify back on chapter screen
 - assertVisible:
@@ -129,6 +139,7 @@ tags:
 # Wait for menu
 - waitForAnimationToEnd
 
+
 # Verify menu opened
 - assertVisible:
     id: "hamburger-menu"
@@ -140,6 +151,7 @@ tags:
 # Wait for navigation
 - waitForAnimationToEnd
 
+
 # Menu should close after navigation
 - assertNotVisible:
     id: "hamburger-menu"
@@ -147,7 +159,6 @@ tags:
 # Verify highlights list is visible
 - assertVisible:
     id: "highlights-list"
-    optional: true
 
 # Go back to chapter screen
 - tapOn:
@@ -155,6 +166,7 @@ tags:
 
 # Wait for navigation
 - waitForAnimationToEnd
+
 
 # Verify back on chapter screen
 - assertVisible:
@@ -171,6 +183,7 @@ tags:
 # Wait for menu
 - waitForAnimationToEnd
 
+
 # Verify menu opened
 - assertVisible:
     id: "hamburger-menu"
@@ -182,6 +195,7 @@ tags:
 # Wait for navigation
 - waitForAnimationToEnd
 
+
 # Menu should close after navigation
 - assertNotVisible:
     id: "hamburger-menu"
@@ -189,7 +203,6 @@ tags:
 # Verify notes list is visible
 - assertVisible:
     id: "notes-list"
-    optional: true
 
 # Go back to chapter screen
 - tapOn:
@@ -197,6 +210,7 @@ tags:
 
 # Wait for navigation
 - waitForAnimationToEnd
+
 
 # Verify back on chapter screen
 - assertVisible:
@@ -213,6 +227,7 @@ tags:
 # Wait for menu
 - waitForAnimationToEnd
 
+
 # Verify menu opened
 - assertVisible:
     id: "hamburger-menu"
@@ -223,6 +238,7 @@ tags:
 
 # Wait for navigation
 - waitForAnimationToEnd
+
 
 # Menu should close after navigation
 - assertNotVisible:
@@ -239,6 +255,7 @@ tags:
 # Wait for navigation
 - waitForAnimationToEnd
 
+
 # Verify back on chapter screen
 - assertVisible:
     id: "chapter-selector-button"
@@ -254,6 +271,7 @@ tags:
 # Wait for menu
 - waitForAnimationToEnd
 
+
 # Verify menu opened
 - assertVisible:
     id: "hamburger-menu"
@@ -264,6 +282,7 @@ tags:
 
 # Wait for menu to close
 - waitForAnimationToEnd
+
 
 # Menu should be closed
 - assertNotVisible:
@@ -284,6 +303,7 @@ tags:
 # Wait for menu
 - waitForAnimationToEnd
 
+
 # Verify menu opened
 - assertVisible:
     id: "hamburger-menu"
@@ -294,6 +314,7 @@ tags:
 
 # Wait for menu to close
 - waitForAnimationToEnd
+
 
 # Menu should be closed
 - assertNotVisible:

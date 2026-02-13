@@ -1,0 +1,233 @@
+---
+appId: org.versemate.app
+name: Swipe Boundary Test
+description: Tests that swipe navigation respects Bible boundaries with linear mode - Genesis 1 blocks right swipe, Revelation 22 blocks left swipe
+tags:
+  - critical
+  - boundary-handling
+  - swipe
+
+---
+
+# Swipe Boundary Test (V3 Rewrite - Linear Mode)
+#
+# V3 implements LINEAR navigation (no circular wrap):
+# - At Genesis 1: right swipe bounces back, stays on Genesis 1
+# - At Revelation 22: left swipe bounces back, stays on Revelation 22
+#
+# This is different from V1/V2 which had circular navigation.
+# Linear mode is simpler and more stable for MVP.
+#
+# Test Flow:
+# 1. Navigate to Genesis 1
+# 2. Swipe right - verify we stay on Genesis 1 (boundary blocks)
+# 3. Swipe left - verify can navigate to Genesis 2
+# 4. Navigate to Revelation 22
+# 5. Swipe left - verify we stay on Revelation 22 (boundary blocks)
+# 6. Swipe right - verify can navigate to Revelation 21
+
+- launchApp:
+    appId: org.versemate.app
+    clearState: true
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for any overlays to clear
+- waitForAnimationToEnd
+
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
+# ============================================
+# Test 1: Genesis 1 Start Boundary
+# ============================================
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Open navigation modal to go to Genesis 1
+- tapOn:
+    id: "chapter-selector-button"
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Go to Old Testament tab
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+# Select Genesis from book list
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+# Select chapter 1
+- tapOn:
+    id: "chapter-1"
+
+# Wait for Genesis 1 to load
+- waitForAnimationToEnd
+
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're on Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+
+# Swipe right (try to go before Genesis 1 - should do nothing, no prev page exists)
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+
+# Verify we're still on Genesis 1 (boundary blocked navigation)
+- assertVisible:
+    text: "Genesis 1"
+
+# Verify we can still swipe left to Genesis 2
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+
+# Should navigate to Genesis 2
+- assertVisible:
+    text: "Genesis 2"
+
+# ============================================
+# Test 2: Revelation 22 End Boundary
+# ============================================
+
+# Open navigation modal to go to Revelation 22
+- tapOn:
+    id: "chapter-selector-button"
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Go to New Testament tab - use testID with retry
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+
+# Retry if books haven't loaded - this handles timing issues
+- runFlow:
+    when:
+      notVisible:
+        id: "book-item-matthew"
+    commands:
+      - tapOn:
+          id: "tab-new-testament"
+      - waitForAnimationToEnd
+
+
+# Wait for NT books to load
+- extendedWaitUntil:
+    visible:
+      id: "book-item-matthew"
+    timeout: 10000
+
+# Scroll to find Revelation (it's at the end of NT)
+- scrollUntilVisible:
+    element:
+      id: "book-item-revelation"
+    direction: DOWN
+    timeout: 15000
+
+# Select Revelation
+- tapOn:
+    id: "book-item-revelation"
+
+- waitForAnimationToEnd
+
+
+# Scroll to find chapter 22
+- scroll
+
+# Select chapter 22
+- tapOn:
+    id: "chapter-22"
+
+# Wait for Revelation 22 to load
+- waitForAnimationToEnd
+
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're on Revelation 22
+- assertVisible:
+    text: "Revelation 22"
+
+# Swipe left (try to go after Revelation 22 - should do nothing, no next page exists)
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+
+# Verify we're still on Revelation 22 (boundary blocked navigation)
+- assertVisible:
+    text: "Revelation 22"
+
+# Verify we can still swipe right to Revelation 21
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+
+# Should navigate to Revelation 21
+- assertVisible:
+    text: "Revelation 21"
+
+# ============================================
+# Test Complete: Boundaries work correctly
+# ============================================

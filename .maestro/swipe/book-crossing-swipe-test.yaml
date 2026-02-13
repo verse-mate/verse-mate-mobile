@@ -1,0 +1,152 @@
+---
+appId: org.versemate.app
+name: Book Crossing Swipe Test
+description: Tests that header shows correct book name when swiping across book boundaries (Malachi 4 -> Matthew 1)
+tags:
+  - critical
+  - cross-book
+  - swipe
+
+---
+
+# Book Crossing Swipe Test (V3 Rewrite)
+#
+# Tests that header correctly updates book name when navigating
+# across book boundaries via swipe gestures.
+#
+# Test Flow:
+# 1. Navigate to Malachi 4 (last chapter of Old Testament)
+# 2. Swipe left -> Verify header shows "Matthew 1" (first chapter of New Testament)
+# 3. Swipe right -> Verify header shows "Malachi 4"
+#
+# This tests the OT/NT boundary crossing - the most important cross-book case
+
+- launchApp:
+    appId: org.versemate.app
+    clearState: true
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for any overlays to clear
+- waitForAnimationToEnd
+
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
+# ============================================
+# Setup: Navigate to Malachi 4 (last OT chapter)
+# ============================================
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Open navigation modal
+- tapOn:
+    id: "chapter-selector-button"
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Go to Old Testament tab
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+# Scroll down to find Malachi (at the end of OT books)
+- scrollUntilVisible:
+    element:
+      id: "book-item-malachi"
+    direction: DOWN
+    timeout: 15000
+
+# Select Malachi
+- tapOn:
+    id: "book-item-malachi"
+
+- waitForAnimationToEnd
+
+
+# Wait for chapter grid to appear (Malachi has only 4 chapters)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-1"
+    timeout: 5000
+
+# Select chapter 4 (last chapter of OT)
+- tapOn:
+    id: "chapter-4"
+
+# Wait for Malachi 4 to load
+- waitForAnimationToEnd
+
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're on Malachi 4
+- assertVisible:
+    text: "Malachi 4"
+
+# ============================================
+# Test 1: Malachi 4 -> Matthew 1 (OT to NT)
+# ============================================
+
+# Swipe left to go to next chapter (should cross into New Testament)
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+
+# Verify header shows "Matthew 1" (first book of NT)
+- assertVisible:
+    text: "Matthew 1"
+
+# ============================================
+# Test 2: Matthew 1 -> Malachi 4 (NT back to OT)
+# ============================================
+
+# Swipe right to go back to previous chapter
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+
+# Verify header shows "Malachi 4" (back to OT)
+- assertVisible:
+    text: "Malachi 4"
+
+# ============================================
+# Test Complete: OT/NT boundary crossing works
+# ============================================

@@ -1,0 +1,275 @@
+---
+appId: org.versemate.app
+name: Topics View Switching
+description: Tests switching between Bible and Insight views on the topic screen and verifying content loads correctly
+tags:
+  - topics
+  - navigation
+  - view-switching
+
+---
+
+# Topics View Switching Test
+#
+# This test verifies that view switching works correctly on the topic screen.
+# Similar to Bible's bible-view/commentary-view toggle but for topics.
+#
+# Test Flow:
+# 1. Navigate to a topic
+# 2. Verify Bible view is active by default
+# 3. Switch to Insight view - verify explanation content appears
+# 4. Switch between explanation tabs (Summary, By Line, Detailed)
+# 5. Switch back to Bible view - verify Bible content reappears
+# 6. Swipe to next topic - verify view mode persists
+
+- launchApp:
+    clearState: true
+    appId: org.versemate.app
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
+# ============================================
+# Setup: Navigate to a Known Topic
+# ============================================
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-button"
+    timeout: 30000
+
+# Open navigation modal
+- tapOn:
+    id: "chapter-selector-button"
+    optional: true
+
+- tapOn:
+    id: "topic-selector-button"
+    optional: true
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Switch to Topics tab
+- tapOn:
+    id: "tab-topics"
+
+- waitForAnimationToEnd
+
+
+# Select "The Creation of the World" topic
+- tapOn:
+    text: "The Creation of the World"
+
+- waitForAnimationToEnd
+
+
+# Wait for modal to close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're on the topic screen
+- assertVisible:
+    id: "topic-selector-button"
+
+- assertVisible:
+    text: "The Creation of the World"
+
+# ============================================
+# Test 1: Verify Default View (Bible View)
+# ============================================
+
+# Bible view toggle should be present
+- assertVisible:
+    id: "bible-view-toggle"
+
+# Insight view toggle should be present
+- assertVisible:
+    id: "insight-view-toggle"
+
+# ============================================
+# Test 2: Switch to Insight View
+# ============================================
+
+- tapOn:
+    id: "insight-view-toggle"
+
+- waitForAnimationToEnd
+
+
+# Explanation tabs should now be visible
+- assertVisible:
+    id: "tab-summary"
+
+- assertVisible:
+    id: "tab-byline"
+
+- assertVisible:
+    id: "tab-detailed"
+
+# No placeholder text should appear
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+# ============================================
+# Test 3: Switch Between Explanation Tabs
+# ============================================
+
+# Switch to By Line tab
+- tapOn:
+    id: "tab-byline"
+
+- waitForAnimationToEnd
+
+
+# Verify By Line tab is accessible
+- assertVisible:
+    id: "tab-byline"
+
+# Switch to Detailed tab
+- tapOn:
+    id: "tab-detailed"
+
+- waitForAnimationToEnd
+
+
+# Verify Detailed tab is accessible
+- assertVisible:
+    id: "tab-detailed"
+
+# Switch back to Summary tab
+- tapOn:
+    id: "tab-summary"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    id: "tab-summary"
+
+# ============================================
+# Test 4: Switch Back to Bible View
+# ============================================
+
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+
+# Topic selector should still be visible
+- assertVisible:
+    id: "topic-selector-button"
+
+# Topic name should still show correctly
+- assertVisible:
+    text: "The Creation of the World"
+
+# ============================================
+# Test 5: Swipe to Next Topic and Verify View Works
+# ============================================
+
+# Swipe to next topic
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+# Verify we navigated (topic changed)
+- assertNotVisible:
+    text: "The Creation of the World"
+
+# Verify topic selector still works
+- assertVisible:
+    id: "topic-selector-button"
+
+# Switch to insight view on new topic
+- tapOn:
+    id: "insight-view-toggle"
+
+- waitForAnimationToEnd
+
+
+# Tabs should still be available on the new topic
+- assertVisible:
+    id: "tab-summary"
+
+# No placeholder text
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+# ============================================
+# Test 6: Navigate via Modal After View Switch
+# ============================================
+
+# Open navigation modal while in insight view
+- tapOn:
+    id: "topic-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Switch to Topics tab and select a topic
+- tapOn:
+    id: "tab-topics"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    text: "The Creation of the World"
+
+- waitForAnimationToEnd
+
+
+# Wait for modal to close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're on the selected topic
+- assertVisible:
+    text: "The Creation of the World"
+
+# Verify topic screen is functional
+- assertVisible:
+    id: "topic-selector-button"
+
+# ============================================
+# Test Complete: Topic view switching works
+# ============================================

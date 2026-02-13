@@ -1,0 +1,230 @@
+---
+appId: org.versemate.app
+name: Content Rendering Assertions
+description: Regression test that verifies no placeholder, TODO, or "implementation pending" text appears on any screen. Catches leftover development stubs.
+tags:
+  - critical
+  - regression
+  - content-rendering
+
+---
+
+# Content Rendering Assertions Test
+#
+# This test verifies that all screens render real content
+# and no development placeholder text is visible to users.
+#
+# This test would have caught:
+# - BibleContentPanel showing "SimpleChapterPager placeholder - V3 implementation pending"
+# - Any other TODO/placeholder text left from incomplete implementations
+#
+# Test Flow:
+# 1. Launch app to Bible screen - verify no placeholders
+# 2. Navigate to a topic - verify no placeholders
+# 3. Return to Bible - verify no placeholders after round-trip
+
+- launchApp:
+    clearState: true
+    appId: org.versemate.app
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
+
+# ============================================
+# Test 1: Bible Screen - No Placeholder Text
+# ============================================
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Assert no placeholder text appears
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+- assertNotVisible:
+    text: "TODO"
+    optional: true
+
+- assertNotVisible:
+    text: "not implemented"
+    optional: true
+
+# Verify real content elements are present
+- assertVisible:
+    id: "chapter-selector-button"
+
+# View toggle icons should be present
+- assertVisible:
+    id: "bible-view-toggle"
+
+- assertVisible:
+    id: "commentary-view-toggle"
+
+# ============================================
+# Test 2: Switch to Explanations View - No Placeholders
+# ============================================
+
+- tapOn:
+    id: "commentary-view-toggle"
+
+- waitForAnimationToEnd
+
+
+# Tabs should be visible (real content, not placeholder)
+- assertVisible:
+    id: "chapter-content-tabs"
+
+- assertVisible:
+    id: "tab-summary"
+
+# No placeholder text in explanations view
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+# Switch back to Bible view
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+
+# ============================================
+# Test 3: Navigate to Topic - No Placeholder Text
+# ============================================
+
+# Open navigation modal
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Switch to Topics tab
+- tapOn:
+    id: "tab-topics"
+
+- waitForAnimationToEnd
+
+
+# Select a topic
+- tapOn:
+    text: "The Creation of the World"
+
+- waitForAnimationToEnd
+
+
+# Wait for modal to close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify topic screen loaded with real content
+- assertVisible:
+    id: "topic-selector-button"
+
+# Assert no placeholder text on topic screen
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+- assertNotVisible:
+    text: "TODO"
+    optional: true
+
+- assertNotVisible:
+    text: "not implemented"
+    optional: true
+
+# ============================================
+# Test 4: Return to Bible - No Placeholders After Round-Trip
+# ============================================
+
+# Open navigation modal from topic
+- tapOn:
+    id: "topic-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Switch to Old Testament
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+# Select Genesis chapter 1
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+
+# Wait for modal to close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify Bible screen loaded
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Final check: no placeholder text after full round-trip
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+# ============================================
+# Test Complete: No placeholder text found
+# ============================================

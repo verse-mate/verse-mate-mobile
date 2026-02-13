@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Swipe Navigation - Boundaries
 description: Tests that swipe navigation respects Bible boundaries (Genesis 1)
 tags:
@@ -19,7 +19,8 @@ tags:
 # due to the navigation modal behavior.
 
 - launchApp:
-    appId: org.versemate.mobile
+    clearState: true
+    appId: org.versemate.app
 
 # For development builds: dismiss dev menu if shown
 - tapOn:
@@ -33,6 +34,14 @@ tags:
 - tapOn:
     point: "50%,15%"
     optional: true
+
+# Handle onboarding screen if shown
+- tapOn:
+    text: "Skip"
+    optional: true
+
+- waitForAnimationToEnd
+
 
 # Wait for app to fully load
 - extendedWaitUntil:
@@ -60,11 +69,13 @@ tags:
 
 - waitForAnimationToEnd
 
+
 # Select Genesis
 - tapOn:
     id: "book-item-genesis"
 
 - waitForAnimationToEnd
+
 
 # Select chapter 1
 - tapOn:
@@ -72,6 +83,7 @@ tags:
 
 # Wait for Genesis 1 to load
 - waitForAnimationToEnd
+
 
 # Modal should close
 - extendedWaitUntil:
@@ -94,6 +106,7 @@ tags:
 
 - waitForAnimationToEnd
 
+
 # Should still be on a chapter screen (we cannot go before Genesis 1)
 - assertVisible:
     id: "chapter-selector-button"
@@ -108,6 +121,7 @@ tags:
     duration: 500
 
 - waitForAnimationToEnd
+
 
 # Should still have chapter selector visible (navigated to Genesis 2)
 - assertVisible:

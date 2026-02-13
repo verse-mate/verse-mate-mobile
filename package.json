@@ -87,6 +87,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
+    "@expo/fingerprint": "^0.15.4",
     "@hey-api/openapi-ts": "^0.85.0",
     "@playwright/test": "^1.55.1",
     "@storybook/addon-ondevice-actions": "^9.1.4",

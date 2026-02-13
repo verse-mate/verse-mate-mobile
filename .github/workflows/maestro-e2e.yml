@@ -8,6 +8,10 @@ on:
         required: false
         type: string
         default: ''
+      force-rebuild:
+        type: boolean
+        default: false
+        description: "Force fresh native build (ignore cache)"
 
 jobs:
   maestro-e2e:
@@ -54,15 +58,30 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Generate native fingerprint
+        id: fingerprint
+        run: |
+          HASH=$(npx @expo/fingerprint fingerprint:generate --platform android | jq -r '.hash')
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "Fingerprint hash: $HASH"
+
+      - name: Cache APK
+        id: apk-cache
+        uses: actions/cache@v4
+        with:
+          path: app.apk
+          key: e2e-apk-android-${{ steps.fingerprint.outputs.hash }}
+
       - name: Setup EAS CLI and build APK
+        if: steps.apk-cache.outputs.cache-hit != 'true' || github.event.inputs.force-rebuild == 'true'
         id: eas_build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           npm install -g eas-cli
 
-          echo "Triggering EAS development build for Android..."
-          eas build --platform android --profile development --non-interactive --wait --json > build_output.json
+          echo "Triggering EAS e2e-test build for Android..."
+          eas build --platform android --profile e2e-test --non-interactive --wait --json > build_output.json
 
           # Extract APK download URL from JSON output
           APK_URL=$(jq -r '.[0].artifacts.buildUrl' build_output.json)
@@ -84,6 +103,13 @@ jobs:
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
           echo "build_url=https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds/$BUILD_ID" >> $GITHUB_OUTPUT
 
+      - name: Push JS update
+        run: |
+          npm install -g eas-cli
+          eas update --branch e2e-test --message "CI update for ${{ github.sha }}"
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
       - name: Run phone tests on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -94,8 +120,14 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           script: |
-            # Install APK on phone emulator
+            # Install APK
             adb install app.apk
+
+            # Warm launch: trigger EAS Update download
+            adb shell monkey -p org.versemate.app -c android.intent.category.LAUNCHER 1
+            sleep 15
+            adb shell am force-stop org.versemate.app
+            echo "Warm launch complete - update pre-downloaded"
 
             # Determine what to run based on test-folder input
             TEST_FOLDER="${{ github.event.inputs.test-folder }}"
@@ -133,8 +165,14 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -skin 2560x1600
           disable-animations: true
           script: |
-            # Install APK on tablet emulator
+            # Install APK
             adb install app.apk
+
+            # Warm launch: trigger EAS Update download
+            adb shell monkey -p org.versemate.app -c android.intent.category.LAUNCHER 1
+            sleep 15
+            adb shell am force-stop org.versemate.app
+            echo "Warm launch complete - update pre-downloaded"
 
             TEST_FOLDER="${{ github.event.inputs.test-folder }}"
 
@@ -176,6 +214,16 @@ jobs:
             TEST_TARGET=".maestro/$TEST_FOLDER/"
           fi
 
+          FINGERPRINT_HASH="${{ steps.fingerprint.outputs.hash }}"
+          FORCE_REBUILD="${{ github.event.inputs.force-rebuild }}"
+          CACHE_HIT="${{ steps.apk-cache.outputs.cache-hit }}"
+
+          if [ "$CACHE_HIT" = "true" ] && [ "$FORCE_REBUILD" != "true" ]; then
+            APK_SOURCE="Cached APK (fingerprint match)"
+          else
+            APK_SOURCE="Fresh EAS build"
+          fi
+
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ## Maestro E2E Test Results
 
@@ -185,12 +233,23 @@ jobs:
           | **Android API Level** | 34 |
           | **Phone Emulator** | Default (x86_64, google_apis) |
           | **Tablet Emulator** | Nexus 10 (2560x1600) |
+          | **APK Source** | $APK_SOURCE |
+          | **Fingerprint Hash** | \`$FINGERPRINT_HASH\` |
+          | **Force Rebuild** | $FORCE_REBUILD |
+          | **EAS Update Branch** | e2e-test |
           | **EAS Build ID** | \`${{ steps.eas_build.outputs.build_id }}\` |
           | **EAS Build URL** | ${{ steps.eas_build.outputs.build_url }} |
+
+          ### APK Caching
+          - **Cache key**: \`e2e-apk-android-$FINGERPRINT_HASH\`
+          - **Cache hit**: $CACHE_HIT
+          - **Force rebuild requested**: $FORCE_REBUILD
+          - EAS Update pushed to branch \`e2e-test\` for commit \`${{ github.sha }}\`
 
           ### Test Execution
           - Phone tests ran all feature folders except \`split-view/\`
           - Split-view tests ran on a separate Nexus 10 tablet emulator in landscape
+          - Warm launch performed before tests to pre-download EAS Update
 
           ### Artifacts
           - **maestro-test-results**: Maestro screenshots and test output
