@@ -1,0 +1,97 @@
+---
+appId: org.versemate.mobile
+name: Psalms Chapter Grid Scroll Test
+description: Verifies all 150 Psalms chapters are accessible by scrolling the chapter grid
+tags:
+  - regression
+  - navigation
+  - modal
+
+---
+
+# Psalms Chapter Grid Scroll Test
+#
+# Regression test for issue #82: chapter grid truncation in navigation modal
+# for books with many chapters.
+#
+# This flow verifies that Psalms (150 chapters) renders all chapter buttons
+# and that chapter 150 is reachable by scrolling.
+#
+# User Journey:
+# 1. Launch app
+# 2. Open navigation modal
+# 3. Switch to Old Testament tab
+# 4. Select Psalms (150 chapters)
+# 5. Scroll down to chapter 150
+# 6. Tap chapter 150 and verify navigation
+
+- launchApp:
+    appId: org.versemate.mobile
+
+# For development builds: dismiss dev menu if shown
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+
+- tapOn:
+    text: "Continue"
+    optional: true
+
+- tapOn:
+    point: "50%,15%"
+    optional: true
+
+# Wait for app to load
+- waitForAnimationToEnd
+
+# Verify chapter selector button is visible (app loaded)
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Open navigation modal
+- tapOn:
+    id: "chapter-selector-button"
+
+# Verify modal opened
+- assertVisible:
+    id: "bible-navigation-modal"
+
+# Switch to Old Testament tab
+- tapOn:
+    id: "tab-old-testament"
+
+# Wait for tab switch animation
+- waitForAnimationToEnd
+
+# Select Psalms from book list
+- tapOn:
+    id: "book-item-psalms"
+
+# Wait for chapter grid to appear
+- waitForAnimationToEnd
+
+# Verify first chapter is visible
+- assertVisible:
+    id: "chapter-1"
+
+# Scroll down to chapter 150 (the last chapter in Psalms)
+- scrollUntilVisible:
+    element:
+      id: "chapter-150"
+    direction: DOWN
+    timeout: 10000
+
+# Tap chapter 150
+- tapOn:
+    id: "chapter-150"
+
+# Modal should close and navigate to Psalms 150
+- waitForAnimationToEnd
+
+# Verify modal closed
+- assertNotVisible:
+    id: "bible-navigation-modal"
+
+# Verify we're on the new chapter (chapter selector button still visible)
+- assertVisible:
+    id: "chapter-selector-button"
