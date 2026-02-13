@@ -1,5 +1,5 @@
 ---
-appId: org.versemate.mobile
+appId: org.versemate.app
 name: Psalms Chapter Grid Scroll Test
 description: Verifies all 150 Psalms chapters are accessible by scrolling the chapter grid
 tags:
@@ -25,28 +25,10 @@ tags:
 # 5. Scroll down to chapter 150
 # 6. Tap chapter 150 and verify navigation
 
-- launchApp:
-    appId: org.versemate.mobile
-
-# For development builds: dismiss dev menu if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-- tapOn:
-    text: "Continue"
-    optional: true
-
-- tapOn:
-    point: "50%,15%"
-    optional: true
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to load
 - waitForAnimationToEnd
-
-# Verify chapter selector button is visible (app loaded)
-- assertVisible:
-    id: "chapter-selector-button"
 
 # Open navigation modal
 - tapOn:
