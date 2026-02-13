@@ -1,3 +1,5 @@
+appId: org.versemate.app
+---
 # Shared app setup: launch with clean state, skip onboarding, wait for Bible screen.
 # Usage from any test subfolder: - runFlow: ../shared/setup.yaml
 
