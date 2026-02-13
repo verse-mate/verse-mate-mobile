@@ -170,6 +170,33 @@ describe('BibleNavigationModal', () => {
     });
   });
 
+  it('should render all 150 chapter buttons for Psalms', async () => {
+    renderWithTheme(
+      <BibleNavigationModal
+        visible={true}
+        currentBookId={19}
+        currentChapter={1}
+        onClose={mockOnClose}
+        onSelectChapter={mockOnSelectChapter}
+      />
+    );
+
+    // Psalms is the current book, select it from sticky header
+    const psalmsButton = screen.getByLabelText('Current book: Psalms');
+    fireEvent.press(psalmsButton);
+
+    // Verify all 150 chapters are rendered
+    await waitFor(() => {
+      expect(screen.getAllByLabelText('Chapter 1')[0]).toBeTruthy();
+      expect(screen.getAllByLabelText('Chapter 75')[0]).toBeTruthy();
+      expect(screen.getAllByLabelText('Chapter 150')[0]).toBeTruthy();
+    });
+
+    // Count total chapter buttons via accessibilityLabel
+    const chapterButtons = screen.getAllByLabelText(/^Chapter \d+$/);
+    expect(chapterButtons.length).toBe(150);
+  });
+
   it('should call onSelectChapter when chapter button is pressed', async () => {
     renderWithTheme(
       <BibleNavigationModal
