@@ -19,32 +19,7 @@ tags:
 # 3. Verify Bible verses are visible (no tabs in Bible view)
 # 4. Verify view switcher icons work
 
-- launchApp:
-    clearState: true
-    appId: org.versemate.app
-
-# For development builds: tap on localhost to connect to dev server if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-# Dismiss developer menu if shown
-- tapOn:
-    text: "Continue"
-    optional: true
-
-# Dismiss dev tools panel by tapping outside or X button
-- tapOn:
-    point: "50%,15%"
-    optional: true
-
-# Handle onboarding screen if shown
-- tapOn:
-    text: "Skip"
-    optional: true
-
-- waitForAnimationToEnd
-
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to fully load (either Bible chapter or Topic screen)
 - extendedWaitUntil:

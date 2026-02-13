@@ -25,30 +25,7 @@ tags:
 # 4. Swipe right again to go to previous topic (circular) - verify header changed
 # 5. Verify FAB buttons work for navigation
 
-- launchApp:
-    clearState: true
-    appId: org.versemate.app
-
-# For development builds: dismiss dev menu if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-- tapOn:
-    text: "Continue"
-    optional: true
-
-- tapOn:
-    point: "50%,15%"
-    optional: true
-
-# Handle onboarding screen if shown
-- tapOn:
-    text: "Skip"
-    optional: true
-
-- waitForAnimationToEnd
-
+- runFlow: ../shared/setup.yaml
 
 # ============================================
 # Setup: Navigate to a Known Topic

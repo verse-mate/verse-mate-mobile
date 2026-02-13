@@ -26,34 +26,7 @@ tags:
 # 5. Swipe left - verify we stay on Revelation 22 (boundary blocks)
 # 6. Swipe right - verify can navigate to Revelation 21
 
-- launchApp:
-    appId: org.versemate.app
-    clearState: true
-
-# For development builds: dismiss dev menu if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-- tapOn:
-    text: "Continue"
-    optional: true
-
-- tapOn:
-    point: "50%,15%"
-    optional: true
-
-# Wait for any overlays to clear
-- waitForAnimationToEnd
-
-
-# Handle onboarding screen if shown
-- tapOn:
-    text: "Skip"
-    optional: true
-
-- waitForAnimationToEnd
-
+- runFlow: ../shared/setup.yaml
 
 # ============================================
 # Test 1: Genesis 1 Start Boundary

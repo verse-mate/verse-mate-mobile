@@ -1,0 +1,22 @@
+# Shared app setup: launch with clean state, skip onboarding, wait for Bible screen.
+# Usage from any test subfolder: - runFlow: ../shared/setup.yaml
+
+- launchApp:
+    clearState: true
+    appId: org.versemate.app
+
+# Wait for onboarding screen to fully load
+- extendedWaitUntil:
+    visible:
+      text: "Skip"
+    timeout: 30000
+
+# Skip onboarding
+- tapOn:
+    text: "Skip"
+
+# Wait for main Bible screen to load after redirect
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
