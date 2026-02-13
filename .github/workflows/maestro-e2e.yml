@@ -104,6 +104,7 @@ jobs:
           echo "build_url=https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds/$BUILD_ID" >> $GITHUB_OUTPUT
 
       - name: Push JS update
+        continue-on-error: true
         run: |
           npm install -g eas-cli
           eas update --branch e2e-test --message "CI update for ${{ github.sha }}"
@@ -194,6 +195,7 @@ jobs:
 
       - name: Capture emulator logcat
         if: failure()
+        timeout-minutes: 1
         run: adb logcat -d > emulator-logcat.txt || true
 
       - name: Upload emulator logs
