@@ -17,34 +17,7 @@ tags:
 #
 # Note: Full highlights create/edit/delete testing requires authentication.
 
-# ============================================
-# Test Setup: Launch App
-# ============================================
-
-- launchApp:
-    clearState: true
-    appId: org.versemate.app
-
-# For development builds: dismiss dev menu if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-- tapOn:
-    text: "Continue"
-    optional: true
-
-- tapOn:
-    point: "50%,15%"
-    optional: true
-
-# Handle onboarding screen if shown
-- tapOn:
-    text: "Skip"
-    optional: true
-
-- waitForAnimationToEnd
-
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to fully load
 - extendedWaitUntil:

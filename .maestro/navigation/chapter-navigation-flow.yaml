@@ -17,30 +17,7 @@ tags:
 #
 # Note: FABs auto-hide after scrolling, so we tap the screen to show them
 
-- launchApp:
-    appId: org.versemate.app
-    clearState: true
-
-# For development builds: dismiss dev menu if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-- tapOn:
-    text: "Continue"
-    optional: true
-
-- tapOn:
-    point: "50%,15%"
-    optional: true
-
-# Handle onboarding
-- tapOn:
-    text: "Skip"
-    optional: true
-
-- waitForAnimationToEnd
-
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to load
 - extendedWaitUntil:

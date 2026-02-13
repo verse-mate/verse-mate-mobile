@@ -24,30 +24,7 @@ tags:
 # 5. Switch to Detailed tab
 # 6. Navigate to next chapter -> verify tab persists
 
-- launchApp:
-    clearState: true
-    appId: org.versemate.app
-
-# For development builds: dismiss dev menu if shown
-- tapOn:
-    text: "http://localhost:8081"
-    optional: true
-
-- tapOn:
-    text: "Continue"
-    optional: true
-
-- tapOn:
-    point: "50%,15%"
-    optional: true
-
-# Handle onboarding screen if shown
-- tapOn:
-    text: "Skip"
-    optional: true
-
-- waitForAnimationToEnd
-
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to load
 - waitForAnimationToEnd
