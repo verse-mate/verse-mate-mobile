@@ -14,7 +14,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -31,7 +31,7 @@ import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { LanguageBundle, LanguageBundleStatus } from '@/services/offline';
+import type { DownloadInfo, DownloadStatus } from '@/services/offline';
 
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -51,15 +51,11 @@ function formatDate(dateString?: string): string {
   });
 }
 
-function getBundleStatusColor(
-  status: LanguageBundleStatus,
-  colors: ReturnType<typeof getColors>
-): string {
+function getStatusColor(status: DownloadStatus, colors: ReturnType<typeof getColors>): string {
   switch (status) {
     case 'downloaded':
       return colors.success || '#22c55e';
     case 'update_available':
-    case 'partially_downloaded':
       return colors.warning || '#f59e0b';
     case 'downloading':
       return colors.gold;
@@ -68,14 +64,12 @@ function getBundleStatusColor(
   }
 }
 
-function getBundleStatusText(status: LanguageBundleStatus): string {
+function getStatusText(status: DownloadStatus): string {
   switch (status) {
     case 'downloaded':
       return 'Downloaded';
     case 'update_available':
       return 'Update Available';
-    case 'partially_downloaded':
-      return 'Partial';
     case 'downloading':
       return 'Downloading...';
     default:
@@ -83,43 +77,116 @@ function getBundleStatusText(status: LanguageBundleStatus): string {
   }
 }
 
-function getBundleDescription(bundle: LanguageBundle): string {
-  const parts: string[] = [];
-  const versionCount = bundle.bibleVersions.length;
-  if (versionCount > 0) {
-    parts.push(`${versionCount} Bible version${versionCount > 1 ? 's' : ''}`);
-  }
-  if (bundle.hasCommentaries) parts.push('Commentaries');
-  if (bundle.hasTopics) parts.push('Topics');
-  return parts.join(', ');
+// Merged commentary + topic language bundle for display
+interface CommentaryTopicBundle {
+  languageCode: string;
+  languageName: string;
+  hasCommentaries: boolean;
+  hasTopics: boolean;
+  commentaryStatus: DownloadStatus;
+  topicStatus: DownloadStatus;
+  totalSizeBytes: number;
+  overallStatus: DownloadStatus;
 }
 
-interface LanguageItemProps {
-  bundle: LanguageBundle;
+function deriveOverallStatus(
+  s1: DownloadStatus = 'not_downloaded',
+  s2: DownloadStatus = 'not_downloaded'
+): DownloadStatus {
+  const a = s1;
+  const b = s2;
+  if (a === 'downloading' || b === 'downloading') return 'downloading';
+  if (a === 'downloaded' && b === 'downloaded') return 'downloaded';
+  if (a === 'update_available' || b === 'update_available') return 'update_available';
+  if (a === 'downloaded' || b === 'downloaded') return 'update_available'; // partial
+  return 'not_downloaded';
+}
+
+function buildCommentaryTopicBundles(
+  commentaryInfo: DownloadInfo[],
+  topicsInfo: DownloadInfo[]
+): CommentaryTopicBundle[] {
+  const bundleMap = new Map<string, CommentaryTopicBundle>();
+
+  for (const c of commentaryInfo) {
+    bundleMap.set(c.key, {
+      languageCode: c.key,
+      languageName: c.name,
+      hasCommentaries: true,
+      hasTopics: false,
+      commentaryStatus: c.status,
+      topicStatus: 'not_downloaded',
+      totalSizeBytes: c.size_bytes,
+      overallStatus: c.status,
+    });
+  }
+
+  for (const t of topicsInfo) {
+    const existing = bundleMap.get(t.key);
+    if (existing) {
+      existing.hasTopics = true;
+      existing.topicStatus = t.status;
+      existing.totalSizeBytes += t.size_bytes;
+      existing.overallStatus = deriveOverallStatus(existing.commentaryStatus, t.status);
+    } else {
+      bundleMap.set(t.key, {
+        languageCode: t.key,
+        languageName: t.name,
+        hasCommentaries: false,
+        hasTopics: true,
+        commentaryStatus: 'not_downloaded',
+        topicStatus: t.status,
+        totalSizeBytes: t.size_bytes,
+        overallStatus: t.status,
+      });
+    }
+  }
+
+  return Array.from(bundleMap.values());
+}
+
+function getContentDescription(bundle: CommentaryTopicBundle): string {
+  const parts: string[] = [];
+  if (bundle.hasCommentaries) parts.push('Commentaries');
+  if (bundle.hasTopics) parts.push('Topics');
+  return parts.join(' & ');
+}
+
+// --- Item Components ---
+
+interface DownloadItemProps {
+  name: string;
+  description?: string;
+  status: DownloadStatus;
+  sizeBytes: number;
   onDownload: () => void;
   onDelete: () => void;
   isProcessing: boolean;
   colors: ReturnType<typeof getColors>;
+  deleteConfirmMessage: string;
 }
 
-function LanguageItem({ bundle, onDownload, onDelete, isProcessing, colors }: LanguageItemProps) {
+function DownloadItem({
+  name,
+  description,
+  status,
+  sizeBytes,
+  onDownload,
+  onDelete,
+  isProcessing,
+  colors,
+  deleteConfirmMessage,
+}: Readonly<DownloadItemProps>) {
   const styles = createStyles(colors);
-  const isDownloaded =
-    bundle.status === 'downloaded' ||
-    bundle.status === 'update_available' ||
-    bundle.status === 'partially_downloaded';
+  const isDownloaded = status === 'downloaded' || status === 'update_available';
 
   const handlePress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (isDownloaded && bundle.status !== 'partially_downloaded') {
-      Alert.alert(
-        'Delete Download',
-        `Are you sure you want to delete all content for ${bundle.languageName}? You can always download it again.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: onDelete },
-        ]
-      );
+    if (isDownloaded) {
+      Alert.alert('Delete Download', deleteConfirmMessage, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onDelete },
+      ]);
     } else {
       onDownload();
     }
@@ -130,43 +197,33 @@ function LanguageItem({ bundle, onDownload, onDelete, isProcessing, colors }: La
       style={styles.downloadItem}
       onPress={handlePress}
       disabled={isProcessing}
-      accessibilityLabel={`${bundle.languageName}, ${getBundleStatusText(bundle.status)}, ${formatBytes(bundle.totalSizeBytes)}`}
+      accessibilityLabel={`${name}, ${getStatusText(status)}, ${formatBytes(sizeBytes)}`}
       accessibilityRole="button"
     >
       <View style={styles.downloadItemInfo}>
-        <Text style={styles.downloadItemName}>
-          {bundle.languageName || bundle.languageCode.toUpperCase()}
-        </Text>
-        <Text style={styles.bundleDescription}>{getBundleDescription(bundle)}</Text>
+        <Text style={styles.downloadItemName}>{name}</Text>
+        {description ? <Text style={styles.bundleDescription}>{description}</Text> : null}
         <View style={styles.downloadItemMeta}>
           <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: `${getBundleStatusColor(bundle.status, colors)}20` },
-            ]}
+            style={[styles.statusBadge, { backgroundColor: `${getStatusColor(status, colors)}20` }]}
           >
-            <View
-              style={[
-                styles.statusDot,
-                { backgroundColor: getBundleStatusColor(bundle.status, colors) },
-              ]}
-            />
-            <Text
-              style={[styles.statusText, { color: getBundleStatusColor(bundle.status, colors) }]}
-            >
-              {getBundleStatusText(bundle.status)}
+            <View style={[styles.statusDot, { backgroundColor: getStatusColor(status, colors) }]} />
+            <Text style={[styles.statusText, { color: getStatusColor(status, colors) }]}>
+              {getStatusText(status)}
             </Text>
           </View>
-          <Text style={styles.sizeText}>{formatBytes(bundle.totalSizeBytes)}</Text>
+          <Text style={styles.sizeText}>{formatBytes(sizeBytes)}</Text>
         </View>
       </View>
       <View style={styles.downloadItemAction}>
         {isProcessing ? (
           <ActivityIndicator size="small" color={colors.gold} />
-        ) : isDownloaded && bundle.status !== 'partially_downloaded' ? (
-          <Ionicons name="trash-outline" size={22} color={colors.error || '#ef4444'} />
         ) : (
-          <Ionicons name="cloud-download-outline" size={22} color={colors.gold} />
+          <Ionicons
+            name={isDownloaded ? 'trash-outline' : 'cloud-download-outline'}
+            size={22}
+            color={isDownloaded ? colors.error || '#ef4444' : colors.gold}
+          />
         )}
       </View>
     </Pressable>
@@ -183,15 +240,21 @@ export default function ManageDownloadsScreen() {
     isInitialized,
     isAutoSyncEnabled,
     setAutoSyncEnabled,
-    languageBundles,
+    bibleVersionsInfo,
+    commentaryInfo,
+    topicsInfo,
     isUserDataSynced,
     isSyncing,
     syncProgress,
     lastSyncTime,
     totalStorageUsed,
     refreshManifest,
-    downloadLanguage,
-    deleteLanguage,
+    downloadBibleVersion,
+    deleteBibleVersion,
+    downloadCommentaries,
+    deleteCommentaries,
+    downloadTopics,
+    deleteTopics,
     syncUserData,
     deleteAllData,
     checkForUpdates,
@@ -200,12 +263,17 @@ export default function ManageDownloadsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [processingItem, setProcessingItem] = useState<string | null>(null);
 
+  // Build merged commentary + topic bundles for display
+  const commentaryTopicBundles = useMemo(
+    () => buildCommentaryTopicBundles(commentaryInfo, topicsInfo),
+    [commentaryInfo, topicsInfo]
+  );
+
   // Refresh manifest on mount (only once when initialized)
   useEffect(() => {
     if (isInitialized) {
       refreshManifest().catch(console.warn);
     }
-     
   }, [isInitialized]);
 
   const handleRefresh = async () => {
@@ -250,10 +318,10 @@ export default function ManageDownloadsScreen() {
     );
   };
 
-  const handleDownloadLanguage = async (languageCode: string) => {
-    setProcessingItem(`lang:${languageCode}`);
+  const handleDownloadBibleVersion = async (versionKey: string) => {
+    setProcessingItem(`bible:${versionKey}`);
     try {
-      await downloadLanguage(languageCode);
+      await downloadBibleVersion(versionKey);
     } catch (error) {
       console.error('Download failed:', error);
       Alert.alert(
@@ -265,10 +333,46 @@ export default function ManageDownloadsScreen() {
     }
   };
 
-  const handleDeleteLanguage = async (languageCode: string) => {
-    setProcessingItem(`lang:${languageCode}`);
+  const handleDeleteBibleVersion = async (versionKey: string) => {
+    setProcessingItem(`bible:${versionKey}`);
     try {
-      await deleteLanguage(languageCode);
+      await deleteBibleVersion(versionKey);
+    } catch {
+      Alert.alert('Error', 'Failed to delete Bible version.');
+    } finally {
+      setProcessingItem(null);
+    }
+  };
+
+  const handleDownloadCommentaryTopics = async (bundle: CommentaryTopicBundle) => {
+    setProcessingItem(`ct:${bundle.languageCode}`);
+    try {
+      const promises: Promise<void>[] = [];
+      if (bundle.hasCommentaries && bundle.commentaryStatus !== 'downloaded') {
+        promises.push(downloadCommentaries(bundle.languageCode));
+      }
+      if (bundle.hasTopics && bundle.topicStatus !== 'downloaded') {
+        promises.push(downloadTopics(bundle.languageCode));
+      }
+      await Promise.all(promises);
+    } catch (error) {
+      console.error('Download failed:', error);
+      Alert.alert(
+        'Error',
+        `Failed to download: ${error instanceof Error ? error.message : String(error)}`
+      );
+    } finally {
+      setProcessingItem(null);
+    }
+  };
+
+  const handleDeleteCommentaryTopics = async (bundle: CommentaryTopicBundle) => {
+    setProcessingItem(`ct:${bundle.languageCode}`);
+    try {
+      const promises: Promise<void>[] = [];
+      if (bundle.hasCommentaries) promises.push(deleteCommentaries(bundle.languageCode));
+      if (bundle.hasTopics) promises.push(deleteTopics(bundle.languageCode));
+      await Promise.all(promises);
     } catch {
       Alert.alert('Error', 'Failed to delete content.');
     } finally {
@@ -432,21 +536,49 @@ export default function ManageDownloadsScreen() {
           </View>
         )}
 
-        {/* Language Downloads */}
+        {/* Bible Versions */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Available Languages</Text>
+          <Text style={styles.sectionLabel}>Bible Versions</Text>
           <View style={styles.downloadList}>
-            {languageBundles.length === 0 ? (
+            {bibleVersionsInfo.length === 0 ? (
+              <Text style={styles.emptyText}>No Bible versions available. Pull to refresh.</Text>
+            ) : (
+              bibleVersionsInfo.map((version) => (
+                <DownloadItem
+                  key={version.key}
+                  name={version.name}
+                  status={version.status}
+                  sizeBytes={version.size_bytes}
+                  onDownload={() => handleDownloadBibleVersion(version.key)}
+                  onDelete={() => handleDeleteBibleVersion(version.key)}
+                  isProcessing={processingItem === `bible:${version.key}`}
+                  colors={colors}
+                  deleteConfirmMessage={`Are you sure you want to delete ${version.name}? You can always download it again.`}
+                />
+              ))
+            )}
+          </View>
+        </View>
+
+        {/* Commentaries & Topics */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Commentaries & Topics</Text>
+          <View style={styles.downloadList}>
+            {commentaryTopicBundles.length === 0 ? (
               <Text style={styles.emptyText}>No content available. Pull to refresh.</Text>
             ) : (
-              languageBundles.map((bundle) => (
-                <LanguageItem
+              commentaryTopicBundles.map((bundle) => (
+                <DownloadItem
                   key={bundle.languageCode}
-                  bundle={bundle}
-                  onDownload={() => handleDownloadLanguage(bundle.languageCode)}
-                  onDelete={() => handleDeleteLanguage(bundle.languageCode)}
-                  isProcessing={processingItem === `lang:${bundle.languageCode}`}
+                  name={bundle.languageName}
+                  description={getContentDescription(bundle)}
+                  status={bundle.overallStatus}
+                  sizeBytes={bundle.totalSizeBytes}
+                  onDownload={() => handleDownloadCommentaryTopics(bundle)}
+                  onDelete={() => handleDeleteCommentaryTopics(bundle)}
+                  isProcessing={processingItem === `ct:${bundle.languageCode}`}
                   colors={colors}
+                  deleteConfirmMessage={`Are you sure you want to delete all commentaries and topics for ${bundle.languageName}? You can always download them again.`}
                 />
               ))
             )}
