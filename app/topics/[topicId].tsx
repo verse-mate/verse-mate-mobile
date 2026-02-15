@@ -137,7 +137,7 @@ export default function TopicDetailScreen() {
           category: currentTopicCategory,
         });
       }
-    }, 500);
+    }, 1000); // Unified to 1000ms for consistency with Bible screen
     return () => clearTimeout(timer);
   }, [activeTopicId, currentTopicCategory, params.topicId]);
 
