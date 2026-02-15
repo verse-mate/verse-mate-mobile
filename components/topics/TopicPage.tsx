@@ -3,7 +3,7 @@
  *
  * Lightweight wrapper for a single topic with stable positional key.
  * Receives topicId and category as PROPS (not derived from key).
- * The parent (TopicPagerView) sets stable positional keys that NEVER change.
+ * The parent (SimpleTopicPager) sets stable positional keys that NEVER change.
  *
  * Features:
  * - Fetches topic content using useTopicById and useTopicReferences hooks
