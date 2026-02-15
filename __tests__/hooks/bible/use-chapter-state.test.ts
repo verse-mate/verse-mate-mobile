@@ -80,10 +80,11 @@ describe('useChapterState', () => {
   });
 
   /**
-   * Test 3: State does not update when URL changes after mount
-   * This prevents the "snap-back" bug where URL updates cause state to reset
+   * Test 3: State updates when URL changes after mount (Deep Links)
+   * This ensures that external navigation (like deep links or menu)
+   * updates the hook state even after it has initialized.
    */
-  it('does not re-read URL params after initial mount', () => {
+  it('updates state when URL params change after initial mount', () => {
     mockUseLocalSearchParams.mockReturnValue({
       bookId: '1',
       chapterNumber: '1',
@@ -98,17 +99,17 @@ describe('useChapterState', () => {
 
     expect(result.current.chapterNumber).toBe(5);
 
-    // Simulate URL param change (would happen after debounced sync)
+    // Simulate URL param change (e.g. from deep link or menu)
     mockUseLocalSearchParams.mockReturnValue({
       bookId: '1',
-      chapterNumber: '3', // Different value
+      chapterNumber: '3',
     });
 
     // Rerender the hook
     rerender({});
 
-    // State should NOT have changed back to chapter 3
-    expect(result.current.chapterNumber).toBe(5);
+    // State should HAVE changed to chapter 3
+    expect(result.current.chapterNumber).toBe(3);
   });
 
   /**

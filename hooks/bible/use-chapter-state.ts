@@ -72,10 +72,12 @@ function chapterReducer(state: ChapterState, action: ChapterAction): ChapterStat
   switch (action.type) {
     case 'NAVIGATE':
     case 'INITIALIZE': {
-      // Clamp values to valid ranges
-      const bookId = Math.max(1, Math.min(66, action.bookId));
+      // If bookId is out of range, redirect to Genesis 1 (Business Logic)
+      if (action.bookId < 1 || action.bookId > 66) {
+        return { bookId: 1, chapterNumber: 1 };
+      }
       const chapterNumber = Math.max(1, action.chapterNumber);
-      return { bookId, chapterNumber };
+      return { bookId: action.bookId, chapterNumber };
     }
     default:
       return state;
@@ -126,7 +128,7 @@ export function useChapterState(): ChapterStateResult {
   // Track if we've initialized from URL params (ref guard)
   const hasInitialized = useRef(false);
 
-  // Ref to track current state for URL sync
+  // Ref to track current state for URL sync and to avoid dependency loops
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -148,25 +150,31 @@ export function useChapterState(): ChapterStateResult {
     if (!booksMetadata || booksMetadata.length === 0) {
       return 'Loading...';
     }
-    return bookMetadata?.name || 'Unknown';
-  }, [booksMetadata, bookMetadata]);
+    const book = booksMetadata.find((b) => b.id === state.bookId);
+    return book?.name || 'Unknown';
+  }, [booksMetadata, state.bookId]);
 
   /**
-   * Initialize state from URL params (once on mount)
+   * Sync state from URL params
    *
-   * This only runs once to prevent snap-back when URL is updated
-   * via debounced sync.
+   * This handles deep links or menu navigation that updates the URL
+   * while the screen is already mounted.
    */
   useEffect(() => {
-    if (hasInitialized.current) {
-      // Already initialized - ignore URL param changes
-      return;
-    }
-
     const paramBookId = Number(params.bookId);
     const paramChapter = Number(params.chapterNumber);
 
-    if (!Number.isNaN(paramBookId) && !Number.isNaN(paramChapter)) {
+    if (Number.isNaN(paramBookId) || Number.isNaN(paramChapter)) {
+      return;
+    }
+
+    // Only update if URL differs from current state
+    // We use stateRef to avoid adding state to dependencies, which would
+    // cause this to run whenever state changes (reverting it before URL catches up)
+    if (
+      paramBookId !== stateRef.current.bookId ||
+      paramChapter !== stateRef.current.chapterNumber
+    ) {
       dispatch({
         type: 'INITIALIZE',
         bookId: paramBookId,
