@@ -4,7 +4,6 @@ import {
   deleteBibleVersion,
   getDatabase,
   getLocalBibleChapter,
-  initDatabase,
   insertBibleVerses,
 } from '../sqlite-manager';
 
@@ -72,12 +71,19 @@ describe('SQLite Manager', () => {
 
     await insertBibleVerses('NASB1995', verses);
 
-    // Verify transaction was used
-    expect(mockWithTransactionAsync).toHaveBeenCalled();
-    // Verify prepare was called
-    expect(mockPrepareAsync).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO offline_verses')
+    // Verify manual transaction was used via runAsync
+    expect(mockRunAsync).toHaveBeenCalledWith('BEGIN TRANSACTION');
+    // Verify old verses were deleted first
+    expect(mockRunAsync).toHaveBeenCalledWith('DELETE FROM offline_verses WHERE version_key = ?', [
+      'NASB1995',
+    ]);
+    // Verify batch insert was called
+    expect(mockRunAsync).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO offline_verses'),
+      expect.arrayContaining(['NASB1995', 1, 1, 1, 'In the beginning'])
     );
+    // Verify transaction was committed
+    expect(mockRunAsync).toHaveBeenCalledWith('COMMIT');
   });
 
   it('should retrieve bible verses', async () => {
