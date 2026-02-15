@@ -52,6 +52,16 @@ export const useBookmarks = jest.fn(() => ({
 // Chapter reading duration tracking hook (Time-Based Analytics)
 export const useChapterReadingDuration = jest.fn();
 
+// Chapter state hook - single source of truth for navigation (V3 architecture)
+export const useChapterState = jest.fn(() => ({
+  bookId: 1,
+  chapterNumber: 1,
+  bookName: 'Genesis',
+  navigateToChapter: jest.fn(),
+  booksMetadata: [{ id: 1, name: 'Genesis', testament: 'OT', chapterCount: 50, genre: 1 }],
+  totalChapters: 50,
+}));
+
 // Last read position hook (wraps API hook)
 export const useLastRead = jest.fn(() => ({
   lastRead: null,

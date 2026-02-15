@@ -2,23 +2,26 @@
  * BibleContentPanel Component
  *
  * Left panel for split view that displays Bible chapter content.
- * Wraps the ChapterPagerView for use in landscape/tablet layout.
+ * Wraps the SimpleChapterPager for swipe navigation in landscape/tablet layout.
  *
  * Features:
  * - Dark header bar with book/chapter dropdown
- * - ChapterPagerView for swipe navigation
+ * - SimpleChapterPager for swipe navigation (V3)
  * - Progress bar showing reading position
  * - Floating navigation buttons for prev/next chapter
  *
  * @see Spec: agent-os/specs/landscape-tablet-optimization/plan.md
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v3/spec.md
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChapterPage } from '@/components/bible/ChapterPage';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
+import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
 import {
   fontSizes,
@@ -29,8 +32,7 @@ import {
 } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBookProgress } from '@/hooks/bible';
-import type { ChapterPagerViewRef } from './ChapterPagerView';
-import { ChapterPagerView } from './ChapterPagerView';
+import { useBibleTestaments } from '@/src/api';
 
 /**
  * Props for BibleContentPanel
@@ -114,8 +116,8 @@ export function BibleContentPanel({
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const styles = createStyles(specs, colors, insets);
 
-  // Ref for ChapterPagerView imperative control
-  const pagerRef = useRef<ChapterPagerViewRef>(null);
+  // Fetch book metadata for SimpleChapterPager
+  const { data: booksMetadata } = useBibleTestaments();
 
   // Calculate progress percentage
   const { progress } = useBookProgress(bookId, chapterNumber, totalChapters);
@@ -124,7 +126,6 @@ export function BibleContentPanel({
   const handlePrevious = () => {
     if (canGoPrevious) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      pagerRef.current?.setPage(1); // Previous page in 5-page window
       onNavigatePrev?.();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -135,12 +136,37 @@ export function BibleContentPanel({
   const handleNext = () => {
     if (canGoNext) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      pagerRef.current?.setPage(3); // Next page in 5-page window
       onNavigateNext?.();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
+
+  // Render chapter page content for SimpleChapterPager
+  // In split view, the left panel always shows 'bible' view (explanations are on the right)
+  const renderChapterPage = useCallback(
+    (pageBookId: number, pageChapterNumber: number) => {
+      return (
+        <ChapterPage
+          bookId={pageBookId}
+          chapterNumber={pageChapterNumber}
+          activeTab="summary"
+          activeView="bible"
+          onScroll={onScroll}
+          onTap={onTap}
+          targetVerse={
+            pageBookId === bookId && pageChapterNumber === chapterNumber ? targetVerse : undefined
+          }
+          targetEndVerse={
+            pageBookId === bookId && pageChapterNumber === chapterNumber
+              ? targetEndVerse
+              : undefined
+          }
+        />
+      );
+    },
+    [onScroll, onTap, bookId, chapterNumber, targetVerse, targetEndVerse]
+  );
 
   return (
     <View style={styles.container} testID={testID}>
@@ -154,19 +180,16 @@ export function BibleContentPanel({
         </View>
       </Pressable>
 
-      {/* Chapter Pager View */}
+      {/* SimpleChapterPager - V3 3-page window with linear navigation */}
       <View style={styles.pagerContainer}>
-        <ChapterPagerView
-          ref={pagerRef}
-          initialBookId={bookId}
-          initialChapter={chapterNumber}
-          activeTab="summary"
-          activeView="bible"
-          targetVerse={targetVerse}
-          targetEndVerse={targetEndVerse}
-          onPageChange={onPageChange}
-          onScroll={onScroll}
-          onTap={onTap}
+        <SimpleChapterPager
+          key={`split-pager-${bookId}-${chapterNumber}`}
+          bookId={bookId}
+          chapterNumber={chapterNumber}
+          bookName={bookName}
+          booksMetadata={booksMetadata}
+          onChapterChange={onPageChange}
+          renderChapterPage={renderChapterPage}
         />
       </View>
 
@@ -221,7 +244,6 @@ function createStyles(
     pagerContainer: {
       flex: 1,
     },
-    // navButtonsContainer style removed
   });
 }
 

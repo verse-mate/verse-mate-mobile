@@ -8,14 +8,12 @@
  * Route: /bible/[bookId]/[chapterNumber]
  * Example: /bible/1/1 (Genesis 1)
  *
- * @see Spec lines 517-607 (ChapterScreen implementation)
- * @see Task Group 5.3 - Integrate tabs with chapter screen
- * @see Task Group 5.4 - Implement tab content loading
- * @see Task Group 4 - Integration with ChapterPagerView (native page-based swipe navigation)
- * @see Task Group 8.4 - Integrate ProgressBar with chapter screen
- * @see Task Group 9.3 - Add deep link validation in chapter screen
- * @see Time-Based Analytics - Chapter reading duration tracking
- * @see Circular Bible Navigation - Seamless wrap-around at Bible boundaries
+ * Architecture (V3 Rewrite):
+ * - UI Layer: SimpleChapterPager renders pages, ChapterHeader displays text from props
+ * - State Layer: useChapterState hook holds single source of truth
+ * - Logic Layer: useChapterNavigation calculates next/prev chapters
+ *
+ * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v3/spec.md
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -35,12 +33,12 @@ import { BibleContentPanel } from '@/components/bible/BibleContentPanel';
 import { BibleExplanationsPanel } from '@/components/bible/BibleExplanationsPanel';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
-import type { ChapterPagerViewRef } from '@/components/bible/ChapterPagerView';
-import { ChapterPagerView } from '@/components/bible/ChapterPagerView';
+import { ChapterPage } from '@/components/bible/ChapterPage';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
+import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { SplitView } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
@@ -52,6 +50,7 @@ import {
   useActiveView,
   useBookProgress,
   useChapterReadingDuration,
+  useChapterState,
   useLastReadPosition,
   useViewModeDuration,
 } from '@/hooks/bible';
@@ -63,7 +62,6 @@ import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   useBibleChapter,
-  useBibleTestaments,
   usePrefetchNextChapter,
   usePrefetchPreviousChapter,
   useSaveLastRead,
@@ -75,83 +73,38 @@ import {
 type ViewMode = 'bible' | 'explanations';
 
 /**
- * Center index for 7-page window in ChapterPagerView
- */
-
-/**
  * Chapter Screen Component
  *
  * Handles:
  * - Loading chapter content from API
  * - Displaying chapter with active reading mode
  * - Saving reading position on mount
- * - Redirecting invalid bookId/chapter to Genesis 1 (Task 9.3)
+ * - Redirecting invalid bookId/chapter to Genesis 1
  * - Tab content loading with crossfade transitions
  * - Background prefetching for inactive tabs
- * - Chapter navigation via floating buttons (Task 6.4)
- * - Chapter navigation via native page-based swipe (Task Group 4)
- * - Circular navigation at Bible boundaries (Genesis 1 <-> Revelation 22)
- * - Progress bar display (Task 8.4)
- * - Hamburger menu (Task 8.5)
- * - Offline indicator (Task 8.6)
+ * - Chapter navigation via floating buttons
+ * - Chapter navigation via swipe (SimpleChapterPager - V3)
+ * - Linear navigation at Bible boundaries (no circular wrap in MVP)
+ * - Progress bar display
+ * - Hamburger menu
+ * - Offline indicator
  * - View mode switching (Bible vs Explanations)
- * - Analytics tracking for CHAPTER_VIEWED (Task 4.2)
- * - Chapter reading duration tracking (Time-Based Analytics)
+ * - Analytics tracking for CHAPTER_VIEWED
+ * - Chapter reading duration tracking
  */
 export default function ChapterScreen() {
-  // Extract and validate route params
+  // V3 State Layer: Single source of truth for chapter navigation
+  const { bookId, chapterNumber, bookName, navigateToChapter, booksMetadata, totalChapters } =
+    useChapterState();
+
+  // Extract verse/tab params (not managed by useChapterState)
   const params = useLocalSearchParams<{
-    bookId: string;
-    chapterNumber: string;
     verse?: string;
     endVerse?: string;
     tab?: string;
   }>();
   const targetVerse = params.verse ? Number(params.verse) : undefined;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
-
-  // Local state for immediate UI updates (Source of Truth for UI)
-  // Initialized from params, but can diverge during swiping
-  const [activeBookId, setActiveBookId] = useState(Number(params.bookId));
-  const [activeChapter, setActiveChapter] = useState(Number(params.chapterNumber));
-
-  // Sync local state from params ONLY when params change significantly (e.g. deep link, menu nav)
-  // avoiding loops with our own debounced updates
-  // biome-ignore lint/correctness/useExhaustiveDependencies: activeBookId and activeChapter are intentionally omitted to prevent snap-back during swiping
-  useEffect(() => {
-    const paramBookId = Number(params.bookId);
-    const paramChapter = Number(params.chapterNumber);
-    if (
-      !Number.isNaN(paramBookId) &&
-      !Number.isNaN(paramChapter) &&
-      (paramBookId !== activeBookId || paramChapter !== activeChapter)
-    ) {
-      setActiveBookId(paramBookId);
-      setActiveChapter(paramChapter);
-    }
-  }, [params.bookId, params.chapterNumber]); // Sync correctly without loops
-
-  // Debounced URL sync (The "Follower")
-  // Updates the URL silently after user stops swiping to prevent global re-renders during animation
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Only update if URL is different from current state
-      if (
-        Number(params.bookId) !== activeBookId ||
-        Number(params.chapterNumber) !== activeChapter
-      ) {
-        router.setParams({
-          bookId: activeBookId.toString(),
-          chapterNumber: activeChapter.toString(),
-          // Clear verse params when chapter changes to prevent "sticky" highlighting
-          verse: undefined,
-          endVerse: undefined,
-        });
-      }
-    }, 1000); // Increased to 1000ms for stability
-
-    return () => clearTimeout(timer);
-  }, [activeBookId, activeChapter, params.bookId, params.chapterNumber]);
 
   // Auth - get current user for saving reading progress
   const { user } = useAuth();
@@ -173,17 +126,13 @@ export default function ChapterScreen() {
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
 
-  // Use local state for API calls (defined early for hooks)
-  const validBookId = Math.max(1, Math.min(66, activeBookId));
-  const validChapter = Math.max(1, activeChapter);
-
   // Track chapter reading duration (Time-Based Analytics)
   // Hook fires CHAPTER_READING_DURATION event on unmount with AppState awareness
-  useChapterReadingDuration(validBookId, validChapter, bibleVersion);
+  useChapterReadingDuration(bookId, chapterNumber, bibleVersion);
 
   // Track view mode duration (Time-Based Analytics)
   // Hook fires VIEW_MODE_DURATION event when view mode changes or on unmount
-  useViewModeDuration(activeView, validBookId, validChapter, bibleVersion);
+  useViewModeDuration(activeView, bookId, chapterNumber, bibleVersion);
 
   // Ensure deep-linked verse jumps use Bible view so scroll-to-verse can run
   // Only force on initial mount, not when user switches tabs manually
@@ -215,10 +164,10 @@ export default function ChapterScreen() {
     }
   }, [params.tab, setActiveTab, activeView, setActiveView]);
 
-  // Navigation modal state (Task 7.9)
+  // Navigation modal state
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
 
-  // Hamburger menu state (Task 8.5)
+  // Hamburger menu state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // FAB visibility state - manages auto-hide/show based on user interaction
@@ -230,53 +179,11 @@ export default function ChapterScreen() {
     initialVisible: true,
   });
 
-  // Ref to ChapterPagerView for programmatic navigation
-  const pagerRef = useRef<ChapterPagerViewRef>(null);
-
-  // Fetch book metadata to get total chapters for validation
-  const { data: booksMetadata } = useBibleTestaments();
-  const bookMetadata = useMemo(
-    () => booksMetadata?.find((book) => book.id === activeBookId),
-    [booksMetadata, activeBookId]
-  );
-  const totalChapters = bookMetadata?.chapterCount || 50; // Default to 50 if not loaded
-
-  /**
-   * Validate bookId and chapter parameters (Task 9.3)
-   *
-   * - bookId must be between 1-66
-   * - chapterNumber must be between 1-maxChapters for the book
-   * - Invalid bookId redirects to Genesis 1
-   * - Invalid chapter redirects to book's first chapter
-   */
-  useEffect(() => {
-    // Validate bookId (1-66)
-    if (activeBookId < 1 || activeBookId > 66) {
-      // Invalid bookId, redirect to Genesis 1
-      setActiveBookId(1);
-      setActiveChapter(1);
-      return;
-    }
-
-    // Validate chapter number (must be positive and within book's range)
-    if (activeChapter < 1) {
-      // Invalid chapter, redirect to book's first chapter
-      setActiveChapter(1);
-      return;
-    }
-
-    // If we have book metadata, validate against actual chapter count
-    if (bookMetadata && activeChapter > bookMetadata.chapterCount) {
-      // Chapter exceeds book's chapter count, redirect to first chapter
-      setActiveChapter(1);
-    }
-  }, [activeBookId, activeChapter, bookMetadata]);
-
-  // Calculate progress percentage (Task 8.4)
-  const { progress } = useBookProgress(validBookId, validChapter, totalChapters);
+  // Calculate progress percentage
+  const { progress } = useBookProgress(bookId, chapterNumber, totalChapters);
 
   // Fetch chapter data for loading state check
-  const { data: rawChapter, isLoading } = useBibleChapter(validBookId, validChapter);
+  const { data: rawChapter, isLoading } = useBibleChapter(bookId, chapterNumber);
   // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure has varying properties not captured by generated types
   const chapter = rawChapter as any;
 
@@ -289,15 +196,15 @@ export default function ChapterScreen() {
   // Track recently viewed books
   const { addRecentBook } = useRecentBooks();
 
-  // Prefetch next/previous chapters in background (Task 5.5, 6.5)
-  const prefetchNext = usePrefetchNextChapter(validBookId, validChapter, totalChapters);
-  const prefetchPrevious = usePrefetchPreviousChapter(validBookId, validChapter);
+  // Prefetch next/previous chapters in background
+  const prefetchNext = usePrefetchNextChapter(bookId, chapterNumber, totalChapters);
+  const prefetchPrevious = usePrefetchPreviousChapter(bookId, chapterNumber);
 
-  // Get navigation metadata using hook (Task 4.5)
-  // With circular navigation, canGoNext and canGoPrevious are always true
-  const { canGoNext, canGoPrevious } = useChapterNavigation(
-    validBookId,
-    validChapter,
+  // Get navigation metadata using hook
+  // V3: Linear navigation mode (no circular wrap)
+  const { canGoNext, canGoPrevious, nextChapter, prevChapter } = useChapterNavigation(
+    bookId,
+    chapterNumber,
     booksMetadata
   );
 
@@ -307,11 +214,11 @@ export default function ChapterScreen() {
     if (user?.id) {
       saveLastRead({
         user_id: user.id,
-        book_id: validBookId,
-        chapter_number: validChapter,
+        book_id: bookId,
+        chapter_number: chapterNumber,
       });
     }
-  }, [validBookId, validChapter, user?.id]);
+  }, [bookId, chapterNumber, user?.id]);
 
   // Save reading position to AsyncStorage for app launch continuity
   // Save whenever bookId, chapter, tab, or view changes
@@ -319,41 +226,41 @@ export default function ChapterScreen() {
   useEffect(() => {
     savePosition({
       type: 'bible',
-      bookId: validBookId,
-      chapterNumber: validChapter,
+      bookId: bookId,
+      chapterNumber: chapterNumber,
       activeTab,
       activeView,
     });
-  }, [validBookId, validChapter, activeTab, activeView]);
+  }, [bookId, chapterNumber, activeTab, activeView]);
 
   // Track recently viewed book when chapter changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: addRecentBook is a stable function
   useEffect(() => {
     // Only add to recent books when bookId changes (not on every chapter change within the same book)
-    addRecentBook(validBookId);
-  }, [validBookId]);
+    addRecentBook(bookId);
+  }, [bookId]);
 
-  // Track CHAPTER_VIEWED analytics event (Task 4.2)
+  // Track CHAPTER_VIEWED analytics event
   // Fires once per chapter navigation, not on re-renders
   useEffect(() => {
     // Only track when we have valid params
-    if (validBookId >= 1 && validBookId <= 66 && validChapter >= 1) {
+    if (bookId >= 1 && bookId <= 66 && chapterNumber >= 1) {
       analytics.track(AnalyticsEvent.CHAPTER_VIEWED, {
-        bookId: validBookId,
-        chapterNumber: validChapter,
+        bookId: bookId,
+        chapterNumber: chapterNumber,
         bibleVersion,
       });
     }
-  }, [validBookId, validChapter, bibleVersion]);
+  }, [bookId, chapterNumber, bibleVersion]);
 
-  // Prefetch adjacent chapters after active content loads (Task 5.5, 6.5, 4.6)
+  // Prefetch adjacent chapters after active content loads
   useEffect(() => {
     if (chapter && !isLoading) {
-      // Delay prefetch to avoid blocking main content (Task 4.6: 1 second delay)
+      // Delay prefetch to avoid blocking main content (1 second delay)
       const timeoutId = setTimeout(() => {
         prefetchNext();
         prefetchPrevious();
-      }, 1000); // 1 second delay
+      }, 1000);
 
       return () => clearTimeout(timeoutId);
     }
@@ -377,21 +284,22 @@ export default function ChapterScreen() {
   );
 
   /**
-   * Handle page change from ChapterPagerView (Task 4.4)
+   * Handle page change from SimpleChapterPager (V3)
    *
    * Updates:
    * - Local state immediately (instant UI update)
    * - URL via debounced effect (silent background sync)
    * - Save last read position
    * - Trigger prefetch after 1s delay
-   * - Haptic feedback (INSTANTLY handled by PagerView natively)
    */
   // biome-ignore lint/correctness/useExhaustiveDependencies: saveLastRead is a stable mutation function
   const handlePageChange = useCallback(
     (newBookId: number, newChapterNumber: number) => {
-      // Update local state IMMEDIATELY to prevent flash
-      setActiveBookId(newBookId);
-      setActiveChapter(newChapterNumber);
+      // Update state via hook (V3: single source of truth)
+      navigateToChapter(newBookId, newChapterNumber);
+
+      // Haptic feedback for chapter change
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Save reading position - only for authenticated users
       if (user?.id) {
@@ -402,56 +310,91 @@ export default function ChapterScreen() {
         });
       }
 
-      // Prefetch adjacent chapters after 1 second delay (Task 4.6)
+      // Prefetch adjacent chapters after 1 second delay
       setTimeout(() => {
         prefetchNext();
         prefetchPrevious();
       }, 1000);
     },
-    [prefetchNext, prefetchPrevious, user?.id]
+    [navigateToChapter, prefetchNext, prefetchPrevious, user?.id]
   );
 
   /**
-   * Navigate to previous chapter using PagerView ref
+   * Navigate to previous chapter
    *
-   * With circular navigation enabled, this always triggers navigation:
-   * - At Genesis 1: navigates to Revelation 22 (wraps around)
-   * - At any other chapter: navigates to previous chapter
-   *
-   * Uses medium impact haptic feedback for all navigation.
+   * V3 Linear mode: At Genesis 1, this does nothing (canGoPrevious is false)
    */
   const handlePrevious = useCallback(() => {
-    // With circular navigation, canGoPrevious is always true when metadata is loaded
+    if (!canGoPrevious || !prevChapter) return;
+
     // Haptic feedback for button press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Trigger PagerView page change (swipe right to previous chapter)
-    pagerRef.current?.goPrevious();
-  }, []);
+
+    // Update state via hook (V3: single source of truth)
+    navigateToChapter(prevChapter.bookId, prevChapter.chapterNumber);
+  }, [canGoPrevious, prevChapter, navigateToChapter]);
 
   /**
-   * Navigate to next chapter using PagerView ref
+   * Navigate to next chapter
    *
-   * With circular navigation enabled, this always triggers navigation:
-   * - At Revelation 22: navigates to Genesis 1 (wraps around)
-   * - At any other chapter: navigates to next chapter
-   *
-   * Uses medium impact haptic feedback for all navigation.
+   * V3 Linear mode: At Revelation 22, this does nothing (canGoNext is false)
    */
   const handleNext = useCallback(() => {
-    // With circular navigation, canGoNext is always true when metadata is loaded
+    if (!canGoNext || !nextChapter) return;
+
     // Haptic feedback for button press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Trigger PagerView page change (swipe left to next chapter)
-    pagerRef.current?.goNext();
-  }, []);
+
+    // Update state via hook (V3: single source of truth)
+    navigateToChapter(nextChapter.bookId, nextChapter.chapterNumber);
+  }, [canGoNext, nextChapter, navigateToChapter]);
+
+  /**
+   * Render chapter page content for SimpleChapterPager
+   *
+   * This is passed to SimpleChapterPager.renderChapterPage prop
+   */
+  const renderChapterPage = useCallback(
+    (pageBookId: number, pageChapterNumber: number) => {
+      return (
+        <ChapterPage
+          bookId={pageBookId}
+          chapterNumber={pageChapterNumber}
+          activeTab={activeTab}
+          activeView={activeView}
+          onScroll={handleScroll}
+          onTap={handleTap}
+          // Only pass target verse to the current page
+          targetVerse={
+            pageBookId === bookId && pageChapterNumber === chapterNumber ? targetVerse : undefined
+          }
+          targetEndVerse={
+            pageBookId === bookId && pageChapterNumber === chapterNumber
+              ? targetEndVerse
+              : undefined
+          }
+        />
+      );
+    },
+    [
+      activeTab,
+      activeView,
+      handleScroll,
+      handleTap,
+      bookId,
+      chapterNumber,
+      targetVerse,
+      targetEndVerse,
+    ]
+  );
 
   // Show skeleton loader while loading and no data is available
   if (isLoading && !chapter) {
     return (
       <View style={styles.container}>
         <ChapterHeader
-          bookName="Loading..."
-          chapterNumber={validChapter}
+          bookName={bookName}
+          chapterNumber={chapterNumber}
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
@@ -468,7 +411,7 @@ export default function ChapterScreen() {
       <View style={styles.container}>
         <ChapterHeader
           bookName="Error"
-          chapterNumber={validChapter}
+          chapterNumber={chapterNumber}
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
@@ -483,8 +426,8 @@ export default function ChapterScreen() {
 
   return (
     <BibleInteractionProvider
-      bookId={validBookId}
-      chapterNumber={validChapter}
+      bookId={bookId}
+      chapterNumber={chapterNumber}
       bookName={chapter.bookName}
     >
       <View style={styles.container}>
@@ -499,8 +442,8 @@ export default function ChapterScreen() {
               edgeTabsVisible={fabVisible}
               leftContent={
                 <BibleContentPanel
-                  bookId={validBookId}
-                  chapterNumber={validChapter}
+                  bookId={bookId}
+                  chapterNumber={chapterNumber}
                   bookName={chapter.bookName}
                   totalChapters={totalChapters}
                   canGoPrevious={canGoPrevious}
@@ -518,8 +461,8 @@ export default function ChapterScreen() {
               }
               rightContent={
                 <BibleExplanationsPanel
-                  bookId={validBookId}
-                  chapterNumber={validChapter}
+                  bookId={bookId}
+                  chapterNumber={chapterNumber}
                   bookName={chapter.bookName}
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
@@ -530,79 +473,72 @@ export default function ChapterScreen() {
               }
             />
 
-            {/* Hamburger Menu (Task 8.5) */}
+            {/* Hamburger Menu */}
             <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
           </>
         ) : (
           <>
-            {/* Fixed Header (Task 8.6 - includes OfflineIndicator) */}
+            {/* Fixed Header - V3: Receives bookName and chapterNumber from state */}
             <ChapterHeader
-              bookName={chapter.bookName}
-              chapterNumber={chapter.chapterNumber}
+              bookName={bookName}
+              chapterNumber={chapterNumber}
               activeView={activeView}
               onNavigationPress={() => {
-                setIsNavigationModalOpen(true); // Task 7.9
+                setIsNavigationModalOpen(true);
               }}
               navigationModalVisible={isNavigationModalOpen}
               onViewChange={handleViewChange}
               onMenuPress={() => {
-                setIsMenuOpen(true); // Task 8.5
+                setIsMenuOpen(true);
               }}
             />
 
-            {/* Content Tabs (Task 5.3) - Only visible in Explanations view */}
+            {/* Content Tabs - Only visible in Explanations view */}
             <View style={activeView !== 'explanations' && { height: 0, overflow: 'hidden' }}>
               <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </View>
 
-            {/* ChapterPagerView with 5-page fixed window (Task 4.3) */}
-            <ChapterPagerView
-              ref={pagerRef}
-              initialBookId={validBookId}
-              initialChapter={validChapter}
-              activeTab={activeTab}
-              activeView={activeView}
-              targetVerse={targetVerse}
-              targetEndVerse={targetEndVerse}
-              onPageChange={handlePageChange}
-              onScroll={handleScroll}
-              onTap={handleTap}
+            {/* SimpleChapterPager - V3 3-page window with linear navigation */}
+            <SimpleChapterPager
+              key={`pager-${bookId}-${chapterNumber}`}
+              bookId={bookId}
+              chapterNumber={chapterNumber}
+              bookName={bookName}
+              booksMetadata={booksMetadata}
+              onChapterChange={handlePageChange}
+              renderChapterPage={renderChapterPage}
             />
 
-            {/* Floating Action Buttons - Always visible with circular navigation */}
+            {/* Floating Action Buttons - V3: Disabled at boundaries */}
             <FloatingActionButtons
               onPrevious={handlePrevious}
               onNext={handleNext}
-              showPrevious={true}
-              showNext={true}
+              showPrevious={canGoPrevious}
+              showNext={canGoNext}
               visible={fabVisible}
             />
 
-            {/* Progress Bar (Task 8.4) */}
+            {/* Progress Bar */}
             <ProgressBar percentage={progress.percentage} />
 
-            {/* Hamburger Menu (Task 8.5) */}
+            {/* Hamburger Menu */}
             <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
           </>
         )}
 
-        {/* Navigation Modal (Task 7.9) - Consolidated outside conditional blocks */}
+        {/* Navigation Modal - Consolidated outside conditional blocks */}
         {isNavigationModalOpen && (
           <BibleNavigationModal
             visible={isNavigationModalOpen}
             onClose={() => setIsNavigationModalOpen(false)}
-            currentBookId={validBookId}
-            currentChapter={validChapter}
-            onSelectChapter={(bookId, chapter) => {
+            currentBookId={bookId}
+            currentChapter={chapterNumber}
+            onSelectChapter={(selectedBookId, chapterNum) => {
               setIsNavigationModalOpen(false);
               // Always default to Bible text view when switching books via modal
               setActiveView('bible');
-              router.setParams({
-                bookId: bookId.toString(),
-                chapterNumber: chapter.toString(),
-                verse: undefined,
-                endVerse: undefined,
-              });
+              // V3: Update state via hook (single source of truth)
+              navigateToChapter(selectedBookId, chapterNum);
             }}
             onSelectTopic={(topicId, category) => {
               setIsNavigationModalOpen(false);
@@ -627,10 +563,11 @@ export default function ChapterScreen() {
  * - Chapter text (clickable to open chapter selector)
  * - Bible view icon (shows Bible reading mode)
  * - Explanations view icon (shows AI explanations mode)
- * - Offline indicator (shows when offline) - Task 8.6
+ * - Offline indicator (shows when offline)
  * - Hamburger menu icon (opens menu)
  *
- * @see Spec lines 226-237 (Header specs)
+ * V3: Receives bookName and chapterNumber as props from state layer.
+ * No hooks or context used inside for navigation state.
  */
 interface ChapterHeaderProps {
   bookName: string;
@@ -714,7 +651,7 @@ function ChapterHeader({
         testID="chapter-selector-button"
       >
         <View style={styles.chapterButtonContent}>
-          <Text style={styles.headerTitle}>
+          <Text style={styles.headerTitle} testID="chapter-header-text">
             {bookName} {chapterNumber}
           </Text>
           <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
@@ -757,10 +694,10 @@ function ChapterHeader({
           </Pressable>
         </View>
 
-        {/* Offline Indicator (Task 8.6) */}
+        {/* Offline Indicator */}
         <OfflineIndicator />
 
-        {/* Hamburger Menu Icon (Task 8.5) */}
+        {/* Hamburger Menu Icon */}
         <Pressable
           onPress={onMenuPress}
           style={styles.iconButton}
