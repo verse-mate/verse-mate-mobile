@@ -6,16 +6,11 @@
  * Supports language-based bundled downloads and user data sync.
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  type DownloadInfo,
-  type LanguageBundle,
-  type OfflineManifest,
-  type SyncProgress,
   buildLanguageBundles,
   checkAndSyncUpdates,
+  closeDatabase,
   deleteAllOfflineData,
   deleteLanguageBundle as deleteLanguageBundleService,
   downloadBibleVersion as downloadBibleVersionService,
@@ -39,7 +34,13 @@ import {
   removeCommentaries,
   removeTopics,
   runAutoSyncIfNeeded,
+  type DownloadInfo,
+  type LanguageBundle,
+  type OfflineManifest,
+  type SyncProgress,
 } from '@/services/offline';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 const AUTO_SYNC_KEY = 'versemate:offline:auto_sync_enabled';
 
@@ -101,6 +102,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Initialization state
   const [isInitialized, setIsInitialized] = useState(false);
+  const dbReady = useRef(false);
   const [manifest, setManifest] = useState<OfflineManifest | null>(null);
 
   // Downloaded content
@@ -199,6 +201,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         setIsUserDataSynced(userDataSynced);
 
         setIsInitialized(true);
+        dbReady.current = true;
 
         if (autoSync !== 'false') {
           runAutoSyncIfNeeded().catch(console.warn);
@@ -210,11 +213,17 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     }
 
     initialize();
+
+    // Close the database on unmount / hot-reload so the native connection
+    // doesn't leak and hold a file lock that blocks subsequent sessions.
+    return () => {
+      closeDatabase().catch(console.warn);
+    };
   }, []);
 
   // Auto-sync user data when authenticated
   useEffect(() => {
-    if (!isInitialized || !isAuthenticated) return;
+    if (!isInitialized || !isAuthenticated || !dbReady.current) return;
 
     const syncUserDataIfNeeded = async () => {
       try {
@@ -236,6 +245,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Refresh manifest and download info
   const refreshManifest = async () => {
+    if (!dbReady.current) {
+      console.warn('[Offline] refreshManifest skipped — database not ready');
+      return;
+    }
     try {
       const newManifest = await fetchManifest();
       setManifest(newManifest);

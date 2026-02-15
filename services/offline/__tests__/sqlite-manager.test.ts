@@ -7,63 +7,49 @@ import {
   insertBibleVerses,
 } from '../sqlite-manager';
 
-// Mock expo-sqlite
-const mockExecAsync = jest.fn();
-const mockRunAsync = jest.fn();
-const mockGetAllAsync = jest.fn();
-const mockGetFirstAsync = jest.fn();
-const mockWithTransactionAsync = jest.fn((callback: any) => callback());
-const mockPrepareAsync = jest.fn(() =>
-  Promise.resolve({
-    executeAsync: jest.fn(),
-    finalizeAsync: jest.fn(),
-  })
-);
-const mockCloseAsync = jest.fn();
+// Mock expo-sqlite — sync API
+const mockExecSync = jest.fn();
+const mockRunSync = jest.fn();
+const mockGetAllSync = jest.fn().mockReturnValue([]);
+const mockGetFirstSync = jest.fn().mockReturnValue(null);
+const mockCloseSync = jest.fn();
 
 jest.mock('expo-sqlite', () => ({
-  openDatabaseAsync: jest.fn(() =>
-    Promise.resolve({
-      execAsync: mockExecAsync,
-      runAsync: mockRunAsync,
-      getAllAsync: mockGetAllAsync,
-      getFirstAsync: mockGetFirstAsync,
-      withTransactionAsync: mockWithTransactionAsync,
-      prepareAsync: mockPrepareAsync,
-      closeAsync: mockCloseAsync,
-    })
-  ),
+  openDatabaseSync: jest.fn(() => ({
+    execSync: mockExecSync,
+    runSync: mockRunSync,
+    getAllSync: mockGetAllSync,
+    getFirstSync: mockGetFirstSync,
+    closeSync: mockCloseSync,
+  })),
+  deleteDatabaseSync: jest.fn(),
 }));
 
 describe('SQLite Manager', () => {
-  let mockDb: any;
-
   beforeEach(async () => {
-    // Ensure fresh start
     await closeDatabase();
     jest.clearAllMocks();
-    mockDb = await getDatabase();
+    mockGetAllSync.mockReturnValue([]);
+    mockGetFirstSync.mockReturnValue(null);
+    await getDatabase();
   });
 
   afterEach(async () => {
     await closeDatabase();
   });
 
-  it('should initialize database and create tables', async () => {
-    // beforeEach already initialized it.
-    // Since we cleared mocks BEFORE initializing in beforeEach (wait, no).
-    // In beforeEach:
-    // 1. closeDatabase()
-    // 2. clearAllMocks()
-    // 3. getDatabase() -> calls initDatabase() -> calls openDatabaseAsync -> calls execAsync
-
-    // So execAsync SHOULD be called.
-    expect(mockExecAsync).toHaveBeenCalledWith(
+  it('should initialize database with busy_timeout and create tables', async () => {
+    expect(mockExecSync).toHaveBeenCalledWith(
+      expect.stringContaining('PRAGMA busy_timeout = 5000')
+    );
+    expect(mockExecSync).toHaveBeenCalledWith(
       expect.stringContaining('CREATE TABLE IF NOT EXISTS offline_verses')
     );
+    // Test write to validate DB is usable
+    expect(mockExecSync).toHaveBeenCalledWith(expect.stringContaining('_init'));
   });
 
-  it('should insert bible verses using transaction', async () => {
+  it('should insert bible verses using chunked execSync transactions', async () => {
     const verses = [
       { book_id: 1, chapter_number: 1, verse_number: 1, text: 'In the beginning' },
       { book_id: 1, chapter_number: 1, verse_number: 2, text: 'God created' },
@@ -71,29 +57,39 @@ describe('SQLite Manager', () => {
 
     await insertBibleVerses('NASB1995', verses);
 
-    // Verify manual transaction was used via runAsync
-    expect(mockRunAsync).toHaveBeenCalledWith('BEGIN TRANSACTION');
-    // Verify old verses were deleted first
-    expect(mockRunAsync).toHaveBeenCalledWith('DELETE FROM offline_verses WHERE version_key = ?', [
-      'NASB1995',
-    ]);
-    // Verify batch insert was called
-    expect(mockRunAsync).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO offline_verses'),
-      expect.arrayContaining(['NASB1995', 1, 1, 1, 'In the beginning'])
+    // First call after init: DELETE transaction (plain BEGIN, not BEGIN IMMEDIATE)
+    const deleteTxnCall = mockExecSync.mock.calls.find(
+      (call: any[]) =>
+        typeof call[0] === 'string' &&
+        call[0].includes('BEGIN') &&
+        !call[0].includes('BEGIN IMMEDIATE') &&
+        call[0].includes('DELETE FROM offline_verses')
     );
-    // Verify transaction was committed
-    expect(mockRunAsync).toHaveBeenCalledWith('COMMIT');
+    expect(deleteTxnCall).toBeDefined();
+
+    // Second call: INSERT chunk transaction (plain BEGIN)
+    const insertTxnCall = mockExecSync.mock.calls.find(
+      (call: any[]) =>
+        typeof call[0] === 'string' &&
+        call[0].includes('BEGIN') &&
+        !call[0].includes('BEGIN IMMEDIATE') &&
+        call[0].includes('INSERT INTO offline_verses') &&
+        call[0].includes('COMMIT')
+    );
+    expect(insertTxnCall).toBeDefined();
+    const sql = insertTxnCall![0] as string;
+    expect(sql).toContain('In the beginning');
+    expect(sql).toContain('God created');
   });
 
   it('should retrieve bible verses', async () => {
-    mockGetAllAsync.mockResolvedValue([
+    mockGetAllSync.mockReturnValue([
       { book_id: 1, chapter_number: 1, verse_number: 1, text: 'In the beginning' },
     ]);
 
     const result = await getLocalBibleChapter('NASB1995', 1, 1);
 
-    expect(mockGetAllAsync).toHaveBeenCalledWith(
+    expect(mockGetAllSync).toHaveBeenCalledWith(
       expect.stringContaining(
         'SELECT book_id, chapter_number, verse_number, text FROM offline_verses'
       ),
@@ -106,11 +102,11 @@ describe('SQLite Manager', () => {
   it('should delete bible version', async () => {
     await deleteBibleVersion('NASB1995');
 
-    expect(mockRunAsync).toHaveBeenCalledWith(
+    expect(mockRunSync).toHaveBeenCalledWith(
       expect.stringContaining('DELETE FROM offline_verses WHERE version_key = ?'),
       ['NASB1995']
     );
-    expect(mockRunAsync).toHaveBeenCalledWith(
+    expect(mockRunSync).toHaveBeenCalledWith(
       expect.stringContaining('DELETE FROM offline_metadata'),
       ['bible:NASB1995']
     );
