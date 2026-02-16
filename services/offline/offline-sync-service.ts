@@ -366,14 +366,24 @@ export async function getDownloadedTopicLanguages(): Promise<string[]> {
 }
 
 /**
- * Check for updates and download if available
+ * Check for updates and download if available.
+ *
+ * Two passes:
+ * 1. Update pass — re-downloads any already-downloaded resource whose
+ *    server `updated_at` is newer than the local copy.
+ * 2. New-content pass — for every language where the user has *any*
+ *    downloaded content (commentary OR topics), automatically download
+ *    newly available content types for that same language so the user
+ *    doesn't have to manually fetch them.
  */
 export async function checkAndSyncUpdates(onProgress?: ProgressCallback): Promise<void> {
   const manifest = await fetchManifest();
   const metadata = await getAllMetadata();
 
   let updated = 0;
-  const total = metadata.length;
+
+  // --- Pass 1: update existing downloads ---
+  const existingKeys = new Set(metadata.map((m) => m.resource_key));
 
   for (const meta of metadata) {
     const [type, key] = meta.resource_key.split(':');
@@ -394,7 +404,7 @@ export async function checkAndSyncUpdates(onProgress?: ProgressCallback): Promis
     if (serverUpdatedAt && new Date(serverUpdatedAt) > new Date(meta.last_updated_at)) {
       onProgress?.({
         current: updated,
-        total,
+        total: metadata.length,
         message: `Updating ${type}: ${key}...`,
       });
 
@@ -410,12 +420,57 @@ export async function checkAndSyncUpdates(onProgress?: ProgressCallback): Promis
     }
   }
 
+  // --- Pass 2: detect newly available content for already-downloaded languages ---
+  // Collect language codes the user has downloaded commentary or topics for.
+  const downloadedCommentaryLangs = new Set<string>();
+  const downloadedTopicLangs = new Set<string>();
+
+  for (const meta of metadata) {
+    const [type, key] = meta.resource_key.split(':');
+    if (type === 'commentary') downloadedCommentaryLangs.add(key);
+    if (type === 'topics') downloadedTopicLangs.add(key);
+  }
+
+  // If user has commentaries for a language, auto-download topics when they appear
+  for (const langCode of downloadedCommentaryLangs) {
+    if (
+      !existingKeys.has(`topics:${langCode}`) &&
+      manifest.topic_languages.some((l) => l.code === langCode)
+    ) {
+      onProgress?.({
+        current: updated,
+        total: metadata.length + 1,
+        message: `Downloading new topics (${langCode})...`,
+      });
+
+      await downloadTopics(langCode, manifest);
+      updated++;
+    }
+  }
+
+  // If user has topics for a language, auto-download commentaries when they appear
+  for (const langCode of downloadedTopicLangs) {
+    if (
+      !existingKeys.has(`commentary:${langCode}`) &&
+      manifest.commentary_languages.some((l) => l.code === langCode)
+    ) {
+      onProgress?.({
+        current: updated,
+        total: metadata.length + 1,
+        message: `Downloading new commentaries (${langCode})...`,
+      });
+
+      await downloadCommentaries(langCode, manifest);
+      updated++;
+    }
+  }
+
   // Save last sync time
   await AsyncStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
 
   onProgress?.({
-    current: total,
-    total,
+    current: metadata.length + updated,
+    total: metadata.length + updated,
     message: updated > 0 ? `Updated ${updated} items` : 'Everything is up to date',
   });
 }
