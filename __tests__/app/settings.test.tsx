@@ -41,6 +41,12 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('@/contexts/AuthContext');
+jest.mock('@/contexts/OfflineContext', () => ({
+  useOfflineContext: jest.fn().mockReturnValue({
+    commentaryInfo: [],
+    topicsInfo: [],
+  }),
+}));
 jest.mock('@/hooks/use-bible-version');
 jest.mock('@/hooks/useDeleteAccount');
 jest.mock('@/src/api/generated/sdk.gen');
