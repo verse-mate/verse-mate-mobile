@@ -18,7 +18,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-// NOTE: useCallback is still used for useFocusEffect which requires it
 import {
   ActivityIndicator,
   Alert,
@@ -29,6 +28,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// NOTE: useCallback is still used for useFocusEffect which requires it
 import { DeleteAccountFinalModal } from '@/components/account/DeleteAccountFinalModal';
 import { DeleteAccountPasswordModal } from '@/components/account/DeleteAccountPasswordModal';
 import { DeleteAccountWarningModal } from '@/components/account/DeleteAccountWarningModal';
@@ -40,6 +40,7 @@ import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { BibleVersion } from '@/constants/bible-versions';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
@@ -60,6 +61,7 @@ export default function SettingsScreen() {
   const { user, isAuthenticated, logout, restoreSession, refreshTokens } = useAuth();
   const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
+  const { commentaryInfo, topicsInfo } = useOfflineContext();
   const queryClient = useQueryClient();
 
   // Bible version state
@@ -100,7 +102,28 @@ export default function SettingsScreen() {
     }
   }, [user]);
 
-  // Fetch available languages
+  // Build offline fallback languages from downloaded commentary/topic data
+  const getOfflineLanguages = useCallback((): Language[] => {
+    const langMap = new Map<string, Language>();
+
+    for (const info of commentaryInfo) {
+      if (info.status === 'downloaded' || info.status === 'update_available') {
+        langMap.set(info.key, { code: info.key, name: info.name, nativeName: info.name });
+      }
+    }
+    for (const info of topicsInfo) {
+      if (
+        (info.status === 'downloaded' || info.status === 'update_available') &&
+        !langMap.has(info.key)
+      ) {
+        langMap.set(info.key, { code: info.key, name: info.name, nativeName: info.name });
+      }
+    }
+
+    return Array.from(langMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [commentaryInfo, topicsInfo]);
+
+  // Fetch available languages (fall back to offline downloaded languages on failure)
   useEffect(() => {
     const fetchLanguages = async () => {
       try {
@@ -125,16 +148,23 @@ export default function SettingsScreen() {
             a.nativeName.localeCompare(b.nativeName)
           );
           setAvailableLanguages(sortedLanguages);
+          return;
         }
       } catch (error) {
         console.error('Failed to fetch available languages:', error);
+      }
+
+      // Fallback: use downloaded offline languages so the picker still works
+      const offlineLangs = getOfflineLanguages();
+      if (offlineLangs.length > 0) {
+        setAvailableLanguages(offlineLangs);
       }
     };
 
     if (isAuthenticated) {
       fetchLanguages();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, getOfflineLanguages]);
 
   const hasProfileChanges = () => {
     return (
