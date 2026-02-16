@@ -637,7 +637,10 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Downloads & Offline</Text>
           <Pressable
-            style={[styles.selectButton, { flexDirection: 'row', alignItems: 'center' }]}
+            style={[
+              styles.selectButton,
+              { flexDirection: 'row', alignItems: 'center', height: 'auto', paddingVertical: 14 },
+            ]}
             onPress={() => router.push('/manage-downloads')}
             accessibilityLabel="Manage offline downloads"
             accessibilityRole="button"
@@ -649,7 +652,12 @@ export default function SettingsScreen() {
               style={{ marginRight: 12 }}
             />
             <View style={{ flex: 1 }}>
-              <Text style={styles.selectButtonText}>Manage Downloads</Text>
+              <Text
+                style={[styles.selectButtonText, { flex: undefined, fontWeight: '500' }]}
+                numberOfLines={1}
+              >
+                Manage Downloads
+              </Text>
               <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
                 Download content for offline use
               </Text>
