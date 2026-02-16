@@ -451,13 +451,21 @@ export async function insertCommentaries(
 export async function getLocalCommentary(
   languageCode: string,
   bookId: number,
-  chapterNumber: number
+  chapterNumber: number,
+  type?: string
 ): Promise<CommentaryData | null> {
   const database = getDatabaseSync();
-  const result = database.getFirstSync<CommentaryData>(
-    'SELECT explanation_id, book_id, chapter_number, verse_start, verse_end, type, explanation, language_code FROM offline_explanations WHERE language_code = ? AND book_id = ? AND chapter_number = ? LIMIT 1',
-    [languageCode, bookId, chapterNumber]
-  );
+
+  // If type is specified, filter by it; otherwise get any type
+  const query = type
+    ? 'SELECT explanation_id, book_id, chapter_number, verse_start, verse_end, type, explanation, language_code FROM offline_explanations WHERE language_code = ? AND book_id = ? AND chapter_number = ? AND type = ? LIMIT 1'
+    : 'SELECT explanation_id, book_id, chapter_number, verse_start, verse_end, type, explanation, language_code FROM offline_explanations WHERE language_code = ? AND book_id = ? AND chapter_number = ? LIMIT 1';
+
+  const params = type
+    ? [languageCode, bookId, chapterNumber, type]
+    : [languageCode, bookId, chapterNumber];
+
+  const result = database.getFirstSync<CommentaryData>(query, params);
   return result ?? null;
 }
 

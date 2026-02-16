@@ -1,75 +1,66 @@
 // Custom React Query hooks wrapping the generated options
-import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { getAccessToken } from '@/lib/auth/token-storage';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
 import {
-	transformTestamentsToBooks,
-	transformChapterResponse,
-	transformExplanationResponse,
-	type ChapterContent,
-	type ExplanationContent,
+    transformChapterResponse,
+    transformExplanationResponse,
+    transformTestamentsToBooks
 } from './bible/types';
-import type {
-	GetBibleTestamentsData,
-	GetBibleBooksData,
-	GetBibleBookByBookIdByChapterNumberData,
-	GetBibleBookExplanationByBookIdByChapterNumberData,
-	GetBibleChapterIdByBookIdByChapterNumberData,
-	PostBibleBookChapterSaveLastReadData,
-	PostBibleBookChapterLastReadData,
-	PostBibleBookBookmarkAddData,
-	DeleteBibleBookBookmarkRemoveData,
-	GetBibleBookBookmarksByUserIdData,
-	PostBibleBookNoteAddData,
-	PutBibleBookNoteUpdateData,
-	DeleteBibleBookNoteRemoveData,
-	GetBibleBookNotesByUserIdData,
-	PostBibleHighlightAddData,
-	PutBibleHighlightByHighlightIdData,
-	DeleteBibleHighlightByHighlightIdData,
-	GetBibleHighlightsByUserIdData,
-	GetBibleHighlightsByUserIdByBookIdByChapterNumberData,
-	GetTopicsCategoriesData,
-	GetTopicsSearchData,
-	GetTopicsByIdData,
-	GetTopicsByIdReferencesData,
-	GetTopicsByIdExplanationData,
-	GetTopicsSearchResponse,
-} from './generated/types.gen';
+import type { ExplanationContent } from './bible/types';
 import type { Options } from './generated/sdk.gen';
+import type {
+    DeleteBibleBookBookmarkRemoveData,
+    DeleteBibleBookNoteRemoveData,
+    DeleteBibleHighlightByHighlightIdData,
+    GetBibleBookBookmarksByUserIdData,
+    GetBibleBookNotesByUserIdData,
+    GetBibleBooksData,
+    GetBibleChapterIdByBookIdByChapterNumberData,
+    GetBibleHighlightsByUserIdByBookIdByChapterNumberData,
+    GetBibleHighlightsByUserIdData,
+    GetBibleTestamentsData,
+    GetTopicsCategoriesData,
+    GetTopicsSearchResponse,
+    PostBibleBookBookmarkAddData,
+    PostBibleBookNoteAddData,
+    PostBibleHighlightAddData,
+    PutBibleBookNoteUpdateData,
+    PutBibleHighlightByHighlightIdData
+} from './generated/types.gen';
 
 import {
-	getBibleTestamentsOptions,
-	getBibleBooksOptions,
-	getBibleBookByBookIdByChapterNumberOptions,
-	getBibleBookExplanationByBookIdByChapterNumberOptions,
-	getBibleChapterIdByBookIdByChapterNumberOptions,
-	postBibleBookChapterSaveLastReadMutation,
-	postBibleBookChapterLastReadMutation,
-	postBibleBookBookmarkAddMutation,
-	deleteBibleBookBookmarkRemoveMutation,
-	getBibleBookBookmarksByUserIdOptions,
-	postBibleBookNoteAddMutation,
-	putBibleBookNoteUpdateMutation,
-	deleteBibleBookNoteRemoveMutation,
-	getBibleBookNotesByUserIdOptions,
-	postBibleHighlightAddMutation,
-	putBibleHighlightByHighlightIdMutation,
-	deleteBibleHighlightByHighlightIdMutation,
-	getBibleHighlightsByUserIdOptions,
-	getBibleHighlightsByUserIdByBookIdByChapterNumberOptions,
-	getTopicsCategoriesOptions,
-	getTopicsSearchOptions,
-	getTopicsByIdOptions,
-	getTopicsByIdReferencesOptions,
-	getTopicsByIdExplanationOptions,
+    deleteBibleBookBookmarkRemoveMutation,
+    deleteBibleBookNoteRemoveMutation,
+    deleteBibleHighlightByHighlightIdMutation,
+    getBibleBookBookmarksByUserIdOptions,
+    getBibleBookByBookIdByChapterNumberOptions,
+    getBibleBookExplanationByBookIdByChapterNumberOptions,
+    getBibleBookNotesByUserIdOptions,
+    getBibleBooksOptions,
+    getBibleChapterIdByBookIdByChapterNumberOptions,
+    getBibleHighlightsByUserIdByBookIdByChapterNumberOptions,
+    getBibleHighlightsByUserIdOptions,
+    getBibleTestamentsOptions,
+    getTopicsByIdExplanationOptions,
+    getTopicsByIdOptions,
+    getTopicsByIdReferencesOptions,
+    getTopicsCategoriesOptions,
+    getTopicsSearchOptions,
+    postBibleBookBookmarkAddMutation,
+    postBibleBookChapterLastReadMutation,
+    postBibleBookChapterSaveLastReadMutation,
+    postBibleBookNoteAddMutation,
+    postBibleHighlightAddMutation,
+    putBibleBookNoteUpdateMutation,
+    putBibleHighlightByHighlightIdMutation,
 } from './generated/@tanstack/react-query.gen';
 
 // Offline mode imports
-import { useOfflineContext } from '@/contexts/OfflineContext';
-import { getLocalBibleChapter, getLocalCommentary, getLocalTopics, getLocalTopic, getLocalTopicReferences } from '@/services/offline';
 import { getBookById } from '@/constants/bible-books';
+import { useOfflineContext } from '@/contexts/OfflineContext';
+import { getLocalBibleChapter, getLocalCommentary, getLocalTopic, getLocalTopicReferences } from '@/services/offline';
 import { parseAndInjectVerses } from '@/services/offline/topic-renderer.service';
 
 // Note: Options type is already exported from sdk.gen via index.ts
@@ -165,27 +156,23 @@ export const useBibleChapter = (bookId: number, chapterNumber: number, version?:
 export const useBibleChapterExplanation = (bookId: number, chapterNumber: number, explanationType?: string, language?: string) => {
 	const { downloadedCommentaryLanguages } = useOfflineContext();
 	const effectiveLanguage = language || 'en';
-	const isLocal = downloadedCommentaryLanguages.includes(effectiveLanguage);
+
+	// Match language code flexibly: try exact match first, then short code (e.g., 'en' from 'en-US')
+	const shortCode = effectiveLanguage.split('-')[0].toLowerCase();
+	const matchedLocalLanguage = downloadedCommentaryLanguages.find(
+		(dl) => dl === effectiveLanguage || dl === shortCode || dl.split('-')[0].toLowerCase() === shortCode
+	);
+	const isLocal = Boolean(matchedLocalLanguage);
+	const localLanguage = matchedLocalLanguage || effectiveLanguage;
 
 	const query = useQuery({
 		queryKey: ['bible-explanation', bookId, chapterNumber, explanationType, effectiveLanguage, isLocal ? 'local' : 'remote'],
 		queryFn: async () => {
 			if (isLocal && explanationType) {
-				// Local fetch
-                // Note: local DB currently stores one explanation per chapter per language? 
-                // Spec says: `type TEXT NOT NULL`. So we can filter by type.
-                // But `getLocalCommentary` currently only fetches by language/book/chapter (limit 1).
-                // We might need to update `getLocalCommentary` to filter by type or fetch all and filter here.
-                // For now, let's assume getLocalCommentary returns what we need or we update it.
-                // Actually `getLocalCommentary` query is: SELECT ... WHERE ... LIMIT 1. This might be wrong if we have multiple types.
-                // Let's assume for now we get the right one or update the service later. 
-                // Wait, I should probably update `getLocalCommentary` to accept `type`.
-                
-                // For this implementation, I will call getLocalCommentary. If it doesn't support type, it might return wrong one.
-                // But the spec schema has `type`.
-                const explanation = await getLocalCommentary(effectiveLanguage, bookId, chapterNumber);
-                
-                if (!explanation || explanation.type !== explanationType) return null;
+				// Local fetch - use the matched language code from the DB
+				const explanation = await getLocalCommentary(localLanguage, bookId, chapterNumber, explanationType);
+
+				if (!explanation) return null;
 
 				return {
 					bookId: explanation.book_id,
@@ -209,12 +196,12 @@ export const useBibleChapterExplanation = (bookId: number, chapterNumber: number
 				throw new Error('Query function not defined');
 			}
 
-			const response = await options.queryFn({ 
-				queryKey: options.queryKey || [], 
-				meta: undefined, 
-				signal: new AbortController().signal 
+			const response = await options.queryFn({
+				queryKey: options.queryKey || [],
+				meta: undefined,
+				signal: new AbortController().signal
 			} as any);
-            
+
             return response;
 		},
 		enabled: bookId > 0 && chapterNumber > 0 && Boolean(explanationType),
@@ -222,7 +209,7 @@ export const useBibleChapterExplanation = (bookId: number, chapterNumber: number
 
 	return {
 		...query,
-		data: isLocal ? query.data : (query.data && 'explanation' in query.data ? transformExplanationResponse(query.data as any) : null),
+		data: (isLocal ? query.data : (query.data && 'explanation' in query.data ? transformExplanationResponse(query.data as any) : null)) as ExplanationContent | null | undefined,
 	};
 };
 
@@ -374,21 +361,7 @@ export const useBibleSummary = (
 	_queryKey?: any,
 	options?: { enabled?: boolean; language?: string }
 ) => {
-	const query = useQuery({
-		...getBibleBookExplanationByBookIdByChapterNumberOptions({
-			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: {
-				explanationType: 'summary',
-				...(options?.language && { lang: options.language }),
-			} as any,
-		}),
-		enabled: options?.enabled,
-	});
-
-	return {
-		...query,
-		data: query.data && 'explanation' in query.data ? transformExplanationResponse(query.data as any) : null,
-	};
+	return useBibleChapterExplanation(bookId, chapterNumber, 'summary', options?.language);
 };
 
 export const useBibleByLine = (
@@ -397,21 +370,7 @@ export const useBibleByLine = (
 	_queryKey?: any,
 	options?: { enabled?: boolean; language?: string }
 ) => {
-	const query = useQuery({
-		...getBibleBookExplanationByBookIdByChapterNumberOptions({
-			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: {
-				explanationType: 'byline',
-				...(options?.language && { lang: options.language }),
-			} as any,
-		}),
-		enabled: options?.enabled,
-	});
-
-	return {
-		...query,
-		data: query.data && 'explanation' in query.data ? transformExplanationResponse(query.data as any) : null,
-	};
+	return useBibleChapterExplanation(bookId, chapterNumber, 'byline', options?.language);
 };
 
 export const useBibleDetailed = (
@@ -420,21 +379,7 @@ export const useBibleDetailed = (
 	_queryKey?: any,
 	options?: { enabled?: boolean; language?: string }
 ) => {
-	const query = useQuery({
-		...getBibleBookExplanationByBookIdByChapterNumberOptions({
-			path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-			query: {
-				explanationType: 'detailed',
-				...(options?.language && { lang: options.language }),
-			} as any,
-		}),
-		enabled: options?.enabled,
-	});
-
-	return {
-		...query,
-		data: query.data && 'explanation' in query.data ? transformExplanationResponse(query.data as any) : null,
-	};
+	return useBibleChapterExplanation(bookId, chapterNumber, 'detailed', options?.language);
 };
 
 // Prefetch hooks for next/previous chapters
