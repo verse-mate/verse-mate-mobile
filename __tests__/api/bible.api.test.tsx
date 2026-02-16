@@ -121,6 +121,9 @@ describe('Bible API Hooks', () => {
     beforeEach(() => {
       (useOfflineContext as jest.Mock).mockReturnValue({
         downloadedBibleVersions: [],
+        downloadedCommentaryLanguages: [],
+        downloadedTopicLanguages: [],
+        isUserDataSynced: false,
       });
     });
 

@@ -45,9 +45,18 @@ jest.mock('@/contexts/OfflineContext', () => ({
   useOfflineContext: jest.fn().mockReturnValue({
     commentaryInfo: [],
     topicsInfo: [],
+    downloadedCommentaryLanguages: [],
+    downloadedTopicLanguages: [],
   }),
 }));
 jest.mock('@/hooks/use-bible-version');
+jest.mock('@/hooks/bible/use-offline-status', () => ({
+  useOfflineStatus: jest.fn().mockReturnValue({
+    isOffline: false,
+    isConnected: true,
+    networkType: 'wifi',
+  }),
+}));
 jest.mock('@/hooks/useDeleteAccount');
 jest.mock('@/src/api/generated/sdk.gen');
 

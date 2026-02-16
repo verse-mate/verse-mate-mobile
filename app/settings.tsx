@@ -14,6 +14,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
@@ -42,7 +43,9 @@ import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { notifyLanguageChanged } from '@/hooks/use-preferred-language';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import {
   getBibleLanguages,
@@ -56,12 +59,46 @@ interface Language {
   nativeName: string;
 }
 
+// Fallback language code → display name mapping for offline use
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  ro: 'Romanian',
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  pt: 'Portuguese',
+  ru: 'Russian',
+  uk: 'Ukrainian',
+  nl: 'Dutch',
+  pl: 'Polish',
+  ko: 'Korean',
+  ja: 'Japanese',
+  zh: 'Chinese',
+  ar: 'Arabic',
+  hi: 'Hindi',
+  sv: 'Swedish',
+  no: 'Norwegian',
+  da: 'Danish',
+  fi: 'Finnish',
+  hu: 'Hungarian',
+  cs: 'Czech',
+  el: 'Greek',
+  he: 'Hebrew',
+  tr: 'Turkish',
+  th: 'Thai',
+  vi: 'Vietnamese',
+  id: 'Indonesian',
+};
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, logout, restoreSession, refreshTokens } = useAuth();
   const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
-  const { commentaryInfo, topicsInfo } = useOfflineContext();
+  const { commentaryInfo, topicsInfo, downloadedCommentaryLanguages, downloadedTopicLanguages } =
+    useOfflineContext();
+  const { isOffline } = useOfflineStatus();
   const queryClient = useQueryClient();
 
   // Bible version state
@@ -94,18 +131,37 @@ export default function SettingsScreen() {
 
   // Update form fields when user session changes
   useEffect(() => {
-    if (user) {
-      setFirstName(user.firstName || '');
-      setLastName(user.lastName || '');
-      setEmail(user.email || '');
-      setSelectedLanguage(user.preferred_language || 'en-US');
-    }
-  }, [user]);
+    const loadPersistedLanguage = async () => {
+      // When offline, load from AsyncStorage
+      if (isOffline) {
+        try {
+          const storedLang = await AsyncStorage.getItem('@versemate:preferred_language');
+          if (storedLang) {
+            setSelectedLanguage(storedLang);
+            return;
+          }
+        } catch (error) {
+          console.warn('Failed to load persisted language:', error);
+        }
+      }
+
+      // Otherwise use user's preferred language from session
+      if (user) {
+        setFirstName(user.firstName || '');
+        setLastName(user.lastName || '');
+        setEmail(user.email || '');
+        setSelectedLanguage(user.preferred_language || 'en-US');
+      }
+    };
+
+    loadPersistedLanguage();
+  }, [user, isOffline]);
 
   // Build offline fallback languages from downloaded commentary/topic data
   const getOfflineLanguages = useCallback((): Language[] => {
     const langMap = new Map<string, Language>();
 
+    // First try: use commentaryInfo/topicsInfo which have full names (requires manifest)
     for (const info of commentaryInfo) {
       if (info.status === 'downloaded' || info.status === 'update_available') {
         langMap.set(info.key, { code: info.key, name: info.name, nativeName: info.name });
@@ -120,41 +176,94 @@ export default function SettingsScreen() {
       }
     }
 
-    return Array.from(langMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [commentaryInfo, topicsInfo]);
+    // Second try: use downloaded language code arrays (always available from local DB)
+    // These work even without a manifest/network
+    for (const code of downloadedCommentaryLanguages) {
+      if (!langMap.has(code)) {
+        const shortCode = code.split('-')[0].toLowerCase();
+        const displayName = LANGUAGE_NAMES[code] || LANGUAGE_NAMES[shortCode] || code.toUpperCase();
+        langMap.set(code, { code, name: displayName, nativeName: displayName });
+      }
+    }
+    for (const code of downloadedTopicLanguages) {
+      if (!langMap.has(code)) {
+        const shortCode = code.split('-')[0].toLowerCase();
+        const displayName = LANGUAGE_NAMES[code] || LANGUAGE_NAMES[shortCode] || code.toUpperCase();
+        langMap.set(code, { code, name: displayName, nativeName: displayName });
+      }
+    }
 
-  // Fetch available languages (fall back to offline downloaded languages on failure)
+    return Array.from(langMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [commentaryInfo, topicsInfo, downloadedCommentaryLanguages, downloadedTopicLanguages]);
+
+  // Fetch available languages, cache them, and restore from cache when offline
   useEffect(() => {
+    const LANGUAGES_CACHE_KEY = 'versemate:languages_cache';
+
+    const parseLanguages = (
+      raw: { language_code: string; name: string; native_name: string }[]
+    ): Language[] =>
+      raw
+        .map((lang) => ({
+          code: lang.language_code,
+          name: lang.name,
+          nativeName: lang.native_name,
+        }))
+        .sort((a, b) => a.nativeName.localeCompare(b.nativeName));
+
     const fetchLanguages = async () => {
+      // 1. Try fetching from the API
       try {
         const { data, error } = await getBibleLanguages();
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
         if (data) {
-          const mappedLanguages = (
-            data as {
-              language_code: string;
-              name: string;
-              native_name: string;
-            }[]
-          ).map((lang) => ({
-            code: lang.language_code,
-            name: lang.name,
-            nativeName: lang.native_name,
-          }));
-          // Sort alphabetically by native name
-          const sortedLanguages = mappedLanguages.sort((a, b) =>
-            a.nativeName.localeCompare(b.nativeName)
+          const languages = parseLanguages(
+            data as { language_code: string; name: string; native_name: string }[]
           );
-          setAvailableLanguages(sortedLanguages);
+          setAvailableLanguages(languages);
+          // Cache for offline use
+          AsyncStorage.setItem(LANGUAGES_CACHE_KEY, JSON.stringify(data)).catch(console.warn);
           return;
         }
       } catch (error) {
         console.error('Failed to fetch available languages:', error);
       }
 
-      // Fallback: use downloaded offline languages so the picker still works
+      // 2. Try restoring from cache (filtered to downloaded languages when offline)
+      try {
+        const cached = await AsyncStorage.getItem(LANGUAGES_CACHE_KEY);
+        if (cached) {
+          const allLanguages = parseLanguages(JSON.parse(cached));
+          if (allLanguages.length > 0) {
+            if (isOffline) {
+              // Filter to only downloaded languages, using cached names for display
+              const downloadedCodes = new Set([
+                ...downloadedCommentaryLanguages,
+                ...downloadedTopicLanguages,
+              ]);
+              // Also build a set of short codes (e.g., 'en' from 'en-US')
+              const downloadedShortCodes = new Set(
+                [...downloadedCodes].map((c) => c.split('-')[0].toLowerCase())
+              );
+              const filtered = allLanguages.filter((lang) => {
+                const shortCode = lang.code.split('-')[0].toLowerCase();
+                return downloadedCodes.has(lang.code) || downloadedShortCodes.has(shortCode);
+              });
+              if (filtered.length > 0) {
+                setAvailableLanguages(filtered);
+                return;
+              }
+            } else {
+              setAvailableLanguages(allLanguages);
+              return;
+            }
+          }
+        }
+      } catch (cacheError) {
+        console.warn('Failed to read languages cache:', cacheError);
+      }
+
+      // 3. Last resort: build from downloaded language codes
       const offlineLangs = getOfflineLanguages();
       if (offlineLangs.length > 0) {
         setAvailableLanguages(offlineLangs);
@@ -164,7 +273,41 @@ export default function SettingsScreen() {
     if (isAuthenticated) {
       fetchLanguages();
     }
-  }, [isAuthenticated, getOfflineLanguages]);
+  }, [
+    isAuthenticated,
+    getOfflineLanguages,
+    isOffline,
+    downloadedCommentaryLanguages,
+    downloadedTopicLanguages,
+  ]);
+
+  // Sync offline-stored language to backend when coming back online
+  useEffect(() => {
+    const syncOfflineLanguage = async () => {
+      if (!isOffline && isAuthenticated) {
+        try {
+          const storedLang = await AsyncStorage.getItem('@versemate:preferred_language');
+          // If there's a stored language and it's different from the user's current preference, sync it
+          if (storedLang && storedLang !== user?.preferred_language) {
+            const { error } = await patchUserPreferences({
+              body: { preferred_language: storedLang },
+            });
+
+            if (!error) {
+              // Clear the offline storage after successful sync
+              await AsyncStorage.removeItem('@versemate:preferred_language');
+              // Refresh tokens to update claims
+              await refreshTokens();
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to sync offline language preference:', error);
+        }
+      }
+    };
+
+    syncOfflineLanguage();
+  }, [isOffline, isAuthenticated, user?.preferred_language, refreshTokens]);
 
   const hasProfileChanges = () => {
     return (
@@ -315,6 +458,31 @@ export default function SettingsScreen() {
       setSelectedLanguage(languageCode);
       setShowLanguagePicker(false);
 
+      // Invalidate queries to refresh content in new language
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const k = q.queryKey as unknown as (string | undefined)[];
+          return (
+            Array.isArray(k) &&
+            (k[0] === 'topic-details' ||
+              k[0] === 'topic-references' ||
+              k[0] === 'topic-details-explanation' ||
+              k[0] === 'topic-explanation' ||
+              k[0] === 'topics' ||
+              k[0] === 'bible-explanation' ||
+              k[0] === 'getBibleBookExplanationByBookIdByChapterNumber')
+          );
+        },
+      });
+
+      // When offline, save to AsyncStorage for persistence
+      if (isOffline) {
+        await AsyncStorage.setItem('@versemate:preferred_language', languageCode);
+        // Notify mounted hooks so commentaries update immediately
+        notifyLanguageChanged();
+        return;
+      }
+
       const { error } = await patchUserPreferences({
         body: { preferred_language: languageCode },
       });
@@ -327,22 +495,6 @@ export default function SettingsScreen() {
       // Add a small delay to ensure backend DB consistency before issuing new token
       await new Promise((resolve) => setTimeout(resolve, 500));
       await refreshTokens();
-
-      // Invalidate topic and bible explanation queries to refresh with new language
-      queryClient.invalidateQueries({
-        predicate: (q) => {
-          const k = q.queryKey as unknown as (string | undefined)[];
-          return (
-            Array.isArray(k) &&
-            (k[0] === 'topic-details' ||
-              k[0] === 'topic-references' ||
-              k[0] === 'topic-details-explanation' ||
-              k[0] === 'topic-explanation' ||
-              k[0] === 'topics' ||
-              k[0] === 'getBibleBookExplanationByBookIdByChapterNumber')
-          );
-        },
-      });
     } catch (error) {
       console.error('Failed to save language preference:', error);
       Alert.alert('Error', 'Failed to save language preference');
