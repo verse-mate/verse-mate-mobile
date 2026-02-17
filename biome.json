@@ -7,6 +7,7 @@
       "hooks/**/*.{js,jsx,ts,tsx}",
       "constants/**/*.{js,jsx,ts,tsx}",
       "utils/**/*.{js,jsx,ts,tsx}",
+      "src/**/*.{js,jsx,ts,tsx}",
       "services/**/*.{js,jsx,ts,tsx}",
       "types/**/*.{js,jsx,ts,tsx}",
       "scripts/**/*.{js,jsx,ts,tsx}",
