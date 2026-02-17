@@ -302,7 +302,7 @@ describe('SettingsScreen', () => {
 
       renderWithProviders(<SettingsScreen />);
 
-      expect(screen.getByText(/Sign in to access language preferences/i)).toBeTruthy();
+      expect(screen.getByText(/Sign in to access auto-highlights/i)).toBeTruthy();
       expect(screen.getByTestId('settings-sign-in-button')).toBeTruthy();
     });
 
@@ -511,7 +511,7 @@ describe('SettingsScreen', () => {
       expect(screen.getByText('Language Preferences')).toBeTruthy();
     });
 
-    it('hides language preferences when not authenticated', () => {
+    it('shows language preferences even when not authenticated', () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
@@ -526,7 +526,7 @@ describe('SettingsScreen', () => {
 
       renderWithProviders(<SettingsScreen />);
 
-      expect(screen.queryByText('Language Preferences')).toBeNull();
+      expect(screen.queryByText('Language Preferences')).toBeTruthy();
     });
   });
 });
