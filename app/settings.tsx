@@ -8,7 +8,7 @@
  * Features:
  * - Profile Information editing (authenticated users only)
  * - Bible Version selection (available to all users)
- * - Language Preferences (authenticated users only)
+ * - Language Preferences (available to all users, synced to backend when authenticated)
  * - Theme Selector (available to all users)
  * - Logout (authenticated users only)
  */
@@ -132,20 +132,24 @@ export default function SettingsScreen() {
   // Update form fields when user session changes
   useEffect(() => {
     const loadPersistedLanguage = async () => {
-      // When offline, load from AsyncStorage
-      if (isOffline) {
-        try {
-          const storedLang = await AsyncStorage.getItem('@versemate:preferred_language');
-          if (storedLang) {
-            setSelectedLanguage(storedLang);
-            return;
+      // Always try AsyncStorage first (works for both offline and logged-out users)
+      try {
+        const storedLang = await AsyncStorage.getItem('@versemate:preferred_language');
+        if (storedLang) {
+          setSelectedLanguage(storedLang);
+          // Still update profile fields if user is logged in
+          if (user) {
+            setFirstName(user.firstName || '');
+            setLastName(user.lastName || '');
+            setEmail(user.email || '');
           }
-        } catch (error) {
-          console.warn('Failed to load persisted language:', error);
+          return;
         }
+      } catch (error) {
+        console.warn('Failed to load persisted language:', error);
       }
 
-      // Otherwise use user's preferred language from session
+      // Fall back to user's preferred language from session
       if (user) {
         setFirstName(user.firstName || '');
         setLastName(user.lastName || '');
@@ -270,9 +274,7 @@ export default function SettingsScreen() {
       }
     };
 
-    if (isAuthenticated) {
-      fetchLanguages();
-    }
+    fetchLanguages();
   }, [
     isAuthenticated,
     getOfflineLanguages,
@@ -475,26 +477,25 @@ export default function SettingsScreen() {
         },
       });
 
-      // When offline, save to AsyncStorage for persistence
-      if (isOffline) {
-        await AsyncStorage.setItem('@versemate:preferred_language', languageCode);
-        // Notify mounted hooks so commentaries update immediately
-        notifyLanguageChanged();
-        return;
+      // Always persist to AsyncStorage (for offline, logged-out, and as cache)
+      await AsyncStorage.setItem('@versemate:preferred_language', languageCode);
+      notifyLanguageChanged();
+
+      // When authenticated and online, also sync to backend
+      if (isAuthenticated && !isOffline) {
+        const { error } = await patchUserPreferences({
+          body: { preferred_language: languageCode },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        // Refresh tokens to update claims (like language)
+        // Add a small delay to ensure backend DB consistency before issuing new token
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await refreshTokens();
       }
-
-      const { error } = await patchUserPreferences({
-        body: { preferred_language: languageCode },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Refresh tokens to update claims (like language)
-      // Add a small delay to ensure backend DB consistency before issuing new token
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await refreshTokens();
     } catch (error) {
       console.error('Failed to save language preference:', error);
       Alert.alert('Error', 'Failed to save language preference');
@@ -728,59 +729,57 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* Language Preferences Section - Authenticated Only */}
-        {isAuthenticated && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Language Preferences</Text>
-            <Pressable
-              style={styles.selectButton}
-              onPress={() => setShowLanguagePicker(!showLanguagePicker)}
-            >
-              <Text style={styles.selectButtonText}>
-                {(() => {
-                  const selectedLang = availableLanguages.find(
-                    (lang) => lang.code === selectedLanguage
-                  );
-                  return selectedLang ? formatLanguageDisplay(selectedLang) : 'Select Language';
-                })()}
-              </Text>
-              <Ionicons
-                name={showLanguagePicker ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color={colors.textSecondary}
-              />
-            </Pressable>
+        {/* Language Preferences Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Language Preferences</Text>
+          <Pressable
+            style={styles.selectButton}
+            onPress={() => setShowLanguagePicker(!showLanguagePicker)}
+          >
+            <Text style={styles.selectButtonText}>
+              {(() => {
+                const selectedLang = availableLanguages.find(
+                  (lang) => lang.code === selectedLanguage
+                );
+                return selectedLang ? formatLanguageDisplay(selectedLang) : 'Select Language';
+              })()}
+            </Text>
+            <Ionicons
+              name={showLanguagePicker ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={colors.textSecondary}
+            />
+          </Pressable>
 
-            {showLanguagePicker && (
-              <View style={styles.pickerContainer}>
-                <ScrollView style={styles.pickerScrollView}>
-                  {availableLanguages.map((language) => (
-                    <Pressable
-                      key={language.code}
+          {showLanguagePicker && (
+            <View style={styles.pickerContainer}>
+              <ScrollView style={styles.pickerScrollView}>
+                {availableLanguages.map((language) => (
+                  <Pressable
+                    key={language.code}
+                    style={[
+                      styles.pickerItem,
+                      language.code === selectedLanguage && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => handleLanguageChange(language.code)}
+                  >
+                    <Text
                       style={[
-                        styles.pickerItem,
-                        language.code === selectedLanguage && styles.pickerItemSelected,
+                        styles.pickerItemText,
+                        language.code === selectedLanguage && styles.pickerItemTextSelected,
                       ]}
-                      onPress={() => handleLanguageChange(language.code)}
                     >
-                      <Text
-                        style={[
-                          styles.pickerItemText,
-                          language.code === selectedLanguage && styles.pickerItemTextSelected,
-                        ]}
-                      >
-                        {formatLanguageDisplay(language)}
-                      </Text>
-                      {language.code === selectedLanguage && (
-                        <Ionicons name="checkmark" size={20} color={colors.gold} />
-                      )}
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-          </View>
-        )}
+                      {formatLanguageDisplay(language)}
+                    </Text>
+                    {language.code === selectedLanguage && (
+                      <Ionicons name="checkmark" size={20} color={colors.gold} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
 
         {/* Theme Selector Section */}
         <ThemeSelector />
@@ -852,7 +851,7 @@ export default function SettingsScreen() {
           <View style={styles.notAuthenticatedContainer}>
             <Ionicons name="person-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.notAuthenticatedText}>
-              Sign in to access language preferences, auto-highlights, and profile settings.
+              Sign in to access auto-highlights and profile settings.
             </Text>
             <Button
               title="Sign In"
