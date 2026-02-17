@@ -3,12 +3,12 @@ import { getAccessToken } from '@/lib/auth/token-storage';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
+import type { ExplanationContent } from './bible/types';
 import {
     transformChapterResponse,
     transformExplanationResponse,
     transformTestamentsToBooks
 } from './bible/types';
-import type { ExplanationContent } from './bible/types';
 import type { Options } from './generated/sdk.gen';
 import type {
     DeleteBibleBookBookmarkRemoveData,
@@ -61,7 +61,7 @@ import {
 import { getBookById } from '@/constants/bible-books';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { getLocalBibleChapter, getLocalCommentary, getLocalTopic, getLocalTopicReferences } from '@/services/offline';
-import { parseAndInjectVerses } from '@/services/offline/topic-renderer.service';
+import { parseAndInjectVerses } from '@/services/offline/verse-parser.service';
 
 // Note: Options type is already exported from sdk.gen via index.ts
 
@@ -153,9 +153,10 @@ export const useBibleChapter = (bookId: number, chapterNumber: number, version?:
 };
 
 // Bible Chapter Explanation - wrapper for simpler API with Offline Support
-export const useBibleChapterExplanation = (bookId: number, chapterNumber: number, explanationType?: string, language?: string) => {
-	const { downloadedCommentaryLanguages } = useOfflineContext();
+export const useBibleChapterExplanation = (bookId: number, chapterNumber: number, explanationType?: string, language?: string, version?: string) => {
+	const { downloadedCommentaryLanguages, downloadedBibleVersions } = useOfflineContext();
 	const effectiveLanguage = language || 'en';
+	const effectiveVersion = version || 'NASB1995';
 
 	// Match language code flexibly: try exact match first, then short code (e.g., 'en' from 'en-US')
 	const shortCode = effectiveLanguage.split('-')[0].toLowerCase();
@@ -174,11 +175,19 @@ export const useBibleChapterExplanation = (bookId: number, chapterNumber: number
 
 				if (!explanation) return null;
 
+				// Inject verse text into placeholders (matches backend behavior with includeVerseNumbers: false)
+				let content = explanation.explanation;
+				if (downloadedBibleVersions.includes(effectiveVersion)) {
+					content = await parseAndInjectVerses(content, effectiveVersion, {
+						includeVerseNumbers: false,
+					});
+				}
+
 				return {
 					bookId: explanation.book_id,
 					chapterNumber: explanation.chapter_number,
 					type: explanation.type,
-					content: explanation.explanation,
+					content,
 					languageCode: explanation.language_code,
 				};
 			}

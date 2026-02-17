@@ -2,8 +2,11 @@ import { getBookByName } from '../../constants/bible-books';
 import { getLocalBibleChapter, getSpecificVerses } from './sqlite-manager';
 
 /**
- * Service to parse topic content and inject Bible verses from local SQLite database.
+ * Service to parse markdown content with Bible verse/chapter placeholders
+ * and inject actual verse text from the local SQLite database.
  * Mirrors the logic from backend `verse-parser.ts`.
+ *
+ * Used by both topic explanations and Bible chapter explanations.
  */
 
 /**
@@ -187,15 +190,13 @@ export async function parseAndInjectVerses(
 
       // Replace the original placeholder (global replacement for safety if dupes exist)
       const replacementRegex = new RegExp(
-        verseRef.fullMatch.replace(/[.*+?^${}()|[\\]/g, '\\$& '),
+        verseRef.fullMatch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
         'g'
       );
       processedText = processedText.replace(replacementRegex, replacementText);
     } else {
-      // If verses not found (e.g. book/version missing), keep placeholder or replace with error?
-      // For now, let's keep it but log a warning
       console.warn(
-        `[TopicRenderer] Verses not found: ${verseRef.bookName} ${verseRef.chapterNumber}:${verseRef.startVerse}-${verseRef.endVerse}`
+        `[VerseParser] Verses not found: ${verseRef.bookName} ${verseRef.chapterNumber}:${verseRef.startVerse}-${verseRef.endVerse}`
       );
     }
   }
@@ -260,7 +261,7 @@ export async function parseAndInjectVerses(
 
       // Replace the placeholder with the chapter content
       const replacementRegex = new RegExp(
-        chapterRef.fullMatch.replace(/[.*+?^${}()|[\\]/g, '\\$& '),
+        chapterRef.fullMatch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
         'g'
       );
       processedText = processedText.replace(replacementRegex, replacementText);
