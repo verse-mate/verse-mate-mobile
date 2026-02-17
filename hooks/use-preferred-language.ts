@@ -27,6 +27,11 @@ const OFFLINE_LANGUAGE_KEY = '@versemate:preferred_language';
 type Listener = () => void;
 const listeners = new Set<Listener>();
 
+// Module-level cache: once loaded from AsyncStorage, all new mounts use this
+// instantly instead of waiting for an async read. Prevents language flicker
+// when components remount (e.g., chapter swipe causing PagerView key change).
+let cachedLanguage: string | null = null;
+
 /**
  * Call this after saving a new language to AsyncStorage.
  * All mounted usePreferredLanguage hooks will re-read the value.
@@ -39,7 +44,7 @@ export function usePreferredLanguage(): string {
   const { user } = useAuth();
   const sessionLanguage =
     typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
-  const [language, setLanguage] = useState<string>(sessionLanguage);
+  const [language, setLanguage] = useState<string>(cachedLanguage ?? sessionLanguage);
 
   // Read stored language from AsyncStorage
   useEffect(() => {
@@ -48,8 +53,10 @@ export function usePreferredLanguage(): string {
     const load = async () => {
       try {
         const stored = await AsyncStorage.getItem(OFFLINE_LANGUAGE_KEY);
+        const resolved = stored || sessionLanguage;
+        cachedLanguage = resolved;
         if (active) {
-          setLanguage(stored || sessionLanguage);
+          setLanguage(resolved);
         }
       } catch {
         if (active) setLanguage(sessionLanguage);
@@ -68,7 +75,9 @@ export function usePreferredLanguage(): string {
     const refresh = async () => {
       try {
         const stored = await AsyncStorage.getItem(OFFLINE_LANGUAGE_KEY);
-        setLanguage(stored || sessionLanguage);
+        const resolved = stored || sessionLanguage;
+        cachedLanguage = resolved;
+        setLanguage(resolved);
       } catch {
         setLanguage(sessionLanguage);
       }
