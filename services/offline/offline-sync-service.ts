@@ -161,7 +161,7 @@ export async function downloadTopics(
 
   onProgress?.({ current: 50, total: 100, message: 'Storing locally...' });
 
-  await insertTopics(languageCode, data.topics, data.references);
+  await insertTopics(languageCode, data.topics, data.references, data.explanations);
 
   onProgress?.({ current: 90, total: 100, message: 'Saving metadata...' });
 

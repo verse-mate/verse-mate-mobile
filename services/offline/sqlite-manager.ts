@@ -19,6 +19,7 @@ import type {
   OfflineMetadata,
   OfflineNote,
   TopicData,
+  TopicExplanationData,
   TopicReferenceData,
 } from './types';
 
@@ -105,19 +106,27 @@ const CREATE_TABLES_SQL = `
     topic_id TEXT NOT NULL,
     name TEXT NOT NULL,
     content TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER,
     UNIQUE(language_code, topic_id)
   );
 
   CREATE TABLE IF NOT EXISTS offline_topic_references (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_id TEXT NOT NULL,
+    reference_content TEXT NOT NULL,
+    UNIQUE(topic_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS offline_topic_explanations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     language_code TEXT NOT NULL,
     topic_id TEXT NOT NULL,
-    book_id INTEGER NOT NULL,
-    chapter_number INTEGER NOT NULL,
-    verse_start INTEGER NOT NULL,
-    verse_end INTEGER
+    type TEXT NOT NULL,
+    explanation TEXT NOT NULL,
+    UNIQUE(language_code, topic_id, type)
   );
-  CREATE INDEX IF NOT EXISTS idx_topic_refs_lookup ON offline_topic_references(language_code, book_id, chapter_number);
+  CREATE INDEX IF NOT EXISTS idx_topic_explanations_lookup ON offline_topic_explanations(language_code, topic_id);
 
   CREATE TABLE IF NOT EXISTS offline_notes (
     note_id TEXT PRIMARY KEY,
@@ -189,6 +198,44 @@ function performInitSync(): SQLite.SQLiteDatabase {
 
     // Create tables
     database.execSync(CREATE_TABLES_SQL);
+
+    // Migrate offline_topic_references if it has the old schema (structured verse columns)
+    // The new schema uses a single reference_content TEXT column instead.
+    try {
+      const tableInfo = database.getAllSync<{ name: string }>(
+        'PRAGMA table_info(offline_topic_references)'
+      );
+      const columns = tableInfo.map((c) => c.name);
+      if (columns.includes('book_id') && !columns.includes('reference_content')) {
+        console.log('[Offline DB] Migrating offline_topic_references to new schema');
+        database.execSync(`
+          DROP TABLE IF EXISTS offline_topic_references;
+          CREATE TABLE offline_topic_references (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topic_id TEXT NOT NULL,
+            reference_content TEXT NOT NULL,
+            UNIQUE(topic_id)
+          );
+        `);
+      }
+    } catch {
+      /* table doesn't exist yet — CREATE TABLE IF NOT EXISTS above will handle it */
+    }
+
+    // Add category/sort_order columns to offline_topics if missing (migration from old schema)
+    try {
+      const topicCols = database.getAllSync<{ name: string }>('PRAGMA table_info(offline_topics)');
+      const colNames = topicCols.map((c) => c.name);
+      if (!colNames.includes('category')) {
+        console.log('[Offline DB] Adding category/sort_order columns to offline_topics');
+        database.execSync(
+          "ALTER TABLE offline_topics ADD COLUMN category TEXT NOT NULL DEFAULT ''"
+        );
+        database.execSync('ALTER TABLE offline_topics ADD COLUMN sort_order INTEGER');
+      }
+    } catch {
+      /* ignore — columns may already exist */
+    }
 
     // Test write � if this fails the DB is unusable (stale lock from another
     // native connection). Let it throw so initDatabase can delete & retry.
@@ -493,13 +540,17 @@ export async function deleteCommentaries(languageCode: string): Promise<void> {
 export async function insertTopics(
   languageCode: string,
   topics: TopicData[],
-  references: TopicReferenceData[]
+  references: TopicReferenceData[],
+  explanations: TopicExplanationData[]
 ): Promise<void> {
   const database = getDatabaseSync();
   console.log(
-    `[Offline DB] Inserting ${topics.length} topics, ${references.length} refs for ${languageCode}`
+    `[Offline DB] Inserting ${topics.length} topics, ${references.length} refs, ${explanations.length} explanations for ${languageCode}`
   );
   const start = Date.now();
+
+  const topicIds = topics.map((t) => t.topic_id);
+  const topicIdList = topicIds.map((id) => escapeSQL(id)).join(', ');
 
   // Step 1: Delete existing data in its own transaction
   execSafe(
@@ -507,7 +558,12 @@ export async function insertTopics(
     [
       'BEGIN',
       `DELETE FROM offline_topics WHERE language_code = ${escapeSQL(languageCode)}`,
-      `DELETE FROM offline_topic_references WHERE language_code = ${escapeSQL(languageCode)}`,
+      ...(topicIdList
+        ? [
+            `DELETE FROM offline_topic_references WHERE topic_id IN (${topicIdList})`,
+            `DELETE FROM offline_topic_explanations WHERE language_code = ${escapeSQL(languageCode)}`,
+          ]
+        : []),
       'COMMIT',
     ].join(';\n'),
     'topics-delete'
@@ -522,11 +578,11 @@ export async function insertTopics(
     const values = batch
       .map(
         (t) =>
-          `(${escapeSQL(languageCode)}, ${escapeSQL(t.topic_id)}, ${escapeSQL(t.name)}, ${escapeSQL(t.content)})`
+          `(${escapeSQL(languageCode)}, ${escapeSQL(t.topic_id)}, ${escapeSQL(t.name)}, ${escapeSQL(t.content)}, ${escapeSQL(t.category)}, ${escapeSQL(t.sort_order)})`
       )
       .join(', ');
     topicInserts.push(
-      `INSERT INTO offline_topics (language_code, topic_id, name, content) VALUES ${values}`
+      `INSERT INTO offline_topics (language_code, topic_id, name, content, category, sort_order) VALUES ${values}`
     );
   }
 
@@ -540,27 +596,53 @@ export async function insertTopics(
   }
 
   // Step 3: Insert references in chunks
-  const refBatchSize = 200;
-  const refInserts: string[] = [];
-  for (let i = 0; i < references.length; i += refBatchSize) {
-    const batch = references.slice(i, i + refBatchSize);
-    const values = batch
-      .map(
-        (r) =>
-          `(${escapeSQL(languageCode)}, ${escapeSQL(r.topic_id)}, ${r.book_id}, ${r.chapter_number}, ${r.verse_start}, ${escapeSQL(r.verse_end)})`
-      )
-      .join(', ');
-    refInserts.push(
-      `INSERT INTO offline_topic_references (language_code, topic_id, book_id, chapter_number, verse_start, verse_end) VALUES ${values}`
-    );
+  if (references.length > 0) {
+    const refBatchSize = 100;
+    const refInserts: string[] = [];
+    for (let i = 0; i < references.length; i += refBatchSize) {
+      const batch = references.slice(i, i + refBatchSize);
+      const values = batch
+        .map((r) => `(${escapeSQL(r.topic_id)}, ${escapeSQL(r.reference_content)})`)
+        .join(', ');
+      refInserts.push(
+        `INSERT OR REPLACE INTO offline_topic_references (topic_id, reference_content) VALUES ${values}`
+      );
+    }
+
+    for (let c = 0; c < refInserts.length; c += CHUNK_SIZE) {
+      const chunk = refInserts.slice(c, c + CHUNK_SIZE);
+      const chunkSQL = ['BEGIN', ...chunk, 'COMMIT'].join(';\n');
+      execSafe(database, chunkSQL, `topic-refs-insert-chunk-${c / CHUNK_SIZE}`);
+      if (c + CHUNK_SIZE < refInserts.length) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
   }
 
-  for (let c = 0; c < refInserts.length; c += CHUNK_SIZE) {
-    const chunk = refInserts.slice(c, c + CHUNK_SIZE);
-    const chunkSQL = ['BEGIN', ...chunk, 'COMMIT'].join(';\n');
-    execSafe(database, chunkSQL, `topic-refs-insert-chunk-${c / CHUNK_SIZE}`);
-    if (c + CHUNK_SIZE < refInserts.length) {
-      await new Promise((r) => setTimeout(r, 0));
+  // Step 4: Insert explanations in chunks
+  if (explanations.length > 0) {
+    const explBatchSize = 50;
+    const explInserts: string[] = [];
+    for (let i = 0; i < explanations.length; i += explBatchSize) {
+      const batch = explanations.slice(i, i + explBatchSize);
+      const values = batch
+        .map(
+          (e) =>
+            `(${escapeSQL(e.language_code)}, ${escapeSQL(e.topic_id)}, ${escapeSQL(e.type)}, ${escapeSQL(e.explanation)})`
+        )
+        .join(', ');
+      explInserts.push(
+        `INSERT OR REPLACE INTO offline_topic_explanations (language_code, topic_id, type, explanation) VALUES ${values}`
+      );
+    }
+
+    for (let c = 0; c < explInserts.length; c += CHUNK_SIZE) {
+      const chunk = explInserts.slice(c, c + CHUNK_SIZE);
+      const chunkSQL = ['BEGIN', ...chunk, 'COMMIT'].join(';\n');
+      execSafe(database, chunkSQL, `topic-expl-insert-chunk-${c / CHUNK_SIZE}`);
+      if (c + CHUNK_SIZE < explInserts.length) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
     }
   }
 
@@ -586,26 +668,131 @@ export async function isTopicsDownloaded(languageCode: string): Promise<boolean>
 
 export async function deleteTopics(languageCode: string): Promise<void> {
   const database = getDatabaseSync();
+  // Get topic IDs for this language to clean up references (which are keyed by topic_id, not language)
+  const topics = database.getAllSync<{ topic_id: string }>(
+    'SELECT topic_id FROM offline_topics WHERE language_code = ?',
+    [languageCode]
+  );
   database.runSync('DELETE FROM offline_topics WHERE language_code = ?', [languageCode]);
-  database.runSync('DELETE FROM offline_topic_references WHERE language_code = ?', [languageCode]);
+  if (topics.length > 0) {
+    const ids = topics.map((t) => `'${t.topic_id.replaceAll("'", "''")}'`).join(', ');
+    database.execSync(`DELETE FROM offline_topic_references WHERE topic_id IN (${ids})`);
+  }
+  database.runSync('DELETE FROM offline_topic_explanations WHERE language_code = ?', [
+    languageCode,
+  ]);
   database.runSync('DELETE FROM offline_metadata WHERE resource_key = ?', [
     `topics:${languageCode}`,
   ]);
 }
 
-export async function getLocalTopic(topicId: string): Promise<TopicData | null> {
+export async function getLocalTopic(
+  topicId: string,
+  languageCode?: string
+): Promise<TopicData | null> {
   const database = getDatabaseSync();
+  const langQuery =
+    'SELECT topic_id, name, content, language_code, category, sort_order FROM offline_topics WHERE topic_id = ? AND (language_code = ? OR language_code = ? OR language_code LIKE ?) LIMIT 1';
+  if (languageCode) {
+    const baseLang = languageCode.includes('-') ? languageCode.split('-')[0] : languageCode;
+    const result = database.getFirstSync<TopicData>(langQuery, [
+      topicId,
+      languageCode,
+      baseLang,
+      `${baseLang}-%`,
+    ]);
+    if (result) return result;
+    // Fallback to English if requested language not available
+    if (baseLang !== 'en') {
+      const enResult = database.getFirstSync<TopicData>(langQuery, [topicId, 'en', 'en', 'en-%']);
+      if (enResult) return enResult;
+    }
+    return null;
+  }
   const result = database.getFirstSync<TopicData>(
-    'SELECT topic_id, name, content, language_code FROM offline_topics WHERE topic_id = ?',
+    'SELECT topic_id, name, content, language_code, category, sort_order FROM offline_topics WHERE topic_id = ?',
     [topicId]
   );
   return result ?? null;
 }
 
-export async function getLocalTopicReferences(topicId: string): Promise<TopicReferenceData[]> {
+export async function getLocalTopicReferences(topicId: string): Promise<TopicReferenceData | null> {
   const database = getDatabaseSync();
-  return database.getAllSync<TopicReferenceData>(
-    'SELECT topic_id, book_id, chapter_number, verse_start, verse_end FROM offline_topic_references WHERE topic_id = ?',
+  const result = database.getFirstSync<TopicReferenceData>(
+    'SELECT topic_id, reference_content FROM offline_topic_references WHERE topic_id = ?',
+    [topicId]
+  );
+  return result ?? null;
+}
+
+export async function getLocalTopicExplanation(
+  topicId: string,
+  type: string,
+  languageCode?: string
+): Promise<TopicExplanationData | null> {
+  const database = getDatabaseSync();
+  const langQuery =
+    'SELECT topic_id, type, explanation, language_code FROM offline_topic_explanations WHERE topic_id = ? AND type = ? AND (language_code = ? OR language_code = ? OR language_code LIKE ?) LIMIT 1';
+  if (languageCode) {
+    const baseLang = languageCode.includes('-') ? languageCode.split('-')[0] : languageCode;
+    const result = database.getFirstSync<TopicExplanationData>(langQuery, [
+      topicId,
+      type,
+      languageCode,
+      baseLang,
+      `${baseLang}-%`,
+    ]);
+    if (result) return result;
+    // Fallback to English if requested language not available
+    if (baseLang !== 'en') {
+      const enResult = database.getFirstSync<TopicExplanationData>(langQuery, [
+        topicId,
+        type,
+        'en',
+        'en',
+        'en-%',
+      ]);
+      if (enResult) return enResult;
+    }
+    return null;
+  }
+  const result = database.getFirstSync<TopicExplanationData>(
+    'SELECT topic_id, type, explanation, language_code FROM offline_topic_explanations WHERE topic_id = ? AND type = ? LIMIT 1',
+    [topicId, type]
+  );
+  return result ?? null;
+}
+
+export async function getLocalTopicExplanations(
+  topicId: string,
+  languageCode?: string
+): Promise<TopicExplanationData[]> {
+  const database = getDatabaseSync();
+  const langQuery =
+    'SELECT topic_id, type, explanation, language_code FROM offline_topic_explanations WHERE topic_id = ? AND (language_code = ? OR language_code = ? OR language_code LIKE ?)';
+  if (languageCode) {
+    const baseLang = languageCode.includes('-') ? languageCode.split('-')[0] : languageCode;
+    const results = database.getAllSync<TopicExplanationData>(langQuery, [
+      topicId,
+      languageCode,
+      baseLang,
+      `${baseLang}-%`,
+    ]);
+    if (results.length > 0) return results;
+    // Fallback to English if requested language not available
+    if (baseLang !== 'en') {
+      const enResults = database.getAllSync<TopicExplanationData>(langQuery, [
+        topicId,
+        'en',
+        'en',
+        'en-%',
+      ]);
+      if (enResults.length > 0) return enResults;
+    }
+    return [];
+  }
+  return database.getAllSync<TopicExplanationData>(
+    'SELECT topic_id, type, explanation, language_code FROM offline_topic_explanations WHERE topic_id = ?',
     [topicId]
   );
 }
@@ -819,6 +1006,7 @@ export async function deleteAllOfflineData(): Promise<void> {
     DELETE FROM offline_explanations;
     DELETE FROM offline_topics;
     DELETE FROM offline_topic_references;
+    DELETE FROM offline_topic_explanations;
     DELETE FROM offline_notes;
     DELETE FROM offline_highlights;
     DELETE FROM offline_bookmarks;
