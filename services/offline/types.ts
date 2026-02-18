@@ -59,19 +59,26 @@ export interface TopicData {
   name: string;
   content: string;
   language_code: string;
+  category: string;
+  sort_order: number | null;
 }
 
 export interface TopicReferenceData {
   topic_id: string;
-  book_id: number;
-  chapter_number: number;
-  verse_start: number;
-  verse_end: number | null;
+  reference_content: string;
+}
+
+export interface TopicExplanationData {
+  topic_id: string;
+  type: string;
+  explanation: string;
+  language_code: string;
 }
 
 export interface TopicsDownloadData {
   topics: TopicData[];
   references: TopicReferenceData[];
+  explanations: TopicExplanationData[];
 }
 
 // Local metadata for tracking downloads

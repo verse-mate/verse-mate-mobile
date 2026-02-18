@@ -5,11 +5,14 @@ import { useEffect, useMemo } from 'react';
 // Offline mode imports
 import { getBookById } from '@/constants/bible-books';
 import { useOfflineContext } from '@/contexts/OfflineContext';
+import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { getAccessToken } from '@/lib/auth/token-storage';
 import {
   getLocalBibleChapter,
   getLocalCommentary,
   getLocalTopic,
+  getLocalTopicExplanation,
+  getLocalTopicExplanations,
   getLocalTopicReferences,
 } from '@/services/offline';
 import { parseAndInjectVerses } from '@/services/offline/verse-parser.service';
@@ -623,35 +626,67 @@ export const useAllTopics = () => {
 /**
  * Fetch topic details by ID with verse placeholder replacement (Offline Aware)
  * Tries local SQLite first if topics are downloaded, then falls back to remote API.
+ * Returns topic info, references content, and all explanation types.
  */
 export const useTopicById = (topicId: string, bibleVersion?: string) => {
   const { downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
   const hasLocalTopics = downloadedTopicLanguages.length > 0;
   const effectiveVersion = bibleVersion || 'NASB1995';
+  const canParseVerses = downloadedBibleVersions.includes(effectiveVersion);
+  const preferredLanguage = usePreferredLanguage();
 
   const query = useQuery({
-    queryKey: ['topic-by-id', topicId, bibleVersion],
+    queryKey: ['topic-by-id', topicId, bibleVersion, preferredLanguage],
     queryFn: async () => {
       // Try local first if topics are downloaded
       if (hasLocalTopics) {
-        const topic = await getLocalTopic(topicId);
+        const topic = await getLocalTopic(topicId, preferredLanguage);
         if (topic) {
-          let content = topic.content;
-          if (downloadedBibleVersions.includes(effectiveVersion)) {
-            content = await parseAndInjectVerses(topic.content, effectiveVersion, {
-              includeReference: true,
-            });
+          // Fetch explanations and references in parallel
+          const [explanations, refData] = await Promise.all([
+            getLocalTopicExplanations(topicId, preferredLanguage),
+            getLocalTopicReferences(topicId),
+          ]);
+
+          // Build explanation object with verse injection
+          const explanationMap: Record<string, string> = {};
+          for (const expl of explanations) {
+            let text = expl.explanation;
+            if (canParseVerses) {
+              text = await parseAndInjectVerses(text, effectiveVersion, {
+                includeReference: true,
+                includeVerseNumbers: false,
+              });
+            }
+            explanationMap[expl.type] = text;
+          }
+
+          // Process references content with verse injection
+          let referencesContent: string | null = null;
+          if (refData?.reference_content) {
+            referencesContent = canParseVerses
+              ? await parseAndInjectVerses(refData.reference_content, effectiveVersion, {
+                  includeReference: true,
+                  includeVerseNumbers: true,
+                })
+              : refData.reference_content;
           }
 
           return {
             topic: {
               topic_id: topic.topic_id,
               name: topic.name,
-              description: content,
-              content: content,
+              description: topic.content,
+              category: topic.category,
+              sort_order: topic.sort_order,
               language_code: topic.language_code,
             },
-            references: [],
+            references: referencesContent ? { content: referencesContent } : null,
+            explanation: {
+              summary: explanationMap.summary || 'No summary explanation available.',
+              byline: explanationMap.byline || 'No byline explanation available.',
+              detailed: explanationMap.detailed || 'No detailed explanation available.',
+            },
           };
         }
         // Topic not found locally — fall through to remote
@@ -685,26 +720,28 @@ export const useTopicById = (topicId: string, bibleVersion?: string) => {
 
 /**
  * Fetch topic Bible references (Offline Aware)
- * Tries local SQLite first, then falls back to remote API.
+ * Tries local SQLite first (with verse injection), then falls back to remote API.
  */
 export const useTopicReferences = (topicId: string, version?: string) => {
-  const { downloadedTopicLanguages } = useOfflineContext();
+  const { downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
   const hasLocalTopics = downloadedTopicLanguages.length > 0;
+  const effectiveVersion = version || 'NASB1995';
 
   const query = useQuery({
     queryKey: ['topic-references', topicId, version],
     queryFn: async () => {
       if (hasLocalTopics) {
-        const references = await getLocalTopicReferences(topicId);
-        if (references.length > 0) {
-          return {
-            references: references.map((ref) => ({
-              book_id: ref.book_id,
-              chapter_number: ref.chapter_number,
-              verse_start: ref.verse_start,
-              verse_end: ref.verse_end,
-            })),
-          };
+        const refData = await getLocalTopicReferences(topicId);
+        if (refData?.reference_content) {
+          // Parse and inject verses if Bible version is downloaded
+          let content = refData.reference_content;
+          if (downloadedBibleVersions.includes(effectiveVersion)) {
+            content = await parseAndInjectVerses(content, effectiveVersion, {
+              includeReference: true,
+              includeVerseNumbers: true,
+            });
+          }
+          return { references: { content } };
         }
         // No local references — fall through to remote
       }
@@ -736,7 +773,7 @@ export const useTopicReferences = (topicId: string, version?: string) => {
 
 /**
  * Fetch topic explanation with verse placeholder replacement (Offline Aware)
- * Tries local SQLite first, then falls back to remote API.
+ * Tries local SQLite first (from topic_explanations table), then falls back to remote API.
  */
 export const useTopicExplanation = (
   topicId: string,
@@ -747,17 +784,21 @@ export const useTopicExplanation = (
   const { downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
   const hasLocalTopics = downloadedTopicLanguages.length > 0;
   const effectiveVersion = bibleVersion || 'NASB1995';
+  const explanationType = type || 'detailed';
+  const preferredLanguage = usePreferredLanguage();
+  const effectiveLang = lang || preferredLanguage;
 
   const query = useQuery({
-    queryKey: ['topic-explanation', topicId, type, lang, bibleVersion],
+    queryKey: ['topic-explanation', topicId, type, effectiveLang, bibleVersion],
     queryFn: async () => {
       if (hasLocalTopics) {
-        const topic = await getLocalTopic(topicId);
-        if (topic) {
-          let content = topic.content;
+        const explanation = await getLocalTopicExplanation(topicId, explanationType, effectiveLang);
+        if (explanation) {
+          let content = explanation.explanation;
           if (downloadedBibleVersions.includes(effectiveVersion)) {
-            content = await parseAndInjectVerses(topic.content, effectiveVersion, {
+            content = await parseAndInjectVerses(content, effectiveVersion, {
               includeReference: true,
+              includeVerseNumbers: false,
             });
           }
 
@@ -765,14 +806,14 @@ export const useTopicExplanation = (
             explanation: {
               book_id: 0,
               chapter_number: 0,
-              type: type || 'detailed',
+              type: explanationType,
               explanation: content,
               explanation_id: 0,
-              language_code: topic.language_code,
+              language_code: explanation.language_code,
             },
           };
         }
-        // Topic not found locally — fall through to remote
+        // Explanation not found locally — fall through to remote
       }
 
       const options = getTopicsByIdExplanationOptions({

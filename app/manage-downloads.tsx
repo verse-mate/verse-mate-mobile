@@ -14,10 +14,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -27,6 +26,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ErrorModal } from '@/components/bible/ErrorModal';
+import { SuccessModal } from '@/components/bible/SuccessModal';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
@@ -83,6 +85,8 @@ interface CommentaryTopicBundle {
   languageName: string;
   hasCommentaries: boolean;
   hasTopics: boolean;
+  commentaryLanguageCode: string;
+  topicLanguageCode: string;
   commentaryStatus: DownloadStatus;
   topicStatus: DownloadStatus;
   totalSizeBytes: number;
@@ -102,6 +106,10 @@ function deriveOverallStatus(
   return 'not_downloaded';
 }
 
+function normalizeCode(code: string): string {
+  return code.split('-')[0].toLowerCase();
+}
+
 function buildCommentaryTopicBundles(
   commentaryInfo: DownloadInfo[],
   topicsInfo: DownloadInfo[]
@@ -109,11 +117,14 @@ function buildCommentaryTopicBundles(
   const bundleMap = new Map<string, CommentaryTopicBundle>();
 
   for (const c of commentaryInfo) {
-    bundleMap.set(c.key, {
-      languageCode: c.key,
+    const code = normalizeCode(c.key);
+    bundleMap.set(code, {
+      languageCode: code,
       languageName: c.name,
       hasCommentaries: true,
       hasTopics: false,
+      commentaryLanguageCode: c.key,
+      topicLanguageCode: code,
       commentaryStatus: c.status,
       topicStatus: 'not_downloaded',
       totalSizeBytes: c.size_bytes,
@@ -122,18 +133,22 @@ function buildCommentaryTopicBundles(
   }
 
   for (const t of topicsInfo) {
-    const existing = bundleMap.get(t.key);
+    const code = normalizeCode(t.key);
+    const existing = bundleMap.get(code);
     if (existing) {
       existing.hasTopics = true;
+      existing.topicLanguageCode = t.key;
       existing.topicStatus = t.status;
       existing.totalSizeBytes += t.size_bytes;
       existing.overallStatus = deriveOverallStatus(existing.commentaryStatus, t.status);
     } else {
-      bundleMap.set(t.key, {
-        languageCode: t.key,
+      bundleMap.set(code, {
+        languageCode: code,
         languageName: t.name,
         hasCommentaries: false,
         hasTopics: true,
+        commentaryLanguageCode: code,
+        topicLanguageCode: t.key,
         commentaryStatus: 'not_downloaded',
         topicStatus: t.status,
         totalSizeBytes: t.size_bytes,
@@ -160,10 +175,9 @@ interface DownloadItemProps {
   status: DownloadStatus;
   sizeBytes: number;
   onDownload: () => void;
-  onDelete: () => void;
+  onRequestDelete: () => void;
   isProcessing: boolean;
   colors: ReturnType<typeof getColors>;
-  deleteConfirmMessage: string;
 }
 
 function DownloadItem({
@@ -172,10 +186,9 @@ function DownloadItem({
   status,
   sizeBytes,
   onDownload,
-  onDelete,
+  onRequestDelete,
   isProcessing,
   colors,
-  deleteConfirmMessage,
 }: Readonly<DownloadItemProps>) {
   const styles = createStyles(colors);
   const isDownloaded = status === 'downloaded' || status === 'update_available';
@@ -183,10 +196,7 @@ function DownloadItem({
   const handlePress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isDownloaded) {
-      Alert.alert('Delete Download', deleteConfirmMessage, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: onDelete },
-      ]);
+      onRequestDelete();
     } else {
       onDownload();
     }
@@ -263,6 +273,45 @@ export default function ManageDownloadsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [processingItem, setProcessingItem] = useState<string | null>(null);
 
+  // Modal state
+  const [successModal, setSuccessModal] = useState<{ message: string } | null>(null);
+  const [errorModal, setErrorModal] = useState<{ message: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    icon?: keyof typeof Ionicons.glyphMap;
+    confirmText: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  // Ref to hold the pending confirm action (keeps callback stable across renders)
+  const pendingConfirmRef = useRef<(() => void) | null>(null);
+
+  const showConfirm = useCallback(
+    (opts: {
+      title: string;
+      message: string;
+      icon?: keyof typeof Ionicons.glyphMap;
+      confirmText: string;
+      onConfirm: () => void;
+    }) => {
+      pendingConfirmRef.current = opts.onConfirm;
+      setConfirmModal({
+        title: opts.title,
+        message: opts.message,
+        icon: opts.icon,
+        confirmText: opts.confirmText,
+        onConfirm: opts.onConfirm,
+      });
+    },
+    []
+  );
+
+  const closeConfirm = useCallback(() => {
+    pendingConfirmRef.current = null;
+    setConfirmModal(null);
+  }, []);
+
   // Build merged commentary + topic bundles for display
   const commentaryTopicBundles = useMemo(
     () => buildCommentaryTopicBundles(commentaryInfo, topicsInfo),
@@ -290,32 +339,28 @@ export default function ManageDownloadsScreen() {
   const handleCheckForUpdates = async () => {
     try {
       await checkForUpdates();
-      Alert.alert('Success', 'Content is up to date!');
+      setSuccessModal({ message: 'Content is up to date!' });
     } catch {
-      Alert.alert('Error', 'Failed to check for updates. Please try again.');
+      setErrorModal({ message: 'Failed to check for updates. Please try again.' });
     }
   };
 
   const handleDeleteAll = () => {
-    Alert.alert(
-      'Delete All Offline Data',
-      'Are you sure you want to delete all downloaded content? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAllData();
-              Alert.alert('Success', 'All offline data has been deleted.');
-            } catch {
-              Alert.alert('Error', 'Failed to delete offline data.');
-            }
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Delete All Offline Data',
+      message: 'Are you sure you want to delete all downloaded content? This cannot be undone.',
+      icon: 'warning-outline',
+      confirmText: 'Delete All',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteAllData();
+          setSuccessModal({ message: 'All offline data has been deleted.' });
+        } catch {
+          setErrorModal({ message: 'Failed to delete offline data.' });
+        }
+      },
+    });
   };
 
   const handleDownloadBibleVersion = async (versionKey: string) => {
@@ -324,24 +369,32 @@ export default function ManageDownloadsScreen() {
       await downloadBibleVersion(versionKey);
     } catch (error) {
       console.error('Download failed:', error);
-      Alert.alert(
-        'Error',
-        `Failed to download: ${error instanceof Error ? error.message : String(error)}`
-      );
+      setErrorModal({
+        message: `Failed to download: ${error instanceof Error ? error.message : String(error)}`,
+      });
     } finally {
       setProcessingItem(null);
     }
   };
 
-  const handleDeleteBibleVersion = async (versionKey: string) => {
-    setProcessingItem(`bible:${versionKey}`);
-    try {
-      await deleteBibleVersion(versionKey);
-    } catch {
-      Alert.alert('Error', 'Failed to delete Bible version.');
-    } finally {
-      setProcessingItem(null);
-    }
+  const handleRequestDeleteBibleVersion = (versionKey: string, versionName: string) => {
+    showConfirm({
+      title: 'Delete Download',
+      message: `Are you sure you want to delete ${versionName}? You can always download it again.`,
+      icon: 'trash-outline',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        closeConfirm();
+        setProcessingItem(`bible:${versionKey}`);
+        try {
+          await deleteBibleVersion(versionKey);
+        } catch {
+          setErrorModal({ message: 'Failed to delete Bible version.' });
+        } finally {
+          setProcessingItem(null);
+        }
+      },
+    });
   };
 
   const handleDownloadCommentaryTopics = async (bundle: CommentaryTopicBundle) => {
@@ -349,44 +402,53 @@ export default function ManageDownloadsScreen() {
     try {
       const promises: Promise<void>[] = [];
       if (bundle.hasCommentaries && bundle.commentaryStatus !== 'downloaded') {
-        promises.push(downloadCommentaries(bundle.languageCode));
+        promises.push(downloadCommentaries(bundle.commentaryLanguageCode));
       }
       if (bundle.hasTopics && bundle.topicStatus !== 'downloaded') {
-        promises.push(downloadTopics(bundle.languageCode));
+        promises.push(downloadTopics(bundle.topicLanguageCode));
       }
       await Promise.all(promises);
     } catch (error) {
       console.error('Download failed:', error);
-      Alert.alert(
-        'Error',
-        `Failed to download: ${error instanceof Error ? error.message : String(error)}`
-      );
+      setErrorModal({
+        message: `Failed to download: ${error instanceof Error ? error.message : String(error)}`,
+      });
     } finally {
       setProcessingItem(null);
     }
   };
 
-  const handleDeleteCommentaryTopics = async (bundle: CommentaryTopicBundle) => {
-    setProcessingItem(`ct:${bundle.languageCode}`);
-    try {
-      const promises: Promise<void>[] = [];
-      if (bundle.hasCommentaries) promises.push(deleteCommentaries(bundle.languageCode));
-      if (bundle.hasTopics) promises.push(deleteTopics(bundle.languageCode));
-      await Promise.all(promises);
-    } catch {
-      Alert.alert('Error', 'Failed to delete content.');
-    } finally {
-      setProcessingItem(null);
-    }
+  const handleRequestDeleteCommentaryTopics = (bundle: CommentaryTopicBundle) => {
+    showConfirm({
+      title: 'Delete Download',
+      message: `Are you sure you want to delete all commentaries and topics for ${bundle.languageName}? You can always download them again.`,
+      icon: 'trash-outline',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        closeConfirm();
+        setProcessingItem(`ct:${bundle.languageCode}`);
+        try {
+          const promises: Promise<void>[] = [];
+          if (bundle.hasCommentaries)
+            promises.push(deleteCommentaries(bundle.commentaryLanguageCode));
+          if (bundle.hasTopics) promises.push(deleteTopics(bundle.topicLanguageCode));
+          await Promise.all(promises);
+        } catch {
+          setErrorModal({ message: 'Failed to delete content.' });
+        } finally {
+          setProcessingItem(null);
+        }
+      },
+    });
   };
 
   const handleSyncUserData = async () => {
     setProcessingItem('user-data');
     try {
       await syncUserData();
-      Alert.alert('Success', 'User data synced successfully!');
+      setSuccessModal({ message: 'User data synced successfully!' });
     } catch {
-      Alert.alert('Error', 'Failed to sync user data. Please try again.');
+      setErrorModal({ message: 'Failed to sync user data. Please try again.' });
     } finally {
       setProcessingItem(null);
     }
@@ -550,10 +612,9 @@ export default function ManageDownloadsScreen() {
                   status={version.status}
                   sizeBytes={version.size_bytes}
                   onDownload={() => handleDownloadBibleVersion(version.key)}
-                  onDelete={() => handleDeleteBibleVersion(version.key)}
+                  onRequestDelete={() => handleRequestDeleteBibleVersion(version.key, version.name)}
                   isProcessing={processingItem === `bible:${version.key}`}
                   colors={colors}
-                  deleteConfirmMessage={`Are you sure you want to delete ${version.name}? You can always download it again.`}
                 />
               ))
             )}
@@ -575,10 +636,9 @@ export default function ManageDownloadsScreen() {
                   status={bundle.overallStatus}
                   sizeBytes={bundle.totalSizeBytes}
                   onDownload={() => handleDownloadCommentaryTopics(bundle)}
-                  onDelete={() => handleDeleteCommentaryTopics(bundle)}
+                  onRequestDelete={() => handleRequestDeleteCommentaryTopics(bundle)}
                   isProcessing={processingItem === `ct:${bundle.languageCode}`}
                   colors={colors}
-                  deleteConfirmMessage={`Are you sure you want to delete all commentaries and topics for ${bundle.languageName}? You can always download them again.`}
                 />
               ))
             )}
@@ -595,6 +655,33 @@ export default function ManageDownloadsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Custom Modals */}
+      <SuccessModal
+        visible={successModal !== null}
+        message={successModal?.message ?? ''}
+        onClose={() => setSuccessModal(null)}
+      />
+      <ErrorModal
+        visible={errorModal !== null}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+      />
+      <ConfirmationModal
+        visible={confirmModal !== null}
+        title={confirmModal?.title ?? ''}
+        message={confirmModal?.message ?? ''}
+        icon={confirmModal?.icon ?? 'trash-outline'}
+        onClose={closeConfirm}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: closeConfirm },
+          {
+            text: confirmModal?.confirmText ?? 'Confirm',
+            style: 'destructive',
+            onPress: () => confirmModal?.onConfirm(),
+          },
+        ]}
+      />
     </View>
   );
 }
