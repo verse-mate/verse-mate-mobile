@@ -25,7 +25,6 @@ export async function copySeedDatabaseIfNeeded(): Promise<void> {
   const info = await FileSystem.getInfoAsync(DB_PATH);
   if (info.exists) return;
 
-   
   // biome-ignore lint/suspicious/noExplicitAny: dynamic asset require — type is number (asset registry ID)
   const seedModule: any = require('@/assets/data/versemate-seed.db');
 
