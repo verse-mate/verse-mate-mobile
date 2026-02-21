@@ -242,8 +242,7 @@ export async function parseAndInjectVerses(
 
           // Add chapter heading if it's a range
           if (chapterRef.startChapter !== chapterRef.endChapter) {
-            chapterContent +=
-              `## ${chapterRef.bookName} ${chapterNum}` + '\n\n' + formattedVerses + '\n\n';
+            chapterContent += `## ${chapterRef.bookName} ${chapterNum}\n\n${formattedVerses}\n\n`;
           } else {
             chapterContent += formattedVerses;
           }

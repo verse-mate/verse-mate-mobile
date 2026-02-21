@@ -323,7 +323,7 @@ export default function ManageDownloadsScreen() {
     if (isInitialized) {
       refreshManifest().catch(console.warn);
     }
-  }, [isInitialized]);
+  }, [isInitialized, refreshManifest]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
