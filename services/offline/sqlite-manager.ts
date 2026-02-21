@@ -11,6 +11,7 @@
 
 import * as SQLite from 'expo-sqlite';
 import { getBookByName } from '../../constants/bible-books';
+import { copySeedDatabaseIfNeeded, DB_PATH } from './seed-manager';
 import type {
   BibleVerseData,
   CommentaryData,
@@ -262,6 +263,15 @@ function performInitSync(): SQLite.SQLiteDatabase {
  */
 export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (db) return db;
+
+  // On a fresh install the DB file won't exist yet — copy the bundled seed
+  // database so users immediately have NASB1995 + English content available.
+  // Returns immediately without doing anything if the file already exists.
+  try {
+    await copySeedDatabaseIfNeeded();
+  } catch (seedErr) {
+    console.warn('[Offline DB] Seed copy failed (non-fatal):', seedErr);
+  }
 
   try {
     db = performInitSync();
