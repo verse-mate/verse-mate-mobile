@@ -22,6 +22,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { getLocalTopics } from '@/services/offline';
 import { useTopicsSearch } from '@/src/api';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
 
@@ -99,19 +100,41 @@ export function useCachedTopics(category: TopicCategory, enabled = true): UseCac
 }
 
 /**
- * Load topics from AsyncStorage cache
+ * Load topics from AsyncStorage cache, falling back to local SQLite when the
+ * cache is cold (fresh install, cleared storage, or first run without internet).
+ * The seed database pre-populates SQLite with English topics, so this always
+ * returns something useful even on a first launch with no network.
  */
 async function loadCachedTopics(category: TopicCategory): Promise<TopicListItem[]> {
+  // 1. AsyncStorage — fastest, populated after first successful API fetch
   try {
     const storageKey = STORAGE_KEYS[category];
     const cached = await AsyncStorage.getItem(storageKey);
     if (cached) {
       const parsed = JSON.parse(cached);
-      return Array.isArray(parsed) ? parsed : [];
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (error) {
     console.error(`useCachedTopics: Failed to load ${category} from cache:`, error);
   }
+
+  // 2. SQLite fallback — available from the bundled seed DB or a manual download
+  try {
+    const localTopics = await getLocalTopics('en');
+    const filtered = localTopics
+      .filter((t) => t.category === category)
+      .map((t) => ({
+        topic_id: t.topic_id,
+        name: t.name,
+        description: null,
+        sort_order: t.sort_order,
+        category: t.category as TopicCategory,
+      }));
+    if (filtered.length > 0) return filtered;
+  } catch {
+    // DB not yet initialised or empty — silently continue
+  }
+
   return [];
 }
 
