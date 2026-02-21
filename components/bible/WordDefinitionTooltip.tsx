@@ -5,11 +5,11 @@
  * Styled similarly to VerseMateTooltip but shows dictionary content.
  *
  * Features:
- * - Shows word definition from Strong's Concordance
- * - Strong's number badge (if applicable)
- * - Original word (Lemma) display
+ * - Shows word definition from Easton's Bible Dictionary or Strong's Concordance
+ * - Source badge (Easton's or Strong's number)
  * - Definition in scrollable container
- * - Derivation and KJV translation (if available)
+ * - Scripture references and See Also links (Easton's)
+ * - Derivation and KJV translation (Strong's)
  * - Copy and Share buttons for the definition
  * - "Open in System Dictionary" button
  * - Swipe-down to dismiss
@@ -40,9 +40,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useNativeDictionary } from '@/hooks/use-native-dictionary';
-import { isValidStrongsNumber, lookup } from '@/services/lexicon-service';
-import { getStrongsNumber, hasStrongsNumber } from '@/services/word-mapping-service';
-import type { StrongsEntry } from '@/types/dictionary';
+import { lookupWord } from '@/services/dictionary-service';
+import type { DictionaryResult, EastonEntry, StrongsEntry } from '@/types/dictionary';
 
 interface WordDefinitionTooltipProps {
   /** Whether modal is visible */
@@ -67,6 +66,8 @@ interface DefinitionState {
   loading: boolean;
   strongsEntry: StrongsEntry | null;
   strongsNum: string | null;
+  eastonEntry: EastonEntry | null;
+  source: DictionaryResult['source'] | null;
   hasNative: boolean;
   error: string | null;
 }
@@ -114,6 +115,8 @@ export function WordDefinitionTooltip({
     loading: true,
     strongsEntry: null,
     strongsNum: null,
+    eastonEntry: null,
+    source: null,
     hasNative: false,
     error: null,
   });
@@ -147,27 +150,8 @@ export function WordDefinitionTooltip({
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
-        // Determine Strong's number to look up
-        let strongsNum: string | null = null;
-
-        // Check word mapping
-        if (hasStrongsNumber(word)) {
-          strongsNum = getStrongsNumber(word);
-        }
-
-        // If word looks like a Strong's number itself (e.g., "G26", "H430")
-        if (!strongsNum && isValidStrongsNumber(word)) {
-          strongsNum = word.toUpperCase();
-        }
-
-        // Look up Strong's entry if we have a number
-        let strongsEntry: StrongsEntry | null = null;
-        if (strongsNum) {
-          const result = await lookup(strongsNum);
-          if (result.found && result.entry) {
-            strongsEntry = result.entry;
-          }
-        }
+        // Use unified dictionary service for lookup
+        const result = await lookupWord(word);
 
         // Check native dictionary availability
         let hasNative = false;
@@ -175,18 +159,24 @@ export function WordDefinitionTooltip({
           hasNative = await hasDefinition(word);
         }
 
+        const hasDefinitionResult = result.source !== 'none' || hasNative;
+
         setState({
           loading: false,
-          strongsEntry,
-          strongsNum,
+          strongsEntry: result.strongsEntry ?? null,
+          strongsNum: result.strongsNumber ?? null,
+          eastonEntry: result.eastonEntry ?? null,
+          source: result.source,
           hasNative,
-          error: !strongsEntry && !hasNative ? 'No definition available' : null,
+          error: !hasDefinitionResult ? 'No definition available' : null,
         });
       } catch {
         setState({
           loading: false,
           strongsEntry: null,
           strongsNum: null,
+          eastonEntry: null,
+          source: null,
           hasNative: false,
           error: 'Failed to load definition',
         });
@@ -281,12 +271,17 @@ export function WordDefinitionTooltip({
   const getShareContent = () => {
     let content = `"${displayWord}"`;
 
-    if (state.strongsNum && state.strongsEntry?.lemma) {
+    if (state.source === 'easton' && state.eastonEntry) {
+      content += `\nDefinition: ${state.eastonEntry.definition}`;
+      if (state.eastonEntry.scriptureRefs?.length) {
+        content += `\nReferences: ${state.eastonEntry.scriptureRefs.join(', ')}`;
+      }
+      content += "\n\n(Easton's Bible Dictionary)";
+    } else if (state.strongsNum && state.strongsEntry?.lemma) {
       content += ` (${state.strongsNum} - ${state.strongsEntry.lemma})`;
-    }
-
-    if (state.strongsEntry?.definition) {
-      content += `\nDefinition: ${state.strongsEntry.definition}`;
+      if (state.strongsEntry?.definition) {
+        content += `\nDefinition: ${state.strongsEntry.definition}`;
+      }
     }
 
     content += `\n\n- ${verseReference} (${bibleVersion})`;
@@ -401,21 +396,71 @@ export function WordDefinitionTooltip({
             )}
 
             {/* Error State */}
-            {!state.loading && state.error && !state.strongsEntry && !state.hasNative && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
-                <Text style={styles.errorText}>{state.error}</Text>
-              </View>
-            )}
+            {!state.loading &&
+              state.error &&
+              !state.eastonEntry &&
+              !state.strongsEntry &&
+              !state.hasNative && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
+                  <Text style={styles.errorText}>{state.error}</Text>
+                </View>
+              )}
 
             {/* Definition Content */}
-            {!state.loading && (state.strongsEntry || state.hasNative) && (
+            {!state.loading && (state.eastonEntry || state.strongsEntry || state.hasNative) && (
               <View {...panResponder.panHandlers}>
                 {/* Word Title */}
                 <Text style={styles.wordTitle}>{displayWord}</Text>
 
+                {/* Easton's Bible Dictionary Definition */}
+                {state.source === 'easton' && state.eastonEntry && (
+                  <>
+                    {/* Source Badge */}
+                    <View style={styles.sourceBadge} testID="easton-source-badge">
+                      <Text style={styles.sourceBadgeText}>Easton&apos;s Bible Dictionary</Text>
+                    </View>
+
+                    {/* Definition */}
+                    <ScrollView
+                      style={styles.definitionScroll}
+                      contentContainerStyle={styles.definitionScrollContent}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      <View style={styles.definitionBox}>
+                        <Text style={styles.definitionText}>{state.eastonEntry.definition}</Text>
+                      </View>
+
+                      {/* Scripture References */}
+                      {state.eastonEntry.scriptureRefs &&
+                        state.eastonEntry.scriptureRefs.length > 0 && (
+                          <View style={styles.refsContainer} testID="easton-scripture-refs">
+                            <Text style={styles.refsLabel}>Scripture References:</Text>
+                            <Text style={styles.refsText}>
+                              {state.eastonEntry.scriptureRefs.join(', ')}
+                            </Text>
+                          </View>
+                        )}
+
+                      {/* See Also */}
+                      {state.eastonEntry.seeAlso && state.eastonEntry.seeAlso.length > 0 && (
+                        <View style={styles.seeAlsoContainer} testID="easton-see-also">
+                          <Text style={styles.seeAlsoLabel}>See Also:</Text>
+                          <View style={styles.seeAlsoChips}>
+                            {state.eastonEntry.seeAlso.map((term) => (
+                              <View key={term} style={styles.seeAlsoChip}>
+                                <Text style={styles.seeAlsoChipText}>{term}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                    </ScrollView>
+                  </>
+                )}
+
                 {/* Strong's Definition */}
-                {state.strongsEntry && (
+                {state.source === 'strongs' && state.strongsEntry && (
                   <>
                     {/* Strong's Number Badge */}
                     {state.strongsNum && (
@@ -619,6 +664,59 @@ const createStyles = (
       fontWeight: fontWeights.semibold,
       color: colors.white,
     },
+    sourceBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.border,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: 16,
+      marginBottom: spacing.md,
+    },
+    sourceBadgeText: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.textSecondary,
+    },
+    refsContainer: {
+      marginTop: spacing.sm,
+    },
+    refsLabel: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+    },
+    refsText: {
+      fontSize: fontSizes.bodySmall,
+      color: colors.textSecondary,
+      lineHeight: fontSizes.bodySmall * 1.5,
+    },
+    seeAlsoContainer: {
+      marginTop: spacing.md,
+    },
+    seeAlsoLabel: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+    },
+    seeAlsoChips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+    },
+    seeAlsoChip: {
+      backgroundColor: colors.background,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    seeAlsoChipText: {
+      fontSize: fontSizes.caption,
+      color: colors.textSecondary,
+    },
     lemmaText: {
       fontSize: fontSizes.heading2,
       fontWeight: fontWeights.medium,
@@ -626,7 +724,7 @@ const createStyles = (
       marginBottom: spacing.md,
     },
     definitionScroll: {
-      maxHeight: 200,
+      maxHeight: 280,
       marginBottom: spacing.md,
     },
     definitionScrollContent: {
