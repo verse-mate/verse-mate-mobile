@@ -31,12 +31,28 @@ export interface LookupResult {
 }
 
 /**
+ * Easton's Bible Dictionary entry
+ */
+export interface EastonEntry {
+  term: string;
+  definition: string;
+  scriptureRefs?: string[];
+  seeAlso?: string[];
+}
+
+/**
+ * Dictionary keyed by normalized English word (e.g., "aaron", "love")
+ */
+export type EastonDictionary = Record<string, EastonEntry>;
+
+/**
  * Result of a dictionary lookup (including native OS dictionary)
  */
 export interface DictionaryResult {
   word: string;
   strongsNumber?: string;
   strongsEntry?: StrongsEntry;
+  eastonEntry?: EastonEntry;
   hasNativeDefinition: boolean;
-  source: 'native' | 'strongs' | 'none';
+  source: 'native' | 'strongs' | 'easton' | 'none';
 }
