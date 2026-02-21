@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 // Offline mode imports
-import { getBookById } from '@/constants/bible-books';
+import { BIBLE_BOOKS, getBookById } from '@/constants/bible-books';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { getAccessToken } from '@/lib/auth/token-storage';
@@ -88,12 +88,20 @@ export const useBibleTestaments = (
     ...(queryOptions as any),
   });
 
-  // Transform the response to return the testaments array with friendly property names
+  // Transform the response to return the testaments array with friendly property names.
+  // Falls back to the local BIBLE_BOOKS constant (all 66 books, correct chapter counts)
+  // so the navigation modal is usable offline even before any API response arrives.
   return {
     ...query,
     data: (query.data as any)?.testaments
       ? transformTestamentsToBooks((query.data as any).testaments)
-      : [],
+      : BIBLE_BOOKS.map((b) => ({
+          id: b.id,
+          name: b.name,
+          testament: b.testament,
+          genre: 0,
+          chapterCount: b.chapterCount,
+        })),
   };
 };
 
