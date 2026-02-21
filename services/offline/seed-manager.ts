@@ -2,7 +2,7 @@ import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system/legacy';
 
 // Referenced at module level so Metro bundles the asset at build time.
- 
+
 const SEED_ASSET = require('@/assets/data/versemate-seed.db');
 
 const DB_NAME = 'versemate_offline.db';

@@ -11,7 +11,7 @@
 
 import * as SQLite from 'expo-sqlite';
 import { getBookByName } from '../../constants/bible-books';
-import { copySeedDatabaseIfNeeded, DB_PATH } from './seed-manager';
+import { copySeedDatabaseIfNeeded } from './seed-manager';
 import type {
   BibleVerseData,
   CommentaryData,

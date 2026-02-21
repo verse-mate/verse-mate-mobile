@@ -61,6 +61,7 @@ import type {
   GetBibleHighlightsByUserIdByBookIdByChapterNumberData,
   GetBibleHighlightsByUserIdData,
   GetBibleTestamentsData,
+  GetBibleTestamentsResponse,
   GetTopicsCategoriesData,
   GetTopicsSearchResponse,
   PostBibleBookBookmarkAddData,
@@ -85,6 +86,7 @@ export const useBibleTestaments = (
 ) => {
   const query = useQuery({
     ...getBibleTestamentsOptions(options),
+    // biome-ignore lint/suspicious/noExplicitAny: spreading caller-supplied query options into UseQueryOptions
     ...(queryOptions as any),
   });
 
@@ -93,8 +95,8 @@ export const useBibleTestaments = (
   // so the navigation modal is usable offline even before any API response arrives.
   return {
     ...query,
-    data: (query.data as any)?.testaments
-      ? transformTestamentsToBooks((query.data as any).testaments)
+    data: (query.data as GetBibleTestamentsResponse | undefined)?.testaments
+      ? transformTestamentsToBooks((query.data as GetBibleTestamentsResponse).testaments)
       : BIBLE_BOOKS.map((b) => ({
           id: b.id,
           name: b.name,
@@ -164,6 +166,7 @@ export const useBibleChapter = (bookId: number, chapterNumber: number, version?:
         queryKey: options.queryKey || [],
         meta: undefined,
         signal: new AbortController().signal,
+        // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
 
       return response;
@@ -176,7 +179,8 @@ export const useBibleChapter = (bookId: number, chapterNumber: number, version?:
     data: isLocal
       ? query.data
       : query.data && 'book' in query.data
-        ? transformChapterResponse(query.data as any)
+        ? // biome-ignore lint/suspicious/noExplicitAny: generated response union type requires cast for transformer
+          transformChapterResponse(query.data as any)
         : null,
   };
 };
@@ -246,6 +250,7 @@ export const useBibleChapterExplanation = (
         query: {
           ...(explanationType && { explanationType }),
           ...(language && { lang: language }),
+          // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
         } as any,
       });
 
@@ -257,6 +262,7 @@ export const useBibleChapterExplanation = (
         queryKey: options.queryKey || [],
         meta: undefined,
         signal: new AbortController().signal,
+        // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
 
       return response;
@@ -269,7 +275,8 @@ export const useBibleChapterExplanation = (
     data: (isLocal
       ? query.data
       : query.data && 'explanation' in query.data
-        ? transformExplanationResponse(query.data as any)
+        ? // biome-ignore lint/suspicious/noExplicitAny: generated response union type requires cast for transformer
+          transformExplanationResponse(query.data as any)
         : null) as ExplanationContent | null | undefined,
   };
 };
@@ -286,6 +293,7 @@ export const useSaveLastRead = () => {
     ...mutation,
     mutate: (params: { user_id: string; book_id: number; chapter_number: number }) => {
       mutation.mutate({
+        // biome-ignore lint/suspicious/noExplicitAny: generated mutation body type doesn't accept plain object
         body: params as any,
       });
     },
@@ -297,8 +305,10 @@ export const useLastRead = (userId: string) => {
   const mutation = useMutation(postBibleBookChapterLastReadMutation());
 
   // Auto-fetch on mount (only if userId is provided)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mutation.mutate is stable from React Query
   useEffect(() => {
     if (userId) {
+      // biome-ignore lint/suspicious/noExplicitAny: generated mutation body type doesn't accept plain object
       mutation.mutate({ body: { user_id: userId } as any });
     }
   }, [userId]);
@@ -306,7 +316,7 @@ export const useLastRead = (userId: string) => {
   return {
     data:
       mutation.data && 'result' in mutation.data
-        ? (mutation.data.result as Record<string, any>)
+        ? (mutation.data.result as Record<string, unknown>)
         : {},
     isPending: mutation.isPending,
     isIdle: mutation.isIdle,
@@ -374,7 +384,11 @@ export const useBibleChapterContent = (bookId: number, chapterNumber: number) =>
 
   return {
     ...query,
-    data: query.data && 'book' in query.data ? transformChapterResponse(query.data as any) : null,
+    data:
+      query.data && 'book' in query.data
+        ? // biome-ignore lint/suspicious/noExplicitAny: generated response union type requires cast for transformer
+          transformChapterResponse(query.data as any)
+        : null,
   };
 };
 
@@ -393,6 +407,7 @@ const useBibleExplanation = (
       query: {
         ...(explanationType && { explanationType }),
         ...(language && { lang: language }),
+        // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
       } as any,
     }),
     enabled: bookId > 0 && chapterNumber > 0 && Boolean(explanationType), // Only fetch when valid parameters
@@ -402,7 +417,8 @@ const useBibleExplanation = (
     ...query,
     data:
       query.data && 'explanation' in query.data
-        ? transformExplanationResponse(query.data as any)
+        ? // biome-ignore lint/suspicious/noExplicitAny: generated response union type requires cast for transformer
+          transformExplanationResponse(query.data as any)
         : null,
   };
 };
@@ -413,7 +429,7 @@ export { useBibleExplanation };
 export const useBibleSummary = (
   bookId: number,
   chapterNumber: number,
-  _queryKey?: any,
+  _queryKey?: unknown,
   options?: { enabled?: boolean; language?: string }
 ) => {
   return useBibleChapterExplanation(bookId, chapterNumber, 'summary', options?.language);
@@ -422,7 +438,7 @@ export const useBibleSummary = (
 export const useBibleByLine = (
   bookId: number,
   chapterNumber: number,
-  _queryKey?: any,
+  _queryKey?: unknown,
   options?: { enabled?: boolean; language?: string }
 ) => {
   return useBibleChapterExplanation(bookId, chapterNumber, 'byline', options?.language);
@@ -431,7 +447,7 @@ export const useBibleByLine = (
 export const useBibleDetailed = (
   bookId: number,
   chapterNumber: number,
-  _queryKey?: any,
+  _queryKey?: unknown,
   options?: { enabled?: boolean; language?: string }
 ) => {
   return useBibleChapterExplanation(bookId, chapterNumber, 'detailed', options?.language);
@@ -526,6 +542,7 @@ export const useTopicsSearch = (category: string, options?: { enabled?: boolean 
       },
     }),
     enabled: Boolean(category), // Only fetch when category is provided
+    // biome-ignore lint/suspicious/noExplicitAny: spreading caller-supplied query options
     ...(options as any), // Allow overriding options like enabled
   });
 
@@ -703,6 +720,7 @@ export const useTopicById = (topicId: string, bibleVersion?: string) => {
       // Remote fetch (also serves as fallback when local returns null)
       const options = getTopicsByIdOptions({
         path: { id: topicId },
+        // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
         query: bibleVersion ? ({ bible_version: bibleVersion } as any) : undefined,
       });
 
@@ -714,6 +732,7 @@ export const useTopicById = (topicId: string, bibleVersion?: string) => {
         queryKey: options.queryKey || [],
         meta: undefined,
         signal: new AbortController().signal,
+        // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
       return response;
     },
@@ -767,6 +786,7 @@ export const useTopicReferences = (topicId: string, version?: string) => {
         queryKey: options.queryKey || [],
         meta: undefined,
         signal: new AbortController().signal,
+        // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
       return response;
     },
@@ -830,6 +850,7 @@ export const useTopicExplanation = (
           ...(type && { type }),
           ...(lang && { lang }),
           ...(bibleVersion && { bible_version: bibleVersion }),
+          // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
         } as any,
       });
 
@@ -841,6 +862,7 @@ export const useTopicExplanation = (
         queryKey: options.queryKey || [],
         meta: undefined,
         signal: new AbortController().signal,
+        // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
       return response;
     },
@@ -871,7 +893,7 @@ export function getUserRecentlyViewedBooksOptions() {
 
       const headers: HeadersInit = {};
       if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
+        headers.Authorization = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${baseUrl}/user/recently-viewed-books`, {
@@ -899,7 +921,7 @@ export function postUserRecentlyViewedBooksSyncMutation() {
 
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`;
+        headers.Authorization = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${baseUrl}/user/recently-viewed-books/sync`, {

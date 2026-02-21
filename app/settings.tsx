@@ -130,6 +130,7 @@ export default function SettingsScreen() {
   const { deleteAccount, isDeleting, error: deleteError, clearError } = useDeleteAccount();
 
   // Update form fields when user session changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: isOffline intentionally included to re-run effect when connectivity changes
   useEffect(() => {
     const loadPersistedLanguage = async () => {
       // Always try AsyncStorage first (works for both offline and logged-out users)
@@ -201,6 +202,7 @@ export default function SettingsScreen() {
   }, [commentaryInfo, topicsInfo, downloadedCommentaryLanguages, downloadedTopicLanguages]);
 
   // Fetch available languages, cache them, and restore from cache when offline
+  // biome-ignore lint/correctness/useExhaustiveDependencies: isAuthenticated intentionally included to re-run effect on auth state change
   useEffect(() => {
     const LANGUAGES_CACHE_KEY = 'versemate:languages_cache';
 

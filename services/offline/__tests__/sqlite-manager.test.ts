@@ -77,7 +77,7 @@ describe('SQLite Manager', () => {
         call[0].includes('COMMIT')
     );
     expect(insertTxnCall).toBeDefined();
-    const sql = insertTxnCall![0] as string;
+    const sql = insertTxnCall?.[0] as string;
     expect(sql).toContain('In the beginning');
     expect(sql).toContain('God created');
   });
