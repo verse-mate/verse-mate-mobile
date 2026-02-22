@@ -77,6 +77,7 @@ export function useCachedTopics(category: TopicCategory, enabled = true): UseCac
   // biome-ignore lint/correctness/useExhaustiveDependencies: isInitialized triggers retry after seed DB is ready
   useEffect(() => {
     if (!enabled) return;
+    if (!isInitialized) return; // Wait for DB to be ready before hitting SQLite
     if (memoryCache[category]) return;
 
     loadCachedTopics(category).then((cached) => {
