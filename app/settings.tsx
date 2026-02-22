@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react'; // NOTE: useCallback is still used for useFocusEffect which requires it
 import {
   ActivityIndicator,
   Alert,
@@ -29,7 +29,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// NOTE: useCallback is still used for useFocusEffect which requires it
 import { DeleteAccountFinalModal } from '@/components/account/DeleteAccountFinalModal';
 import { DeleteAccountPasswordModal } from '@/components/account/DeleteAccountPasswordModal';
 import { DeleteAccountWarningModal } from '@/components/account/DeleteAccountWarningModal';
@@ -43,7 +42,6 @@ import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { notifyLanguageChanged } from '@/hooks/use-preferred-language';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
@@ -96,9 +94,14 @@ export default function SettingsScreen() {
   const { user, isAuthenticated, logout, restoreSession, refreshTokens } = useAuth();
   const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
-  const { commentaryInfo, topicsInfo, downloadedCommentaryLanguages, downloadedTopicLanguages } =
-    useOfflineContext();
-  const { isOffline } = useOfflineStatus();
+  const {
+    commentaryInfo,
+    topicsInfo,
+    downloadedCommentaryLanguages,
+    downloadedTopicLanguages,
+    isOnline,
+  } = useOfflineContext();
+  const isDeviceOffline = !isOnline;
   const queryClient = useQueryClient();
 
   // Bible version state
@@ -147,7 +150,7 @@ export default function SettingsScreen() {
           return;
         }
       } catch (error) {
-        console.warn('Failed to load persisted language:', error);
+        if (__DEV__) console.warn('Failed to load persisted language:', error);
       }
 
       // Fall back to user's preferred language from session
@@ -160,41 +163,51 @@ export default function SettingsScreen() {
     };
 
     loadPersistedLanguage();
-  }, [user, isOffline]);
+  }, [user, isDeviceOffline]);
 
   // Build offline fallback languages from downloaded commentary/topic data
   const getOfflineLanguages = useCallback((): Language[] => {
     const langMap = new Map<string, Language>();
 
     // First try: use commentaryInfo/topicsInfo which have full names (requires manifest)
-    for (const info of commentaryInfo) {
-      if (info.status === 'downloaded' || info.status === 'update_available') {
-        langMap.set(info.key, { code: info.key, name: info.name, nativeName: info.name });
+    if (commentaryInfo) {
+      for (const info of commentaryInfo) {
+        if (info.status === 'downloaded' || info.status === 'update_available') {
+          langMap.set(info.key, { code: info.key, name: info.name, nativeName: info.name });
+        }
       }
     }
-    for (const info of topicsInfo) {
-      if (
-        (info.status === 'downloaded' || info.status === 'update_available') &&
-        !langMap.has(info.key)
-      ) {
-        langMap.set(info.key, { code: info.key, name: info.name, nativeName: info.name });
+    if (topicsInfo) {
+      for (const info of topicsInfo) {
+        if (
+          (info.status === 'downloaded' || info.status === 'update_available') &&
+          !langMap.has(info.key)
+        ) {
+          langMap.set(info.key, { code: info.key, name: info.name, nativeName: info.name });
+        }
       }
     }
 
     // Second try: use downloaded language code arrays (always available from local DB)
     // These work even without a manifest/network
-    for (const code of downloadedCommentaryLanguages) {
-      if (!langMap.has(code)) {
-        const shortCode = code.split('-')[0].toLowerCase();
-        const displayName = LANGUAGE_NAMES[code] || LANGUAGE_NAMES[shortCode] || code.toUpperCase();
-        langMap.set(code, { code, name: displayName, nativeName: displayName });
+    if (downloadedCommentaryLanguages) {
+      for (const code of downloadedCommentaryLanguages) {
+        if (!langMap.has(code)) {
+          const shortCode = code.split('-')[0].toLowerCase();
+          const displayName =
+            LANGUAGE_NAMES[code] || LANGUAGE_NAMES[shortCode] || code.toUpperCase();
+          langMap.set(code, { code, name: displayName, nativeName: displayName });
+        }
       }
     }
-    for (const code of downloadedTopicLanguages) {
-      if (!langMap.has(code)) {
-        const shortCode = code.split('-')[0].toLowerCase();
-        const displayName = LANGUAGE_NAMES[code] || LANGUAGE_NAMES[shortCode] || code.toUpperCase();
-        langMap.set(code, { code, name: displayName, nativeName: displayName });
+    if (downloadedTopicLanguages) {
+      for (const code of downloadedTopicLanguages) {
+        if (!langMap.has(code)) {
+          const shortCode = code.split('-')[0].toLowerCase();
+          const displayName =
+            LANGUAGE_NAMES[code] || LANGUAGE_NAMES[shortCode] || code.toUpperCase();
+          langMap.set(code, { code, name: displayName, nativeName: displayName });
+        }
       }
     }
 
@@ -228,11 +241,13 @@ export default function SettingsScreen() {
           );
           setAvailableLanguages(languages);
           // Cache for offline use
-          AsyncStorage.setItem(LANGUAGES_CACHE_KEY, JSON.stringify(data)).catch(console.warn);
+          AsyncStorage.setItem(LANGUAGES_CACHE_KEY, JSON.stringify(data)).catch((e) => {
+            if (__DEV__) console.warn('Failed to cache languages:', e);
+          });
           return;
         }
       } catch (error) {
-        console.error('Failed to fetch available languages:', error);
+        if (__DEV__) console.error('Failed to fetch available languages:', error);
       }
 
       // 2. Try restoring from cache (filtered to downloaded languages when offline)
@@ -241,7 +256,7 @@ export default function SettingsScreen() {
         if (cached) {
           const allLanguages = parseLanguages(JSON.parse(cached));
           if (allLanguages.length > 0) {
-            if (isOffline) {
+            if (isDeviceOffline) {
               // Filter to only downloaded languages, using cached names for display
               const downloadedCodes = new Set([
                 ...downloadedCommentaryLanguages,
@@ -266,7 +281,7 @@ export default function SettingsScreen() {
           }
         }
       } catch (cacheError) {
-        console.warn('Failed to read languages cache:', cacheError);
+        if (__DEV__) console.warn('Failed to read languages cache:', cacheError);
       }
 
       // 3. Last resort: build from downloaded language codes
@@ -280,7 +295,7 @@ export default function SettingsScreen() {
   }, [
     isAuthenticated,
     getOfflineLanguages,
-    isOffline,
+    isDeviceOffline,
     downloadedCommentaryLanguages,
     downloadedTopicLanguages,
   ]);
@@ -288,7 +303,7 @@ export default function SettingsScreen() {
   // Sync offline-stored language to backend when coming back online
   useEffect(() => {
     const syncOfflineLanguage = async () => {
-      if (!isOffline && isAuthenticated) {
+      if (!isDeviceOffline && isAuthenticated) {
         try {
           const storedLang = await AsyncStorage.getItem('@versemate:preferred_language');
           // If there's a stored language and it's different from the user's current preference, sync it
@@ -305,13 +320,13 @@ export default function SettingsScreen() {
             }
           }
         } catch (error) {
-          console.warn('Failed to sync offline language preference:', error);
+          if (__DEV__) console.warn('Failed to sync offline language preference:', error);
         }
       }
     };
 
     syncOfflineLanguage();
-  }, [isOffline, isAuthenticated, user?.preferred_language, refreshTokens]);
+  }, [isDeviceOffline, isAuthenticated, user?.preferred_language, refreshTokens]);
 
   const hasProfileChanges = () => {
     return (
@@ -484,7 +499,7 @@ export default function SettingsScreen() {
       notifyLanguageChanged();
 
       // When authenticated and online, also sync to backend
-      if (isAuthenticated && !isOffline) {
+      if (isAuthenticated && !isDeviceOffline) {
         const { error } = await patchUserPreferences({
           body: { preferred_language: languageCode },
         });
@@ -790,10 +805,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Downloads & Offline</Text>
           <Pressable
-            style={[
-              styles.selectButton,
-              { flexDirection: 'row', alignItems: 'center', height: 'auto', paddingVertical: 14 },
-            ]}
+            style={[styles.selectButton, styles.manageDownloadsButton]}
             onPress={() => router.push('/manage-downloads')}
             accessibilityLabel="Manage offline downloads"
             accessibilityRole="button"
@@ -804,14 +816,14 @@ export default function SettingsScreen() {
               color={colors.textPrimary}
               style={{ marginRight: 12 }}
             />
-            <View style={{ flex: 1 }}>
+            <View style={styles.manageDownloadsTextContainer}>
               <Text
-                style={[styles.selectButtonText, { flex: undefined, fontWeight: '500' }]}
+                style={[styles.selectButtonText, styles.manageDownloadsTitle]}
                 numberOfLines={1}
               >
                 Manage Downloads
               </Text>
-              <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
+              <Text style={[styles.manageDownloadsSubtitle, { color: colors.textSecondary }]}>
                 Download content for offline use
               </Text>
             </View>
@@ -1075,5 +1087,22 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       fontSize: 16,
       fontWeight: '600',
       color: '#dc2626',
+    },
+    manageDownloadsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: 'auto',
+      paddingVertical: 14,
+    },
+    manageDownloadsTextContainer: {
+      flex: 1,
+    },
+    manageDownloadsTitle: {
+      flex: undefined,
+      fontWeight: '500',
+    },
+    manageDownloadsSubtitle: {
+      fontSize: 12,
+      marginTop: 2,
     },
   });

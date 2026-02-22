@@ -111,7 +111,7 @@ export function useNotes(): UseNotesResult {
   const { isUserDataSynced, isOnline } = useOfflineContext();
   const queryClient = useQueryClient();
 
-  const isOffline = !isOnline;
+  const isDeviceOffline = !isOnline;
 
   // Create query options with user ID
   const queryOptions = useMemo(
@@ -135,7 +135,7 @@ export function useNotes(): UseNotesResult {
     dataUpdatedAt,
   } = useQuery({
     ...getBibleBookNotesByUserIdOptions(queryOptions),
-    enabled: isAuthenticated && !!user?.id && !isOffline,
+    enabled: isAuthenticated && !!user?.id && !isDeviceOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -155,18 +155,18 @@ export function useNotes(): UseNotesResult {
         book_name: `Book ${n.book_id}`,
       }));
     },
-    enabled: isOffline || isUserDataSynced, // Enable if offline OR if we have synced data (even if online, for speed?)
+    enabled: isDeviceOffline || isUserDataSynced, // Enable if offline OR if we have synced data (even if online, for speed?)
     // Actually, just fetch it if needed.
     staleTime: Number.POSITIVE_INFINITY,
   });
 
   // Extract notes array from response (offline or remote)
   const notes = useMemo(() => {
-    if (isOffline && localNotesData) {
+    if (isDeviceOffline && localNotesData) {
       return localNotesData as Note[];
     }
     return notesData?.notes || [];
-  }, [isOffline, localNotesData, notesData]);
+  }, [isDeviceOffline, localNotesData, notesData]);
 
   // Add note mutation
   const addMutation = useMutation({

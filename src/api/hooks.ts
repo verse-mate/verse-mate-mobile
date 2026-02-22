@@ -112,7 +112,12 @@ export const useBibleBooks = (options?: Options<GetBibleBooksData>) =>
   useQuery(getBibleBooksOptions(options));
 
 // Bible Chapter - wrapper for simpler API with Offline Support
-export const useBibleChapter = (bookId: number, chapterNumber: number, version?: string) => {
+export const useBibleChapter = (
+  bookId: number,
+  chapterNumber: number,
+  version?: string,
+  options?: { enabled?: boolean }
+) => {
   const { downloadedBibleVersions } = useOfflineContext();
   const effectiveVersion = version || 'NASB1995'; // Default to NASB1995 if not specified
   const isLocal = downloadedBibleVersions.includes(effectiveVersion);
@@ -171,7 +176,7 @@ export const useBibleChapter = (bookId: number, chapterNumber: number, version?:
 
       return response;
     },
-    enabled: bookId > 0 && chapterNumber > 0,
+    enabled: (options?.enabled ?? true) && bookId > 0 && chapterNumber > 0,
   });
 
   return {
@@ -191,7 +196,8 @@ export const useBibleChapterExplanation = (
   chapterNumber: number,
   explanationType?: string,
   language?: string,
-  version?: string
+  version?: string,
+  enabled = true
 ) => {
   const { downloadedCommentaryLanguages, downloadedBibleVersions } = useOfflineContext();
   const effectiveLanguage = language || 'en';
@@ -267,7 +273,7 @@ export const useBibleChapterExplanation = (
 
       return response;
     },
-    enabled: bookId > 0 && chapterNumber > 0 && Boolean(explanationType),
+    enabled: enabled && bookId > 0 && chapterNumber > 0 && Boolean(explanationType),
   });
 
   return {
@@ -432,7 +438,14 @@ export const useBibleSummary = (
   _queryKey?: unknown,
   options?: { enabled?: boolean; language?: string }
 ) => {
-  return useBibleChapterExplanation(bookId, chapterNumber, 'summary', options?.language);
+  return useBibleChapterExplanation(
+    bookId,
+    chapterNumber,
+    'summary',
+    options?.language,
+    undefined,
+    options?.enabled
+  );
 };
 
 export const useBibleByLine = (
@@ -441,7 +454,14 @@ export const useBibleByLine = (
   _queryKey?: unknown,
   options?: { enabled?: boolean; language?: string }
 ) => {
-  return useBibleChapterExplanation(bookId, chapterNumber, 'byline', options?.language);
+  return useBibleChapterExplanation(
+    bookId,
+    chapterNumber,
+    'byline',
+    options?.language,
+    undefined,
+    options?.enabled
+  );
 };
 
 export const useBibleDetailed = (
@@ -450,7 +470,14 @@ export const useBibleDetailed = (
   _queryKey?: unknown,
   options?: { enabled?: boolean; language?: string }
 ) => {
-  return useBibleChapterExplanation(bookId, chapterNumber, 'detailed', options?.language);
+  return useBibleChapterExplanation(
+    bookId,
+    chapterNumber,
+    'detailed',
+    options?.language,
+    undefined,
+    options?.enabled
+  );
 };
 
 // Prefetch hooks for next/previous chapters
@@ -653,7 +680,11 @@ export const useAllTopics = () => {
  * Tries local SQLite first if topics are downloaded, then falls back to remote API.
  * Returns topic info, references content, and all explanation types.
  */
-export const useTopicById = (topicId: string, bibleVersion?: string) => {
+export const useTopicById = (
+  topicId: string,
+  bibleVersion?: string,
+  options?: { enabled?: boolean }
+) => {
   const { downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
   const hasLocalTopics = downloadedTopicLanguages.length > 0;
   const effectiveVersion = bibleVersion || 'NASB1995';
@@ -736,7 +767,7 @@ export const useTopicById = (topicId: string, bibleVersion?: string) => {
       } as any);
       return response;
     },
-    enabled: Boolean(topicId),
+    enabled: (options?.enabled ?? true) && Boolean(topicId),
   });
 
   return {
@@ -749,7 +780,11 @@ export const useTopicById = (topicId: string, bibleVersion?: string) => {
  * Fetch topic Bible references (Offline Aware)
  * Tries local SQLite first (with verse injection), then falls back to remote API.
  */
-export const useTopicReferences = (topicId: string, version?: string) => {
+export const useTopicReferences = (
+  topicId: string,
+  version?: string,
+  options?: { enabled?: boolean }
+) => {
   const { downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
   const hasLocalTopics = downloadedTopicLanguages.length > 0;
   const effectiveVersion = version || 'NASB1995';
@@ -790,7 +825,7 @@ export const useTopicReferences = (topicId: string, version?: string) => {
       } as any);
       return response;
     },
-    enabled: Boolean(topicId),
+    enabled: (options?.enabled ?? true) && Boolean(topicId),
   });
 
   return {
@@ -807,7 +842,8 @@ export const useTopicExplanation = (
   topicId: string,
   type?: 'summary' | 'byline' | 'detailed',
   lang?: string,
-  bibleVersion?: string
+  bibleVersion?: string,
+  options?: { enabled?: boolean }
 ) => {
   const { downloadedTopicLanguages, downloadedBibleVersions } = useOfflineContext();
   const hasLocalTopics = downloadedTopicLanguages.length > 0;
@@ -866,7 +902,7 @@ export const useTopicExplanation = (
       } as any);
       return response;
     },
-    enabled: Boolean(topicId),
+    enabled: (options?.enabled ?? true) && Boolean(topicId),
   });
 
   return {

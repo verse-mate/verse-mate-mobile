@@ -52,7 +52,9 @@ type ProgressCallback = (progress: SyncProgress) => void;
  * so we request identity encoding to get plain JSON.
  */
 async function fetchOfflineJSON<T>(url: string): Promise<T> {
-  console.log(`[Offline Sync] Fetching: ${url}`);
+  if (__DEV__) {
+    console.log(`[Offline Sync] Fetching: ${url}`);
+  }
   const start = Date.now();
   const response = await fetch(url, {
     headers: { 'Accept-Encoding': 'identity' },
@@ -61,9 +63,11 @@ async function fetchOfflineJSON<T>(url: string): Promise<T> {
     throw new Error(`Request failed: ${response.status}`);
   }
   const text = await response.text();
-  console.log(
-    `[Offline Sync] Received ${(text.length / 1024).toFixed(0)}KB in ${Date.now() - start}ms`
-  );
+  if (__DEV__) {
+    console.log(
+      `[Offline Sync] Received ${(text.length / 1024).toFixed(0)}KB in ${Date.now() - start}ms`
+    );
+  }
   return JSON.parse(text);
 }
 
