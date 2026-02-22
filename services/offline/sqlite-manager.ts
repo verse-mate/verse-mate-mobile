@@ -19,6 +19,10 @@ import type {
   OfflineHighlight,
   OfflineMetadata,
   OfflineNote,
+  OfflineSyncAction,
+  SyncActionOperation,
+  SyncActionStatus,
+  SyncActionType,
   TopicData,
   TopicExplanationData,
   TopicReferenceData,
@@ -158,7 +162,8 @@ const CREATE_TABLES_SQL = `
     favorite_id INTEGER PRIMARY KEY,
     book_id INTEGER NOT NULL,
     chapter_number INTEGER NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    insight_type TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_bookmarks_chapter ON offline_bookmarks(book_id, chapter_number);
 
@@ -167,6 +172,16 @@ const CREATE_TABLES_SQL = `
     last_updated_at TEXT NOT NULL,
     downloaded_at TEXT NOT NULL,
     size_bytes INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS offline_sync_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    action TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    retry_count INTEGER NOT NULL DEFAULT 0
   );
 `;
 
@@ -240,7 +255,22 @@ function performInitSync(): SQLite.SQLiteDatabase {
       /* ignore — columns may already exist */
     }
 
-    // Test write � if this fails the DB is unusable (stale lock from another
+    // Add insight_type to offline_bookmarks
+    try {
+      const bookmarkCols = database.getAllSync<{ name: string }>(
+        'PRAGMA table_info(offline_bookmarks)'
+      );
+      const colNames = bookmarkCols.map((c) => c.name);
+      if (!colNames.includes('insight_type')) {
+        console.log('[Offline DB] Adding insight_type column to offline_bookmarks');
+        database.execSync('ALTER TABLE offline_bookmarks ADD COLUMN insight_type TEXT');
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Test write  if this fails the DB is unusable (stale lock from another
+
     // native connection). Let it throw so initDatabase can delete & retry.
     database.execSync(
       "INSERT OR REPLACE INTO offline_metadata (resource_key, last_updated_at, downloaded_at, size_bytes) VALUES ('_init', '', '', 0)"
@@ -904,11 +934,12 @@ export async function insertUserBookmarks(bookmarks: OfflineBookmark[]): Promise
     const batch = bookmarks.slice(i, i + batchSize);
     const values = batch
       .map(
-        (b) => `(${b.favorite_id}, ${b.book_id}, ${b.chapter_number}, ${escapeSQL(b.created_at)})`
+        (b) =>
+          `(${b.favorite_id}, ${b.book_id}, ${b.chapter_number}, ${escapeSQL(b.created_at)}, ${escapeSQL(b.insight_type)})`
       )
       .join(', ');
     inserts.push(
-      `INSERT INTO offline_bookmarks (favorite_id, book_id, chapter_number, created_at) VALUES ${values}`
+      `INSERT INTO offline_bookmarks (favorite_id, book_id, chapter_number, created_at, insight_type) VALUES ${values}`
     );
   }
 
@@ -1017,6 +1048,160 @@ export async function getAllMetadata(): Promise<OfflineMetadata[]> {
   return database.getAllSync<OfflineMetadata>(
     'SELECT resource_key, last_updated_at, downloaded_at, size_bytes FROM offline_metadata'
   );
+}
+
+// ============================================================================
+// Sync Queue
+// ============================================================================
+
+export async function addSyncAction(
+  type: SyncActionType,
+  action: SyncActionOperation,
+  payload: object
+): Promise<void> {
+  const database = await initDatabase();
+  database.runSync(
+    'INSERT INTO offline_sync_queue (type, action, payload, created_at, status, retry_count) VALUES (?, ?, ?, ?, ?, ?)',
+    [
+      type,
+      action,
+      JSON.stringify(payload),
+      new Date().toISOString(),
+      'PENDING' as SyncActionStatus,
+      0,
+    ]
+  );
+}
+
+export async function getPendingSyncActions(): Promise<OfflineSyncAction[]> {
+  const database = await initDatabase();
+  return database.getAllSync<OfflineSyncAction>(
+    "SELECT * FROM offline_sync_queue WHERE status = 'PENDING' ORDER BY created_at ASC"
+  );
+}
+
+export async function updateSyncActionStatus(
+  id: number,
+  status: SyncActionStatus,
+  retryCount?: number
+): Promise<void> {
+  const database = await initDatabase();
+  if (retryCount !== undefined) {
+    database.runSync('UPDATE offline_sync_queue SET status = ?, retry_count = ? WHERE id = ?', [
+      status,
+      retryCount,
+      id,
+    ]);
+  } else {
+    database.runSync('UPDATE offline_sync_queue SET status = ? WHERE id = ?', [status, id]);
+  }
+}
+
+export async function deleteSyncAction(id: number): Promise<void> {
+  const database = await initDatabase();
+  database.runSync('DELETE FROM offline_sync_queue WHERE id = ?', [id]);
+}
+
+// ============================================================================
+// User Data - Granular Write (Offline)
+// ============================================================================
+
+export async function addLocalNote(note: OfflineNote): Promise<void> {
+  const database = await initDatabase();
+  database.runSync(
+    'INSERT INTO offline_notes (note_id, book_id, chapter_number, verse_number, content, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    [
+      note.note_id,
+      note.book_id,
+      note.chapter_number,
+      note.verse_number ?? null,
+      note.content,
+      note.updated_at,
+    ]
+  );
+}
+
+export async function updateLocalNote(noteId: string, content: string): Promise<void> {
+  const database = await initDatabase();
+  database.runSync('UPDATE offline_notes SET content = ?, updated_at = ? WHERE note_id = ?', [
+    content,
+    new Date().toISOString(),
+    noteId,
+  ]);
+}
+
+export async function deleteLocalNote(noteId: string): Promise<void> {
+  const database = await initDatabase();
+  database.runSync('DELETE FROM offline_notes WHERE note_id = ?', [noteId]);
+}
+
+export async function addLocalHighlight(highlight: OfflineHighlight): Promise<void> {
+  const database = await initDatabase();
+  database.runSync(
+    'INSERT INTO offline_highlights (highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      highlight.highlight_id,
+      highlight.book_id,
+      highlight.chapter_number,
+      highlight.start_verse,
+      highlight.end_verse,
+      highlight.color,
+      highlight.start_char ?? null,
+      highlight.end_char ?? null,
+      highlight.updated_at,
+    ]
+  );
+}
+
+export async function updateLocalHighlightColor(highlightId: number, color: string): Promise<void> {
+  const database = await initDatabase();
+  database.runSync(
+    'UPDATE offline_highlights SET color = ?, updated_at = ? WHERE highlight_id = ?',
+    [color, new Date().toISOString(), highlightId]
+  );
+}
+
+export async function deleteLocalHighlight(highlightId: number): Promise<void> {
+  const database = await initDatabase();
+  database.runSync('DELETE FROM offline_highlights WHERE highlight_id = ?', [highlightId]);
+}
+
+export async function addLocalBookmark(bookmark: OfflineBookmark): Promise<void> {
+  const database = await initDatabase();
+  database.runSync(
+    'INSERT INTO offline_bookmarks (favorite_id, book_id, chapter_number, created_at, insight_type) VALUES (?, ?, ?, ?, ?)',
+    [
+      bookmark.favorite_id,
+      bookmark.book_id,
+      bookmark.chapter_number,
+      bookmark.created_at,
+      bookmark.insight_type ?? null,
+    ]
+  );
+}
+
+export async function deleteLocalBookmark(bookmarkId: number): Promise<void> {
+  const database = await initDatabase();
+  database.runSync('DELETE FROM offline_bookmarks WHERE favorite_id = ?', [bookmarkId]);
+}
+
+export async function deleteLocalBookmarkByChapter(
+  bookId: number,
+  chapterNumber: number,
+  insightType?: string
+): Promise<void> {
+  const database = await initDatabase();
+  if (insightType) {
+    database.runSync(
+      'DELETE FROM offline_bookmarks WHERE book_id = ? AND chapter_number = ? AND insight_type = ?',
+      [bookId, chapterNumber, insightType]
+    );
+  } else {
+    database.runSync(
+      "DELETE FROM offline_bookmarks WHERE book_id = ? AND chapter_number = ? AND (insight_type IS NULL OR insight_type = '')",
+      [bookId, chapterNumber]
+    );
+  }
 }
 
 export async function deleteAllOfflineData(): Promise<void> {

@@ -74,7 +74,6 @@ export function useCachedTopics(category: TopicCategory, enabled = true): UseCac
   // Load from AsyncStorage (instant) and SQLite (once DB is ready).
   // Re-runs when isInitialized flips true so that a first-mount attempt that
   // failed because the seed was still being copied gets a second chance.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: isInitialized triggers retry after seed DB is ready
   useEffect(() => {
     if (!enabled) return;
     if (!isInitialized) return; // Wait for DB to be ready before hitting SQLite

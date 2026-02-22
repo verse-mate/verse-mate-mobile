@@ -30,6 +30,7 @@ import {
   getTotalStorageUsed,
   initDatabase,
   isUserDataDownloaded,
+  processSyncQueue,
   removeBibleVersion,
   removeCommentaries,
   removeTopics,
@@ -40,6 +41,7 @@ import {
   type SyncProgress,
 } from '@/services/offline';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNetInfo } from '@react-native-community/netinfo';
 import React, { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 const AUTO_SYNC_KEY = 'versemate:offline:auto_sync_enabled';
@@ -48,6 +50,7 @@ export interface OfflineContextType {
   // Mode
   isAutoSyncEnabled: boolean;
   setAutoSyncEnabled: (enabled: boolean) => void;
+  isOnline: boolean;
 
   // State
   isInitialized: boolean;
@@ -96,6 +99,8 @@ const OfflineContext = createContext<OfflineContextType | null>(null);
 
 export function OfflineProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
+  const netInfo = useNetInfo();
+  const isOnline = netInfo.isConnected === true;
 
   // Mode state
   const [isAutoSyncEnabled, setAutoSyncEnabledState] = useState(true);
@@ -224,6 +229,15 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       closeDatabase().catch(console.warn);
     };
   }, []);
+
+  // Process sync queue when online
+  useEffect(() => {
+    if (isOnline && isInitialized) {
+      processSyncQueue().catch((e) =>
+        console.warn('[Offline Context] Sync queue processing failed:', e)
+      );
+    }
+  }, [isOnline, isInitialized]);
 
   // Auto-sync user data when authenticated
   useEffect(() => {
@@ -458,6 +472,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     // Mode
     isAutoSyncEnabled,
     setAutoSyncEnabled,
+    isOnline,
 
     // State
     isInitialized,

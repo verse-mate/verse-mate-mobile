@@ -10,9 +10,11 @@ import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import {
   deleteBibleVersion,
   deleteCommentaries,
+  deleteSyncAction,
   deleteTopics,
   getAllMetadata,
   getMetadata,
+  getPendingSyncActions,
   insertBibleVerses,
   insertCommentaries,
   insertTopics,
@@ -23,6 +25,7 @@ import {
   isCommentaryDownloaded,
   isTopicsDownloaded,
   saveMetadata,
+  updateSyncActionStatus,
 } from './sqlite-manager';
 import type {
   BibleVerseData,
@@ -752,4 +755,90 @@ export async function downloadUserData(onProgress?: ProgressCallback): Promise<v
   });
 
   onProgress?.({ current: 100, total: 100, message: 'User data synced!' });
+}
+
+// ============================================================================
+// Sync Queue Processing
+// ============================================================================
+
+export async function processSyncQueue(): Promise<void> {
+  const actions = await getPendingSyncActions();
+  if (actions.length === 0) return;
+
+  console.log(`[Offline Sync] Processing ${actions.length} pending actions`);
+
+  // Process sequentially to ensure order
+  for (const action of actions) {
+    try {
+      await updateSyncActionStatus(action.id, 'SYNCING');
+      const payload = JSON.parse(action.payload);
+
+      if (action.type === 'NOTE') {
+        if (action.action === 'CREATE') {
+          await authenticatedFetch(`${API_URL}/bible-book-note/add`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+        } else if (action.action === 'UPDATE') {
+          await authenticatedFetch(`${API_URL}/bible-book-note/update`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+          });
+        } else if (action.action === 'DELETE') {
+          await authenticatedFetch(`${API_URL}/bible-book-note/remove?note_id=${payload.note_id}`, {
+            method: 'DELETE',
+          });
+        }
+      } else if (action.type === 'HIGHLIGHT') {
+        if (action.action === 'CREATE') {
+          await authenticatedFetch(`${API_URL}/bible-highlight/add`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+        } else if (action.action === 'UPDATE') {
+          // payload includes highlight_id for path param
+          const { highlight_id, ...body } = payload;
+          await authenticatedFetch(`${API_URL}/bible-highlight/${highlight_id}`, {
+            method: 'PUT',
+            body: JSON.stringify(body),
+          });
+        } else if (action.action === 'DELETE') {
+          const { highlight_id } = payload;
+          await authenticatedFetch(`${API_URL}/bible-highlight/${highlight_id}`, {
+            method: 'DELETE',
+          });
+        }
+      } else if (action.type === 'BOOKMARK') {
+        if (action.action === 'CREATE') {
+          await authenticatedFetch(`${API_URL}/bible-book-bookmark/add`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+        } else if (action.action === 'DELETE') {
+          const query = new URLSearchParams();
+          // Allow deleting by favorite_id OR by book/chapter
+          if (payload.favorite_id) query.append('favorite_id', String(payload.favorite_id));
+          if (payload.book_id) query.append('book_id', String(payload.book_id));
+          if (payload.chapter_number)
+            query.append('chapter_number', String(payload.chapter_number));
+          if (payload.insight_type) query.append('insight_type', String(payload.insight_type));
+          if (payload.user_id) query.append('user_id', String(payload.user_id));
+
+          await authenticatedFetch(`${API_URL}/bible-book-bookmark/remove?${query.toString()}`, {
+            method: 'DELETE',
+          });
+        }
+      }
+
+      await deleteSyncAction(action.id);
+    } catch (e) {
+      console.error(`[Offline Sync] Action ${action.id} failed:`, e);
+      // Mark as failed and increment retry count
+      await updateSyncActionStatus(action.id, 'FAILED', action.retry_count + 1);
+    }
+  }
+
+  // After processing queue, trigger a user data sync to refresh local IDs and ensure consistency
+  // Use fire-and-forget
+  downloadUserData().catch((e) => console.warn('[Offline Sync] Post-queue sync failed:', e));
 }

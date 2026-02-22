@@ -43,7 +43,13 @@ import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { getLocalAllNotes } from '@/services/offline';
+import {
+  addLocalNote,
+  addSyncAction,
+  deleteLocalNote,
+  getLocalAllNotes,
+  updateLocalNote,
+} from '@/services/offline';
 import {
   deleteBibleBookNoteRemoveMutation,
   getBibleBookNotesByUserIdOptions,
@@ -102,10 +108,10 @@ export interface UseNotesResult {
  */
 export function useNotes(): UseNotesResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const { isUserDataSynced } = useOfflineContext();
+  const { isUserDataSynced, isOnline } = useOfflineContext();
   const queryClient = useQueryClient();
 
-  const isOffline = isUserDataSynced;
+  const isOffline = !isOnline;
 
   // Create query options with user ID
   const queryOptions = useMemo(
@@ -121,7 +127,7 @@ export function useNotes(): UseNotesResult {
     [queryOptions]
   );
 
-  // Fetch notes from API (disabled in offline mode)
+  // Fetch notes from API (disabled when offline)
   const {
     data: notesData,
     isFetching: isQueryFetching,
@@ -133,7 +139,7 @@ export function useNotes(): UseNotesResult {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Fetch notes from local storage when offline
+  // Fetch notes from local storage when offline or just to have fallback
   const { data: localNotesData } = useQuery({
     queryKey: ['local-notes-offline-fallback'],
     queryFn: async () => {
@@ -149,7 +155,8 @@ export function useNotes(): UseNotesResult {
         book_name: `Book ${n.book_id}`,
       }));
     },
-    enabled: isOffline,
+    enabled: isOffline || isUserDataSynced, // Enable if offline OR if we have synced data (even if online, for speed?)
+    // Actually, just fetch it if needed.
     staleTime: Number.POSITIVE_INFINITY,
   });
 
@@ -164,6 +171,38 @@ export function useNotes(): UseNotesResult {
   // Add note mutation
   const addMutation = useMutation({
     ...postBibleBookNoteAddMutation(),
+    mutationFn: async (variables) => {
+      if (!isOnline) {
+        if (!variables.body) throw new Error('Missing body');
+        const { book_id, chapter_number, content } = variables.body;
+        const tempId = `temp-${Date.now()}`;
+        const note = {
+          note_id: tempId,
+          book_id,
+          chapter_number,
+          verse_number: null,
+          content,
+          updated_at: new Date().toISOString(),
+        };
+        await addLocalNote(note);
+        await addSyncAction('NOTE', 'CREATE', variables.body);
+        return {
+          success: true,
+          note: {
+            ...note,
+            created_at: note.updated_at,
+            verse_id: null,
+            user_id: user?.id || '',
+            chapter_id: book_id * 1000 + chapter_number,
+          },
+        };
+      }
+      const fn = postBibleBookNoteAddMutation().mutationFn;
+      if (!fn) throw new Error('Mutation function missing');
+
+      // biome-ignore lint/suspicious/noExplicitAny: context required by type
+      return fn(variables, undefined as any);
+    },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: notesQueryKey });
@@ -196,6 +235,12 @@ export function useNotes(): UseNotesResult {
           verse_number: null,
         };
 
+        // If offline, we already added to local DB, so query invalidation will pick it up?
+        // No, invalidation only works if we re-run the queryFn.
+        // If queryFn is local (isOffline=true), it re-reads local DB.
+        // So optimistic update is less critical if we invalidate immediately?
+        // But invalidation is async. Optimistic update is still good for instant feedback.
+
         queryClient.setQueryData<GetBibleBookNotesByUserIdResponse>(notesQueryKey, {
           notes: [optimisticNote, ...previousNotes.notes], // Add at beginning (most recent first)
         });
@@ -222,12 +267,39 @@ export function useNotes(): UseNotesResult {
 
       // Refetch to get accurate server data (with correct note_id and book_name)
       queryClient.invalidateQueries({ queryKey: notesQueryKey });
+      // Also invalidate local query
+      queryClient.invalidateQueries({ queryKey: ['local-notes-offline-fallback'] });
     },
   });
 
   // Update note mutation
   const updateMutation = useMutation({
     ...putBibleBookNoteUpdateMutation(),
+    mutationFn: async (variables) => {
+      if (!isOnline) {
+        if (!variables.body) throw new Error('Missing body');
+        const { note_id, content } = variables.body;
+        await updateLocalNote(note_id, content);
+        await addSyncAction('NOTE', 'UPDATE', variables.body);
+        return {
+          success: true,
+          note: {
+            note_id,
+            content,
+            updated_at: new Date().toISOString(),
+            created_at: new Date().toISOString(), // Mock
+            user_id: user?.id || '', // Mock
+            book_id: 0, // Mock
+            chapter_number: 0, // Mock
+          },
+        };
+      }
+      const fn = putBibleBookNoteUpdateMutation().mutationFn;
+      if (!fn) throw new Error('Mutation function missing');
+
+      // biome-ignore lint/suspicious/noExplicitAny: context required by type
+      return fn(variables, undefined as any);
+    },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: notesQueryKey });
@@ -273,12 +345,27 @@ export function useNotes(): UseNotesResult {
 
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: notesQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['local-notes-offline-fallback'] });
     },
   });
 
   // Delete note mutation
   const deleteMutation = useMutation({
     ...deleteBibleBookNoteRemoveMutation(),
+    mutationFn: async (variables) => {
+      if (!isOnline) {
+        if (!variables.query) throw new Error('Missing query');
+        const { note_id } = variables.query;
+        await deleteLocalNote(note_id);
+        await addSyncAction('NOTE', 'DELETE', variables.query);
+        return { success: true };
+      }
+      const fn = deleteBibleBookNoteRemoveMutation().mutationFn;
+      if (!fn) throw new Error('Mutation function missing');
+
+      // biome-ignore lint/suspicious/noExplicitAny: context required by type
+      return fn(variables, undefined as any);
+    },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: notesQueryKey });
@@ -316,6 +403,7 @@ export function useNotes(): UseNotesResult {
 
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: notesQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['local-notes-offline-fallback'] });
     },
   });
 
