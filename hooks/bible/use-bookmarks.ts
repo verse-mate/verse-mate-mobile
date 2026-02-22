@@ -34,7 +34,12 @@ import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { getLocalBookmarks } from '@/services/offline';
+import {
+  addLocalBookmark,
+  addSyncAction,
+  deleteLocalBookmarkByChapter,
+  getLocalBookmarks,
+} from '@/services/offline';
 import {
   deleteBibleBookBookmarkRemoveMutation,
   getBibleBookBookmarksByUserIdOptions,
@@ -111,10 +116,10 @@ export interface UseBookmarksResult {
  */
 export function useBookmarks(): UseBookmarksResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const { isUserDataSynced } = useOfflineContext();
+  const { isUserDataSynced, isOnline } = useOfflineContext();
   const queryClient = useQueryClient();
 
-  const isOffline = isUserDataSynced;
+  const isOffline = !isOnline;
 
   // Create query options with user ID
   const queryOptions = useMemo(
@@ -142,7 +147,7 @@ export function useBookmarks(): UseBookmarksResult {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Fetch bookmarks from local storage when offline
+  // Fetch bookmarks from local storage when offline or fallback
   const { data: localBookmarksData } = useQuery({
     queryKey: ['local-bookmarks-offline-fallback'],
     queryFn: async () => {
@@ -152,9 +157,11 @@ export function useBookmarks(): UseBookmarksResult {
         book_id: b.book_id,
         chapter_number: b.chapter_number,
         book_name: `Book ${b.book_id}`,
+        insight_type: b.insight_type || null,
+        created_at: b.created_at,
       }));
     },
-    enabled: isOffline,
+    enabled: isOffline || isUserDataSynced,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
@@ -169,6 +176,39 @@ export function useBookmarks(): UseBookmarksResult {
   // Add bookmark mutation
   const addMutation = useMutation({
     ...postBibleBookBookmarkAddMutation(),
+    mutationFn: async (variables) => {
+      if (!isOnline) {
+        if (!variables.body) throw new Error('Missing body');
+        const { book_id, chapter_number, insight_type } = variables.body;
+        const tempId = Date.now();
+        const bookmark = {
+          favorite_id: tempId,
+          book_id,
+          chapter_number,
+          created_at: new Date().toISOString(),
+          insight_type: insight_type || undefined,
+        };
+
+        await addLocalBookmark(bookmark);
+        await addSyncAction('BOOKMARK', 'CREATE', variables.body);
+
+        return {
+          success: true,
+          favorite: {
+            ...bookmark,
+            user_id: user?.id || '',
+            book_name: `Book ${book_id}`,
+            insight_type: insight_type || null,
+          },
+        };
+      }
+      // Context argument is optional in implementation but required by type
+      const fn = postBibleBookBookmarkAddMutation().mutationFn;
+
+      if (!fn) throw new Error('Mutation function missing');
+      // biome-ignore lint/suspicious/noExplicitAny: context required by type
+      return fn(variables, undefined as any);
+    },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: bookmarksQueryKey });
@@ -229,12 +269,34 @@ export function useBookmarks(): UseBookmarksResult {
 
       // Refetch to get accurate server data (with correct favorite_id and book_name)
       queryClient.invalidateQueries({ queryKey: bookmarksQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['local-bookmarks-offline-fallback'] });
     },
   });
 
   // Remove bookmark mutation
   const removeMutation = useMutation({
     ...deleteBibleBookBookmarkRemoveMutation(),
+    mutationFn: async (variables) => {
+      if (!isOnline) {
+        if (!variables.query) throw new Error('Missing query');
+        const { book_id, chapter_number, insight_type } = variables.query;
+
+        await deleteLocalBookmarkByChapter(
+          Number(book_id),
+          Number(chapter_number),
+          insight_type || undefined
+        );
+        await addSyncAction('BOOKMARK', 'DELETE', variables.query);
+
+        return { success: true };
+      }
+      // Context argument is optional in implementation but required by type
+      const fn = deleteBibleBookBookmarkRemoveMutation().mutationFn;
+
+      if (!fn) throw new Error('Mutation function missing');
+      // biome-ignore lint/suspicious/noExplicitAny: context required by type
+      return fn(variables, undefined as any);
+    },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: bookmarksQueryKey });
@@ -287,6 +349,7 @@ export function useBookmarks(): UseBookmarksResult {
 
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: bookmarksQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['local-bookmarks-offline-fallback'] });
     },
   });
 

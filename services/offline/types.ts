@@ -135,6 +135,7 @@ export interface OfflineBookmark {
   book_id: number;
   chapter_number: number;
   created_at: string;
+  insight_type?: string;
 }
 
 export interface UserDataDownload {
@@ -161,4 +162,19 @@ export interface LanguageBundle {
   topicsInfo?: TopicLanguageManifest;
   totalSizeBytes: number;
   status: LanguageBundleStatus;
+}
+
+// Sync Queue Types
+export type SyncActionType = 'NOTE' | 'HIGHLIGHT' | 'BOOKMARK';
+export type SyncActionOperation = 'CREATE' | 'UPDATE' | 'DELETE';
+export type SyncActionStatus = 'PENDING' | 'SYNCING' | 'FAILED' | 'COMPLETED';
+
+export interface OfflineSyncAction {
+  id: number;
+  type: SyncActionType;
+  action: SyncActionOperation;
+  payload: string; // JSON string
+  created_at: string;
+  status: SyncActionStatus;
+  retry_count: number;
 }

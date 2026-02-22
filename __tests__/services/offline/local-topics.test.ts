@@ -53,14 +53,14 @@ describe('getLocalTopics() SQL query', () => {
 
     const call = findTopicsQueryCall();
     expect(call).toBeDefined();
-    expect(call![0]).toContain('category');
+    expect(call?.[0]).toContain('category');
   });
 
   it('selects the sort_order column', async () => {
     await getLocalTopics('en');
 
     const call = findTopicsQueryCall();
-    expect(call![0]).toContain('sort_order');
+    expect(call?.[0]).toContain('sort_order');
   });
 
   it('filters by the provided language code', async () => {
@@ -69,7 +69,7 @@ describe('getLocalTopics() SQL query', () => {
     const call = findTopicsQueryCall();
     expect(call).toBeDefined();
     // Language code should appear in the query parameters
-    const params = call![1] as unknown[];
+    const params = call?.[1] as unknown[];
     expect(params).toContain('es');
   });
 
