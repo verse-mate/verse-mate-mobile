@@ -140,7 +140,7 @@ export function useNotes(): UseNotesResult {
   });
 
   // Fetch notes from local storage when offline or just to have fallback
-  const { data: localNotesData } = useQuery({
+  const { data: localNotesData, isFetching: isLocalFetching } = useQuery({
     queryKey: ['local-notes-offline-fallback'],
     queryFn: async () => {
       const localNotes = await getLocalAllNotes();
@@ -522,10 +522,13 @@ export function useNotes(): UseNotesResult {
   // Combine auth and query loading states
   // Loading if:
   // 1. Auth is still loading, OR
-  // 2. Query is actively fetching, OR
-  // 3. Auth is loaded but query hasn't fetched yet (dataUpdatedAt === 0)
+  // 2. Query is actively fetching (remote or local), OR
+  // 3. Auth is loaded, we are online, but query hasn't fetched yet (dataUpdatedAt === 0)
   const isFetchingNotes =
-    isAuthLoading || isQueryFetching || (isAuthenticated && dataUpdatedAt === 0);
+    isAuthLoading ||
+    isQueryFetching ||
+    isLocalFetching ||
+    (isAuthenticated && !isDeviceOffline && dataUpdatedAt === 0);
 
   return {
     notes,

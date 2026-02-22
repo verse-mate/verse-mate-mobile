@@ -148,7 +148,7 @@ export function useBookmarks(): UseBookmarksResult {
   });
 
   // Fetch bookmarks from local storage when offline or fallback
-  const { data: localBookmarksData } = useQuery({
+  const { data: localBookmarksData, isFetching: isLocalFetching } = useQuery({
     queryKey: ['local-bookmarks-offline-fallback'],
     queryFn: async () => {
       const localBookmarks = await getLocalBookmarks();
@@ -476,10 +476,13 @@ export function useBookmarks(): UseBookmarksResult {
   // Combine auth and query loading states
   // Loading if:
   // 1. Auth is still loading, OR
-  // 2. Query is actively fetching, OR
-  // 3. Auth is loaded but query hasn't fetched yet (dataUpdatedAt === 0)
+  // 2. Query is actively fetching (remote or local), OR
+  // 3. Auth is loaded, we are online, but query hasn't fetched yet (dataUpdatedAt === 0)
   const isFetchingBookmarks =
-    isAuthLoading || isQueryFetching || (isAuthenticated && dataUpdatedAt === 0);
+    isAuthLoading ||
+    isQueryFetching ||
+    isLocalFetching ||
+    (isAuthenticated && !isDeviceOffline && dataUpdatedAt === 0);
 
   return {
     bookmarks,
