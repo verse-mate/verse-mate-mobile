@@ -119,7 +119,7 @@ export function useBookmarks(): UseBookmarksResult {
   const { isUserDataSynced, isOnline } = useOfflineContext();
   const queryClient = useQueryClient();
 
-  const isOffline = !isOnline;
+  const isDeviceOffline = !isOnline;
 
   // Create query options with user ID
   const queryOptions = useMemo(
@@ -143,7 +143,7 @@ export function useBookmarks(): UseBookmarksResult {
     dataUpdatedAt,
   } = useQuery({
     ...getBibleBookBookmarksByUserIdOptions(queryOptions),
-    enabled: isAuthenticated && !!user?.id && !isOffline,
+    enabled: isAuthenticated && !!user?.id && !isDeviceOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -161,17 +161,17 @@ export function useBookmarks(): UseBookmarksResult {
         created_at: b.created_at,
       }));
     },
-    enabled: isOffline || isUserDataSynced,
+    enabled: isDeviceOffline || isUserDataSynced,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
   // Extract bookmarks array from response (offline or remote)
   const bookmarks = useMemo(() => {
-    if (isOffline && localBookmarksData) {
+    if (isDeviceOffline && localBookmarksData) {
       return localBookmarksData as Bookmark[];
     }
     return bookmarksData?.favorites || [];
-  }, [isOffline, localBookmarksData, bookmarksData]);
+  }, [isDeviceOffline, localBookmarksData, bookmarksData]);
 
   // Add bookmark mutation
   const addMutation = useMutation({

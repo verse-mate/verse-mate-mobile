@@ -40,6 +40,14 @@ export function notifyLanguageChanged(): void {
   for (const fn of listeners) fn();
 }
 
+/**
+ * Reset the module-level cache.
+ * Only intended for use in tests to ensure isolation.
+ */
+export function resetCachedLanguage(): void {
+  cachedLanguage = null;
+}
+
 export function usePreferredLanguage(): string {
   const { user } = useAuth();
   const sessionLanguage =

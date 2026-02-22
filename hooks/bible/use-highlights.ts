@@ -159,7 +159,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   const queryClient = useQueryClient();
 
   const { bookId, chapterNumber } = options || {};
-  const isOffline = !isOnline;
+  const isDeviceOffline = !isOnline;
 
   // Determine which query to use based on options
   const fetchAllHighlights = !bookId || !chapterNumber;
@@ -203,7 +203,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
     refetch: refetchAll,
   } = useQuery({
     ...getBibleHighlightsByUserIdOptions(allHighlightsQueryOptions),
-    enabled: isAuthenticated && !!user?.id && fetchAllHighlights && !isOffline,
+    enabled: isAuthenticated && !!user?.id && fetchAllHighlights && !isDeviceOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -220,7 +220,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       !fetchAllHighlights &&
       !!bookId &&
       !!chapterNumber &&
-      !isOffline,
+      !isDeviceOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -228,31 +228,32 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   const { data: localAllHighlights } = useQuery({
     queryKey: ['local-all-highlights-offline-fallback'],
     queryFn: () => getLocalAllHighlights(),
-    enabled: (isOffline || isUserDataSynced) && fetchAllHighlights,
+    enabled: (isDeviceOffline || isUserDataSynced) && fetchAllHighlights,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
   const { data: localChapterHighlights } = useQuery({
     queryKey: ['local-chapter-highlights-offline-fallback', bookId, chapterNumber],
     queryFn: () => getLocalHighlights(bookId, chapterNumber),
-    enabled: (isOffline || isUserDataSynced) && !fetchAllHighlights && !!bookId && !!chapterNumber,
+    enabled:
+      (isDeviceOffline || isUserDataSynced) && !fetchAllHighlights && !!bookId && !!chapterNumber,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
   // Extract highlights arrays from responses (offline or remote)
   const allHighlights = useMemo(() => {
-    if (isOffline && localAllHighlights) {
+    if (isDeviceOffline && localAllHighlights) {
       return localAllHighlights as unknown as Highlight[];
     }
     return allHighlightsData?.highlights || [];
-  }, [isOffline, localAllHighlights, allHighlightsData]);
+  }, [isDeviceOffline, localAllHighlights, allHighlightsData]);
 
   const chapterHighlights = useMemo(() => {
-    if (isOffline && localChapterHighlights) {
+    if (isDeviceOffline && localChapterHighlights) {
       return localChapterHighlights as unknown as Highlight[];
     }
     return chapterHighlightsData?.highlights || [];
-  }, [isOffline, localChapterHighlights, chapterHighlightsData]);
+  }, [isDeviceOffline, localChapterHighlights, chapterHighlightsData]);
 
   // Add highlight mutation
   const addMutation = useMutation({

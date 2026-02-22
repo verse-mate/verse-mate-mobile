@@ -12,6 +12,7 @@
 import * as SQLite from 'expo-sqlite';
 import { getBookByName } from '../../constants/bible-books';
 import { copySeedDatabaseIfNeeded } from './seed-manager';
+import { escapeSQL } from './sql-utils';
 import type {
   BibleVerseData,
   CommentaryData,
@@ -29,18 +30,6 @@ import type {
 } from './types';
 
 const DB_NAME = 'versemate_offline.db';
-
-/**
- * Escape a value for safe inclusion in raw SQL.
- * Used inside execSync-based transactions where parameterized queries
- * are not available. Data comes from our own API so injection risk is minimal,
- * but we still properly escape single quotes.
- */
-function escapeSQL(val: string | number | null | undefined): string {
-  if (val === null || val === undefined) return 'NULL';
-  if (typeof val === 'number') return String(val);
-  return `'${String(val).replaceAll("'", "''")}'`;
-}
 
 let db: SQLite.SQLiteDatabase | null = null;
 let initFailed = false;
@@ -67,11 +56,11 @@ function execSafe(database: SQLite.SQLiteDatabase, sql: string, label: string): 
       }
 
       if (!isLocked || attempt === 2) {
-        console.error(`[Offline DB] ${label} failed: ${msg}`);
+        if (__DEV__) console.error(`[Offline DB] ${label} failed: ${msg}`);
         throw e;
       }
 
-      console.warn(`[Offline DB] ${label} busy, retrying once...`);
+      if (__DEV__) console.warn(`[Offline DB] ${label} busy, retrying once...`);
       // Short blocking pause � JS thread, acceptable.
       const end = Date.now() + 300;
       while (Date.now() < end) {
@@ -262,7 +251,7 @@ function performInitSync(): SQLite.SQLiteDatabase {
       );
       const colNames = bookmarkCols.map((c) => c.name);
       if (!colNames.includes('insight_type')) {
-        console.log('[Offline DB] Adding insight_type column to offline_bookmarks');
+        if (__DEV__) console.log('[Offline DB] Adding insight_type column to offline_bookmarks');
         database.execSync('ALTER TABLE offline_bookmarks ADD COLUMN insight_type TEXT');
       }
     } catch {

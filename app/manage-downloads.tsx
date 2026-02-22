@@ -169,7 +169,7 @@ function getContentDescription(bundle: CommentaryTopicBundle): string {
 
 // --- Item Components ---
 
-interface DownloadItemProps {
+export interface DownloadItemProps {
   name: string;
   description?: string;
   status: DownloadStatus;
@@ -178,6 +178,7 @@ interface DownloadItemProps {
   onRequestDelete: () => void;
   isProcessing: boolean;
   colors: ReturnType<typeof getColors>;
+  testID?: string;
 }
 
 function DownloadItem({
@@ -189,6 +190,7 @@ function DownloadItem({
   onRequestDelete,
   isProcessing,
   colors,
+  testID,
 }: Readonly<DownloadItemProps>) {
   const styles = createStyles(colors);
   const isDownloaded = status === 'downloaded' || status === 'update_available';
@@ -209,6 +211,7 @@ function DownloadItem({
       disabled={isProcessing}
       accessibilityLabel={`${name}, ${getStatusText(status)}, ${formatBytes(sizeBytes)}`}
       accessibilityRole="button"
+      testID={testID}
     >
       <View style={styles.downloadItemInfo}>
         <Text style={styles.downloadItemName}>{name}</Text>
@@ -257,6 +260,7 @@ export default function ManageDownloadsScreen() {
     isSyncing,
     syncProgress,
     lastSyncTime,
+    setLastSyncTime,
     totalStorageUsed,
     refreshManifest,
     downloadBibleVersion,
@@ -321,7 +325,9 @@ export default function ManageDownloadsScreen() {
   // Refresh manifest on mount (only once when initialized)
   useEffect(() => {
     if (isInitialized) {
-      refreshManifest().catch(console.warn);
+      refreshManifest().catch((e) => {
+        if (__DEV__) console.warn('[ManageDownloads] Initial manifest refresh failed:', e);
+      });
     }
   }, [isInitialized, refreshManifest]);
 
@@ -355,6 +361,9 @@ export default function ManageDownloadsScreen() {
         closeConfirm();
         try {
           await deleteAllData();
+          if (setLastSyncTime) {
+            setLastSyncTime(null);
+          }
           setSuccessModal({ message: 'All offline data has been deleted.' });
         } catch {
           setErrorModal({ message: 'Failed to delete offline data.' });
@@ -407,7 +416,17 @@ export default function ManageDownloadsScreen() {
       if (bundle.hasTopics && bundle.topicStatus !== 'downloaded') {
         promises.push(downloadTopics(bundle.topicLanguageCode));
       }
-      await Promise.all(promises);
+
+      const results = await Promise.allSettled(promises);
+      const failed = results.filter((r) => r.status === 'rejected');
+
+      if (failed.length > 0) {
+        const error = (failed[0] as PromiseRejectedResult).reason;
+        console.error('Download partial failure:', error);
+        setErrorModal({
+          message: `Failed to download some content: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
     } catch (error) {
       console.error('Download failed:', error);
       setErrorModal({
@@ -432,7 +451,11 @@ export default function ManageDownloadsScreen() {
           if (bundle.hasCommentaries)
             promises.push(deleteCommentaries(bundle.commentaryLanguageCode));
           if (bundle.hasTopics) promises.push(deleteTopics(bundle.topicLanguageCode));
-          await Promise.all(promises);
+
+          const results = await Promise.allSettled(promises);
+          if (results.some((r) => r.status === 'rejected')) {
+            setErrorModal({ message: 'Failed to delete some content.' });
+          }
         } catch {
           setErrorModal({ message: 'Failed to delete content.' });
         } finally {
@@ -582,6 +605,9 @@ export default function ManageDownloadsScreen() {
                   onPress={handleSyncUserData}
                   disabled={processingItem === 'user-data' || isSyncing}
                   style={styles.syncButton}
+                  accessibilityLabel="Sync user data for offline use"
+                  accessibilityRole="button"
+                  testID="sync-user-data-button"
                 >
                   {processingItem === 'user-data' ? (
                     <ActivityIndicator size="small" color={colors.gold} />
@@ -678,7 +704,11 @@ export default function ManageDownloadsScreen() {
           {
             text: confirmModal?.confirmText ?? 'Confirm',
             style: 'destructive',
-            onPress: () => confirmModal?.onConfirm(),
+            onPress: () => {
+              if (pendingConfirmRef.current) {
+                pendingConfirmRef.current();
+              }
+            },
           },
         ]}
       />
