@@ -40,6 +40,8 @@ function escapeSQL(val: string | number | null | undefined): string {
 
 let db: SQLite.SQLiteDatabase | null = null;
 let initFailed = false;
+/** Shared promise so concurrent callers wait for the same in-flight init. */
+let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 /**
  * Execute a SQL string, rolling back on failure.
@@ -259,64 +261,70 @@ function performInitSync(): SQLite.SQLiteDatabase {
 }
 
 /**
- * Public init - returns a Promise for backward compat with callers that await it.
+ * Public init. Returns a shared promise so concurrent callers (e.g. hooks that
+ * fire during the seed-copy async gap) all wait for the SAME init rather than
+ * each opening their own empty-DB connection and racing with the copy.
+ *
+ * Every exported DB accessor calls: const database = await initDatabase();
  */
-export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return db;
+export function initDatabase(): Promise<SQLite.SQLiteDatabase> {
+  // Fast path — already initialised
+  if (db) return Promise.resolve(db);
 
-  // On a fresh install the DB file won't exist yet — copy the bundled seed
-  // database so users immediately have NASB1995 + English content available.
-  // Returns immediately without doing anything if the file already exists.
-  try {
-    await copySeedDatabaseIfNeeded();
-  } catch (seedErr) {
-    console.warn('[Offline DB] Seed copy failed (non-fatal):', seedErr);
+  // Previously failed catastrophically — surface the error
+  if (initFailed) {
+    return Promise.reject(
+      new Error('[Offline DB] Database init previously failed. Call resetDatabase() to retry.')
+    );
   }
 
-  try {
-    db = performInitSync();
-    initFailed = false;
-    return db;
-  } catch (error) {
-    console.warn('[Offline DB] Init failed, will delete and retry:', error);
-    // performInitSync already closed its handle on failure, so the file
-    // should be unlocked. Delete and retry once.
-    db = null;
+  // Initialisation already in progress — return the same promise so every
+  // concurrent caller waits for the seed copy to finish before touching the DB.
+  if (initPromise) return initPromise;
+
+  initPromise = (async (): Promise<SQLite.SQLiteDatabase> => {
+    // On a fresh install copy the bundled seed DB so users immediately have
+    // NASB1995 + English content without any manual download step.
     try {
-      SQLite.deleteDatabaseSync(DB_NAME);
-    } catch (delErr) {
-      console.warn('[Offline DB] deleteDatabaseSync failed:', delErr);
+      await copySeedDatabaseIfNeeded();
+    } catch (seedErr) {
+      console.warn('[Offline DB] Seed copy failed (non-fatal):', seedErr);
     }
 
     try {
       db = performInitSync();
       initFailed = false;
       return db;
-    } catch (retryError) {
-      console.error('[Offline DB] Init retry also failed:', retryError);
+    } catch (error) {
+      console.warn('[Offline DB] Init failed, will delete and retry:', error);
       db = null;
-      initFailed = true;
-      throw retryError;
+      try {
+        SQLite.deleteDatabaseSync(DB_NAME);
+      } catch (delErr) {
+        console.warn('[Offline DB] deleteDatabaseSync failed:', delErr);
+      }
+
+      try {
+        db = performInitSync();
+        initFailed = false;
+        return db;
+      } catch (retryError) {
+        console.error('[Offline DB] Init retry also failed:', retryError);
+        db = null;
+        initFailed = true;
+        throw retryError;
+      }
     }
-  }
+  })().finally(() => {
+    // Clear so resetDatabase() / closeDatabase() can trigger a fresh init.
+    initPromise = null;
+  });
+
+  return initPromise;
 }
 
-/**
- * Get the database instance, initialising on first call.
- * If init previously failed catastrophically, don't keep retrying on every
- * query � that would flood logs and waste cycles.
- */
-function getDatabaseSync(): SQLite.SQLiteDatabase {
-  if (db) return db;
-  if (initFailed) {
-    throw new Error('[Offline DB] Database init previously failed. Call initDatabase() to retry.');
-  }
-  db = performInitSync();
-  return db;
-}
-
-export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  return getDatabaseSync();
+export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  return initDatabase();
 }
 
 export async function resetDatabase(): Promise<SQLite.SQLiteDatabase> {
@@ -328,6 +336,7 @@ export async function resetDatabase(): Promise<SQLite.SQLiteDatabase> {
     }
     db = null;
   }
+  initPromise = null;
   initFailed = false;
   return initDatabase();
 }
@@ -337,6 +346,7 @@ export async function closeDatabase(): Promise<void> {
     db.closeSync();
     db = null;
   }
+  initPromise = null;
   initFailed = false;
 }
 
@@ -348,7 +358,7 @@ export async function insertBibleVerses(
   versionKey: string,
   verses: BibleVerseData[]
 ): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   console.log(`[Offline DB] Inserting ${verses.length} verses for ${versionKey}`);
   const start = Date.now();
 
@@ -404,7 +414,7 @@ export async function getLocalBibleChapter(
   bookId: number,
   chapterNumber: number
 ): Promise<BibleVerseData[]> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   return database.getAllSync<BibleVerseData>(
     'SELECT book_id, chapter_number, verse_number, text FROM offline_verses WHERE version_key = ? AND book_id = ? AND chapter_number = ? ORDER BY verse_number',
     [versionKey, bookId, chapterNumber]
@@ -412,7 +422,7 @@ export async function getLocalBibleChapter(
 }
 
 export async function isBibleVersionDownloaded(versionKey: string): Promise<boolean> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const result = database.getFirstSync<{ count: number }>(
     'SELECT COUNT(*) as count FROM offline_verses WHERE version_key = ?',
     [versionKey]
@@ -421,7 +431,7 @@ export async function isBibleVersionDownloaded(versionKey: string): Promise<bool
 }
 
 export async function deleteBibleVersion(versionKey: string): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   database.runSync('DELETE FROM offline_verses WHERE version_key = ?', [versionKey]);
   database.runSync('DELETE FROM offline_metadata WHERE resource_key = ?', [`bible:${versionKey}`]);
 }
@@ -439,7 +449,7 @@ export async function getSpecificVerses(
   }
   if (verses.length === 0) return [];
 
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const placeholders = verses.map(() => '?').join(',');
   return database.getAllSync<BibleVerseData>(
     `SELECT book_id, chapter_number, verse_number, text FROM offline_verses WHERE version_key = ? AND book_id = ? AND chapter_number = ? AND verse_number IN (${placeholders}) ORDER BY verse_number`,
@@ -455,7 +465,7 @@ export async function insertCommentaries(
   languageCode: string,
   commentaries: CommentaryData[]
 ): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   console.log(`[Offline DB] Inserting ${commentaries.length} commentaries for ${languageCode}`);
   const start = Date.now();
 
@@ -511,7 +521,7 @@ export async function getLocalCommentary(
   chapterNumber: number,
   type?: string
 ): Promise<CommentaryData | null> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
 
   // If type is specified, filter by it; otherwise get any type
   const query = type
@@ -527,7 +537,7 @@ export async function getLocalCommentary(
 }
 
 export async function isCommentaryDownloaded(languageCode: string): Promise<boolean> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const result = database.getFirstSync<{ count: number }>(
     'SELECT COUNT(*) as count FROM offline_explanations WHERE language_code = ?',
     [languageCode]
@@ -536,7 +546,7 @@ export async function isCommentaryDownloaded(languageCode: string): Promise<bool
 }
 
 export async function deleteCommentaries(languageCode: string): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   database.runSync('DELETE FROM offline_explanations WHERE language_code = ?', [languageCode]);
   database.runSync('DELETE FROM offline_metadata WHERE resource_key = ?', [
     `commentary:${languageCode}`,
@@ -553,7 +563,7 @@ export async function insertTopics(
   references: TopicReferenceData[],
   explanations: TopicExplanationData[]
 ): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   console.log(
     `[Offline DB] Inserting ${topics.length} topics, ${references.length} refs, ${explanations.length} explanations for ${languageCode}`
   );
@@ -660,7 +670,7 @@ export async function insertTopics(
 }
 
 export async function getLocalTopics(languageCode: string): Promise<TopicData[]> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   return database.getAllSync<TopicData>(
     'SELECT topic_id, name, content, language_code FROM offline_topics WHERE language_code = ?',
     [languageCode]
@@ -668,7 +678,7 @@ export async function getLocalTopics(languageCode: string): Promise<TopicData[]>
 }
 
 export async function isTopicsDownloaded(languageCode: string): Promise<boolean> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const result = database.getFirstSync<{ count: number }>(
     'SELECT COUNT(*) as count FROM offline_topics WHERE language_code = ?',
     [languageCode]
@@ -677,7 +687,7 @@ export async function isTopicsDownloaded(languageCode: string): Promise<boolean>
 }
 
 export async function deleteTopics(languageCode: string): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   // Get topic IDs for this language to clean up references (which are keyed by topic_id, not language)
   const topics = database.getAllSync<{ topic_id: string }>(
     'SELECT topic_id FROM offline_topics WHERE language_code = ?',
@@ -700,7 +710,7 @@ export async function getLocalTopic(
   topicId: string,
   languageCode?: string
 ): Promise<TopicData | null> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const langQuery =
     'SELECT topic_id, name, content, language_code, category, sort_order FROM offline_topics WHERE topic_id = ? AND (language_code = ? OR language_code = ? OR language_code LIKE ?) LIMIT 1';
   if (languageCode) {
@@ -727,7 +737,7 @@ export async function getLocalTopic(
 }
 
 export async function getLocalTopicReferences(topicId: string): Promise<TopicReferenceData | null> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const result = database.getFirstSync<TopicReferenceData>(
     'SELECT topic_id, reference_content FROM offline_topic_references WHERE topic_id = ?',
     [topicId]
@@ -740,7 +750,7 @@ export async function getLocalTopicExplanation(
   type: string,
   languageCode?: string
 ): Promise<TopicExplanationData | null> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const langQuery =
     'SELECT topic_id, type, explanation, language_code FROM offline_topic_explanations WHERE topic_id = ? AND type = ? AND (language_code = ? OR language_code = ? OR language_code LIKE ?) LIMIT 1';
   if (languageCode) {
@@ -777,7 +787,7 @@ export async function getLocalTopicExplanations(
   topicId: string,
   languageCode?: string
 ): Promise<TopicExplanationData[]> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const langQuery =
     'SELECT topic_id, type, explanation, language_code FROM offline_topic_explanations WHERE topic_id = ? AND (language_code = ? OR language_code = ? OR language_code LIKE ?)';
   if (languageCode) {
@@ -812,7 +822,7 @@ export async function getLocalTopicExplanations(
 // ============================================================================
 
 export async function insertUserNotes(notes: OfflineNote[]): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   console.log(`[Offline DB] Inserting ${notes.length} notes`);
 
   // Delete existing notes in its own transaction
@@ -846,7 +856,7 @@ export async function insertUserNotes(notes: OfflineNote[]): Promise<void> {
 }
 
 export async function insertUserHighlights(highlights: OfflineHighlight[]): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   console.log(`[Offline DB] Inserting ${highlights.length} highlights`);
 
   // Delete existing highlights in its own transaction
@@ -880,7 +890,7 @@ export async function insertUserHighlights(highlights: OfflineHighlight[]): Prom
 }
 
 export async function insertUserBookmarks(bookmarks: OfflineBookmark[]): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   console.log(`[Offline DB] Inserting ${bookmarks.length} bookmarks`);
 
   // Delete existing bookmarks in its own transaction
@@ -916,7 +926,7 @@ export async function getLocalNotes(
   bookId?: number,
   chapterNumber?: number
 ): Promise<OfflineNote[]> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   if (bookId !== undefined && chapterNumber !== undefined) {
     return database.getAllSync<OfflineNote>(
       'SELECT note_id, book_id, chapter_number, verse_number, content, updated_at FROM offline_notes WHERE book_id = ? AND chapter_number = ? ORDER BY verse_number',
@@ -929,7 +939,7 @@ export async function getLocalNotes(
 }
 
 export async function getLocalAllNotes(): Promise<OfflineNote[]> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   return database.getAllSync<OfflineNote>(
     'SELECT note_id, book_id, chapter_number, verse_number, content, updated_at FROM offline_notes ORDER BY updated_at DESC'
   );
@@ -939,7 +949,7 @@ export async function getLocalHighlights(
   bookId?: number,
   chapterNumber?: number
 ): Promise<OfflineHighlight[]> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   if (bookId !== undefined && chapterNumber !== undefined) {
     return database.getAllSync<OfflineHighlight>(
       'SELECT highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at FROM offline_highlights WHERE book_id = ? AND chapter_number = ? ORDER BY start_verse',
@@ -952,21 +962,21 @@ export async function getLocalHighlights(
 }
 
 export async function getLocalAllHighlights(): Promise<OfflineHighlight[]> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   return database.getAllSync<OfflineHighlight>(
     'SELECT highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at FROM offline_highlights ORDER BY updated_at DESC'
   );
 }
 
 export async function getLocalBookmarks(): Promise<OfflineBookmark[]> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   return database.getAllSync<OfflineBookmark>(
     'SELECT favorite_id, book_id, chapter_number, created_at FROM offline_bookmarks ORDER BY created_at DESC'
   );
 }
 
 export async function isUserDataDownloaded(): Promise<boolean> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const result = database.getFirstSync<{ count: number }>(
     "SELECT COUNT(*) as count FROM offline_metadata WHERE resource_key = 'user-data'"
   );
@@ -974,7 +984,7 @@ export async function isUserDataDownloaded(): Promise<boolean> {
 }
 
 export async function deleteAllUserData(): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   database.execSync(
     'DELETE FROM offline_notes; DELETE FROM offline_highlights; DELETE FROM offline_bookmarks'
   );
@@ -986,7 +996,7 @@ export async function deleteAllUserData(): Promise<void> {
 // ============================================================================
 
 export async function saveMetadata(metadata: OfflineMetadata): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   database.runSync(
     'INSERT OR REPLACE INTO offline_metadata (resource_key, last_updated_at, downloaded_at, size_bytes) VALUES (?, ?, ?, ?)',
     [metadata.resource_key, metadata.last_updated_at, metadata.downloaded_at, metadata.size_bytes]
@@ -994,7 +1004,7 @@ export async function saveMetadata(metadata: OfflineMetadata): Promise<void> {
 }
 
 export async function getMetadata(resourceKey: string): Promise<OfflineMetadata | null> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const result = database.getFirstSync<OfflineMetadata>(
     'SELECT resource_key, last_updated_at, downloaded_at, size_bytes FROM offline_metadata WHERE resource_key = ?',
     [resourceKey]
@@ -1003,14 +1013,14 @@ export async function getMetadata(resourceKey: string): Promise<OfflineMetadata 
 }
 
 export async function getAllMetadata(): Promise<OfflineMetadata[]> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   return database.getAllSync<OfflineMetadata>(
     'SELECT resource_key, last_updated_at, downloaded_at, size_bytes FROM offline_metadata'
   );
 }
 
 export async function deleteAllOfflineData(): Promise<void> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   database.execSync(`
     DELETE FROM offline_verses;
     DELETE FROM offline_explanations;
@@ -1025,7 +1035,7 @@ export async function deleteAllOfflineData(): Promise<void> {
 }
 
 export async function getTotalStorageUsed(): Promise<number> {
-  const database = getDatabaseSync();
+  const database = await initDatabase();
   const result = database.getFirstSync<{ total: number }>(
     'SELECT COALESCE(SUM(size_bytes), 0) as total FROM offline_metadata'
   );
