@@ -98,6 +98,7 @@ const config = {
     'expo-web-browser',
     'expo-sqlite',
   ],
+  assetBundlePatterns: ['assets/data/**'],
   experiments: {
     typedRoutes: true,
     reactCompiler: true,

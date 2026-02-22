@@ -186,6 +186,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
           getDownloadedTopicLanguages(),
         ]);
 
+        console.log('[Offline Context] Downloaded Bible versions:', bibleVersions);
+        console.log('[Offline Context] Downloaded commentary langs:', commentaryLangs);
+        console.log('[Offline Context] Downloaded topic langs:', topicLangs);
+
         setDownloadedBibleVersions(bibleVersions);
         setDownloadedCommentaryLanguages(commentaryLangs);
         setDownloadedTopicLanguages(topicLangs);

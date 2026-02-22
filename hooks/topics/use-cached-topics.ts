@@ -22,6 +22,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { getLocalTopics } from '@/services/offline';
 import { useTopicsSearch } from '@/src/api';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
@@ -59,6 +60,8 @@ export interface UseCachedTopicsResult {
  * @returns Topics data with loading states
  */
 export function useCachedTopics(category: TopicCategory, enabled = true): UseCachedTopicsResult {
+  const { isInitialized } = useOfflineContext();
+
   // State for cached topics (instant)
   const [cachedTopics, setCachedTopics] = useState<TopicListItem[]>(memoryCache[category] || []);
   const [isInitialLoad, setIsInitialLoad] = useState(!memoryCache[category]);
@@ -68,18 +71,23 @@ export function useCachedTopics(category: TopicCategory, enabled = true): UseCac
     enabled,
   });
 
-  // Load cache on mount (only if not in memory cache)
+  // Load from AsyncStorage (instant) and SQLite (once DB is ready).
+  // Re-runs when isInitialized flips true so that a first-mount attempt that
+  // failed because the seed was still being copied gets a second chance.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: isInitialized triggers retry after seed DB is ready
   useEffect(() => {
-    if (!memoryCache[category] && enabled) {
-      loadCachedTopics(category).then((cached) => {
-        if (cached.length > 0) {
-          setCachedTopics(cached);
-          memoryCache[category] = cached;
-          setIsInitialLoad(false);
-        }
-      });
-    }
-  }, [category, enabled]);
+    if (!enabled) return;
+    if (memoryCache[category]) return;
+
+    loadCachedTopics(category).then((cached) => {
+      if (cached.length > 0) {
+        setCachedTopics(cached);
+        memoryCache[category] = cached;
+      }
+      // Always mark load complete so the UI never stays stuck in "loading"
+      setIsInitialLoad(false);
+    });
+  }, [category, enabled, isInitialized]);
 
   // Update cache when fresh API data arrives
   useEffect(() => {
