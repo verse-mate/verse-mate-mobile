@@ -22,22 +22,44 @@ export const DB_PATH = `${FileSystem.documentDirectory}SQLite/${DB_NAME}`;
  * calls inside functions for static bundling analysis.
  */
 export async function copySeedDatabaseIfNeeded(): Promise<void> {
+  console.log('[Seed] Checking DB path:', DB_PATH);
+
   const info = await FileSystem.getInfoAsync(DB_PATH);
-  if (info.exists) return;
+  console.log('[Seed] DB file exists:', info.exists);
+
+  if (info.exists) {
+    console.log('[Seed] DB already exists — skipping seed copy');
+    return;
+  }
+
+  console.log('[Seed] Fresh install detected — beginning seed copy');
 
   // biome-ignore lint/suspicious/noExplicitAny: dynamic asset require — type is number (asset registry ID)
   const seedModule: any = require('@/assets/data/versemate-seed.db');
+  console.log('[Seed] Asset module type:', typeof seedModule, '| value:', seedModule);
 
   const dirPath = DB_PATH.substring(0, DB_PATH.lastIndexOf('/'));
   await FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
+  console.log('[Seed] SQLite directory ensured:', dirPath);
 
   const asset = Asset.fromModule(seedModule);
+  console.log('[Seed] Asset before download — localUri:', asset.localUri, '| uri:', asset.uri);
+
   await asset.downloadAsync();
+  console.log('[Seed] Asset after download — localUri:', asset.localUri, '| uri:', asset.uri);
 
   if (!asset.localUri) {
     throw new Error('[Seed] Could not resolve local URI for seed database asset');
   }
 
+  console.log('[Seed] Copying from', asset.localUri, 'to', DB_PATH);
   await FileSystem.copyAsync({ from: asset.localUri, to: DB_PATH });
-  console.log('[Seed] Pre-populated seed database installed at', DB_PATH);
+
+  const finalInfo = await FileSystem.getInfoAsync(DB_PATH);
+  console.log(
+    '[Seed] Copy complete — DB exists:',
+    finalInfo.exists,
+    '| size:',
+    (finalInfo as { size?: number }).size ?? 'unknown'
+  );
 }
