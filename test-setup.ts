@@ -9,6 +9,7 @@ jest.mock('@/contexts/OfflineContext', () => ({
     isAutoSyncEnabled: false,
     setAutoSyncEnabled: jest.fn(),
     isInitialized: true,
+    isOnline: true,
     manifest: null,
     downloadedBibleVersions: [],
     downloadedCommentaryLanguages: [],

@@ -225,14 +225,14 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   });
 
   // Fetch highlights from local storage when offline or fallback
-  const { data: localAllHighlights } = useQuery({
+  const { data: localAllHighlights, isFetching: isLocalAllFetching } = useQuery({
     queryKey: ['local-all-highlights-offline-fallback'],
     queryFn: () => getLocalAllHighlights(),
     enabled: (isDeviceOffline || isUserDataSynced) && fetchAllHighlights,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
-  const { data: localChapterHighlights } = useQuery({
+  const { data: localChapterHighlights, isFetching: isLocalChapterFetching } = useQuery({
     queryKey: ['local-chapter-highlights-offline-fallback', bookId, chapterNumber],
     queryFn: () => getLocalHighlights(bookId, chapterNumber),
     enabled:
@@ -711,7 +711,10 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
 
   // Combine auth and query loading states
   const isFetchingHighlights =
-    isAuthLoading || (fetchAllHighlights ? isAllFetching : isChapterFetching);
+    isAuthLoading ||
+    (fetchAllHighlights
+      ? isAllFetching || isLocalAllFetching
+      : isChapterFetching || isLocalChapterFetching);
 
   return {
     allHighlights,
