@@ -135,7 +135,7 @@ async function loadCachedTopics(category: TopicCategory): Promise<TopicListItem[
       .map((t) => ({
         topic_id: t.topic_id,
         name: t.name,
-        description: null,
+        description: t.content || null,
         sort_order: t.sort_order,
         category: t.category as TopicCategory,
       }));

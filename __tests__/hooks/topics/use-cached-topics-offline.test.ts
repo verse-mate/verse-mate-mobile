@@ -161,11 +161,13 @@ describe('useCachedTopics (offline — seed DB path)', () => {
     expect(result.current.topics[1].sort_order).toBe(2);
   });
 
-  it('sets description to null (seed DB has no description column)', async () => {
+  it('maps content from the DB into the description field', async () => {
     const { result } = renderHook(() => useCachedTopics('EVENT'));
 
     await waitFor(() => expect(result.current.isInitialLoad).toBe(false));
 
-    expect(result.current.topics.every((t) => t.description === null)).toBe(true);
+    // SEED_TOPICS uses '{}' as placeholder content — hook maps t.content to description
+    expect(result.current.topics[0].description).toBe('{}');
+    expect(result.current.topics[1].description).toBe('{}');
   });
 });
