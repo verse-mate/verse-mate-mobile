@@ -26,6 +26,7 @@ const config = {
   },
   android: {
     package: 'org.versemate.app',
+    allowBackup: false,
     permissions: ['RECEIVE_BOOT_COMPLETED'],
     blockedPermissions: ['android.permission.ACTIVITY_RECOGNITION'],
     adaptiveIcon: {
