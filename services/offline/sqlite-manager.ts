@@ -672,7 +672,7 @@ export async function insertTopics(
 export async function getLocalTopics(languageCode: string): Promise<TopicData[]> {
   const database = await initDatabase();
   return database.getAllSync<TopicData>(
-    'SELECT topic_id, name, content, language_code FROM offline_topics WHERE language_code = ?',
+    'SELECT topic_id, name, content, language_code, category, sort_order FROM offline_topics WHERE language_code = ?',
     [languageCode]
   );
 }
