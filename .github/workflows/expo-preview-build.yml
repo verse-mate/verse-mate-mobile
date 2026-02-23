@@ -89,7 +89,7 @@ jobs:
           
           # Commit and tag are handled inside script or we do it here
           # Since the script supports COMMIT_BUMP=true, we can use that or manual commands
-          git add app.json package.json
+          git add app.config.js package.json
           NEW_VERSION=$(node -p "require('./package.json').version")
           
           git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
