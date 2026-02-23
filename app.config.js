@@ -26,6 +26,7 @@ const config = {
   },
   android: {
     package: 'org.versemate.app',
+    allowBackup: false,
     permissions: ['RECEIVE_BOOT_COMPLETED'],
     blockedPermissions: ['android.permission.ACTIVITY_RECOGNITION'],
     adaptiveIcon: {
@@ -98,6 +99,7 @@ const config = {
     'expo-web-browser',
     'expo-sqlite',
   ],
+  assetBundlePatterns: ['assets/data/**'],
   experiments: {
     typedRoutes: true,
     reactCompiler: true,

@@ -59,19 +59,26 @@ export interface TopicData {
   name: string;
   content: string;
   language_code: string;
+  category: string;
+  sort_order: number | null;
 }
 
 export interface TopicReferenceData {
   topic_id: string;
-  book_id: number;
-  chapter_number: number;
-  verse_start: number;
-  verse_end: number | null;
+  reference_content: string;
+}
+
+export interface TopicExplanationData {
+  topic_id: string;
+  type: string;
+  explanation: string;
+  language_code: string;
 }
 
 export interface TopicsDownloadData {
   topics: TopicData[];
   references: TopicReferenceData[];
+  explanations: TopicExplanationData[];
 }
 
 // Local metadata for tracking downloads
@@ -99,4 +106,75 @@ export interface SyncProgress {
   current: number;
   total: number;
   message?: string;
+}
+
+// User data types (from GET /offline/user-data)
+export interface OfflineNote {
+  note_id: string;
+  book_id: number;
+  chapter_number: number;
+  verse_number: number | null;
+  content: string;
+  updated_at: string;
+}
+
+export interface OfflineHighlight {
+  highlight_id: number;
+  book_id: number;
+  chapter_number: number;
+  start_verse: number;
+  end_verse: number;
+  color: string;
+  start_char: number | null;
+  end_char: number | null;
+  updated_at: string;
+}
+
+export interface OfflineBookmark {
+  favorite_id: number;
+  book_id: number;
+  chapter_number: number;
+  created_at: string;
+  insight_type?: string;
+}
+
+export interface UserDataDownload {
+  notes: OfflineNote[];
+  highlights: OfflineHighlight[];
+  bookmarks: OfflineBookmark[];
+}
+
+// Language bundle types for grouped downloads
+export type LanguageBundleStatus =
+  | 'not_downloaded'
+  | 'downloading'
+  | 'partially_downloaded'
+  | 'downloaded'
+  | 'update_available';
+
+export interface LanguageBundle {
+  languageCode: string;
+  languageName: string;
+  bibleVersions: BibleVersionManifest[];
+  hasCommentaries: boolean;
+  hasTopics: boolean;
+  commentaryInfo?: CommentaryLanguageManifest;
+  topicsInfo?: TopicLanguageManifest;
+  totalSizeBytes: number;
+  status: LanguageBundleStatus;
+}
+
+// Sync Queue Types
+export type SyncActionType = 'NOTE' | 'HIGHLIGHT' | 'BOOKMARK';
+export type SyncActionOperation = 'CREATE' | 'UPDATE' | 'DELETE';
+export type SyncActionStatus = 'PENDING' | 'SYNCING' | 'FAILED' | 'COMPLETED';
+
+export interface OfflineSyncAction {
+  id: number;
+  type: SyncActionType;
+  action: SyncActionOperation;
+  payload: string; // JSON string
+  created_at: string;
+  status: SyncActionStatus;
+  retry_count: number;
 }

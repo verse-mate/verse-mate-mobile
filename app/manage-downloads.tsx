@@ -1,10 +1,11 @@
 /**
  * Manage Downloads Screen
  *
- * Allows users to manage offline content downloads.
+ * Allows users to manage offline content downloads organized by language.
  * Features:
- * - View available Bible versions, commentaries, and topics
- * - Download/delete individual items
+ * - View available languages with bundled content (Bible, commentaries, topics)
+ * - Download/delete all content for a language with one button
+ * - User data auto-sync status
  * - View storage usage
  * - Check for updates
  * - Toggle offline mode and auto-sync
@@ -13,10 +14,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -26,12 +26,16 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ErrorModal } from '@/components/bible/ErrorModal';
+import { SuccessModal } from '@/components/bible/SuccessModal';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { type getColors, spacing } from '@/constants/bible-design-tokens';
+import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { DownloadInfo, DownloadStatus } from '@/services/offline';
 
-function formatBytes(bytes: number): string {
+export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
@@ -75,29 +79,126 @@ function getStatusText(status: DownloadStatus): string {
   }
 }
 
-interface DownloadItemProps {
-  item: DownloadInfo;
-  onDownload: () => void;
-  onDelete: () => void;
-  isProcessing: boolean;
-  colors: ReturnType<typeof getColors>;
+// Merged commentary + topic language bundle for display
+interface CommentaryTopicBundle {
+  languageCode: string;
+  languageName: string;
+  hasCommentaries: boolean;
+  hasTopics: boolean;
+  commentaryLanguageCode: string;
+  topicLanguageCode: string;
+  commentaryStatus: DownloadStatus;
+  topicStatus: DownloadStatus;
+  totalSizeBytes: number;
+  overallStatus: DownloadStatus;
 }
 
-function DownloadItem({ item, onDownload, onDelete, isProcessing, colors }: DownloadItemProps) {
+function deriveOverallStatus(
+  s1: DownloadStatus = 'not_downloaded',
+  s2: DownloadStatus = 'not_downloaded'
+): DownloadStatus {
+  const a = s1;
+  const b = s2;
+  if (a === 'downloading' || b === 'downloading') return 'downloading';
+  if (a === 'downloaded' && b === 'downloaded') return 'downloaded';
+  if (a === 'update_available' || b === 'update_available') return 'update_available';
+  if (a === 'downloaded' || b === 'downloaded') return 'update_available'; // partial
+  return 'not_downloaded';
+}
+
+function normalizeCode(code: string): string {
+  return code.split('-')[0].toLowerCase();
+}
+
+function buildCommentaryTopicBundles(
+  commentaryInfo: DownloadInfo[],
+  topicsInfo: DownloadInfo[]
+): CommentaryTopicBundle[] {
+  const bundleMap = new Map<string, CommentaryTopicBundle>();
+
+  for (const c of commentaryInfo) {
+    const code = normalizeCode(c.key);
+    bundleMap.set(code, {
+      languageCode: code,
+      languageName: c.name,
+      hasCommentaries: true,
+      hasTopics: false,
+      commentaryLanguageCode: c.key,
+      topicLanguageCode: code,
+      commentaryStatus: c.status,
+      topicStatus: 'not_downloaded',
+      totalSizeBytes: c.size_bytes,
+      overallStatus: c.status,
+    });
+  }
+
+  for (const t of topicsInfo) {
+    const code = normalizeCode(t.key);
+    const existing = bundleMap.get(code);
+    if (existing) {
+      existing.hasTopics = true;
+      existing.topicLanguageCode = t.key;
+      existing.topicStatus = t.status;
+      existing.totalSizeBytes += t.size_bytes;
+      existing.overallStatus = deriveOverallStatus(existing.commentaryStatus, t.status);
+    } else {
+      bundleMap.set(code, {
+        languageCode: code,
+        languageName: t.name,
+        hasCommentaries: false,
+        hasTopics: true,
+        commentaryLanguageCode: code,
+        topicLanguageCode: t.key,
+        commentaryStatus: 'not_downloaded',
+        topicStatus: t.status,
+        totalSizeBytes: t.size_bytes,
+        overallStatus: t.status,
+      });
+    }
+  }
+
+  return Array.from(bundleMap.values());
+}
+
+function getContentDescription(bundle: CommentaryTopicBundle): string {
+  const parts: string[] = [];
+  if (bundle.hasCommentaries) parts.push('Commentaries');
+  if (bundle.hasTopics) parts.push('Topics');
+  return parts.join(' & ');
+}
+
+// --- Item Components ---
+
+export interface DownloadItemProps {
+  name: string;
+  description?: string;
+  status: DownloadStatus;
+  sizeBytes: number;
+  onDownload: () => void;
+  onRequestDelete: () => void;
+  isProcessing: boolean;
+  colors: ReturnType<typeof getColors>;
+  testID?: string;
+}
+
+function DownloadItem({
+  name,
+  description,
+  status,
+  sizeBytes,
+  onDownload,
+  onRequestDelete,
+  isProcessing,
+  colors,
+  testID,
+}: Readonly<DownloadItemProps>) {
   const styles = createStyles(colors);
-  const isDownloaded = item.status === 'downloaded' || item.status === 'update_available';
+  const isDownloaded = status === 'downloaded' || status === 'update_available';
 
   const handlePress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isDownloaded) {
-      Alert.alert(
-        'Delete Download',
-        `Are you sure you want to delete "${item.name}"? You can always download it again.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: onDelete },
-        ]
-      );
+      onRequestDelete();
     } else {
       onDownload();
     }
@@ -108,38 +209,34 @@ function DownloadItem({ item, onDownload, onDelete, isProcessing, colors }: Down
       style={styles.downloadItem}
       onPress={handlePress}
       disabled={isProcessing}
-      accessibilityLabel={`${item.name}, ${getStatusText(item.status)}, ${formatBytes(item.size_bytes)}`}
+      accessibilityLabel={`${name}, ${getStatusText(status)}, ${formatBytes(sizeBytes)}`}
       accessibilityRole="button"
+      testID={testID}
     >
       <View style={styles.downloadItemInfo}>
-        <Text style={styles.downloadItemName}>{item.name}</Text>
+        <Text style={styles.downloadItemName}>{name}</Text>
+        {description ? <Text style={styles.bundleDescription}>{description}</Text> : null}
         <View style={styles.downloadItemMeta}>
           <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: `${getStatusColor(item.status, colors)}20` },
-            ]}
+            style={[styles.statusBadge, { backgroundColor: `${getStatusColor(status, colors)}20` }]}
           >
-            <View
-              style={[styles.statusDot, { backgroundColor: getStatusColor(item.status, colors) }]}
-            />
-            <Text style={[styles.statusText, { color: getStatusColor(item.status, colors) }]}>
-              {getStatusText(item.status)}
+            <View style={[styles.statusDot, { backgroundColor: getStatusColor(status, colors) }]} />
+            <Text style={[styles.statusText, { color: getStatusColor(status, colors) }]}>
+              {getStatusText(status)}
             </Text>
           </View>
-          <Text style={styles.sizeText}>{formatBytes(item.size_bytes)}</Text>
+          <Text style={styles.sizeText}>{formatBytes(sizeBytes)}</Text>
         </View>
-        {item.downloaded_at && (
-          <Text style={styles.dateText}>Downloaded: {formatDate(item.downloaded_at)}</Text>
-        )}
       </View>
       <View style={styles.downloadItemAction}>
         {isProcessing ? (
           <ActivityIndicator size="small" color={colors.gold} />
-        ) : isDownloaded ? (
-          <Ionicons name="trash-outline" size={22} color={colors.error || '#ef4444'} />
         ) : (
-          <Ionicons name="cloud-download-outline" size={22} color={colors.gold} />
+          <Ionicons
+            name={isDownloaded ? 'trash-outline' : 'cloud-download-outline'}
+            size={22}
+            color={isDownloaded ? colors.error || '#ef4444' : colors.gold}
+          />
         )}
       </View>
     </Pressable>
@@ -149,44 +246,88 @@ function DownloadItem({ item, onDownload, onDelete, isProcessing, colors }: Down
 export default function ManageDownloadsScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { isAuthenticated } = useAuth();
   const styles = createStyles(colors);
 
   const {
     isInitialized,
-    isOfflineModeEnabled,
-    setOfflineModeEnabled,
     isAutoSyncEnabled,
     setAutoSyncEnabled,
     bibleVersionsInfo,
     commentaryInfo,
     topicsInfo,
+    isUserDataSynced,
     isSyncing,
     syncProgress,
     lastSyncTime,
+    setLastSyncTime,
     totalStorageUsed,
     refreshManifest,
     downloadBibleVersion,
-    downloadCommentaries,
-    downloadTopics,
     deleteBibleVersion,
+    downloadCommentaries,
     deleteCommentaries,
+    downloadTopics,
     deleteTopics,
+    syncUserData,
     deleteAllData,
     checkForUpdates,
   } = useOfflineContext();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [processingItem, setProcessingItem] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState({
-    bible: true,
-    commentary: false,
-    topics: false,
-  });
 
-  // Refresh manifest on mount
+  // Modal state
+  const [successModal, setSuccessModal] = useState<{ message: string } | null>(null);
+  const [errorModal, setErrorModal] = useState<{ message: string } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    icon?: keyof typeof Ionicons.glyphMap;
+    confirmText: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  // Ref to hold the pending confirm action (keeps callback stable across renders)
+  const pendingConfirmRef = useRef<(() => void) | null>(null);
+
+  const showConfirm = useCallback(
+    (opts: {
+      title: string;
+      message: string;
+      icon?: keyof typeof Ionicons.glyphMap;
+      confirmText: string;
+      onConfirm: () => void;
+    }) => {
+      pendingConfirmRef.current = opts.onConfirm;
+      setConfirmModal({
+        title: opts.title,
+        message: opts.message,
+        icon: opts.icon,
+        confirmText: opts.confirmText,
+        onConfirm: opts.onConfirm,
+      });
+    },
+    []
+  );
+
+  const closeConfirm = useCallback(() => {
+    pendingConfirmRef.current = null;
+    setConfirmModal(null);
+  }, []);
+
+  // Build merged commentary + topic bundles for display
+  const commentaryTopicBundles = useMemo(
+    () => buildCommentaryTopicBundles(commentaryInfo, topicsInfo),
+    [commentaryInfo, topicsInfo]
+  );
+
+  // Refresh manifest on mount (only once when initialized)
   useEffect(() => {
     if (isInitialized) {
-      refreshManifest().catch(console.warn);
+      refreshManifest().catch((e) => {
+        if (__DEV__) console.warn('[ManageDownloads] Initial manifest refresh failed:', e);
+      });
     }
   }, [isInitialized, refreshManifest]);
 
@@ -204,105 +345,136 @@ export default function ManageDownloadsScreen() {
   const handleCheckForUpdates = async () => {
     try {
       await checkForUpdates();
-      Alert.alert('Success', 'Content is up to date!');
+      setSuccessModal({ message: 'Content is up to date!' });
     } catch {
-      Alert.alert('Error', 'Failed to check for updates. Please try again.');
+      setErrorModal({ message: 'Failed to check for updates. Please try again.' });
     }
   };
 
   const handleDeleteAll = () => {
-    Alert.alert(
-      'Delete All Offline Data',
-      'Are you sure you want to delete all downloaded content? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAllData();
-              Alert.alert('Success', 'All offline data has been deleted.');
-            } catch {
-              Alert.alert('Error', 'Failed to delete offline data.');
-            }
-          },
-        },
-      ]
-    );
+    showConfirm({
+      title: 'Delete All Offline Data',
+      message: 'Are you sure you want to delete all downloaded content? This cannot be undone.',
+      icon: 'warning-outline',
+      confirmText: 'Delete All',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await deleteAllData();
+          if (setLastSyncTime) {
+            setLastSyncTime(null);
+          }
+          setSuccessModal({ message: 'All offline data has been deleted.' });
+        } catch {
+          setErrorModal({ message: 'Failed to delete offline data.' });
+        }
+      },
+    });
   };
 
-  const handleDownloadBible = async (versionKey: string) => {
+  const handleDownloadBibleVersion = async (versionKey: string) => {
     setProcessingItem(`bible:${versionKey}`);
     try {
       await downloadBibleVersion(versionKey);
-    } catch {
-      Alert.alert('Error', 'Failed to download Bible version. Please try again.');
+    } catch (error) {
+      console.error('Download failed:', error);
+      setErrorModal({
+        message: `Failed to download: ${error instanceof Error ? error.message : String(error)}`,
+      });
     } finally {
       setProcessingItem(null);
     }
   };
 
-  const handleDeleteBible = async (versionKey: string) => {
-    setProcessingItem(`bible:${versionKey}`);
+  const handleRequestDeleteBibleVersion = (versionKey: string, versionName: string) => {
+    showConfirm({
+      title: 'Delete Download',
+      message: `Are you sure you want to delete ${versionName}? You can always download it again.`,
+      icon: 'trash-outline',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        closeConfirm();
+        setProcessingItem(`bible:${versionKey}`);
+        try {
+          await deleteBibleVersion(versionKey);
+        } catch {
+          setErrorModal({ message: 'Failed to delete Bible version.' });
+        } finally {
+          setProcessingItem(null);
+        }
+      },
+    });
+  };
+
+  const handleDownloadCommentaryTopics = async (bundle: CommentaryTopicBundle) => {
+    setProcessingItem(`ct:${bundle.languageCode}`);
     try {
-      await deleteBibleVersion(versionKey);
-    } catch {
-      Alert.alert('Error', 'Failed to delete Bible version.');
+      const promises: Promise<void>[] = [];
+      if (bundle.hasCommentaries && bundle.commentaryStatus !== 'downloaded') {
+        promises.push(downloadCommentaries(bundle.commentaryLanguageCode));
+      }
+      if (bundle.hasTopics && bundle.topicStatus !== 'downloaded') {
+        promises.push(downloadTopics(bundle.topicLanguageCode));
+      }
+
+      const results = await Promise.allSettled(promises);
+      const failed = results.filter((r) => r.status === 'rejected');
+
+      if (failed.length > 0) {
+        const error = (failed[0] as PromiseRejectedResult).reason;
+        console.error('Download partial failure:', error);
+        setErrorModal({
+          message: `Failed to download some content: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      setErrorModal({
+        message: `Failed to download: ${error instanceof Error ? error.message : String(error)}`,
+      });
     } finally {
       setProcessingItem(null);
     }
   };
 
-  const handleDownloadCommentary = async (languageCode: string) => {
-    setProcessingItem(`commentary:${languageCode}`);
+  const handleRequestDeleteCommentaryTopics = (bundle: CommentaryTopicBundle) => {
+    showConfirm({
+      title: 'Delete Download',
+      message: `Are you sure you want to delete all commentaries and topics for ${bundle.languageName}? You can always download them again.`,
+      icon: 'trash-outline',
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        closeConfirm();
+        setProcessingItem(`ct:${bundle.languageCode}`);
+        try {
+          const promises: Promise<void>[] = [];
+          if (bundle.hasCommentaries)
+            promises.push(deleteCommentaries(bundle.commentaryLanguageCode));
+          if (bundle.hasTopics) promises.push(deleteTopics(bundle.topicLanguageCode));
+
+          const results = await Promise.allSettled(promises);
+          if (results.some((r) => r.status === 'rejected')) {
+            setErrorModal({ message: 'Failed to delete some content.' });
+          }
+        } catch {
+          setErrorModal({ message: 'Failed to delete content.' });
+        } finally {
+          setProcessingItem(null);
+        }
+      },
+    });
+  };
+
+  const handleSyncUserData = async () => {
+    setProcessingItem('user-data');
     try {
-      await downloadCommentaries(languageCode);
+      await syncUserData();
+      setSuccessModal({ message: 'User data synced successfully!' });
     } catch {
-      Alert.alert('Error', 'Failed to download commentaries. Please try again.');
+      setErrorModal({ message: 'Failed to sync user data. Please try again.' });
     } finally {
       setProcessingItem(null);
     }
-  };
-
-  const handleDeleteCommentary = async (languageCode: string) => {
-    setProcessingItem(`commentary:${languageCode}`);
-    try {
-      await deleteCommentaries(languageCode);
-    } catch {
-      Alert.alert('Error', 'Failed to delete commentaries.');
-    } finally {
-      setProcessingItem(null);
-    }
-  };
-
-  const handleDownloadTopics = async (languageCode: string) => {
-    setProcessingItem(`topics:${languageCode}`);
-    try {
-      await downloadTopics(languageCode);
-    } catch {
-      Alert.alert('Error', 'Failed to download topics. Please try again.');
-    } finally {
-      setProcessingItem(null);
-    }
-  };
-
-  const handleDeleteTopics = async (languageCode: string) => {
-    setProcessingItem(`topics:${languageCode}`);
-    try {
-      await deleteTopics(languageCode);
-    } catch {
-      Alert.alert('Error', 'Failed to delete topics.');
-    } finally {
-      setProcessingItem(null);
-    }
-  };
-
-  const toggleSection = (section: 'bible' | 'commentary' | 'topics') => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
   };
 
   const handleBackPress = async () => {
@@ -390,19 +562,6 @@ export default function ManageDownloadsScreen() {
           <View style={styles.settingsCard}>
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Offline Mode</Text>
-                <Text style={styles.settingDescription}>Use downloaded content when available</Text>
-              </View>
-              <Switch
-                value={isOfflineModeEnabled}
-                onValueChange={setOfflineModeEnabled}
-                trackColor={{ false: colors.borderSecondary, true: colors.gold }}
-                thumbColor={colors.textPrimary}
-              />
-            </View>
-            <View style={styles.settingDivider} />
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
                 <Text style={styles.settingLabel}>Auto-Sync</Text>
                 <Text style={styles.settingDescription}>Automatically check for updates daily</Text>
               </View>
@@ -428,94 +587,88 @@ export default function ManageDownloadsScreen() {
           </Pressable>
         </View>
 
+        {/* User Data Sync (authenticated users only) */}
+        {isAuthenticated && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>User Data</Text>
+            <View style={styles.settingsCard}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={styles.settingLabel}>Notes, Highlights & Bookmarks</Text>
+                  <Text style={styles.settingDescription}>
+                    {isUserDataSynced
+                      ? 'Synced and available offline'
+                      : 'Not yet synced for offline use'}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={handleSyncUserData}
+                  disabled={processingItem === 'user-data' || isSyncing}
+                  style={styles.syncButton}
+                  accessibilityLabel="Sync user data for offline use"
+                  accessibilityRole="button"
+                  testID="sync-user-data-button"
+                >
+                  {processingItem === 'user-data' ? (
+                    <ActivityIndicator size="small" color={colors.gold} />
+                  ) : (
+                    <Ionicons
+                      name={isUserDataSynced ? 'checkmark-circle' : 'sync-outline'}
+                      size={24}
+                      color={isUserDataSynced ? colors.success || '#22c55e' : colors.gold}
+                    />
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Bible Versions */}
         <View style={styles.section}>
-          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('bible')}>
-            <Text style={styles.sectionLabel}>Bible Versions</Text>
-            <Ionicons
-              name={expandedSections.bible ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={colors.textSecondary}
-            />
-          </Pressable>
-          {expandedSections.bible && (
-            <View style={styles.downloadList}>
-              {bibleVersionsInfo.length === 0 ? (
-                <Text style={styles.emptyText}>No Bible versions available</Text>
-              ) : (
-                bibleVersionsInfo.map((item) => (
-                  <DownloadItem
-                    key={item.key}
-                    item={item}
-                    onDownload={() => handleDownloadBible(item.key)}
-                    onDelete={() => handleDeleteBible(item.key)}
-                    isProcessing={processingItem === `bible:${item.key}`}
-                    colors={colors}
-                  />
-                ))
-              )}
-            </View>
-          )}
+          <Text style={styles.sectionLabel}>Bible Versions</Text>
+          <View style={styles.downloadList}>
+            {bibleVersionsInfo.length === 0 ? (
+              <Text style={styles.emptyText}>No Bible versions available. Pull to refresh.</Text>
+            ) : (
+              bibleVersionsInfo.map((version) => (
+                <DownloadItem
+                  key={version.key}
+                  name={version.name}
+                  status={version.status}
+                  sizeBytes={version.size_bytes}
+                  onDownload={() => handleDownloadBibleVersion(version.key)}
+                  onRequestDelete={() => handleRequestDeleteBibleVersion(version.key, version.name)}
+                  isProcessing={processingItem === `bible:${version.key}`}
+                  colors={colors}
+                />
+              ))
+            )}
+          </View>
         </View>
 
-        {/* Commentaries */}
+        {/* Commentaries & Topics */}
         <View style={styles.section}>
-          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('commentary')}>
-            <Text style={styles.sectionLabel}>Commentaries</Text>
-            <Ionicons
-              name={expandedSections.commentary ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={colors.textSecondary}
-            />
-          </Pressable>
-          {expandedSections.commentary && (
-            <View style={styles.downloadList}>
-              {commentaryInfo.length === 0 ? (
-                <Text style={styles.emptyText}>No commentaries available</Text>
-              ) : (
-                commentaryInfo.map((item) => (
-                  <DownloadItem
-                    key={item.key}
-                    item={item}
-                    onDownload={() => handleDownloadCommentary(item.key)}
-                    onDelete={() => handleDeleteCommentary(item.key)}
-                    isProcessing={processingItem === `commentary:${item.key}`}
-                    colors={colors}
-                  />
-                ))
-              )}
-            </View>
-          )}
-        </View>
-
-        {/* Topics */}
-        <View style={styles.section}>
-          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('topics')}>
-            <Text style={styles.sectionLabel}>Topics</Text>
-            <Ionicons
-              name={expandedSections.topics ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={colors.textSecondary}
-            />
-          </Pressable>
-          {expandedSections.topics && (
-            <View style={styles.downloadList}>
-              {topicsInfo.length === 0 ? (
-                <Text style={styles.emptyText}>No topics available</Text>
-              ) : (
-                topicsInfo.map((item) => (
-                  <DownloadItem
-                    key={item.key}
-                    item={item}
-                    onDownload={() => handleDownloadTopics(item.key)}
-                    onDelete={() => handleDeleteTopics(item.key)}
-                    isProcessing={processingItem === `topics:${item.key}`}
-                    colors={colors}
-                  />
-                ))
-              )}
-            </View>
-          )}
+          <Text style={styles.sectionLabel}>Commentaries & Topics</Text>
+          <View style={styles.downloadList}>
+            {commentaryTopicBundles.length === 0 ? (
+              <Text style={styles.emptyText}>No content available. Pull to refresh.</Text>
+            ) : (
+              commentaryTopicBundles.map((bundle) => (
+                <DownloadItem
+                  key={bundle.languageCode}
+                  name={bundle.languageName}
+                  description={getContentDescription(bundle)}
+                  status={bundle.overallStatus}
+                  sizeBytes={bundle.totalSizeBytes}
+                  onDownload={() => handleDownloadCommentaryTopics(bundle)}
+                  onRequestDelete={() => handleRequestDeleteCommentaryTopics(bundle)}
+                  isProcessing={processingItem === `ct:${bundle.languageCode}`}
+                  colors={colors}
+                />
+              ))
+            )}
+          </View>
         </View>
 
         {/* Danger Zone */}
@@ -528,6 +681,37 @@ export default function ManageDownloadsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Custom Modals */}
+      <SuccessModal
+        visible={successModal !== null}
+        message={successModal?.message ?? ''}
+        onClose={() => setSuccessModal(null)}
+      />
+      <ErrorModal
+        visible={errorModal !== null}
+        message={errorModal?.message ?? ''}
+        onClose={() => setErrorModal(null)}
+      />
+      <ConfirmationModal
+        visible={confirmModal !== null}
+        title={confirmModal?.title ?? ''}
+        message={confirmModal?.message ?? ''}
+        icon={confirmModal?.icon ?? 'trash-outline'}
+        onClose={closeConfirm}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: closeConfirm },
+          {
+            text: confirmModal?.confirmText ?? 'Confirm',
+            style: 'destructive',
+            onPress: () => {
+              if (pendingConfirmRef.current) {
+                pendingConfirmRef.current();
+              }
+            },
+          },
+        ]}
+      />
     </View>
   );
 }
@@ -578,17 +762,12 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       marginBottom: 24,
       paddingHorizontal: 16,
     },
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
     sectionLabel: {
       fontSize: 14,
       fontWeight: '500',
       color: colors.textSecondary,
       marginLeft: 4,
+      marginBottom: 12,
     },
     progressContainer: {
       marginHorizontal: 16,
@@ -675,6 +854,9 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       backgroundColor: colors.borderSecondary,
       marginHorizontal: 16,
     },
+    syncButton: {
+      padding: 4,
+    },
     actionButton: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -712,7 +894,12 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       fontSize: 16,
       fontWeight: '500',
       color: colors.textPrimary,
-      marginBottom: 4,
+      marginBottom: 2,
+    },
+    bundleDescription: {
+      fontSize: 12,
+      color: colors.textTertiary,
+      marginBottom: 6,
     },
     downloadItemMeta: {
       flexDirection: 'row',
@@ -739,11 +926,6 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     sizeText: {
       fontSize: 12,
       color: colors.textTertiary,
-    },
-    dateText: {
-      fontSize: 11,
-      color: colors.textTertiary,
-      marginTop: 4,
     },
     downloadItemAction: {
       marginLeft: 12,

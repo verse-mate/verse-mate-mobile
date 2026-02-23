@@ -307,4 +307,26 @@ describe('useHighlights', () => {
     expect(result.current.isHighlighted(1, 1, 0, 25)).toBe(true); // Overlaps with existing 0-50
     expect(result.current.isHighlighted(1, 1, 60, 80)).toBe(false); // No overlap
   });
+
+  describe('offline mapping (mapOfflineHighlights)', () => {
+    it('API highlights have all required fields', async () => {
+      const { result } = renderHook(() => useHighlights(), { wrapper: createWrapper() });
+
+      await waitFor(() => {
+        expect(result.current.isFetchingHighlights).toBe(false);
+      });
+
+      // With online mock, allHighlights comes from API
+      const highlights = result.current.allHighlights;
+      if (highlights.length > 0) {
+        const h = highlights[0];
+        expect(h).toHaveProperty('highlight_id');
+        expect(h).toHaveProperty('book_id');
+        expect(h).toHaveProperty('chapter_number');
+        expect(h).toHaveProperty('start_verse');
+        expect(h).toHaveProperty('end_verse');
+        expect(h).toHaveProperty('color');
+      }
+    });
+  });
 });

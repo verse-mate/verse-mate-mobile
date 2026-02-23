@@ -25,9 +25,29 @@ import {
   postAuthSignup,
 } from '@/src/api/generated/sdk.gen';
 import type { GetAuthSessionResponse } from '@/src/api/generated/types.gen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { usePostHog } from 'posthog-react-native';
+
+const CACHED_USER_KEY = 'versemate_cached_user';
+
+async function getCachedUser<T>(): Promise<T | null> {
+  try {
+    const stored = await AsyncStorage.getItem(CACHED_USER_KEY);
+    return stored ? (JSON.parse(stored) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveCachedUser(user: unknown): Promise<void> {
+  try {
+    await AsyncStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+  } catch {
+    /* ignore cache write errors */
+  }
+}
 
 /**
  * User type from GetAuthSession response
@@ -209,17 +229,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const posthog = usePostHog();
 
   /**
-   * Fetch user session from backend
-   * @throws Error if session fetch fails
+   * Fetch user session from backend and cache the result for offline use.
+   * Throws the raw SDK error so callers can distinguish network vs auth failures.
    */
   const fetchUserSession = async (): Promise<User> => {
     const { data, error } = await getAuthSession();
 
     if (error || !data) {
-      throw new Error('Failed to fetch user session');
+      throw error ?? new Error('Failed to fetch user session');
     }
 
-    return data as User;
+    const user = data as User;
+    await saveCachedUser(user);
+    return user;
   };
 
   /**
@@ -402,8 +424,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Track analytics: fire LOGOUT event before resetting identity
     analytics.track(AnalyticsEvent.LOGOUT, {});
 
-    // Clear tokens from storage
+    // Clear tokens and cached user profile from storage
     await clearTokens();
+    await AsyncStorage.removeItem(CACHED_USER_KEY);
 
     // Reset PostHog identity
     posthog?.reset();
@@ -413,9 +436,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   /**
-   * Restore session method implementation
-   * Note: Does NOT set last_login_at as session restore is not a new login
-   * (Time-Based Analytics Phase 1)
+   * Restore session method implementation.
+   * When offline, falls back to the locally-cached user profile so the user
+   * remains authenticated without a network round-trip.
+   * Note: Does NOT set last_login_at — session restore is not a new login.
    */
   const restoreSession = async (): Promise<void> => {
     try {
@@ -430,8 +454,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // Fetch user session
-      const userSession = await fetchUserSession();
+      // Attempt to fetch a fresh session from the API.
+      // On network failure fall back to the cached profile; on auth failure clear tokens.
+      let userSession: User;
+      try {
+        userSession = await fetchUserSession();
+      } catch (sessionError) {
+        // Detect connectivity failures (TypeError from fetch, or error objects whose
+        // message mentions "network"). Auth errors (401 / 403) are structured objects
+        // from the SDK and will NOT match this check.
+        const msg = sessionError instanceof Error
+          ? sessionError.message
+          : String(sessionError);
+        const isNetworkError =
+          sessionError instanceof TypeError ||
+          msg.toLowerCase().includes('network') ||
+          msg.toLowerCase().includes('failed to fetch');
+
+        if (isNetworkError) {
+          const cached = await getCachedUser<User>();
+          if (cached) {
+            // Offline with a cached profile — restore without clearing tokens.
+            // Tokens will be validated automatically when connectivity returns.
+            userSession = cached;
+          } else {
+            // Offline and no cached profile — leave tokens intact for when
+            // the network comes back, but don't set a user yet.
+            console.error('Failed to restore session (offline, no cache):', sessionError);
+            return;
+          }
+        } else {
+          // Auth error (invalid / expired tokens) — clear everything.
+          console.error('Failed to restore session:', sessionError);
+          await clearTokens();
+          return;
+        }
+      }
 
       // Setup proactive refresh
       const cleanup = setupProactiveRefresh(accessToken);
@@ -449,7 +507,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Track analytics: identify user on session restore (no LOGIN event - just restoring existing session)
       // Note: last_login_at is intentionally NOT set here (Time-Based Analytics Phase 1)
-      // Session restore is not a login - last_login_at should only be updated on actual login
       analytics.identify(userSession.id, {
         email: userSession.email,
         firstName: userSession.firstName,
@@ -458,7 +515,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
     } catch (error) {
       console.error('Failed to restore session:', error);
-      // Clear tokens on error
       await clearTokens();
     } finally {
       setIsLoading(false);

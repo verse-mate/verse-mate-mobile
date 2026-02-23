@@ -37,6 +37,7 @@ import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
@@ -283,11 +284,11 @@ export function ChapterPage({
   const [verseTooltipVisible, setVerseTooltipVisible] = useState(false);
   const verseTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
 
-  // Get current language from user preferences (default to 'en-US')
-  // This ensures the query key changes when language changes
-  const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
+  // Get current language from user preferences, with offline support
+  // usePreferredLanguage reads from AsyncStorage when the user changes language offline
+  const language = usePreferredLanguage();
   // Text visibility tracking for hybrid tokenization
   // Use state with debouncing to avoid re-renders on every scroll frame
   const [visibleYRange, setVisibleYRange] = useState<VisibleYRange | null>(null);

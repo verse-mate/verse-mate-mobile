@@ -24,7 +24,14 @@ import {
   setMockLastReadPosition,
 } from '../mocks/handlers/bible.handlers';
 
-jest.mock('../../contexts/OfflineContext');
+jest.mock('../../contexts/OfflineContext', () => ({
+  useOfflineContext: jest.fn().mockReturnValue({
+    downloadedBibleVersions: [],
+    downloadedCommentaryLanguages: [],
+    downloadedTopicLanguages: [],
+    isUserDataSynced: false,
+  }),
+}));
 jest.mock('../../services/offline');
 jest.mock('../../constants/bible-books');
 
@@ -113,8 +120,10 @@ describe('Bible API Hooks', () => {
   describe('useBibleChapter', () => {
     beforeEach(() => {
       (useOfflineContext as jest.Mock).mockReturnValue({
-        isOfflineModeEnabled: false,
         downloadedBibleVersions: [],
+        downloadedCommentaryLanguages: [],
+        downloadedTopicLanguages: [],
+        isUserDataSynced: false,
       });
     });
 
@@ -176,7 +185,6 @@ describe('Bible API Hooks', () => {
     it('should handle offline mode with local data', async () => {
       // Enable offline mode
       (useOfflineContext as jest.Mock).mockReturnValue({
-        isOfflineModeEnabled: true,
         downloadedBibleVersions: ['NASB1995'],
       });
 
