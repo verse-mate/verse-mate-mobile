@@ -1,7 +1,7 @@
 {
   "name": "verse-mate-mobile",
   "main": "expo-router/entry",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -129,7 +129,7 @@
   "bun": {
     "test": {
       "preload": "./test-setup.ts",
-      "timeout": 1e4
+      "timeout": 10000
     }
   },
   "private": true
