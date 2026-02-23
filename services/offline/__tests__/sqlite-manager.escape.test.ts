@@ -30,4 +30,14 @@ describe('sqlite-manager escapeSQL', () => {
     const input = "Robert'); DROP TABLE Students;--";
     expect(escapeSQL(input)).toBe("'Robert''); DROP TABLE Students;--'");
   });
+
+  it('strips NUL bytes to prevent string truncation', () => {
+    expect(escapeSQL('hello\0world')).toBe("'helloworld'");
+    expect(escapeSQL('text\0')).toBe("'text'");
+    expect(escapeSQL('\0')).toBe("''");
+  });
+
+  it('handles NUL bytes combined with single quotes', () => {
+    expect(escapeSQL("it's\0data")).toBe("'it''sdata'");
+  });
 });

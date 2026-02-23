@@ -635,13 +635,13 @@ export default function SettingsScreen() {
                 <Avatar url={user.imageSrc} size={48} />
               </View>
               <View style={styles.profileInfo}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={styles.profileNameRow}>
                   <Text style={styles.profileName}>Profile Details</Text>
                   {saveStatus === 'saving' && (
                     <ActivityIndicator
                       size="small"
                       color={colors.textSecondary}
-                      style={{ marginLeft: 8 }}
+                      style={styles.profileStatusIcon}
                     />
                   )}
                   {saveStatus === 'saved' && (
@@ -649,7 +649,7 @@ export default function SettingsScreen() {
                       name="checkmark-circle"
                       size={20}
                       color={colors.success}
-                      style={{ marginLeft: 8 }}
+                      style={styles.profileStatusIcon}
                     />
                   )}
                   {saveStatus === 'error' && (
@@ -657,7 +657,7 @@ export default function SettingsScreen() {
                       name="alert-circle"
                       size={20}
                       color={colors.error}
-                      style={{ marginLeft: 8 }}
+                      style={styles.profileStatusIcon}
                     />
                   )}
                 </View>
@@ -814,7 +814,7 @@ export default function SettingsScreen() {
               name="cloud-download-outline"
               size={20}
               color={colors.textPrimary}
-              style={{ marginRight: 12 }}
+              style={styles.manageDownloadsIcon}
             />
             <View style={styles.manageDownloadsTextContainer}>
               <Text
@@ -823,9 +823,7 @@ export default function SettingsScreen() {
               >
                 Manage Downloads
               </Text>
-              <Text style={[styles.manageDownloadsSubtitle, { color: colors.textSecondary }]}>
-                Download content for offline use
-              </Text>
+              <Text style={styles.manageDownloadsSubtitle}>Download content for offline use</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </Pressable>
@@ -1094,6 +1092,16 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       height: 'auto',
       paddingVertical: 14,
     },
+    manageDownloadsIcon: {
+      marginRight: 12,
+    },
+    profileNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    profileStatusIcon: {
+      marginLeft: 8,
+    },
     manageDownloadsTextContainer: {
       flex: 1,
     },
@@ -1104,5 +1112,6 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     manageDownloadsSubtitle: {
       fontSize: 12,
       marginTop: 2,
+      color: colors.textSecondary,
     },
   });

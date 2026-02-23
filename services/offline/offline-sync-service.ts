@@ -730,6 +730,9 @@ export async function downloadUserData(onProgress?: ProgressCallback): Promise<v
   const response = await authenticatedFetch(`${API_URL}/offline/user-data`, {
     headers: { 'Accept-Encoding': 'identity' },
   });
+  if (response.status === 401) {
+    throw new Error('User data download failed: session expired, please log in again');
+  }
   if (!response.ok) {
     throw new Error(`Failed to download user data: ${response.status}`);
   }
