@@ -996,18 +996,16 @@ function BibleNavigationModalComponent({
     }
 
     return (
-      <View
-        style={styles.chapterGridContent}
-        onLayout={(event) => {
-          const { width } = event.nativeEvent.layout;
-          setGridContainerWidth(width);
-        }}
-      >
+      <View style={styles.chapterGridContent}>
         <View
           style={[
             styles.chapterGrid,
             gridContainerWidth > 0 && buttonHeight > 0 && { height: calculatedGridHeight },
           ]}
+          onLayout={(event) => {
+            const { width } = event.nativeEvent.layout;
+            setGridContainerWidth(width);
+          }}
         >
           {chapters.map((chapter, index) => {
             const isCurrent = selectedBookId === currentBookId && chapter === currentChapter;
