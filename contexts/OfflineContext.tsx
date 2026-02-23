@@ -117,6 +117,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   // Initialization state
   const [isInitialized, setIsInitialized] = useState(false);
   const dbReady = useRef(false);
+  const userDataSyncInProgress = useRef(false);
   const [manifest, setManifest] = useState<OfflineManifest | null>(null);
 
   // Downloaded content
@@ -258,6 +259,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     const SYNC_THROTTLE = 60 * 60 * 1000; // 1 hour
 
     const syncUserDataIfNeeded = async () => {
+      if (userDataSyncInProgress.current) return;
+
       // Check last sync time
       const lastSync = await getLastSyncTime();
       if (lastSync && Date.now() - lastSync.getTime() < SYNC_THROTTLE) {
@@ -265,12 +268,15 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      userDataSyncInProgress.current = true;
       try {
         await downloadUserDataService();
         setIsUserDataSynced(true);
         setLastSyncTime(new Date());
       } catch (error) {
         console.warn('User data auto-sync failed:', error);
+      } finally {
+        userDataSyncInProgress.current = false;
       }
     };
 

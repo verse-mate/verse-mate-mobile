@@ -58,6 +58,7 @@ import {
   getLocalHighlights,
   updateLocalHighlightColor,
 } from '@/services/offline';
+import type { OfflineHighlight } from '@/services/offline/types';
 import {
   deleteBibleHighlightByHighlightIdMutation,
   getBibleHighlightsByUserIdByBookIdByChapterNumberOptions,
@@ -153,6 +154,25 @@ export interface UseHighlightsResult {
  * @param options - Optional chapter filter (bookId, chapterNumber)
  * @returns {UseHighlightsResult} Highlight state and methods
  */
+
+function mapOfflineHighlights(offlineHighlights: OfflineHighlight[]): Highlight[] {
+  return offlineHighlights.map((h) => ({
+    highlight_id: h.highlight_id,
+    user_id: '',
+    chapter_id: 0,
+    book_id: h.book_id,
+    chapter_number: h.chapter_number,
+    start_verse: h.start_verse,
+    end_verse: h.end_verse,
+    color: h.color as Highlight['color'],
+    start_char: h.start_char,
+    end_char: h.end_char,
+    selected_text: null,
+    created_at: h.updated_at,
+    updated_at: h.updated_at,
+  }));
+}
+
 export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isUserDataSynced, isOnline } = useOfflineContext();
@@ -243,14 +263,14 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   // Extract highlights arrays from responses (offline or remote)
   const allHighlights = useMemo(() => {
     if (isDeviceOffline && localAllHighlights) {
-      return localAllHighlights as unknown as Highlight[];
+      return mapOfflineHighlights(localAllHighlights);
     }
     return allHighlightsData?.highlights || [];
   }, [isDeviceOffline, localAllHighlights, allHighlightsData]);
 
   const chapterHighlights = useMemo(() => {
     if (isDeviceOffline && localChapterHighlights) {
-      return localChapterHighlights as unknown as Highlight[];
+      return mapOfflineHighlights(localChapterHighlights);
     }
     return chapterHighlightsData?.highlights || [];
   }, [isDeviceOffline, localChapterHighlights, chapterHighlightsData]);

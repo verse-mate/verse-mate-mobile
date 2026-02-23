@@ -62,7 +62,7 @@ function execSafe(database: SQLite.SQLiteDatabase, sql: string, label: string): 
 
       if (__DEV__) console.warn(`[Offline DB] ${label} busy, retrying once...`);
       // Short blocking pause � JS thread, acceptable.
-      const end = Date.now() + 300;
+      const end = Date.now() + 50;
       while (Date.now() < end) {
         /* busy-wait */
       }
@@ -378,7 +378,7 @@ export async function insertBibleVerses(
   verses: BibleVerseData[]
 ): Promise<void> {
   const database = await initDatabase();
-  console.log(`[Offline DB] Inserting ${verses.length} verses for ${versionKey}`);
+  if (__DEV__) console.log(`[Offline DB] Inserting ${verses.length} verses for ${versionKey}`);
   const start = Date.now();
 
   // Build all INSERT statements
@@ -389,7 +389,7 @@ export async function insertBibleVerses(
     const values = batch
       .map(
         (v) =>
-          `(${escapeSQL(versionKey)}, ${v.book_id}, ${v.chapter_number}, ${v.verse_number}, ${escapeSQL(v.text)})`
+          `(${escapeSQL(versionKey)}, ${escapeSQL(v.book_id)}, ${escapeSQL(v.chapter_number)}, ${escapeSQL(v.verse_number)}, ${escapeSQL(v.text)})`
       )
       .join(', ');
     insertStatements.push(
@@ -397,25 +397,42 @@ export async function insertBibleVerses(
     );
   }
 
-  // Delete old data in its own small transaction
-  execSafe(
-    database,
-    `BEGIN;\nDELETE FROM offline_verses WHERE version_key = ${escapeSQL(versionKey)};\nCOMMIT`,
-    'verses-delete'
-  );
+  // If no verses, just delete and return
+  if (insertStatements.length === 0) {
+    execSafe(
+      database,
+      `BEGIN;\nDELETE FROM offline_verses WHERE version_key = ${escapeSQL(versionKey)};\nCOMMIT`,
+      'verses-delete-only'
+    );
+    return;
+  }
 
-  // Insert in chunks so each transaction is short; yield between chunks for UI
+  // Insert in chunks so each transaction is short; yield between chunks for UI.
+  // The DELETE is included in the first chunk's transaction so that a crash
+  // before any insert commits leaves the old data intact.
   const statementsPerChunk = 25; // ~5 000 rows per chunk
   const totalChunks = Math.ceil(insertStatements.length / statementsPerChunk);
 
   for (let i = 0; i < insertStatements.length; i += statementsPerChunk) {
     const chunkNum = Math.floor(i / statementsPerChunk) + 1;
     const chunk = insertStatements.slice(i, i + statementsPerChunk);
-    const chunkSQL = ['BEGIN', ...chunk, 'COMMIT'].join(';\n');
 
-    console.log(
-      `[Offline DB] Verses chunk ${chunkNum}/${totalChunks} (${chunk.length} stmts, ${(chunkSQL.length / 1024).toFixed(0)}KB)`
-    );
+    const statements =
+      i === 0
+        ? [
+            'BEGIN',
+            `DELETE FROM offline_verses WHERE version_key = ${escapeSQL(versionKey)}`,
+            ...chunk,
+            'COMMIT',
+          ]
+        : ['BEGIN', ...chunk, 'COMMIT'];
+    const chunkSQL = statements.join(';\n');
+
+    if (__DEV__) {
+      console.log(
+        `[Offline DB] Verses chunk ${chunkNum}/${totalChunks} (${chunk.length} stmts, ${(chunkSQL.length / 1024).toFixed(0)}KB)`
+      );
+    }
 
     execSafe(database, chunkSQL, `verses-chunk-${chunkNum}`);
 
@@ -425,7 +442,8 @@ export async function insertBibleVerses(
     }
   }
 
-  console.log(`[Offline DB] All ${verses.length} verses inserted in ${Date.now() - start}ms`);
+  if (__DEV__)
+    console.log(`[Offline DB] All ${verses.length} verses inserted in ${Date.now() - start}ms`);
 }
 
 export async function getLocalBibleChapter(
@@ -485,7 +503,8 @@ export async function insertCommentaries(
   commentaries: CommentaryData[]
 ): Promise<void> {
   const database = await initDatabase();
-  console.log(`[Offline DB] Inserting ${commentaries.length} commentaries for ${languageCode}`);
+  if (__DEV__)
+    console.log(`[Offline DB] Inserting ${commentaries.length} commentaries for ${languageCode}`);
   const start = Date.now();
 
   const batchSize = 100;
@@ -495,7 +514,7 @@ export async function insertCommentaries(
     const values = batch
       .map(
         (c) =>
-          `(${escapeSQL(languageCode)}, ${c.explanation_id}, ${c.book_id}, ${c.chapter_number}, ${escapeSQL(c.verse_start)}, ${escapeSQL(c.verse_end)}, ${escapeSQL(c.type)}, ${escapeSQL(c.explanation)})`
+          `(${escapeSQL(languageCode)}, ${escapeSQL(c.explanation_id)}, ${escapeSQL(c.book_id)}, ${escapeSQL(c.chapter_number)}, ${escapeSQL(c.verse_start)}, ${escapeSQL(c.verse_end)}, ${escapeSQL(c.type)}, ${escapeSQL(c.explanation)})`
       )
       .join(', ');
     insertStatements.push(
@@ -503,25 +522,39 @@ export async function insertCommentaries(
     );
   }
 
-  // Delete old data first
-  execSafe(
-    database,
-    `BEGIN;\nDELETE FROM offline_explanations WHERE language_code = ${escapeSQL(languageCode)};\nCOMMIT`,
-    'commentaries-delete'
-  );
+  if (insertStatements.length === 0) {
+    execSafe(
+      database,
+      `BEGIN;\nDELETE FROM offline_explanations WHERE language_code = ${escapeSQL(languageCode)};\nCOMMIT`,
+      'commentaries-delete-only'
+    );
+    return;
+  }
 
-  // Insert in chunks (same pattern as bible verses)
+  // DELETE is included in the first chunk's transaction for atomicity
   const statementsPerChunk = 10;
   const totalChunks = Math.ceil(insertStatements.length / statementsPerChunk);
 
   for (let i = 0; i < insertStatements.length; i += statementsPerChunk) {
     const chunkNum = Math.floor(i / statementsPerChunk) + 1;
     const chunk = insertStatements.slice(i, i + statementsPerChunk);
-    const chunkSQL = ['BEGIN', ...chunk, 'COMMIT'].join(';\n');
 
-    console.log(
-      `[Offline DB] Commentaries chunk ${chunkNum}/${totalChunks} (${chunk.length} stmts, ${(chunkSQL.length / 1024).toFixed(0)}KB)`
-    );
+    const statements =
+      i === 0
+        ? [
+            'BEGIN',
+            `DELETE FROM offline_explanations WHERE language_code = ${escapeSQL(languageCode)}`,
+            ...chunk,
+            'COMMIT',
+          ]
+        : ['BEGIN', ...chunk, 'COMMIT'];
+    const chunkSQL = statements.join(';\n');
+
+    if (__DEV__) {
+      console.log(
+        `[Offline DB] Commentaries chunk ${chunkNum}/${totalChunks} (${chunk.length} stmts, ${(chunkSQL.length / 1024).toFixed(0)}KB)`
+      );
+    }
 
     execSafe(database, chunkSQL, `commentaries-chunk-${chunkNum}`);
 
@@ -531,7 +564,7 @@ export async function insertCommentaries(
     }
   }
 
-  console.log(`[Offline DB] Commentaries inserted in ${Date.now() - start}ms`);
+  if (__DEV__) console.log(`[Offline DB] Commentaries inserted in ${Date.now() - start}ms`);
 }
 
 export async function getLocalCommentary(
@@ -583,32 +616,28 @@ export async function insertTopics(
   explanations: TopicExplanationData[]
 ): Promise<void> {
   const database = await initDatabase();
-  console.log(
-    `[Offline DB] Inserting ${topics.length} topics, ${references.length} refs, ${explanations.length} explanations for ${languageCode}`
-  );
+  if (__DEV__) {
+    console.log(
+      `[Offline DB] Inserting ${topics.length} topics, ${references.length} refs, ${explanations.length} explanations for ${languageCode}`
+    );
+  }
   const start = Date.now();
 
   const topicIds = topics.map((t) => t.topic_id);
   const topicIdList = topicIds.map((id) => escapeSQL(id)).join(', ');
 
-  // Step 1: Delete existing data in its own transaction
-  execSafe(
-    database,
-    [
-      'BEGIN',
-      `DELETE FROM offline_topics WHERE language_code = ${escapeSQL(languageCode)}`,
-      ...(topicIdList
-        ? [
-            `DELETE FROM offline_topic_references WHERE topic_id IN (${topicIdList})`,
-            `DELETE FROM offline_topic_explanations WHERE language_code = ${escapeSQL(languageCode)}`,
-          ]
-        : []),
-      'COMMIT',
-    ].join(';\n'),
-    'topics-delete'
-  );
+  // Build the DELETE statements that will be included atomically with the first insert chunk
+  const deleteStatements = [
+    `DELETE FROM offline_topics WHERE language_code = ${escapeSQL(languageCode)}`,
+    ...(topicIdList
+      ? [
+          `DELETE FROM offline_topic_references WHERE topic_id IN (${topicIdList})`,
+          `DELETE FROM offline_topic_explanations WHERE language_code = ${escapeSQL(languageCode)}`,
+        ]
+      : []),
+  ];
 
-  // Step 2: Insert topics in chunks
+  // Step 1: Build topic insert statements
   const topicBatchSize = 100;
   const CHUNK_SIZE = 10;
   const topicInserts: string[] = [];
@@ -625,10 +654,18 @@ export async function insertTopics(
     );
   }
 
+  // If no topics to insert, just execute the deletes and return
+  if (topicInserts.length === 0) {
+    execSafe(database, ['BEGIN', ...deleteStatements, 'COMMIT'].join(';\n'), 'topics-delete-only');
+    return;
+  }
+
+  // Step 2: Insert topics in chunks; DELETE is included in the first chunk for atomicity
   for (let c = 0; c < topicInserts.length; c += CHUNK_SIZE) {
     const chunk = topicInserts.slice(c, c + CHUNK_SIZE);
-    const chunkSQL = ['BEGIN', ...chunk, 'COMMIT'].join(';\n');
-    execSafe(database, chunkSQL, `topics-insert-chunk-${c / CHUNK_SIZE}`);
+    const statements =
+      c === 0 ? ['BEGIN', ...deleteStatements, ...chunk, 'COMMIT'] : ['BEGIN', ...chunk, 'COMMIT'];
+    execSafe(database, statements.join(';\n'), `topics-insert-chunk-${c / CHUNK_SIZE}`);
     if (c + CHUNK_SIZE < topicInserts.length) {
       await new Promise((r) => setTimeout(r, 0));
     }
@@ -685,7 +722,7 @@ export async function insertTopics(
     }
   }
 
-  console.log(`[Offline DB] Topics inserted in ${Date.now() - start}ms`);
+  if (__DEV__) console.log(`[Offline DB] Topics inserted in ${Date.now() - start}ms`);
 }
 
 export async function getLocalTopics(languageCode: string): Promise<TopicData[]> {
@@ -842,21 +879,16 @@ export async function getLocalTopicExplanations(
 
 export async function insertUserNotes(notes: OfflineNote[]): Promise<void> {
   const database = await initDatabase();
-  console.log(`[Offline DB] Inserting ${notes.length} notes`);
+  if (__DEV__) console.log(`[Offline DB] Inserting ${notes.length} notes`);
 
-  // Delete existing notes in its own transaction
-  execSafe(database, 'BEGIN;\nDELETE FROM offline_notes;\nCOMMIT', 'notes-delete');
-
-  // Insert in chunks
   const batchSize = 100;
-  const CHUNK_SIZE = 10;
   const inserts: string[] = [];
   for (let i = 0; i < notes.length; i += batchSize) {
     const batch = notes.slice(i, i + batchSize);
     const values = batch
       .map(
         (n) =>
-          `(${escapeSQL(n.note_id)}, ${n.book_id}, ${n.chapter_number}, ${escapeSQL(n.verse_number)}, ${escapeSQL(n.content)}, ${escapeSQL(n.updated_at)})`
+          `(${escapeSQL(n.note_id)}, ${escapeSQL(n.book_id)}, ${escapeSQL(n.chapter_number)}, ${escapeSQL(n.verse_number)}, ${escapeSQL(n.content)}, ${escapeSQL(n.updated_at)})`
       )
       .join(', ');
     inserts.push(
@@ -864,33 +896,27 @@ export async function insertUserNotes(notes: OfflineNote[]): Promise<void> {
     );
   }
 
-  for (let c = 0; c < inserts.length; c += CHUNK_SIZE) {
-    const chunk = inserts.slice(c, c + CHUNK_SIZE);
-    const chunkSQL = ['BEGIN', ...chunk, 'COMMIT'].join(';\n');
-    execSafe(database, chunkSQL, `notes-insert-chunk-${c / CHUNK_SIZE}`);
-    if (c + CHUNK_SIZE < inserts.length) {
-      await new Promise((r) => setTimeout(r, 0));
-    }
-  }
+  // DELETE + all inserts in a single transaction so a crash cannot leave the
+  // table empty after the delete but before the inserts complete.
+  execSafe(
+    database,
+    ['BEGIN', 'DELETE FROM offline_notes', ...inserts, 'COMMIT'].join(';\n'),
+    'notes-replace-all'
+  );
 }
 
 export async function insertUserHighlights(highlights: OfflineHighlight[]): Promise<void> {
   const database = await initDatabase();
-  console.log(`[Offline DB] Inserting ${highlights.length} highlights`);
+  if (__DEV__) console.log(`[Offline DB] Inserting ${highlights.length} highlights`);
 
-  // Delete existing highlights in its own transaction
-  execSafe(database, 'BEGIN;\nDELETE FROM offline_highlights;\nCOMMIT', 'highlights-delete');
-
-  // Insert in chunks
   const batchSize = 100;
-  const CHUNK_SIZE = 10;
   const inserts: string[] = [];
   for (let i = 0; i < highlights.length; i += batchSize) {
     const batch = highlights.slice(i, i + batchSize);
     const values = batch
       .map(
         (h) =>
-          `(${h.highlight_id}, ${h.book_id}, ${h.chapter_number}, ${h.start_verse}, ${h.end_verse}, ${escapeSQL(h.color)}, ${escapeSQL(h.start_char)}, ${escapeSQL(h.end_char)}, ${escapeSQL(h.updated_at)})`
+          `(${escapeSQL(h.highlight_id)}, ${escapeSQL(h.book_id)}, ${escapeSQL(h.chapter_number)}, ${escapeSQL(h.start_verse)}, ${escapeSQL(h.end_verse)}, ${escapeSQL(h.color)}, ${escapeSQL(h.start_char)}, ${escapeSQL(h.end_char)}, ${escapeSQL(h.updated_at)})`
       )
       .join(', ');
     inserts.push(
@@ -898,33 +924,25 @@ export async function insertUserHighlights(highlights: OfflineHighlight[]): Prom
     );
   }
 
-  for (let c = 0; c < inserts.length; c += CHUNK_SIZE) {
-    const chunk = inserts.slice(c, c + CHUNK_SIZE);
-    const chunkSQL = ['BEGIN', ...chunk, 'COMMIT'].join(';\n');
-    execSafe(database, chunkSQL, `highlights-insert-chunk-${c / CHUNK_SIZE}`);
-    if (c + CHUNK_SIZE < inserts.length) {
-      await new Promise((r) => setTimeout(r, 0));
-    }
-  }
+  execSafe(
+    database,
+    ['BEGIN', 'DELETE FROM offline_highlights', ...inserts, 'COMMIT'].join(';\n'),
+    'highlights-replace-all'
+  );
 }
 
 export async function insertUserBookmarks(bookmarks: OfflineBookmark[]): Promise<void> {
   const database = await initDatabase();
-  console.log(`[Offline DB] Inserting ${bookmarks.length} bookmarks`);
+  if (__DEV__) console.log(`[Offline DB] Inserting ${bookmarks.length} bookmarks`);
 
-  // Delete existing bookmarks in its own transaction
-  execSafe(database, 'BEGIN;\nDELETE FROM offline_bookmarks;\nCOMMIT', 'bookmarks-delete');
-
-  // Insert in chunks
   const batchSize = 200;
-  const CHUNK_SIZE = 10;
   const inserts: string[] = [];
   for (let i = 0; i < bookmarks.length; i += batchSize) {
     const batch = bookmarks.slice(i, i + batchSize);
     const values = batch
       .map(
         (b) =>
-          `(${b.favorite_id}, ${b.book_id}, ${b.chapter_number}, ${escapeSQL(b.created_at)}, ${escapeSQL(b.insight_type)})`
+          `(${escapeSQL(b.favorite_id)}, ${escapeSQL(b.book_id)}, ${escapeSQL(b.chapter_number)}, ${escapeSQL(b.created_at)}, ${escapeSQL(b.insight_type)})`
       )
       .join(', ');
     inserts.push(
@@ -932,14 +950,11 @@ export async function insertUserBookmarks(bookmarks: OfflineBookmark[]): Promise
     );
   }
 
-  for (let c = 0; c < inserts.length; c += CHUNK_SIZE) {
-    const chunk = inserts.slice(c, c + CHUNK_SIZE);
-    const chunkSQL = ['BEGIN', ...chunk, 'COMMIT'].join(';\n');
-    execSafe(database, chunkSQL, `bookmarks-insert-chunk-${c / CHUNK_SIZE}`);
-    if (c + CHUNK_SIZE < inserts.length) {
-      await new Promise((r) => setTimeout(r, 0));
-    }
-  }
+  execSafe(
+    database,
+    ['BEGIN', 'DELETE FROM offline_bookmarks', ...inserts, 'COMMIT'].join(';\n'),
+    'bookmarks-replace-all'
+  );
 }
 
 export async function getLocalNotes(

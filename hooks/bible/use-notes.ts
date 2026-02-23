@@ -40,6 +40,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { getBookById } from '@/constants/bible-books';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
@@ -152,7 +153,7 @@ export function useNotes(): UseNotesResult {
         content: n.content,
         created_at: n.updated_at,
         updated_at: n.updated_at,
-        book_name: `Book ${n.book_id}`,
+        book_name: getBookById(n.book_id)?.name ?? `Book ${n.book_id}`,
       }));
     },
     enabled: isDeviceOffline || isUserDataSynced, // Enable if offline OR if we have synced data (even if online, for speed?)
@@ -215,14 +216,6 @@ export function useNotes(): UseNotesResult {
       if (previousNotes && variables.body) {
         const { book_id, chapter_number, content } = variables.body;
 
-        // Book name lookup (would come from API in real scenario)
-        const bookNames: Record<number, string> = {
-          1: 'Genesis',
-          19: 'Psalms',
-          40: 'Matthew',
-          43: 'John',
-        };
-
         // Add optimistic note (note_id will be set by server)
         const optimisticNote: Note = {
           note_id: `temp-${Date.now()}`, // Temporary ID
@@ -231,7 +224,7 @@ export function useNotes(): UseNotesResult {
           updated_at: new Date().toISOString(),
           chapter_number,
           book_id,
-          book_name: bookNames[book_id] || `Book ${book_id}`,
+          book_name: getBookById(book_id)?.name ?? `Book ${book_id}`,
           verse_number: null,
         };
 

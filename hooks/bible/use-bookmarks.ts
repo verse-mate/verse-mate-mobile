@@ -31,6 +31,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { getBookById } from '@/constants/bible-books';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
@@ -156,7 +157,7 @@ export function useBookmarks(): UseBookmarksResult {
         favorite_id: b.favorite_id,
         book_id: b.book_id,
         chapter_number: b.chapter_number,
-        book_name: `Book ${b.book_id}`,
+        book_name: getBookById(b.book_id)?.name ?? `Book ${b.book_id}`,
         insight_type: b.insight_type || null,
         created_at: b.created_at,
       }));
@@ -197,7 +198,7 @@ export function useBookmarks(): UseBookmarksResult {
           favorite: {
             ...bookmark,
             user_id: user?.id || '',
-            book_name: `Book ${book_id}`,
+            book_name: getBookById(book_id)?.name ?? `Book ${book_id}`,
             insight_type: insight_type || null,
           },
         };
