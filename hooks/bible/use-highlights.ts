@@ -48,7 +48,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import {
+  addLocalHighlight,
+  addSyncAction,
+  deleteLocalHighlight,
+  getLocalAllHighlights,
+  getLocalHighlights,
+  updateLocalHighlightColor,
+} from '@/services/offline';
+import type { OfflineHighlight } from '@/services/offline/types';
 import {
   deleteBibleHighlightByHighlightIdMutation,
   getBibleHighlightsByUserIdByBookIdByChapterNumberOptions,
@@ -144,11 +154,32 @@ export interface UseHighlightsResult {
  * @param options - Optional chapter filter (bookId, chapterNumber)
  * @returns {UseHighlightsResult} Highlight state and methods
  */
+
+function mapOfflineHighlights(offlineHighlights: OfflineHighlight[]): Highlight[] {
+  return offlineHighlights.map((h) => ({
+    highlight_id: h.highlight_id,
+    user_id: '',
+    chapter_id: 0,
+    book_id: h.book_id,
+    chapter_number: h.chapter_number,
+    start_verse: h.start_verse,
+    end_verse: h.end_verse,
+    color: h.color as Highlight['color'],
+    start_char: h.start_char,
+    end_char: h.end_char,
+    selected_text: null,
+    created_at: h.updated_at,
+    updated_at: h.updated_at,
+  }));
+}
+
 export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isUserDataSynced, isOnline } = useOfflineContext();
   const queryClient = useQueryClient();
 
   const { bookId, chapterNumber } = options || {};
+  const isDeviceOffline = !isOnline;
 
   // Determine which query to use based on options
   const fetchAllHighlights = !bookId || !chapterNumber;
@@ -185,38 +216,107 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
     [chapterHighlightsQueryOptions]
   );
 
-  // Fetch all highlights
+  // Fetch all highlights (disabled in offline mode)
   const {
     data: allHighlightsData,
     isFetching: isAllFetching,
     refetch: refetchAll,
   } = useQuery({
     ...getBibleHighlightsByUserIdOptions(allHighlightsQueryOptions),
-    enabled: isAuthenticated && !!user?.id && fetchAllHighlights,
+    enabled: isAuthenticated && !!user?.id && fetchAllHighlights && !isDeviceOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Fetch chapter-specific highlights
+  // Fetch chapter-specific highlights (disabled in offline mode)
   const {
     data: chapterHighlightsData,
     isFetching: isChapterFetching,
     refetch: refetchChapter,
   } = useQuery({
     ...getBibleHighlightsByUserIdByBookIdByChapterNumberOptions(chapterHighlightsQueryOptions),
-    enabled: isAuthenticated && !!user?.id && !fetchAllHighlights && !!bookId && !!chapterNumber,
+    enabled:
+      isAuthenticated &&
+      !!user?.id &&
+      !fetchAllHighlights &&
+      !!bookId &&
+      !!chapterNumber &&
+      !isDeviceOffline,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Extract highlights arrays from responses
-  const allHighlights = useMemo(() => allHighlightsData?.highlights || [], [allHighlightsData]);
-  const chapterHighlights = useMemo(
-    () => chapterHighlightsData?.highlights || [],
-    [chapterHighlightsData]
-  );
+  // Fetch highlights from local storage when offline or fallback
+  const { data: localAllHighlights, isFetching: isLocalAllFetching } = useQuery({
+    queryKey: ['local-all-highlights-offline-fallback'],
+    queryFn: () => getLocalAllHighlights(),
+    enabled: (isDeviceOffline || isUserDataSynced) && fetchAllHighlights,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  const { data: localChapterHighlights, isFetching: isLocalChapterFetching } = useQuery({
+    queryKey: ['local-chapter-highlights-offline-fallback', bookId, chapterNumber],
+    queryFn: () => getLocalHighlights(bookId, chapterNumber),
+    enabled:
+      (isDeviceOffline || isUserDataSynced) && !fetchAllHighlights && !!bookId && !!chapterNumber,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  // Extract highlights arrays from responses (offline or remote)
+  const allHighlights = useMemo(() => {
+    if (isDeviceOffline && localAllHighlights) {
+      return mapOfflineHighlights(localAllHighlights);
+    }
+    return allHighlightsData?.highlights || [];
+  }, [isDeviceOffline, localAllHighlights, allHighlightsData]);
+
+  const chapterHighlights = useMemo(() => {
+    if (isDeviceOffline && localChapterHighlights) {
+      return mapOfflineHighlights(localChapterHighlights);
+    }
+    return chapterHighlightsData?.highlights || [];
+  }, [isDeviceOffline, localChapterHighlights, chapterHighlightsData]);
 
   // Add highlight mutation
   const addMutation = useMutation({
     ...postBibleHighlightAddMutation(),
+    mutationFn: async (variables) => {
+      if (!isOnline) {
+        if (!variables.body) throw new Error('Missing body');
+        const { book_id, chapter_number, start_verse, end_verse, color, start_char, end_char } =
+          variables.body;
+
+        const tempId = Date.now();
+        const highlight = {
+          highlight_id: tempId,
+          book_id,
+          chapter_number,
+          start_verse,
+          end_verse,
+          color: color || 'yellow',
+          start_char: start_char ?? null,
+          end_char: end_char ?? null,
+          updated_at: new Date().toISOString(),
+        };
+
+        await addLocalHighlight(highlight);
+        await addSyncAction('HIGHLIGHT', 'CREATE', variables.body);
+
+        return {
+          success: true,
+          highlight: {
+            ...highlight,
+            created_at: highlight.updated_at,
+            user_id: user?.id || '',
+            chapter_id: book_id * 1000 + chapter_number,
+            selected_text: variables.body.selected_text || null,
+          },
+        };
+      }
+      const fn = postBibleHighlightAddMutation().mutationFn;
+      if (!fn) throw new Error('Mutation function missing');
+
+      // biome-ignore lint/suspicious/noExplicitAny: context required by type
+      return fn(variables, undefined as any);
+    },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: allHighlightsQueryKey });
@@ -312,12 +412,50 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       // Refetch to get accurate server data (with correct highlight_id and chapter_id)
       queryClient.invalidateQueries({ queryKey: allHighlightsQueryKey });
       queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+      queryClient.invalidateQueries({ queryKey: ['local-chapter-highlights-offline-fallback'] });
     },
   });
 
   // Update highlight color mutation
   const updateMutation = useMutation({
     ...putBibleHighlightByHighlightIdMutation(),
+    mutationFn: async (variables) => {
+      if (!isOnline) {
+        if (!variables.body || !variables.path) throw new Error('Missing body/path');
+        const { highlight_id } = variables.path;
+        const { color } = variables.body;
+
+        await updateLocalHighlightColor(highlight_id, color || 'yellow');
+        // We need highlight_id in the payload for OfflineSyncService
+        await addSyncAction('HIGHLIGHT', 'UPDATE', { ...variables.body, highlight_id });
+
+        return {
+          success: true,
+          highlight: {
+            highlight_id,
+            color: color || 'yellow',
+            updated_at: new Date().toISOString(),
+            // Mock other required fields
+            user_id: user?.id || '',
+            chapter_id: 0,
+            book_id: 0,
+            chapter_number: 0,
+            start_verse: 0,
+            end_verse: 0,
+            start_char: null,
+            end_char: null,
+            selected_text: null,
+            created_at: new Date().toISOString(),
+          },
+        };
+      }
+      const fn = putBibleHighlightByHighlightIdMutation().mutationFn;
+      if (!fn) throw new Error('Mutation function missing');
+
+      // biome-ignore lint/suspicious/noExplicitAny: context required by type
+      return fn(variables, undefined as any);
+    },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: allHighlightsQueryKey });
@@ -387,12 +525,30 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: allHighlightsQueryKey });
       queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+      queryClient.invalidateQueries({ queryKey: ['local-chapter-highlights-offline-fallback'] });
     },
   });
 
   // Delete highlight mutation
   const deleteMutation = useMutation({
     ...deleteBibleHighlightByHighlightIdMutation(),
+    mutationFn: async (variables) => {
+      if (!isOnline) {
+        if (!variables.path) throw new Error('Missing path');
+        const { highlight_id } = variables.path;
+
+        await deleteLocalHighlight(highlight_id);
+        await addSyncAction('HIGHLIGHT', 'DELETE', variables.path); // payload is { highlight_id: ... }
+
+        return { success: true };
+      }
+      const fn = deleteBibleHighlightByHighlightIdMutation().mutationFn;
+      if (!fn) throw new Error('Mutation function missing');
+
+      // biome-ignore lint/suspicious/noExplicitAny: context required by type
+      return fn(variables, undefined as any);
+    },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: allHighlightsQueryKey });
@@ -456,6 +612,8 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: allHighlightsQueryKey });
       queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+      queryClient.invalidateQueries({ queryKey: ['local-chapter-highlights-offline-fallback'] });
     },
   });
 
@@ -573,7 +731,10 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
 
   // Combine auth and query loading states
   const isFetchingHighlights =
-    isAuthLoading || (fetchAllHighlights ? isAllFetching : isChapterFetching);
+    isAuthLoading ||
+    (fetchAllHighlights
+      ? isAllFetching || isLocalAllFetching
+      : isChapterFetching || isLocalChapterFetching);
 
   return {
     allHighlights,

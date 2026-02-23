@@ -8,17 +8,17 @@
  * Features:
  * - Profile Information editing (authenticated users only)
  * - Bible Version selection (available to all users)
- * - Language Preferences (authenticated users only)
+ * - Language Preferences (available to all users, synced to backend when authenticated)
  * - Theme Selector (available to all users)
  * - Logout (authenticated users only)
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-// NOTE: useCallback is still used for useFocusEffect which requires it
+import { useCallback, useEffect, useRef, useState } from 'react'; // NOTE: useCallback is still used for useFocusEffect which requires it
 import {
   ActivityIndicator,
   Alert,
@@ -40,8 +40,10 @@ import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { BibleVersion } from '@/constants/bible-versions';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { notifyLanguageChanged } from '@/hooks/use-preferred-language';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import {
   getBibleLanguages,
@@ -55,11 +57,51 @@ interface Language {
   nativeName: string;
 }
 
+// Fallback language code → display name mapping for offline use
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  ro: 'Romanian',
+  es: 'Spanish',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+  pt: 'Portuguese',
+  ru: 'Russian',
+  uk: 'Ukrainian',
+  nl: 'Dutch',
+  pl: 'Polish',
+  ko: 'Korean',
+  ja: 'Japanese',
+  zh: 'Chinese',
+  ar: 'Arabic',
+  hi: 'Hindi',
+  sv: 'Swedish',
+  no: 'Norwegian',
+  da: 'Danish',
+  fi: 'Finnish',
+  hu: 'Hungarian',
+  cs: 'Czech',
+  el: 'Greek',
+  he: 'Hebrew',
+  tr: 'Turkish',
+  th: 'Thai',
+  vi: 'Vietnamese',
+  id: 'Indonesian',
+};
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, logout, restoreSession, refreshTokens } = useAuth();
   const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
+  const {
+    commentaryInfo,
+    topicsInfo,
+    downloadedCommentaryLanguages,
+    downloadedTopicLanguages,
+    isOnline,
+  } = useOfflineContext();
+  const isDeviceOffline = !isOnline;
   const queryClient = useQueryClient();
 
   // Bible version state
@@ -91,50 +133,200 @@ export default function SettingsScreen() {
   const { deleteAccount, isDeleting, error: deleteError, clearError } = useDeleteAccount();
 
   // Update form fields when user session changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: isOffline intentionally included to re-run effect when connectivity changes
   useEffect(() => {
-    if (user) {
-      setFirstName(user.firstName || '');
-      setLastName(user.lastName || '');
-      setEmail(user.email || '');
-      setSelectedLanguage(user.preferred_language || 'en-US');
-    }
-  }, [user]);
-
-  // Fetch available languages
-  useEffect(() => {
-    const fetchLanguages = async () => {
+    const loadPersistedLanguage = async () => {
+      // Always try AsyncStorage first (works for both offline and logged-out users)
       try {
-        const { data, error } = await getBibleLanguages();
-        if (error) {
-          throw error;
-        }
-        if (data) {
-          const mappedLanguages = (
-            data as {
-              language_code: string;
-              name: string;
-              native_name: string;
-            }[]
-          ).map((lang) => ({
-            code: lang.language_code,
-            name: lang.name,
-            nativeName: lang.native_name,
-          }));
-          // Sort alphabetically by native name
-          const sortedLanguages = mappedLanguages.sort((a, b) =>
-            a.nativeName.localeCompare(b.nativeName)
-          );
-          setAvailableLanguages(sortedLanguages);
+        const storedLang = await AsyncStorage.getItem('@versemate:preferred_language');
+        if (storedLang) {
+          setSelectedLanguage(storedLang);
+          // Still update profile fields if user is logged in
+          if (user) {
+            setFirstName(user.firstName || '');
+            setLastName(user.lastName || '');
+            setEmail(user.email || '');
+          }
+          return;
         }
       } catch (error) {
-        console.error('Failed to fetch available languages:', error);
+        if (__DEV__) console.warn('Failed to load persisted language:', error);
+      }
+
+      // Fall back to user's preferred language from session
+      if (user) {
+        setFirstName(user.firstName || '');
+        setLastName(user.lastName || '');
+        setEmail(user.email || '');
+        setSelectedLanguage(user.preferred_language || 'en-US');
       }
     };
 
-    if (isAuthenticated) {
-      fetchLanguages();
+    loadPersistedLanguage();
+  }, [user, isDeviceOffline]);
+
+  // Build offline fallback languages from downloaded commentary/topic data
+  const getOfflineLanguages = useCallback((): Language[] => {
+    const langMap = new Map<string, Language>();
+
+    // First try: use commentaryInfo/topicsInfo which have full names (requires manifest)
+    if (commentaryInfo) {
+      for (const info of commentaryInfo) {
+        if (info.status === 'downloaded' || info.status === 'update_available') {
+          langMap.set(info.key, { code: info.key, name: info.name, nativeName: info.name });
+        }
+      }
     }
-  }, [isAuthenticated]);
+    if (topicsInfo) {
+      for (const info of topicsInfo) {
+        if (
+          (info.status === 'downloaded' || info.status === 'update_available') &&
+          !langMap.has(info.key)
+        ) {
+          langMap.set(info.key, { code: info.key, name: info.name, nativeName: info.name });
+        }
+      }
+    }
+
+    // Second try: use downloaded language code arrays (always available from local DB)
+    // These work even without a manifest/network
+    if (downloadedCommentaryLanguages) {
+      for (const code of downloadedCommentaryLanguages) {
+        if (!langMap.has(code)) {
+          const shortCode = code.split('-')[0].toLowerCase();
+          const displayName =
+            LANGUAGE_NAMES[code] || LANGUAGE_NAMES[shortCode] || code.toUpperCase();
+          langMap.set(code, { code, name: displayName, nativeName: displayName });
+        }
+      }
+    }
+    if (downloadedTopicLanguages) {
+      for (const code of downloadedTopicLanguages) {
+        if (!langMap.has(code)) {
+          const shortCode = code.split('-')[0].toLowerCase();
+          const displayName =
+            LANGUAGE_NAMES[code] || LANGUAGE_NAMES[shortCode] || code.toUpperCase();
+          langMap.set(code, { code, name: displayName, nativeName: displayName });
+        }
+      }
+    }
+
+    return Array.from(langMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [commentaryInfo, topicsInfo, downloadedCommentaryLanguages, downloadedTopicLanguages]);
+
+  // Fetch available languages, cache them, and restore from cache when offline
+  // biome-ignore lint/correctness/useExhaustiveDependencies: isAuthenticated intentionally included to re-run effect on auth state change
+  useEffect(() => {
+    const LANGUAGES_CACHE_KEY = 'versemate:languages_cache';
+
+    const parseLanguages = (
+      raw: { language_code: string; name: string; native_name: string }[]
+    ): Language[] =>
+      raw
+        .map((lang) => ({
+          code: lang.language_code,
+          name: lang.name,
+          nativeName: lang.native_name,
+        }))
+        .sort((a, b) => a.nativeName.localeCompare(b.nativeName));
+
+    const fetchLanguages = async () => {
+      // 1. Try fetching from the API
+      try {
+        const { data, error } = await getBibleLanguages();
+        if (error) throw error;
+        if (data) {
+          const languages = parseLanguages(
+            data as { language_code: string; name: string; native_name: string }[]
+          );
+          setAvailableLanguages(languages);
+          // Cache for offline use
+          AsyncStorage.setItem(LANGUAGES_CACHE_KEY, JSON.stringify(data)).catch((e) => {
+            if (__DEV__) console.warn('Failed to cache languages:', e);
+          });
+          return;
+        }
+      } catch (error) {
+        if (__DEV__) console.error('Failed to fetch available languages:', error);
+      }
+
+      // 2. Try restoring from cache (filtered to downloaded languages when offline)
+      try {
+        const cached = await AsyncStorage.getItem(LANGUAGES_CACHE_KEY);
+        if (cached) {
+          const allLanguages = parseLanguages(JSON.parse(cached));
+          if (allLanguages.length > 0) {
+            if (isDeviceOffline) {
+              // Filter to only downloaded languages, using cached names for display
+              const downloadedCodes = new Set([
+                ...downloadedCommentaryLanguages,
+                ...downloadedTopicLanguages,
+              ]);
+              // Also build a set of short codes (e.g., 'en' from 'en-US')
+              const downloadedShortCodes = new Set(
+                [...downloadedCodes].map((c) => c.split('-')[0].toLowerCase())
+              );
+              const filtered = allLanguages.filter((lang) => {
+                const shortCode = lang.code.split('-')[0].toLowerCase();
+                return downloadedCodes.has(lang.code) || downloadedShortCodes.has(shortCode);
+              });
+              if (filtered.length > 0) {
+                setAvailableLanguages(filtered);
+                return;
+              }
+            } else {
+              setAvailableLanguages(allLanguages);
+              return;
+            }
+          }
+        }
+      } catch (cacheError) {
+        if (__DEV__) console.warn('Failed to read languages cache:', cacheError);
+      }
+
+      // 3. Last resort: build from downloaded language codes
+      const offlineLangs = getOfflineLanguages();
+      if (offlineLangs.length > 0) {
+        setAvailableLanguages(offlineLangs);
+      }
+    };
+
+    fetchLanguages();
+  }, [
+    isAuthenticated,
+    getOfflineLanguages,
+    isDeviceOffline,
+    downloadedCommentaryLanguages,
+    downloadedTopicLanguages,
+  ]);
+
+  // Sync offline-stored language to backend when coming back online
+  useEffect(() => {
+    const syncOfflineLanguage = async () => {
+      if (!isDeviceOffline && isAuthenticated) {
+        try {
+          const storedLang = await AsyncStorage.getItem('@versemate:preferred_language');
+          // If there's a stored language and it's different from the user's current preference, sync it
+          if (storedLang && storedLang !== user?.preferred_language) {
+            const { error } = await patchUserPreferences({
+              body: { preferred_language: storedLang },
+            });
+
+            if (!error) {
+              // Clear the offline storage after successful sync
+              await AsyncStorage.removeItem('@versemate:preferred_language');
+              // Refresh tokens to update claims
+              await refreshTokens();
+            }
+          }
+        } catch (error) {
+          if (__DEV__) console.warn('Failed to sync offline language preference:', error);
+        }
+      }
+    };
+
+    syncOfflineLanguage();
+  }, [isDeviceOffline, isAuthenticated, user?.preferred_language, refreshTokens]);
 
   const hasProfileChanges = () => {
     return (
@@ -285,20 +477,7 @@ export default function SettingsScreen() {
       setSelectedLanguage(languageCode);
       setShowLanguagePicker(false);
 
-      const { error } = await patchUserPreferences({
-        body: { preferred_language: languageCode },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Refresh tokens to update claims (like language)
-      // Add a small delay to ensure backend DB consistency before issuing new token
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await refreshTokens();
-
-      // Invalidate topic and bible explanation queries to refresh with new language
+      // Invalidate queries to refresh content in new language
       queryClient.invalidateQueries({
         predicate: (q) => {
           const k = q.queryKey as unknown as (string | undefined)[];
@@ -309,10 +488,31 @@ export default function SettingsScreen() {
               k[0] === 'topic-details-explanation' ||
               k[0] === 'topic-explanation' ||
               k[0] === 'topics' ||
+              k[0] === 'bible-explanation' ||
               k[0] === 'getBibleBookExplanationByBookIdByChapterNumber')
           );
         },
       });
+
+      // Always persist to AsyncStorage (for offline, logged-out, and as cache)
+      await AsyncStorage.setItem('@versemate:preferred_language', languageCode);
+      notifyLanguageChanged();
+
+      // When authenticated and online, also sync to backend
+      if (isAuthenticated && !isDeviceOffline) {
+        const { error } = await patchUserPreferences({
+          body: { preferred_language: languageCode },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        // Refresh tokens to update claims (like language)
+        // Add a small delay to ensure backend DB consistency before issuing new token
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await refreshTokens();
+      }
     } catch (error) {
       console.error('Failed to save language preference:', error);
       Alert.alert('Error', 'Failed to save language preference');
@@ -435,13 +635,13 @@ export default function SettingsScreen() {
                 <Avatar url={user.imageSrc} size={48} />
               </View>
               <View style={styles.profileInfo}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={styles.profileNameRow}>
                   <Text style={styles.profileName}>Profile Details</Text>
                   {saveStatus === 'saving' && (
                     <ActivityIndicator
                       size="small"
                       color={colors.textSecondary}
-                      style={{ marginLeft: 8 }}
+                      style={styles.profileStatusIcon}
                     />
                   )}
                   {saveStatus === 'saved' && (
@@ -449,7 +649,7 @@ export default function SettingsScreen() {
                       name="checkmark-circle"
                       size={20}
                       color={colors.success}
-                      style={{ marginLeft: 8 }}
+                      style={styles.profileStatusIcon}
                     />
                   )}
                   {saveStatus === 'error' && (
@@ -457,7 +657,7 @@ export default function SettingsScreen() {
                       name="alert-circle"
                       size={20}
                       color={colors.error}
-                      style={{ marginLeft: 8 }}
+                      style={styles.profileStatusIcon}
                     />
                   )}
                 </View>
@@ -546,62 +746,88 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* Language Preferences Section - Authenticated Only */}
-        {isAuthenticated && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Language Preferences</Text>
-            <Pressable
-              style={styles.selectButton}
-              onPress={() => setShowLanguagePicker(!showLanguagePicker)}
-            >
-              <Text style={styles.selectButtonText}>
-                {(() => {
-                  const selectedLang = availableLanguages.find(
-                    (lang) => lang.code === selectedLanguage
-                  );
-                  return selectedLang ? formatLanguageDisplay(selectedLang) : 'Select Language';
-                })()}
-              </Text>
-              <Ionicons
-                name={showLanguagePicker ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color={colors.textSecondary}
-              />
-            </Pressable>
+        {/* Language Preferences Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Language Preferences</Text>
+          <Pressable
+            style={styles.selectButton}
+            onPress={() => setShowLanguagePicker(!showLanguagePicker)}
+          >
+            <Text style={styles.selectButtonText}>
+              {(() => {
+                const selectedLang = availableLanguages.find(
+                  (lang) => lang.code === selectedLanguage
+                );
+                return selectedLang ? formatLanguageDisplay(selectedLang) : 'Select Language';
+              })()}
+            </Text>
+            <Ionicons
+              name={showLanguagePicker ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={colors.textSecondary}
+            />
+          </Pressable>
 
-            {showLanguagePicker && (
-              <View style={styles.pickerContainer}>
-                <ScrollView style={styles.pickerScrollView}>
-                  {availableLanguages.map((language) => (
-                    <Pressable
-                      key={language.code}
+          {showLanguagePicker && (
+            <View style={styles.pickerContainer}>
+              <ScrollView style={styles.pickerScrollView}>
+                {availableLanguages.map((language) => (
+                  <Pressable
+                    key={language.code}
+                    style={[
+                      styles.pickerItem,
+                      language.code === selectedLanguage && styles.pickerItemSelected,
+                    ]}
+                    onPress={() => handleLanguageChange(language.code)}
+                  >
+                    <Text
                       style={[
-                        styles.pickerItem,
-                        language.code === selectedLanguage && styles.pickerItemSelected,
+                        styles.pickerItemText,
+                        language.code === selectedLanguage && styles.pickerItemTextSelected,
                       ]}
-                      onPress={() => handleLanguageChange(language.code)}
                     >
-                      <Text
-                        style={[
-                          styles.pickerItemText,
-                          language.code === selectedLanguage && styles.pickerItemTextSelected,
-                        ]}
-                      >
-                        {formatLanguageDisplay(language)}
-                      </Text>
-                      {language.code === selectedLanguage && (
-                        <Ionicons name="checkmark" size={20} color={colors.gold} />
-                      )}
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-          </View>
-        )}
+                      {formatLanguageDisplay(language)}
+                    </Text>
+                    {language.code === selectedLanguage && (
+                      <Ionicons name="checkmark" size={20} color={colors.gold} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
 
         {/* Theme Selector Section */}
         <ThemeSelector />
+
+        {/* Downloads & Offline */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Downloads & Offline</Text>
+          <Pressable
+            style={[styles.selectButton, styles.manageDownloadsButton]}
+            onPress={() => router.push('/manage-downloads')}
+            accessibilityLabel="Manage offline downloads"
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name="cloud-download-outline"
+              size={20}
+              color={colors.textPrimary}
+              style={styles.manageDownloadsIcon}
+            />
+            <View style={styles.manageDownloadsTextContainer}>
+              <Text
+                style={[styles.selectButtonText, styles.manageDownloadsTitle]}
+                numberOfLines={1}
+              >
+                Manage Downloads
+              </Text>
+              <Text style={styles.manageDownloadsSubtitle}>Download content for offline use</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </Pressable>
+        </View>
 
         {/* Logout Button - Authenticated Only */}
         {isAuthenticated && (
@@ -637,7 +863,7 @@ export default function SettingsScreen() {
           <View style={styles.notAuthenticatedContainer}>
             <Ionicons name="person-outline" size={64} color={colors.textTertiary} />
             <Text style={styles.notAuthenticatedText}>
-              Sign in to access language preferences, auto-highlights, and profile settings.
+              Sign in to access auto-highlights and profile settings.
             </Text>
             <Button
               title="Sign In"
@@ -859,5 +1085,33 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       fontSize: 16,
       fontWeight: '600',
       color: '#dc2626',
+    },
+    manageDownloadsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      height: 'auto',
+      paddingVertical: 14,
+    },
+    manageDownloadsIcon: {
+      marginRight: 12,
+    },
+    profileNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    profileStatusIcon: {
+      marginLeft: 8,
+    },
+    manageDownloadsTextContainer: {
+      flex: 1,
+    },
+    manageDownloadsTitle: {
+      flex: undefined,
+      fontWeight: '500',
+    },
+    manageDownloadsSubtitle: {
+      fontSize: 12,
+      marginTop: 2,
+      color: colors.textSecondary,
     },
   });

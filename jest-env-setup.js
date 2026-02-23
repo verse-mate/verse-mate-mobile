@@ -176,7 +176,7 @@ try {
       jest.clearAllTimers();
     } catch {}
   });
-} catch (e) {
+} catch {
   // noop if library isn't available
 }
 
