@@ -196,9 +196,9 @@ export default function ChapterScreen() {
   // Track recently viewed books
   const { addRecentBook } = useRecentBooks();
 
-  // Prefetch next/previous chapters in background
-  const prefetchNext = usePrefetchNextChapter(bookId, chapterNumber, totalChapters);
-  const prefetchPrevious = usePrefetchPreviousChapter(bookId, chapterNumber);
+  // Prefetch next/previous chapters in background (auto-fires via useEffect inside hooks)
+  usePrefetchNextChapter(bookId, chapterNumber, totalChapters);
+  usePrefetchPreviousChapter(bookId, chapterNumber);
 
   // Get navigation metadata using hook
   // V3: Linear navigation mode (no circular wrap)
@@ -253,18 +253,8 @@ export default function ChapterScreen() {
     }
   }, [bookId, chapterNumber, bibleVersion]);
 
-  // Prefetch adjacent chapters after active content loads
-  useEffect(() => {
-    if (chapter && !isLoading) {
-      // Delay prefetch to avoid blocking main content (1 second delay)
-      const timeoutId = setTimeout(() => {
-        prefetchNext();
-        prefetchPrevious();
-      }, 1000);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [chapter, isLoading, prefetchNext, prefetchPrevious]);
+  // Prefetch is now handled automatically by the hooks' internal useEffect
+  // when bookId/chapterNumber change — no manual trigger needed.
 
   /**
    * Handle view mode change with haptic feedback
@@ -310,13 +300,9 @@ export default function ChapterScreen() {
         });
       }
 
-      // Prefetch adjacent chapters after 1 second delay
-      setTimeout(() => {
-        prefetchNext();
-        prefetchPrevious();
-      }, 1000);
+      // Prefetch is handled automatically by the hooks' internal useEffect
     },
-    [navigateToChapter, prefetchNext, prefetchPrevious, user?.id]
+    [navigateToChapter, user?.id]
   );
 
   /**
@@ -500,7 +486,6 @@ export default function ChapterScreen() {
 
             {/* SimpleChapterPager - V3 3-page window with linear navigation */}
             <SimpleChapterPager
-              key={`pager-${bookId}-${chapterNumber}`}
               bookId={bookId}
               chapterNumber={chapterNumber}
               bookName={bookName}
@@ -526,31 +511,29 @@ export default function ChapterScreen() {
           </>
         )}
 
-        {/* Navigation Modal - Consolidated outside conditional blocks */}
-        {isNavigationModalOpen && (
-          <BibleNavigationModal
-            visible={isNavigationModalOpen}
-            onClose={() => setIsNavigationModalOpen(false)}
-            currentBookId={bookId}
-            currentChapter={chapterNumber}
-            onSelectChapter={(selectedBookId, chapterNum) => {
-              setIsNavigationModalOpen(false);
-              // Always default to Bible text view when switching books via modal
-              setActiveView('bible');
-              // V3: Update state via hook (single source of truth)
-              navigateToChapter(selectedBookId, chapterNum);
-            }}
-            onSelectTopic={(topicId, category) => {
-              setIsNavigationModalOpen(false);
-              // Always default to Bible text view when navigating to topics
-              setActiveView('bible');
-              router.push({
-                pathname: '/topics/[topicId]',
-                params: { topicId, category },
-              });
-            }}
-          />
-        )}
+        {/* Navigation Modal - Always mounted, visibility controlled by `visible` prop */}
+        <BibleNavigationModal
+          visible={isNavigationModalOpen}
+          onClose={() => setIsNavigationModalOpen(false)}
+          currentBookId={bookId}
+          currentChapter={chapterNumber}
+          onSelectChapter={(selectedBookId, chapterNum) => {
+            setIsNavigationModalOpen(false);
+            // Always default to Bible text view when switching books via modal
+            setActiveView('bible');
+            // V3: Update state via hook (single source of truth)
+            navigateToChapter(selectedBookId, chapterNum);
+          }}
+          onSelectTopic={(topicId, category) => {
+            setIsNavigationModalOpen(false);
+            // Always default to Bible text view when navigating to topics
+            setActiveView('bible');
+            router.push({
+              pathname: '/topics/[topicId]',
+              params: { topicId, category },
+            });
+          }}
+        />
       </View>
     </BibleInteractionProvider>
   );

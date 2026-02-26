@@ -122,15 +122,16 @@ export const useBibleChapter = (
   const effectiveVersion = version || 'NASB1995'; // Default to NASB1995 if not specified
   const isLocal = downloadedBibleVersions.includes(effectiveVersion);
 
+  // Use the generated query key so prefetch cache hits work
+  const generatedOpts = getBibleBookByBookIdByChapterNumberOptions({
+    path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
+    query: version ? { versionKey: version } : undefined,
+  });
+
   const query = useQuery({
-    queryKey: [
-      'bible-chapter',
-      bookId,
-      chapterNumber,
-      effectiveVersion,
-      isLocal ? 'local' : 'remote',
-    ],
-    queryFn: async () => {
+    queryKey: generatedOpts.queryKey,
+    staleTime: Number.POSITIVE_INFINITY, // Bible text is immutable within a session
+    queryFn: async ({ signal }) => {
       if (isLocal) {
         const verses = await getLocalBibleChapter(effectiveVersion, bookId, chapterNumber);
         if (!verses || verses.length === 0) return null;
@@ -157,20 +158,15 @@ export const useBibleChapter = (
         };
       }
 
-      // Remote fetch
-      const options = getBibleBookByBookIdByChapterNumberOptions({
-        path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-        query: version ? { versionKey: version } : undefined,
-      });
-
-      if (!options.queryFn) {
+      // Remote fetch — reuse generatedOpts so the cache key matches prefetch
+      if (!generatedOpts.queryFn) {
         throw new Error('Query function not defined');
       }
 
-      const response = await options.queryFn({
-        queryKey: options.queryKey || [],
+      const response = await generatedOpts.queryFn({
+        queryKey: generatedOpts.queryKey || [],
         meta: undefined,
-        signal: new AbortController().signal,
+        signal,
         // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
 
@@ -212,16 +208,20 @@ export const useBibleChapterExplanation = (
   const isLocal = Boolean(matchedLocalLanguage);
   const localLanguage = matchedLocalLanguage || effectiveLanguage;
 
+  // Use the generated query key so prefetch cache hits work
+  const generatedExplOpts = getBibleBookExplanationByBookIdByChapterNumberOptions({
+    path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
+    query: {
+      ...(explanationType && { explanationType }),
+      ...(language && { lang: language }),
+      // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
+    } as any,
+  });
+
   const query = useQuery({
-    queryKey: [
-      'bible-explanation',
-      bookId,
-      chapterNumber,
-      explanationType,
-      effectiveLanguage,
-      isLocal ? 'local' : 'remote',
-    ],
-    queryFn: async () => {
+    queryKey: generatedExplOpts.queryKey,
+    staleTime: 1000 * 60 * 30, // AI explanations: 30 min stale time
+    queryFn: async ({ signal }) => {
       if (isLocal && explanationType) {
         // Local fetch - use the matched language code from the DB
         const explanation = await getLocalCommentary(
@@ -250,24 +250,15 @@ export const useBibleChapterExplanation = (
         };
       }
 
-      // Remote fetch
-      const options = getBibleBookExplanationByBookIdByChapterNumberOptions({
-        path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
-        query: {
-          ...(explanationType && { explanationType }),
-          ...(language && { lang: language }),
-          // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
-        } as any,
-      });
-
-      if (!options.queryFn) {
+      // Remote fetch — reuse generatedExplOpts so the cache key matches prefetch
+      if (!generatedExplOpts.queryFn) {
         throw new Error('Query function not defined');
       }
 
-      const response = await options.queryFn({
-        queryKey: options.queryKey || [],
+      const response = await generatedExplOpts.queryFn({
+        queryKey: generatedExplOpts.queryKey || [],
         meta: undefined,
-        signal: new AbortController().signal,
+        signal,
         // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
 
@@ -480,63 +471,84 @@ export const useBibleDetailed = (
   );
 };
 
-// Prefetch hooks for next/previous chapters
+// Prefetch hooks for next/previous chapters (with cross-book + explanation prefetch)
 export const usePrefetchNextChapter = (
   bookId: number,
   currentChapter: number,
   totalChapters: number
 ) => {
   const queryClient = useQueryClient();
+  const preferredLanguage = usePreferredLanguage();
 
   useEffect(() => {
-    const nextChapter = currentChapter + 1;
-    if (nextChapter <= totalChapters) {
-      queryClient.prefetchQuery(
-        getBibleBookByBookIdByChapterNumberOptions({
-          path: { bookId: String(bookId), chapterNumber: String(nextChapter) },
-        })
-      );
-    }
-  }, [queryClient, bookId, currentChapter, totalChapters]);
+    let nextBookId = bookId;
+    let nextChapter = currentChapter + 1;
 
-  // Return a function for manual prefetching if needed
-  return () => {
-    const nextChapter = currentChapter + 1;
-    if (nextChapter <= totalChapters) {
-      queryClient.prefetchQuery(
-        getBibleBookByBookIdByChapterNumberOptions({
-          path: { bookId: String(bookId), chapterNumber: String(nextChapter) },
-        })
-      );
+    if (nextChapter > totalChapters) {
+      // Cross-book: go to chapter 1 of the next book
+      const currentIndex = BIBLE_BOOKS.findIndex((b) => b.id === bookId);
+      if (currentIndex >= 0 && currentIndex < BIBLE_BOOKS.length - 1) {
+        nextBookId = BIBLE_BOOKS[currentIndex + 1].id;
+        nextChapter = 1;
+      } else {
+        return; // At the very end of the Bible
+      }
     }
-  };
+
+    // Prefetch chapter text
+    queryClient.prefetchQuery(
+      getBibleBookByBookIdByChapterNumberOptions({
+        path: { bookId: String(nextBookId), chapterNumber: String(nextChapter) },
+      })
+    );
+
+    // Prefetch summary explanation
+    queryClient.prefetchQuery(
+      getBibleBookExplanationByBookIdByChapterNumberOptions({
+        path: { bookId: String(nextBookId), chapterNumber: String(nextChapter) },
+        // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
+        query: { explanationType: 'summary', lang: preferredLanguage } as any,
+      })
+    );
+  }, [queryClient, bookId, currentChapter, totalChapters, preferredLanguage]);
 };
 
 export const usePrefetchPreviousChapter = (bookId: number, currentChapter: number) => {
   const queryClient = useQueryClient();
+  const preferredLanguage = usePreferredLanguage();
 
   useEffect(() => {
-    const prevChapter = currentChapter - 1;
-    if (prevChapter >= 1) {
-      queryClient.prefetchQuery(
-        getBibleBookByBookIdByChapterNumberOptions({
-          path: { bookId: String(bookId), chapterNumber: String(prevChapter) },
-        })
-      );
-    }
-  }, [queryClient, bookId, currentChapter]);
+    let prevBookId = bookId;
+    let prevChapter = currentChapter - 1;
 
-  // Return a function for manual prefetching if needed
-  return () => {
-    const prevChapter = currentChapter - 1;
-    if (prevChapter >= 1) {
-      queryClient.prefetchQuery(
-        getBibleBookByBookIdByChapterNumberOptions({
-          path: { bookId: String(bookId), chapterNumber: String(prevChapter) },
-        })
-      );
+    if (prevChapter < 1) {
+      // Cross-book: go to last chapter of the previous book
+      const currentIndex = BIBLE_BOOKS.findIndex((b) => b.id === bookId);
+      if (currentIndex > 0) {
+        const prevBook = BIBLE_BOOKS[currentIndex - 1];
+        prevBookId = prevBook.id;
+        prevChapter = prevBook.chapterCount;
+      } else {
+        return; // At the very beginning of the Bible
+      }
     }
-  };
+
+    // Prefetch chapter text
+    queryClient.prefetchQuery(
+      getBibleBookByBookIdByChapterNumberOptions({
+        path: { bookId: String(prevBookId), chapterNumber: String(prevChapter) },
+      })
+    );
+
+    // Prefetch summary explanation
+    queryClient.prefetchQuery(
+      getBibleBookExplanationByBookIdByChapterNumberOptions({
+        path: { bookId: String(prevBookId), chapterNumber: String(prevChapter) },
+        // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
+        query: { explanationType: 'summary', lang: preferredLanguage } as any,
+      })
+    );
+  }, [queryClient, bookId, currentChapter, preferredLanguage]);
 };
 
 // ============================================================================

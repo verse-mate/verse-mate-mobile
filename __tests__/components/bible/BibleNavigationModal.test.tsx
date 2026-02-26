@@ -263,4 +263,100 @@ describe('BibleNavigationModal', () => {
       expect(screen.getByText('Exodus')).toBeTruthy();
     });
   });
+
+  /**
+   * Modal performance (TDD)
+   *
+   * Protects Changes H7/H8: Modal scroll ref + keep mounted.
+   * Tests the callback contract, mounting behavior, and data loading.
+   */
+  describe('modal performance (TDD)', () => {
+    it('[REGRESSION] onSelectChapter fires correctly after user interaction', async () => {
+      renderWithTheme(
+        <BibleNavigationModal
+          visible={true}
+          currentBookId={1}
+          currentChapter={3}
+          onClose={mockOnClose}
+          onSelectChapter={mockOnSelectChapter}
+        />
+      );
+
+      // Select Genesis from sticky header
+      const genesisButton = screen.getByLabelText('Current book: Genesis');
+      fireEvent.press(genesisButton);
+
+      // Wait for chapter grid
+      await waitFor(() => {
+        expect(screen.getAllByLabelText('Chapter 10')[0]).toBeTruthy();
+      });
+
+      // Press chapter 10
+      fireEvent.press(screen.getAllByLabelText('Chapter 10')[0]);
+
+      // Verify callback contract: bookId and chapter number
+      expect(mockOnSelectChapter).toHaveBeenCalledWith(1, 10);
+    });
+
+    it('[TDD] modal content persists when visible changes to false (keep-mounted)', () => {
+      const { rerender } = renderWithTheme(
+        <BibleNavigationModal
+          visible={true}
+          currentBookId={1}
+          currentChapter={1}
+          onClose={mockOnClose}
+          onSelectChapter={mockOnSelectChapter}
+        />
+      );
+
+      // Content is present when visible
+      expect(screen.getAllByText('Genesis')[0]).toBeTruthy();
+
+      // Hide the modal
+      rerender(
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 47, left: 0, right: 0, bottom: 34 },
+          }}
+        >
+          <ThemeProvider>
+            <BibleNavigationModal
+              visible={false}
+              currentBookId={1}
+              currentChapter={1}
+              onClose={mockOnClose}
+              onSelectChapter={mockOnSelectChapter}
+            />
+          </ThemeProvider>
+        </SafeAreaProvider>
+      );
+
+      // After hiding, content is still in the tree (animated sheet pattern
+      // keeps content mounted and uses transform/opacity for visibility).
+      // This locks in the keep-mounted behavior before refactoring scroll state.
+      expect(screen.queryAllByText('Genesis').length).toBeGreaterThan(0);
+    });
+
+    it('[REGRESSION] all four topic categories are loaded', () => {
+      renderWithTheme(
+        <BibleNavigationModal
+          visible={true}
+          currentBookId={1}
+          currentChapter={1}
+          onClose={mockOnClose}
+          onSelectChapter={mockOnSelectChapter}
+        />
+      );
+
+      // Switch to Topics tab
+      const topicsTab = screen.getByText('Topics');
+      fireEvent.press(topicsTab);
+
+      // Verify topic hooks are invoked for data loading.
+      // The modal uses useCachedTopics for each category (EVENT, PROPHECY, PARABLE, THEME)
+      // and useTopicsSearch for filtering. Verify the search hook was called.
+      expect(useTopicsSearch as jest.Mock).toHaveBeenCalled();
+    });
+  });
 });

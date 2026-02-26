@@ -19,6 +19,17 @@ import { refreshAccessToken } from '@/lib/auth/token-refresh';
 // Track retry attempts per request to prevent infinite loops
 const retryAttempts = new WeakMap<Request, number>();
 
+// In-memory token cache to avoid repeated AsyncStorage reads on every request
+let cachedToken: string | null = null;
+
+/**
+ * Clear the in-memory token cache.
+ * Call after logout or when the token is known to be invalid.
+ */
+export function clearTokenCache(): void {
+  cachedToken = null;
+}
+
 // PostHog instance for error tracking
 // Set by setPostHogInstance function called from app initialization
 let posthogInstance: { captureException: (error: unknown, context?: unknown) => void } | null = null;
@@ -38,8 +49,11 @@ async function requestInterceptor(
   request: Request,
   _options: ResolvedRequestOptions,
 ): Promise<Request> {
-  // Get access token from storage
-  const token = await getAccessToken();
+  // Use cached token if available, otherwise read from AsyncStorage and cache it
+  if (cachedToken === null) {
+    cachedToken = await getAccessToken();
+  }
+  const token = cachedToken;
 
   // If token exists and Authorization header not already set, add it
   if (token && !request.headers.has('Authorization')) {
@@ -119,6 +133,9 @@ async function responseInterceptor(
   try {
     // Attempt to refresh the access token
     const newToken = await refreshAccessToken();
+
+    // Update the in-memory cache with the refreshed token
+    cachedToken = newToken;
 
     // Update retry count
     retryAttempts.set(request, currentRetries + 1);

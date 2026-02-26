@@ -30,12 +30,11 @@ import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import type { Highlight } from '@/hooks/bible/use-highlights';
-import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
@@ -296,17 +295,8 @@ export function ChapterPage({
   const visibilityUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportHeightRef = useRef<number>(0);
 
-  // Fetch highlights directly for THIS specific chapter
-  // This ensures each page has its own highlights pre-loaded independently
-  const { chapterHighlights } = useHighlights({
-    bookId,
-    chapterNumber,
-  });
-
-  const { autoHighlights } = useAutoHighlights({
-    bookId,
-    chapterNumber,
-  });
+  // Get highlights from the provider (single source of truth — avoids duplicate queries)
+  const { chapterHighlights, autoHighlights } = useBibleInteraction();
 
   // Staggered rendering state to prevent UI freeze (waterfall loading)
   // 0: Initial (only active view)
@@ -418,26 +408,46 @@ export function ChapterPage({
   }
   const displayChapter = chapter || lastChapterRef.current;
 
-  // Fetch explanations for each tab
-  // All three are ALWAYS enabled and load in parallel to ensure instant tab switching
-  // This eliminates the freeze when switching between summary/byline/detailed tabs
+  // Track which explanation tabs have been visited so we only fetch on demand
+  const [visitedTabs, setVisitedTabs] = useState<Set<ContentTabType>>(() => new Set([activeTab]));
+
+  // When the user switches tabs, mark the new tab as visited
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
+  // Fetch explanations lazily — only enable for the active tab or previously visited tabs
   const {
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
-  } = useBibleSummary(bookId, chapterNumber, undefined, { enabled: true, language });
+  } = useBibleSummary(bookId, chapterNumber, undefined, {
+    enabled: activeTab === 'summary' || visitedTabs.has('summary'),
+    language,
+  });
 
   const {
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
-  } = useBibleByLine(bookId, chapterNumber, undefined, { enabled: true, language });
+  } = useBibleByLine(bookId, chapterNumber, undefined, {
+    enabled: activeTab === 'byline' || visitedTabs.has('byline'),
+    language,
+  });
 
   const {
     data: detailedData,
     isLoading: isDetailedLoading,
     error: detailedError,
-  } = useBibleDetailed(bookId, chapterNumber, undefined, { enabled: true, language });
+  } = useBibleDetailed(bookId, chapterNumber, undefined, {
+    enabled: activeTab === 'detailed' || visitedTabs.has('detailed'),
+    language,
+  });
 
   /**
    * Attempt to scroll to target verse using Reanimated for smoothness
