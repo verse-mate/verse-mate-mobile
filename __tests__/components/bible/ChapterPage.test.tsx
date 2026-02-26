@@ -19,8 +19,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ChapterPage } from '@/components/bible/ChapterPage';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
-import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
-import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
@@ -46,19 +44,19 @@ jest.mock('@/hooks/bible/use-notes', () => ({
   })),
 }));
 
-// Mock highlights hooks
-jest.mock('@/hooks/bible/use-highlights', () => ({
-  useHighlights: jest.fn(() => ({
+// Mock BibleInteractionContext (ChapterPage now uses useBibleInteraction instead of direct hooks)
+jest.mock('@/contexts/BibleInteractionContext', () => ({
+  useBibleInteraction: jest.fn(() => ({
     chapterHighlights: [],
+    autoHighlights: [],
     addHighlight: jest.fn(),
     updateHighlightColor: jest.fn(),
     deleteHighlight: jest.fn(),
-  })),
-}));
-
-jest.mock('@/hooks/bible/use-auto-highlights', () => ({
-  useAutoHighlights: jest.fn(() => ({
-    autoHighlights: [],
+    openVerseTooltip: jest.fn(),
+    closeAll: jest.fn(),
+    openAutoHighlightTooltip: jest.fn(),
+    openHighlightSelection: jest.fn(),
+    openHighlightEditMenu: jest.fn(),
   })),
 }));
 
@@ -321,5 +319,134 @@ describe('ChapterPage', () => {
 
     // Note: In actual implementation, ChapterReader would receive these props
     // This test verifies the component renders - prop passing tested in integration
+  });
+
+  /**
+   * Lazy explanation queries (TDD)
+   *
+   * Protects Change H2: Lazy-enable explanation queries.
+   * Currently all three explanation types (summary, byline, detailed) are
+   * fetched in parallel regardless of activeTab. After H2, only the active
+   * tab's query will be enabled.
+   */
+  describe('lazy explanation queries (TDD)', () => {
+    beforeEach(() => {
+      mockUseBibleChapter.mockReturnValue({
+        data: {
+          bookId: 1,
+          chapterNumber: 1,
+          title: 'Genesis 1',
+          sections: [
+            {
+              startVerse: 1,
+              endVerse: 5,
+              subtitle: 'The Creation',
+              verses: [{ verseNumber: 1, text: 'In the beginning...' }],
+            },
+          ],
+        },
+        isLoading: false,
+        isPlaceholderData: false,
+        error: null,
+        isError: false,
+        isSuccess: true,
+      } as any);
+    });
+
+    it('[REGRESSION] calls useBibleSummary when activeTab="summary"', () => {
+      renderChapterPage(1, 1, 'summary', 'explanations');
+
+      expect(mockUseBibleSummary).toHaveBeenCalled();
+    });
+
+    it('[TDD] does NOT enable useBibleByLine when activeTab="summary"', () => {
+      renderChapterPage(1, 1, 'summary', 'explanations');
+
+      // After lazy-enable: useBibleByLine should be called with enabled=false
+      // when summary tab is active
+      // Will FAIL until lazy-enable is implemented (currently all are fetched)
+      const byLineCall = mockUseBibleByLine.mock.calls[0];
+      // The 4th argument is the options object with { enabled }
+      expect(byLineCall[3]).toEqual(expect.objectContaining({ enabled: false }));
+    });
+
+    it('[TDD] enables useBibleDetailed after switching activeTab to "detailed"', () => {
+      // First render with summary tab
+      const { rerender } = renderChapterPage(1, 1, 'summary', 'explanations');
+
+      // useBibleDetailed should be called with enabled=false initially
+      const firstDetailedCall = mockUseBibleDetailed.mock.calls[0];
+      expect(firstDetailedCall[3]).toEqual(expect.objectContaining({ enabled: false }));
+
+      mockUseBibleDetailed.mockClear();
+
+      // Switch to detailed tab
+      rerender(
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <ToastProvider>
+                <ChapterPage
+                  bookId={1}
+                  chapterNumber={1}
+                  activeTab="detailed"
+                  activeView="explanations"
+                />
+              </ToastProvider>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      );
+
+      // After switching: useBibleDetailed should be called with enabled=true
+      // Will FAIL until lazy-enable is implemented
+      const secondDetailedCall = mockUseBibleDetailed.mock.calls[0];
+      expect(secondDetailedCall[3]).toEqual(expect.objectContaining({ enabled: true }));
+    });
+
+    it('[REGRESSION] ChapterReader renders after tab switch', async () => {
+      const mockDetailedExplanation = {
+        bookId: 1,
+        chapterNumber: 1,
+        type: 'detailed',
+        content: 'Detailed explanation content',
+        languageCode: 'en-US',
+      };
+
+      mockUseBibleDetailed.mockReturnValue({
+        data: mockDetailedExplanation,
+        isLoading: false,
+        isFetching: false,
+        error: null,
+        isError: false,
+        isSuccess: true,
+      } as any);
+
+      // Render with summary view
+      const { rerender } = renderChapterPage(1, 1, 'summary', 'explanations');
+
+      // Switch to detailed view
+      rerender(
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <ToastProvider>
+                <ChapterPage
+                  bookId={1}
+                  chapterNumber={1}
+                  activeTab="detailed"
+                  activeView="explanations"
+                />
+              </ToastProvider>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      );
+
+      await waitFor(() => {
+        const readers = screen.getAllByTestId('chapter-reader');
+        expect(readers.length).toBeGreaterThan(0);
+      });
+    });
   });
 });
