@@ -177,12 +177,14 @@ export const useBibleChapter = (
 
   return {
     ...query,
-    data: isLocal
-      ? query.data
-      : query.data && 'book' in query.data
-        ? // biome-ignore lint/suspicious/noExplicitAny: generated response union type requires cast for transformer
-          transformChapterResponse(query.data as any)
-        : null,
+    data: query.data
+      ? 'sections' in query.data
+        ? query.data // Already transformed (local path)
+        : 'book' in query.data
+          ? // biome-ignore lint/suspicious/noExplicitAny: generated response union type requires cast for transformer
+            transformChapterResponse(query.data as any)
+          : null
+      : null,
   };
 };
 
@@ -269,12 +271,14 @@ export const useBibleChapterExplanation = (
 
   return {
     ...query,
-    data: (isLocal
-      ? query.data
-      : query.data && 'explanation' in query.data
-        ? // biome-ignore lint/suspicious/noExplicitAny: generated response union type requires cast for transformer
-          transformExplanationResponse(query.data as any)
-        : null) as ExplanationContent | null | undefined,
+    data: (query.data
+      ? 'content' in query.data
+        ? query.data // Already transformed (local path)
+        : 'explanation' in query.data
+          ? // biome-ignore lint/suspicious/noExplicitAny: generated response union type requires cast for transformer
+            transformExplanationResponse(query.data as any)
+          : null
+      : null) as ExplanationContent | null | undefined,
   };
 };
 
