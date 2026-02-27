@@ -21,6 +21,7 @@ const retryAttempts = new WeakMap<Request, number>();
 
 // In-memory token cache to avoid repeated AsyncStorage reads on every request
 let cachedToken: string | null = null;
+let tokenCachePopulated = false;
 
 /**
  * Clear the in-memory token cache.
@@ -28,6 +29,7 @@ let cachedToken: string | null = null;
  */
 export function clearTokenCache(): void {
   cachedToken = null;
+  tokenCachePopulated = false;
 }
 
 // PostHog instance for error tracking
@@ -50,8 +52,9 @@ async function requestInterceptor(
   _options: ResolvedRequestOptions,
 ): Promise<Request> {
   // Use cached token if available, otherwise read from AsyncStorage and cache it
-  if (cachedToken === null) {
+  if (!tokenCachePopulated) {
     cachedToken = await getAccessToken();
+    tokenCachePopulated = true;
   }
   const token = cachedToken;
 

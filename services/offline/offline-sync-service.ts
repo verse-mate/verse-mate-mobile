@@ -768,11 +768,20 @@ export async function downloadUserData(onProgress?: ProgressCallback): Promise<v
 // Sync Queue Processing
 // ============================================================================
 
-export async function processSyncQueue(): Promise<number> {
+export interface SyncQueueResult {
+  total: number;
+  succeeded: number;
+  failed: number;
+}
+
+export async function processSyncQueue(): Promise<SyncQueueResult> {
   const actions = await getPendingSyncActions();
-  if (actions.length === 0) return 0;
+  if (actions.length === 0) return { total: 0, succeeded: 0, failed: 0 };
 
   if (__DEV__) console.log(`[Offline Sync] Processing ${actions.length} pending actions`);
+
+  let succeeded = 0;
+  let failed = 0;
 
   // Process sequentially to ensure order
   for (const action of actions) {
@@ -838,12 +847,14 @@ export async function processSyncQueue(): Promise<number> {
       }
 
       await deleteSyncAction(action.id);
+      succeeded++;
     } catch (e) {
       console.error(`[Offline Sync] Action ${action.id} failed:`, e);
       // Mark as failed and increment retry count
       await updateSyncActionStatus(action.id, 'FAILED', action.retry_count + 1);
+      failed++;
     }
   }
 
-  return actions.length;
+  return { total: actions.length, succeeded, failed };
 }

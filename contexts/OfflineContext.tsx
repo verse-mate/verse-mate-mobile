@@ -257,14 +257,14 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
       try {
         // 1. Process any pending sync queue first
-        const queueItemsProcessed = await processSyncQueue();
+        const queueResult = await processSyncQueue();
 
         // 2. Then sync user data if authenticated
         if (isAuthenticated && dbReady.current) {
           const lastSync = await getLastSyncTime();
           // Force sync if queue had items (local IDs need refresh), otherwise throttle
           const needsSync =
-            queueItemsProcessed > 0 ||
+            queueResult.total > 0 ||
             !lastSync ||
             Date.now() - lastSync.getTime() >= SYNC_THROTTLE;
 
