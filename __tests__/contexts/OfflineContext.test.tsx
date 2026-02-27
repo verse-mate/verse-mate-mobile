@@ -159,7 +159,7 @@ describe('OfflineContext', () => {
    * should be guarded to prevent multiple concurrent executions.
    */
   describe('reconnect race prevention (TDD)', () => {
-    it.failing('[TDD] downloadUserData is called at most once during rapid reconnect', async () => {
+    it('[TDD] downloadUserData is called at most once during rapid reconnect', async () => {
       mockUseAuth.mockReturnValue({ isAuthenticated: true });
 
       // Start offline

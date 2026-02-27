@@ -144,7 +144,7 @@ export function useBookmarks(): UseBookmarksResult {
     dataUpdatedAt,
   } = useQuery({
     ...getBibleBookBookmarksByUserIdOptions(queryOptions),
-    enabled: isAuthenticated && !!user?.id && !isDeviceOffline,
+    enabled: isAuthenticated && !!user?.id && !isDeviceOffline && !isUserDataSynced,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 

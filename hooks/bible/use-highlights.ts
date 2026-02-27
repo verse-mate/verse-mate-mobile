@@ -223,7 +223,8 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
     refetch: refetchAll,
   } = useQuery({
     ...getBibleHighlightsByUserIdOptions(allHighlightsQueryOptions),
-    enabled: isAuthenticated && !!user?.id && fetchAllHighlights && !isDeviceOffline,
+    enabled:
+      isAuthenticated && !!user?.id && fetchAllHighlights && !isDeviceOffline && !isUserDataSynced,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -240,7 +241,8 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       !fetchAllHighlights &&
       !!bookId &&
       !!chapterNumber &&
-      !isDeviceOffline,
+      !isDeviceOffline &&
+      !isUserDataSynced,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -399,7 +401,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       // Re-throw error for component to handle (especially overlap errors)
       throw error;
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       // Track analytics: HIGHLIGHT_CREATED event
       if (variables.body) {
         analytics.track(AnalyticsEvent.HIGHLIGHT_CREATED, {
@@ -409,11 +411,28 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         });
       }
 
-      // Refetch to get accurate server data (with correct highlight_id and chapter_id)
-      queryClient.invalidateQueries({ queryKey: allHighlightsQueryKey });
+      // Invalidate only the chapter query to get real highlight_id from server
+      // (skip the expensive all-user-highlights refetch)
       queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
-      queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
-      queryClient.invalidateQueries({ queryKey: ['local-chapter-highlights-offline-fallback'] });
+
+      // Update all-highlights cache if it exists (append server data, don't refetch)
+      const serverHighlight = (data as { highlight?: Highlight })?.highlight;
+      if (serverHighlight) {
+        const allCache =
+          queryClient.getQueryData<GetBibleHighlightsByUserIdResponse>(allHighlightsQueryKey);
+        if (allCache) {
+          queryClient.setQueryData<GetBibleHighlightsByUserIdResponse>(allHighlightsQueryKey, {
+            highlights: [...allCache.highlights, serverHighlight],
+          });
+        }
+      }
+
+      if (!isOnline) {
+        queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+        queryClient.invalidateQueries({
+          queryKey: ['local-chapter-highlights-offline-fallback'],
+        });
+      }
     },
   });
 
@@ -522,11 +541,13 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         });
       }
 
-      // Refetch to sync with server
-      queryClient.invalidateQueries({ queryKey: allHighlightsQueryKey });
-      queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
-      queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
-      queryClient.invalidateQueries({ queryKey: ['local-chapter-highlights-offline-fallback'] });
+      // Optimistic update already applied — no remote refetch needed
+      if (!isOnline) {
+        queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+        queryClient.invalidateQueries({
+          queryKey: ['local-chapter-highlights-offline-fallback'],
+        });
+      }
     },
   });
 
@@ -609,11 +630,13 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         });
       }
 
-      // Refetch to sync with server
-      queryClient.invalidateQueries({ queryKey: allHighlightsQueryKey });
-      queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
-      queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
-      queryClient.invalidateQueries({ queryKey: ['local-chapter-highlights-offline-fallback'] });
+      // Optimistic update already applied — no remote refetch needed
+      if (!isOnline) {
+        queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+        queryClient.invalidateQueries({
+          queryKey: ['local-chapter-highlights-offline-fallback'],
+        });
+      }
     },
   });
 
