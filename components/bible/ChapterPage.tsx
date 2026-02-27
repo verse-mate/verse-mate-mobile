@@ -411,6 +411,13 @@ export function ChapterPage({
   // Track which explanation tabs have been visited so we only fetch on demand
   const [visitedTabs, setVisitedTabs] = useState<Set<ContentTabType>>(() => new Set([activeTab]));
 
+  // Reset visitedTabs when navigating to a new chapter to avoid fetching
+  // explanations from the previous chapter's visited tabs
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Reset on chapter change only
+  useEffect(() => {
+    setVisitedTabs(new Set([activeTab]));
+  }, [bookId, chapterNumber]);
+
   // When the user switches tabs, mark the new tab as visited
   useEffect(() => {
     setVisitedTabs((prev) => {

@@ -7,6 +7,7 @@
  * Reference: ../verse-mate/packages/backend-api/src/eden.ts (lines 36-159)
  */
 
+import { clearTokenCache } from '@/lib/api/client-interceptors';
 import { postAuthRefresh } from '@/src/api/generated/sdk.gen';
 import { jwtDecode } from 'jwt-decode';
 import {
@@ -50,8 +51,9 @@ export async function refreshAccessToken(): Promise<string> {
       });
 
       if (error || !data) {
-        // Refresh failed - clear tokens and throw
+        // Refresh failed - clear tokens (both storage and in-memory cache) and throw
         await clearTokens();
+        clearTokenCache();
         throw new Error('Token refresh failed');
       }
 
@@ -63,8 +65,9 @@ export async function refreshAccessToken(): Promise<string> {
 
       return data.accessToken;
     } catch (error) {
-      // Clear tokens on any error
+      // Clear tokens (both storage and in-memory cache) on any error
       await clearTokens();
+      clearTokenCache();
       throw error;
     } finally {
       // Reset mutex state

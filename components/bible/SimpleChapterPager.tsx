@@ -122,7 +122,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       prevChapterKey.current = currentKey;
       const targetIndex = canGoPrevious ? PAGE_CURRENT_MIDDLE : 0;
       pagerRef.current?.setPageWithoutAnimation(targetIndex);
-    });
+    }, [bookId, chapterNumber, canGoPrevious]);
 
     // Expose imperative methods
     useImperativeHandle(ref, () => ({

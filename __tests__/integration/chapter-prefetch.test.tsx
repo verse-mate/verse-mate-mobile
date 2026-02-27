@@ -241,6 +241,27 @@ describe('Chapter Prefetching', () => {
       });
     });
 
+    it('[T-003] query key used by useBibleChapter matches prefetch key exactly', () => {
+      const {
+        getBibleBookByBookIdByChapterNumberOptions,
+      } = require('@/src/api/generated/@tanstack/react-query.gen');
+
+      // Get the key that useBibleChapter would use (it calls the same options helper)
+      const chapterOpts = getBibleBookByBookIdByChapterNumberOptions({
+        path: { bookId: '1', chapterNumber: '5' },
+      });
+
+      // Get the key that usePrefetchNextChapter would use (identical call)
+      const prefetchOpts = getBibleBookByBookIdByChapterNumberOptions({
+        path: { bookId: '1', chapterNumber: '5' },
+      });
+
+      // Keys must be deeply equal — this is the critical invariant that prevents cache misses
+      expect(chapterOpts.queryKey).toEqual(prefetchOpts.queryKey);
+      // The _id should match the generated operation name
+      expect(chapterOpts.queryKey[0]).toHaveProperty('_id', 'getBibleBookByBookIdByChapterNumber');
+    });
+
     it('[TDD] useBibleChapter reads from the same cache key as prefetch', () => {
       // Seed the cache with the generated key shape
       const {

@@ -39,7 +39,7 @@ jest.mock('@/services/offline', () => ({
   getCommentaryDownloadInfo: jest.fn().mockResolvedValue([]),
   getTopicsDownloadInfo: jest.fn().mockResolvedValue([]),
   buildLanguageBundles: jest.fn().mockReturnValue([]),
-  processSyncQueue: jest.fn().mockResolvedValue(undefined),
+  processSyncQueue: jest.fn().mockResolvedValue({ total: 0, succeeded: 0, failed: 0 }),
   downloadUserData: jest.fn().mockResolvedValue(undefined),
   deleteAllOfflineData: jest.fn().mockResolvedValue(undefined),
   getLanguageBundleStatus: jest.fn().mockResolvedValue('not_downloaded'),

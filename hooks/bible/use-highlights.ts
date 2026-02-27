@@ -411,10 +411,6 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         });
       }
 
-      // Invalidate only the chapter query to get real highlight_id from server
-      // (skip the expensive all-user-highlights refetch)
-      queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
-
       // Update all-highlights cache if it exists (append server data, don't refetch)
       const serverHighlight = (data as { highlight?: Highlight })?.highlight;
       if (serverHighlight) {
@@ -426,6 +422,10 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           });
         }
       }
+    },
+    onSettled: () => {
+      // Invalidate in onSettled to ensure cache consistency even if onSuccess throws
+      queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
 
       if (!isOnline) {
         queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
@@ -540,8 +540,9 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           color: variables.body.color || 'yellow',
         });
       }
-
-      // Optimistic update already applied — no remote refetch needed
+    },
+    onSettled: () => {
+      // Invalidate in onSettled to ensure cache consistency even if onSuccess throws
       if (!isOnline) {
         queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
         queryClient.invalidateQueries({
@@ -629,8 +630,9 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           highlightId: variables.path.highlight_id,
         });
       }
-
-      // Optimistic update already applied — no remote refetch needed
+    },
+    onSettled: () => {
+      // Invalidate in onSettled to ensure cache consistency even if onSuccess throws
       if (!isOnline) {
         queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
         queryClient.invalidateQueries({
