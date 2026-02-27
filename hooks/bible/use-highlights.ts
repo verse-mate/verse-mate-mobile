@@ -402,36 +402,37 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       throw error;
     },
     onSuccess: (data, variables) => {
-      // Track analytics: HIGHLIGHT_CREATED event
-      if (variables.body) {
-        analytics.track(AnalyticsEvent.HIGHLIGHT_CREATED, {
-          bookId: variables.body.book_id,
-          chapterNumber: variables.body.chapter_number,
-          color: variables.body.color || 'yellow',
-        });
-      }
-
-      // Update all-highlights cache if it exists (append server data, don't refetch)
-      const serverHighlight = (data as { highlight?: Highlight })?.highlight;
-      if (serverHighlight) {
-        const allCache =
-          queryClient.getQueryData<GetBibleHighlightsByUserIdResponse>(allHighlightsQueryKey);
-        if (allCache) {
-          queryClient.setQueryData<GetBibleHighlightsByUserIdResponse>(allHighlightsQueryKey, {
-            highlights: [...allCache.highlights, serverHighlight],
+      try {
+        // Track analytics: HIGHLIGHT_CREATED event
+        if (variables.body) {
+          analytics.track(AnalyticsEvent.HIGHLIGHT_CREATED, {
+            bookId: variables.body.book_id,
+            chapterNumber: variables.body.chapter_number,
+            color: variables.body.color || 'yellow',
           });
         }
-      }
-    },
-    onSettled: () => {
-      // Invalidate in onSettled to ensure cache consistency even if onSuccess throws
-      queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
 
-      if (!isOnline) {
-        queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
-        queryClient.invalidateQueries({
-          queryKey: ['local-chapter-highlights-offline-fallback'],
-        });
+        // Update all-highlights cache if it exists (append server data, don't refetch)
+        const serverHighlight = (data as { highlight?: Highlight })?.highlight;
+        if (serverHighlight) {
+          const allCache =
+            queryClient.getQueryData<GetBibleHighlightsByUserIdResponse>(allHighlightsQueryKey);
+          if (allCache) {
+            queryClient.setQueryData<GetBibleHighlightsByUserIdResponse>(allHighlightsQueryKey, {
+              highlights: [...allCache.highlights, serverHighlight],
+            });
+          }
+        }
+      } finally {
+        // Invalidate in finally to ensure cache consistency even if analytics/cache update throws
+        queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
+
+        if (!isOnline) {
+          queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+          queryClient.invalidateQueries({
+            queryKey: ['local-chapter-highlights-offline-fallback'],
+          });
+        }
       }
     },
   });
@@ -533,21 +534,22 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       console.error('Failed to update highlight color:', error);
     },
     onSuccess: (_data, variables) => {
-      // Track analytics: HIGHLIGHT_EDITED event
-      if (variables.body && variables.path) {
-        analytics.track(AnalyticsEvent.HIGHLIGHT_EDITED, {
-          highlightId: variables.path.highlight_id,
-          color: variables.body.color || 'yellow',
-        });
-      }
-    },
-    onSettled: () => {
-      // Invalidate in onSettled to ensure cache consistency even if onSuccess throws
-      if (!isOnline) {
-        queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
-        queryClient.invalidateQueries({
-          queryKey: ['local-chapter-highlights-offline-fallback'],
-        });
+      try {
+        // Track analytics: HIGHLIGHT_EDITED event
+        if (variables.body && variables.path) {
+          analytics.track(AnalyticsEvent.HIGHLIGHT_EDITED, {
+            highlightId: variables.path.highlight_id,
+            color: variables.body.color || 'yellow',
+          });
+        }
+      } finally {
+        // Invalidate in finally to ensure cache consistency even if analytics throws
+        if (!isOnline) {
+          queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+          queryClient.invalidateQueries({
+            queryKey: ['local-chapter-highlights-offline-fallback'],
+          });
+        }
       }
     },
   });
@@ -624,20 +626,21 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       console.error('Failed to delete highlight:', error);
     },
     onSuccess: (_data, variables) => {
-      // Track analytics: HIGHLIGHT_DELETED event
-      if (variables.path) {
-        analytics.track(AnalyticsEvent.HIGHLIGHT_DELETED, {
-          highlightId: variables.path.highlight_id,
-        });
-      }
-    },
-    onSettled: () => {
-      // Invalidate in onSettled to ensure cache consistency even if onSuccess throws
-      if (!isOnline) {
-        queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
-        queryClient.invalidateQueries({
-          queryKey: ['local-chapter-highlights-offline-fallback'],
-        });
+      try {
+        // Track analytics: HIGHLIGHT_DELETED event
+        if (variables.path) {
+          analytics.track(AnalyticsEvent.HIGHLIGHT_DELETED, {
+            highlightId: variables.path.highlight_id,
+          });
+        }
+      } finally {
+        // Invalidate in finally to ensure cache consistency even if analytics throws
+        if (!isOnline) {
+          queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+          queryClient.invalidateQueries({
+            queryKey: ['local-chapter-highlights-offline-fallback'],
+          });
+        }
       }
     },
   });
