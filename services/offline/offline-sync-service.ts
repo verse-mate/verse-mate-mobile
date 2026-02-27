@@ -510,7 +510,7 @@ export async function runAutoSyncIfNeeded(): Promise<void> {
       await checkAndSyncUpdates();
     }
   } catch (error) {
-    console.warn('Auto-sync failed:', error);
+    if (__DEV__) console.warn('Auto-sync failed:', error);
   }
 }
 
@@ -768,11 +768,11 @@ export async function downloadUserData(onProgress?: ProgressCallback): Promise<v
 // Sync Queue Processing
 // ============================================================================
 
-export async function processSyncQueue(): Promise<void> {
+export async function processSyncQueue(): Promise<number> {
   const actions = await getPendingSyncActions();
-  if (actions.length === 0) return;
+  if (actions.length === 0) return 0;
 
-  console.log(`[Offline Sync] Processing ${actions.length} pending actions`);
+  if (__DEV__) console.log(`[Offline Sync] Processing ${actions.length} pending actions`);
 
   // Process sequentially to ensure order
   for (const action of actions) {
@@ -845,7 +845,5 @@ export async function processSyncQueue(): Promise<void> {
     }
   }
 
-  // After processing queue, trigger a user data sync to refresh local IDs and ensure consistency
-  // Use fire-and-forget
-  downloadUserData().catch((e) => console.warn('[Offline Sync] Post-queue sync failed:', e));
+  return actions.length;
 }

@@ -127,7 +127,7 @@ function RootLayoutInner() {
 
           const { category, slug } = topicParsed;
 
-          console.log('Topic deep link detected:', { category, slug });
+          if (__DEV__) console.log('Topic deep link detected:', { category, slug });
 
           try {
             const baseUrl = process.env.EXPO_PUBLIC_API_URL;
@@ -142,7 +142,7 @@ function RootLayoutInner() {
 
             if (!response.ok) {
               if (response.status === 404) {
-                console.warn('Topic deep link not found:', { category, slug });
+                if (__DEV__) console.warn('Topic deep link not found:', { category, slug });
               } else {
                 console.error('Topic deep link API error:', response.status);
               }
@@ -173,7 +173,7 @@ function RootLayoutInner() {
 
         if (!chapterParsed) {
           // TODO: Track analytics - deep_link_failed with { url, error: 'invalid_format' }
-          console.warn('Failed to parse deep link URL:', url);
+          if (__DEV__) console.warn('Failed to parse deep link URL:', url);
           // Fallback to Genesis 1
           router.replace('/bible/1/1');
           return;
@@ -183,14 +183,14 @@ function RootLayoutInner() {
 
         // Validate bookId (parser already validates 1-66 range)
         if (bookId < 1 || bookId > 66) {
-          console.warn('Invalid bookId in deep link:', bookId);
+          if (__DEV__) console.warn('Invalid bookId in deep link:', bookId);
           router.replace('/bible/1/1'); // Fallback to Genesis 1
           return;
         }
 
         // Validate chapterNumber (additional validation happens in chapter screen)
         if (chapterNumber < 1) {
-          console.warn('Invalid chapterNumber in deep link:', chapterNumber);
+          if (__DEV__) console.warn('Invalid chapterNumber in deep link:', chapterNumber);
           // Navigate to book's first chapter
           router.replace(`/bible/${bookId}/1`);
           return;

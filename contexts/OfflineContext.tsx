@@ -42,6 +42,7 @@ import {
 } from '@/services/offline';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNetInfo } from '@react-native-community/netinfo';
+import { InteractionManager } from 'react-native';
 import React, {
   createContext,
   useCallback,
@@ -225,7 +226,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         dbReady.current = true;
 
         if (autoSync !== 'false') {
-          runAutoSyncIfNeeded().catch(console.warn);
+          InteractionManager.runAfterInteractions(() => {
+            runAutoSyncIfNeeded().catch(console.warn);
+          });
         }
       } catch (error) {
         console.error('Failed to initialize offline context:', error);
@@ -242,46 +245,46 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Process sync queue when online
+  // Coordinated reconnect: process sync queue then sync user data (single flow to prevent races)
   useEffect(() => {
-    if (isOnline && isInitialized) {
-      processSyncQueue().catch((e) =>
-        console.warn('[Offline Context] Sync queue processing failed:', e)
-      );
-    }
-  }, [isOnline, isInitialized]);
+    if (!isOnline || !isInitialized) return;
 
-  // Auto-sync user data when authenticated
-  useEffect(() => {
-    if (!isInitialized || !isAuthenticated || !dbReady.current || !isOnline) return;
-
-    // Throttle: Only auto-sync if not synced in the last hour
     const SYNC_THROTTLE = 60 * 60 * 1000; // 1 hour
 
-    const syncUserDataIfNeeded = async () => {
+    const syncOnReconnect = async () => {
       if (userDataSyncInProgress.current) return;
-
-      // Check last sync time
-      const lastSync = await getLastSyncTime();
-      if (lastSync && Date.now() - lastSync.getTime() < SYNC_THROTTLE) {
-        if (__DEV__) console.log('[Offline Context] Skipping user data auto-sync (synced recently)');
-        return;
-      }
-
       userDataSyncInProgress.current = true;
+
       try {
-        await downloadUserDataService();
-        setIsUserDataSynced(true);
-        setLastSyncTime(new Date());
+        // 1. Process any pending sync queue first
+        const queueItemsProcessed = await processSyncQueue();
+
+        // 2. Then sync user data if authenticated
+        if (isAuthenticated && dbReady.current) {
+          const lastSync = await getLastSyncTime();
+          // Force sync if queue had items (local IDs need refresh), otherwise throttle
+          const needsSync =
+            queueItemsProcessed > 0 ||
+            !lastSync ||
+            Date.now() - lastSync.getTime() >= SYNC_THROTTLE;
+
+          if (needsSync) {
+            await downloadUserDataService();
+            setIsUserDataSynced(true);
+            setLastSyncTime(new Date());
+          } else if (__DEV__) {
+            console.log('[Offline Context] Skipping user data auto-sync (synced recently)');
+          }
+        }
       } catch (error) {
-        console.warn('User data auto-sync failed:', error);
+        console.warn('[Offline Context] Reconnect sync failed:', error);
       } finally {
         userDataSyncInProgress.current = false;
       }
     };
 
-    syncUserDataIfNeeded();
-  }, [isInitialized, isAuthenticated, isOnline]);
+    syncOnReconnect();
+  }, [isOnline, isInitialized, isAuthenticated]);
 
   // Set auto-sync
   const setAutoSyncEnabled = (enabled: boolean) => {
