@@ -9,7 +9,7 @@
  * - Stable positional keys: ["page-prev", "page-current", "page-next"]
  * - Initial page is always index 1 (center/current)
  * - No recentering logic - parent component updates props on navigation
- * - Parent uses `key` prop to force remount when center chapter changes
+ * - Internal useEffect resets pager position when props change (no remount)
  *
  * Boundary Handling (Linear Navigation - MVP):
  * - Genesis 1: Page 0 is empty, swipe does not trigger navigation (bounces back)
@@ -46,7 +46,7 @@
  * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v3/spec.md
  */
 
-import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
@@ -110,6 +110,19 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       booksMetadata,
       false // Linear mode
     );
+
+    // Track the previous chapter key to detect navigation
+    const prevChapterKey = useRef(`${bookId}-${chapterNumber}`);
+
+    // When props change (parent navigated), reset pager to the current page index
+    // without remounting the entire component
+    useEffect(() => {
+      const currentKey = `${bookId}-${chapterNumber}`;
+      if (prevChapterKey.current === currentKey) return;
+      prevChapterKey.current = currentKey;
+      const targetIndex = canGoPrevious ? PAGE_CURRENT_MIDDLE : 0;
+      pagerRef.current?.setPageWithoutAnimation(targetIndex);
+    }, [bookId, chapterNumber, canGoPrevious]);
 
     // Expose imperative methods
     useImperativeHandle(ref, () => ({

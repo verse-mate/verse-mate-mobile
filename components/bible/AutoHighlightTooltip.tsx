@@ -29,6 +29,12 @@ import {
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import Reanimated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
@@ -125,7 +131,7 @@ export function AutoHighlightTooltip({
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(1)).current; // 0: collapsed, 1: expanded
+  const expansionAnim = useSharedValue(1); // 0: collapsed, 1: expanded (Reanimated)
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
@@ -190,7 +196,7 @@ export function AutoHighlightTooltip({
     setTimeout(() => {
       setInternalVisible(false);
       setExpanded(true); // Reset expansion state
-      expansionAnim.setValue(1);
+      expansionAnim.value = 1;
       hasTrackedOpen.current = false; // Reset tracking flag
       if (callback) callback();
     }, 150);
@@ -198,12 +204,10 @@ export function AutoHighlightTooltip({
 
   // Handle expansion animation
   useEffect(() => {
-    Animated.spring(expansionAnim, {
-      toValue: expanded ? 1 : 0,
-      useNativeDriver: false, // Height animation requires false
+    expansionAnim.value = withSpring(expanded ? 1 : 0, {
       damping: 20,
       stiffness: 90,
-    }).start();
+    });
   }, [expanded, expansionAnim]);
 
   // Watch for prop changes to trigger animations
@@ -212,7 +216,7 @@ export function AutoHighlightTooltip({
       // Always start expanded
       const shouldBeExpanded = true;
       setExpanded(shouldBeExpanded);
-      expansionAnim.setValue(1);
+      expansionAnim.value = 1;
       animateOpen();
 
       // Track analytics: AUTO_HIGHLIGHT_TOOLTIP_VIEWED (Task 4.7)
@@ -291,6 +295,12 @@ export function AutoHighlightTooltip({
       },
     })
   ).current;
+
+  // Animated style for expansion (Reanimated — runs on UI thread)
+  const insightAnimatedStyle = useAnimatedStyle(() => ({
+    maxHeight: interpolate(expansionAnim.value, [0, 1], [0, 400]),
+    opacity: interpolate(expansionAnim.value, [0, 0.5, 1], [0, 0, 1]),
+  }));
 
   // Don't render anything if we have no data (unless animating out, handled by internalVisible/Modal)
   if (!autoHighlight && !internalVisible) return null;
@@ -410,17 +420,6 @@ export function AutoHighlightTooltip({
     handleDismiss();
   };
 
-  // Interpolate values for expansion animation
-  const insightMaxHeight = expansionAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 400], // Expand to a reasonable max height
-  });
-
-  const insightOpacity = expansionAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 0, 1],
-  });
-
   const content = (
     <View style={styles.overlay} pointerEvents="box-none">
       {/* Animated Backdrop - Absolute positioned behind content */}
@@ -490,12 +489,7 @@ export function AutoHighlightTooltip({
 
             {/* Insight Section (Always Expanded) */}
             <View style={styles.insightContainer}>
-              <Animated.View
-                style={[
-                  styles.insightContentWrapper,
-                  { maxHeight: insightMaxHeight, opacity: insightOpacity },
-                ]}
-              >
+              <Reanimated.View style={[styles.insightContentWrapper, insightAnimatedStyle]}>
                 {isByLineLoading ? (
                   <View style={styles.loadingContainer}>
                     <ActivityIndicator size="small" color={colors.gold} />
@@ -518,7 +512,7 @@ export function AutoHighlightTooltip({
                     </Text>
                   </View>
                 )}
-              </Animated.View>
+              </Reanimated.View>
             </View>
           </View>
 

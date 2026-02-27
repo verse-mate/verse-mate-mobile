@@ -160,7 +160,7 @@ function BibleNavigationModalComponent({
   // State to track book item positions and viewport height for smart scrolling
   const [bookItemPositions, setBookItemPositions] = useState<Map<number, number>>(new Map());
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
-  const [currentScrollY, setCurrentScrollY] = useState(0);
+  const currentScrollYRef = useRef(0);
 
   // Animate main tab indicator when selectedTab changes
   useEffect(() => {
@@ -469,7 +469,7 @@ function BibleNavigationModalComponent({
     const scrollTimeout = setTimeout(() => {
       if (scrollViewRef.current && scrollViewHeight > 0) {
         // Calculate visible bottom edge
-        const visibleBottom = currentScrollY + scrollViewHeight;
+        const visibleBottom = currentScrollYRef.current + scrollViewHeight;
         const contentBottom = bookPosition + totalContentHeight;
 
         // Only scroll if content doesn't fit in current viewport
@@ -495,7 +495,6 @@ function BibleNavigationModalComponent({
     buttonHeight,
     bookItemPositions,
     scrollViewHeight,
-    currentScrollY,
     allBooks,
   ]);
 
@@ -858,7 +857,7 @@ function BibleNavigationModalComponent({
             setScrollViewHeight(height);
           }}
           onScroll={(event) => {
-            setCurrentScrollY(event.nativeEvent.contentOffset.y);
+            currentScrollYRef.current = event.nativeEvent.contentOffset.y;
           }}
           scrollEventThrottle={16}
         >

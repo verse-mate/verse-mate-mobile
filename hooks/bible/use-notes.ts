@@ -136,7 +136,7 @@ export function useNotes(): UseNotesResult {
     dataUpdatedAt,
   } = useQuery({
     ...getBibleBookNotesByUserIdOptions(queryOptions),
-    enabled: isAuthenticated && !!user?.id && !isDeviceOffline,
+    enabled: isAuthenticated && !!user?.id && !isDeviceOffline && !isUserDataSynced,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
