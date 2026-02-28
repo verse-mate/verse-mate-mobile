@@ -132,6 +132,7 @@ function BibleNavigationModalComponent({
     getTestamentFromBookId(currentBookId)
   );
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
+  const [selectedSection, setSelectedSection] = useState<'RECENTS' | 'ALL_BOOKS' | null>(null);
   const [filterText, setFilterText] = useState('');
 
   // Topics navigation state
@@ -158,7 +159,7 @@ function BibleNavigationModalComponent({
   const scrollViewRef = useRef<ScrollView>(null);
 
   // State to track book item positions and viewport height for smart scrolling
-  const [bookItemPositions, setBookItemPositions] = useState<Map<number, number>>(new Map());
+  const [bookItemPositions, setBookItemPositions] = useState<Map<string, number>>(new Map());
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [currentScrollY, setCurrentScrollY] = useState(0);
 
@@ -294,6 +295,7 @@ function BibleNavigationModalComponent({
       }
 
       setSelectedBookId(null); // Start with book list, not chapter grid
+      setSelectedSection(null);
       setFilterText('');
       setTopicFilterText('');
       translateY.value = withTiming(0, { duration: 300 });
@@ -387,6 +389,7 @@ function BibleNavigationModalComponent({
       setSelectedTestament(tab);
       setFilterText('');
       setSelectedBookId(null);
+      setSelectedSection(null);
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
@@ -399,16 +402,26 @@ function BibleNavigationModalComponent({
   }, []);
 
   // Track the last book that was expanded for scroll logic
-  const lastExpandedBookRef = useRef<{ bookId: number; previousBookId: number | null } | null>(
-    null
-  );
+  const lastExpandedBookRef = useRef<{
+    bookId: number;
+    section: 'RECENTS' | 'ALL_BOOKS';
+    previousBookId: number | null;
+    previousSection: 'RECENTS' | 'ALL_BOOKS' | null;
+  } | null>(null);
 
   // Handle book selection
   const handleBookSelect = useCallback(
-    (book: BookMetadata) => {
-      const isExpanding = selectedBookId !== book.id;
+    (book: BookMetadata, section: 'RECENTS' | 'ALL_BOOKS' = 'ALL_BOOKS') => {
+      const isExpanding = selectedBookId !== book.id || selectedSection !== section;
       const previouslySelectedBookId = selectedBookId;
-      setSelectedBookId((prevId) => (prevId === book.id ? null : book.id));
+
+      if (selectedBookId === book.id && selectedSection === section) {
+        setSelectedBookId(null);
+        setSelectedSection(null);
+      } else {
+        setSelectedBookId(book.id);
+        setSelectedSection(section);
+      }
       Keyboard.dismiss();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -416,11 +429,13 @@ function BibleNavigationModalComponent({
       if (isExpanding) {
         lastExpandedBookRef.current = {
           bookId: book.id,
+          section,
           previousBookId: previouslySelectedBookId,
+          previousSection: selectedSection,
         };
       }
     },
-    [selectedBookId]
+    [selectedBookId, selectedSection]
   );
 
   // Auto-scroll effect - triggers when measurements are ready
@@ -434,7 +449,7 @@ function BibleNavigationModalComponent({
       return;
     }
 
-    const { bookId, previousBookId } = lastExpandedBookRef.current;
+    const { bookId, section, previousBookId, previousSection } = lastExpandedBookRef.current;
     const book = allBooks.find((b) => b.id === bookId);
     if (!book) return;
 
@@ -446,11 +461,11 @@ function BibleNavigationModalComponent({
     const bookItemHeight = 56;
     const totalContentHeight = bookItemHeight + gridHeight + spacing.xl * 2;
 
-    // Get book position
-    let bookPosition = bookItemPositions.get(bookId) || 0;
+    // Get book position using section-aware key
+    let bookPosition = bookItemPositions.get(`${section}-${bookId}`) || 0;
 
     // Calculate height of previously opened book's grid (if any) to account for layout shift
-    if (previousBookId !== null) {
+    if (previousBookId !== null && previousSection !== null) {
       const previousBook = allBooks.find((b) => b.id === previousBookId);
       if (previousBook) {
         const prevNumRows = Math.ceil(previousBook.chapterCount / columnsPerRow);
@@ -458,7 +473,7 @@ function BibleNavigationModalComponent({
           prevNumRows * buttonHeight + (prevNumRows - 1) * gap + spacing.xl * 2;
 
         // If previous book was above the clicked book, adjust position for layout shift
-        const prevPosition = bookItemPositions.get(previousBookId) || 0;
+        const prevPosition = bookItemPositions.get(`${previousSection}-${previousBookId}`) || 0;
         if (prevPosition < bookPosition) {
           bookPosition -= previousGridHeight;
         }
@@ -794,32 +809,38 @@ function BibleNavigationModalComponent({
   };
 
   // Render book list item
-  const renderBookItem = (book: BookMetadata, isRecent: boolean) => {
-    const isSelected = book.id === selectedBookId;
+  const renderBookItem = (
+    book: BookMetadata,
+    isRecent: boolean,
+    section: 'RECENTS' | 'ALL_BOOKS'
+  ) => {
+    const isSelected = book.id === selectedBookId && selectedSection === section;
+    const isCurrent = book.id === currentBookId;
+    const isHighlighted = isSelected || isCurrent;
 
     return (
       <Pressable
         key={book.id}
-        onPress={() => handleBookSelect(book)}
-        style={[styles.bookItem, isSelected && styles.bookItemSelected]}
+        onPress={() => handleBookSelect(book, section)}
+        style={styles.bookItem}
         accessibilityRole="button"
         accessibilityLabel={`${book.name}, ${book.chapterCount} chapters`}
         accessibilityState={{ selected: isSelected }}
         testID={`book-item-${book.name.toLowerCase().replace(/\s+/g, '-')}`}
       >
-        <Text style={[styles.bookItemText, isSelected && styles.bookItemTextSelected]}>
+        <Text style={[styles.bookItemText, isHighlighted && styles.bookItemTextSelected]}>
           {book.name}
         </Text>
         <View style={styles.bookItemRight}>
-          {isRecent && !isSelected && (
+          {isRecent ? (
+            <Ionicons name="time-outline" size={20} color={colors.textTertiary} />
+          ) : (
             <Ionicons
-              name="time-outline"
-              size={18}
-              color={colors.textTertiary}
-              style={styles.clockIcon}
+              name="chevron-forward"
+              size={20}
+              color={isHighlighted ? colors.gold : colors.textTertiary}
             />
           )}
-          {isSelected && <Ionicons name="checkmark" size={20} color={colors.background} />}
         </View>
       </Pressable>
     );
@@ -835,16 +856,7 @@ function BibleNavigationModalComponent({
       );
     }
 
-    // Recent books are shown across all testaments (not filtered by current tab)
     const hasRecentBooks = recentBooksFiltered.length > 0 && !filterText.trim();
-    const booksToShow = (
-      hasRecentBooks
-        ? [
-            ...recentBooksFiltered,
-            ...filteredBooks.filter((book) => !recentBooksFiltered.some((r) => r.id === book.id)),
-          ]
-        : filteredBooks
-    ).filter((book) => book.id !== currentBookId); // Filter out current book to avoid duplication
 
     return (
       <GestureDetector gesture={scrollGesture}>
@@ -862,61 +874,49 @@ function BibleNavigationModalComponent({
           }}
           scrollEventThrottle={16}
         >
-          {/* Current book/chapter display - Clickable to expand */}
-          {!filterText.trim() && allBooks.find((b) => b.id === currentBookId) && (
-            <Animated.View layout={Layout.duration(300)}>
-              <Pressable
-                onPress={() => {
-                  const book = allBooks.find((b) => b.id === currentBookId);
-                  if (book) handleBookSelect(book);
-                }}
-                style={styles.currentChapterDisplay}
-                accessibilityRole="button"
-                accessibilityLabel={`Current book: ${
-                  allBooks.find((b) => b.id === currentBookId)?.name
-                }`}
-                testID={`book-item-${allBooks
-                  .find((b) => b.id === currentBookId)
-                  ?.name.toLowerCase()
-                  .replace(/\s+/g, '-')}`}
-              >
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <Text style={styles.currentChapterText}>
-                    {allBooks.find((b) => b.id === currentBookId)?.name}
-                  </Text>
-                  {selectedBookId === currentBookId ? (
-                    <Ionicons name="chevron-down" size={20} color={colors.gold} />
-                  ) : (
-                    <Ionicons name="chevron-forward" size={20} color={colors.gold} />
-                  )}
-                </View>
-              </Pressable>
-              {/* Show chapter grid if this book is selected */}
-              {selectedBookId === currentBookId && renderChapterGrid()}
-            </Animated.View>
+          {/* RECENTS section */}
+          {hasRecentBooks && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionHeaderText}>RECENTS</Text>
+              </View>
+              {recentBooksFiltered.map((book) => {
+                const isSelected = book.id === selectedBookId && selectedSection === 'RECENTS';
+                return (
+                  <Animated.View
+                    key={`recent-${book.id}`}
+                    layout={Layout.duration(300)}
+                    onLayout={(event) => {
+                      const { y } = event.nativeEvent.layout;
+                      setBookItemPositions((prev) => new Map(prev).set(`RECENTS-${book.id}`, y));
+                    }}
+                  >
+                    {renderBookItem(book, true, 'RECENTS')}
+                    {isSelected && renderChapterGrid()}
+                  </Animated.View>
+                );
+              })}
+            </>
           )}
 
-          {booksToShow.map((book, index) => {
-            const isRecent = index < recentBooksFiltered.length && hasRecentBooks;
-            const isSelected = book.id === selectedBookId;
-
+          {/* ALL BOOKS section */}
+          {!filterText.trim() && (
+            <Animated.View layout={Layout.duration(300)} style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>ALL BOOKS</Text>
+            </Animated.View>
+          )}
+          {filteredBooks.map((book) => {
+            const isSelected = book.id === selectedBookId && selectedSection === 'ALL_BOOKS';
             return (
-              // Use React.Fragment to render book item and conditionally the chapter grid
               <Animated.View
                 key={book.id}
                 layout={Layout.duration(300)}
                 onLayout={(event) => {
                   const { y } = event.nativeEvent.layout;
-                  setBookItemPositions((prev) => new Map(prev).set(book.id, y));
+                  setBookItemPositions((prev) => new Map(prev).set(`ALL_BOOKS-${book.id}`, y));
                 }}
               >
-                {renderBookItem(book, isRecent)}
+                {renderBookItem(book, false, 'ALL_BOOKS')}
                 {isSelected && renderChapterGrid()}
               </Animated.View>
             );
@@ -1281,7 +1281,24 @@ const createStyles = (
       gap: spacing.lg,
     },
     bookItemSelected: {
-      backgroundColor: colors.gold,
+      backgroundColor: modalSpecs.backgroundColor,
+    },
+    sectionHeader: {
+      minHeight: 48,
+      paddingLeft: spacing.lg,
+      paddingRight: spacing.sm,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: modalSpecs.backgroundColor,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sectionHeaderText: {
+      fontSize: 13,
+      fontWeight: fontWeights.medium,
+      color: colors.textTertiary,
+      textAlign: 'center',
     },
     bookItemText: {
       fontSize: fontSizes.body,
@@ -1290,7 +1307,7 @@ const createStyles = (
       lineHeight: fontSizes.body * lineHeights.ui,
     },
     bookItemTextSelected: {
-      color: colors.background,
+      color: colors.gold,
       fontWeight: fontWeights.medium,
     },
     bookItemRight: {
