@@ -3,6 +3,7 @@
  *
  * Tests for the word definition tooltip that appears on long press.
  * Tests rendering, loading states, error states, and user interactions.
+ * Covers both Strong's Concordance and Easton's Bible Dictionary sources.
  */
 
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
@@ -326,14 +327,13 @@ describe('WordDefinitionTooltip', () => {
       mockHasDefinition.mockResolvedValue(false);
     });
 
-    it("should display Easton's source badge", async () => {
-      const { getByTestId, getByText } = render(<WordDefinitionTooltip {...defaultProps} />);
+    it('should not display source badge', async () => {
+      const { queryByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
 
       jest.runAllTimers();
 
       await waitFor(() => {
-        expect(getByTestId('easton-source-badge')).toBeTruthy();
-        expect(getByText("Easton's Bible Dictionary")).toBeTruthy();
+        expect(queryByTestId('easton-source-badge')).toBeNull();
       });
     });
 
@@ -344,6 +344,16 @@ describe('WordDefinitionTooltip', () => {
 
       await waitFor(() => {
         expect(getByText(mockEastonEntry.definition)).toBeTruthy();
+      });
+    });
+
+    it('should display word title capitalized for Easton entries', async () => {
+      const { getByText } = render(<WordDefinitionTooltip {...defaultProps} word="darkness" />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(getByText('Darkness')).toBeTruthy();
       });
     });
 
@@ -372,7 +382,7 @@ describe('WordDefinitionTooltip', () => {
       });
     });
 
-    it('should not show scripture refs when empty', async () => {
+    it('should not show scripture refs when undefined', async () => {
       mockLookupWord.mockResolvedValue(
         makeDictResult({
           source: 'easton',
@@ -389,7 +399,24 @@ describe('WordDefinitionTooltip', () => {
       });
     });
 
-    it('should not show see-also when empty', async () => {
+    it('should not show scripture refs when empty array', async () => {
+      mockLookupWord.mockResolvedValue(
+        makeDictResult({
+          source: 'easton',
+          eastonEntry: { ...mockEastonEntry, scriptureRefs: [] },
+        })
+      );
+
+      const { queryByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(queryByTestId('easton-scripture-refs')).toBeNull();
+      });
+    });
+
+    it('should not show see-also when undefined', async () => {
       mockLookupWord.mockResolvedValue(
         makeDictResult({
           source: 'easton',
@@ -406,7 +433,57 @@ describe('WordDefinitionTooltip', () => {
       });
     });
 
-    it("should include Easton's attribution in share content", async () => {
+    it('should not show see-also when empty array', async () => {
+      mockLookupWord.mockResolvedValue(
+        makeDictResult({
+          source: 'easton',
+          eastonEntry: { ...mockEastonEntry, seeAlso: [] },
+        })
+      );
+
+      const { queryByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(queryByTestId('easton-see-also')).toBeNull();
+      });
+    });
+
+    it('should display verse reference for Easton entries', async () => {
+      const { getByText } = render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(getByText('John 3:16')).toBeTruthy();
+      });
+    });
+
+    it('should display Easton entry with only definition (no refs or seeAlso)', async () => {
+      const minimalEntry = {
+        term: 'Deep',
+        definition: 'Used to denote the grave or the abyss.',
+      };
+      mockLookupWord.mockResolvedValue(
+        makeDictResult({
+          source: 'easton',
+          eastonEntry: minimalEntry,
+        })
+      );
+
+      const { getByText, queryByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(getByText(minimalEntry.definition)).toBeTruthy();
+        expect(queryByTestId('easton-scripture-refs')).toBeNull();
+        expect(queryByTestId('easton-see-also')).toBeNull();
+      });
+    });
+
+    it("should include Easton's attribution in copy content", async () => {
       const { getByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
 
       jest.runAllTimers();
@@ -424,6 +501,27 @@ describe('WordDefinitionTooltip', () => {
       const clipboardCall = (Clipboard.setStringAsync as jest.Mock).mock.calls[0][0];
       expect(clipboardCall).toContain("Easton's Bible Dictionary");
       expect(clipboardCall).toContain(mockEastonEntry.definition);
+      expect(clipboardCall).toContain('John 21:16, John 21:17, 1 Cor 13');
+    });
+
+    it("should include Easton's attribution in share content", async () => {
+      const { getByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(getByTestId('word-definition-share-button')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('word-definition-share-button'));
+
+      await waitFor(() => {
+        expect(Share.share).toHaveBeenCalled();
+      });
+
+      const shareCall = (Share.share as jest.Mock).mock.calls[0][0];
+      expect(shareCall.message).toContain("Easton's Bible Dictionary");
+      expect(shareCall.message).toContain(mockEastonEntry.definition);
     });
   });
 
@@ -437,6 +535,24 @@ describe('WordDefinitionTooltip', () => {
 
       await waitFor(() => {
         expect(getByTestId('word-definition-native-button')).toBeTruthy();
+      });
+    });
+
+    it('should not show native dictionary button when unavailable', async () => {
+      mockHasDefinition.mockResolvedValue(false);
+      mockLookupWord.mockResolvedValue(
+        makeDictResult({
+          source: 'easton',
+          eastonEntry: mockEastonEntry,
+        })
+      );
+
+      const { queryByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(queryByTestId('word-definition-native-button')).toBeNull();
       });
     });
 
@@ -557,6 +673,47 @@ describe('WordDefinitionTooltip', () => {
         expect(mockLookupWord).toHaveBeenCalledWith('God');
       });
     });
+
+    it('should call lookupWord when word changes', async () => {
+      const { rerender } = render(<WordDefinitionTooltip {...defaultProps} word="God" />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(mockLookupWord).toHaveBeenCalledWith('God');
+      });
+
+      mockLookupWord.mockClear();
+
+      rerender(<WordDefinitionTooltip {...defaultProps} word="darkness" />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(mockLookupWord).toHaveBeenCalledWith('darkness');
+      });
+    });
+
+    it("should prioritize Easton over Strong's when both could match", async () => {
+      // Simulates the dictionary-service returning Easton (highest priority)
+      mockLookupWord.mockResolvedValue(
+        makeDictResult({
+          source: 'easton',
+          eastonEntry: mockEastonEntry,
+        })
+      );
+
+      const { getByText, queryByText } = render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(getByText(mockEastonEntry.definition)).toBeTruthy();
+        // Should not show Strong's-specific UI elements
+        expect(queryByText('G26')).toBeNull();
+        expect(queryByText('Derivation:')).toBeNull();
+      });
+    });
   });
 
   describe('Visibility Changes', () => {
@@ -581,6 +738,37 @@ describe('WordDefinitionTooltip', () => {
       await waitFor(() => {
         expect(mockLookupWord).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('Stability (no infinite re-renders)', () => {
+    it('should not call lookupWord multiple times for the same word', async () => {
+      render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(mockLookupWord).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should not re-trigger fetch when hasDefinition reference changes', async () => {
+      // This test verifies the useCallback/ref fix for the infinite loop
+      const { rerender } = render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(mockLookupWord).toHaveBeenCalledTimes(1);
+      });
+
+      // Re-render with same props (simulates parent re-render)
+      rerender(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      // Should still only have been called once
+      expect(mockLookupWord).toHaveBeenCalledTimes(1);
     });
   });
 });

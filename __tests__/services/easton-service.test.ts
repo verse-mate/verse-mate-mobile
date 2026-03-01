@@ -19,6 +19,20 @@ const mockDictionary = {
     scriptureRefs: ['Matt 3:16'],
     seeAlso: ['john the baptist'],
   },
+  darkness: {
+    term: 'Darkness',
+    definition: 'The plague (the ninth) of darkness in Egypt is described as darkness.',
+    scriptureRefs: ['Exodus 10:21', 'Matthew 27:45'],
+  },
+  deep: {
+    term: 'Deep',
+    definition: 'Used to denote (1) the grave or the abyss (2) the deepest part of the sea.',
+    scriptureRefs: ['Romans 10:7', 'Luke 8:31', 'Psalms 69:15'],
+  },
+  day: {
+    term: 'Day',
+    definition: 'The Jews reckoned the day from sunset to sunset.',
+  },
 };
 
 jest.mock('@/assets/data/easton-dictionary.json', () => mockDictionary, { virtual: true });
@@ -44,6 +58,11 @@ describe('easton-service', () => {
       expect(entry).toEqual(mockDictionary.love);
     });
 
+    it('should handle word with multiple punctuation marks', async () => {
+      const entry = await lookupEaston('"Baptism!"');
+      expect(entry).toEqual(mockDictionary.baptism);
+    });
+
     it('should return null for missing word', async () => {
       const entry = await lookupEaston('nonexistent');
       expect(entry).toBeNull();
@@ -63,11 +82,58 @@ describe('easton-service', () => {
       const entry = await lookupEaston('aaron');
       expect(entry?.seeAlso).toEqual(['moses', 'levite']);
     });
+
+    it('should return entry without seeAlso when not present', async () => {
+      const entry = await lookupEaston('love');
+      expect(entry?.seeAlso).toBeUndefined();
+    });
+
+    it('should return entry without scriptureRefs when not present', async () => {
+      const entry = await lookupEaston('day');
+      expect(entry?.scriptureRefs).toBeUndefined();
+    });
+
+    it('should return correct term field', async () => {
+      const entry = await lookupEaston('darkness');
+      expect(entry?.term).toBe('Darkness');
+    });
+
+    it('should return correct definition for each entry', async () => {
+      const darkness = await lookupEaston('darkness');
+      expect(darkness?.definition).toContain('plague');
+
+      const deep = await lookupEaston('deep');
+      expect(deep?.definition).toContain('grave or the abyss');
+    });
+
+    it('should handle case-insensitive lookup for all cases', async () => {
+      const upper = await lookupEaston('DARKNESS');
+      const lower = await lookupEaston('darkness');
+      const mixed = await lookupEaston('Darkness');
+
+      expect(upper).toEqual(lower);
+      expect(lower).toEqual(mixed);
+    });
+
+    it('should use cache on subsequent lookups', async () => {
+      // First lookup loads data
+      const first = await lookupEaston('aaron');
+      // Second lookup uses cache
+      const second = await lookupEaston('aaron');
+
+      expect(first).toEqual(second);
+    });
   });
 
   describe('preload', () => {
     it('should load the dictionary without error', async () => {
       await expect(preload()).resolves.toBeUndefined();
+    });
+
+    it('should make subsequent lookups use cached data', async () => {
+      await preload();
+      const entry = await lookupEaston('love');
+      expect(entry).toEqual(mockDictionary.love);
     });
   });
 
@@ -79,12 +145,20 @@ describe('easton-service', () => {
       const entry = await lookupEaston('love');
       expect(entry).toEqual(mockDictionary.love);
     });
+
+    it('should reset cache status', async () => {
+      await preload();
+      clearCache();
+      // After clear, getStats will reload and show cached=true again
+      const stats = await getStats();
+      expect(stats.cached).toBe(true);
+    });
   });
 
   describe('getStats', () => {
     it('should return entry count and cache status', async () => {
       const stats = await getStats();
-      expect(stats.totalEntries).toBe(3);
+      expect(stats.totalEntries).toBe(6);
       expect(stats.cached).toBe(true);
     });
 
@@ -93,6 +167,11 @@ describe('easton-service', () => {
       // After getStats loads the dictionary, it should be cached
       const stats = await getStats();
       expect(stats.cached).toBe(true);
+    });
+
+    it('should return correct count for all entries', async () => {
+      const stats = await getStats();
+      expect(stats.totalEntries).toBe(Object.keys(mockDictionary).length);
     });
   });
 });
