@@ -18,7 +18,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -140,6 +140,10 @@ export function WordDefinitionTooltip({
     };
   }, []);
 
+  // Stable ref for hasDefinition to avoid re-triggering the fetch effect
+  const hasDefinitionRef = useRef(hasDefinition);
+  hasDefinitionRef.current = hasDefinition;
+
   /**
    * Fetch definition data when word changes
    */
@@ -156,7 +160,7 @@ export function WordDefinitionTooltip({
         // Check native dictionary availability
         let hasNative = false;
         if (nativeAvailable) {
-          hasNative = await hasDefinition(word);
+          hasNative = await hasDefinitionRef.current(word);
         }
 
         const hasDefinitionResult = result.source !== 'none' || hasNative;
@@ -184,10 +188,10 @@ export function WordDefinitionTooltip({
     };
 
     fetchDefinitions();
-  }, [visible, word, nativeAvailable, hasDefinition]);
+  }, [visible, word, nativeAvailable]);
 
   // Helper to animate open
-  const animateOpen = () => {
+  const animateOpen = useCallback(() => {
     setInternalVisible(true);
     Animated.parallel([
       Animated.timing(backdropOpacity, {
@@ -202,33 +206,36 @@ export function WordDefinitionTooltip({
         stiffness: 90,
       }),
     ]).start();
-  };
+  }, [backdropOpacity, slideAnim]);
 
   // Helper to animate close
-  const animateClose = (callback?: () => void) => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: screenHeight,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 90,
-        overshootClamping: true,
-        restDisplacementThreshold: 40,
-        restSpeedThreshold: 40,
-      }),
-    ]).start();
+  const animateClose = useCallback(
+    (callback?: () => void) => {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: screenHeight,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 90,
+          overshootClamping: true,
+          restDisplacementThreshold: 40,
+          restSpeedThreshold: 40,
+        }),
+      ]).start();
 
-    // Force cleanup after 150ms (store ref for cleanup on unmount)
-    closeTimeoutRef.current = setTimeout(() => {
-      setInternalVisible(false);
-      if (callback) callback();
-    }, 150);
-  };
+      // Force cleanup after 150ms (store ref for cleanup on unmount)
+      closeTimeoutRef.current = setTimeout(() => {
+        setInternalVisible(false);
+        if (callback) callback();
+      }, 150);
+    },
+    [backdropOpacity, slideAnim, screenHeight]
+  );
 
   // Watch for prop changes to trigger animations
   useEffect(() => {
@@ -237,22 +244,20 @@ export function WordDefinitionTooltip({
     } else if (internalVisible) {
       animateClose();
     }
-    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of animateOpen/animateClose
-  }, [visible, animateOpen, animateClose, internalVisible]);
+  }, [visible, internalVisible, animateOpen, animateClose]);
 
   // Handle explicit dismiss (user action)
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     animateClose(() => {
       onClose();
     });
-  };
+  }, [animateClose, onClose]);
 
   // Auto-close tooltip when switching to insight-only screen
   useEffect(() => {
     if (visible && splitViewMode === 'right-full') {
       handleDismiss();
     }
-    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of handleDismiss
   }, [visible, splitViewMode, handleDismiss]);
 
   /**
@@ -409,53 +414,49 @@ export function WordDefinitionTooltip({
 
             {/* Definition Content */}
             {!state.loading && (state.eastonEntry || state.strongsEntry || state.hasNative) && (
-              <View {...panResponder.panHandlers}>
+              <View>
                 {/* Word Title */}
                 <Text style={styles.wordTitle}>{displayWord}</Text>
 
                 {/* Easton's Bible Dictionary Definition */}
                 {state.source === 'easton' && state.eastonEntry && (
                   <>
-                    {/* Source Badge */}
-                    <View style={styles.sourceBadge} testID="easton-source-badge">
-                      <Text style={styles.sourceBadgeText}>Easton&apos;s Bible Dictionary</Text>
-                    </View>
-
-                    {/* Definition */}
+                    {/* Definition (scrollable) */}
                     <ScrollView
                       style={styles.definitionScroll}
                       contentContainerStyle={styles.definitionScrollContent}
                       showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled
                     >
                       <View style={styles.definitionBox}>
                         <Text style={styles.definitionText}>{state.eastonEntry.definition}</Text>
                       </View>
+                    </ScrollView>
 
-                      {/* Scripture References */}
-                      {state.eastonEntry.scriptureRefs &&
-                        state.eastonEntry.scriptureRefs.length > 0 && (
-                          <View style={styles.refsContainer} testID="easton-scripture-refs">
-                            <Text style={styles.refsLabel}>Scripture References:</Text>
-                            <Text style={styles.refsText}>
-                              {state.eastonEntry.scriptureRefs.join(', ')}
-                            </Text>
-                          </View>
-                        )}
-
-                      {/* See Also */}
-                      {state.eastonEntry.seeAlso && state.eastonEntry.seeAlso.length > 0 && (
-                        <View style={styles.seeAlsoContainer} testID="easton-see-also">
-                          <Text style={styles.seeAlsoLabel}>See Also:</Text>
-                          <View style={styles.seeAlsoChips}>
-                            {state.eastonEntry.seeAlso.map((term) => (
-                              <View key={term} style={styles.seeAlsoChip}>
-                                <Text style={styles.seeAlsoChipText}>{term}</Text>
-                              </View>
-                            ))}
-                          </View>
+                    {/* Scripture References (always visible below scroll) */}
+                    {state.eastonEntry.scriptureRefs &&
+                      state.eastonEntry.scriptureRefs.length > 0 && (
+                        <View style={styles.refsContainer} testID="easton-scripture-refs">
+                          <Text style={styles.refsLabel}>Scripture References:</Text>
+                          <Text style={styles.refsText} numberOfLines={3}>
+                            {state.eastonEntry.scriptureRefs.join(', ')}
+                          </Text>
                         </View>
                       )}
-                    </ScrollView>
+
+                    {/* See Also (always visible below scroll) */}
+                    {state.eastonEntry.seeAlso && state.eastonEntry.seeAlso.length > 0 && (
+                      <View style={styles.seeAlsoContainer} testID="easton-see-also">
+                        <Text style={styles.seeAlsoLabel}>See Also:</Text>
+                        <View style={styles.seeAlsoChips}>
+                          {state.eastonEntry.seeAlso.map((term) => (
+                            <View key={term} style={styles.seeAlsoChip}>
+                              <Text style={styles.seeAlsoChipText}>{term}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
                   </>
                 )}
 
@@ -477,6 +478,7 @@ export function WordDefinitionTooltip({
                       style={styles.definitionScroll}
                       contentContainerStyle={styles.definitionScrollContent}
                       showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled
                     >
                       <View style={styles.definitionBox}>
                         <Text style={styles.definitionText}>{state.strongsEntry.definition}</Text>
@@ -724,7 +726,7 @@ const createStyles = (
       marginBottom: spacing.md,
     },
     definitionScroll: {
-      maxHeight: 280,
+      maxHeight: 200,
       marginBottom: spacing.md,
     },
     definitionScrollContent: {
