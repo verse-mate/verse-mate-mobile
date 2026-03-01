@@ -103,7 +103,6 @@ const mockEastonEntry = {
 function makeDictResult(overrides: Partial<DictionaryResult> = {}): DictionaryResult {
   return {
     word: 'love',
-    hasNativeDefinition: false,
     source: 'none',
     ...overrides,
   };

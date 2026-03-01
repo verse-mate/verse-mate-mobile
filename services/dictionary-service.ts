@@ -16,7 +16,7 @@ import type { DictionaryResult } from '@/types/dictionary';
  */
 export async function lookupWord(word: string): Promise<DictionaryResult> {
   if (!word) {
-    return { word, hasNativeDefinition: false, source: 'none' };
+    return { word, source: 'none' };
   }
 
   // 1. Try Easton's Bible Dictionary (highest hit rate for English words)
@@ -25,7 +25,6 @@ export async function lookupWord(word: string): Promise<DictionaryResult> {
     return {
       word,
       eastonEntry,
-      hasNativeDefinition: false,
       source: 'easton',
     };
   }
@@ -33,14 +32,13 @@ export async function lookupWord(word: string): Promise<DictionaryResult> {
   // 2. Try Strong's via word mapping
   if (hasStrongsNumber(word)) {
     const strongsNumber = getStrongsNumber(word);
-    if (!strongsNumber) return { word, hasNativeDefinition: false, source: 'none' };
+    if (!strongsNumber) return { word, source: 'none' };
     const result = await lookup(strongsNumber);
     if (result.found && result.entry) {
       return {
         word,
         strongsNumber,
         strongsEntry: result.entry,
-        hasNativeDefinition: false,
         source: 'strongs',
       };
     }
@@ -55,11 +53,10 @@ export async function lookupWord(word: string): Promise<DictionaryResult> {
         word,
         strongsNumber,
         strongsEntry: result.entry,
-        hasNativeDefinition: false,
         source: 'strongs',
       };
     }
   }
 
-  return { word, hasNativeDefinition: false, source: 'none' };
+  return { word, source: 'none' };
 }

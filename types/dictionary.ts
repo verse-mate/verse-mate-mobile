@@ -53,6 +53,5 @@ export interface DictionaryResult {
   strongsNumber?: string;
   strongsEntry?: StrongsEntry;
   eastonEntry?: EastonEntry;
-  hasNativeDefinition: boolean;
   source: 'native' | 'strongs' | 'easton' | 'none';
 }

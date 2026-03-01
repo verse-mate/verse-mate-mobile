@@ -134,14 +134,6 @@ describe('dictionary-service', () => {
       expect(result.eastonEntry?.seeAlso).toEqual(['moses', 'levite']);
     });
 
-    it('should set hasNativeDefinition to false for Easton results', async () => {
-      mockLookupEaston.mockResolvedValue(mockEastonEntry);
-
-      const result = await lookupWord('love');
-
-      expect(result.hasNativeDefinition).toBe(false);
-    });
-
     it('should set the word field correctly', async () => {
       mockLookupEaston.mockResolvedValue(mockEastonEntry);
 
@@ -219,11 +211,6 @@ describe('dictionary-service', () => {
     it('should handle empty string', async () => {
       const result = await lookupWord('');
       expect(result.source).toBe('none');
-    });
-
-    it('should set hasNativeDefinition to false', async () => {
-      const result = await lookupWord('test');
-      expect(result.hasNativeDefinition).toBe(false);
     });
 
     it('should always include the word in the result', async () => {
