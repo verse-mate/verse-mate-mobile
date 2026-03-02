@@ -160,7 +160,8 @@ describe('ChapterPage', () => {
     bookId: number,
     chapterNumber: number,
     activeTab: ContentTabType = 'summary',
-    activeView: 'bible' | 'explanations' = 'bible'
+    activeView: 'bible' | 'explanations' = 'bible',
+    isPreloading = false
   ) => {
     return render(
       <SafeAreaProvider>
@@ -172,6 +173,7 @@ describe('ChapterPage', () => {
                 chapterNumber={chapterNumber}
                 activeTab={activeTab}
                 activeView={activeView}
+                isPreloading={isPreloading}
               />
             </ToastProvider>
           </ThemeProvider>
@@ -402,6 +404,54 @@ describe('ChapterPage', () => {
       // Will FAIL until lazy-enable is implemented
       const secondDetailedCall = mockUseBibleDetailed.mock.calls[0];
       expect(secondDetailedCall[3]).toEqual(expect.objectContaining({ enabled: true }));
+    });
+
+    it('[TDD] disables explanation queries when isPreloading=true', () => {
+      renderChapterPage(1, 1, 'summary', 'explanations', true);
+
+      // All explanation hooks should be called with enabled=false when preloading
+      const summaryCall = mockUseBibleSummary.mock.calls[0];
+      expect(summaryCall[3]).toEqual(expect.objectContaining({ enabled: false }));
+
+      const byLineCall = mockUseBibleByLine.mock.calls[0];
+      expect(byLineCall[3]).toEqual(expect.objectContaining({ enabled: false }));
+
+      const detailedCall = mockUseBibleDetailed.mock.calls[0];
+      expect(detailedCall[3]).toEqual(expect.objectContaining({ enabled: false }));
+    });
+
+    it('[TDD] enables explanation queries when isPreloading transitions to false', () => {
+      // Start as buffer page (preloading)
+      const { rerender } = renderChapterPage(1, 1, 'summary', 'explanations', true);
+
+      // All queries disabled while preloading
+      const summaryCallPreloading = mockUseBibleSummary.mock.calls[0];
+      expect(summaryCallPreloading[3]).toEqual(expect.objectContaining({ enabled: false }));
+
+      mockUseBibleSummary.mockClear();
+
+      // Transition to active page
+      rerender(
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <ToastProvider>
+                <ChapterPage
+                  bookId={1}
+                  chapterNumber={1}
+                  activeTab="summary"
+                  activeView="explanations"
+                  isPreloading={false}
+                />
+              </ToastProvider>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      );
+
+      // Summary query should now be enabled
+      const summaryCallActive = mockUseBibleSummary.mock.calls[0];
+      expect(summaryCallActive[3]).toEqual(expect.objectContaining({ enabled: true }));
     });
 
     it('[REGRESSION] ChapterReader renders after tab switch', async () => {

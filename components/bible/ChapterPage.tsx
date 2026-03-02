@@ -308,8 +308,12 @@ export function ChapterPage({
 
   const { deleteNote, isDeletingNote } = useNotes();
 
-  // Trigger staggered delayed render
+  // Trigger staggered delayed render — only for the active page, not buffer pages
   useEffect(() => {
+    if (isPreloading) {
+      setDelayedRenderStage(0);
+      return;
+    }
     const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
     const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
     const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
@@ -321,7 +325,7 @@ export function ChapterPage({
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, []);
+  }, [isPreloading]);
 
   // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
@@ -434,7 +438,7 @@ export function ChapterPage({
     isLoading: isSummaryLoading,
     error: summaryError,
   } = useBibleSummary(bookId, chapterNumber, undefined, {
-    enabled: activeTab === 'summary' || visitedTabs.has('summary'),
+    enabled: !isPreloading && (activeTab === 'summary' || visitedTabs.has('summary')),
     language,
   });
 
@@ -443,7 +447,7 @@ export function ChapterPage({
     isLoading: isByLineLoading,
     error: byLineError,
   } = useBibleByLine(bookId, chapterNumber, undefined, {
-    enabled: activeTab === 'byline' || visitedTabs.has('byline'),
+    enabled: !isPreloading && (activeTab === 'byline' || visitedTabs.has('byline')),
     language,
   });
 
@@ -452,7 +456,7 @@ export function ChapterPage({
     isLoading: isDetailedLoading,
     error: detailedError,
   } = useBibleDetailed(bookId, chapterNumber, undefined, {
-    enabled: activeTab === 'detailed' || visitedTabs.has('detailed'),
+    enabled: !isPreloading && (activeTab === 'detailed' || visitedTabs.has('detailed')),
     language,
   });
 

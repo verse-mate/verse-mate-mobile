@@ -342,6 +342,7 @@ export default function ChapterScreen() {
    */
   const renderChapterPage = useCallback(
     (pageBookId: number, pageChapterNumber: number) => {
+      const isCurrent = pageBookId === bookId && pageChapterNumber === chapterNumber;
       return (
         <ChapterPage
           bookId={pageBookId}
@@ -350,15 +351,9 @@ export default function ChapterScreen() {
           activeView={activeView}
           onScroll={handleScroll}
           onTap={handleTap}
-          // Only pass target verse to the current page
-          targetVerse={
-            pageBookId === bookId && pageChapterNumber === chapterNumber ? targetVerse : undefined
-          }
-          targetEndVerse={
-            pageBookId === bookId && pageChapterNumber === chapterNumber
-              ? targetEndVerse
-              : undefined
-          }
+          isPreloading={!isCurrent}
+          targetVerse={isCurrent ? targetVerse : undefined}
+          targetEndVerse={isCurrent ? targetEndVerse : undefined}
         />
       );
     },
