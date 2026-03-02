@@ -421,8 +421,9 @@ export function TopicPage({
         <BottomLogo />
       </ScrollView>
 
-      {/* Explanations View - Pre-render all tabs but only show active (Skipped if preloading) */}
-      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
+      {/* Explanations View - Always render when user is in explanations view (even on buffer pages
+           during idle-deferred navigation). In bible view, only pre-render on active page after stagger delay. */}
+      {(activeView === 'explanations' || (!isPreloading && delayedRenderStage >= 1)) && (
         <ScrollView
           ref={explanationsScrollRef}
           style={[

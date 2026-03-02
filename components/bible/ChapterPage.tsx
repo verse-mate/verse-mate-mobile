@@ -438,7 +438,9 @@ export function ChapterPage({
     isLoading: isSummaryLoading,
     error: summaryError,
   } = useBibleSummary(bookId, chapterNumber, undefined, {
-    enabled: !isPreloading && (activeTab === 'summary' || visitedTabs.has('summary')),
+    enabled:
+      (!isPreloading || activeView === 'explanations') &&
+      (activeTab === 'summary' || visitedTabs.has('summary')),
     language,
   });
 
@@ -447,7 +449,9 @@ export function ChapterPage({
     isLoading: isByLineLoading,
     error: byLineError,
   } = useBibleByLine(bookId, chapterNumber, undefined, {
-    enabled: !isPreloading && (activeTab === 'byline' || visitedTabs.has('byline')),
+    enabled:
+      (!isPreloading || activeView === 'explanations') &&
+      (activeTab === 'byline' || visitedTabs.has('byline')),
     language,
   });
 
@@ -456,7 +460,9 @@ export function ChapterPage({
     isLoading: isDetailedLoading,
     error: detailedError,
   } = useBibleDetailed(bookId, chapterNumber, undefined, {
-    enabled: !isPreloading && (activeTab === 'detailed' || visitedTabs.has('detailed')),
+    enabled:
+      (!isPreloading || activeView === 'explanations') &&
+      (activeTab === 'detailed' || visitedTabs.has('detailed')),
     language,
   });
 
@@ -671,8 +677,9 @@ export function ChapterPage({
 
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Explanations View - Render if active OR if delayed render stage >= 1 (And NOT preloading) */}
-      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
+      {/* Explanations View - Always render when user is in explanations view (even on buffer pages
+           during idle-deferred navigation). In bible view, only pre-render on active page after stagger delay. */}
+      {(activeView === 'explanations' || (!isPreloading && delayedRenderStage >= 1)) && (
         <View
           style={[
             styles.container,
