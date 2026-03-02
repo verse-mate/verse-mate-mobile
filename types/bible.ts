@@ -179,7 +179,7 @@ export const STORAGE_KEYS = {
 /**
  * Maximum number of recent books to track
  */
-export const MAX_RECENT_BOOKS = 5;
+export const MAX_RECENT_BOOKS = 4;
 
 /**
  * Number of days before recent book entries expire

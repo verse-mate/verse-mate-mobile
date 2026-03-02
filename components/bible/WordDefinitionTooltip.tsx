@@ -5,11 +5,11 @@
  * Styled similarly to VerseMateTooltip but shows dictionary content.
  *
  * Features:
- * - Shows word definition from Strong's Concordance
- * - Strong's number badge (if applicable)
- * - Original word (Lemma) display
+ * - Shows word definition from Easton's Bible Dictionary or Strong's Concordance
+ * - Source badge (Easton's or Strong's number)
  * - Definition in scrollable container
- * - Derivation and KJV translation (if available)
+ * - Scripture references and See Also links (Easton's)
+ * - Derivation and KJV translation (Strong's)
  * - Copy and Share buttons for the definition
  * - "Open in System Dictionary" button
  * - Swipe-down to dismiss
@@ -18,7 +18,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -40,9 +40,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useNativeDictionary } from '@/hooks/use-native-dictionary';
-import { isValidStrongsNumber, lookup } from '@/services/lexicon-service';
-import { getStrongsNumber, hasStrongsNumber } from '@/services/word-mapping-service';
-import type { StrongsEntry } from '@/types/dictionary';
+import { lookupWord } from '@/services/dictionary-service';
+import type { DictionaryResult, EastonEntry, StrongsEntry } from '@/types/dictionary';
 
 interface WordDefinitionTooltipProps {
   /** Whether modal is visible */
@@ -67,6 +66,8 @@ interface DefinitionState {
   loading: boolean;
   strongsEntry: StrongsEntry | null;
   strongsNum: string | null;
+  eastonEntry: EastonEntry | null;
+  source: DictionaryResult['source'] | null;
   hasNative: boolean;
   error: string | null;
 }
@@ -114,6 +115,8 @@ export function WordDefinitionTooltip({
     loading: true,
     strongsEntry: null,
     strongsNum: null,
+    eastonEntry: null,
+    source: null,
     hasNative: false,
     error: null,
   });
@@ -137,6 +140,10 @@ export function WordDefinitionTooltip({
     };
   }, []);
 
+  // Stable ref for hasDefinition to avoid re-triggering the fetch effect
+  const hasDefinitionRef = useRef(hasDefinition);
+  hasDefinitionRef.current = hasDefinition;
+
   /**
    * Fetch definition data when word changes
    */
@@ -147,46 +154,33 @@ export function WordDefinitionTooltip({
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
-        // Determine Strong's number to look up
-        let strongsNum: string | null = null;
-
-        // Check word mapping
-        if (hasStrongsNumber(word)) {
-          strongsNum = getStrongsNumber(word);
-        }
-
-        // If word looks like a Strong's number itself (e.g., "G26", "H430")
-        if (!strongsNum && isValidStrongsNumber(word)) {
-          strongsNum = word.toUpperCase();
-        }
-
-        // Look up Strong's entry if we have a number
-        let strongsEntry: StrongsEntry | null = null;
-        if (strongsNum) {
-          const result = await lookup(strongsNum);
-          if (result.found && result.entry) {
-            strongsEntry = result.entry;
-          }
-        }
+        // Use unified dictionary service for lookup
+        const result = await lookupWord(word);
 
         // Check native dictionary availability
         let hasNative = false;
         if (nativeAvailable) {
-          hasNative = await hasDefinition(word);
+          hasNative = await hasDefinitionRef.current(word);
         }
+
+        const hasDefinitionResult = result.source !== 'none' || hasNative;
 
         setState({
           loading: false,
-          strongsEntry,
-          strongsNum,
+          strongsEntry: result.strongsEntry ?? null,
+          strongsNum: result.strongsNumber ?? null,
+          eastonEntry: result.eastonEntry ?? null,
+          source: result.source,
           hasNative,
-          error: !strongsEntry && !hasNative ? 'No definition available' : null,
+          error: !hasDefinitionResult ? 'No definition available' : null,
         });
       } catch {
         setState({
           loading: false,
           strongsEntry: null,
           strongsNum: null,
+          eastonEntry: null,
+          source: null,
           hasNative: false,
           error: 'Failed to load definition',
         });
@@ -194,10 +188,10 @@ export function WordDefinitionTooltip({
     };
 
     fetchDefinitions();
-  }, [visible, word, nativeAvailable, hasDefinition]);
+  }, [visible, word, nativeAvailable]);
 
   // Helper to animate open
-  const animateOpen = () => {
+  const animateOpen = useCallback(() => {
     setInternalVisible(true);
     Animated.parallel([
       Animated.timing(backdropOpacity, {
@@ -212,33 +206,36 @@ export function WordDefinitionTooltip({
         stiffness: 90,
       }),
     ]).start();
-  };
+  }, [backdropOpacity, slideAnim]);
 
   // Helper to animate close
-  const animateClose = (callback?: () => void) => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: screenHeight,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 90,
-        overshootClamping: true,
-        restDisplacementThreshold: 40,
-        restSpeedThreshold: 40,
-      }),
-    ]).start();
+  const animateClose = useCallback(
+    (callback?: () => void) => {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: screenHeight,
+          useNativeDriver: true,
+          damping: 20,
+          stiffness: 90,
+          overshootClamping: true,
+          restDisplacementThreshold: 40,
+          restSpeedThreshold: 40,
+        }),
+      ]).start();
 
-    // Force cleanup after 150ms (store ref for cleanup on unmount)
-    closeTimeoutRef.current = setTimeout(() => {
-      setInternalVisible(false);
-      if (callback) callback();
-    }, 150);
-  };
+      // Force cleanup after 150ms (store ref for cleanup on unmount)
+      closeTimeoutRef.current = setTimeout(() => {
+        setInternalVisible(false);
+        if (callback) callback();
+      }, 150);
+    },
+    [backdropOpacity, slideAnim, screenHeight]
+  );
 
   // Watch for prop changes to trigger animations
   useEffect(() => {
@@ -247,22 +244,20 @@ export function WordDefinitionTooltip({
     } else if (internalVisible) {
       animateClose();
     }
-    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of animateOpen/animateClose
-  }, [visible, animateOpen, animateClose, internalVisible]);
+  }, [visible, internalVisible, animateOpen, animateClose]);
 
   // Handle explicit dismiss (user action)
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     animateClose(() => {
       onClose();
     });
-  };
+  }, [animateClose, onClose]);
 
   // Auto-close tooltip when switching to insight-only screen
   useEffect(() => {
     if (visible && splitViewMode === 'right-full') {
       handleDismiss();
     }
-    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of handleDismiss
   }, [visible, splitViewMode, handleDismiss]);
 
   /**
@@ -281,12 +276,17 @@ export function WordDefinitionTooltip({
   const getShareContent = () => {
     let content = `"${displayWord}"`;
 
-    if (state.strongsNum && state.strongsEntry?.lemma) {
+    if (state.source === 'easton' && state.eastonEntry) {
+      content += `\nDefinition: ${state.eastonEntry.definition}`;
+      if (state.eastonEntry.scriptureRefs?.length) {
+        content += `\nReferences: ${state.eastonEntry.scriptureRefs.join(', ')}`;
+      }
+      content += "\n\n(Easton's Bible Dictionary)";
+    } else if (state.strongsNum && state.strongsEntry?.lemma) {
       content += ` (${state.strongsNum} - ${state.strongsEntry.lemma})`;
-    }
-
-    if (state.strongsEntry?.definition) {
-      content += `\nDefinition: ${state.strongsEntry.definition}`;
+      if (state.strongsEntry?.definition) {
+        content += `\nDefinition: ${state.strongsEntry.definition}`;
+      }
     }
 
     content += `\n\n- ${verseReference} (${bibleVersion})`;
@@ -401,21 +401,67 @@ export function WordDefinitionTooltip({
             )}
 
             {/* Error State */}
-            {!state.loading && state.error && !state.strongsEntry && !state.hasNative && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
-                <Text style={styles.errorText}>{state.error}</Text>
-              </View>
-            )}
+            {!state.loading &&
+              state.error &&
+              !state.eastonEntry &&
+              !state.strongsEntry &&
+              !state.hasNative && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
+                  <Text style={styles.errorText}>{state.error}</Text>
+                </View>
+              )}
 
             {/* Definition Content */}
-            {!state.loading && (state.strongsEntry || state.hasNative) && (
-              <View {...panResponder.panHandlers}>
+            {!state.loading && (state.eastonEntry || state.strongsEntry || state.hasNative) && (
+              <View>
                 {/* Word Title */}
                 <Text style={styles.wordTitle}>{displayWord}</Text>
 
+                {/* Easton's Bible Dictionary Definition */}
+                {state.source === 'easton' && state.eastonEntry && (
+                  <>
+                    {/* Definition (scrollable) */}
+                    <ScrollView
+                      style={styles.definitionScroll}
+                      contentContainerStyle={styles.definitionScrollContent}
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled
+                    >
+                      <View style={styles.definitionBox}>
+                        <Text style={styles.definitionText}>{state.eastonEntry.definition}</Text>
+                      </View>
+                    </ScrollView>
+
+                    {/* Scripture References (always visible below scroll) */}
+                    {state.eastonEntry.scriptureRefs &&
+                      state.eastonEntry.scriptureRefs.length > 0 && (
+                        <View style={styles.refsContainer} testID="easton-scripture-refs">
+                          <Text style={styles.refsLabel}>Scripture References:</Text>
+                          <Text style={styles.refsText} numberOfLines={3}>
+                            {state.eastonEntry.scriptureRefs.join(', ')}
+                          </Text>
+                        </View>
+                      )}
+
+                    {/* See Also (always visible below scroll) */}
+                    {state.eastonEntry.seeAlso && state.eastonEntry.seeAlso.length > 0 && (
+                      <View style={styles.seeAlsoContainer} testID="easton-see-also">
+                        <Text style={styles.seeAlsoLabel}>See Also:</Text>
+                        <View style={styles.seeAlsoChips}>
+                          {state.eastonEntry.seeAlso.map((term) => (
+                            <View key={term} style={styles.seeAlsoChip}>
+                              <Text style={styles.seeAlsoChipText}>{term}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </>
+                )}
+
                 {/* Strong's Definition */}
-                {state.strongsEntry && (
+                {state.source === 'strongs' && state.strongsEntry && (
                   <>
                     {/* Strong's Number Badge */}
                     {state.strongsNum && (
@@ -432,6 +478,7 @@ export function WordDefinitionTooltip({
                       style={styles.definitionScroll}
                       contentContainerStyle={styles.definitionScrollContent}
                       showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled
                     >
                       <View style={styles.definitionBox}>
                         <Text style={styles.definitionText}>{state.strongsEntry.definition}</Text>
@@ -618,6 +665,59 @@ const createStyles = (
       fontSize: fontSizes.caption,
       fontWeight: fontWeights.semibold,
       color: colors.white,
+    },
+    sourceBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.border,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: 16,
+      marginBottom: spacing.md,
+    },
+    sourceBadgeText: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.textSecondary,
+    },
+    refsContainer: {
+      marginTop: spacing.sm,
+    },
+    refsLabel: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+    },
+    refsText: {
+      fontSize: fontSizes.bodySmall,
+      color: colors.textSecondary,
+      lineHeight: fontSizes.bodySmall * 1.5,
+    },
+    seeAlsoContainer: {
+      marginTop: spacing.md,
+    },
+    seeAlsoLabel: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
+    },
+    seeAlsoChips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.xs,
+    },
+    seeAlsoChip: {
+      backgroundColor: colors.background,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    seeAlsoChipText: {
+      fontSize: fontSizes.caption,
+      color: colors.textSecondary,
     },
     lemmaText: {
       fontSize: fontSizes.heading2,

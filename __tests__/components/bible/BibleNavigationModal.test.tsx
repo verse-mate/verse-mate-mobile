@@ -157,8 +157,8 @@ describe('BibleNavigationModal', () => {
     // Initially shows book list
     expect(screen.getAllByText('Genesis')[0]).toBeTruthy();
 
-    // Select Genesis (Current Book) from sticky header
-    const genesisButton = screen.getByLabelText('Current book: Genesis');
+    // Select Genesis (current book) from ALL BOOKS list
+    const genesisButton = screen.getByLabelText('Genesis, 50 chapters');
     fireEvent.press(genesisButton);
 
     // Wait for chapter grid to render
@@ -181,8 +181,8 @@ describe('BibleNavigationModal', () => {
       />
     );
 
-    // Psalms is the current book, select it from sticky header
-    const psalmsButton = screen.getByLabelText('Current book: Psalms');
+    // Psalms is the current book, select it from ALL BOOKS list
+    const psalmsButton = screen.getByLabelText('Psalms, 150 chapters');
     fireEvent.press(psalmsButton);
 
     // Verify all 150 chapters are rendered
@@ -208,8 +208,8 @@ describe('BibleNavigationModal', () => {
       />
     );
 
-    // Select Genesis
-    const genesisButton = screen.getByLabelText('Current book: Genesis');
+    // Select Genesis from ALL BOOKS list
+    const genesisButton = screen.getByLabelText('Genesis, 50 chapters');
     fireEvent.press(genesisButton);
 
     // Wait for chapter grid to render
