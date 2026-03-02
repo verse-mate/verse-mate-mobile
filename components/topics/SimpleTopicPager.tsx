@@ -93,6 +93,9 @@ export function SimpleTopicPager({
   // Track the previous topic ID to detect prop-driven navigation
   const prevTopicIdRef = useRef(topicId);
 
+  // Pending navigation target — set by onPageSelected, processed when pager reaches idle
+  const pendingNavRef = useRef<string | null>(null);
+
   // When props change (parent navigated), reset pager to the current page index
   // without remounting the entire component
   useEffect(() => {
@@ -132,15 +135,31 @@ export function SimpleTopicPager({
    * Called when user finishes swiping to a new page.
    * With circular navigation, both prev and next always exist.
    */
+  /**
+   * Handle page selection — store pending navigation target.
+   * Navigation is deferred until the pager reaches idle state via onPageScrollStateChanged.
+   * This prevents rapid-swipe race conditions where a second swipe fires before reposition.
+   */
   const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
     const newPosition = event.nativeEvent.position;
 
     if (newPosition === PAGE_PREV && prevTopicId) {
-      onTopicChange(prevTopicId);
+      pendingNavRef.current = prevTopicId;
     } else if (newPosition === PAGE_NEXT && nextTopicId) {
-      onTopicChange(nextTopicId);
+      pendingNavRef.current = nextTopicId;
     }
     // PAGE_CURRENT (1) - no navigation needed, user is on current page
+  };
+
+  /**
+   * Process navigation only when the pager reaches idle state.
+   */
+  const handlePageScrollStateChanged = (event: { nativeEvent: { pageScrollState: string } }) => {
+    if (event.nativeEvent.pageScrollState === 'idle' && pendingNavRef.current) {
+      const targetTopicId = pendingNavRef.current;
+      pendingNavRef.current = null;
+      onTopicChange(targetTopicId);
+    }
   };
 
   /**
@@ -212,6 +231,7 @@ export function SimpleTopicPager({
       style={styles.pagerView}
       initialPage={initialPageIndex}
       onPageSelected={handlePageSelected}
+      onPageScrollStateChanged={handlePageScrollStateChanged}
       testID="simple-topic-pager"
       offscreenPageLimit={1}
     >
