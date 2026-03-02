@@ -27,7 +27,16 @@ import type { TopicListItem } from '@/types/topics';
 
 // Store mock callbacks for testing
 let mockOnPageSelected: ((event: { nativeEvent: { position: number } }) => void) | undefined;
+let mockOnPageScrollStateChanged:
+  | ((event: { nativeEvent: { pageScrollState: string } }) => void)
+  | undefined;
 let mockInitialPage: number | undefined;
+
+/** Simulate a complete swipe: page selected + pager settles to idle */
+function simulateSwipe(position: number) {
+  mockOnPageSelected?.({ nativeEvent: { position } });
+  mockOnPageScrollStateChanged?.({ nativeEvent: { pageScrollState: 'idle' } });
+}
 
 // Mock react-native-pager-view
 jest.mock('react-native-pager-view', () => {
@@ -35,10 +44,19 @@ jest.mock('react-native-pager-view', () => {
   const { View } = require('react-native');
 
   const MockPagerView = React.forwardRef(
-    ({ children, testID, onPageSelected, initialPage }: any, _ref: any) => {
+    (
+      { children, testID, onPageSelected, onPageScrollStateChanged, initialPage }: any,
+      ref: any
+    ) => {
       // Store for testing
       mockOnPageSelected = onPageSelected;
+      mockOnPageScrollStateChanged = onPageScrollStateChanged;
       mockInitialPage = initialPage;
+
+      React.useImperativeHandle(ref, () => ({
+        setPage: jest.fn(),
+        setPageWithoutAnimation: jest.fn(),
+      }));
 
       return (
         <View testID={testID || 'pager-view'}>
@@ -83,6 +101,7 @@ describe('SimpleTopicPager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockOnPageSelected = undefined;
+    mockOnPageScrollStateChanged = undefined;
     mockInitialPage = undefined;
   });
 
@@ -145,10 +164,8 @@ describe('SimpleTopicPager', () => {
       />
     );
 
-    // Simulate swipe to next page (index 2)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 2 } });
-    }
+    // Simulate swipe to next page (index 2) + pager settles to idle
+    simulateSwipe(2);
 
     // Should call onTopicChange with next topic (topic-004 Messiah)
     expect(mockOnTopicChange).toHaveBeenCalledWith('topic-004');
@@ -169,10 +186,8 @@ describe('SimpleTopicPager', () => {
       />
     );
 
-    // Simulate swipe to previous page (index 0)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 0 } });
-    }
+    // Simulate swipe to previous page (index 0) + pager settles to idle
+    simulateSwipe(0);
 
     // Should call onTopicChange with previous topic (topic-002 The Fall)
     expect(mockOnTopicChange).toHaveBeenCalledWith('topic-002');
@@ -212,10 +227,8 @@ describe('SimpleTopicPager', () => {
       />
     );
 
-    // Simulate swipe to previous page (index 0)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 0 } });
-    }
+    // Simulate swipe to previous page (index 0) + idle
+    simulateSwipe(0);
 
     // Should call onTopicChange with last topic (circular wrap)
     expect(mockOnTopicChange).toHaveBeenCalledWith('topic-005');
@@ -255,10 +268,8 @@ describe('SimpleTopicPager', () => {
       />
     );
 
-    // Simulate swipe to next page (index 2)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 2 } });
-    }
+    // Simulate swipe to next page (index 2) + idle
+    simulateSwipe(2);
 
     // Should call onTopicChange with first topic (circular wrap)
     expect(mockOnTopicChange).toHaveBeenCalledWith('topic-001');
@@ -279,10 +290,8 @@ describe('SimpleTopicPager', () => {
       />
     );
 
-    // Simulate "swipe" that returns to current page (index 1)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 1 } });
-    }
+    // Simulate "swipe" that returns to current page (index 1) + idle
+    simulateSwipe(1);
 
     // Should NOT call onTopicChange
     expect(mockOnTopicChange).not.toHaveBeenCalled();

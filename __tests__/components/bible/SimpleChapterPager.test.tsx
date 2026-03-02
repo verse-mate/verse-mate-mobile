@@ -31,7 +31,20 @@ import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
 
 // Store mock callbacks for testing
 let mockOnPageSelected: ((event: { nativeEvent: { position: number } }) => void) | undefined;
+let mockOnPageScrollStateChanged:
+  | ((event: { nativeEvent: { pageScrollState: string } }) => void)
+  | undefined;
 let mockInitialPage: number | undefined;
+
+/**
+ * Helper: simulate a complete swipe (page selected + pager settles to idle).
+ * This mirrors what happens on real hardware: onPageSelected fires during the
+ * settling animation, then onPageScrollStateChanged fires with 'idle'.
+ */
+function simulateSwipe(position: number) {
+  mockOnPageSelected?.({ nativeEvent: { position } });
+  mockOnPageScrollStateChanged?.({ nativeEvent: { pageScrollState: 'idle' } });
+}
 
 // Mock react-native-pager-view
 jest.mock('react-native-pager-view', () => {
@@ -39,9 +52,13 @@ jest.mock('react-native-pager-view', () => {
   const { View } = require('react-native');
 
   const MockPagerView = React.forwardRef(
-    ({ children, testID, onPageSelected, initialPage }: any, ref: any) => {
+    (
+      { children, testID, onPageSelected, onPageScrollStateChanged, initialPage }: any,
+      ref: any
+    ) => {
       // Store for testing
       mockOnPageSelected = onPageSelected;
+      mockOnPageScrollStateChanged = onPageScrollStateChanged;
       mockInitialPage = initialPage;
 
       React.useImperativeHandle(ref, () => ({
@@ -98,6 +115,7 @@ describe('SimpleChapterPager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockOnPageSelected = undefined;
+    mockOnPageScrollStateChanged = undefined;
     mockInitialPage = undefined;
   });
 
@@ -167,10 +185,8 @@ describe('SimpleChapterPager', () => {
       </TestWrapper>
     );
 
-    // Simulate swipe to next page (index 2)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 2 } });
-    }
+    // Simulate swipe to next page (index 2) + pager settles to idle
+    simulateSwipe(2);
 
     // Should call onChapterChange with next chapter (Genesis 6)
     expect(mockOnChapterChange).toHaveBeenCalledWith(1, 6);
@@ -195,10 +211,8 @@ describe('SimpleChapterPager', () => {
       </TestWrapper>
     );
 
-    // Simulate swipe to previous page (index 0)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 0 } });
-    }
+    // Simulate swipe to previous page (index 0) + pager settles to idle
+    simulateSwipe(0);
 
     // Should call onChapterChange with previous chapter (Genesis 4)
     expect(mockOnChapterChange).toHaveBeenCalledWith(1, 4);
@@ -289,10 +303,8 @@ describe('SimpleChapterPager', () => {
       </TestWrapper>
     );
 
-    // Simulate swipe to boundary page (index 0)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 0 } });
-    }
+    // Simulate swipe to boundary page (index 0) + idle
+    simulateSwipe(0);
 
     // Should NOT call onChapterChange (boundary page)
     expect(mockOnChapterChange).not.toHaveBeenCalled();
@@ -317,10 +329,8 @@ describe('SimpleChapterPager', () => {
       </TestWrapper>
     );
 
-    // Simulate swipe to boundary page (index 2)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 2 } });
-    }
+    // Simulate swipe to boundary page (index 2) + idle
+    simulateSwipe(2);
 
     // Should NOT call onChapterChange (boundary page)
     expect(mockOnChapterChange).not.toHaveBeenCalled();
@@ -412,10 +422,8 @@ describe('SimpleChapterPager', () => {
         </TestWrapper>
       );
 
-      // Simulate swipe to next (position 2 = next chapter)
-      if (mockOnPageSelected) {
-        mockOnPageSelected({ nativeEvent: { position: 2 } });
-      }
+      // Simulate swipe to next (position 2 = next chapter) + idle
+      simulateSwipe(2);
       expect(mockOnChapterChange).toHaveBeenCalledWith(1, 4);
 
       // Rerender with updated chapter (simulating parent state update)
@@ -432,10 +440,8 @@ describe('SimpleChapterPager', () => {
         </TestWrapper>
       );
 
-      // Simulate another swipe to next
-      if (mockOnPageSelected) {
-        mockOnPageSelected({ nativeEvent: { position: 2 } });
-      }
+      // Simulate another swipe to next + idle
+      simulateSwipe(2);
 
       // Should fire with chapter 5 — verifies the callback references
       // the updated pages array after prop change (not stale closure)
