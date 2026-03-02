@@ -166,8 +166,12 @@ export function TopicPage({
   // 4: Mount Detailed tab (if hidden)
   const [delayedRenderStage, setDelayedRenderStage] = useState(0);
 
-  // Trigger staggered delayed render
+  // Trigger staggered delayed render — only for the active page, not buffer pages
   useEffect(() => {
+    if (isPreloading) {
+      setDelayedRenderStage(0);
+      return;
+    }
     const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
     const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
     const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
@@ -179,7 +183,7 @@ export function TopicPage({
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, []);
+  }, [isPreloading]);
 
   // Reset scroll state when topic changes
   const bibleScrollRef = useRef<ScrollView>(null);

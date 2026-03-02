@@ -255,10 +255,10 @@ export default function TopicDetailScreen() {
    * Updates local state immediately to prevent flash
    * V3: No imperative pager ref calls - just state updates
    */
-  const handleTopicChange = (newTopicId: string) => {
+  const handleTopicChange = useCallback((newTopicId: string) => {
     setActiveTopicId(newTopicId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  };
+  }, []);
 
   /**
    * Handle previous topic navigation via FAB button
@@ -366,10 +366,11 @@ export default function TopicDetailScreen() {
           onTap={handleTap}
           onShare={handleShare}
           onVersePress={handleVersePress}
+          isPreloading={pageTopicId !== activeTopicId}
         />
       );
     },
-    [activeTab, activeView, handleScroll, handleTap, handleShare, handleVersePress]
+    [activeTab, activeView, handleScroll, handleTap, handleShare, handleVersePress, activeTopicId]
   );
 
   // Type guard for topic
@@ -478,7 +479,6 @@ export default function TopicDetailScreen() {
 
           {/* SimpleTopicPager - V3 3-page window with global circular navigation */}
           <SimpleTopicPager
-            key={activeTopicId}
             topicId={activeTopicId}
             sortedTopics={allTopics}
             onTopicChange={handleTopicChange}

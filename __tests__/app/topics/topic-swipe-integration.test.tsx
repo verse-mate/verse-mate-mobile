@@ -7,7 +7,7 @@
  * V3 Architecture:
  * - SimpleTopicPager replaces TopicPagerView (3-page window instead of 7)
  * - FAB buttons directly update state (no imperative pager ref calls)
- * - key={activeTopicId} forces pager remount on navigation
+ * - Props-driven repositioning via useEffect (no key-based remount)
  * - Circular navigation (no boundaries for topics)
  *
  * @see app/topics/[topicId].tsx
