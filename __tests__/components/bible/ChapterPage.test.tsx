@@ -406,10 +406,10 @@ describe('ChapterPage', () => {
       expect(secondDetailedCall[3]).toEqual(expect.objectContaining({ enabled: true }));
     });
 
-    it('[TDD] disables explanation queries when isPreloading=true', () => {
-      renderChapterPage(1, 1, 'summary', 'explanations', true);
+    it('[TDD] disables explanation queries when isPreloading=true in bible view', () => {
+      renderChapterPage(1, 1, 'summary', 'bible', true);
 
-      // All explanation hooks should be called with enabled=false when preloading
+      // All explanation hooks should be called with enabled=false when preloading in bible view
       const summaryCall = mockUseBibleSummary.mock.calls[0];
       expect(summaryCall[3]).toEqual(expect.objectContaining({ enabled: false }));
 
@@ -420,17 +420,25 @@ describe('ChapterPage', () => {
       expect(detailedCall[3]).toEqual(expect.objectContaining({ enabled: false }));
     });
 
-    it('[TDD] enables explanation queries when isPreloading transitions to false', () => {
-      // Start as buffer page (preloading)
-      const { rerender } = renderChapterPage(1, 1, 'summary', 'explanations', true);
+    it('[TDD] enables explanation queries when isPreloading=true but activeView is explanations', () => {
+      renderChapterPage(1, 1, 'summary', 'explanations', true);
 
-      // All queries disabled while preloading
+      // Queries should be enabled because user explicitly switched to explanations view
+      const summaryCall = mockUseBibleSummary.mock.calls[0];
+      expect(summaryCall[3]).toEqual(expect.objectContaining({ enabled: true }));
+    });
+
+    it('[TDD] enables explanation queries when isPreloading transitions to false in bible view', () => {
+      // Start as buffer page in bible view (preloading — queries disabled)
+      const { rerender } = renderChapterPage(1, 1, 'summary', 'bible', true);
+
+      // Queries disabled while preloading in bible view
       const summaryCallPreloading = mockUseBibleSummary.mock.calls[0];
       expect(summaryCallPreloading[3]).toEqual(expect.objectContaining({ enabled: false }));
 
       mockUseBibleSummary.mockClear();
 
-      // Transition to active page
+      // Transition to active page (still bible view)
       rerender(
         <SafeAreaProvider>
           <QueryClientProvider client={queryClient}>
@@ -440,7 +448,7 @@ describe('ChapterPage', () => {
                   bookId={1}
                   chapterNumber={1}
                   activeTab="summary"
-                  activeView="explanations"
+                  activeView="bible"
                   isPreloading={false}
                 />
               </ToastProvider>
@@ -449,7 +457,7 @@ describe('ChapterPage', () => {
         </SafeAreaProvider>
       );
 
-      // Summary query should now be enabled
+      // Summary query should now be enabled (isPreloading is false)
       const summaryCallActive = mockUseBibleSummary.mock.calls[0];
       expect(summaryCallActive[3]).toEqual(expect.objectContaining({ enabled: true }));
     });
