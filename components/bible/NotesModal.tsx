@@ -82,6 +82,7 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
   const { showToast } = useToast();
   const {
     isListening,
+    isAvailable: micAvailable,
     hasError: micError,
     startListening,
     stopListening,
@@ -333,11 +334,13 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
                 />
 
                 <View style={styles.addNoteFooter}>
-                  <MicrophoneButton
-                    isListening={isListening}
-                    hasError={micError}
-                    onPress={isListening ? stopListening : startListening}
-                  />
+                  {micAvailable && (
+                    <MicrophoneButton
+                      isListening={isListening}
+                      hasError={micError}
+                      onPress={isListening ? stopListening : startListening}
+                    />
+                  )}
 
                   <CharacterCounter
                     currentLength={newNoteContent.length}

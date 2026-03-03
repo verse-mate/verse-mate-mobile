@@ -71,6 +71,7 @@ export function NoteEditModal({
   const { showToast } = useToast();
   const {
     isListening,
+    isAvailable: micAvailable,
     hasError: micError,
     startListening,
     stopListening,
@@ -332,11 +333,13 @@ export function NoteEditModal({
               />
 
               <View style={styles.counterContainer}>
-                <MicrophoneButton
-                  isListening={isListening}
-                  hasError={micError}
-                  onPress={isListening ? stopListening : startListening}
-                />
+                {micAvailable && (
+                  <MicrophoneButton
+                    isListening={isListening}
+                    hasError={micError}
+                    onPress={isListening ? stopListening : startListening}
+                  />
+                )}
                 <CharacterCounter
                   currentLength={content.length}
                   maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}

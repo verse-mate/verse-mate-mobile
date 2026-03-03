@@ -20,6 +20,16 @@ describe('MicrophoneButton', () => {
     expect(button.props.accessibilityLabel).toBe('Stop voice input');
   });
 
+  it('should render with hasError prop', () => {
+    const onPress = jest.fn();
+    const { getByTestId } = render(
+      <MicrophoneButton isListening={false} hasError={true} onPress={onPress} />
+    );
+
+    const button = getByTestId('mic-button');
+    expect(button).toBeTruthy();
+  });
+
   it('should call onPress when pressed', () => {
     const onPress = jest.fn();
     const { getByTestId } = render(<MicrophoneButton isListening={false} onPress={onPress} />);
