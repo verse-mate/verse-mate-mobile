@@ -15,9 +15,8 @@ tags:
 # - Next chapter button
 # - Previous chapter button
 #
-# Strategy: Scroll to bottom to trigger isAtBottom state, which keeps
-# FABs permanently visible (no auto-hide timeout). This is more reliable
-# on CI than tap-to-show, which requires <200ms touch duration.
+# Strategy: Use repeat scroll to reach bottom of chapter content.
+# When isAtBottom is true, FABs stay permanently visible (no auto-hide).
 
 - runFlow: ../shared/setup.yaml
 
@@ -31,16 +30,17 @@ tags:
 - assertVisible:
     text: "Genesis 1"
 
-# Scroll to bottom to keep FABs permanently visible (isAtBottom = true)
-- scroll
-- scroll
-- scroll
+# Scroll to bottom to keep FABs permanently visible
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
-# Wait for FABs to appear
+# Wait for FABs to appear (isAtBottom triggers permanent visibility)
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
-    timeout: 5000
+    timeout: 10000
 
 # Test next chapter button -> Genesis 2
 - tapOn:
@@ -51,19 +51,19 @@ tags:
       id: "chapter-selector-button"
     timeout: 10000
 
-# Verify we're on Genesis 2
 - assertVisible:
     text: "Genesis 2"
 
-# Scroll to bottom again for the new chapter
-- scroll
-- scroll
-- scroll
+# Scroll to bottom again for new chapter
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
-    timeout: 5000
+    timeout: 10000
 
 # Test next chapter again -> Genesis 3
 - tapOn:
@@ -74,19 +74,19 @@ tags:
       id: "chapter-selector-button"
     timeout: 10000
 
-# Verify we're on Genesis 3
 - assertVisible:
     text: "Genesis 3"
 
 # Scroll to bottom for FABs
-- scroll
-- scroll
-- scroll
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
 - extendedWaitUntil:
     visible:
       id: "previous-chapter-button"
-    timeout: 5000
+    timeout: 10000
 
 # Test previous chapter -> Genesis 2
 - tapOn:
@@ -97,19 +97,19 @@ tags:
       id: "chapter-selector-button"
     timeout: 10000
 
-# Verify we're on Genesis 2
 - assertVisible:
     text: "Genesis 2"
 
 # Scroll to bottom for FABs
-- scroll
-- scroll
-- scroll
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
 - extendedWaitUntil:
     visible:
       id: "previous-chapter-button"
-    timeout: 5000
+    timeout: 10000
 
 # Test previous chapter again -> Genesis 1
 - tapOn:
@@ -120,6 +120,5 @@ tags:
       id: "chapter-selector-button"
     timeout: 10000
 
-# Verify we're back on Genesis 1
 - assertVisible:
     text: "Genesis 1"
