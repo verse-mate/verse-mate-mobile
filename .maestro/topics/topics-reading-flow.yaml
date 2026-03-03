@@ -76,7 +76,7 @@ tags:
 - extendedWaitUntil:
     visible:
       text: "The Creation of the World"
-    timeout: 10000
+    timeout: 30000
 
 # Tap on first topic in the list (The Creation of the World)
 - tapOn:

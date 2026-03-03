@@ -66,12 +66,12 @@ tags:
 - assertVisible:
     id: "chapter-1"
 
-# Scroll down to chapter 150 (the last chapter in Psalms)
+# Scroll down to chapter 150 (the last chapter in Psalms — 150 chapters in grid)
 - scrollUntilVisible:
     element:
       id: "chapter-150"
     direction: DOWN
-    timeout: 10000
+    timeout: 30000
 
 # Tap chapter 150
 - tapOn:

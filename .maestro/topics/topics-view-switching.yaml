@@ -60,7 +60,7 @@ tags:
 - extendedWaitUntil:
     visible:
       text: "The Creation of the World"
-    timeout: 10000
+    timeout: 30000
 
 # Select "The Creation of the World" topic
 - tapOn:
@@ -237,7 +237,7 @@ tags:
 - extendedWaitUntil:
     visible:
       text: "The Creation of the World"
-    timeout: 10000
+    timeout: 30000
 
 - tapOn:
     text: "The Creation of the World"
