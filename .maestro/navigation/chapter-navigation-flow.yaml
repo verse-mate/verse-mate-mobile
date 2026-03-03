@@ -33,8 +33,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
 
 # Test next chapter button -> Genesis 2
 - tapOn:
@@ -55,8 +57,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
 
 # Test next chapter again -> Genesis 3
 - tapOn:
@@ -73,8 +77,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
 
 # Test previous chapter -> Genesis 2
 - tapOn:
@@ -91,8 +97,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
 
 # Test previous chapter again -> Genesis 1
 - tapOn:

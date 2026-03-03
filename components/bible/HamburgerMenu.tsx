@@ -375,6 +375,7 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                         router.push('/auth/login');
                       }
                     }}
+                    testID={isAuthenticated ? 'menu-item-logout' : 'menu-item-login'}
                   >
                     <View style={styles.menuIconContainer}>
                       <IconProfile

@@ -116,6 +116,12 @@ tags:
 - waitForAnimationToEnd
 
 
+# Wait for topics to load from API
+- extendedWaitUntil:
+    visible:
+      text: "The Creation of the World"
+    timeout: 10000
+
 # Select a topic
 - tapOn:
     text: "The Creation of the World"
