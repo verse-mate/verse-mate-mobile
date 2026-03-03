@@ -27,7 +27,7 @@ const config = {
   android: {
     package: 'org.versemate.app',
     allowBackup: false,
-    permissions: ['RECEIVE_BOOT_COMPLETED'],
+    permissions: ['RECEIVE_BOOT_COMPLETED', 'RECORD_AUDIO'],
     blockedPermissions: ['android.permission.ACTIVITY_RECOGNITION'],
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
@@ -98,6 +98,14 @@ const config = {
     'expo-localization',
     'expo-web-browser',
     'expo-sqlite',
+    [
+      'expo-speech-recognition',
+      {
+        microphonePermission: 'Allow Verse Mate to use the microphone for voice-to-text input.',
+        speechRecognitionPermission:
+          'Allow Verse Mate to use speech recognition for voice-to-text input.',
+      },
+    ],
   ],
   assetBundlePatterns: ['assets/data/**'],
   experiments: {

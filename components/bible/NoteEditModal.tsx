@@ -35,12 +35,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CharacterCounter } from '@/components/bible/CharacterCounter';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
+import { MicrophoneButton } from '@/components/bible/MicrophoneButton';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { NOTES_CONFIG } from '@/constants/notes';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useNoteDraft } from '@/hooks/bible/use-note-draft';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import type { Note } from '@/types/notes';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 
@@ -67,6 +69,12 @@ export function NoteEditModal({
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors, insets.bottom);
   const { showToast } = useToast();
+  const { isListening, startListening, stopListening } = useSpeechToText({
+    onTranscript: (text) => {
+      setContent((prev) => (prev ? `${prev} ${text}` : text));
+    },
+    onError: (message) => showToast(message),
+  });
   const { updateNote, isUpdatingNote } = useNotes();
   const { draftContent, isDraftRestored, saveDraft, clearDraft } = useNoteDraft(
     note.book_id * 1000 + note.chapter_number,
@@ -319,6 +327,10 @@ export function NoteEditModal({
               />
 
               <View style={styles.counterContainer}>
+                <MicrophoneButton
+                  isListening={isListening}
+                  onPress={isListening ? stopListening : startListening}
+                />
                 <CharacterCounter
                   currentLength={content.length}
                   maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
@@ -432,8 +444,11 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
       color: colors.white,
     },
     counterContainer: {
-      alignItems: 'flex-end',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
       paddingVertical: spacing.xs,
+      gap: spacing.sm,
     },
     actionsContainer: {
       gap: spacing.md, // Spacing between stacked buttons
