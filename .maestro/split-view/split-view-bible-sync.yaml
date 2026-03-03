@@ -34,7 +34,7 @@ tags:
 # 5. Verify both panels update correctly
 # 6. Navigate to a different book entirely
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # ============================================
 # Test 1: Verify Split View Renders

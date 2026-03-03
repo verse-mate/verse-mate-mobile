@@ -25,7 +25,7 @@ tags:
 # 4. Swipe right again to go to previous topic (circular) - verify header changed
 # 5. Verify FAB buttons work for navigation
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # ============================================
 # Setup: Navigate to a Known Topic

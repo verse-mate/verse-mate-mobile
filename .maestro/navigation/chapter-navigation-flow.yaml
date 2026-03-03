@@ -15,7 +15,9 @@ tags:
 # - Next chapter button
 # - Previous chapter button
 #
-# Note: FABs auto-hide after scrolling, so we tap the screen to show them
+# Strategy: Scroll to bottom to trigger isAtBottom state, which keeps
+# FABs permanently visible (no auto-hide timeout). This is more reliable
+# on CI than tap-to-show, which requires <200ms touch duration.
 
 - runFlow: ../shared/setup.yaml
 
@@ -29,12 +31,12 @@ tags:
 - assertVisible:
     text: "Genesis 1"
 
-# Scroll to trigger FAB visibility (scroll + tap pattern works reliably on CI)
+# Scroll to bottom to keep FABs permanently visible (isAtBottom = true)
 - scroll
 - scroll
-- tapOn:
-    point: "50%,50%"
+- scroll
 
+# Wait for FABs to appear
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
@@ -44,22 +46,19 @@ tags:
 - tapOn:
     id: "next-chapter-button"
 
-- waitForAnimationToEnd
-
-
-# Verify chapter selector still visible
-- assertVisible:
-    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # Verify we're on Genesis 2
 - assertVisible:
     text: "Genesis 2"
 
-# Scroll + tap to show FABs again
+# Scroll to bottom again for the new chapter
 - scroll
 - scroll
-- tapOn:
-    point: "50%,50%"
+- scroll
 
 - extendedWaitUntil:
     visible:
@@ -70,18 +69,19 @@ tags:
 - tapOn:
     id: "next-chapter-button"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # Verify we're on Genesis 3
 - assertVisible:
     text: "Genesis 3"
 
-# Scroll + tap to show FABs
+# Scroll to bottom for FABs
 - scroll
 - scroll
-- tapOn:
-    point: "50%,50%"
+- scroll
 
 - extendedWaitUntil:
     visible:
@@ -92,18 +92,19 @@ tags:
 - tapOn:
     id: "previous-chapter-button"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # Verify we're on Genesis 2
 - assertVisible:
     text: "Genesis 2"
 
-# Scroll + tap to show FABs
+# Scroll to bottom for FABs
 - scroll
 - scroll
-- tapOn:
-    point: "50%,50%"
+- scroll
 
 - extendedWaitUntil:
     visible:
@@ -114,8 +115,10 @@ tags:
 - tapOn:
     id: "previous-chapter-button"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # Verify we're back on Genesis 1
 - assertVisible:

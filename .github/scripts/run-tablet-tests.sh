@@ -3,22 +3,26 @@ set -e
 
 adb install app.apk
 
-# Warm launch: trigger EAS Update download
-adb shell monkey -p org.versemate.app -c android.intent.category.LAUNCHER 1
-sleep 15
-adb shell am force-stop org.versemate.app
-echo "Warm launch complete - update pre-downloaded"
-
-# Force landscape orientation for split-view tests
+# Force landscape orientation BEFORE warm launch so the app initializes
+# in split-view mode (width >= 1024dp triggers split view)
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1
 echo "Tablet emulator set to landscape orientation"
 
+# Warm launch: trigger EAS Update download + seed DB initialization
+adb shell monkey -p org.versemate.app -c android.intent.category.LAUNCHER 1
+sleep 20
+adb shell am force-stop org.versemate.app
+echo "Warm launch complete - update pre-downloaded, seed DB initialized"
+
 TEST_FOLDER="$1"
 
-# Split-view tests are currently disabled on CI — the Nexus 10 emulator's
-# onboarding flow doesn't render reliably (clearState + EAS Update + landscape
-# rotation timing). Run locally: maestro test .maestro/split-view/
-# TODO: Re-enable once tablet emulator setup is stabilized
-echo "Split-view tests temporarily disabled on CI (see run-tablet-tests.sh)"
-echo "Run locally: maestro test .maestro/split-view/"
+if [ -z "$TEST_FOLDER" ]; then
+  echo "Running split-view tests..."
+  maestro test .maestro/split-view/
+elif [ "$TEST_FOLDER" = "split-view" ]; then
+  echo "Running split-view tests..."
+  maestro test .maestro/split-view/
+else
+  echo "Skipping tablet step (test folder '$TEST_FOLDER' runs on phone emulator only)"
+fi
