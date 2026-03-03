@@ -1,14 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface MicrophoneButtonProps {
   isListening: boolean;
+  hasError?: boolean;
   onPress: () => void;
 }
 
-export function MicrophoneButton({ isListening, onPress }: MicrophoneButtonProps) {
+export function MicrophoneButton({ isListening, hasError, onPress }: MicrophoneButtonProps) {
   const { colors } = useTheme();
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (hasError) {
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 6, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -6, duration: 50, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [hasError, shakeAnim]);
 
   const iconName = isListening ? 'mic' : 'mic-off-outline';
   const iconColor = isListening ? colors.gold : colors.textSecondary;
@@ -23,7 +38,9 @@ export function MicrophoneButton({ isListening, onPress }: MicrophoneButtonProps
       accessibilityLabel={isListening ? 'Stop voice input' : 'Start voice input'}
       accessibilityRole="button"
     >
-      <Ionicons name={iconName} size={24} color={iconColor} />
+      <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+        <Ionicons name={iconName} size={24} color={iconColor} />
+      </Animated.View>
     </TouchableOpacity>
   );
 }

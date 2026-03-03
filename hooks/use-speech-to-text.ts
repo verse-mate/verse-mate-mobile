@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import * as Localization from 'expo-localization';
 import type {
   ExpoSpeechRecognitionErrorEvent,
   ExpoSpeechRecognitionResultEvent,
@@ -22,6 +23,7 @@ interface UseSpeechToTextOptions {
 interface UseSpeechToTextResult {
   isListening: boolean;
   isAvailable: boolean;
+  hasError: boolean;
   startListening: () => Promise<void>;
   stopListening: () => void;
 }
@@ -32,12 +34,18 @@ export function useSpeechToText({
 }: UseSpeechToTextOptions): UseSpeechToTextResult {
   const [isListening, setIsListening] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const isListeningRef = useRef(false);
   const onTranscriptRef = useRef(onTranscript);
   const onErrorRef = useRef(onError);
 
   onTranscriptRef.current = onTranscript;
   onErrorRef.current = onError;
+
+  const flashError = useCallback(() => {
+    setHasError(true);
+    setTimeout(() => setHasError(false), 400);
+  }, []);
 
   useEffect(() => {
     setIsAvailable(isRecognitionAvailable());
@@ -79,12 +87,14 @@ export function useSpeechToText({
 
   const startListening = useCallback(async () => {
     if (!hasNativeModule()) {
+      flashError();
       onErrorRef.current?.('Voice input requires a development build');
       return;
     }
 
     const granted = await requestPermissions();
     if (!granted) {
+      flashError();
       onErrorRef.current?.('Microphone permission is required for voice input');
       return;
     }
@@ -93,12 +103,15 @@ export function useSpeechToText({
     setIsListening(true);
     isListeningRef.current = true;
 
+    const deviceLang = Localization.getLocales()[0]?.languageTag ?? 'en-US';
+
     startRecognition({
-      lang: 'en-US',
+      lang: deviceLang,
       interimResults: false,
+      // iOS-only: adds punctuation automatically; ignored on Android
       addsPunctuation: true,
     });
-  }, []);
+  }, [flashError]);
 
   const stopListening = useCallback(() => {
     if (isListeningRef.current) {
@@ -118,6 +131,7 @@ export function useSpeechToText({
   return {
     isListening,
     isAvailable,
+    hasError,
     startListening,
     stopListening,
   };

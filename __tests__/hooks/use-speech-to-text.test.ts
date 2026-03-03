@@ -13,6 +13,11 @@ const mockNativeModule = {
   }),
 };
 
+// Mock expo-localization
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn().mockReturnValue([{ languageTag: 'en-US' }]),
+}));
+
 // Mock the speech-recognition lib
 jest.mock('@/lib/speech-recognition', () => ({
   isRecognitionAvailable: jest.fn().mockReturnValue(true),
@@ -56,6 +61,7 @@ describe('useSpeechToText', () => {
 
     expect(result.current.isListening).toBe(false);
     expect(result.current.isAvailable).toBe(true);
+    expect(result.current.hasError).toBe(false);
     expect(typeof result.current.startListening).toBe('function');
     expect(typeof result.current.stopListening).toBe('function');
   });
