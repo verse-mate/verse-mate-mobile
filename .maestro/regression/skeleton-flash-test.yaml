@@ -29,7 +29,7 @@ tags:
 # - Should NOT show skeleton loader between transitions
 # - Header should update at same time as content updates
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # Wait for chapter to load - verify chapter selector is visible
 - assertVisible:

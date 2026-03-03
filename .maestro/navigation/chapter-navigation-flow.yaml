@@ -18,7 +18,7 @@ tags:
 # Strategy: Use repeat scroll to reach bottom of chapter content.
 # When isAtBottom is true, FABs stay permanently visible (no auto-hide).
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # Wait for app to load
 - extendedWaitUntil:

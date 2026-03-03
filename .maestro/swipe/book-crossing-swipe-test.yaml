@@ -21,7 +21,7 @@ tags:
 #
 # This tests the OT/NT boundary crossing - the most important cross-book case
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # ============================================
 # Setup: Navigate to Malachi 4 (last OT chapter)

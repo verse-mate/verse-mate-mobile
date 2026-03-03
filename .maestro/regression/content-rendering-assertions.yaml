@@ -22,7 +22,7 @@ tags:
 # 1. Launch app to Bible screen - verify no placeholders
 # 2. Switch to Explanations view - verify no placeholders
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # ============================================
 # Test 1: Bible Screen - No Placeholder Text
