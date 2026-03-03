@@ -3,17 +3,27 @@ set -e
 
 adb install app.apk
 
-# Force landscape orientation BEFORE warm launch so the app initializes
+# Force landscape orientation BEFORE warm-up so the app initializes
 # in split-view mode (width >= 1024dp triggers split view)
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1
 echo "Tablet emulator set to landscape orientation"
 
-# Warm launch: trigger EAS Update download + seed DB initialization
-adb shell monkey -p org.versemate.app -c android.intent.category.LAUNCHER 1
-sleep 20
-adb shell am force-stop org.versemate.app
-echo "Warm launch complete - update pre-downloaded, seed DB initialized"
+# Warm up: use Maestro to properly initialize the app in landscape/split-view.
+# The warmup uses clearState:true with extended timeout for EAS Update download.
+# Retry once if it fails (transient EAS Update delivery issue).
+echo "=========================================="
+echo "Running warm-up (EAS Update + onboarding + seed DB)"
+echo "=========================================="
+
+# Warmup expects chapter-selector-button, but tablet in landscape shows split-view.
+# Use the tablet-specific warmup that waits for split-view ID instead.
+if ! maestro test .maestro/shared/warmup-tablet.yaml; then
+  echo "Warm-up failed, retrying after 10s..."
+  sleep 10
+  maestro test .maestro/shared/warmup-tablet.yaml
+fi
+echo "Warm-up complete"
 
 TEST_FOLDER="$1"
 

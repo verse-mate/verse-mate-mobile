@@ -25,7 +25,7 @@ tags:
 # 5. Scroll down to chapter 150
 # 6. Tap chapter 150 and verify navigation
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # Wait for app to load
 - waitForAnimationToEnd

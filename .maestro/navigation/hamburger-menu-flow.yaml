@@ -19,7 +19,7 @@ tags:
 #
 # Note: This test uses testID selectors for reliable interaction
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # Wait for app to fully load
 - extendedWaitUntil:

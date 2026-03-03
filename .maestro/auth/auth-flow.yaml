@@ -19,7 +19,7 @@ tags:
 # Note: This test verifies UI navigation only.
 # Actual signup/login would require test credentials and API connectivity.
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # Wait for app to fully load
 - extendedWaitUntil:
