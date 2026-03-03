@@ -36,6 +36,7 @@ export function useSpeechToText({
   const [isAvailable, setIsAvailable] = useState(false);
   const [hasError, setHasError] = useState(false);
   const isListeningRef = useRef(false);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const onTranscriptRef = useRef(onTranscript);
   const onErrorRef = useRef(onError);
 
@@ -44,7 +45,8 @@ export function useSpeechToText({
 
   const flashError = useCallback(() => {
     setHasError(true);
-    setTimeout(() => setHasError(false), 400);
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => setHasError(false), 400);
   }, []);
 
   useEffect(() => {
@@ -122,6 +124,7 @@ export function useSpeechToText({
 
   useEffect(() => {
     return () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       if (isListeningRef.current) {
         abortRecognition();
       }
