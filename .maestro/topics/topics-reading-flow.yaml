@@ -31,9 +31,11 @@ tags:
 # Open navigation modal (try chapter selector first, then topic selector)
 - tapOn:
     id: "chapter-selector-button"
+    optional: true
 
 - tapOn:
     id: "topic-selector-button"
+    optional: true
 
 # Wait for modal to open
 - extendedWaitUntil:
@@ -69,6 +71,12 @@ tags:
 # ============================================
 # Test 3: Select a Topic
 # ============================================
+
+# Wait for topics to load from API
+- extendedWaitUntil:
+    visible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 # Tap on first topic in the list (The Creation of the World)
 - tapOn:

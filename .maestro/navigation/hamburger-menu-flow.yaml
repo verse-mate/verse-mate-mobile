@@ -85,9 +85,11 @@ tags:
 - assertNotVisible:
     id: "hamburger-menu"
 
-# Verify bookmarks list is visible
-- assertVisible:
-    id: "bookmarks-list"
+# Wait for bookmarks screen to load
+- extendedWaitUntil:
+    visible:
+      id: "bookmarks-list"
+    timeout: 5000
 
 # Go back to chapter screen
 - tapOn:
@@ -129,9 +131,11 @@ tags:
 - assertNotVisible:
     id: "hamburger-menu"
 
-# Verify highlights list is visible
-- assertVisible:
-    id: "highlights-list"
+# Wait for highlights screen to load
+- extendedWaitUntil:
+    visible:
+      id: "highlights-list"
+    timeout: 5000
 
 # Go back to chapter screen
 - tapOn:
@@ -173,9 +177,11 @@ tags:
 - assertNotVisible:
     id: "hamburger-menu"
 
-# Verify notes list is visible
-- assertVisible:
-    id: "notes-list"
+# Wait for notes screen to load
+- extendedWaitUntil:
+    visible:
+      id: "notes-list"
+    timeout: 5000
 
 # Go back to chapter screen
 - tapOn:
