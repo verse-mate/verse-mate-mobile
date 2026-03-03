@@ -69,7 +69,12 @@ export function NoteEditModal({
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors, insets.bottom);
   const { showToast } = useToast();
-  const { isListening, startListening, stopListening } = useSpeechToText({
+  const {
+    isListening,
+    hasError: micError,
+    startListening,
+    stopListening,
+  } = useSpeechToText({
     onTranscript: (text) => {
       setContent((prev) => (prev ? `${prev} ${text}` : text));
     },
@@ -329,6 +334,7 @@ export function NoteEditModal({
               <View style={styles.counterContainer}>
                 <MicrophoneButton
                   isListening={isListening}
+                  hasError={micError}
                   onPress={isListening ? stopListening : startListening}
                 />
                 <CharacterCounter
