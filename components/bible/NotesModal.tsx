@@ -36,6 +36,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CharacterCounter } from '@/components/bible/CharacterCounter';
+import { MicrophoneButton } from '@/components/bible/MicrophoneButton';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import {
@@ -50,6 +51,7 @@ import { NOTES_CONFIG } from '@/constants/notes';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import type { Note } from '@/types/notes';
 
 /**
@@ -78,6 +80,12 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
   const styles = createStyles(colors, mode);
   const { addNote, isAddingNote, deleteNote } = useNotes();
   const { showToast } = useToast();
+  const { isListening, startListening, stopListening } = useSpeechToText({
+    onTranscript: (text) => {
+      setNewNoteContent((prev) => (prev ? `${prev} ${text}` : text));
+    },
+    onError: (message) => showToast(message),
+  });
   const [newNoteContent, setNewNoteContent] = useState('');
   const [recentNotes, setRecentNotes] = useState<Note[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
@@ -320,6 +328,11 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
                 />
 
                 <View style={styles.addNoteFooter}>
+                  <MicrophoneButton
+                    isListening={isListening}
+                    onPress={isListening ? stopListening : startListening}
+                  />
+
                   <CharacterCounter
                     currentLength={newNoteContent.length}
                     maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
@@ -482,7 +495,10 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     },
     addNoteFooter: {
       marginTop: spacing.sm,
-      alignItems: 'flex-end',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: spacing.sm,
     },
     addButton: {
       backgroundColor: colors.gold,
