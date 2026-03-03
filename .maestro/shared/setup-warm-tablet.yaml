@@ -1,0 +1,25 @@
+appId: org.versemate.app
+---
+# Warm tablet setup: launch WITHOUT clearing state, wait for split-view.
+# Use this for split-view tests on tablet emulators.
+#
+# Handles two scenarios:
+# 1. First run after warm launch: onboarding shows → tap Skip → split-view
+# 2. Subsequent runs: onboarding already completed → split-view directly
+#
+# Usage: - runFlow: ../shared/setup-warm-tablet.yaml
+
+- launchApp:
+    clearState: false
+    appId: org.versemate.app
+
+# Tap Skip if onboarding is showing (optional — won't fail if already completed)
+- tapOn:
+    text: "Skip"
+    optional: true
+
+# Wait for split-view layout to render (tablet in landscape, width >= 1024dp)
+- extendedWaitUntil:
+    visible:
+      id: "split-view"
+    timeout: 45000
