@@ -16,7 +16,7 @@ tags:
 # 3. Select a topic from the list
 # 4. Return to Bible chapter
 
-- runFlow: ../shared/setup.yaml
+- runFlow: ../shared/setup-warm.yaml
 
 # Wait for app to fully load (either chapter or topic screen)
 - extendedWaitUntil:
