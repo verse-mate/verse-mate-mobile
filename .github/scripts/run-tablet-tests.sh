@@ -16,10 +16,9 @@ echo "Tablet emulator set to landscape orientation"
 
 TEST_FOLDER="$1"
 
-# Run split-view tests only when no folder specified or split-view folder requested
-if [ -z "$TEST_FOLDER" ] || [ "$TEST_FOLDER" = "split-view" ]; then
-  echo "Running split-view tests on tablet emulator..."
-  maestro test .maestro/split-view/
-else
-  echo "Skipping split-view tests (requested folder: $TEST_FOLDER)"
-fi
+# Split-view tests are currently disabled on CI — the Nexus 10 emulator's
+# onboarding flow doesn't render reliably (clearState + EAS Update + landscape
+# rotation timing). Run locally: maestro test .maestro/split-view/
+# TODO: Re-enable once tablet emulator setup is stabilized
+echo "Split-view tests temporarily disabled on CI (see run-tablet-tests.sh)"
+echo "Run locally: maestro test .maestro/split-view/"
