@@ -85,10 +85,10 @@ tags:
 - assertNotVisible:
     id: "hamburger-menu"
 
-# Wait for bookmarks screen to load
+# Wait for bookmarks screen to load (back button is always present regardless of auth/data state)
 - extendedWaitUntil:
     visible:
-      id: "bookmarks-list"
+      id: "bookmarks-back-button"
     timeout: 5000
 
 # Go back to chapter screen
@@ -131,10 +131,10 @@ tags:
 - assertNotVisible:
     id: "hamburger-menu"
 
-# Wait for highlights screen to load
+# Wait for highlights screen to load (back button is always present regardless of auth/data state)
 - extendedWaitUntil:
     visible:
-      id: "highlights-list"
+      id: "highlights-back-button"
     timeout: 5000
 
 # Go back to chapter screen
@@ -177,10 +177,10 @@ tags:
 - assertNotVisible:
     id: "hamburger-menu"
 
-# Wait for notes screen to load
+# Wait for notes screen to load (back button is always present regardless of auth/data state)
 - extendedWaitUntil:
     visible:
-      id: "notes-list"
+      id: "notes-back-button"
     timeout: 5000
 
 # Go back to chapter screen

@@ -9,6 +9,11 @@ sleep 15
 adb shell am force-stop org.versemate.app
 echo "Warm launch complete - update pre-downloaded"
 
+# Force landscape orientation for split-view tests
+adb shell settings put system accelerometer_rotation 0
+adb shell settings put system user_rotation 1
+echo "Tablet emulator set to landscape orientation"
+
 TEST_FOLDER="$1"
 
 # Run split-view tests only when no folder specified or split-view folder requested
