@@ -312,8 +312,8 @@ describe('SimpleTopicPager', () => {
 
     // Should render without crashing
     expect(result.root).toBeTruthy();
-    // Should still show the pager view
-    expect(screen.getByTestId('simple-topic-pager')).toBeTruthy();
+    // Should still show the pager view (loading state — no topics available)
+    expect(screen.getByTestId('topic-pager-loading')).toBeTruthy();
   });
 
   /**
@@ -331,7 +331,7 @@ describe('SimpleTopicPager', () => {
 
     // Should render without crashing
     expect(result.root).toBeTruthy();
-    expect(screen.getByTestId('simple-topic-pager')).toBeTruthy();
+    expect(screen.getByTestId('topic-pager-loading')).toBeTruthy();
   });
 
   /**
