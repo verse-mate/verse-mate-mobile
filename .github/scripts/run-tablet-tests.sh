@@ -5,8 +5,15 @@ adb install app.apk
 
 # Force landscape orientation BEFORE any app launch so the app initializes
 # in split-view mode (width >= 1024dp triggers split view)
+# Nexus 10 natural orientation is landscape (2560x1600 skin), so rotation 0
+# keeps it in landscape. Rotation 1 would rotate it to portrait.
 adb shell settings put system accelerometer_rotation 0
-adb shell settings put system user_rotation 1
+adb shell settings put system user_rotation 0
+
+# Debug: log actual display dimensions to verify landscape
+echo "Display info:"
+adb shell wm size
+adb shell dumpsys window displays | grep -E "cur=" | head -1
 echo "Tablet emulator set to landscape orientation"
 
 # Maestro warmup: clearState:true with extended timeouts.
