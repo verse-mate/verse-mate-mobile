@@ -1,27 +1,22 @@
 appId: org.versemate.app
 ---
-# CI Warm-up Flow for tablet: First launch with clearState to download
-# EAS Update, complete onboarding, and initialize the seed database.
+# CI Warm-up Flow for tablet: Complete onboarding after ADB pre-launch
+# has already triggered the EAS Update download and seed DB extraction.
 # Waits for split-view ID instead of chapter-selector-button.
 #
 # NOT intended for direct use in tests — use setup-warm-tablet.yaml instead.
 
 - launchApp:
-    clearState: true
+    clearState: false
     appId: org.versemate.app
 
-# Wait for onboarding — extended timeout for first EAS Update download
-- extendedWaitUntil:
-    visible:
-      text: "Skip"
-    timeout: 60000
-
-# Complete onboarding
+# Complete onboarding if still showing
 - tapOn:
     text: "Skip"
+    optional: true
 
 # Wait for split-view layout to render (tablet in landscape)
 - extendedWaitUntil:
     visible:
       id: "split-view"
-    timeout: 30000
+    timeout: 45000
