@@ -22,7 +22,8 @@ appId: org.versemate.app
     text: "Skip"
 
 # Wait for split-view layout to render (tablet in landscape)
+# Extended timeout for seed DB extraction on Nexus 10 emulator
 - extendedWaitUntil:
     visible:
       id: "split-view"
-    timeout: 30000
+    timeout: 60000
