@@ -72,13 +72,14 @@ tags:
 # Test 3: Select a Topic
 # ============================================
 
-# Wait for topics to load from API
-- extendedWaitUntil:
-    visible:
+# Wait for topics to load and scroll to find the target topic
+- scrollUntilVisible:
+    element:
       text: "The Creation of the World"
+    direction: DOWN
     timeout: 30000
 
-# Tap on first topic in the list (The Creation of the World)
+# Tap on the topic
 - tapOn:
     text: "The Creation of the World"
 
