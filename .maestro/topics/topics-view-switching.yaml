@@ -85,6 +85,12 @@ tags:
 - assertVisible:
     text: "The Creation of the World"
 
+# Wait for pager to load all topics (3 pages: prev/current/next)
+- extendedWaitUntil:
+    visible:
+      id: "topic-pager-ready"
+    timeout: 30000
+
 # ============================================
 # Test 1: Verify Default View (Bible View)
 # ============================================

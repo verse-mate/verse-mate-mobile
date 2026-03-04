@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+TEST_FOLDER="$1"
+
+# Only run tablet setup and tests for split-view (or full suite)
+if [ -n "$TEST_FOLDER" ] && [ "$TEST_FOLDER" != "split-view" ]; then
+  echo "Skipping tablet step (test folder '$TEST_FOLDER' runs on phone emulator only)"
+  exit 0
+fi
+
 adb install app.apk
 
 # Force landscape orientation BEFORE any app launch so the app initializes
@@ -33,14 +41,5 @@ if ! maestro test .maestro/shared/warmup-tablet.yaml; then
 fi
 echo "Warm-up complete"
 
-TEST_FOLDER="$1"
-
-if [ -z "$TEST_FOLDER" ]; then
-  echo "Running split-view tests..."
-  maestro test .maestro/split-view/
-elif [ "$TEST_FOLDER" = "split-view" ]; then
-  echo "Running split-view tests..."
-  maestro test .maestro/split-view/
-else
-  echo "Skipping tablet step (test folder '$TEST_FOLDER' runs on phone emulator only)"
-fi
+echo "Running split-view tests..."
+maestro test .maestro/split-view/

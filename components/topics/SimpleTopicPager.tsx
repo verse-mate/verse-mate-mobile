@@ -232,7 +232,7 @@ export function SimpleTopicPager({
       initialPage={initialPageIndex}
       onPageSelected={handlePageSelected}
       onPageScrollStateChanged={handlePageScrollStateChanged}
-      testID="simple-topic-pager"
+      testID={pages.length >= 3 ? 'topic-pager-ready' : 'topic-pager-loading'}
       offscreenPageLimit={1}
     >
       {pages}
