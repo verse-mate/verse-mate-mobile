@@ -72,12 +72,14 @@ tags:
 # Test 3: Select a Topic
 # ============================================
 
-# Wait for topics to load and scroll to find the target topic
-- scrollUntilVisible:
-    element:
+# Filter topics to find the target topic (list order varies, may need scrolling)
+- tapOn:
+    id: "topics-search-input"
+- inputText: "Creation"
+- extendedWaitUntil:
+    visible:
       text: "The Creation of the World"
-    direction: DOWN
-    timeout: 30000
+    timeout: 10000
 
 # Tap on the topic
 - tapOn:
