@@ -89,6 +89,13 @@ tags:
 - assertVisible:
     text: "The Creation of the World"
 
+# Wait for pager to load all topics (3 pages: prev/current/next)
+# Without this, useAllTopics() may not have returned yet and pager has only 1 page
+- extendedWaitUntil:
+    visible:
+      id: "topic-pager-ready"
+    timeout: 30000
+
 # ============================================
 # Test 1: Swipe Left to Next Topic
 # ============================================
