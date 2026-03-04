@@ -56,10 +56,11 @@ tags:
 - waitForAnimationToEnd
 
 
-# Wait for topics to load from API
-- extendedWaitUntil:
-    visible:
+# Wait for topics to load and scroll to find the target topic
+- scrollUntilVisible:
+    element:
       text: "The Creation of the World"
+    direction: DOWN
     timeout: 30000
 
 # Select "The Creation of the World" topic
@@ -233,10 +234,11 @@ tags:
 - waitForAnimationToEnd
 
 
-# Wait for topics to load from API
-- extendedWaitUntil:
-    visible:
+# Wait for topics to load and scroll to find the target topic
+- scrollUntilVisible:
+    element:
       text: "The Creation of the World"
+    direction: DOWN
     timeout: 30000
 
 - tapOn:
