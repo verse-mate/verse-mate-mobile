@@ -21,7 +21,7 @@ tags:
 # For authenticated bookmark testing, use auth-flow.yaml to login first,
 # then run bookmark-authenticated-flow.yaml (future test).
 
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to fully load
 - extendedWaitUntil:

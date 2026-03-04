@@ -18,7 +18,7 @@ tags:
 # Note: Testing Revelation 22 boundary is complex and better tested manually
 # due to the navigation modal behavior.
 
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to fully load
 - extendedWaitUntil:

@@ -24,7 +24,7 @@ tags:
 # 5. Switch to Detailed tab
 # 6. Navigate to next chapter -> verify tab persists
 
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to load
 - waitForAnimationToEnd
