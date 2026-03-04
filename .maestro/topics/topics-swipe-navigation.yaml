@@ -181,9 +181,16 @@ tags:
 # Test 5: FAB Navigation Buttons Work
 # ============================================
 
-# FAB buttons should be visible (topics always enable both)
-- assertVisible:
-    id: "next-chapter-button"
+# Scroll to bottom so FABs stay permanently visible (isAtBottom = true)
+- scroll
+- scroll
+- scroll
+
+# Wait for FAB to appear
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
 
 # Tap next FAB to navigate to next topic
 - tapOn:
@@ -201,6 +208,16 @@ tags:
     notVisible:
       text: "The Creation of the World"
     timeout: 10000
+
+# Scroll to bottom on new topic so FABs stay visible
+- scroll
+- scroll
+- scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
 
 # Tap previous FAB to navigate back
 - tapOn:
