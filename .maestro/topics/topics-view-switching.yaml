@@ -56,12 +56,14 @@ tags:
 - waitForAnimationToEnd
 
 
-# Wait for topics to load and scroll to find the target topic
-- scrollUntilVisible:
-    element:
+# Filter topics to find the target topic (list order varies, may need scrolling)
+- tapOn:
+    id: "topics-search-input"
+- inputText: "Creation"
+- extendedWaitUntil:
+    visible:
       text: "The Creation of the World"
-    direction: DOWN
-    timeout: 30000
+    timeout: 10000
 
 # Select "The Creation of the World" topic
 - tapOn:
@@ -234,12 +236,14 @@ tags:
 - waitForAnimationToEnd
 
 
-# Wait for topics to load and scroll to find the target topic
-- scrollUntilVisible:
-    element:
+# Filter topics to find the target topic (list order varies, may need scrolling)
+- tapOn:
+    id: "topics-search-input"
+- inputText: "Creation"
+- extendedWaitUntil:
+    visible:
       text: "The Creation of the World"
-    direction: DOWN
-    timeout: 30000
+    timeout: 10000
 
 - tapOn:
     text: "The Creation of the World"

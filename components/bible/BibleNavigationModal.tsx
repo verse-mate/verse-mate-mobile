@@ -801,6 +801,7 @@ function BibleNavigationModalComponent({
             onChangeText={onChangeText}
             returnKeyType="search"
             accessibilityLabel={placeholder}
+            testID={isTopicsMode ? 'topics-search-input' : 'books-search-input'}
           />
         </View>
       </View>
