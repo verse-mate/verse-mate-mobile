@@ -14,8 +14,13 @@ echo "Waiting 30s for EAS Update download and seed DB extraction..."
 sleep 30
 adb shell am force-stop org.versemate.app
 
-# Phase 2: Maestro warmup with clearState:false to complete onboarding.
-# The EAS Update and seed DB are already initialized from Phase 1.
+# Dismiss any system ANR/crash dialogs from the pre-launch phase
+sleep 3
+adb shell input keyevent KEYCODE_HOME
+adb shell input keyevent KEYCODE_BACK
+
+# Phase 2: Maestro warmup with clearState:false — preserves EAS Update
+# and seed DB from Phase 1. Skip tap is optional (onboarding may be done).
 echo "=========================================="
 echo "Phase 2: Maestro warm-up (onboarding + verification)"
 echo "=========================================="

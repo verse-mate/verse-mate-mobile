@@ -1,27 +1,26 @@
 appId: org.versemate.app
 ---
-# CI Warm-up Flow: clearState:true to ensure a clean app initialization.
-# The ADB pre-launch step primes the CDN cache so the EAS Update
-# re-download is fast even after state is cleared.
+# CI Warm-up Flow: clearState:false preserves EAS Update + seed DB from
+# the ADB pre-launch phase. This avoids re-downloading EAS Update which
+# is unreliable on CI (flaky network, ANR dialogs).
+#
+# Skip tap is optional since onboarding may already be completed during
+# ADB pre-launch. We wait for chapter-selector-button with 90s timeout
+# which covers both fresh and warm starts.
 #
 # NOT intended for direct use in tests — use setup-warm.yaml instead.
 
 - launchApp:
-    clearState: true
+    clearState: false
     appId: org.versemate.app
 
-# Wait for onboarding — extended timeout for EAS Update (CDN primed)
-- extendedWaitUntil:
-    visible:
-      text: "Skip"
-    timeout: 90000
-
-# Complete onboarding
+# Tap Skip if onboarding is showing (optional — may already be done)
 - tapOn:
     text: "Skip"
+    optional: true
 
 # Wait for Bible screen to fully load (seed DB extraction)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
-    timeout: 30000
+    timeout: 90000
