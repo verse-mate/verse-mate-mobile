@@ -26,7 +26,7 @@ tags:
 # - Each swipe advances exactly one chapter
 # - Header text updates correctly after each swipe
 
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: ../shared/setup.yaml
 
 # ============================================
 # Setup: Ensure we start at Genesis 1

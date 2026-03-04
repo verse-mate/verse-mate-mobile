@@ -19,7 +19,7 @@ tags:
 # 3. Verify Bible verses are visible (no tabs in Bible view)
 # 4. Verify view switcher icons work
 
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: ../shared/setup.yaml
 
 # Wait for app to fully load (either Bible chapter or Topic screen)
 - extendedWaitUntil:
