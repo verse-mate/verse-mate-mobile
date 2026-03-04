@@ -9,20 +9,11 @@ adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1
 echo "Tablet emulator set to landscape orientation"
 
-# Phase 1: Pre-launch the app via ADB to trigger EAS Update download
-# and seed DB extraction in landscape mode.
+# Maestro warmup: clearState:true with extended timeouts.
+# No ADB pre-launch — it interferes with landscape/split-view initialization.
+# The phone step (which runs first) already primes the CDN cache.
 echo "=========================================="
-echo "Phase 1: Pre-launching app for EAS Update download"
-echo "=========================================="
-adb shell am start -n org.versemate.app/.MainActivity
-echo "Waiting 30s for EAS Update download and seed DB extraction..."
-sleep 30
-adb shell am force-stop org.versemate.app
-
-# Phase 2: Maestro warmup with clearState:false to complete onboarding.
-# Uses tablet-specific warmup that waits for split-view ID.
-echo "=========================================="
-echo "Phase 2: Maestro warm-up (onboarding + verification)"
+echo "Running warm-up (EAS Update + onboarding + split-view)"
 echo "=========================================="
 if ! maestro test .maestro/shared/warmup-tablet.yaml; then
   echo "Warm-up failed, retrying after 15s..."
