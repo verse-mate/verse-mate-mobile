@@ -22,7 +22,7 @@ tags:
 # 5. Switch back to Bible view - verify Bible content reappears
 # 6. Swipe to next topic - verify view mode persists
 
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: ../shared/setup.yaml
 
 # ============================================
 # Setup: Navigate to a Known Topic
