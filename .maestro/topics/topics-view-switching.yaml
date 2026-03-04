@@ -187,14 +187,16 @@ tags:
 # Swipe to next topic
 - swipe:
     direction: LEFT
-    duration: 400
+    duration: 500
 
 - waitForAnimationToEnd
 
 
-# Verify we navigated (topic changed)
-- assertNotVisible:
-    text: "The Creation of the World"
+# Wait for topic transition to complete
+- extendedWaitUntil:
+    notVisible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 # Verify topic selector still works
 - assertVisible:

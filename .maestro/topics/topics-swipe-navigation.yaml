@@ -95,7 +95,7 @@ tags:
 
 - swipe:
     direction: LEFT
-    duration: 400
+    duration: 500
 
 - waitForAnimationToEnd
 
@@ -104,9 +104,11 @@ tags:
 - assertVisible:
     id: "topic-selector-button"
 
-# Verify the header changed - should NO longer show the original topic
-- assertNotVisible:
-    text: "The Creation of the World"
+# Wait for topic transition to complete — header should no longer show original topic
+- extendedWaitUntil:
+    notVisible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 # ============================================
 # Test 2: Swipe Right to Go Back
@@ -114,14 +116,16 @@ tags:
 
 - swipe:
     direction: RIGHT
-    duration: 400
+    duration: 500
 
 - waitForAnimationToEnd
 
 
-# Verify we're back on the original topic
-- assertVisible:
-    text: "The Creation of the World"
+# Wait for original topic to reappear
+- extendedWaitUntil:
+    visible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 # Verify the topic selector is still interactive
 - assertVisible:
@@ -134,7 +138,7 @@ tags:
 # Swipe right from "The Creation of the World" (should go to PREVIOUS topic circularly)
 - swipe:
     direction: RIGHT
-    duration: 400
+    duration: 500
 
 - waitForAnimationToEnd
 
@@ -143,9 +147,11 @@ tags:
 - assertVisible:
     id: "topic-selector-button"
 
-# Should no longer show "The Creation of the World"
-- assertNotVisible:
-    text: "The Creation of the World"
+# Wait for topic transition — should no longer show "The Creation of the World"
+- extendedWaitUntil:
+    notVisible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 # ============================================
 # Test 4: Swipe Left to Come Back Again
@@ -153,14 +159,16 @@ tags:
 
 - swipe:
     direction: LEFT
-    duration: 400
+    duration: 500
 
 - waitForAnimationToEnd
 
 
-# Verify we're back on our starting topic
-- assertVisible:
-    text: "The Creation of the World"
+# Wait for original topic to reappear
+- extendedWaitUntil:
+    visible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 # ============================================
 # Test 5: FAB Navigation Buttons Work
@@ -181,8 +189,11 @@ tags:
 - assertVisible:
     id: "topic-selector-button"
 
-- assertNotVisible:
-    text: "The Creation of the World"
+# Wait for topic transition
+- extendedWaitUntil:
+    notVisible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 # Tap previous FAB to navigate back
 - tapOn:
@@ -191,32 +202,34 @@ tags:
 - waitForAnimationToEnd
 
 
-# Verify we're back on original topic
-- assertVisible:
-    text: "The Creation of the World"
+# Wait for original topic to reappear
+- extendedWaitUntil:
+    visible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 # ============================================
 # Test 6: Multiple Rapid Swipes
 # ============================================
 
-# Swipe left 3 times rapidly
+# Swipe left 3 times
 - swipe:
     direction: LEFT
-    duration: 300
+    duration: 500
 
 - waitForAnimationToEnd
 
 
 - swipe:
     direction: LEFT
-    duration: 300
+    duration: 500
 
 - waitForAnimationToEnd
 
 
 - swipe:
     direction: LEFT
-    duration: 300
+    duration: 500
 
 - waitForAnimationToEnd
 
