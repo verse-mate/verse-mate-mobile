@@ -54,11 +54,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
+import { useAllCachedTopics } from '@/hooks/topics/use-all-cached-topics';
 import { useTopicNavigation } from '@/hooks/topics/use-topic-navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { useAllTopics, useTopicById } from '@/src/api';
+import { useTopicById } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory } from '@/types/topics';
 import { generateTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
@@ -100,7 +101,8 @@ export default function TopicDetailScreen() {
   const [activeTopicId, setActiveTopicId] = useState(topicId);
 
   // Fetch ALL topics globally for circular navigation across all categories
-  const { data: allTopics } = useAllTopics();
+  // Uses cached topics (seed DB fallback) so pager works even without API
+  const { data: allTopics } = useAllCachedTopics();
 
   // Get current topic's category from the global topics array (needed for modal)
   // This updates immediately when swiping to a topic in a different category
