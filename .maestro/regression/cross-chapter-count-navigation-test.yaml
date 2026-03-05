@@ -57,14 +57,26 @@ tags:
 - waitForAnimationToEnd
 
 
-# Select Psalms
+# Psalms is below the fold in the book list — scroll to find it
+- scrollUntilVisible:
+    element:
+      id: "book-item-psalms"
+    direction: DOWN
+    timeout: 10000
+
 - tapOn:
     id: "book-item-psalms"
 
 - waitForAnimationToEnd
 
 
-# Select chapter 119
+# Chapter 119 is below the fold in the chapter grid — scroll to find it
+- scrollUntilVisible:
+    element:
+      id: "chapter-119"
+    direction: DOWN
+    timeout: 10000
+
 - tapOn:
     id: "chapter-119"
 
@@ -88,8 +100,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
 
 - tapOn:
     id: "next-chapter-button"
@@ -108,8 +122,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
 
 - tapOn:
     id: "previous-chapter-button"

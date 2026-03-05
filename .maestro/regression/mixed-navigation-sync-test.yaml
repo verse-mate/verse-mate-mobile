@@ -82,8 +82,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
 
 - tapOn:
     id: "next-chapter-button"
@@ -109,8 +111,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
 
 - tapOn:
     id: "next-chapter-button"
@@ -136,8 +140,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
 
 - tapOn:
     id: "previous-chapter-button"

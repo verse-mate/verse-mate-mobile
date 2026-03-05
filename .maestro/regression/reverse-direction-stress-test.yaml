@@ -82,40 +82,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
-
-- tapOn:
-    id: "next-chapter-button"
-
-- waitForAnimationToEnd
-
-
-- assertVisible:
-    text: "Genesis 6"
-
-# FAB backward: Genesis 6 → 5
-- tapOn:
-    point: "50%,50%"
-
-- waitForAnimationToEnd
-
-
-- tapOn:
-    id: "previous-chapter-button"
-
-- waitForAnimationToEnd
-
-
-- assertVisible:
-    text: "Genesis 5"
-
-# FAB forward: Genesis 5 → 6
-- tapOn:
-    point: "50%,50%"
-
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
 
 - tapOn:
     id: "next-chapter-button"
@@ -130,8 +100,10 @@ tags:
 - tapOn:
     point: "50%,50%"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
 
 - tapOn:
     id: "previous-chapter-button"
@@ -146,8 +118,46 @@ tags:
 - tapOn:
     point: "50%,50%"
 
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "next-chapter-button"
+
 - waitForAnimationToEnd
 
+
+- assertVisible:
+    text: "Genesis 6"
+
+# FAB backward: Genesis 6 → 5
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 5"
+
+# FAB forward: Genesis 5 → 6
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
 
 - tapOn:
     id: "next-chapter-button"
