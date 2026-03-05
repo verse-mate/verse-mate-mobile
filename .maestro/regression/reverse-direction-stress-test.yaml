@@ -1,0 +1,224 @@
+---
+appId: org.versemate.app
+name: Reverse Direction Stress Test
+description: Regression test for #80/#87 — rapidly alternates forward/backward navigation via FAB and swipe to verify header sync under directional stress
+tags:
+  - critical
+  - regression
+  - navigation
+
+---
+
+# Reverse Direction Stress Test
+#
+# Regression test for:
+# - #80: Navigation Buttons Cause Chapter State Desync
+# - #87: Chapter Mismatch/Lockup Bug Causing App-wide State Failures
+#
+# Tests rapid back-and-forth navigation that was reported to trigger desync.
+# Alternates direction after each action to stress-test state management.
+#
+# Test Flow:
+# Part A: FAB direction changes from Genesis 5
+#   forward → back → forward → back → forward (5 changes)
+#   Expected: 5 → 6 → 5 → 6 → 5 → 6
+#
+# Part B: Swipe direction changes from Genesis 6
+#   left → right → left → right → left (5 changes)
+#   Expected: 6 → 7 → 6 → 7 → 6 → 7
+
+- runFlow: ../shared/setup.yaml
+
+# ============================================
+# Setup: Navigate to Genesis 5 via picker
+# ============================================
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-5"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify starting state
+- assertVisible:
+    text: "Genesis 5"
+
+# ============================================
+# Part A: FAB rapid direction changes
+# Genesis 5 → 6 → 5 → 6 → 5 → 6
+# ============================================
+
+# FAB forward: Genesis 5 → 6
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# FAB backward: Genesis 6 → 5
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 5"
+
+# FAB forward: Genesis 5 → 6
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# FAB backward: Genesis 6 → 5
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 5"
+
+# FAB forward: Genesis 5 → 6
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# ============================================
+# Part B: Swipe rapid direction changes
+# Genesis 6 → 7 → 6 → 7 → 6 → 7
+# ============================================
+
+# Swipe left: Genesis 6 → 7
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 7"
+
+# Swipe right: Genesis 7 → 6
+- swipe:
+    direction: RIGHT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# Swipe left: Genesis 6 → 7
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 7"
+
+# Swipe right: Genesis 7 → 6
+- swipe:
+    direction: RIGHT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# Swipe left: Genesis 6 → 7
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 7"
+
+# ============================================
+# Test Complete: Header correctly synced through
+# 10 rapid direction changes (5 FAB + 5 swipe)
+# ============================================
