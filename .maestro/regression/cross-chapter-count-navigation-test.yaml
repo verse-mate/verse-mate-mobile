@@ -62,7 +62,7 @@ tags:
     element:
       id: "book-item-psalms"
     direction: DOWN
-    timeout: 10000
+    timeout: 30000
 
 - tapOn:
     id: "book-item-psalms"
@@ -70,12 +70,12 @@ tags:
 - waitForAnimationToEnd
 
 
-# Chapter 119 is below the fold in the chapter grid — scroll to find it
+# Chapter 119 is deep in the chapter grid (150 chapters) — scroll to find it
 - scrollUntilVisible:
     element:
       id: "chapter-119"
     direction: DOWN
-    timeout: 10000
+    timeout: 30000
 
 - tapOn:
     id: "chapter-119"
