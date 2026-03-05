@@ -9,7 +9,7 @@
  * - Stable positional keys: ["page-prev", "page-current", "page-next"]
  * - Initial page is always index 1 (center/current)
  * - No recentering logic - parent component updates props on navigation
- * - Parent uses `key` prop to force remount when center chapter changes
+ * - Internal useEffect resets pager position when props change (no remount)
  *
  * Boundary Handling (Linear Navigation - MVP):
  * - Genesis 1: Page 0 is empty, swipe does not trigger navigation (bounces back)
@@ -46,7 +46,7 @@
  * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v3/spec.md
  */
 
-import { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
@@ -111,6 +111,22 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       false // Linear mode
     );
 
+    // Track the previous chapter key to detect navigation
+    const prevChapterKey = useRef(`${bookId}-${chapterNumber}`);
+
+    // Pending navigation target — set by onPageSelected, processed when pager reaches idle
+    const pendingNavRef = useRef<{ bookId: number; chapterNumber: number } | null>(null);
+
+    // When props change (parent navigated), reset pager to the current page index
+    // without remounting the entire component
+    useEffect(() => {
+      const currentKey = `${bookId}-${chapterNumber}`;
+      if (prevChapterKey.current === currentKey) return;
+      prevChapterKey.current = currentKey;
+      const targetIndex = canGoPrevious ? PAGE_CURRENT_MIDDLE : 0;
+      pagerRef.current?.setPageWithoutAnimation(targetIndex);
+    }, [bookId, chapterNumber, canGoPrevious]);
+
     // Expose imperative methods
     useImperativeHandle(ref, () => ({
       setPage: (index: number) => {
@@ -132,28 +148,57 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * Called when user finishes swiping to a new page.
      * Page indices depend on which pages are rendered.
      */
+    /**
+     * Handle page selection — store pending navigation target.
+     * Navigation is deferred until the pager reaches idle state via onPageScrollStateChanged.
+     * This prevents rapid-swipe race conditions where a second swipe fires before reposition.
+     */
     const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
       const newPosition = event.nativeEvent.position;
 
       if (canGoPrevious && canGoNext) {
         // 3 pages: [prev, current, next]
         if (newPosition === 0 && prevChapter) {
-          onChapterChange(prevChapter.bookId, prevChapter.chapterNumber);
+          pendingNavRef.current = {
+            bookId: prevChapter.bookId,
+            chapterNumber: prevChapter.chapterNumber,
+          };
         } else if (newPosition === 2 && nextChapter) {
-          onChapterChange(nextChapter.bookId, nextChapter.chapterNumber);
+          pendingNavRef.current = {
+            bookId: nextChapter.bookId,
+            chapterNumber: nextChapter.chapterNumber,
+          };
         }
       } else if (!canGoPrevious && canGoNext) {
         // 2 pages at start: [current, next]
         if (newPosition === 1 && nextChapter) {
-          onChapterChange(nextChapter.bookId, nextChapter.chapterNumber);
+          pendingNavRef.current = {
+            bookId: nextChapter.bookId,
+            chapterNumber: nextChapter.chapterNumber,
+          };
         }
       } else if (canGoPrevious && !canGoNext) {
         // 2 pages at end: [prev, current]
         if (newPosition === 0 && prevChapter) {
-          onChapterChange(prevChapter.bookId, prevChapter.chapterNumber);
+          pendingNavRef.current = {
+            bookId: prevChapter.bookId,
+            chapterNumber: prevChapter.chapterNumber,
+          };
         }
       }
-      // Single page (both boundaries - shouldn't happen with Bible) - do nothing
+    };
+
+    /**
+     * Process navigation only when the pager reaches idle state.
+     * This ensures the swipe gesture + settling animation are fully complete before
+     * we trigger the state update and reposition.
+     */
+    const handlePageScrollStateChanged = (event: { nativeEvent: { pageScrollState: string } }) => {
+      if (event.nativeEvent.pageScrollState === 'idle' && pendingNavRef.current) {
+        const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
+        pendingNavRef.current = null;
+        onChapterChange(navBookId, navChapter);
+      }
     };
 
     /**
@@ -207,6 +252,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         style={styles.pagerView}
         initialPage={initialPageIndex}
         onPageSelected={handlePageSelected}
+        onPageScrollStateChanged={handlePageScrollStateChanged}
         testID="simple-chapter-pager"
         offscreenPageLimit={1}
       >

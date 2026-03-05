@@ -23,7 +23,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView } from '@/hooks/bible';
-import { useAllTopics, useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api';
+import { useAllCachedTopics } from '@/hooks/topics/use-all-cached-topics';
+import { useTopicById, useTopicReferences, useTopicsSearch } from '@/src/api';
 
 // Mock dependencies
 jest.mock('expo-router', () => ({
@@ -42,7 +43,10 @@ jest.mock('@/src/api', () => ({
   useTopicReferences: jest.fn(),
   useTopicsSearch: jest.fn(),
   useBibleTestaments: jest.fn(),
-  useAllTopics: jest.fn(),
+}));
+
+jest.mock('@/hooks/topics/use-all-cached-topics', () => ({
+  useAllCachedTopics: jest.fn(),
 }));
 
 jest.mock('@/hooks/bible', () => ({
@@ -243,7 +247,7 @@ describe('TopicDetailScreen', () => {
     });
 
     // Mock useAllTopics for global topic navigation (circular navigation)
-    (useAllTopics as jest.Mock).mockReturnValue({
+    (useAllCachedTopics as jest.Mock).mockReturnValue({
       data: mockCategoryTopics,
       isLoading: false,
       isError: false,

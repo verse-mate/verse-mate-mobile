@@ -214,7 +214,7 @@ function performInitSync(): SQLite.SQLiteDatabase {
       );
       const columns = tableInfo.map((c) => c.name);
       if (columns.includes('book_id') && !columns.includes('reference_content')) {
-        console.log('[Offline DB] Migrating offline_topic_references to new schema');
+        if (__DEV__) console.log('[Offline DB] Migrating offline_topic_references to new schema');
         database.execSync(`
           DROP TABLE IF EXISTS offline_topic_references;
           CREATE TABLE offline_topic_references (
@@ -234,7 +234,8 @@ function performInitSync(): SQLite.SQLiteDatabase {
       const topicCols = database.getAllSync<{ name: string }>('PRAGMA table_info(offline_topics)');
       const colNames = topicCols.map((c) => c.name);
       if (!colNames.includes('category')) {
-        console.log('[Offline DB] Adding category/sort_order columns to offline_topics');
+        if (__DEV__)
+          console.log('[Offline DB] Adding category/sort_order columns to offline_topics');
         database.execSync(
           "ALTER TABLE offline_topics ADD COLUMN category TEXT NOT NULL DEFAULT ''"
         );
@@ -266,7 +267,7 @@ function performInitSync(): SQLite.SQLiteDatabase {
     );
     database.execSync("DELETE FROM offline_metadata WHERE resource_key = '_init'");
 
-    console.log('[Offline DB] Database initialized successfully');
+    if (__DEV__) console.log('[Offline DB] Database initialized successfully');
     return database;
   } catch (e) {
     // Close the handle so we don't leak a native connection.
@@ -307,7 +308,7 @@ export function initDatabase(): Promise<SQLite.SQLiteDatabase> {
     try {
       await copySeedDatabaseIfNeeded();
     } catch (seedErr) {
-      console.warn('[Offline DB] Seed copy failed (non-fatal):', seedErr);
+      if (__DEV__) console.warn('[Offline DB] Seed copy failed (non-fatal):', seedErr);
     }
 
     try {
@@ -315,12 +316,12 @@ export function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       initFailed = false;
       return db;
     } catch (error) {
-      console.warn('[Offline DB] Init failed, will delete and retry:', error);
+      if (__DEV__) console.warn('[Offline DB] Init failed, will delete and retry:', error);
       db = null;
       try {
         SQLite.deleteDatabaseSync(DB_NAME);
       } catch (delErr) {
-        console.warn('[Offline DB] deleteDatabaseSync failed:', delErr);
+        if (__DEV__) console.warn('[Offline DB] deleteDatabaseSync failed:', delErr);
       }
 
       try {
@@ -481,7 +482,7 @@ export async function getSpecificVerses(
 ): Promise<BibleVerseData[]> {
   const book = getBookByName(bookName);
   if (!book) {
-    console.warn(`[Offline] Book not found: ${bookName}`);
+    if (__DEV__) console.warn(`[Offline] Book not found: ${bookName}`);
     return [];
   }
   if (verses.length === 0) return [];

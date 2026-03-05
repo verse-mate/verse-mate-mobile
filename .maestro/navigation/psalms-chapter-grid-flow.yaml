@@ -42,8 +42,18 @@ tags:
 - tapOn:
     id: "tab-old-testament"
 
-# Wait for tab switch animation
-- waitForAnimationToEnd
+# Wait for book list to load
+- extendedWaitUntil:
+    visible:
+      id: "book-item-genesis"
+    timeout: 5000
+
+# Scroll to find Psalms (may not be visible in initial viewport)
+- scrollUntilVisible:
+    element:
+      id: "book-item-psalms"
+    direction: DOWN
+    timeout: 10000
 
 # Select Psalms from book list
 - tapOn:
@@ -56,12 +66,12 @@ tags:
 - assertVisible:
     id: "chapter-1"
 
-# Scroll down to chapter 150 (the last chapter in Psalms)
+# Scroll down to chapter 150 (the last chapter in Psalms — 150 chapters in grid)
 - scrollUntilVisible:
     element:
       id: "chapter-150"
     direction: DOWN
-    timeout: 10000
+    timeout: 30000
 
 # Tap chapter 150
 - tapOn:

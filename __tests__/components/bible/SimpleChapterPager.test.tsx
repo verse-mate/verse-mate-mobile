@@ -23,7 +23,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react-native';
-import type { ReactNode } from 'react';
+import { createRef, type ReactNode } from 'react';
 // Import component after mocks
 import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -31,7 +31,20 @@ import { mockTestamentBooks } from '../../mocks/data/bible-books.data';
 
 // Store mock callbacks for testing
 let mockOnPageSelected: ((event: { nativeEvent: { position: number } }) => void) | undefined;
+let mockOnPageScrollStateChanged:
+  | ((event: { nativeEvent: { pageScrollState: string } }) => void)
+  | undefined;
 let mockInitialPage: number | undefined;
+
+/**
+ * Helper: simulate a complete swipe (page selected + pager settles to idle).
+ * This mirrors what happens on real hardware: onPageSelected fires during the
+ * settling animation, then onPageScrollStateChanged fires with 'idle'.
+ */
+function simulateSwipe(position: number) {
+  mockOnPageSelected?.({ nativeEvent: { position } });
+  mockOnPageScrollStateChanged?.({ nativeEvent: { pageScrollState: 'idle' } });
+}
 
 // Mock react-native-pager-view
 jest.mock('react-native-pager-view', () => {
@@ -39,9 +52,13 @@ jest.mock('react-native-pager-view', () => {
   const { View } = require('react-native');
 
   const MockPagerView = React.forwardRef(
-    ({ children, testID, onPageSelected, initialPage }: any, ref: any) => {
+    (
+      { children, testID, onPageSelected, onPageScrollStateChanged, initialPage }: any,
+      ref: any
+    ) => {
       // Store for testing
       mockOnPageSelected = onPageSelected;
+      mockOnPageScrollStateChanged = onPageScrollStateChanged;
       mockInitialPage = initialPage;
 
       React.useImperativeHandle(ref, () => ({
@@ -98,6 +115,7 @@ describe('SimpleChapterPager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockOnPageSelected = undefined;
+    mockOnPageScrollStateChanged = undefined;
     mockInitialPage = undefined;
   });
 
@@ -167,10 +185,8 @@ describe('SimpleChapterPager', () => {
       </TestWrapper>
     );
 
-    // Simulate swipe to next page (index 2)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 2 } });
-    }
+    // Simulate swipe to next page (index 2) + pager settles to idle
+    simulateSwipe(2);
 
     // Should call onChapterChange with next chapter (Genesis 6)
     expect(mockOnChapterChange).toHaveBeenCalledWith(1, 6);
@@ -195,10 +211,8 @@ describe('SimpleChapterPager', () => {
       </TestWrapper>
     );
 
-    // Simulate swipe to previous page (index 0)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 0 } });
-    }
+    // Simulate swipe to previous page (index 0) + pager settles to idle
+    simulateSwipe(0);
 
     // Should call onChapterChange with previous chapter (Genesis 4)
     expect(mockOnChapterChange).toHaveBeenCalledWith(1, 4);
@@ -289,10 +303,8 @@ describe('SimpleChapterPager', () => {
       </TestWrapper>
     );
 
-    // Simulate swipe to boundary page (index 0)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 0 } });
-    }
+    // Simulate swipe to boundary page (index 0) + idle
+    simulateSwipe(0);
 
     // Should NOT call onChapterChange (boundary page)
     expect(mockOnChapterChange).not.toHaveBeenCalled();
@@ -317,12 +329,163 @@ describe('SimpleChapterPager', () => {
       </TestWrapper>
     );
 
-    // Simulate swipe to boundary page (index 2)
-    if (mockOnPageSelected) {
-      mockOnPageSelected({ nativeEvent: { position: 2 } });
-    }
+    // Simulate swipe to boundary page (index 2) + idle
+    simulateSwipe(2);
 
     // Should NOT call onChapterChange (boundary page)
     expect(mockOnChapterChange).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Navigation without remount (TDD)
+   *
+   * Protects Change C2: Remove pager `key` prop.
+   * Currently the parent uses a `key` prop to force remount on navigation.
+   * After C2, navigation updates props instead, keeping the component instance.
+   */
+  describe('navigation without remount (TDD)', () => {
+    it('[REGRESSION] pager ref exposes setPage method', () => {
+      const ref = createRef<{ setPage: (index: number) => void }>();
+
+      render(
+        <TestWrapper>
+          <SimpleChapterPager
+            ref={ref}
+            bookId={1}
+            chapterNumber={5}
+            bookName="Genesis"
+            booksMetadata={mockTestamentBooks}
+            onChapterChange={jest.fn()}
+            renderChapterPage={mockRenderChapterPage}
+          />
+        </TestWrapper>
+      );
+
+      expect(ref.current).not.toBeNull();
+      expect(typeof ref.current?.setPage).toBe('function');
+    });
+
+    it('[TDD] pages array updates when chapterNumber prop changes (no remount)', () => {
+      const { rerender } = render(
+        <TestWrapper>
+          <SimpleChapterPager
+            bookId={1}
+            chapterNumber={5}
+            bookName="Genesis"
+            booksMetadata={mockTestamentBooks}
+            onChapterChange={jest.fn()}
+            renderChapterPage={mockRenderChapterPage}
+          />
+        </TestWrapper>
+      );
+
+      // At chapter 5: pages should be [4, 5, 6]
+      expect(screen.getByTestId('chapter-content-1-4')).toBeTruthy();
+      expect(screen.getByTestId('chapter-content-1-5')).toBeTruthy();
+      expect(screen.getByTestId('chapter-content-1-6')).toBeTruthy();
+
+      // Rerender same instance with chapter 6 (prop change, no remount)
+      rerender(
+        <TestWrapper>
+          <SimpleChapterPager
+            bookId={1}
+            chapterNumber={6}
+            bookName="Genesis"
+            booksMetadata={mockTestamentBooks}
+            onChapterChange={jest.fn()}
+            renderChapterPage={mockRenderChapterPage}
+          />
+        </TestWrapper>
+      );
+
+      // At chapter 6: pages should be [5, 6, 7]
+      // This verifies the component updates its page window via props
+      // (baseline for removing the parent's key-based remount in C2)
+      expect(screen.getByTestId('chapter-content-1-5')).toBeTruthy();
+      expect(screen.getByTestId('chapter-content-1-6')).toBeTruthy();
+      expect(screen.getByTestId('chapter-content-1-7')).toBeTruthy();
+    });
+
+    it('[TDD] onChapterChange fires correctly across multiple sequential navigations', () => {
+      const mockOnChapterChange = jest.fn();
+
+      const { rerender } = render(
+        <TestWrapper>
+          <SimpleChapterPager
+            bookId={1}
+            chapterNumber={3}
+            bookName="Genesis"
+            booksMetadata={mockTestamentBooks}
+            onChapterChange={mockOnChapterChange}
+            renderChapterPage={mockRenderChapterPage}
+          />
+        </TestWrapper>
+      );
+
+      // Simulate swipe to next (position 2 = next chapter) + idle
+      simulateSwipe(2);
+      expect(mockOnChapterChange).toHaveBeenCalledWith(1, 4);
+
+      // Rerender with updated chapter (simulating parent state update)
+      rerender(
+        <TestWrapper>
+          <SimpleChapterPager
+            bookId={1}
+            chapterNumber={4}
+            bookName="Genesis"
+            booksMetadata={mockTestamentBooks}
+            onChapterChange={mockOnChapterChange}
+            renderChapterPage={mockRenderChapterPage}
+          />
+        </TestWrapper>
+      );
+
+      // Simulate another swipe to next + idle
+      simulateSwipe(2);
+
+      // Should fire with chapter 5 — verifies the callback references
+      // the updated pages array after prop change (not stale closure)
+      expect(mockOnChapterChange).toHaveBeenCalledTimes(2);
+      expect(mockOnChapterChange).toHaveBeenLastCalledWith(1, 5);
+    });
+
+    it('[REGRESSION] 3-page window renders at boundary after rerender', () => {
+      const { rerender } = render(
+        <TestWrapper>
+          <SimpleChapterPager
+            bookId={66}
+            chapterNumber={21}
+            bookName="Revelation"
+            booksMetadata={mockTestamentBooks}
+            onChapterChange={jest.fn()}
+            renderChapterPage={mockRenderChapterPage}
+          />
+        </TestWrapper>
+      );
+
+      // At Revelation 21: should have 3 pages [20, 21, 22]
+      expect(screen.getByTestId('chapter-content-66-20')).toBeTruthy();
+      expect(screen.getByTestId('chapter-content-66-21')).toBeTruthy();
+      expect(screen.getByTestId('chapter-content-66-22')).toBeTruthy();
+
+      // Rerender at Revelation 22 (absolute last chapter of the Bible)
+      rerender(
+        <TestWrapper>
+          <SimpleChapterPager
+            bookId={66}
+            chapterNumber={22}
+            bookName="Revelation"
+            booksMetadata={mockTestamentBooks}
+            onChapterChange={jest.fn()}
+            renderChapterPage={mockRenderChapterPage}
+          />
+        </TestWrapper>
+      );
+
+      // At chapter 22 (last): only 2 pages [21, 22], no next page
+      expect(screen.getByTestId('chapter-content-66-21')).toBeTruthy();
+      expect(screen.getByTestId('chapter-content-66-22')).toBeTruthy();
+      expect(screen.queryByTestId('pager-page-2')).toBeNull();
+    });
   });
 });

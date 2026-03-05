@@ -28,7 +28,7 @@ try {
   isSuccessResponse = googleSigninModule.isSuccessResponse;
   isErrorWithCode = googleSigninModule.isErrorWithCode;
 } catch (_e) {
-  console.log('Google Sign-In native module not found (running in Expo Go?)');
+  if (__DEV__) console.log('Google Sign-In native module not found (running in Expo Go?)');
 }
 
 /**
@@ -105,7 +105,8 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
   useEffect(() => {
     // If native module is missing, disable
     if (!GoogleSignin) {
-      console.warn('[Google Sign-In] Native module not available (Expo Go or missing plugin)');
+      if (__DEV__)
+        console.warn('[Google Sign-In] Native module not available (Expo Go or missing plugin)');
       setIsAvailable(false);
       return;
     }
@@ -121,12 +122,13 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
 
     // Configure Google Sign-In
     try {
-      console.log('[Google Sign-In] Configuring with:', {
-        webClientId: `${config.webClientId?.substring(0, 20)}...`,
-        iosClientId: `${config.iosClientId?.substring(0, 20)}...`,
-        hasWebClientId: Boolean(config.webClientId),
-        hasIosClientId: Boolean(config.iosClientId),
-      });
+      if (__DEV__)
+        console.log('[Google Sign-In] Configuring with:', {
+          webClientId: `${config.webClientId?.substring(0, 20)}...`,
+          iosClientId: `${config.iosClientId?.substring(0, 20)}...`,
+          hasWebClientId: Boolean(config.webClientId),
+          hasIosClientId: Boolean(config.iosClientId),
+        });
 
       GoogleSignin.configure({
         webClientId: config.webClientId,
@@ -135,7 +137,7 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
       });
       isConfigured.current = true;
       setIsAvailable(true);
-      console.log('[Google Sign-In] Configuration successful');
+      if (__DEV__) console.log('[Google Sign-In] Configuration successful');
     } catch (err) {
       console.error('[Google Sign-In] Failed to configure:', err);
       setIsAvailable(false);
@@ -183,7 +185,7 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
           setError('Failed to get ID token from Google');
           return null;
         }
-        console.log('[Google Sign-In] Sign-in successful');
+        if (__DEV__) console.log('[Google Sign-In] Sign-in successful');
         return idToken;
       }
 
@@ -207,11 +209,11 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
         switch (googleError.code) {
           case statusCodes.SIGN_IN_CANCELLED:
             // User cancelled - not an error state
-            console.log('[Google Sign-In] User cancelled sign-in');
+            if (__DEV__) console.log('[Google Sign-In] User cancelled sign-in');
             return null;
 
           case statusCodes.IN_PROGRESS:
-            console.warn('[Google Sign-In] Sign-in already in progress');
+            if (__DEV__) console.warn('[Google Sign-In] Sign-in already in progress');
             setError('Sign-in already in progress');
             return null;
 

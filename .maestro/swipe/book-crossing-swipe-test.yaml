@@ -47,15 +47,18 @@ tags:
 - tapOn:
     id: "tab-old-testament"
 
-- waitForAnimationToEnd
-
+# Wait for book list to load
+- extendedWaitUntil:
+    visible:
+      id: "book-item-genesis"
+    timeout: 5000
 
 # Scroll down to find Malachi (at the end of OT books)
 - scrollUntilVisible:
     element:
       id: "book-item-malachi"
     direction: DOWN
-    timeout: 15000
+    timeout: 30000
 
 # Select Malachi
 - tapOn:

@@ -56,6 +56,15 @@ tags:
 - waitForAnimationToEnd
 
 
+# Filter topics to find the target topic (list order varies, may need scrolling)
+- tapOn:
+    id: "topics-search-input"
+- inputText: "Creation"
+- extendedWaitUntil:
+    visible:
+      text: "The Creation of the World"
+    timeout: 10000
+
 # Select "The Creation of the World" topic
 - tapOn:
     text: "The Creation of the World"
@@ -75,6 +84,12 @@ tags:
 
 - assertVisible:
     text: "The Creation of the World"
+
+# Wait for pager to load all topics (3 pages: prev/current/next)
+- extendedWaitUntil:
+    visible:
+      id: "topic-pager-ready"
+    timeout: 30000
 
 # ============================================
 # Test 1: Verify Default View (Bible View)
@@ -178,14 +193,16 @@ tags:
 # Swipe to next topic
 - swipe:
     direction: LEFT
-    duration: 400
+    duration: 500
 
 - waitForAnimationToEnd
 
 
-# Verify we navigated (topic changed)
-- assertNotVisible:
-    text: "The Creation of the World"
+# Wait for topic transition to complete
+- extendedWaitUntil:
+    notVisible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 # Verify topic selector still works
 - assertVisible:
@@ -226,6 +243,15 @@ tags:
 
 - waitForAnimationToEnd
 
+
+# Filter topics to find the target topic (list order varies, may need scrolling)
+- tapOn:
+    id: "topics-search-input"
+- inputText: "Creation"
+- extendedWaitUntil:
+    visible:
+      text: "The Creation of the World"
+    timeout: 10000
 
 - tapOn:
     text: "The Creation of the World"
