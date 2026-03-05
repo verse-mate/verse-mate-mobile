@@ -3,9 +3,18 @@ set -e
 
 adb install app.apk
 
+# Dismiss any system dialogs (e.g., "Pixel Launcher isn't responding")
+adb shell input keyevent KEYCODE_ENTER 2>/dev/null || true
+sleep 2
+
 # Warm launch: trigger EAS Update download
 adb shell monkey -p org.versemate.app -c android.intent.category.LAUNCHER 1
 sleep 15
+
+# Dismiss any system dialogs that appeared during warm launch
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS 2>/dev/null || true
+sleep 2
+
 adb shell am force-stop org.versemate.app
 echo "Warm launch complete - update pre-downloaded"
 
