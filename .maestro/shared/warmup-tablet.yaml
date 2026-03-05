@@ -1,0 +1,29 @@
+appId: org.versemate.app
+---
+# CI Warm-up Flow for tablet: clearState:true to force a clean landscape
+# initialization. The ADB pre-launch primes the CDN cache so the EAS
+# Update re-download is fast even after state is cleared.
+# Waits for split-view ID instead of chapter-selector-button.
+#
+# NOT intended for direct use in tests — use setup-warm-tablet.yaml instead.
+
+- launchApp:
+    clearState: true
+    appId: org.versemate.app
+
+# Wait for onboarding — extended timeout for EAS Update (CDN primed)
+- extendedWaitUntil:
+    visible:
+      text: "Skip"
+    timeout: 90000
+
+# Complete onboarding
+- tapOn:
+    text: "Skip"
+
+# Wait for split-view layout to render (tablet in landscape)
+# Extended timeout for seed DB extraction on Nexus 10 emulator
+- extendedWaitUntil:
+    visible:
+      id: "split-view"
+    timeout: 60000

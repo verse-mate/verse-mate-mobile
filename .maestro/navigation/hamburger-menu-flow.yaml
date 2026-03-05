@@ -85,9 +85,11 @@ tags:
 - assertNotVisible:
     id: "hamburger-menu"
 
-# Verify bookmarks list is visible
-- assertVisible:
-    id: "bookmarks-list"
+# Wait for bookmarks screen to load (back button is always present regardless of auth/data state)
+- extendedWaitUntil:
+    visible:
+      id: "bookmarks-back-button"
+    timeout: 5000
 
 # Go back to chapter screen
 - tapOn:
@@ -129,9 +131,11 @@ tags:
 - assertNotVisible:
     id: "hamburger-menu"
 
-# Verify highlights list is visible
-- assertVisible:
-    id: "highlights-list"
+# Wait for highlights screen to load (back button is always present regardless of auth/data state)
+- extendedWaitUntil:
+    visible:
+      id: "highlights-back-button"
+    timeout: 5000
 
 # Go back to chapter screen
 - tapOn:
@@ -173,9 +177,11 @@ tags:
 - assertNotVisible:
     id: "hamburger-menu"
 
-# Verify notes list is visible
-- assertVisible:
-    id: "notes-list"
+# Wait for notes screen to load (back button is always present regardless of auth/data state)
+- extendedWaitUntil:
+    visible:
+      id: "notes-back-button"
+    timeout: 5000
 
 # Go back to chapter screen
 - tapOn:

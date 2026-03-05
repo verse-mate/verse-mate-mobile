@@ -16,6 +16,7 @@ import {
   setAccessToken,
   setRefreshToken,
 } from '@/lib/auth/token-storage';
+import { clearTokenCache } from '@/lib/api/client-interceptors';
 import { setupProactiveRefresh } from '@/lib/auth/token-refresh';
 import { analytics, AnalyticsEvent } from '@/lib/analytics';
 import {
@@ -426,6 +427,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Clear tokens and cached user profile from storage
     await clearTokens();
+    clearTokenCache();
     await AsyncStorage.removeItem(CACHED_USER_KEY);
 
     // Reset PostHog identity

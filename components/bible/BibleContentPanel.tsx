@@ -146,6 +146,7 @@ export function BibleContentPanel({
   // In split view, the left panel always shows 'bible' view (explanations are on the right)
   const renderChapterPage = useCallback(
     (pageBookId: number, pageChapterNumber: number) => {
+      const isCurrent = pageBookId === bookId && pageChapterNumber === chapterNumber;
       return (
         <ChapterPage
           bookId={pageBookId}
@@ -154,14 +155,9 @@ export function BibleContentPanel({
           activeView="bible"
           onScroll={onScroll}
           onTap={onTap}
-          targetVerse={
-            pageBookId === bookId && pageChapterNumber === chapterNumber ? targetVerse : undefined
-          }
-          targetEndVerse={
-            pageBookId === bookId && pageChapterNumber === chapterNumber
-              ? targetEndVerse
-              : undefined
-          }
+          isPreloading={!isCurrent}
+          targetVerse={isCurrent ? targetVerse : undefined}
+          targetEndVerse={isCurrent ? targetEndVerse : undefined}
         />
       );
     },
@@ -183,7 +179,6 @@ export function BibleContentPanel({
       {/* SimpleChapterPager - V3 3-page window with linear navigation */}
       <View style={styles.pagerContainer}>
         <SimpleChapterPager
-          key={`split-pager-${bookId}-${chapterNumber}`}
           bookId={bookId}
           chapterNumber={chapterNumber}
           bookName={bookName}

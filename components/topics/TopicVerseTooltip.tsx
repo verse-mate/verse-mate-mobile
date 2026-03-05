@@ -34,6 +34,12 @@ import {
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import Reanimated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SignInModal from '@/components/bible/SignInModal';
 import SignUpModal from '@/components/bible/SignUpModal';
@@ -142,7 +148,7 @@ export function TopicVerseTooltip({
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(1)).current; // Always start expanded
+  const expansionAnim = useSharedValue(1); // Always start expanded (Reanimated)
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
@@ -219,7 +225,7 @@ export function TopicVerseTooltip({
     setTimeout(() => {
       setInternalVisible(false);
       setExpanded(true); // Reset to default state
-      expansionAnim.setValue(1);
+      expansionAnim.value = 1;
       hasTrackedOpen.current = false; // Reset tracking flag
       openTimestampRef.current = null; // Reset open timestamp
       if (callback) callback();
@@ -228,12 +234,10 @@ export function TopicVerseTooltip({
 
   // Handle expansion animation
   useEffect(() => {
-    Animated.spring(expansionAnim, {
-      toValue: expanded ? 1 : 0,
-      useNativeDriver: false, // Height animation requires false
+    expansionAnim.value = withSpring(expanded ? 1 : 0, {
       damping: 20,
       stiffness: 90,
-    }).start();
+    });
   }, [expanded, expansionAnim]);
 
   // Watch for prop changes to trigger animations
@@ -241,7 +245,7 @@ export function TopicVerseTooltip({
     if (visible) {
       // Always start expanded for single verse
       setExpanded(true);
-      expansionAnim.setValue(1); // Set immediately without animation
+      expansionAnim.value = 1; // Set immediately without animation
       animateOpen();
 
       // Track analytics: TOPIC_VERSE_TOOLTIP_OPENED
@@ -387,20 +391,15 @@ export function TopicVerseTooltip({
     })
   ).current;
 
+  // Animated style for expansion (Reanimated — runs on UI thread)
+  const insightAnimatedStyle = useAnimatedStyle(() => ({
+    maxHeight: interpolate(expansionAnim.value, [0, 1], [0, 400]),
+    opacity: interpolate(expansionAnim.value, [0, 0.5, 1], [0, 0, 1]),
+  }));
+
   // Don't render anything if we have no data
   if (!verseNumber && !internalVisible) return null;
   if (!verseNumber) return null;
-
-  // Interpolate values for expansion animation
-  const insightMaxHeight = expansionAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 400],
-  });
-
-  const insightOpacity = expansionAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 0, 1],
-  });
 
   const content = (
     /* Main Container - positions content at bottom */
@@ -447,12 +446,7 @@ export function TopicVerseTooltip({
 
             {/* Insight Section (Always Expandable) */}
             <View style={styles.insightContainer}>
-              <Animated.View
-                style={[
-                  styles.insightContentWrapper,
-                  { maxHeight: insightMaxHeight, opacity: insightOpacity },
-                ]}
-              >
+              <Reanimated.View style={[styles.insightContentWrapper, insightAnimatedStyle]}>
                 {isByLineLoading ? (
                   <View style={styles.loadingContainer}>
                     <ActivityIndicator size="small" color={colors.gold} />
@@ -475,7 +469,7 @@ export function TopicVerseTooltip({
                     </Text>
                   </View>
                 )}
-              </Animated.View>
+              </Reanimated.View>
             </View>
           </View>
 
