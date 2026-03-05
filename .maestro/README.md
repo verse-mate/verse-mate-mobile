@@ -104,6 +104,10 @@ Tests are organized into feature-based subfolders for easier navigation and sele
 │   └── notes-flow.yaml                          # Notes feature
 ├── regression/
 │   ├── content-rendering-assertions.yaml        # No placeholder/TODO text
+│   ├── cross-chapter-count-navigation-test.yaml # Verse count differential sync
+│   ├── mixed-navigation-sync-test.yaml          # FAB + swipe + picker sync
+│   ├── rapid-fab-navigation-test.yaml           # Rapid FAB button stress test
+│   ├── reverse-direction-stress-test.yaml       # Rapid direction changes
 │   └── skeleton-flash-test.yaml                 # Loading skeleton
 ├── settings/
 │   └── settings-flow.yaml                       # Settings management
@@ -122,7 +126,7 @@ Tests are organized into feature-based subfolders for easier navigation and sele
     └── topics-view-switching.yaml               # Topic Bible/Insight view switching
 ```
 
-**Total**: 23 test files across 11 feature folders
+**Total**: 27 test files across 11 feature folders
 
 ### File Naming Conventions
 
@@ -159,6 +163,10 @@ Tests are organized into feature-based subfolders for easier navigation and sele
 | `navigation/` | `tab-switching-flow.yaml` | User Flow | Content tab switching (Summary/By-Line/Detailed) | `navigation` |
 | `notes/` | `notes-flow.yaml` | User Flow | Note creation and management | `user-flow` |
 | `regression/` | `content-rendering-assertions.yaml` | Regression | No placeholder/TODO text on any screen | `critical`, `regression`, `content-rendering` |
+| `regression/` | `cross-chapter-count-navigation-test.yaml` | Regression | Verse count differential sync (Psalm 119→120) | `critical`, `regression`, `navigation` |
+| `regression/` | `mixed-navigation-sync-test.yaml` | Regression | FAB + swipe + picker navigation sync | `critical`, `regression`, `navigation` |
+| `regression/` | `rapid-fab-navigation-test.yaml` | Regression | Rapid FAB button stress test (5 fwd + 3 bwd) | `critical`, `regression`, `navigation` |
+| `regression/` | `reverse-direction-stress-test.yaml` | Regression | Rapid direction changes (10 alternations) | `critical`, `regression`, `navigation` |
 | `regression/` | `skeleton-flash-test.yaml` | Regression | Skeleton loader display during loading | `regression` |
 | `settings/` | `settings-flow.yaml` | User Flow | Settings, theme switching, profile editing | `critical`, `settings` |
 | `split-view/` | `landscape-split-view-basic.yaml` | Regression | Split view renders both panels (requires landscape) | `critical`, `split-view`, `landscape`, `regression` |
@@ -455,6 +463,7 @@ For local development, iOS remains the recommended platform. Use `maestro test .
 
 ## Recent Changes
 
+- **2026-03-05**: Added 4 navigation state desync regression tests (#80, #81, #85, #87): rapid-fab-navigation, mixed-navigation-sync, cross-chapter-count-navigation, reverse-direction-stress
 - **2026-02-09**: Reorganized 23 test files from flat directory into 11 feature-based subfolders
 - **2026-02-09**: Adapted split-view tests from iPad to Android tablet emulator
 - **2026-02-09**: Added CI/CD integration with GitHub Actions (`maestro-e2e.yml`)
