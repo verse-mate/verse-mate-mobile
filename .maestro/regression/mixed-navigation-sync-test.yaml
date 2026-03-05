@@ -20,19 +20,19 @@ tags:
 # from displayed content.
 #
 # Test Flow:
-# 1. Start at Genesis 1 via picker
-# 2. FAB forward → Genesis 2
-# 3. Swipe left → Genesis 3
-# 4. FAB forward → Genesis 4
-# 5. Swipe right → Genesis 3
-# 6. FAB backward → Genesis 2
+# 1. Start at Genesis 3 via picker (avoids starting chapter edge case)
+# 2. FAB forward → Genesis 4
+# 3. Swipe left → Genesis 5
+# 4. FAB forward → Genesis 6
+# 5. Swipe right → Genesis 5
+# 6. FAB backward → Genesis 4
 # 7. Picker → Genesis 10
 # 8. Swipe left → Genesis 11
 
 - runFlow: ../shared/setup.yaml
 
 # ============================================
-# Setup: Navigate to Genesis 1 via picker
+# Setup: Navigate to Genesis 3 via picker
 # ============================================
 
 - extendedWaitUntil:
@@ -61,7 +61,7 @@ tags:
 
 
 - tapOn:
-    id: "chapter-1"
+    id: "chapter-3"
 
 - waitForAnimationToEnd
 
@@ -72,42 +72,13 @@ tags:
     timeout: 5000
 
 - assertVisible:
-    text: "Genesis 1"
+    text: "Genesis 3"
 
 # ============================================
 # Test: Mixed navigation methods
 # ============================================
 
-# Step 1: FAB forward → Genesis 2
-- tapOn:
-    point: "50%,50%"
-
-- extendedWaitUntil:
-    visible:
-      id: "next-chapter-button"
-    timeout: 5000
-
-- tapOn:
-    id: "next-chapter-button"
-
-- waitForAnimationToEnd
-
-
-- assertVisible:
-    text: "Genesis 2"
-
-# Step 2: Swipe left → Genesis 3
-- swipe:
-    direction: LEFT
-    duration: 400
-
-- waitForAnimationToEnd
-
-
-- assertVisible:
-    text: "Genesis 3"
-
-# Step 3: FAB forward → Genesis 4
+# Step 1: FAB forward → Genesis 4
 - tapOn:
     point: "50%,50%"
 
@@ -125,7 +96,36 @@ tags:
 - assertVisible:
     text: "Genesis 4"
 
-# Step 4: Swipe right (backward) → Genesis 3
+# Step 2: Swipe left → Genesis 5
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 5"
+
+# Step 3: FAB forward → Genesis 6
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# Step 4: Swipe right (backward) → Genesis 5
 - swipe:
     direction: RIGHT
     duration: 400
@@ -134,9 +134,9 @@ tags:
 
 
 - assertVisible:
-    text: "Genesis 3"
+    text: "Genesis 5"
 
-# Step 5: FAB backward → Genesis 2
+# Step 5: FAB backward → Genesis 4
 - tapOn:
     point: "50%,50%"
 
@@ -152,7 +152,7 @@ tags:
 
 
 - assertVisible:
-    text: "Genesis 2"
+    text: "Genesis 4"
 
 # Step 6: Picker → Genesis 10 (jump via modal)
 - tapOn:

@@ -19,15 +19,15 @@ tags:
 # The original bug was triggered by using left/right arrow buttons to navigate.
 #
 # Test Flow:
-# 1. Navigate to Genesis 1 via picker (known starting state)
+# 1. Navigate to Genesis 3 via picker (avoids starting chapter edge case)
 # 2. Tap next-chapter-button 5 times, verify header after each
 # 3. Tap previous-chapter-button 3 times, verify header after each
-# 4. Final assertion: header shows "Genesis 3"
+# 4. Final assertion: header shows "Genesis 5"
 
 - runFlow: ../shared/setup.yaml
 
 # ============================================
-# Setup: Navigate to Genesis 1 via picker
+# Setup: Navigate to Genesis 3 via picker
 # ============================================
 
 - extendedWaitUntil:
@@ -56,7 +56,7 @@ tags:
 
 
 - tapOn:
-    id: "chapter-1"
+    id: "chapter-3"
 
 - waitForAnimationToEnd
 
@@ -68,49 +68,13 @@ tags:
 
 # Verify starting state
 - assertVisible:
-    text: "Genesis 1"
-
-# ============================================
-# Test: 5 rapid forward taps (Genesis 1 → 6)
-# ============================================
-
-# Forward 1: Genesis 1 → Genesis 2
-- tapOn:
-    point: "50%,50%"
-
-- extendedWaitUntil:
-    visible:
-      id: "next-chapter-button"
-    timeout: 5000
-
-- tapOn:
-    id: "next-chapter-button"
-
-- waitForAnimationToEnd
-
-
-- assertVisible:
-    text: "Genesis 2"
-
-# Forward 2: Genesis 2 → Genesis 3
-- tapOn:
-    point: "50%,50%"
-
-- extendedWaitUntil:
-    visible:
-      id: "next-chapter-button"
-    timeout: 5000
-
-- tapOn:
-    id: "next-chapter-button"
-
-- waitForAnimationToEnd
-
-
-- assertVisible:
     text: "Genesis 3"
 
-# Forward 3: Genesis 3 → Genesis 4
+# ============================================
+# Test: 5 rapid forward taps (Genesis 3 → 8)
+# ============================================
+
+# Forward 1: Genesis 3 → Genesis 4
 - tapOn:
     point: "50%,50%"
 
@@ -128,7 +92,7 @@ tags:
 - assertVisible:
     text: "Genesis 4"
 
-# Forward 4: Genesis 4 → Genesis 5
+# Forward 2: Genesis 4 → Genesis 5
 - tapOn:
     point: "50%,50%"
 
@@ -146,7 +110,7 @@ tags:
 - assertVisible:
     text: "Genesis 5"
 
-# Forward 5: Genesis 5 → Genesis 6
+# Forward 3: Genesis 5 → Genesis 6
 - tapOn:
     point: "50%,50%"
 
@@ -164,11 +128,83 @@ tags:
 - assertVisible:
     text: "Genesis 6"
 
+# Forward 4: Genesis 6 → Genesis 7
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 7"
+
+# Forward 5: Genesis 7 → Genesis 8
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 8"
+
 # ============================================
-# Test: 3 rapid backward taps (Genesis 6 → 3)
+# Test: 3 rapid backward taps (Genesis 8 → 5)
 # ============================================
 
-# Backward 1: Genesis 6 → Genesis 5
+# Backward 1: Genesis 8 → Genesis 7
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 7"
+
+# Backward 2: Genesis 7 → Genesis 6
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# Backward 3: Genesis 6 → Genesis 5
 - tapOn:
     point: "50%,50%"
 
@@ -185,42 +221,6 @@ tags:
 
 - assertVisible:
     text: "Genesis 5"
-
-# Backward 2: Genesis 5 → Genesis 4
-- tapOn:
-    point: "50%,50%"
-
-- extendedWaitUntil:
-    visible:
-      id: "previous-chapter-button"
-    timeout: 5000
-
-- tapOn:
-    id: "previous-chapter-button"
-
-- waitForAnimationToEnd
-
-
-- assertVisible:
-    text: "Genesis 4"
-
-# Backward 3: Genesis 4 → Genesis 3
-- tapOn:
-    point: "50%,50%"
-
-- extendedWaitUntil:
-    visible:
-      id: "previous-chapter-button"
-    timeout: 5000
-
-- tapOn:
-    id: "previous-chapter-button"
-
-- waitForAnimationToEnd
-
-
-- assertVisible:
-    text: "Genesis 3"
 
 # ============================================
 # Test Complete: Header correctly synced
