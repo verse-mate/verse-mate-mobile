@@ -97,13 +97,11 @@ tags:
 # (176 verses → 7 verses)
 # ============================================
 
-- tapOn:
-    point: "50%,50%"
-
+# FABs are initially visible for 3s after chapter load — catch them directly
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
-    timeout: 5000
+    timeout: 10000
 
 - tapOn:
     id: "next-chapter-button"
@@ -119,13 +117,10 @@ tags:
 # (7 verses → 176 verses)
 # ============================================
 
-- tapOn:
-    point: "50%,50%"
-
 - extendedWaitUntil:
     visible:
       id: "previous-chapter-button"
-    timeout: 5000
+    timeout: 10000
 
 - tapOn:
     id: "previous-chapter-button"

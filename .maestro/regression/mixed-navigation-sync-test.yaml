@@ -79,13 +79,11 @@ tags:
 # ============================================
 
 # Step 1: FAB forward → Genesis 4
-- tapOn:
-    point: "50%,50%"
-
+# FABs are initially visible for 3s after chapter load — catch them directly
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
-    timeout: 5000
+    timeout: 10000
 
 - tapOn:
     id: "next-chapter-button"
@@ -108,13 +106,10 @@ tags:
     text: "Genesis 5"
 
 # Step 3: FAB forward → Genesis 6
-- tapOn:
-    point: "50%,50%"
-
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
-    timeout: 5000
+    timeout: 10000
 
 - tapOn:
     id: "next-chapter-button"
@@ -137,13 +132,10 @@ tags:
     text: "Genesis 5"
 
 # Step 5: FAB backward → Genesis 4
-- tapOn:
-    point: "50%,50%"
-
 - extendedWaitUntil:
     visible:
       id: "previous-chapter-button"
-    timeout: 5000
+    timeout: 10000
 
 - tapOn:
     id: "previous-chapter-button"
