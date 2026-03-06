@@ -97,13 +97,13 @@ tags:
 # (176 verses → 7 verses)
 # ============================================
 
-# Scroll down then up to trigger FAB visibility via scroll handler.
+# Scroll to bottom to trigger FAB visibility via isAtBottom handler.
 # Can't use tap at y=15% here — Psalm 119 has dense text starting at y=12%.
-- scroll:
-    direction: DOWN
-
-- scroll:
-    direction: UP
+- scroll
+- scroll
+- scroll
+- scroll
+- scroll
 
 - extendedWaitUntil:
     visible:
