@@ -138,7 +138,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar style="light" />
       <PagerView
         style={styles.pagerView}

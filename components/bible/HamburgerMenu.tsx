@@ -32,6 +32,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -321,79 +322,91 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                   </Pressable>
                 </View>
 
-                {/* User Profile Section (Button) */}
-                <Pressable
-                  onPress={handleProfilePress}
-                  style={({ pressed }) => [styles.userSection, pressed && styles.menuItemPressed]}
+                <ScrollView
+                  style={styles.menuScrollContent}
+                  contentContainerStyle={styles.menuScrollContainer}
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
                 >
-                  <View style={styles.avatarContainer}>
-                    <Avatar url={user?.imageSrc} size={40} />
-                  </View>
-                  <View style={styles.userInfo}>
-                    <Text style={styles.userName}>
-                      {isAuthenticated && user
-                        ? `${user.firstName} ${user.lastName}`
-                        : 'Guest User'}
-                    </Text>
-                    <Text style={styles.userEmail}>
-                      {isAuthenticated && user ? user.email : 'Sign in to sync your data'}
-                    </Text>
-                  </View>
-                </Pressable>
+                  {/* User Profile Section (Button) */}
+                  <Pressable
+                    onPress={handleProfilePress}
+                    style={({ pressed }) => [styles.userSection, pressed && styles.menuItemPressed]}
+                  >
+                    <View style={styles.avatarContainer}>
+                      <Avatar url={user?.imageSrc} size={40} />
+                    </View>
+                    <View style={styles.userInfo}>
+                      <Text style={styles.userName}>
+                        {isAuthenticated && user
+                          ? `${user.firstName} ${user.lastName}`
+                          : 'Guest User'}
+                      </Text>
+                      <Text style={styles.userEmail}>
+                        {isAuthenticated && user ? user.email : 'Sign in to sync your data'}
+                      </Text>
+                    </View>
+                  </Pressable>
 
-                {/* Menu Items */}
-                <View style={styles.menuItems}>
-                  {regularMenuItems.map((item) => (
+                  {/* Menu Items */}
+                  <View style={styles.menuItems}>
+                    {regularMenuItems.map((item) => (
+                      <Pressable
+                        key={item.id}
+                        style={({ pressed }) => [
+                          styles.menuItem,
+                          pressed && styles.menuItemPressed,
+                        ]}
+                        onPress={() => handleItemPress(item)}
+                        accessibilityLabel={item.label}
+                        accessibilityRole="button"
+                        testID={`menu-item-${item.id}`}
+                      >
+                        <View style={styles.menuIconContainer}>
+                          <item.icon width={24} height={24} color={colors.textPrimary} />
+                          {item.id === 'help' && hasUnreadHelp && (
+                            <View style={styles.unreadBadge} />
+                          )}
+                        </View>
+                        <Text style={styles.menuItemText}>{item.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {/* Authentication Action (Login/Logout) */}
+                  <View style={styles.footer}>
                     <Pressable
-                      key={item.id}
                       style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                      onPress={() => handleItemPress(item)}
-                      accessibilityLabel={item.label}
-                      accessibilityRole="button"
-                      testID={`menu-item-${item.id}`}
+                      onPress={async () => {
+                        if (isAuthenticated) {
+                          await logout();
+                          showSuccess('Logged Out', 'You have been logged out successfully.');
+                          onClose();
+                        } else {
+                          onClose();
+                          router.push('/auth/login');
+                        }
+                      }}
+                      testID={isAuthenticated ? 'menu-item-logout' : 'menu-item-login'}
                     >
                       <View style={styles.menuIconContainer}>
-                        <item.icon width={24} height={24} color={colors.textPrimary} />
-                        {item.id === 'help' && hasUnreadHelp && <View style={styles.unreadBadge} />}
+                        <IconProfile
+                          width={24}
+                          height={24}
+                          color={isAuthenticated ? colors.error : colors.gold}
+                        />
                       </View>
-                      <Text style={styles.menuItemText}>{item.label}</Text>
+                      <Text
+                        style={[
+                          styles.menuItemText,
+                          { color: isAuthenticated ? colors.error : colors.gold },
+                        ]}
+                      >
+                        {isAuthenticated ? 'Log Out' : 'Log In'}
+                      </Text>
                     </Pressable>
-                  ))}
-                </View>
-
-                {/* Authentication Action (Login/Logout) */}
-                <View style={styles.footer}>
-                  <Pressable
-                    style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                    onPress={async () => {
-                      if (isAuthenticated) {
-                        await logout();
-                        showSuccess('Logged Out', 'You have been logged out successfully.');
-                        onClose();
-                      } else {
-                        onClose();
-                        router.push('/auth/login');
-                      }
-                    }}
-                    testID={isAuthenticated ? 'menu-item-logout' : 'menu-item-login'}
-                  >
-                    <View style={styles.menuIconContainer}>
-                      <IconProfile
-                        width={24}
-                        height={24}
-                        color={isAuthenticated ? colors.error : colors.gold}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.menuItemText,
-                        { color: isAuthenticated ? colors.error : colors.gold },
-                      ]}
-                    >
-                      {isAuthenticated ? 'Log Out' : 'Log In'}
-                    </Text>
-                  </Pressable>
-                </View>
+                  </View>
+                </ScrollView>
               </Animated.View>
             </Animated.View>
           </GestureDetector>
@@ -444,6 +457,12 @@ const createStyles = (
       elevation: 5,
       paddingHorizontal: 16, // Figma uses padding
       borderTopLeftRadius: 24,
+    },
+    menuScrollContent: {
+      flex: 1,
+    },
+    menuScrollContainer: {
+      flexGrow: 1,
     },
     headerControls: {
       flexDirection: 'row',
