@@ -39,7 +39,7 @@ jest.mock('@/services/offline', () => ({
   getCommentaryDownloadInfo: jest.fn().mockResolvedValue([]),
   getTopicsDownloadInfo: jest.fn().mockResolvedValue([]),
   buildLanguageBundles: jest.fn().mockReturnValue([]),
-  processSyncQueue: jest.fn().mockResolvedValue(undefined),
+  processSyncQueue: jest.fn().mockResolvedValue({ total: 0, succeeded: 0, failed: 0 }),
   downloadUserData: jest.fn().mockResolvedValue(undefined),
   deleteAllOfflineData: jest.fn().mockResolvedValue(undefined),
   getLanguageBundleStatus: jest.fn().mockResolvedValue('not_downloaded'),
@@ -149,5 +149,70 @@ describe('OfflineContext', () => {
     expect(offlineService.deleteAllOfflineData).toHaveBeenCalled();
     expect(result.current.lastSyncTime).toBeNull();
     expect(result.current.totalStorageUsed).toBe(0);
+  });
+
+  /**
+   * Reconnect race prevention (TDD)
+   *
+   * Protects Change C3: Reconnect race condition.
+   * When the network state flickers (false→true rapidly), downloadUserData
+   * should be guarded to prevent multiple concurrent executions.
+   */
+  describe('reconnect race prevention (TDD)', () => {
+    it('[TDD] downloadUserData is called at most once during rapid reconnect', async () => {
+      mockUseAuth.mockReturnValue({ isAuthenticated: true });
+
+      // Start offline
+      mockUseNetInfo.mockReturnValue({ isConnected: false });
+
+      const { result, rerender } = renderHook(() => useOfflineContext(), { wrapper });
+      await waitFor(() => expect(result.current.isInitialized).toBe(true));
+
+      // Rapid reconnect: toggle online 3 times quickly
+      // Cycle 1: online
+      mockUseNetInfo.mockReturnValue({ isConnected: true });
+      rerender({});
+      // Cycle 2: offline again
+      mockUseNetInfo.mockReturnValue({ isConnected: false });
+      rerender({});
+      // Cycle 3: online again
+      mockUseNetInfo.mockReturnValue({ isConnected: true });
+      rerender({});
+
+      await waitFor(
+        () => {
+          expect(offlineService.downloadUserData).toHaveBeenCalled();
+        },
+        { timeout: 2000 }
+      );
+
+      // downloadUserData should be called at most once during rapid reconnect
+      // Will FAIL until the reconnect guard is tightened
+      expect(offlineService.downloadUserData).toHaveBeenCalledTimes(1);
+    });
+
+    it('[REGRESSION] sync queue is processed exactly once when coming back online', async () => {
+      // Start offline
+      mockUseNetInfo.mockReturnValue({ isConnected: false });
+
+      const { result, rerender } = renderHook(() => useOfflineContext(), { wrapper });
+      await waitFor(() => expect(result.current.isInitialized).toBe(true));
+
+      expect(offlineService.processSyncQueue).not.toHaveBeenCalled();
+
+      // Go online
+      mockUseNetInfo.mockReturnValue({ isConnected: true });
+      rerender({});
+
+      await waitFor(
+        () => {
+          expect(offlineService.processSyncQueue).toHaveBeenCalled();
+        },
+        { timeout: 2000 }
+      );
+
+      // Verify exactly once
+      expect(offlineService.processSyncQueue).toHaveBeenCalledTimes(1);
+    });
   });
 });

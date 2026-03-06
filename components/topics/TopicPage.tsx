@@ -166,8 +166,12 @@ export function TopicPage({
   // 4: Mount Detailed tab (if hidden)
   const [delayedRenderStage, setDelayedRenderStage] = useState(0);
 
-  // Trigger staggered delayed render
+  // Trigger staggered delayed render — only for the active page, not buffer pages
   useEffect(() => {
+    if (isPreloading) {
+      setDelayedRenderStage(0);
+      return;
+    }
     const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
     const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
     const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
@@ -179,7 +183,7 @@ export function TopicPage({
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, []);
+  }, [isPreloading]);
 
   // Reset scroll state when topic changes
   const bibleScrollRef = useRef<ScrollView>(null);
@@ -417,8 +421,9 @@ export function TopicPage({
         <BottomLogo />
       </ScrollView>
 
-      {/* Explanations View - Pre-render all tabs but only show active (Skipped if preloading) */}
-      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
+      {/* Explanations View - Always render when user is in explanations view (even on buffer pages
+           during idle-deferred navigation). In bible view, only pre-render on active page after stagger delay. */}
+      {(activeView === 'explanations' || (!isPreloading && delayedRenderStage >= 1)) && (
         <ScrollView
           ref={explanationsScrollRef}
           style={[

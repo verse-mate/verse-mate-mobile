@@ -30,12 +30,11 @@ import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import type { Highlight } from '@/hooks/bible/use-highlights';
-import { useHighlights } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
@@ -296,17 +295,8 @@ export function ChapterPage({
   const visibilityUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportHeightRef = useRef<number>(0);
 
-  // Fetch highlights directly for THIS specific chapter
-  // This ensures each page has its own highlights pre-loaded independently
-  const { chapterHighlights } = useHighlights({
-    bookId,
-    chapterNumber,
-  });
-
-  const { autoHighlights } = useAutoHighlights({
-    bookId,
-    chapterNumber,
-  });
+  // Get highlights from the provider (single source of truth — avoids duplicate queries)
+  const { chapterHighlights, autoHighlights } = useBibleInteraction();
 
   // Staggered rendering state to prevent UI freeze (waterfall loading)
   // 0: Initial (only active view)
@@ -318,8 +308,12 @@ export function ChapterPage({
 
   const { deleteNote, isDeletingNote } = useNotes();
 
-  // Trigger staggered delayed render
+  // Trigger staggered delayed render — only for the active page, not buffer pages
   useEffect(() => {
+    if (isPreloading) {
+      setDelayedRenderStage(0);
+      return;
+    }
     const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
     const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
     const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
@@ -331,7 +325,7 @@ export function ChapterPage({
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, []);
+  }, [isPreloading]);
 
   // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
@@ -418,26 +412,59 @@ export function ChapterPage({
   }
   const displayChapter = chapter || lastChapterRef.current;
 
-  // Fetch explanations for each tab
-  // All three are ALWAYS enabled and load in parallel to ensure instant tab switching
-  // This eliminates the freeze when switching between summary/byline/detailed tabs
+  // Track which explanation tabs have been visited so we only fetch on demand
+  const [visitedTabs, setVisitedTabs] = useState<Set<ContentTabType>>(() => new Set([activeTab]));
+
+  // Reset visitedTabs when navigating to a new chapter to avoid fetching
+  // explanations from the previous chapter's visited tabs
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Reset on chapter change only
+  useEffect(() => {
+    setVisitedTabs(new Set([activeTab]));
+  }, [bookId, chapterNumber]);
+
+  // When the user switches tabs, mark the new tab as visited
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
+  // Fetch explanations lazily — only enable for the active tab or previously visited tabs
   const {
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
-  } = useBibleSummary(bookId, chapterNumber, undefined, { enabled: true, language });
+  } = useBibleSummary(bookId, chapterNumber, undefined, {
+    enabled:
+      (!isPreloading || activeView === 'explanations') &&
+      (activeTab === 'summary' || visitedTabs.has('summary')),
+    language,
+  });
 
   const {
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
-  } = useBibleByLine(bookId, chapterNumber, undefined, { enabled: true, language });
+  } = useBibleByLine(bookId, chapterNumber, undefined, {
+    enabled:
+      (!isPreloading || activeView === 'explanations') &&
+      (activeTab === 'byline' || visitedTabs.has('byline')),
+    language,
+  });
 
   const {
     data: detailedData,
     isLoading: isDetailedLoading,
     error: detailedError,
-  } = useBibleDetailed(bookId, chapterNumber, undefined, { enabled: true, language });
+  } = useBibleDetailed(bookId, chapterNumber, undefined, {
+    enabled:
+      (!isPreloading || activeView === 'explanations') &&
+      (activeTab === 'detailed' || visitedTabs.has('detailed')),
+    language,
+  });
 
   /**
    * Attempt to scroll to target verse using Reanimated for smoothness
@@ -650,8 +677,9 @@ export function ChapterPage({
 
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Explanations View - Render if active OR if delayed render stage >= 1 (And NOT preloading) */}
-      {!isPreloading && (activeView === 'explanations' || delayedRenderStage >= 1) && (
+      {/* Explanations View - Always render when user is in explanations view (even on buffer pages
+           during idle-deferred navigation). In bible view, only pre-render on active page after stagger delay. */}
+      {(activeView === 'explanations' || (!isPreloading && delayedRenderStage >= 1)) && (
         <View
           style={[
             styles.container,

@@ -54,11 +54,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
+import { useAllCachedTopics } from '@/hooks/topics/use-all-cached-topics';
 import { useTopicNavigation } from '@/hooks/topics/use-topic-navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { useAllTopics, useTopicById } from '@/src/api';
+import { useTopicById } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory } from '@/types/topics';
 import { generateTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
@@ -100,7 +101,8 @@ export default function TopicDetailScreen() {
   const [activeTopicId, setActiveTopicId] = useState(topicId);
 
   // Fetch ALL topics globally for circular navigation across all categories
-  const { data: allTopics } = useAllTopics();
+  // Uses cached topics (seed DB fallback) so pager works even without API
+  const { data: allTopics } = useAllCachedTopics();
 
   // Get current topic's category from the global topics array (needed for modal)
   // This updates immediately when swiping to a topic in a different category
@@ -255,10 +257,10 @@ export default function TopicDetailScreen() {
    * Updates local state immediately to prevent flash
    * V3: No imperative pager ref calls - just state updates
    */
-  const handleTopicChange = (newTopicId: string) => {
+  const handleTopicChange = useCallback((newTopicId: string) => {
     setActiveTopicId(newTopicId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  };
+  }, []);
 
   /**
    * Handle previous topic navigation via FAB button
@@ -366,10 +368,11 @@ export default function TopicDetailScreen() {
           onTap={handleTap}
           onShare={handleShare}
           onVersePress={handleVersePress}
+          isPreloading={pageTopicId !== activeTopicId}
         />
       );
     },
-    [activeTab, activeView, handleScroll, handleTap, handleShare, handleVersePress]
+    [activeTab, activeView, handleScroll, handleTap, handleShare, handleVersePress, activeTopicId]
   );
 
   // Type guard for topic
@@ -478,7 +481,6 @@ export default function TopicDetailScreen() {
 
           {/* SimpleTopicPager - V3 3-page window with global circular navigation */}
           <SimpleTopicPager
-            key={activeTopicId}
             topicId={activeTopicId}
             sortedTopics={allTopics}
             onTopicChange={handleTopicChange}

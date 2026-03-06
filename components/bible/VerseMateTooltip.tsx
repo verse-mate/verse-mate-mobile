@@ -37,6 +37,12 @@ import {
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import Reanimated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import SignInModal from '@/components/bible/SignInModal';
@@ -180,7 +186,7 @@ export function VerseMateTooltip({
   // Animated values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
-  const expansionAnim = useRef(new Animated.Value(1)).current; // Always start expanded
+  const expansionAnim = useSharedValue(1); // Always start expanded (Reanimated)
 
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
@@ -257,7 +263,7 @@ export function VerseMateTooltip({
     setTimeout(() => {
       setInternalVisible(false);
       setExpanded(true); // Reset to default state
-      expansionAnim.setValue(1);
+      expansionAnim.value = 1;
       hasTrackedOpen.current = false; // Reset tracking flag
       openTimestampRef.current = null; // Reset open timestamp
       if (callback) callback();
@@ -266,12 +272,10 @@ export function VerseMateTooltip({
 
   // Handle expansion animation
   useEffect(() => {
-    Animated.spring(expansionAnim, {
-      toValue: expanded ? 1 : 0,
-      useNativeDriver: false, // Height animation requires false
+    expansionAnim.value = withSpring(expanded ? 1 : 0, {
       damping: 20,
       stiffness: 90,
-    }).start();
+    });
   }, [expanded, expansionAnim]);
 
   // Watch for prop changes to trigger animations
@@ -280,7 +284,7 @@ export function VerseMateTooltip({
       // Always start expanded
       const shouldBeExpanded = true;
       setExpanded(shouldBeExpanded);
-      expansionAnim.setValue(1); // Set immediately without animation
+      expansionAnim.value = 1; // Set immediately without animation
       animateOpen();
 
       // Track analytics: VERSEMATE_TOOLTIP_OPENED (Task 4.7)
@@ -477,20 +481,15 @@ export function VerseMateTooltip({
     })
   ).current;
 
+  // Animated style for expansion (Reanimated — runs on UI thread)
+  const insightAnimatedStyle = useAnimatedStyle(() => ({
+    maxHeight: interpolate(expansionAnim.value, [0, 1], [0, 400]),
+    opacity: interpolate(expansionAnim.value, [0, 0.5, 1], [0, 0, 1]),
+  }));
+
   // Don't render anything if we have no data
   if (!targetVerseNumber && !internalVisible) return null;
   if (!targetVerseNumber) return null;
-
-  // Interpolate values for expansion animation
-  const insightMaxHeight = expansionAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 400],
-  });
-
-  const insightOpacity = expansionAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 0, 1],
-  });
 
   // Get color for display (highlighted verses only)
   const highlightColorHex = highlightGroup
@@ -555,12 +554,7 @@ export function VerseMateTooltip({
 
             {/* Insight Section (Always Expanded) */}
             <View style={styles.insightContainer}>
-              <Animated.View
-                style={[
-                  styles.insightContentWrapper,
-                  { maxHeight: insightMaxHeight, opacity: insightOpacity },
-                ]}
-              >
+              <Reanimated.View style={[styles.insightContentWrapper, insightAnimatedStyle]}>
                 {isByLineLoading ? (
                   <View style={styles.loadingContainer}>
                     <ActivityIndicator size="small" color={colors.gold} />
@@ -584,7 +578,7 @@ export function VerseMateTooltip({
                     </Text>
                   </View>
                 )}
-              </Animated.View>
+              </Reanimated.View>
             </View>
           </View>
 

@@ -55,9 +55,9 @@ export const apiHooksMock = {
     error: null,
   })),
 
-  // Prefetch hooks
-  usePrefetchNextChapter: jest.fn(() => jest.fn()),
-  usePrefetchPreviousChapter: jest.fn(() => jest.fn()),
+  // Prefetch hooks (return void — auto-fire via internal useEffect)
+  usePrefetchNextChapter: jest.fn(),
+  usePrefetchPreviousChapter: jest.fn(),
 
   // Last read hooks
   useSaveLastRead: jest.fn(() => ({

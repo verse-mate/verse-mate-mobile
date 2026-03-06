@@ -1,0 +1,25 @@
+appId: org.versemate.app
+---
+# Warm app setup: launch WITHOUT clearing state, wait for Bible screen.
+# Use this for tests that need pre-initialized state (topics, split-view).
+#
+# Handles two scenarios:
+# 1. First run after warm launch: onboarding shows → tap Skip → Bible screen
+# 2. Subsequent runs: onboarding already completed → Bible screen directly
+#
+# Usage from any test subfolder: - runFlow: ../shared/setup-warm.yaml
+
+- launchApp:
+    clearState: false
+    appId: org.versemate.app
+
+# Tap Skip if onboarding is showing (optional — won't fail if already completed)
+- tapOn:
+    text: "Skip"
+    optional: true
+
+# Wait for main Bible screen to load (phone layout)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 45000

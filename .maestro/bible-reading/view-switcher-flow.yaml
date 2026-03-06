@@ -143,6 +143,15 @@ tags:
 - scroll
 - scroll
 
+# Tap screen center to show FABs
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
+
 - tapOn:
     id: "next-chapter-button"
 

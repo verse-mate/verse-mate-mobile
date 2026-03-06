@@ -90,9 +90,10 @@ describe('OfflineSyncService', () => {
     it('does nothing if queue is empty', async () => {
       (sqliteManager.getPendingSyncActions as jest.Mock).mockResolvedValue([]);
 
-      await syncService.processSyncQueue();
+      const result = await syncService.processSyncQueue();
 
       expect(authenticatedFetch).not.toHaveBeenCalled();
+      expect(result).toEqual({ total: 0, succeeded: 0, failed: 0 });
     });
 
     it('processes a pending note creation', async () => {
@@ -174,6 +175,60 @@ describe('OfflineSyncService', () => {
 
       expect(sqliteManager.updateSyncActionStatus).toHaveBeenCalledWith(4, 'FAILED', 2);
       expect(sqliteManager.deleteSyncAction).not.toHaveBeenCalled();
+    });
+
+    it('[T-004] returns { total, succeeded, failed } with correct counts on success', async () => {
+      const actions = [
+        {
+          id: 10,
+          type: 'NOTE',
+          action: 'CREATE',
+          payload: JSON.stringify({ book_id: 1, chapter_number: 1, content: 'A' }),
+          retry_count: 0,
+        },
+        {
+          id: 11,
+          type: 'HIGHLIGHT',
+          action: 'CREATE',
+          payload: JSON.stringify({ book_id: 1, start_verse: 1, end_verse: 1 }),
+          retry_count: 0,
+        },
+      ];
+
+      (sqliteManager.getPendingSyncActions as jest.Mock).mockResolvedValue(actions);
+
+      const result = await syncService.processSyncQueue();
+
+      expect(result).toEqual({ total: 2, succeeded: 2, failed: 0 });
+    });
+
+    it('[T-004] returns correct counts when some actions fail', async () => {
+      const actions = [
+        {
+          id: 20,
+          type: 'NOTE',
+          action: 'CREATE',
+          payload: JSON.stringify({ book_id: 1, chapter_number: 1, content: 'A' }),
+          retry_count: 0,
+        },
+        {
+          id: 21,
+          type: 'BOOKMARK',
+          action: 'CREATE',
+          payload: JSON.stringify({ book_id: 1, chapter_number: 1 }),
+          retry_count: 0,
+        },
+      ];
+
+      (sqliteManager.getPendingSyncActions as jest.Mock).mockResolvedValue(actions);
+      // First action succeeds, second fails
+      (authenticatedFetch as jest.Mock)
+        .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
+        .mockRejectedValueOnce(new Error('Network error'));
+
+      const result = await syncService.processSyncQueue();
+
+      expect(result).toEqual({ total: 2, succeeded: 1, failed: 1 });
     });
   });
 

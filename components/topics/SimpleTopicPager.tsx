@@ -8,8 +8,8 @@
  * - 3-page window: [previous, current, next]
  * - Stable positional keys: ["page-prev", "page-current", "page-next"]
  * - Initial page is always index 1 (center/current)
- * - No recentering logic - parent component updates props on navigation
- * - Parent uses `key` prop to force remount when center topic changes
+ * - Props-driven repositioning via useEffect (no key-based remount)
+ * - Matches SimpleChapterPager V3 pattern for consistent architecture
  *
  * Circular Navigation (Topics):
  * - First topic: Page 0 shows the last topic (wraps around)
@@ -21,7 +21,7 @@
  * 2. onPageSelected fires with new position
  * 3. onTopicChange(newTopicId) is called
  * 4. Parent updates state, which changes props to this component
- * 5. Parent's key prop changes, causing full remount with new center
+ * 5. useEffect detects topicId change and repositions pager without remount
  *
  * @example
  * ```tsx
@@ -31,7 +31,6 @@
  *
  *   return (
  *     <SimpleTopicPager
- *       key={activeTopicId} // Forces remount on navigation
  *       topicId={activeTopicId}
  *       sortedTopics={allTopics}
  *       onTopicChange={setActiveTopicId}
@@ -45,7 +44,7 @@
  * @see components/bible/SimpleChapterPager.tsx - Reference implementation (linear navigation)
  */
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import type { TopicListItem } from '@/types/topics';
@@ -89,6 +88,23 @@ export function SimpleTopicPager({
   onTopicChange,
   renderTopicPage,
 }: SimpleTopicPagerProps) {
+  const pagerRef = useRef<PagerView>(null);
+
+  // Track the previous topic ID to detect prop-driven navigation
+  const prevTopicIdRef = useRef(topicId);
+
+  // Pending navigation target — set by onPageSelected, processed when pager reaches idle
+  const pendingNavRef = useRef<string | null>(null);
+
+  // When props change (parent navigated), reset pager to the current page index
+  // without remounting the entire component
+  useEffect(() => {
+    if (prevTopicIdRef.current === topicId) return;
+    prevTopicIdRef.current = topicId;
+    const targetIndex = !sortedTopics || sortedTopics.length <= 1 ? 0 : PAGE_CURRENT;
+    pagerRef.current?.setPageWithoutAnimation(targetIndex);
+  }, [topicId, sortedTopics]);
+
   // Find current topic index in the sorted array
   const currentIndex = useMemo(
     () => getTopicIndexInCategory(topicId, sortedTopics),
@@ -119,15 +135,31 @@ export function SimpleTopicPager({
    * Called when user finishes swiping to a new page.
    * With circular navigation, both prev and next always exist.
    */
+  /**
+   * Handle page selection — store pending navigation target.
+   * Navigation is deferred until the pager reaches idle state via onPageScrollStateChanged.
+   * This prevents rapid-swipe race conditions where a second swipe fires before reposition.
+   */
   const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
     const newPosition = event.nativeEvent.position;
 
     if (newPosition === PAGE_PREV && prevTopicId) {
-      onTopicChange(prevTopicId);
+      pendingNavRef.current = prevTopicId;
     } else if (newPosition === PAGE_NEXT && nextTopicId) {
-      onTopicChange(nextTopicId);
+      pendingNavRef.current = nextTopicId;
     }
     // PAGE_CURRENT (1) - no navigation needed, user is on current page
+  };
+
+  /**
+   * Process navigation only when the pager reaches idle state.
+   */
+  const handlePageScrollStateChanged = (event: { nativeEvent: { pageScrollState: string } }) => {
+    if (event.nativeEvent.pageScrollState === 'idle' && pendingNavRef.current) {
+      const targetTopicId = pendingNavRef.current;
+      pendingNavRef.current = null;
+      onTopicChange(targetTopicId);
+    }
   };
 
   /**
@@ -195,10 +227,12 @@ export function SimpleTopicPager({
 
   return (
     <PagerView
+      ref={pagerRef}
       style={styles.pagerView}
       initialPage={initialPageIndex}
       onPageSelected={handlePageSelected}
-      testID="simple-topic-pager"
+      onPageScrollStateChanged={handlePageScrollStateChanged}
+      testID={pages.length >= 3 ? 'topic-pager-ready' : 'topic-pager-loading'}
       offscreenPageLimit={1}
     >
       {pages}
