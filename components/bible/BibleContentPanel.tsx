@@ -158,6 +158,7 @@ export function BibleContentPanel({
           isPreloading={!isCurrent}
           targetVerse={isCurrent ? targetVerse : undefined}
           targetEndVerse={isCurrent ? targetEndVerse : undefined}
+          hideChapterTitle
         />
       );
     },

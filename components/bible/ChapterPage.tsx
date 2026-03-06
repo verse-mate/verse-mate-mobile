@@ -220,6 +220,8 @@ export interface ChapterPageProps {
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
   onTap?: () => void;
+  /** Hide the chapter title text (used in split view where parent has a header) */
+  hideChapterTitle?: boolean;
 }
 
 /**
@@ -256,6 +258,7 @@ export function ChapterPage({
   targetEndVerse,
   onScroll,
   onTap,
+  hideChapterTitle = false,
 }: ChapterPageProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors); // Use local createStyles for ChapterPage
@@ -775,6 +778,7 @@ export function ChapterPage({
                 chapter={displayChapter}
                 activeTab={activeTab}
                 explanationsOnly={false}
+                hideChapterTitle={hideChapterTitle}
                 onContentLayout={handleContentLayout}
                 onOpenNotes={handleOpenNotes}
                 filteredHighlights={chapterHighlights}

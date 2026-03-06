@@ -119,6 +119,15 @@ export function BibleExplanationsPanel({
   const touchStartTime = useRef(0);
   const touchStartY = useRef(0);
 
+  // Ref for scroll reset on tab/chapter change
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Reset scroll position when tab or chapter changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deps are intentional triggers for scroll reset
+  useEffect(() => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+  }, [activeTab, bookId, chapterNumber]);
+
   // Animate indicator when active tab changes
   useEffect(() => {
     const targetIndex = getTabIndex(activeTab);
@@ -330,6 +339,7 @@ export function BibleExplanationsPanel({
 
       {/* Content Area */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
@@ -533,7 +543,7 @@ function createStyles(
     },
     heading2: {
       fontSize: fontSizes.heading2,
-      fontWeight: fontWeights.semibold,
+      fontWeight: fontWeights.bold,
       lineHeight: fontSizes.heading2 * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xl,

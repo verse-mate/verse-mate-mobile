@@ -800,6 +800,8 @@ function BibleNavigationModalComponent({
             value={currentFilterText}
             onChangeText={onChangeText}
             returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="words"
             accessibilityLabel={placeholder}
             testID={isTopicsMode ? 'topics-search-input' : 'books-search-input'}
           />
