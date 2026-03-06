@@ -157,6 +157,8 @@ interface ChapterReaderProps {
   explanation?: ExplanationContent;
   /** Show only explanations, hide Bible verses (for Explanations view) */
   explanationsOnly?: boolean;
+  /** Hide the chapter title text (used when parent already shows a header) */
+  hideChapterTitle?: boolean;
   /** Callback to report Y-position of verse sections for scrolling */
   onContentLayout?: (sectionPositions: Record<number, number>) => void;
   /** Callback to open notes modal */
@@ -253,6 +255,7 @@ export function ChapterReader({
   activeTab,
   explanation,
   explanationsOnly = false,
+  hideChapterTitle = false,
   onContentLayout,
   onOpenNotes,
   filteredHighlights,
@@ -469,9 +472,11 @@ export function ChapterReader({
       {/* Chapter Title Row with Bookmark, Notes, and Share buttons - Only show in Bible view */}
       {!explanationsOnly && (
         <View style={styles.titleRow} collapsable={false}>
-          <Text style={styles.chapterTitle} accessibilityRole="header">
-            {chapter.title}
-          </Text>
+          {!hideChapterTitle && (
+            <Text style={styles.chapterTitle} accessibilityRole="header">
+              {chapter.title}
+            </Text>
+          )}
           <View style={styles.iconButtons}>
             <BookmarkToggle
               bookId={chapter.bookId}
