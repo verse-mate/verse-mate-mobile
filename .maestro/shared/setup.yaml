@@ -7,6 +7,14 @@ appId: org.versemate.app
     clearState: true
     appId: org.versemate.app
 
+# Dismiss "Pixel Launcher isn't responding" or similar system dialogs
+# that block interaction on CI emulators
+- runFlow:
+    when:
+      visible: "Wait"
+    commands:
+      - tapOn: "Wait"
+
 # Wait for onboarding screen to fully load
 - extendedWaitUntil:
     visible:

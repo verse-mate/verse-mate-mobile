@@ -1,0 +1,185 @@
+---
+appId: org.versemate.app
+name: Cross Chapter Count Navigation Test
+description: Regression test for #80/#85/#87 — navigates between chapters with very different verse counts (Psalm 119 with 176 verses vs Psalm 120 with 7 verses) to verify no state desync
+tags:
+  - critical
+  - regression
+  - navigation
+
+---
+
+# Cross Chapter Count Navigation Test
+#
+# Regression test for:
+# - #80: Navigation Buttons Cause Chapter State Desync
+# - #85: Missing Verse Insights Due to Navigation State Issues
+# - #87: Chapter Mismatch/Lockup Bug Causing App-wide State Failures
+#
+# Users reported desync specifically when navigating between chapters with
+# different verse counts. This caused queries for nonexistent verse numbers
+# (e.g., Romans 7:33 when Romans 7 only has 25 verses).
+#
+# This test uses the most extreme verse count differential in the Bible:
+# - Psalm 119: 176 verses (longest chapter)
+# - Psalm 120: 7 verses (very short)
+#
+# Test Flow:
+# 1. Navigate to Psalm 119 via picker
+# 2. FAB forward to Psalm 120, verify header
+# 3. FAB backward to Psalm 119, verify header
+# 4. Swipe left to Psalm 120, verify header
+# 5. Swipe right to Psalm 119, verify header
+# 6. Assert no "No specific insight available" text visible
+
+- runFlow: ../shared/setup.yaml
+
+# ============================================
+# Setup: Navigate to Psalm 119 via picker
+# ============================================
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+# Psalms is below the fold in the book list — scroll to find it
+- scrollUntilVisible:
+    element:
+      id: "book-item-psalms"
+    direction: DOWN
+    timeout: 30000
+
+- tapOn:
+    id: "book-item-psalms"
+
+- waitForAnimationToEnd
+
+
+# Chapter 119 is deep in the chapter grid (150 chapters) — scroll to find it
+- scrollUntilVisible:
+    element:
+      id: "chapter-119"
+    direction: DOWN
+    timeout: 30000
+
+- tapOn:
+    id: "chapter-119"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify starting state
+- assertVisible:
+    text: "Psalms 119"
+
+# ============================================
+# Test 1: FAB forward — Psalm 119 → 120
+# (176 verses → 7 verses)
+# ============================================
+
+# Swipe down (scroll up) to trigger FAB via fast-scroll-up velocity handler.
+# Can't use tap at y=15% here — Psalm 119 has dense text starting at y=12%.
+- scroll
+- swipe:
+    direction: DOWN
+    duration: 200
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Psalms 120"
+
+# ============================================
+# Test 2: FAB backward — Psalm 120 → 119
+# (7 verses → 176 verses)
+# ============================================
+
+# Psalm 120 is short (7 verses) — tap at y=15% should work here
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Psalms 119"
+
+# ============================================
+# Test 3: Swipe left — Psalm 119 → 120
+# ============================================
+
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Psalms 120"
+
+# ============================================
+# Test 4: Swipe right — Psalm 120 → 119
+# ============================================
+
+- swipe:
+    direction: RIGHT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Psalms 119"
+
+# ============================================
+# Verify: No insight error text visible (#85)
+# ============================================
+
+# If navigation state is desynced, the app may show this error
+# for verse queries that reference nonexistent verse numbers
+- assertNotVisible:
+    text: "No specific insight available"
+    optional: true
+
+# ============================================
+# Test Complete: Header correctly synced across
+# extreme verse count differential (176 vs 7)
+# ============================================

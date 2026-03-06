@@ -1,0 +1,207 @@
+---
+appId: org.versemate.app
+name: Mixed Navigation Sync Test
+description: Regression test for #80/#87 — combines FAB buttons, swipe gestures, and picker modal to verify header stays in sync across navigation method switches
+tags:
+  - critical
+  - regression
+  - navigation
+
+---
+
+# Mixed Navigation Sync Test
+#
+# Regression test for:
+# - #80: Navigation Buttons Cause Chapter State Desync
+# - #87: Chapter Mismatch/Lockup Bug Causing App-wide State Failures
+#
+# Tests the exact user-reported scenario: combining FABs, swipes, and picker.
+# Users reported that mixing navigation methods caused the header to desync
+# from displayed content.
+#
+# Test Flow:
+# 1. Start at Genesis 3 via picker (avoids starting chapter edge case)
+# 2. FAB forward → Genesis 4
+# 3. Swipe left → Genesis 5
+# 4. FAB forward → Genesis 6
+# 5. Swipe right → Genesis 5
+# 6. FAB backward → Genesis 4
+# 7. Picker → Genesis 10
+# 8. Swipe left → Genesis 11
+
+- runFlow: ../shared/setup.yaml
+
+# ============================================
+# Setup: Navigate to Genesis 3 via picker
+# ============================================
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-3"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- assertVisible:
+    text: "Genesis 3"
+
+# ============================================
+# Test: Mixed navigation methods
+# ============================================
+
+# Step 1: FAB forward → Genesis 4
+# Tap chapter heading area (y=15%) to trigger FAB visibility without opening Verse Insight
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 4"
+
+# Step 2: Swipe left → Genesis 5
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 5"
+
+# Step 3: FAB forward → Genesis 6
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# Step 4: Swipe right (backward) → Genesis 5
+- swipe:
+    direction: RIGHT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 5"
+
+# Step 5: FAB backward → Genesis 4
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 4"
+
+# Step 6: Picker → Genesis 10 (jump via modal)
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-10"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- assertVisible:
+    text: "Genesis 10"
+
+# Step 7: Swipe left after picker → Genesis 11
+- swipe:
+    direction: LEFT
+    duration: 400
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 11"
+
+# ============================================
+# Test Complete: Header stayed in sync across
+# 7 navigations mixing FAB, swipe, and picker
+# ============================================
