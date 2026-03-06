@@ -97,7 +97,10 @@ tags:
 # (176 verses → 7 verses)
 # ============================================
 
-# FABs are initially visible for 3s after chapter load — catch them directly
+# Tap chapter heading area (y=15%) to trigger FAB visibility without opening Verse Insight
+- tapOn:
+    point: "50%,15%"
+
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
@@ -116,6 +119,9 @@ tags:
 # Test 2: FAB backward — Psalm 120 → 119
 # (7 verses → 176 verses)
 # ============================================
+
+- tapOn:
+    point: "50%,15%"
 
 - extendedWaitUntil:
     visible:

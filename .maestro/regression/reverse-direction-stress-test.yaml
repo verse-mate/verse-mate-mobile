@@ -79,7 +79,10 @@ tags:
 # ============================================
 
 # FAB forward: Genesis 5 → 6
-# FABs are initially visible for 3s after chapter load — catch them directly
+# Tap chapter heading area (y=15%) to trigger FAB visibility without opening Verse Insight
+- tapOn:
+    point: "50%,15%"
+
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
@@ -95,6 +98,9 @@ tags:
     text: "Genesis 6"
 
 # FAB backward: Genesis 6 → 5
+- tapOn:
+    point: "50%,15%"
+
 - extendedWaitUntil:
     visible:
       id: "previous-chapter-button"
@@ -110,6 +116,9 @@ tags:
     text: "Genesis 5"
 
 # FAB forward: Genesis 5 → 6
+- tapOn:
+    point: "50%,15%"
+
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
@@ -125,6 +134,9 @@ tags:
     text: "Genesis 6"
 
 # FAB backward: Genesis 6 → 5
+- tapOn:
+    point: "50%,15%"
+
 - extendedWaitUntil:
     visible:
       id: "previous-chapter-button"
@@ -140,6 +152,9 @@ tags:
     text: "Genesis 5"
 
 # FAB forward: Genesis 5 → 6
+- tapOn:
+    point: "50%,15%"
+
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
