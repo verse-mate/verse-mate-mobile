@@ -79,9 +79,9 @@ tags:
 # ============================================
 
 # Step 1: FAB forward → Genesis 4
-# Tap chapter heading area (y=15%) to trigger FAB visibility without opening Verse Insight
+# Tap chapter heading area (y=10%) to trigger FAB visibility without opening Verse Insight
 - tapOn:
-    point: "50%,15%"
+    point: "50%,10%"
 
 - extendedWaitUntil:
     visible:
@@ -110,7 +110,7 @@ tags:
 
 # Step 3: FAB forward → Genesis 6
 - tapOn:
-    point: "50%,15%"
+    point: "50%,10%"
 
 - extendedWaitUntil:
     visible:
@@ -139,7 +139,7 @@ tags:
 
 # Step 5: FAB backward → Genesis 4
 - tapOn:
-    point: "50%,15%"
+    point: "50%,10%"
 
 - extendedWaitUntil:
     visible:

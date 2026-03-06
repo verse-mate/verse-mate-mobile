@@ -97,9 +97,9 @@ tags:
 # (176 verses → 7 verses)
 # ============================================
 
-# Tap chapter heading area (y=15%) to trigger FAB visibility without opening Verse Insight
+# Tap chapter heading area (y=10%) to trigger FAB visibility without opening Verse Insight
 - tapOn:
-    point: "50%,15%"
+    point: "50%,10%"
 
 - extendedWaitUntil:
     visible:
@@ -121,7 +121,7 @@ tags:
 # ============================================
 
 - tapOn:
-    point: "50%,15%"
+    point: "50%,10%"
 
 - extendedWaitUntil:
     visible:
