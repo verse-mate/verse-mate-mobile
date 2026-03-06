@@ -510,7 +510,7 @@ export async function runAutoSyncIfNeeded(): Promise<void> {
       await checkAndSyncUpdates();
     }
   } catch (error) {
-    console.warn('Auto-sync failed:', error);
+    if (__DEV__) console.warn('Auto-sync failed:', error);
   }
 }
 
@@ -768,11 +768,20 @@ export async function downloadUserData(onProgress?: ProgressCallback): Promise<v
 // Sync Queue Processing
 // ============================================================================
 
-export async function processSyncQueue(): Promise<void> {
-  const actions = await getPendingSyncActions();
-  if (actions.length === 0) return;
+export interface SyncQueueResult {
+  total: number;
+  succeeded: number;
+  failed: number;
+}
 
-  console.log(`[Offline Sync] Processing ${actions.length} pending actions`);
+export async function processSyncQueue(): Promise<SyncQueueResult> {
+  const actions = await getPendingSyncActions();
+  if (actions.length === 0) return { total: 0, succeeded: 0, failed: 0 };
+
+  if (__DEV__) console.log(`[Offline Sync] Processing ${actions.length} pending actions`);
+
+  let succeeded = 0;
+  let failed = 0;
 
   // Process sequentially to ensure order
   for (const action of actions) {
@@ -838,14 +847,14 @@ export async function processSyncQueue(): Promise<void> {
       }
 
       await deleteSyncAction(action.id);
+      succeeded++;
     } catch (e) {
       console.error(`[Offline Sync] Action ${action.id} failed:`, e);
       // Mark as failed and increment retry count
       await updateSyncActionStatus(action.id, 'FAILED', action.retry_count + 1);
+      failed++;
     }
   }
 
-  // After processing queue, trigger a user data sync to refresh local IDs and ensure consistency
-  // Use fire-and-forget
-  downloadUserData().catch((e) => console.warn('[Offline Sync] Post-queue sync failed:', e));
+  return { total: actions.length, succeeded, failed };
 }

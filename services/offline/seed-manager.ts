@@ -29,10 +29,10 @@ export const DB_PATH = `${FileSystem.documentDirectory}SQLite/${DB_NAME}`;
  * calls inside functions for static bundling analysis.
  */
 export async function copySeedDatabaseIfNeeded(): Promise<void> {
-  console.log('[Seed] Checking DB path:', DB_PATH);
+  if (__DEV__) console.log('[Seed] Checking DB path:', DB_PATH);
 
   const info = await FileSystem.getInfoAsync(DB_PATH);
-  console.log('[Seed] DB file exists:', info.exists);
+  if (__DEV__) console.log('[Seed] DB file exists:', info.exists);
 
   if (info.exists) {
     // File exists — but it may be an empty DB created by a concurrent
@@ -57,46 +57,49 @@ export async function copySeedDatabaseIfNeeded(): Promise<void> {
     } catch (checkErr) {
       // If we can't open/query the DB, assume it has data to avoid wiping a
       // real install that happens to be unreadable at this moment.
-      console.warn('[Seed] Could not check DB contents, assuming data exists:', checkErr);
+      if (__DEV__)
+        console.warn('[Seed] Could not check DB contents, assuming data exists:', checkErr);
       hasVerseData = true;
     }
 
     if (hasVerseData) {
-      console.log('[Seed] DB exists with verse data — skipping seed copy');
+      if (__DEV__) console.log('[Seed] DB exists with verse data — skipping seed copy');
       return;
     }
 
-    console.log('[Seed] DB file exists but is empty (race condition) — overwriting with seed');
-  } else {
-    console.log('[Seed] Fresh install — beginning seed copy');
-  }
+    if (__DEV__)
+      console.log('[Seed] DB file exists but is empty (race condition) — overwriting with seed');
+  } else if (__DEV__) console.log('[Seed] Fresh install — beginning seed copy');
 
   // biome-ignore lint/suspicious/noExplicitAny: dynamic asset require — type is number (asset registry ID)
   const seedModule: any = require('@/assets/data/versemate-seed.db');
-  console.log('[Seed] Asset module type:', typeof seedModule, '| value:', seedModule);
+  if (__DEV__) console.log('[Seed] Asset module type:', typeof seedModule, '| value:', seedModule);
 
   const dirPath = DB_PATH.substring(0, DB_PATH.lastIndexOf('/'));
   await FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
-  console.log('[Seed] SQLite directory ensured:', dirPath);
+  if (__DEV__) console.log('[Seed] SQLite directory ensured:', dirPath);
 
   const asset = Asset.fromModule(seedModule);
-  console.log('[Seed] Asset before download — localUri:', asset.localUri, '| uri:', asset.uri);
+  if (__DEV__)
+    console.log('[Seed] Asset before download — localUri:', asset.localUri, '| uri:', asset.uri);
 
   await asset.downloadAsync();
-  console.log('[Seed] Asset after download — localUri:', asset.localUri, '| uri:', asset.uri);
+  if (__DEV__)
+    console.log('[Seed] Asset after download — localUri:', asset.localUri, '| uri:', asset.uri);
 
   if (!asset.localUri) {
     throw new Error('[Seed] Could not resolve local URI for seed database asset');
   }
 
-  console.log('[Seed] Copying from', asset.localUri, 'to', DB_PATH);
+  if (__DEV__) console.log('[Seed] Copying from', asset.localUri, 'to', DB_PATH);
   await FileSystem.copyAsync({ from: asset.localUri, to: DB_PATH });
 
   const finalInfo = await FileSystem.getInfoAsync(DB_PATH);
-  console.log(
-    '[Seed] Copy complete — DB exists:',
-    finalInfo.exists,
-    '| size:',
-    (finalInfo as { size?: number }).size ?? 'unknown'
-  );
+  if (__DEV__)
+    console.log(
+      '[Seed] Copy complete — DB exists:',
+      finalInfo.exists,
+      '| size:',
+      (finalInfo as { size?: number }).size ?? 'unknown'
+    );
 }
