@@ -72,12 +72,15 @@ export function NoteEditModal({
   const {
     isListening,
     isAvailable: micAvailable,
-    hasError: micError,
+    errorCount: micErrorCount,
     startListening,
     stopListening,
   } = useSpeechToText({
     onTranscript: (text) => {
-      setContent((prev) => (prev ? `${prev} ${text}` : text));
+      setContent((prev) => {
+        const combined = prev ? `${prev} ${text}` : text;
+        return combined.slice(0, NOTES_CONFIG.MAX_CONTENT_LENGTH);
+      });
     },
     onError: (message) => showToast(message),
   });
@@ -336,7 +339,7 @@ export function NoteEditModal({
                 {micAvailable && (
                   <MicrophoneButton
                     isListening={isListening}
-                    hasError={micError}
+                    errorCount={micErrorCount}
                     onPress={isListening ? stopListening : startListening}
                   />
                 )}

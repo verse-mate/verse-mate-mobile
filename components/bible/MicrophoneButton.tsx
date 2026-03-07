@@ -3,18 +3,18 @@ import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 
-interface MicrophoneButtonProps {
+export interface MicrophoneButtonProps {
   isListening: boolean;
-  hasError?: boolean;
+  errorCount?: number;
   onPress: () => void;
 }
 
-export function MicrophoneButton({ isListening, hasError, onPress }: MicrophoneButtonProps) {
+export function MicrophoneButton({ isListening, errorCount = 0, onPress }: MicrophoneButtonProps) {
   const { colors } = useTheme();
   const shakeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (hasError) {
+    if (errorCount > 0) {
       Animated.sequence([
         Animated.timing(shakeAnim, { toValue: 8, duration: 50, useNativeDriver: true }),
         Animated.timing(shakeAnim, { toValue: -8, duration: 50, useNativeDriver: true }),
@@ -23,7 +23,7 @@ export function MicrophoneButton({ isListening, hasError, onPress }: MicrophoneB
         Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
       ]).start();
     }
-  }, [hasError, shakeAnim]);
+  }, [errorCount, shakeAnim]);
 
   const iconName = isListening ? 'mic' : 'mic-off-outline';
   const iconColor = isListening ? colors.gold : colors.textSecondary;
