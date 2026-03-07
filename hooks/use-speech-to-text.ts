@@ -23,7 +23,7 @@ interface UseSpeechToTextOptions {
 interface UseSpeechToTextResult {
   isListening: boolean;
   isAvailable: boolean;
-  hasError: boolean;
+  errorCount: number;
   startListening: () => Promise<void>;
   stopListening: () => void;
 }
@@ -34,9 +34,8 @@ export function useSpeechToText({
 }: UseSpeechToTextOptions): UseSpeechToTextResult {
   const [isListening, setIsListening] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [errorCount, setErrorCount] = useState(0);
   const isListeningRef = useRef(false);
-  const flashTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const onTranscriptRef = useRef(onTranscript);
   const onErrorRef = useRef(onError);
 
@@ -44,9 +43,7 @@ export function useSpeechToText({
   onErrorRef.current = onError;
 
   const flashError = useCallback(() => {
-    setHasError(true);
-    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-    flashTimerRef.current = setTimeout(() => setHasError(false), 400);
+    setErrorCount((c) => c + 1);
   }, []);
 
   useEffect(() => {
@@ -107,12 +104,19 @@ export function useSpeechToText({
 
     const deviceLang = Localization.getLocales()[0]?.languageTag ?? 'en-US';
 
-    startRecognition({
-      lang: deviceLang,
-      interimResults: false,
-      // iOS-only: adds punctuation automatically; ignored on Android
-      addsPunctuation: true,
-    });
+    try {
+      startRecognition({
+        lang: deviceLang,
+        interimResults: false,
+        // iOS-only: adds punctuation automatically; ignored on Android
+        addsPunctuation: true,
+      });
+    } catch {
+      setIsListening(false);
+      isListeningRef.current = false;
+      flashError();
+      onErrorRef.current?.('Speech recognition failed to start');
+    }
   }, [flashError]);
 
   const stopListening = useCallback(() => {
@@ -124,7 +128,6 @@ export function useSpeechToText({
 
   useEffect(() => {
     return () => {
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       if (isListeningRef.current) {
         abortRecognition();
       }
@@ -134,7 +137,7 @@ export function useSpeechToText({
   return {
     isListening,
     isAvailable,
-    hasError,
+    errorCount,
     startListening,
     stopListening,
   };

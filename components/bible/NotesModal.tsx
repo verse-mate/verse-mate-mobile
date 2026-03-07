@@ -83,12 +83,15 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
   const {
     isListening,
     isAvailable: micAvailable,
-    hasError: micError,
+    errorCount: micErrorCount,
     startListening,
     stopListening,
   } = useSpeechToText({
     onTranscript: (text) => {
-      setNewNoteContent((prev) => (prev ? `${prev} ${text}` : text));
+      setNewNoteContent((prev) => {
+        const combined = prev ? `${prev} ${text}` : text;
+        return combined.slice(0, NOTES_CONFIG.MAX_CONTENT_LENGTH);
+      });
     },
     onError: (message) => showToast(message),
   });
@@ -337,7 +340,7 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
                   {micAvailable && (
                     <MicrophoneButton
                       isListening={isListening}
-                      hasError={micError}
+                      errorCount={micErrorCount}
                       onPress={isListening ? stopListening : startListening}
                     />
                   )}
