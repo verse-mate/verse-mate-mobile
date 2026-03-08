@@ -42,6 +42,7 @@ beforeEach(() => {
   }
   (speechLib.isRecognitionAvailable as jest.Mock).mockReturnValue(true);
   (speechLib.requestPermissions as jest.Mock).mockResolvedValue(true);
+  (speechLib.startRecognition as jest.Mock).mockImplementation(() => {});
   (speechLib.hasNativeModule as jest.Mock).mockReturnValue(true);
   // Restore mocks wiped by clearAllMocks
   (speechLib.getNativeModule as jest.Mock).mockReturnValue(mockNativeModule);
