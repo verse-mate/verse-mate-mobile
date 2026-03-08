@@ -15,6 +15,7 @@ jest.mock('@/hooks/use-speech-to-text', () => ({
     isListening: false,
     isAvailable: true,
     errorCount: 0,
+    interimTranscript: '',
     startListening: mockStartListening,
     stopListening: mockStopListening,
   }),
@@ -143,5 +144,27 @@ describe('NoteEditModal - Voice Input Integration', () => {
 
     expect(mockStopListening).toHaveBeenCalledTimes(1);
     expect(mockStartListening).not.toHaveBeenCalled();
+  });
+
+  it('displays interim transcript text when available', () => {
+    const { useSpeechToText } = require('@/hooks/use-speech-to-text');
+    useSpeechToText.mockReturnValue({
+      isListening: true,
+      isAvailable: true,
+      errorCount: 0,
+      interimTranscript: 'hello world',
+      startListening: mockStartListening,
+      stopListening: mockStopListening,
+    });
+
+    const { getByText } = render(<NoteEditModal {...defaultProps} />);
+
+    expect(getByText('\u201Chello world\u201D')).toBeTruthy();
+  });
+
+  it('does not display interim transcript when empty', () => {
+    const { queryByText } = render(<NoteEditModal {...defaultProps} />);
+
+    expect(queryByText(/\u201C/)).toBeNull();
   });
 });
