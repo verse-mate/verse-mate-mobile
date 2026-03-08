@@ -11,6 +11,7 @@ jest.mock('@/hooks/use-speech-to-text', () => ({
     isListening: false,
     isAvailable: true,
     errorCount: 0,
+    interimTranscript: '',
     startListening: mockStartListening,
     stopListening: mockStopListening,
   }),
@@ -114,6 +115,28 @@ describe('NotesModal - Voice Input Integration', () => {
 
     expect(mockStopListening).toHaveBeenCalledTimes(1);
     expect(mockStartListening).not.toHaveBeenCalled();
+  });
+
+  it('displays interim transcript text when available', () => {
+    const { useSpeechToText } = jest.requireMock('@/hooks/use-speech-to-text');
+    useSpeechToText.mockReturnValue({
+      isListening: true,
+      isAvailable: true,
+      errorCount: 0,
+      interimTranscript: 'hello world',
+      startListening: mockStartListening,
+      stopListening: mockStopListening,
+    });
+
+    const { getByText } = render(<NotesModal {...defaultProps} />);
+
+    expect(getByText('\u201Chello world\u201D')).toBeTruthy();
+  });
+
+  it('does not display interim transcript when empty', () => {
+    const { queryByText } = render(<NotesModal {...defaultProps} />);
+
+    expect(queryByText(/\u201C/)).toBeNull();
   });
 
   it('does not render mic button when modal is not visible', () => {
