@@ -24,6 +24,7 @@ interface UseSpeechToTextResult {
   isListening: boolean;
   isAvailable: boolean;
   errorCount: number;
+  interimTranscript: string;
   startListening: () => Promise<void>;
   stopListening: () => void;
 }
@@ -35,6 +36,7 @@ export function useSpeechToText({
   const [isListening, setIsListening] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
+  const [interimTranscript, setInterimTranscript] = useState('');
   const isListeningRef = useRef(false);
   const onTranscriptRef = useRef(onTranscript);
   const onErrorRef = useRef(onError);
@@ -56,10 +58,15 @@ export function useSpeechToText({
     if (!mod) return;
 
     const resultSub = mod.addListener('result', (event: ExpoSpeechRecognitionResultEvent) => {
-      if (event.isFinal && event.results.length > 0) {
+      if (event.results.length > 0) {
         const transcript = event.results[0].transcript.trim();
-        if (transcript) {
-          onTranscriptRef.current(transcript);
+        if (event.isFinal) {
+          setInterimTranscript('');
+          if (transcript) {
+            onTranscriptRef.current(transcript);
+          }
+        } else {
+          setInterimTranscript(transcript);
         }
       }
     });
@@ -67,7 +74,12 @@ export function useSpeechToText({
     const errorSub = mod.addListener('error', (event: ExpoSpeechRecognitionErrorEvent) => {
       setIsListening(false);
       isListeningRef.current = false;
-      if (event.error !== 'aborted' && event.error !== 'no-speech') {
+      setInterimTranscript('');
+      if (event.error === 'no-speech') {
+        flashError();
+        onErrorRef.current?.('No speech detected');
+      } else if (event.error !== 'aborted') {
+        flashError();
         onErrorRef.current?.(event.message || 'Speech recognition failed');
       }
     });
@@ -75,6 +87,7 @@ export function useSpeechToText({
     const endSub = mod.addListener('end', () => {
       setIsListening(false);
       isListeningRef.current = false;
+      setInterimTranscript('');
     });
 
     return () => {
@@ -82,9 +95,11 @@ export function useSpeechToText({
       errorSub.remove();
       endSub.remove();
     };
-  }, []);
+  }, [flashError]);
 
   const startListening = useCallback(async () => {
+    if (isListeningRef.current) return;
+
     if (!hasNativeModule()) {
       flashError();
       onErrorRef.current?.('Voice input requires a development build');
@@ -107,7 +122,7 @@ export function useSpeechToText({
     try {
       startRecognition({
         lang: deviceLang,
-        interimResults: false,
+        interimResults: true,
         // iOS-only: adds punctuation automatically; ignored on Android
         addsPunctuation: true,
       });
@@ -138,6 +153,7 @@ export function useSpeechToText({
     isListening,
     isAvailable,
     errorCount,
+    interimTranscript,
     startListening,
     stopListening,
   };

@@ -25,7 +25,7 @@ export function MicrophoneButton({ isListening, errorCount = 0, onPress }: Micro
     }
   }, [errorCount, shakeAnim]);
 
-  const iconName = isListening ? 'mic' : 'mic-off-outline';
+  const iconName = isListening ? 'mic' : 'mic-outline';
   const iconColor = isListening ? colors.gold : colors.textSecondary;
 
   return (

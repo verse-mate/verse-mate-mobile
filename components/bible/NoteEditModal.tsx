@@ -73,13 +73,18 @@ export function NoteEditModal({
     isListening,
     isAvailable: micAvailable,
     errorCount: micErrorCount,
+    interimTranscript,
     startListening,
     stopListening,
   } = useSpeechToText({
     onTranscript: (text) => {
       setContent((prev) => {
         const combined = prev ? `${prev} ${text}` : text;
-        return combined.slice(0, NOTES_CONFIG.MAX_CONTENT_LENGTH);
+        if (combined.length > NOTES_CONFIG.MAX_CONTENT_LENGTH) {
+          setTimeout(() => showToast('Character limit reached'), 0);
+          return combined.slice(0, NOTES_CONFIG.MAX_CONTENT_LENGTH);
+        }
+        return combined;
       });
     },
     onError: (message) => showToast(message),
@@ -335,6 +340,10 @@ export function NoteEditModal({
                 scrollEnabled={false} // Allow ScrollView to handle scrolling
               />
 
+              {interimTranscript ? (
+                <Text style={styles.interimText}>{`\u201C${interimTranscript}\u201D`}</Text>
+              ) : null}
+
               <View style={styles.counterContainer}>
                 {micAvailable && (
                   <MicrophoneButton
@@ -454,6 +463,13 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     draftIndicatorText: {
       fontSize: fontSizes.bodySmall,
       color: colors.white,
+    },
+    interimText: {
+      fontSize: fontSizes.bodySmall,
+      color: colors.textTertiary,
+      fontStyle: 'italic',
+      marginTop: spacing.xs,
+      paddingHorizontal: spacing.xs,
     },
     counterContainer: {
       flexDirection: 'row',
