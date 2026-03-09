@@ -483,7 +483,7 @@ export function VerseMateTooltip({
 
   // Animated style for expansion (Reanimated — runs on UI thread)
   const insightAnimatedStyle = useAnimatedStyle(() => ({
-    maxHeight: interpolate(expansionAnim.value, [0, 1], [0, 400]),
+    maxHeight: interpolate(expansionAnim.value, [0, 1], [0, screenHeight * 0.6]),
     opacity: interpolate(expansionAnim.value, [0, 0.5, 1], [0, 0, 1]),
   }));
 
