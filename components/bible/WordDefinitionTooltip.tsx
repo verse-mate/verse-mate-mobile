@@ -41,7 +41,7 @@ import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useNativeDictionary } from '@/hooks/use-native-dictionary';
 import { lookupWord } from '@/services/dictionary-service';
-import type { DictionaryResult, EastonEntry, StrongsEntry } from '@/types/dictionary';
+import type { DictionaryResult, EastonEntry, StrongsEntry, WebsterEntry } from '@/types/dictionary';
 
 interface WordDefinitionTooltipProps {
   /** Whether modal is visible */
@@ -67,6 +67,7 @@ interface DefinitionState {
   strongsEntry: StrongsEntry | null;
   strongsNum: string | null;
   eastonEntry: EastonEntry | null;
+  websterEntry: WebsterEntry | null;
   source: DictionaryResult['source'] | null;
   hasNative: boolean;
   error: string | null;
@@ -116,6 +117,7 @@ export function WordDefinitionTooltip({
     strongsEntry: null,
     strongsNum: null,
     eastonEntry: null,
+    websterEntry: null,
     source: null,
     hasNative: false,
     error: null,
@@ -157,9 +159,9 @@ export function WordDefinitionTooltip({
         // Use unified dictionary service for lookup
         const result = await lookupWord(word);
 
-        // Check native dictionary availability
+        // Check native dictionary availability (iOS only, or when no other source found)
         let hasNative = false;
-        if (nativeAvailable) {
+        if (nativeAvailable && (Platform.OS === 'ios' || result.source === 'none')) {
           hasNative = await hasDefinitionRef.current(word);
         }
 
@@ -170,6 +172,7 @@ export function WordDefinitionTooltip({
           strongsEntry: result.strongsEntry ?? null,
           strongsNum: result.strongsNumber ?? null,
           eastonEntry: result.eastonEntry ?? null,
+          websterEntry: result.websterEntry ?? null,
           source: result.source,
           hasNative,
           error: !hasDefinitionResult ? 'No definition available' : null,
@@ -180,6 +183,7 @@ export function WordDefinitionTooltip({
           strongsEntry: null,
           strongsNum: null,
           eastonEntry: null,
+          websterEntry: null,
           source: null,
           hasNative: false,
           error: 'Failed to load definition',
@@ -282,6 +286,9 @@ export function WordDefinitionTooltip({
         content += `\nReferences: ${state.eastonEntry.scriptureRefs.join(', ')}`;
       }
       content += "\n\n(Easton's Bible Dictionary)";
+    } else if (state.source === 'webster' && state.websterEntry) {
+      content += `\nDefinition: ${state.websterEntry.definition}`;
+      content += "\n\n(Webster's 1913 Dictionary)";
     } else if (state.strongsNum && state.strongsEntry?.lemma) {
       content += ` (${state.strongsNum} - ${state.strongsEntry.lemma})`;
       if (state.strongsEntry?.definition) {
@@ -405,6 +412,7 @@ export function WordDefinitionTooltip({
               state.error &&
               !state.eastonEntry &&
               !state.strongsEntry &&
+              !state.websterEntry &&
               !state.hasNative && (
                 <View style={styles.errorContainer}>
                   <Ionicons name="alert-circle-outline" size={48} color={colors.textSecondary} />
@@ -413,15 +421,104 @@ export function WordDefinitionTooltip({
               )}
 
             {/* Definition Content */}
-            {!state.loading && (state.eastonEntry || state.strongsEntry || state.hasNative) && (
-              <View>
-                {/* Word Title */}
-                <Text style={styles.wordTitle}>{displayWord}</Text>
+            {!state.loading &&
+              (state.eastonEntry ||
+                state.strongsEntry ||
+                state.websterEntry ||
+                state.hasNative) && (
+                <View>
+                  {/* Word Title */}
+                  <Text style={styles.wordTitle}>{displayWord}</Text>
 
-                {/* Easton's Bible Dictionary Definition */}
-                {state.source === 'easton' && state.eastonEntry && (
-                  <>
-                    {/* Definition (scrollable) */}
+                  {/* Easton's Bible Dictionary Definition */}
+                  {state.source === 'easton' && state.eastonEntry && (
+                    <>
+                      {/* Definition (scrollable) */}
+                      <ScrollView
+                        style={styles.definitionScroll}
+                        contentContainerStyle={styles.definitionScrollContent}
+                        showsVerticalScrollIndicator={false}
+                        nestedScrollEnabled
+                      >
+                        <View style={styles.definitionBox}>
+                          <Text style={styles.definitionText}>{state.eastonEntry.definition}</Text>
+                        </View>
+                      </ScrollView>
+
+                      {/* Scripture References (always visible below scroll) */}
+                      {state.eastonEntry.scriptureRefs &&
+                        state.eastonEntry.scriptureRefs.length > 0 && (
+                          <View style={styles.refsContainer} testID="easton-scripture-refs">
+                            <Text style={styles.refsLabel}>Scripture References:</Text>
+                            <Text style={styles.refsText} numberOfLines={3}>
+                              {state.eastonEntry.scriptureRefs.join(', ')}
+                            </Text>
+                          </View>
+                        )}
+
+                      {/* See Also (always visible below scroll) */}
+                      {state.eastonEntry.seeAlso && state.eastonEntry.seeAlso.length > 0 && (
+                        <View style={styles.seeAlsoContainer} testID="easton-see-also">
+                          <Text style={styles.seeAlsoLabel}>See Also:</Text>
+                          <View style={styles.seeAlsoChips}>
+                            {state.eastonEntry.seeAlso.map((term) => (
+                              <View key={term} style={styles.seeAlsoChip}>
+                                <Text style={styles.seeAlsoChipText}>{term}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                    </>
+                  )}
+
+                  {/* Strong's Definition */}
+                  {state.source === 'strongs' && state.strongsEntry && (
+                    <>
+                      {/* Strong's Number Badge */}
+                      {state.strongsNum && (
+                        <View style={styles.strongsBadge}>
+                          <Text style={styles.strongsBadgeText}>{state.strongsNum}</Text>
+                        </View>
+                      )}
+
+                      {/* Original Word (Lemma) */}
+                      <Text style={styles.lemmaText}>{state.strongsEntry.lemma}</Text>
+
+                      {/* Definition */}
+                      <ScrollView
+                        style={styles.definitionScroll}
+                        contentContainerStyle={styles.definitionScrollContent}
+                        showsVerticalScrollIndicator={false}
+                        nestedScrollEnabled
+                      >
+                        <View style={styles.definitionBox}>
+                          <Text style={styles.definitionText}>{state.strongsEntry.definition}</Text>
+                        </View>
+
+                        {/* Derivation */}
+                        {state.strongsEntry.derivation && (
+                          <View style={styles.derivationContainer}>
+                            <Text style={styles.derivationLabel}>Derivation:</Text>
+                            <Text style={styles.derivationText}>
+                              {state.strongsEntry.derivation}
+                            </Text>
+                          </View>
+                        )}
+
+                        {/* KJV Translation */}
+                        {state.strongsEntry.kjvTranslation && (
+                          <View style={styles.kjvContainer}>
+                            <Text style={styles.kjvLabel}>KJV:</Text>
+                            <Text style={styles.kjvText}>{state.strongsEntry.kjvTranslation}</Text>
+                          </View>
+                        )}
+                      </ScrollView>
+                    </>
+                  )}
+
+                  {/* Webster's Dictionary Definition */}
+                  {state.source === 'webster' && state.websterEntry && (
                     <ScrollView
                       style={styles.definitionScroll}
                       contentContainerStyle={styles.definitionScrollContent}
@@ -429,84 +526,15 @@ export function WordDefinitionTooltip({
                       nestedScrollEnabled
                     >
                       <View style={styles.definitionBox}>
-                        <Text style={styles.definitionText}>{state.eastonEntry.definition}</Text>
+                        <Text style={styles.definitionText}>{state.websterEntry.definition}</Text>
                       </View>
                     </ScrollView>
+                  )}
 
-                    {/* Scripture References (always visible below scroll) */}
-                    {state.eastonEntry.scriptureRefs &&
-                      state.eastonEntry.scriptureRefs.length > 0 && (
-                        <View style={styles.refsContainer} testID="easton-scripture-refs">
-                          <Text style={styles.refsLabel}>Scripture References:</Text>
-                          <Text style={styles.refsText} numberOfLines={3}>
-                            {state.eastonEntry.scriptureRefs.join(', ')}
-                          </Text>
-                        </View>
-                      )}
-
-                    {/* See Also (always visible below scroll) */}
-                    {state.eastonEntry.seeAlso && state.eastonEntry.seeAlso.length > 0 && (
-                      <View style={styles.seeAlsoContainer} testID="easton-see-also">
-                        <Text style={styles.seeAlsoLabel}>See Also:</Text>
-                        <View style={styles.seeAlsoChips}>
-                          {state.eastonEntry.seeAlso.map((term) => (
-                            <View key={term} style={styles.seeAlsoChip}>
-                              <Text style={styles.seeAlsoChipText}>{term}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
-                  </>
-                )}
-
-                {/* Strong's Definition */}
-                {state.source === 'strongs' && state.strongsEntry && (
-                  <>
-                    {/* Strong's Number Badge */}
-                    {state.strongsNum && (
-                      <View style={styles.strongsBadge}>
-                        <Text style={styles.strongsBadgeText}>{state.strongsNum}</Text>
-                      </View>
-                    )}
-
-                    {/* Original Word (Lemma) */}
-                    <Text style={styles.lemmaText}>{state.strongsEntry.lemma}</Text>
-
-                    {/* Definition */}
-                    <ScrollView
-                      style={styles.definitionScroll}
-                      contentContainerStyle={styles.definitionScrollContent}
-                      showsVerticalScrollIndicator={false}
-                      nestedScrollEnabled
-                    >
-                      <View style={styles.definitionBox}>
-                        <Text style={styles.definitionText}>{state.strongsEntry.definition}</Text>
-                      </View>
-
-                      {/* Derivation */}
-                      {state.strongsEntry.derivation && (
-                        <View style={styles.derivationContainer}>
-                          <Text style={styles.derivationLabel}>Derivation:</Text>
-                          <Text style={styles.derivationText}>{state.strongsEntry.derivation}</Text>
-                        </View>
-                      )}
-
-                      {/* KJV Translation */}
-                      {state.strongsEntry.kjvTranslation && (
-                        <View style={styles.kjvContainer}>
-                          <Text style={styles.kjvLabel}>KJV:</Text>
-                          <Text style={styles.kjvText}>{state.strongsEntry.kjvTranslation}</Text>
-                        </View>
-                      )}
-                    </ScrollView>
-                  </>
-                )}
-
-                {/* Verse Reference */}
-                <Text style={styles.verseReference}>{verseReference}</Text>
-              </View>
-            )}
+                  {/* Verse Reference */}
+                  <Text style={styles.verseReference}>{verseReference}</Text>
+                </View>
+              )}
           </View>
 
           {/* Actions Footer */}
