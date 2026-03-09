@@ -151,6 +151,20 @@ jest.mock('@/modules/dictionary', () => ({
   isNativeDictionaryAvailable: jest.fn().mockReturnValue(false),
 }));
 
+// Mock expo-speech-recognition
+jest.mock('expo-speech-recognition', () => ({
+  ExpoSpeechRecognitionModule: {
+    isRecognitionAvailable: jest.fn().mockReturnValue(true),
+    requestPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+    getPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+    start: jest.fn(),
+    stop: jest.fn(),
+    abort: jest.fn(),
+    addListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
+  },
+  useSpeechRecognitionEvent: jest.fn(),
+}));
+
 // Mock expo-device
 jest.mock('expo-device', () => ({
   deviceType: 1, // PHONE
