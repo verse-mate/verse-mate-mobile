@@ -606,7 +606,7 @@ const createStyles = (
     overlay: {
       flex: 1,
       justifyContent: 'flex-end',
-      alignItems: tooltipWidth ? 'flex-end' : 'stretch',
+      alignItems: tooltipWidth ? 'center' : 'stretch',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
