@@ -1,5 +1,6 @@
 import { lookupEaston } from '@/services/easton-service';
 import { isValidStrongsNumber, lookup } from '@/services/lexicon-service';
+import { lookupWebster } from '@/services/webster-service';
 import { getStrongsNumber, hasStrongsNumber } from '@/services/word-mapping-service';
 import type { DictionaryResult } from '@/types/dictionary';
 
@@ -56,6 +57,12 @@ export async function lookupWord(word: string): Promise<DictionaryResult> {
         source: 'strongs',
       };
     }
+  }
+
+  // 4. Try Webster's 1913 Dictionary (general English fallback)
+  const websterEntry = await lookupWebster(word);
+  if (websterEntry) {
+    return { word, websterEntry, source: 'webster' };
   }
 
   return { word, source: 'none' };
