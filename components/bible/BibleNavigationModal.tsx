@@ -22,12 +22,13 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  FlatList,
   Keyboard,
   Modal,
   Platform,
   Pressable,
   Animated as RNAnimated,
-  ScrollView,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -97,7 +98,12 @@ interface BibleNavigationModalProps {
   customTranslateY?: SharedValue<number>;
 }
 
-// ... (Interface remains same)
+interface BookListSection {
+  key: string;
+  title: string;
+  section: 'RECENTS' | 'ALL_BOOKS';
+  data: BookMetadata[];
+}
 
 /**
  * BibleNavigationModal - Bottom sheet for book/chapter selection
@@ -155,13 +161,8 @@ function BibleNavigationModalComponent({
   const [buttonWidth, setButtonWidth] = useState(0);
   const [buttonHeight, setButtonHeight] = useState(0);
 
-  // Ref for ScrollView to enable programmatic scrolling
-  const scrollViewRef = useRef<ScrollView>(null);
-
-  // State to track book item positions and viewport height for smart scrolling
-  const [bookItemPositions, setBookItemPositions] = useState<Map<string, number>>(new Map());
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
-  const currentScrollYRef = useRef(0);
+  // Ref for SectionList to enable programmatic scrolling
+  const sectionListRef = useRef<SectionList<BookMetadata, BookListSection>>(null);
 
   // Animate main tab indicator when selectedTab changes
   useEffect(() => {
@@ -376,6 +377,28 @@ function BibleNavigationModalComponent({
       .filter((book): book is BookMetadata => book !== undefined);
   }, [allBooks, recentBooks, currentBookId]);
 
+  // Build SectionList sections for book list
+  const bookSections = useMemo((): BookListSection[] => {
+    const sections: BookListSection[] = [];
+    const isFiltering = !!filterText.trim();
+
+    if (!isFiltering && recentBooksFiltered.length > 0) {
+      sections.push({
+        key: 'recents',
+        title: 'RECENTS',
+        section: 'RECENTS',
+        data: recentBooksFiltered,
+      });
+    }
+    sections.push({
+      key: 'all-books',
+      title: isFiltering ? '' : 'ALL BOOKS',
+      section: 'ALL_BOOKS',
+      data: filteredBooks,
+    });
+    return sections;
+  }, [recentBooksFiltered, filteredBooks, filterText]);
+
   // Get selected book's chapter count
   const selectedBook = allBooks.find((book) => book.id === selectedBookId);
   const chapterCount = selectedBook?.chapterCount ?? 0;
@@ -438,80 +461,28 @@ function BibleNavigationModalComponent({
     [selectedBookId, selectedSection]
   );
 
-  // Auto-scroll effect - triggers when measurements are ready
+  // Auto-scroll effect - triggers when a book is expanded
   useEffect(() => {
-    if (
-      !lastExpandedBookRef.current ||
-      gridContainerWidth === 0 ||
-      buttonWidth === 0 ||
-      buttonHeight === 0
-    ) {
-      return;
-    }
+    if (!lastExpandedBookRef.current) return;
 
-    const { bookId, section, previousBookId, previousSection } = lastExpandedBookRef.current;
-    const book = allBooks.find((b) => b.id === bookId);
-    if (!book) return;
+    const { bookId, section } = lastExpandedBookRef.current;
+    const sectionIndex = bookSections.findIndex((s) => s.section === section);
+    if (sectionIndex === -1) return;
+    const itemIndex = bookSections[sectionIndex].data.findIndex((b) => b.id === bookId);
+    if (itemIndex === -1) return;
 
-    // Calculate new chapter grid height
-    const gap = spacing.md;
-    const columnsPerRow = Math.floor((gridContainerWidth + gap) / (buttonWidth + gap));
-    const numRows = Math.ceil(book.chapterCount / columnsPerRow);
-    const gridHeight = numRows * buttonHeight + (numRows - 1) * gap;
-    const bookItemHeight = 56;
-    const totalContentHeight = bookItemHeight + gridHeight + spacing.xl * 2;
-
-    // Get book position using section-aware key
-    let bookPosition = bookItemPositions.get(`${section}-${bookId}`) || 0;
-
-    // Calculate height of previously opened book's grid (if any) to account for layout shift
-    if (previousBookId !== null && previousSection !== null) {
-      const previousBook = allBooks.find((b) => b.id === previousBookId);
-      if (previousBook) {
-        const prevNumRows = Math.ceil(previousBook.chapterCount / columnsPerRow);
-        const previousGridHeight =
-          prevNumRows * buttonHeight + (prevNumRows - 1) * gap + spacing.xl * 2;
-
-        // If previous book was above the clicked book, adjust position for layout shift
-        const prevPosition = bookItemPositions.get(`${previousSection}-${previousBookId}`) || 0;
-        if (prevPosition < bookPosition) {
-          bookPosition -= previousGridHeight;
-        }
-      }
-    }
-
-    // Smart scroll logic
     const scrollTimeout = setTimeout(() => {
-      if (scrollViewRef.current && scrollViewHeight > 0) {
-        // Calculate visible bottom edge
-        const visibleBottom = currentScrollYRef.current + scrollViewHeight;
-        const contentBottom = bookPosition + totalContentHeight;
-
-        // Only scroll if content doesn't fit in current viewport
-        if (contentBottom > visibleBottom) {
-          if (totalContentHeight <= scrollViewHeight) {
-            // Content fits in viewport, scroll just enough to show it all
-            const scrollTo = Math.max(0, bookPosition + totalContentHeight - scrollViewHeight);
-            scrollViewRef.current.scrollTo({ y: scrollTo, animated: true });
-          } else {
-            // Content larger than viewport, scroll to put book title at top
-            scrollViewRef.current.scrollTo({ y: bookPosition, animated: true });
-          }
-        }
-      }
-      // Clear the ref after processing
+      sectionListRef.current?.scrollToLocation({
+        sectionIndex,
+        itemIndex,
+        animated: true,
+        viewOffset: 0,
+      });
       lastExpandedBookRef.current = null;
-    }, 150); // Slightly longer delay to ensure measurements are ready
+    }, 200);
 
     return () => clearTimeout(scrollTimeout);
-  }, [
-    gridContainerWidth,
-    buttonWidth,
-    buttonHeight,
-    bookItemPositions,
-    scrollViewHeight,
-    allBooks,
-  ]);
+  }, [selectedBookId, selectedSection, bookSections]);
 
   // Handle chapter selection
   const handleChapterSelect = useCallback(
@@ -858,72 +829,36 @@ function BibleNavigationModalComponent({
       );
     }
 
-    const hasRecentBooks = recentBooksFiltered.length > 0 && !filterText.trim();
-
     return (
       <GestureDetector gesture={scrollGesture}>
-        <ScrollView
-          ref={scrollViewRef}
+        <SectionList<BookMetadata, BookListSection>
+          ref={sectionListRef}
+          sections={bookSections}
           style={styles.bookList}
           contentContainerStyle={styles.bookListContent}
           keyboardShouldPersistTaps="always"
-          onLayout={(event) => {
-            const { height } = event.nativeEvent.layout;
-            setScrollViewHeight(height);
-          }}
-          onScroll={(event) => {
-            currentScrollYRef.current = event.nativeEvent.contentOffset.y;
-          }}
-          scrollEventThrottle={16}
-        >
-          {/* RECENTS section */}
-          {hasRecentBooks && (
-            <>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionHeaderText}>RECENTS</Text>
-              </View>
-              {recentBooksFiltered.map((book) => {
-                const isSelected = book.id === selectedBookId && selectedSection === 'RECENTS';
-                return (
-                  <Animated.View
-                    key={`recent-${book.id}`}
-                    layout={Layout.duration(300)}
-                    onLayout={(event) => {
-                      const { y } = event.nativeEvent.layout;
-                      setBookItemPositions((prev) => new Map(prev).set(`RECENTS-${book.id}`, y));
-                    }}
-                  >
-                    {renderBookItem(book, true, 'RECENTS')}
-                    {isSelected && renderChapterGrid()}
-                  </Animated.View>
-                );
-              })}
-            </>
-          )}
-
-          {/* ALL BOOKS section */}
-          {!filterText.trim() && (
-            <Animated.View layout={Layout.duration(300)} style={styles.sectionHeader}>
-              <Text style={styles.sectionHeaderText}>ALL BOOKS</Text>
-            </Animated.View>
-          )}
-          {filteredBooks.map((book) => {
-            const isSelected = book.id === selectedBookId && selectedSection === 'ALL_BOOKS';
+          keyExtractor={(item) => item.id.toString()}
+          renderSectionHeader={({ section }) => {
+            if (!section.title) return null;
             return (
-              <Animated.View
-                key={book.id}
-                layout={Layout.duration(300)}
-                onLayout={(event) => {
-                  const { y } = event.nativeEvent.layout;
-                  setBookItemPositions((prev) => new Map(prev).set(`ALL_BOOKS-${book.id}`, y));
-                }}
-              >
-                {renderBookItem(book, false, 'ALL_BOOKS')}
+              <Animated.View layout={Layout.duration(300)} style={styles.sectionHeader}>
+                <Text style={styles.sectionHeaderText}>{section.title}</Text>
+              </Animated.View>
+            );
+          }}
+          renderItem={({ item: book, section }) => {
+            const sectionType = section.section;
+            const isRecent = sectionType === 'RECENTS';
+            const isSelected = book.id === selectedBookId && selectedSection === sectionType;
+            return (
+              <Animated.View layout={Layout.duration(300)}>
+                {renderBookItem(book, isRecent, sectionType)}
                 {isSelected && renderChapterGrid()}
               </Animated.View>
             );
-          })}
-        </ScrollView>
+          }}
+          stickySectionHeadersEnabled={false}
+        />
       </GestureDetector>
     );
   };
@@ -948,14 +883,14 @@ function BibleNavigationModalComponent({
 
     return (
       <GestureDetector gesture={scrollGesture}>
-        <ScrollView
+        <FlatList
+          data={filteredTopics}
           style={styles.bookList}
           contentContainerStyle={styles.bookListContent}
           keyboardShouldPersistTaps="always"
-        >
-          {filteredTopics.map((topic: TopicListItem) => (
+          keyExtractor={(item) => item.topic_id.toString()}
+          renderItem={({ item: topic }) => (
             <Pressable
-              key={topic.topic_id}
               onPress={() => handleTopicSelect(topic.topic_id)}
               style={styles.bookItem}
               accessibilityRole="button"
@@ -972,8 +907,8 @@ function BibleNavigationModalComponent({
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
             </Pressable>
-          ))}
-        </ScrollView>
+          )}
+        />
       </GestureDetector>
     );
   };

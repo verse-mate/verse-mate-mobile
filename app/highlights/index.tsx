@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -359,7 +360,8 @@ export default function HighlightsScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
+      <FlatList
+        data={chapterGroups}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
@@ -373,11 +375,9 @@ export default function HighlightsScreen() {
           />
         }
         testID="highlights-list"
-      >
-        {/* User Highlights */}
-        {chapterGroups.map((group) => (
+        keyExtractor={(item) => `${item.bookId}-${item.chapterNumber}`}
+        renderItem={({ item: group }) => (
           <Pressable
-            key={`${group.bookId}-${group.chapterNumber}`}
             style={({ pressed }) => [styles.highlightItem, pressed && styles.highlightItemPressed]}
             onPress={() => handleChapterPress(group)}
             testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
@@ -398,22 +398,25 @@ export default function HighlightsScreen() {
               <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
             </View>
           </Pressable>
-        ))}
+        )}
+        ListFooterComponent={
+          <>
+            {/* Divider */}
+            <View style={styles.sectionDivider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>Auto-Highlights</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
-        {/* Divider */}
-        <View style={styles.sectionDivider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>Auto-Highlights</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Auto-Highlight Settings Section */}
-        <View style={styles.autoHighlightSection}>
-          <View style={styles.autoHighlightContainer}>
-            <AutoHighlightSettings isLoggedIn={isAuthenticated} alwaysExpanded={true} />
-          </View>
-        </View>
-      </ScrollView>
+            {/* Auto-Highlight Settings Section */}
+            <View style={styles.autoHighlightSection}>
+              <View style={styles.autoHighlightContainer}>
+                <AutoHighlightSettings isLoggedIn={isAuthenticated} alwaysExpanded={true} />
+              </View>
+            </View>
+          </>
+        }
+      />
     </View>
   );
 }

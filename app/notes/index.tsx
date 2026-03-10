@@ -23,6 +23,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -280,7 +281,8 @@ export default function NotesScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
+      <FlatList
+        data={chapterGroups}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
@@ -294,10 +296,9 @@ export default function NotesScreen() {
           />
         }
         testID="notes-list"
-      >
-        {chapterGroups.map((group) => (
+        keyExtractor={(item) => `${item.bookId}-${item.chapterNumber}`}
+        renderItem={({ item: group }) => (
           <Pressable
-            key={`${group.bookId}-${group.chapterNumber}`}
             style={({ pressed }) => [styles.noteItem, pressed && styles.noteItemPressed]}
             onPress={() => handleChapterPress(group)}
             testID={`chapter-group-${group.bookId}-${group.chapterNumber}`}
@@ -318,8 +319,8 @@ export default function NotesScreen() {
               <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
             </View>
           </Pressable>
-        ))}
-      </ScrollView>
+        )}
+      />
     </View>
   );
 }
