@@ -175,6 +175,7 @@ export default function ChapterScreen() {
     visible: fabVisible,
     handleScroll,
     handleTap,
+    showButtons,
   } = useFABVisibility({
     initialVisible: true,
   });
@@ -313,12 +314,15 @@ export default function ChapterScreen() {
   const handlePrevious = useCallback(() => {
     if (!canGoPrevious || !prevChapter) return;
 
+    // Reset FAB visibility timer so arrows stay visible during rapid navigation
+    showButtons();
+
     // Haptic feedback for button press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Update state via hook (V3: single source of truth)
     navigateToChapter(prevChapter.bookId, prevChapter.chapterNumber);
-  }, [canGoPrevious, prevChapter, navigateToChapter]);
+  }, [canGoPrevious, prevChapter, navigateToChapter, showButtons]);
 
   /**
    * Navigate to next chapter
@@ -328,12 +332,15 @@ export default function ChapterScreen() {
   const handleNext = useCallback(() => {
     if (!canGoNext || !nextChapter) return;
 
+    // Reset FAB visibility timer so arrows stay visible during rapid navigation
+    showButtons();
+
     // Haptic feedback for button press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Update state via hook (V3: single source of truth)
     navigateToChapter(nextChapter.bookId, nextChapter.chapterNumber);
-  }, [canGoNext, nextChapter, navigateToChapter]);
+  }, [canGoNext, nextChapter, navigateToChapter, showButtons]);
 
   /**
    * Render chapter page content for SimpleChapterPager
