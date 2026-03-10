@@ -27,8 +27,8 @@ import { router } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -257,17 +257,17 @@ export default function Bookmarks() {
         <Text style={styles.headerTitle}>Bookmarks</Text>
         <View style={styles.headerSpacer} />
       </View>
-      <ScrollView
+      <FlatList
+        data={bookmarks}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: insets.bottom + spacing.sm },
         ]}
         testID="bookmarks-list"
-      >
-        {bookmarks.map((bookmark) => (
+        keyExtractor={(item) => item.favorite_id.toString()}
+        renderItem={({ item: bookmark }) => (
           <Pressable
-            key={bookmark.favorite_id}
             style={({ pressed }) => [styles.bookmarkItem, pressed && styles.bookmarkItemPressed]}
             onPress={() => handleBookmarkPress(bookmark.book_id, bookmark.chapter_number)}
             testID={`bookmark-item-${bookmark.book_id}-${bookmark.chapter_number}`}
@@ -291,8 +291,8 @@ export default function Bookmarks() {
               <IconTrash width={24} height={24} color="#B03A42" />
             </Pressable>
           </Pressable>
-        ))}
-      </ScrollView>
+        )}
+      />
     </View>
   );
 }
