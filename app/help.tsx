@@ -84,9 +84,7 @@ export default function HelpScreen() {
     setIsLoading(true);
     try {
       const { data } = await getSupportConversations();
-      if (data) {
-        setConversations(data.conversations);
-      }
+      setConversations(data?.conversations ?? []);
     } catch (error) {
       console.error('Failed to load conversations:', error);
     } finally {
@@ -97,9 +95,7 @@ export default function HelpScreen() {
   const loadMessages = useCallback(async (id: string) => {
     try {
       const { data } = await getSupportMessages(id);
-      if (data) {
-        setMessages(data.messages);
-      }
+      setMessages(data?.messages ?? []);
     } catch (error) {
       console.error('Failed to load messages:', error);
     }
