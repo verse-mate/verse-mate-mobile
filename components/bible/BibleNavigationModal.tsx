@@ -858,6 +858,7 @@ function BibleNavigationModalComponent({
             );
           }}
           stickySectionHeadersEnabled={false}
+          onScrollToIndexFailed={() => {}}
         />
       </GestureDetector>
     );
