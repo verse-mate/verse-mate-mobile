@@ -15,6 +15,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
+import { useAutoHighlightsEnabled } from '@/hooks/use-auto-highlights-enabled';
 import {
   getAutoHighlights,
   getDefaultAutoHighlightsEnabled,
@@ -59,26 +60,29 @@ export function useAutoHighlights({
   chapterNumber,
 }: UseAutoHighlightsParams): UseAutoHighlightsReturn {
   const { user } = useAuth();
+  const { isEnabled: localEnabled } = useAutoHighlightsEnabled();
 
-  // Fetch global default enabled setting (only for logged-out users)
+  // Fetch global default enabled setting (only for logged-out users when no local preference)
   const { data: defaultEnabledData } = useQuery({
     queryKey: ['auto-highlights-default-enabled'],
     queryFn: async () => {
       const response = await getDefaultAutoHighlightsEnabled();
       return response.data?.default_enabled ?? false;
     },
-    enabled: !user?.id, // Only fetch for logged-out users
+    enabled: !user?.id && localEnabled === undefined, // Skip if local preference is set
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 
-  // Fetch themes (only for logged-out users, to get default relevance thresholds)
+  // Fetch themes (for logged-out users when enabled via local toggle or server default)
+  const loggedOutEnabled =
+    localEnabled === true || (localEnabled === undefined && defaultEnabledData);
   const { data: themesData } = useQuery({
     queryKey: ['highlight-themes'],
     queryFn: async () => {
       const response = await getHighlightThemes();
       return response.data || [];
     },
-    enabled: !user?.id, // Only fetch for logged-out users
+    enabled: !user?.id && !!loggedOutEnabled, // Only fetch when logged-out and enabled
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 
@@ -111,12 +115,18 @@ export function useAutoHighlights({
       preferencesData,
       themesData,
       defaultEnabledData,
+      localEnabled,
     ],
     queryFn: async () => {
       if (!bookId || !chapterNumber) return [];
 
-      // For logged-out users, check if auto-highlights are enabled globally
-      if (!user?.id && !defaultEnabledData) {
+      // If user explicitly disabled auto-highlights locally, return empty
+      if (localEnabled === false) {
+        return [];
+      }
+
+      // For logged-out users, check local preference or server default
+      if (!user?.id && !loggedOutEnabled) {
         return [];
       }
 

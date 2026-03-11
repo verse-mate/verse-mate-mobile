@@ -1,7 +1,7 @@
 ---
 appId: org.versemate.app
 name: Highlights Feature Flow (Unauthenticated)
-description: Tests highlights feature navigation for unauthenticated users
+description: Tests highlights feature for unauthenticated users - auto-highlights toggle
 tags:
   - highlights
   - user-flow
@@ -10,12 +10,14 @@ tags:
 
 # Highlights Feature E2E Test Flow (Unauthenticated)
 #
-# This flow tests highlights feature navigation for unauthenticated users:
+# This flow tests highlights feature for unauthenticated users:
 # 1. Navigate to highlights list via hamburger menu
-# 2. Verify login prompt is shown
-# 3. Navigate back to chapter screen
+# 2. Verify auto-highlights section is shown (no login wall)
+# 3. Verify master toggle is present
+# 4. Navigate back to chapter screen
 #
-# Note: Full highlights create/edit/delete testing requires authentication.
+# Note: Full highlights create/edit/delete and per-theme customization
+# require authentication.
 
 - runFlow: ../shared/setup.yaml
 
@@ -46,25 +48,36 @@ tags:
 # Wait for navigation
 - waitForAnimationToEnd
 
-
 # ============================================
-# Test 2: Verify Login Prompt
+# Test 2: Verify Auto-Highlights Section (No Login Wall)
 # ============================================
 
-# Verify we're on highlights screen with login prompt
+# Verify we're on highlights screen with auto-highlights section
 - assertVisible:
-    text: "Please login to view your highlights"
+    text: "Auto-Highlights"
 
-# Verify login button is present
+# Verify the master toggle is present
 - assertVisible:
-    id: "highlights-login-button"
+    id: "toggle-all-auto-highlights"
 
 # Verify back button is visible
 - assertVisible:
     id: "highlights-back-button"
 
+# Login wall should NOT be shown
+- assertNotVisible:
+    text: "Please login to view your highlights"
+
 # ============================================
-# Test 3: Navigate Back to Chapter
+# Test 3: Toggle Auto-Highlights
+# ============================================
+
+# Tap the master toggle to enable auto-highlights
+- tapOn:
+    id: "toggle-all-auto-highlights"
+
+# ============================================
+# Test 4: Navigate Back to Chapter
 # ============================================
 
 # Go back to chapter
@@ -73,7 +86,6 @@ tags:
 
 # Wait for navigation
 - waitForAnimationToEnd
-
 
 # Verify we're back on chapter screen
 - assertVisible:
