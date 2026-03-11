@@ -250,7 +250,7 @@ describe('HighlightsScreen', () => {
       expect(screen.queryByText('Please login to view your highlights')).toBeNull();
     });
 
-    it('should allow navigating back from auto-highlights view', () => {
+    it('should allow navigating back from auto-highlights view', async () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
@@ -275,7 +275,9 @@ describe('HighlightsScreen', () => {
 
       fireEvent.press(getByTestId('highlights-back-button'));
 
-      expect(router.back).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(router.back).toHaveBeenCalled();
+      });
     });
   });
 
