@@ -221,8 +221,8 @@ describe('HighlightsScreen', () => {
     });
   });
 
-  describe('Authentication guard', () => {
-    it('should show login prompt when not authenticated', () => {
+  describe('Unauthenticated auto-highlights access', () => {
+    it('should show auto-highlights section when not authenticated', () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
@@ -245,11 +245,12 @@ describe('HighlightsScreen', () => {
 
       renderWithProviders(<HighlightsScreen />);
 
-      expect(screen.getByText('Please login to view your highlights')).toBeTruthy();
-      expect(screen.getByTestId('highlights-login-button')).toBeTruthy();
+      expect(screen.getByText('Auto-Highlights')).toBeTruthy();
+      expect(screen.getByTestId('highlights-back-button')).toBeTruthy();
+      expect(screen.queryByText('Please login to view your highlights')).toBeNull();
     });
 
-    it('should navigate to login when login button is pressed', () => {
+    it('should allow navigating back from auto-highlights view', () => {
       mockUseAuth.mockReturnValue({
         user: null,
         isAuthenticated: false,
@@ -272,9 +273,9 @@ describe('HighlightsScreen', () => {
 
       const { getByTestId } = renderWithProviders(<HighlightsScreen />);
 
-      fireEvent.press(getByTestId('highlights-login-button'));
+      fireEvent.press(getByTestId('highlights-back-button'));
 
-      expect(router.push).toHaveBeenCalledWith('/auth/login');
+      expect(router.back).toHaveBeenCalled();
     });
   });
 
