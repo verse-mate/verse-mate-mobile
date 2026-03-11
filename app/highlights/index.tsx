@@ -201,7 +201,7 @@ export default function HighlightsScreen() {
     );
   }
 
-  // Show login prompt if user is not authenticated
+  // Logged-out users: show only auto-highlights section (no manual highlights)
   if (!isAuthenticated || !user) {
     return (
       <View style={styles.container}>
@@ -223,20 +223,20 @@ export default function HighlightsScreen() {
           <Text style={styles.headerTitle}>Highlights</Text>
           <View style={styles.headerSpacer} />
         </View>
-        <View style={styles.centerContent}>
-          <IconHighlight width={64} height={64} color={colors.textDisabled} />
-          <Text style={styles.emptyStateTitle}>Please login to view your highlights</Text>
-          <Text style={styles.emptyStateSubtitle}>
-            Sign in to save and access your highlighted verses
-          </Text>
-          <Pressable
-            style={styles.loginButton}
-            onPress={handleLoginPress}
-            testID="highlights-login-button"
-          >
-            <Text style={styles.loginButtonText}>Login</Text>
-          </Pressable>
-        </View>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {/* Auto-Highlights Section */}
+          <View style={styles.sectionDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>Auto-Highlights</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.autoHighlightSection}>
+            <View style={styles.autoHighlightContainer}>
+              <AutoHighlightSettings isLoggedIn={false} alwaysExpanded={true} />
+            </View>
+          </View>
+        </ScrollView>
       </View>
     );
   }

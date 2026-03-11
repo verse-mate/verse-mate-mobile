@@ -12,8 +12,13 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAutoHighlightsEnabled } from '@/hooks/use-auto-highlights-enabled';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { getUserThemePreferences, updateUserThemePreference } from '@/lib/api/auto-highlights';
+import {
+  getHighlightThemes,
+  getUserThemePreferences,
+  updateUserThemePreference,
+} from '@/lib/api/auto-highlights';
 
 interface HighlightTheme {
   theme_id: number;
@@ -52,36 +57,48 @@ export function AutoHighlightSettings({
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const queryClient = useQueryClient();
+  const { isEnabled: localEnabled, setEnabled: setLocalEnabled } = useAutoHighlightsEnabled();
   const [themes, setThemes] = useState<HighlightTheme[]>([]);
+  const [publicThemes, setPublicThemes] = useState<
+    { theme_id: number; name: string; color: string; description: string | null }[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(alwaysExpanded);
 
-  // Fetch theme preferences
+  // Fetch theme preferences (logged-in) or public themes (logged-out)
   useEffect(() => {
-    const fetchPreferences = async () => {
-      if (!isLoggedIn) {
-        setIsLoading(false);
-        return;
-      }
-
+    const fetchData = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
-        const result = await getUserThemePreferences();
-        // API response is wrapped in { success: true, data: [...] }
-        const themesData = result.data || result;
-        setThemes(themesData as HighlightTheme[]);
+        if (isLoggedIn) {
+          const result = await getUserThemePreferences();
+          // API response is wrapped in { success: true, data: [...] }
+          const themesData = result.data || result;
+          setThemes(themesData as HighlightTheme[]);
+        } else {
+          const result = await getHighlightThemes();
+          const themesData = result.data || [];
+          setPublicThemes(
+            themesData.map((t: any) => ({
+              theme_id: t.theme_id,
+              name: t.name,
+              color: t.color,
+              description: t.description,
+            }))
+          );
+        }
       } catch (err) {
-        console.error('Failed to fetch highlight preferences:', err);
-        setError('Failed to load highlight preferences');
+        console.error('Failed to fetch highlight themes:', err);
+        setError('Failed to load highlight themes');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchPreferences();
+    fetchData();
   }, [isLoggedIn]);
 
   const updatePreference = async (
@@ -197,15 +214,6 @@ export function AutoHighlightSettings({
 
       {(isExpanded || alwaysExpanded) && (
         <View style={styles.expandedContent}>
-          {!isLoggedIn && (
-            <View style={styles.loginPrompt}>
-              <Text style={styles.loginPromptText}>
-                Sign in to customize which Auto-generated highlight themes are visible and set
-                relevance preferences.
-              </Text>
-            </View>
-          )}
-
           <View style={styles.description}>
             <Text style={styles.descriptionText}>
               Auto-generated highlights help identify key verses, promises, commands, and more
@@ -220,6 +228,72 @@ export function AutoHighlightSettings({
 
           {error && <Text style={styles.errorText}>{error}</Text>}
 
+          {/* Logged-out: master toggle backed by local AsyncStorage */}
+          {!isLoggedIn && (
+            <>
+              <View style={styles.masterToggleContainer}>
+                <View style={styles.masterToggleContent}>
+                  <View>
+                    <Text style={styles.masterToggleLabel}>Show Auto-Highlights</Text>
+                    <Text style={styles.masterToggleSubtext}>
+                      Display AI-generated highlights while reading
+                    </Text>
+                  </View>
+                  <Switch
+                    value={localEnabled === true}
+                    onValueChange={(value) => {
+                      setLocalEnabled(value);
+                      queryClient.invalidateQueries({
+                        predicate: (q) => {
+                          const k = q.queryKey as unknown as (string | undefined)[];
+                          return Array.isArray(k) && k[0] === 'auto-highlights';
+                        },
+                      });
+                      analytics.track(AnalyticsEvent.AUTO_HIGHLIGHT_SETTING_CHANGED, {
+                        settingId: 'master-toggle',
+                        enabled: value,
+                      });
+                    }}
+                    trackColor={{ false: colors.border, true: colors.gold }}
+                    thumbColor={colors.background}
+                    testID="toggle-all-auto-highlights"
+                  />
+                </View>
+              </View>
+
+              {/* Informational theme list (no switches) */}
+              {publicThemes.length > 0 && (
+                <View>
+                  {publicThemes.map((theme) => (
+                    <View key={theme.theme_id} style={styles.themeItem}>
+                      <View style={styles.themeHeader}>
+                        <View style={styles.themeHeaderLeft}>
+                          <View
+                            style={[
+                              styles.colorBadge,
+                              { backgroundColor: COLOR_MAP[theme.color] || colors.border },
+                            ]}
+                          />
+                          <Text style={styles.themeName}>{theme.name}</Text>
+                        </View>
+                      </View>
+                      {theme.description && (
+                        <Text style={styles.themeDescription}>{theme.description}</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <View style={styles.loginPrompt}>
+                <Text style={styles.loginPromptText}>
+                  Sign in to customize individual themes and relevance preferences.
+                </Text>
+              </View>
+            </>
+          )}
+
+          {/* Logged-in: full per-theme control */}
           {isLoggedIn && themes.length > 0 && (
             <>
               {/* Master toggle for all auto-highlights */}
