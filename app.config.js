@@ -15,6 +15,8 @@ const config = {
     associatedDomains: ['applinks:app.versemate.org'],
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      NSPhotoLibraryUsageDescription:
+        'Allow VerseMate to access your photo library to set a profile picture.',
       CFBundleURLTypes: [
         {
           CFBundleURLSchemes: [
