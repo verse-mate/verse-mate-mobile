@@ -11,13 +11,19 @@ url: http://localhost:8081
 #
 # Tests rapid back-and-forth navigation that was reported to trigger desync.
 #
+# Web adaptation: Uses FAB button navigation for all direction changes
+# (Selenium mouse drag doesn't trigger CSS scroll-snap on PagerView).
+#
+# Strategy: Scroll to bottom of chapter content to make FABs permanently
+# visible (isAtBottom triggers permanent visibility), then tap the FAB.
+#
 # Test Flow:
 # Part A: FAB direction changes from Genesis 5
 #   forward -> back -> forward -> back -> forward (5 changes)
 #   Expected: 5 -> 6 -> 5 -> 6 -> 5 -> 6
 #
-# Part B: Swipe direction changes from Genesis 6
-#   left -> right -> left -> right -> left (5 changes)
+# Part B: FAB direction changes from Genesis 6
+#   forward -> back -> forward -> back -> forward (5 changes)
 #   Expected: 6 -> 7 -> 6 -> 7 -> 6 -> 7
 #
 # Prerequisites:
@@ -78,9 +84,10 @@ url: http://localhost:8081
 # ============================================
 
 # FAB forward: Genesis 5 -> 6
-# Tap chapter heading area (y=15%) to trigger FAB visibility
-- tapOn:
-    point: "50%,15%"
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
 - extendedWaitUntil:
     visible:
@@ -90,15 +97,19 @@ url: http://localhost:8081
 - tapOn:
     id: "next-chapter-button"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 - assertVisible:
     text: "Genesis 6"
 
 # FAB backward: Genesis 6 -> 5
-- tapOn:
-    point: "50%,15%"
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
 - extendedWaitUntil:
     visible:
@@ -108,15 +119,19 @@ url: http://localhost:8081
 - tapOn:
     id: "previous-chapter-button"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 - assertVisible:
     text: "Genesis 5"
 
 # FAB forward: Genesis 5 -> 6
-- tapOn:
-    point: "50%,15%"
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
 - extendedWaitUntil:
     visible:
@@ -126,15 +141,19 @@ url: http://localhost:8081
 - tapOn:
     id: "next-chapter-button"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 - assertVisible:
     text: "Genesis 6"
 
 # FAB backward: Genesis 6 -> 5
-- tapOn:
-    point: "50%,15%"
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
 - extendedWaitUntil:
     visible:
@@ -144,15 +163,19 @@ url: http://localhost:8081
 - tapOn:
     id: "previous-chapter-button"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 - assertVisible:
     text: "Genesis 5"
 
 # FAB forward: Genesis 5 -> 6
-- tapOn:
-    point: "50%,15%"
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
 - extendedWaitUntil:
     visible:
@@ -162,73 +185,130 @@ url: http://localhost:8081
 - tapOn:
     id: "next-chapter-button"
 
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 - assertVisible:
     text: "Genesis 6"
 
 # ============================================
-# Part B: Swipe rapid direction changes
+# Part B: FAB rapid direction changes (continued)
 # Genesis 6 -> 7 -> 6 -> 7 -> 6 -> 7
 # ============================================
 
-# Swipe left: Genesis 6 -> 7
-- swipe:
-    direction: LEFT
-    duration: 400
+# FAB forward: Genesis 6 -> 7
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
 
+- tapOn:
+    id: "next-chapter-button"
 
-- assertVisible:
-    text: "Genesis 7"
-
-# Swipe right: Genesis 7 -> 6
-- swipe:
-    direction: RIGHT
-    duration: 400
-
-- waitForAnimationToEnd
-
-
-- assertVisible:
-    text: "Genesis 6"
-
-# Swipe left: Genesis 6 -> 7
-- swipe:
-    direction: LEFT
-    duration: 400
-
-- waitForAnimationToEnd
-
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 - assertVisible:
     text: "Genesis 7"
 
-# Swipe right: Genesis 7 -> 6
-- swipe:
-    direction: RIGHT
-    duration: 400
+# FAB backward: Genesis 7 -> 6
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
 
+- tapOn:
+    id: "previous-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 - assertVisible:
     text: "Genesis 6"
 
-# Swipe left: Genesis 6 -> 7
-- swipe:
-    direction: LEFT
-    duration: 400
+# FAB forward: Genesis 6 -> 7
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
 
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 7"
+
+# FAB backward: Genesis 7 -> 6
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 6"
+
+# FAB forward: Genesis 6 -> 7
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 - assertVisible:
     text: "Genesis 7"
 
 # ============================================
 # Test Complete: Header correctly synced through
-# 10 rapid direction changes (5 FAB + 5 swipe)
+# 10 rapid direction changes (all via FAB)
 # ============================================

@@ -187,45 +187,7 @@ url: http://localhost:8081
     text: "The Creation of the World"
 
 # ============================================
-# Test 5: Swipe to Next Topic and Verify View Works
-# ============================================
-
-# Swipe to next topic
-- swipe:
-    direction: LEFT
-    duration: 500
-
-- waitForAnimationToEnd
-
-
-# Wait for topic transition to complete
-- extendedWaitUntil:
-    notVisible:
-      text: "The Creation of the World"
-    timeout: 10000
-
-# Verify topic selector still works
-- assertVisible:
-    id: "topic-selector-button"
-
-# Switch to insight view on new topic
-- tapOn:
-    id: "insight-view-toggle"
-
-- waitForAnimationToEnd
-
-
-# Tabs should still be available on the new topic
-- assertVisible:
-    id: "tab-summary"
-
-# No placeholder text
-- assertNotVisible:
-    text: "placeholder"
-    optional: true
-
-# ============================================
-# Test 6: Navigate via Modal After View Switch
+# Test 5: Navigate via Modal After View Switch
 # ============================================
 
 # Open navigation modal while in insight view
