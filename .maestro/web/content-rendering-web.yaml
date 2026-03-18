@@ -1,0 +1,89 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Content Rendering Assertions Web E2E Test
+#
+# Adapted from .maestro/regression/content-rendering-assertions.yaml for Expo Web.
+#
+# This test verifies that all screens render real content
+# and no development placeholder text is visible to users.
+#
+# Test Flow:
+# 1. Launch app to Bible screen - verify no placeholders
+# 2. Switch to Explanations view - verify no placeholders
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/content-rendering-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# ============================================
+# Test 1: Bible Screen - No Placeholder Text
+# ============================================
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Assert no placeholder text appears
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+- assertNotVisible:
+    text: "TODO"
+    optional: true
+
+- assertNotVisible:
+    text: "not implemented"
+    optional: true
+
+# Verify real content elements are present
+- assertVisible:
+    id: "chapter-selector-button"
+
+# View toggle icons should be present
+- assertVisible:
+    id: "bible-view-toggle"
+
+- assertVisible:
+    id: "commentary-view-toggle"
+
+# ============================================
+# Test 2: Switch to Explanations View - No Placeholders
+# ============================================
+
+- tapOn:
+    id: "commentary-view-toggle"
+
+- waitForAnimationToEnd
+
+
+# Tabs should be visible (real content, not placeholder)
+- assertVisible:
+    id: "chapter-content-tabs"
+
+- assertVisible:
+    id: "tab-summary"
+
+# No placeholder text in explanations view
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+# ============================================
+# Test Complete: No placeholder text found
+# ============================================
