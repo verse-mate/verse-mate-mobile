@@ -80,6 +80,9 @@ function RootLayoutInner() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: router.replace is stable but not typed as such
   useEffect(() => {
     async function checkOnboarding() {
+      // Skip during SSR on web (no window/localStorage)
+      if (Platform.OS === 'web' && typeof window === 'undefined') return;
+
       // Avoid redirecting if already on the onboarding screen
       if (segments[0] === 'onboarding') return;
 
