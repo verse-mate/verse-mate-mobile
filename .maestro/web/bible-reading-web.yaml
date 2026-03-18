@@ -1,0 +1,61 @@
+---
+name: Bible Reading on Web - Basic Smoke Test
+description: Verifies core Bible reading flow works on Expo Web
+tags:
+  - web
+  - critical
+  - smoke
+
+---
+
+# Bible Reading Web E2E Test
+#
+# Adapted from .maestro/bible-reading/bible-reading-flow.yaml for web.
+# Tests the same critical path but launches via URL instead of appId.
+#
+# Prerequisites:
+#   npx expo start --web   (running on localhost:8081)
+#
+# Run:
+#   maestro test .maestro/web/bible-reading-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# Verify we're on a chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Wait for content to load
+- waitForAnimationToEnd
+
+# Verify Bible view icon is present
+- assertVisible:
+    id: "bible-view-toggle"
+
+# Verify Explanations view icon is present
+- assertVisible:
+    id: "commentary-view-toggle"
+
+# Ensure we're in Bible view
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+# Tabs should NOT be visible in Bible view
+- assertNotVisible:
+    id: "chapter-content-tabs"
+
+# Switch to Explanations view
+- tapOn:
+    id: "commentary-view-toggle"
+
+- waitForAnimationToEnd
+
+# Tabs should now be visible
+- assertVisible:
+    id: "tab-summary"
+
+# Chapter selector still visible after view switch
+- assertVisible:
+    id: "chapter-selector-button"
