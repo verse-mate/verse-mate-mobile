@@ -1,0 +1,23 @@
+# Shared web setup: open app in browser, skip onboarding, wait for Bible screen.
+# Usage: - runFlow: ../shared/setup-web.yaml
+#
+# Requires: `npx expo start --web` running on localhost:8081
+
+- openBrowser:
+    url: "http://localhost:8081"
+
+# Wait for onboarding screen to fully load
+- extendedWaitUntil:
+    visible:
+      text: "Skip"
+    timeout: 30000
+
+# Skip onboarding
+- tapOn:
+    text: "Skip"
+
+# Wait for main Bible screen to load after redirect
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
