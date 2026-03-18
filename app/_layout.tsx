@@ -211,6 +211,10 @@ function RootLayoutInner() {
       }
     };
 
+    // On web, Expo Router handles URL routing natively — skip deep link handling
+    // to avoid parsing localhost URLs as deep links and causing redirect loops.
+    if (Platform.OS === 'web') return;
+
     // Handle initial URL (app opened from link)
     const getInitialURL = async () => {
       const initialUrl = await Linking.getInitialURL();
