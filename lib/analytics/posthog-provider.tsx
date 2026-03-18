@@ -133,6 +133,11 @@ export function AppPostHogProvider({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
+  // Skip PostHog during SSR on web (AsyncStorage requires window/localStorage)
+  if (Platform.OS === 'web' && typeof window === 'undefined') {
+    return <>{children}</>;
+  }
+
   return (
     <PostHogProvider
       apiKey={posthogApiKey}
