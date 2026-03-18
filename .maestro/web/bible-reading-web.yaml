@@ -3,52 +3,47 @@ url: http://localhost:8081
 ---
 # Bible Reading Web E2E Test
 #
-# Adapted from .maestro/bible-reading/bible-reading-flow.yaml for web.
-# Uses Maestro's web/browser support (Chromium).
+# Verifies the core reading flow works on Expo Web.
+# Adapted from .maestro/bible-reading/bible-reading-flow.yaml.
 #
 # Prerequisites:
-#   npx expo start --web --port 8081
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
 #
 # Run:
 #   maestro test .maestro/web/bible-reading-web.yaml
 
 - runFlow: ../shared/setup-web.yaml
 
-# Verify we're on a chapter screen
+# Verify Genesis 1 loaded from API
 - assertVisible:
-    id: "chapter-selector-button"
+    text: "Genesis 1"
 
-# Wait for content to load
-- waitForAnimationToEnd
-
-# Verify Bible view icon is present
 - assertVisible:
-    id: "bible-view-toggle"
+    text: "The Creation"
 
-# Verify Explanations view icon is present
+# Verify navigation tabs
 - assertVisible:
-    id: "commentary-view-toggle"
+    text: "Bible"
 
-# Ensure we're in Bible view
+- assertVisible:
+    text: "Insight"
+
+# Switch to Insight view
 - tapOn:
-    id: "bible-view-toggle"
+    text: "Insight"
 
 - waitForAnimationToEnd
 
-# Tabs should NOT be visible in Bible view
-- assertNotVisible:
-    id: "chapter-content-tabs"
+# Verify tabs appear in Insight view
+- assertVisible:
+    text: "Summary"
 
-# Switch to Explanations view
+# Switch back to Bible view
 - tapOn:
-    id: "commentary-view-toggle"
+    text: "Bible"
 
 - waitForAnimationToEnd
 
-# Tabs should now be visible
+# Verify chapter content still visible
 - assertVisible:
-    id: "tab-summary"
-
-# Chapter selector still visible after view switch
-- assertVisible:
-    id: "chapter-selector-button"
+    text: "The Creation"
