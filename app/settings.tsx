@@ -22,6 +22,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'; // NOTE: useCa
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -801,33 +802,35 @@ export default function SettingsScreen() {
         {/* Theme Selector Section */}
         <ThemeSelector />
 
-        {/* Downloads & Offline */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Downloads & Offline</Text>
-          <Pressable
-            style={[styles.selectButton, styles.manageDownloadsButton]}
-            onPress={() => router.push('/manage-downloads')}
-            accessibilityLabel="Manage offline downloads"
-            accessibilityRole="button"
-          >
-            <Ionicons
-              name="cloud-download-outline"
-              size={20}
-              color={colors.textPrimary}
-              style={styles.manageDownloadsIcon}
-            />
-            <View style={styles.manageDownloadsTextContainer}>
-              <Text
-                style={[styles.selectButtonText, styles.manageDownloadsTitle]}
-                numberOfLines={1}
-              >
-                Manage Downloads
-              </Text>
-              <Text style={styles.manageDownloadsSubtitle}>Download content for offline use</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-          </Pressable>
-        </View>
+        {/* Downloads & Offline — hidden on web (online-only) */}
+        {Platform.OS !== 'web' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Downloads & Offline</Text>
+            <Pressable
+              style={[styles.selectButton, styles.manageDownloadsButton]}
+              onPress={() => router.push('/manage-downloads')}
+              accessibilityLabel="Manage offline downloads"
+              accessibilityRole="button"
+            >
+              <Ionicons
+                name="cloud-download-outline"
+                size={20}
+                color={colors.textPrimary}
+                style={styles.manageDownloadsIcon}
+              />
+              <View style={styles.manageDownloadsTextContainer}>
+                <Text
+                  style={[styles.selectButtonText, styles.manageDownloadsTitle]}
+                  numberOfLines={1}
+                >
+                  Manage Downloads
+                </Text>
+                <Text style={styles.manageDownloadsSubtitle}>Download content for offline use</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        )}
 
         {/* Logout Button - Authenticated Only */}
         {isAuthenticated && (
