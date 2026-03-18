@@ -26,8 +26,8 @@ url: http://localhost:8081
     commands:
       - tapOn: "Dismiss"
 
-# Wait for Bible chapter to load from API
+# Wait for Bible chapter to fully load (testID available via MutationObserver id sync)
 - extendedWaitUntil:
     visible:
-      text: "Genesis 1"
+      id: "chapter-selector-button"
     timeout: 30000

@@ -1,0 +1,94 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Highlights Feature Web E2E Test (Unauthenticated)
+#
+# Adapted from .maestro/highlights/highlights-flow.yaml for Expo Web.
+#
+# This flow tests highlights feature for unauthenticated users:
+# 1. Navigate to highlights list via hamburger menu
+# 2. Verify auto-highlights section is shown (no login wall)
+# 3. Verify master toggle is present
+# 4. Navigate back to chapter screen
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/highlights-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Highlights via Hamburger Menu
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu to open
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Tap on Highlights menu item
+- tapOn:
+    id: "menu-item-highlights"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Auto-Highlights Section (No Login Wall)
+# ============================================
+
+# Verify we're on highlights screen with auto-highlights section
+- assertVisible:
+    text: "Auto-Highlights"
+
+# Verify the master toggle is present
+- assertVisible:
+    id: "toggle-all-auto-highlights"
+
+# Verify back button is visible
+- assertVisible:
+    id: "highlights-back-button"
+
+# Login wall should NOT be shown
+- assertNotVisible:
+    text: "Please login to view your highlights"
+
+# ============================================
+# Test 3: Toggle Auto-Highlights
+# ============================================
+
+# Tap the master toggle to enable auto-highlights
+- tapOn:
+    id: "toggle-all-auto-highlights"
+
+# ============================================
+# Test 4: Navigate Back to Chapter
+# ============================================
+
+# Go back to chapter
+- tapOn:
+    id: "highlights-back-button"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================
