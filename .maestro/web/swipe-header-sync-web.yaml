@@ -6,14 +6,20 @@ url: http://localhost:8081
 # Adapted from .maestro/swipe/swipe-header-sync-test.yaml for Expo Web.
 #
 # This test verifies the core bug that V1 and V2 failed to fix:
-# - Header must ALWAYS show the correct chapter after swiping
+# - Header must ALWAYS show the correct chapter after navigating
 # - No duplicate chapters
-# - No backwards navigation during forward swiping
+# - No backwards navigation during forward navigation
+#
+# Web adaptation: Uses FAB button navigation instead of swipe
+# (Selenium mouse drag doesn't trigger CSS scroll-snap on PagerView).
+#
+# Strategy: Scroll to bottom of chapter content to make FABs permanently
+# visible (isAtBottom triggers permanent visibility), then tap the FAB.
 #
 # Test Flow:
 # 1. Launch app and navigate to Genesis 1
-# 2. Swipe left 5 times rapidly
-# 3. After each swipe, verify header shows correct chapter
+# 2. Navigate forward 5 times via FAB
+# 3. After each navigation, verify header shows correct chapter
 #
 # Prerequisites:
 #   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
@@ -76,64 +82,119 @@ url: http://localhost:8081
     text: "Genesis 1"
 
 # ============================================
-# Test: Swipe left 5 times and verify header
+# Test: Navigate forward 5 times via FAB and verify header
 # ============================================
 
-# Swipe 1: Genesis 1 -> Genesis 2
-- swipe:
-    direction: LEFT
-    duration: 400
+# Nav 1: Genesis 1 -> Genesis 2
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
 
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # Verify header shows Genesis 2
 - assertVisible:
     text: "Genesis 2"
 
-# Swipe 2: Genesis 2 -> Genesis 3
-- swipe:
-    direction: LEFT
-    duration: 400
+# Nav 2: Genesis 2 -> Genesis 3
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
 
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # Verify header shows Genesis 3
 - assertVisible:
     text: "Genesis 3"
 
-# Swipe 3: Genesis 3 -> Genesis 4
-- swipe:
-    direction: LEFT
-    duration: 400
+# Nav 3: Genesis 3 -> Genesis 4
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
 
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # Verify header shows Genesis 4
 - assertVisible:
     text: "Genesis 4"
 
-# Swipe 4: Genesis 4 -> Genesis 5
-- swipe:
-    direction: LEFT
-    duration: 400
+# Nav 4: Genesis 4 -> Genesis 5
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
 
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # Verify header shows Genesis 5
 - assertVisible:
     text: "Genesis 5"
 
-# Swipe 5: Genesis 5 -> Genesis 6
-- swipe:
-    direction: LEFT
-    duration: 400
+# Nav 5: Genesis 5 -> Genesis 6
+- repeat:
+    times: 10
+    commands:
+      - scroll
 
-- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
 
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # Verify header shows Genesis 6
 - assertVisible:

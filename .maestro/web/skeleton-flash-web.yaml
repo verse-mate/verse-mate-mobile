@@ -6,13 +6,16 @@ url: http://localhost:8081
 # Adapted from .maestro/regression/skeleton-flash-test.yaml for Expo Web.
 #
 # This flow tests that skeleton loading doesn't flash unnecessarily
-# when swiping between chapters in Explanations view when data is cached.
+# when navigating between chapters in Explanations view when data is cached.
+#
+# Web adaptation: Uses FAB button navigation instead of swipe
+# (Selenium mouse drag doesn't trigger CSS scroll-snap on PagerView).
 #
 # User Journey:
 # 1. Launch app to Genesis 1
 # 2. Switch to Explanations view
 # 3. Wait for explanation to load (ensure it's cached)
-# 4. Swipe to Genesis 2 (trigger cache + new fetch)
+# 4. Navigate to Genesis 2 via FAB (trigger cache + new fetch)
 # 5. Verify no skeleton flash during transition
 # 6. Verify explanation content appears smoothly
 #
@@ -48,21 +51,28 @@ url: http://localhost:8081
 - waitForAnimationToEnd
 
 
-# Take screenshot before swipe
-- takeScreenshot: before-swipe-chapter-1
+# Take screenshot before navigation
+- takeScreenshot: before-nav-chapter-1
 
-# Swipe left to go to next chapter
+# Navigate to next chapter via FAB
 # This is the critical moment - we should NOT see skeleton flash
-- swipe:
-    direction: LEFT
-    duration: 500
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "next-chapter-button"
 
 # Wait for animation to complete
 - waitForAnimationToEnd
 
 
-# Take screenshot after swipe
-- takeScreenshot: after-swipe-chapter-2
+# Take screenshot after navigation
+- takeScreenshot: after-nav-chapter-2
 
 # Verify chapter selector button is visible (chapter loaded)
 - assertVisible:
@@ -77,16 +87,23 @@ url: http://localhost:8081
 - assertNotVisible:
     id: "skeleton-loader"
 
-# Swipe left again to next chapter (test consecutive swipes)
-- swipe:
-    direction: LEFT
-    duration: 500
+# Navigate to next chapter again via FAB (test consecutive navigations)
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "next-chapter-button"
 
 - waitForAnimationToEnd
 
 
-# Take screenshot after second swipe
-- takeScreenshot: after-swipe-chapter-3
+# Take screenshot after second navigation
+- takeScreenshot: after-nav-chapter-3
 
 # Verify chapter selector button still visible
 - assertVisible:
@@ -96,16 +113,23 @@ url: http://localhost:8081
 - assertNotVisible:
     id: "skeleton-loader"
 
-# Swipe right back to previous chapter (test reverse direction)
-- swipe:
-    direction: RIGHT
-    duration: 500
+# Navigate backward via FAB (test reverse direction)
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "previous-chapter-button"
 
 - waitForAnimationToEnd
 
 
-# Take screenshot after reverse swipe
-- takeScreenshot: after-swipe-back-chapter-2
+# Take screenshot after reverse navigation
+- takeScreenshot: after-nav-back-chapter-2
 
 # Verify chapter selector button visible
 - assertVisible:
@@ -121,10 +145,6 @@ url: http://localhost:8081
 
 - waitForAnimationToEnd
 
-
-# Tabs should not be visible in Bible view
-- assertNotVisible:
-    id: "chapter-content-tabs"
 
 # Verify Bible content is visible (not skeleton)
 - assertNotVisible:

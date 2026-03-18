@@ -11,13 +11,32 @@ url: http://localhost:8081
 # 3. Navigate to Signup via link
 # 4. Verify signup form elements
 #
+# Web adaptation: Uses conditional setup to handle warm state
+# (if onboarding was already completed, "Skip" won't be visible).
+#
 # Prerequisites:
 #   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
 #
 # Run:
 #   maestro test .maestro/web/auth-web.yaml
 
-- runFlow: ../shared/setup-web.yaml
+# Open the web app in Maestro's managed Chromium
+- openLink: "http://localhost:8081"
+
+# Handle onboarding conditionally (may already be completed in warm state)
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn:
+          text: "Skip"
+
+# Dismiss font loading error overlays (headless Chromium may timeout on icon fonts)
+- runFlow:
+    when:
+      visible: "Dismiss"
+    commands:
+      - tapOn: "Dismiss"
 
 # Wait for app to fully load
 - extendedWaitUntil:

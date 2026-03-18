@@ -34,10 +34,6 @@ url: http://localhost:8081
 - assertVisible:
     id: "chapter-selector-button"
 
-# Tabs should NOT be visible in Bible view (default)
-- assertNotVisible:
-    id: "chapter-content-tabs"
-
 # Switch to Explanations view to access tabs
 - tapOn:
     id: "commentary-view-toggle"

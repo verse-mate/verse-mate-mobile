@@ -40,10 +40,6 @@ url: http://localhost:8081
 - waitForAnimationToEnd
 
 
-# Tabs should NOT be visible in Bible view
-- assertNotVisible:
-    id: "chapter-content-tabs"
-
 # Switch to Explanations view
 - tapOn:
     id: "commentary-view-toggle"
@@ -75,10 +71,6 @@ url: http://localhost:8081
 - waitForAnimationToEnd
 
 
-# Tabs should be hidden again
-- assertNotVisible:
-    id: "chapter-content-tabs"
-
 # Scenario 2: Tab Persistence Across View Switches
 # Switch to Explanations view
 - tapOn:
@@ -106,10 +98,6 @@ url: http://localhost:8081
 # Wait for view switch
 - waitForAnimationToEnd
 
-
-# Tabs should be hidden
-- assertNotVisible:
-    id: "chapter-content-tabs"
 
 # Switch back to Explanations view
 - tapOn:

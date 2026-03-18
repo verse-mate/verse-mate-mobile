@@ -6,6 +6,9 @@ url: http://localhost:8081
 # Verifies the core reading flow works on Expo Web.
 # Adapted from .maestro/bible-reading/bible-reading-flow.yaml.
 #
+# Web adaptation: Uses conditional setup to handle warm state
+# (if onboarding was already completed, "Skip" won't be visible).
+#
 # Prerequisites:
 #   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
 #
