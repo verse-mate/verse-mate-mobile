@@ -1,20 +1,13 @@
+appId: org.versemate.web
+url: http://localhost:8081
 ---
-name: Bible Reading on Web - Basic Smoke Test
-description: Verifies core Bible reading flow works on Expo Web
-tags:
-  - web
-  - critical
-  - smoke
-
----
-
 # Bible Reading Web E2E Test
 #
 # Adapted from .maestro/bible-reading/bible-reading-flow.yaml for web.
-# Tests the same critical path but launches via URL instead of appId.
+# Uses Maestro's web/browser support (Chromium).
 #
 # Prerequisites:
-#   npx expo start --web   (running on localhost:8081)
+#   npx expo start --web --port 8081
 #
 # Run:
 #   maestro test .maestro/web/bible-reading-web.yaml
