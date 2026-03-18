@@ -1,16 +1,19 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
 # Shared web setup: open app in browser, skip onboarding, wait for Bible screen.
 # Usage: - runFlow: ../shared/setup-web.yaml
 #
 # Requires: `npx expo start --web` running on localhost:8081
 
-- openBrowser:
-    url: "http://localhost:8081"
+# Open the web app in Maestro's managed Chromium
+- openLink: "http://localhost:8081"
 
 # Wait for onboarding screen to fully load
 - extendedWaitUntil:
     visible:
       text: "Skip"
-    timeout: 30000
+    timeout: 60000
 
 # Skip onboarding
 - tapOn:
