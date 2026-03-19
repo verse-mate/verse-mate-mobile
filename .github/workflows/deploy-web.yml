@@ -63,8 +63,8 @@ jobs:
         env:
           EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://api.versemate.org' }}
           EXPO_PUBLIC_WEB_URL: ${{ vars.EXPO_PUBLIC_WEB_URL || 'https://app.versemate.org' }}
-          EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY || '' }}
-          EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com' }}
+          EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY || 'phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC' }}
+          EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com' }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '' }}
 
       # SPA fallback: copy index.html to 404.html so Cloudflare Pages
@@ -76,19 +76,19 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=verse-mate-web --branch=${{ env.DEPLOY_ENV == 'production' && 'main' || github.head_ref || github.ref_name }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || 'e8f0b566ba1c8227a25e3784def4300e' }}
+          command: pages deploy dist --project-name=verse-mate-expo-web --branch=${{ env.DEPLOY_ENV == 'production' && 'main' || github.head_ref || github.ref_name }}
           packageManager: bun
 
       - name: Deployment summary
         if: always()
         run: |
           if [ "$DEPLOY_ENV" = "production" ]; then
-            URL="https://verse-mate-web.pages.dev"
+            URL="https://verse-mate-expo-web.pages.dev"
           else
             BRANCH="${{ github.head_ref || github.ref_name }}"
             SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9]/-/g' | head -c 28)
-            URL="https://${SAFE_BRANCH}.verse-mate-web.pages.dev"
+            URL="https://${SAFE_BRANCH}.verse-mate-expo-web.pages.dev"
           fi
 
           cat >> $GITHUB_STEP_SUMMARY << EOF
