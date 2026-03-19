@@ -43,6 +43,10 @@ process.env.EXPO_PUBLIC_POSTHOG_KEY = 'test-key';
 describe('PostHog provider on web', () => {
   beforeAll(() => {
     Object.defineProperty(Platform, 'OS', { value: 'web', writable: true });
+    // Ensure window is defined (SSR guard checks typeof window)
+    if (typeof globalThis.window === 'undefined') {
+      (globalThis as Record<string, unknown>).window = globalThis;
+    }
   });
 
   afterAll(() => {
