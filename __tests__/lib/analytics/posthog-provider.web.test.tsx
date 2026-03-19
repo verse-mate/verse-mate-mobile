@@ -9,6 +9,8 @@ import { renderHook, waitFor } from '@testing-library/react-native';
 import type React from 'react';
 import { Platform } from 'react-native';
 
+import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
+
 // Save original Platform.OS
 const originalOS = Platform.OS;
 
