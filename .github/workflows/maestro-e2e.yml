@@ -4,20 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       test-folder:
-        description: 'Specific test subfolder to run (e.g., swipe, auth, topics). Leave empty to run all tests.'
+        description: 'Test subfolder (e.g., swipe, auth, topics). Empty = all.'
         required: false
         type: string
         default: ''
       force-rebuild:
         type: boolean
         default: false
-        description: "Force fresh native build (ignore cache)"
+        description: "Build fresh APK (only needed for native changes). Default: reuse latest + OTA update."
 
 jobs:
   maestro-e2e:
     name: Maestro E2E Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
 
     steps:
       - name: Checkout code
@@ -49,8 +49,10 @@ jobs:
         run: |
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> $GITHUB_PATH
-          # Verify installation
           $HOME/.maestro/bin/maestro --version
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
       - name: Enable KVM hardware acceleration
         run: |
@@ -58,32 +60,16 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Generate native fingerprint
-        id: fingerprint
-        run: |
-          HASH=$(npx @expo/fingerprint fingerprint:generate --platform android | jq -r '.hash')
-          echo "hash=$HASH" >> $GITHUB_OUTPUT
-          echo "Fingerprint hash: $HASH"
-
-      - name: Cache APK
-        id: apk-cache
-        uses: actions/cache@v4
-        with:
-          path: app.apk
-          key: e2e-apk-android-${{ steps.fingerprint.outputs.hash }}
-
-      - name: Setup EAS CLI and build APK
-        if: steps.apk-cache.outputs.cache-hit != 'true' || github.event.inputs.force-rebuild == 'true'
+      # ── APK: reuse latest or build fresh ────────────────────────────
+      - name: Build fresh APK (native changes only)
+        if: github.event.inputs.force-rebuild == 'true'
         id: eas_build
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          npm install -g eas-cli
-
           echo "Triggering EAS e2e-test build for Android..."
           eas build --platform android --profile e2e-test --non-interactive --wait --json > build_output.json
 
-          # Extract APK download URL from JSON output
           APK_URL=$(jq -r '.[0].artifacts.buildUrl' build_output.json)
           BUILD_ID=$(jq -r '.[0].id' build_output.json)
 
@@ -94,23 +80,39 @@ jobs:
           fi
 
           echo "Build ID: $BUILD_ID"
-          echo "APK URL: $APK_URL"
-
-          # Download the APK
           curl -L -o app.apk "$APK_URL"
 
           echo "apk_url=$APK_URL" >> $GITHUB_OUTPUT
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
-          echo "build_url=https://expo.dev/accounts/versemate/projects/verse-mate-mobile/builds/$BUILD_ID" >> $GITHUB_OUTPUT
 
-      - name: Push JS update
-        continue-on-error: true
-        run: |
-          npm install -g eas-cli
-          eas update --branch e2e-test --message "CI update for ${{ github.sha }}"
+      - name: Download latest APK from EAS
+        if: github.event.inputs.force-rebuild != 'true'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "Fetching latest e2e-test APK from EAS..."
+          BUILD_JSON=$(eas build:list --platform android --profile e2e-test --status finished --limit 1 --non-interactive --json)
 
+          APK_URL=$(echo "$BUILD_JSON" | jq -r '.[0].artifacts.buildUrl')
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.[0].id')
+
+          if [ -z "$APK_URL" ] || [ "$APK_URL" = "null" ]; then
+            echo "Error: No existing e2e-test APK found. Re-run with force-rebuild=true."
+            exit 1
+          fi
+
+          echo "Reusing APK from build $BUILD_ID"
+          curl -L -o app.apk "$APK_URL"
+
+      # ── OTA: push JS changes to the existing APK ───────────────────
+      - name: Push OTA update
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "Pushing JS update to e2e-test branch..."
+          eas update --branch e2e-test --message "E2E update for ${{ github.sha }}" --non-interactive
+
+      # ── Tests ───────────────────────────────────────────────────────
       - name: Run phone tests on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -136,6 +138,7 @@ jobs:
           disable-animations: true
           script: bash .github/scripts/run-tablet-tests.sh "${{ github.event.inputs.test-folder }}"
 
+      # ── Artifacts ──────────────────────────────────────────────────
       - name: Upload Maestro test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -167,14 +170,11 @@ jobs:
             TEST_TARGET=".maestro/$TEST_FOLDER/"
           fi
 
-          FINGERPRINT_HASH="${{ steps.fingerprint.outputs.hash }}"
           FORCE_REBUILD="${{ github.event.inputs.force-rebuild }}"
-          CACHE_HIT="${{ steps.apk-cache.outputs.cache-hit }}"
-
-          if [ "$CACHE_HIT" = "true" ] && [ "$FORCE_REBUILD" != "true" ]; then
-            APK_SOURCE="Cached APK (fingerprint match)"
+          if [ "$FORCE_REBUILD" = "true" ]; then
+            APK_SOURCE="Fresh EAS build (${{ steps.eas_build.outputs.build_id }})"
           else
-            APK_SOURCE="Fresh EAS build"
+            APK_SOURCE="Latest e2e-test APK (reused) + OTA update"
           fi
 
           cat >> $GITHUB_STEP_SUMMARY << EOF
@@ -183,28 +183,12 @@ jobs:
           | Property | Value |
           |----------|-------|
           | **Test Target** | $TEST_TARGET |
-          | **Android API Level** | 34 |
-          | **Phone Emulator** | Pixel 6 (x86_64, google_apis) |
-          | **Tablet Emulator** | Nexus 10 (2560x1600) |
           | **APK Source** | $APK_SOURCE |
-          | **Fingerprint Hash** | \`$FINGERPRINT_HASH\` |
-          | **Force Rebuild** | $FORCE_REBUILD |
-          | **EAS Update Branch** | e2e-test |
-          | **EAS Build ID** | \`${{ steps.eas_build.outputs.build_id }}\` |
-          | **EAS Build URL** | ${{ steps.eas_build.outputs.build_url }} |
+          | **Phone Emulator** | Pixel 6, API 34 |
+          | **Tablet Emulator** | Nexus 10, API 34 |
+          | **OTA Update** | e2e-test branch, ${{ github.sha }} |
 
-          ### APK Caching
-          - **Cache key**: \`e2e-apk-android-$FINGERPRINT_HASH\`
-          - **Cache hit**: $CACHE_HIT
-          - **Force rebuild requested**: $FORCE_REBUILD
-          - EAS Update pushed to branch \`e2e-test\` for commit \`${{ github.sha }}\`
-
-          ### Test Execution
-          - Phone tests ran all feature folders except \`split-view/\`
-          - Split-view tests ran on a separate Nexus 10 tablet emulator in landscape
-          - Warm launch performed before tests to pre-download EAS Update
-
-          ### Artifacts
-          - **maestro-test-results**: Maestro screenshots and test output
-          - **emulator-logs**: Android logcat output (uploaded on failure only)
+          ### How it works
+          - **Default**: Downloads the latest \`e2e-test\` APK from EAS, pushes an OTA JS update, then runs tests.
+          - **force-rebuild=true**: Builds a fresh APK via EAS (only needed when native code changes — new SDK, native modules, etc.)
           EOF
