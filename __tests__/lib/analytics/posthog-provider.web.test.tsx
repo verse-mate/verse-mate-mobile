@@ -5,11 +5,9 @@
  * mobile-only features when running on web.
  */
 
-import { renderHook } from '@testing-library/react-native';
+import { renderHook, waitFor } from '@testing-library/react-native';
 import type React from 'react';
 import { Platform } from 'react-native';
-
-import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
 
 // Save original Platform.OS
 const originalOS = Platform.OS;
@@ -58,13 +56,15 @@ describe('PostHog provider on web', () => {
     jest.clearAllMocks();
   });
 
-  it('registers platform as web', () => {
+  it('registers platform as web', async () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <AppPostHogProvider>{children}</AppPostHogProvider>
     );
 
     renderHook(() => {}, { wrapper });
 
-    expect(mockRegister).toHaveBeenCalledWith(expect.objectContaining({ platform: 'web' }));
+    await waitFor(() => {
+      expect(mockRegister).toHaveBeenCalledWith(expect.objectContaining({ platform: 'web' }));
+    });
   });
 });
