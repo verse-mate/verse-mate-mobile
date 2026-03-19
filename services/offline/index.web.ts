@@ -32,13 +32,13 @@ type ProgressCallback = (progress: SyncProgress) => void;
 
 // ---- sqlite-manager stubs ----
 
-export async function initDatabase(): Promise<any> {
+export async function initDatabase(): Promise<null> {
   return null;
 }
-export async function getDatabase(): Promise<any> {
+export async function getDatabase(): Promise<null> {
   return null;
 }
-export async function resetDatabase(): Promise<any> {
+export async function resetDatabase(): Promise<null> {
   return null;
 }
 export async function closeDatabase(): Promise<void> {}
