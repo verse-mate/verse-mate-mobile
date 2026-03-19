@@ -1,0 +1,104 @@
+name: Deploy Web (Cloudflare Pages)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'contexts/**'
+      - 'hooks/**'
+      - 'lib/**'
+      - 'services/**'
+      - 'constants/**'
+      - 'utils/**'
+      - 'assets/**'
+      - 'app.config.js'
+      - 'package.json'
+      - 'bun.lock'
+
+jobs:
+  deploy:
+    name: Build & Deploy Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Default to staging for push triggers, use input for manual
+    env:
+      DEPLOY_ENV: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build web export
+        run: npx expo export --platform web
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://api.versemate.org' }}
+          EXPO_PUBLIC_WEB_URL: ${{ vars.EXPO_PUBLIC_WEB_URL || 'https://app.versemate.org' }}
+          EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY || '' }}
+          EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com' }}
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '' }}
+
+      # SPA fallback: copy index.html to 404.html so Cloudflare Pages
+      # serves the app shell for client-side routes like /bible/1/1
+      - name: Add SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=verse-mate-web --branch=${{ env.DEPLOY_ENV == 'production' && 'main' || github.head_ref || github.ref_name }}
+          packageManager: bun
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          if [ "$DEPLOY_ENV" = "production" ]; then
+            URL="https://verse-mate-web.pages.dev"
+          else
+            BRANCH="${{ github.head_ref || github.ref_name }}"
+            SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9]/-/g' | head -c 28)
+            URL="https://${SAFE_BRANCH}.verse-mate-web.pages.dev"
+          fi
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## Web Deployment
+
+          | Property | Value |
+          |----------|-------|
+          | **Environment** | $DEPLOY_ENV |
+          | **URL** | $URL |
+          | **Branch** | ${{ github.ref_name }} |
+          | **Commit** | ${{ github.sha }} |
+          | **Bundle size** | $(du -sh dist/ | cut -f1) |
+          EOF
