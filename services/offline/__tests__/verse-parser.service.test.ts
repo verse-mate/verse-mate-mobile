@@ -85,6 +85,8 @@ describe('verse-parser.service', () => {
 
     expect(getSpecificVerses).toHaveBeenCalledWith('NASB1995', 'Zephaniah', 3, [14]);
     expect(getSpecificVerses).toHaveBeenCalledWith('NASB1995', 'John', 7, [40]);
-    expect(result).toBe('> Shout for joy, O daughter of Zion!\n\nand also Some of the people said....');
+    expect(result).toBe(
+      '> Shout for joy, O daughter of Zion!\n\nand also Some of the people said....'
+    );
   });
 });
