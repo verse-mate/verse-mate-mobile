@@ -117,7 +117,8 @@ const PagerViewWeb = forwardRef<any, PagerViewProps>(function PagerViewWeb(
   return (
     <ScrollView
       ref={scrollRef}
-      style={style}
+      style={[style, { flexDirection: 'row' }]}
+      contentContainerStyle={{ height: '100%' }}
       horizontal
       pagingEnabled
       showsHorizontalScrollIndicator={false}
@@ -128,7 +129,7 @@ const PagerViewWeb = forwardRef<any, PagerViewProps>(function PagerViewWeb(
     >
       {childArray.map((child, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: Pages are positional, index is stable
-        <View key={index} style={{ width }}>
+        <View key={index} style={{ width, height: '100%' }}>
           {child}
         </View>
       ))}
