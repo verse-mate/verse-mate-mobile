@@ -74,4 +74,17 @@ describe('verse-parser.service', () => {
 
     expect(result).toBe('{verse:Unknown 1:1}');
   });
+
+  it('handles placeholders with whitespace inside braces', async () => {
+    const input = '> { verse:Zephaniah 3:14}\n\nand also { verse:John 7:40 }.';
+    (getSpecificVerses as jest.Mock)
+      .mockResolvedValueOnce([{ verse_number: 14, text: 'Shout for joy, O daughter of Zion!' }])
+      .mockResolvedValueOnce([{ verse_number: 40, text: 'Some of the people said...' }]);
+
+    const result = await parseAndInjectVerses(input, 'NASB1995', { includeVerseNumbers: false });
+
+    expect(getSpecificVerses).toHaveBeenCalledWith('NASB1995', 'Zephaniah', 3, [14]);
+    expect(getSpecificVerses).toHaveBeenCalledWith('NASB1995', 'John', 7, [40]);
+    expect(result).toBe('> Shout for joy, O daughter of Zion!\n\nand also Some of the people said....');
+  });
 });
