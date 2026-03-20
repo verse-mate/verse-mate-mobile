@@ -32,6 +32,7 @@ interface PagerViewProps {
 }
 
 const SCROLL_END_DEBOUNCE_MS = 150;
+const contentContainerHeight = { height: '100%' as const };
 
 const PagerViewWeb = forwardRef<any, PagerViewProps>(function PagerViewWeb(
   {
@@ -131,10 +132,11 @@ const PagerViewWeb = forwardRef<any, PagerViewProps>(function PagerViewWeb(
         onScrollBeginDrag={handleScrollBeginDrag}
         testID={testID}
         style={StyleSheet.absoluteFill}
+        contentContainerStyle={contentContainerHeight}
       >
         {childArray.map((child, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: Pages are positional, index is stable
-          <View key={index} style={{ width, alignSelf: 'stretch' }}>
+          <View key={index} style={{ width, height: '100%' }}>
             {child}
           </View>
         ))}
