@@ -123,6 +123,10 @@ export function getDeviceInfo(): DeviceInfo {
  * ```
  */
 export function shouldUseSplitView(): boolean {
+  // Split view relies on Reanimated animated styles for panel sizing,
+  // which don't work reliably on react-native-web. Disable on web.
+  if (Platform.OS === 'web') return false;
+
   const { isLandscape, screenWidth } = getDeviceInfo();
 
   // Only enable split view in landscape with sufficient width
