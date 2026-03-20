@@ -10,8 +10,16 @@
  * since onMomentumScrollEnd (scrollend event) isn't available in all browsers.
  */
 
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
+import React, {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import {
+  type LayoutChangeEvent,
   ScrollView,
   type StyleProp,
   useWindowDimensions,
@@ -46,10 +54,15 @@ const PagerViewWeb = forwardRef<any, PagerViewProps>(function PagerViewWeb(
 ) {
   const scrollRef = useRef<ScrollView>(null);
   const { width } = useWindowDimensions();
+  const [containerHeight, setContainerHeight] = useState(0);
   const currentPageRef = useRef(initialPage);
   const scrollEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialScrollDone = useRef(false);
   const childArray = React.Children.toArray(children);
+
+  const handleLayout = useCallback((e: LayoutChangeEvent) => {
+    setContainerHeight(e.nativeEvent.layout.height);
+  }, []);
 
   // Set initial scroll position after mount
   useEffect(() => {
@@ -115,25 +128,29 @@ const PagerViewWeb = forwardRef<any, PagerViewProps>(function PagerViewWeb(
   }, []);
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={[style, { flexDirection: 'row' }]}
-      contentContainerStyle={{ height: '100%' }}
-      horizontal
-      pagingEnabled
-      showsHorizontalScrollIndicator={false}
-      scrollEventThrottle={16}
-      onScroll={handleScroll}
-      onScrollBeginDrag={handleScrollBeginDrag}
-      testID={testID}
-    >
-      {childArray.map((child, index) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: Pages are positional, index is stable
-        <View key={index} style={{ width, height: '100%' }}>
-          {child}
-        </View>
-      ))}
-    </ScrollView>
+    <View style={[style, { overflow: 'hidden' }]} onLayout={handleLayout}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleScroll}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        testID={testID}
+        style={{ flex: 1 }}
+      >
+        {childArray.map((child, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: Pages are positional, index is stable
+          <View
+            key={index}
+            style={{ width, height: containerHeight || '100%' }}
+          >
+            {child}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
   );
 });
 
