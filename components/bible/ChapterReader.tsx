@@ -640,7 +640,7 @@ export function ChapterReader({
                                 onAutoHighlightPress={handleAutoHighlightPress}
                                 onVerseTap={handleVerseTap}
                                 onWordSelect={handleWordSelect}
-                                style={styles.verseText}
+                                style={styles.verseTextInline}
                                 isVisible={isVerseVisible(group[0].verseNumber)}
                               />
                             </Text>
@@ -836,6 +836,12 @@ const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: b
     },
     verseText: {
       flex: 1,
+      fontSize: fontSizes.bodyLarge,
+      fontWeight: fontWeights.regular,
+      lineHeight: fontSizes.bodyLarge * 2.0,
+      color: colors.textPrimary,
+    },
+    verseTextInline: {
       fontSize: fontSizes.bodyLarge,
       fontWeight: fontWeights.regular,
       lineHeight: fontSizes.bodyLarge * 2.0,
