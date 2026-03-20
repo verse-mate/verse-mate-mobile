@@ -160,9 +160,12 @@ export function SplitView({
   const leftPanelWidth = isLeftFull ? containerWidth : isRightFull ? 0 : leftWidth;
   const rightPanelWidth = isRightFull ? containerWidth : isLeftFull ? 0 : rightWidth;
 
-  const transitionStyle = isDragging
-    ? { transitionProperty: 'width' as const, transitionDuration: '0ms' }
-    : { transitionProperty: 'width' as const, transitionDuration: TRANSITION_MS };
+  // Web-only CSS transition props — not in RN's ViewStyle types
+  const transitionStyle = (
+    isDragging
+      ? { transitionProperty: 'width', transitionDuration: '0ms' }
+      : { transitionProperty: 'width', transitionDuration: TRANSITION_MS }
+  ) as any;
 
   return (
     <View style={styles.container} onLayout={handleLayout} testID={testID}>
@@ -185,7 +188,7 @@ export function SplitView({
               {
                 opacity: isSplit ? 1 : 0,
                 pointerEvents: isSplit ? 'auto' : 'none',
-                transitionProperty: 'opacity' as const,
+                transitionProperty: 'opacity',
                 transitionDuration: TRANSITION_MS,
                 cursor: 'col-resize',
               } as any,
@@ -231,9 +234,9 @@ export function SplitView({
               {
                 opacity: isRightFull && edgeTabsVisible ? 1 : 0,
                 pointerEvents: isRightFull ? 'box-none' : 'none',
-                transitionProperty: 'opacity' as const,
+                transitionProperty: 'opacity',
                 transitionDuration: TRANSITION_MS,
-              },
+              } as any,
             ]}
             testID={`${testID}-left-edge-tab`}
           >
@@ -257,9 +260,9 @@ export function SplitView({
               {
                 opacity: isLeftFull && edgeTabsVisible ? 1 : 0,
                 pointerEvents: isLeftFull ? 'box-none' : 'none',
-                transitionProperty: 'opacity' as const,
+                transitionProperty: 'opacity',
                 transitionDuration: TRANSITION_MS,
-              },
+              } as any,
             ]}
             testID={`${testID}-right-edge-tab`}
           >
