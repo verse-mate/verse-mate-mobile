@@ -20,14 +20,19 @@ jobs:
       - name: Sync Slack messages to GitHub issues
         shell: python3 {0}
         run: |
-          import json, os, re, subprocess, urllib.request, urllib.error
+          import json, os, re, subprocess, sys, urllib.request, urllib.error, urllib.parse
           from datetime import datetime, timezone
 
-          SLACK_TOKEN = os.environ["SLACK_BOT_TOKEN"]
-          REPO = os.environ["GITHUB_REPOSITORY"]  # verse-mate/verse-mate-mobile
+          SLACK_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
+          if not SLACK_TOKEN:
+              print("ERROR: SLACK_BOT_TOKEN secret is not set. Add it in repo Settings > Secrets.")
+              sys.exit(1)
+
+          REPO = os.environ["GITHUB_REPOSITORY"]
 
           # Channel -> repo mapping
-          # Only process channels that map to THIS repo
+          # This workflow only processes channels mapped to THIS repo.
+          # verse-mate/verse-mate-mobile-mobile has its own copy for #bugs-mobile and #features.
           CHANNEL_MAP = {
               "C09PJ8QGWJK": {"name": "#bugs-mobile", "repo": "verse-mate/verse-mate-mobile"},
               "C090DUA9GTF": {"name": "#features", "repo": "verse-mate/verse-mate-mobile"},
@@ -37,7 +42,7 @@ jobs:
           def slack_api(method, params=None):
               url = f"https://slack.com/api/{method}"
               if params:
-                  url += "?" + "&".join(f"{k}={v}" for k, v in params.items())
+                  url += "?" + urllib.parse.urlencode(params)
               req = urllib.request.Request(url, headers={"Authorization": f"Bearer {SLACK_TOKEN}"})
               with urllib.request.urlopen(req) as resp:
                   return json.loads(resp.read())
@@ -47,13 +52,16 @@ jobs:
               return result.stdout.strip(), result.returncode
 
           def get_existing_issue_titles(repo):
-              """Get all open issue titles to check for duplicates."""
-              out, rc = gh_run(["gh", "issue", "list", "--repo", repo, "--state", "all",
-                                "--limit", "500", "--json", "title,state"])
-              if rc != 0:
-                  return {}
-              issues = json.loads(out)
-              return {i["title"].lower().strip(): i["state"] for i in issues}
+              """Fetch up to 1000 issue titles for dedup. Paginates via gh CLI."""
+              all_issues = {}
+              for state in ["open", "closed"]:
+                  out, rc = gh_run(["gh", "issue", "list", "--repo", repo, "--state", state,
+                                    "--limit", "500", "--json", "title"])
+                  if rc != 0:
+                      continue
+                  for i in json.loads(out):
+                      all_issues[i["title"].lower().strip()] = state
+              return all_issues
 
           def categorize(text, channel_name):
               text_lower = text.lower()
@@ -69,8 +77,9 @@ jobs:
                   return "bug", "Bug"
               return "triage", "Needs Triage"
 
-          def make_title(text):
-              first_line = text.split("\n")[0].strip()
+          def make_title(clean_text):
+              """Generate issue title from already-cleaned text (no raw Slack user IDs)."""
+              first_line = clean_text.split("\n")[0].strip()
               title = re.sub(r'^(Bug|UX|UI|Feature|Awesome feature|Key feature|Topic feature|Depth|Context)\s*[(:]\s*',
                              '', first_line, flags=re.IGNORECASE).strip()
               title = re.sub(r'^(from user|by user|from power user)\s*[-:]\s*', '', title, flags=re.IGNORECASE).strip()
@@ -79,19 +88,17 @@ jobs:
                   title = title[:72] + "..."
               if title and title[0].islower():
                   title = title[0].upper() + title[1:]
-              return title or text[:72] + "..."
+              return title or clean_text[:72] + "..."
 
           def is_actionable(text, subtype):
               if subtype in ("channel_join", "channel_leave", "channel_topic", "channel_purpose"):
                   return False
               if not text or len(text.strip()) < 15:
                   return False
-              # Skip conversational messages
               skip = ["has joined", "has left", "here is a quick video", "i like this suggestion"]
               text_lower = text.lower()
               return not any(s in text_lower for s in skip)
 
-          # Determine how far back to look (last 20 minutes to account for overlap)
           oldest_ts = str(int(datetime.now(timezone.utc).timestamp()) - 1200)
 
           total_created = 0
@@ -102,14 +109,13 @@ jobs:
               channel_name = config["name"]
               target_repo = config["repo"]
 
-              # Only process channels that belong to this repo
+              # Only process channels that belong to THIS repo
               if target_repo != REPO:
                   continue
 
               print(f"\n{'='*50}")
               print(f"Processing {channel_name} ({channel_id}) -> {target_repo}")
 
-              # Fetch recent messages
               data = slack_api("conversations.history", {
                   "channel": channel_id,
                   "oldest": oldest_ts,
@@ -126,7 +132,6 @@ jobs:
               if not messages:
                   continue
 
-              # Load existing titles for dedup
               existing = get_existing_issue_titles(target_repo)
               print(f"  Loaded {len(existing)} existing issue titles for dedup")
 
@@ -141,21 +146,18 @@ jobs:
                   if not is_actionable(text, subtype):
                       continue
 
-                  # Clean user mentions
+                  # Clean user mentions before generating title or body
                   clean_text = re.sub(r'<@[A-Z0-9]+>', '@team-member', text)
-
                   title = make_title(clean_text)
                   label, category = categorize(clean_text, channel_name)
 
-                  # Check for duplicate (fuzzy match on title)
+                  # Dedup: exact or 75%+ word overlap with existing issues
                   title_lower = title.lower().strip()
                   is_dup = False
                   for existing_title in existing:
-                      # Exact or very close match
                       if title_lower == existing_title:
                           is_dup = True
                           break
-                      # Word overlap check
                       w1 = set(title_lower.split())
                       w2 = set(existing_title.split())
                       union = len(w1 | w2)
@@ -168,10 +170,8 @@ jobs:
                       total_skipped += 1
                       continue
 
-                  # Build issue body
                   body = f"**Category:** {category}\n**Reported:** {date}\n**Source:** Slack {channel_name}\n\n## Description\n\n{clean_text}"
 
-                  # Create the issue
                   out, rc = gh_run([
                       "gh", "issue", "create",
                       "--repo", target_repo,
@@ -188,7 +188,6 @@ jobs:
                   total_created += 1
                   existing[title_lower] = "OPEN"
 
-                  # Close if checkmarked
                   if has_checkmark:
                       gh_run(["gh", "issue", "close", out, "--reason", "completed"])
                       print(f"    -> CLOSED (checkmark)")
