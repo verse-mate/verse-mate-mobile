@@ -66,10 +66,10 @@ describe('Highlight Workflows Integration Tests', () => {
     );
   });
 
-  afterEach(async () => {
-    await queryClient.cancelQueries();
-    queryClient.removeQueries();
+  afterEach(() => {
+    queryClient.cancelQueries();
     queryClient.clear();
+    queryClient.unmount();
     server.restoreHandlers();
   });
 
