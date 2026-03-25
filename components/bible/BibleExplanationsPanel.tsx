@@ -119,14 +119,18 @@ export function BibleExplanationsPanel({
   const touchStartTime = useRef(0);
   const touchStartY = useRef(0);
 
-  // Ref for scroll reset on tab/chapter change
-  const scrollViewRef = useRef<ScrollView>(null);
+  // Separate scroll refs per tab to maintain independent scroll positions
+  const summaryScrollRef = useRef<ScrollView>(null);
+  const byLineScrollRef = useRef<ScrollView>(null);
+  const detailedScrollRef = useRef<ScrollView>(null);
 
-  // Reset scroll position when tab or chapter changes
+  // Reset all scroll positions only when chapter changes (not on tab switch)
   // biome-ignore lint/correctness/useExhaustiveDependencies: deps are intentional triggers for scroll reset
   useEffect(() => {
-    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-  }, [activeTab, bookId, chapterNumber]);
+    summaryScrollRef.current?.scrollTo({ y: 0, animated: false });
+    byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
+    detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [bookId, chapterNumber]);
 
   // Animate indicator when active tab changes
   useEffect(() => {
@@ -204,6 +208,19 @@ export function BibleExplanationsPanel({
     }
     return null;
   }, [currentData]);
+
+  // Per-tab content extraction
+  const getContentFromData = (data: typeof summaryData) => {
+    if (!data) return null;
+    if (typeof data === 'object' && 'content' in data) {
+      return data.content as string;
+    }
+    return null;
+  };
+
+  const summaryContent = useMemo(() => getContentFromData(summaryData), [summaryData]);
+  const byLineContent = useMemo(() => getContentFromData(byLineData), [byLineData]);
+  const detailedContent = useMemo(() => getContentFromData(detailedData), [detailedData]);
 
   /**
    * Handle touch start - record time and position
@@ -337,64 +354,50 @@ export function BibleExplanationsPanel({
         </View>
       </View>
 
-      {/* Content Area */}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-        onScroll={handleInternalScroll}
-        scrollEventThrottle={16}
-        testID={`${testID}-scroll`}
-      >
-        {isLoading ? (
-          <SkeletonLoader />
-        ) : content ? (
-          <>
-            {/* Content Title Row (Moved from Header) */}
-            <View style={styles.contentTitleRow}>
-              <Text style={styles.contentTitle}>
-                {activeTab === 'summary'
-                  ? `Summary of ${bookName} ${chapterNumber}`
-                  : activeTab === 'byline'
-                    ? `Line-by-Line: ${bookName} ${chapterNumber}`
-                    : `Detailed Insight: ${bookName} ${chapterNumber}`}
-              </Text>
-              <View style={styles.contentActions}>
-                <ShareButton
-                  bookId={bookId}
-                  chapterNumber={chapterNumber}
-                  bookName={bookName}
-                  insightType={activeTab}
-                  size={22}
-                  color={colors.textSecondary}
-                  testID={`${testID}-share-button`}
-                />
-                {/* 
-                TODO: Re-enable when backend supports insight_type in bookmarks response.
-                Currently GET /bible/book/bookmarks does not return insight_type, so persistence fails.
-
-                <InsightBookmarkButton
-                  bookId={bookId}
-                  chapterNumber={chapterNumber}
-                  insightType={activeTab}
-                  size={22}
-                  color={colors.textSecondary}
-                  testID={`${testID}-bookmark-button`}
-                /> 
-                */}
+      {/* Content Area — one ScrollView per tab for independent scroll positions */}
+      {([
+        { key: 'summary' as const, ref: summaryScrollRef, data: summaryContent, loading: summaryLoading, title: `Summary of ${bookName} ${chapterNumber}` },
+        { key: 'byline' as const, ref: byLineScrollRef, data: byLineContent, loading: byLineLoading, title: `Line-by-Line: ${bookName} ${chapterNumber}` },
+        { key: 'detailed' as const, ref: detailedScrollRef, data: detailedContent, loading: detailedLoading, title: `Detailed Insight: ${bookName} ${chapterNumber}` },
+      ] as const).map((tab) => (
+        <ScrollView
+          key={tab.key}
+          ref={tab.ref}
+          style={[styles.scrollView, activeTab !== tab.key && { display: 'none' }]}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          onScroll={activeTab === tab.key ? handleInternalScroll : undefined}
+          scrollEventThrottle={16}
+          testID={`${testID}-scroll-${tab.key}`}
+        >
+          {tab.loading ? (
+            <SkeletonLoader />
+          ) : tab.data ? (
+            <>
+              <View style={styles.contentTitleRow}>
+                <Text style={styles.contentTitle}>{tab.title}</Text>
+                <View style={styles.contentActions}>
+                  <ShareButton
+                    bookId={bookId}
+                    chapterNumber={chapterNumber}
+                    bookName={bookName}
+                    insightType={tab.key}
+                    size={22}
+                    color={colors.textSecondary}
+                    testID={`${testID}-share-button`}
+                  />
+                </View>
               </View>
+              <Markdown style={markdownStyles}>{tab.data}</Markdown>
+              <BottomLogo />
+            </>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No explanations available for this chapter.</Text>
             </View>
-
-            <Markdown style={markdownStyles}>{content}</Markdown>
-            <BottomLogo />
-          </>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No explanations available for this chapter.</Text>
-          </View>
-        )}
-      </ScrollView>
+          )}
+        </ScrollView>
+      ))}
     </View>
   );
 }
