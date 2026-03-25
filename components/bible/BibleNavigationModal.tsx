@@ -483,6 +483,7 @@ function BibleNavigationModalComponent({
     }, 200);
 
     return () => clearTimeout(scrollTimeout);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedBookId and selectedSection trigger scroll on expand
   }, [selectedBookId, selectedSection, bookSections]);
 
   // Handle chapter selection
