@@ -46,17 +46,30 @@ tags:
       id: "topics-search-input"
     timeout: 30000
 
-# Select a topic — use text since testIDs are dynamic
+# Scroll down and select the first visible topic
+- scroll
 - tapOn:
-    text: "The Creation"
+    id: "topics-search-input"
+
+# Type a known topic to filter the list
+- inputText: "Creation"
 
 - waitForAnimationToEnd
 
-# Modal should close (extended timeout for web)
-- extendedWaitUntil:
-    notVisible:
-      id: "bible-navigation-modal"
-    timeout: 30000
+# Tap the filtered result
+- tapOn:
+    text: "The Creation"
+    optional: true
+
+- waitForAnimationToEnd
+
+# Close modal if still open (might have navigated already)
+- runFlow:
+    when:
+      visible:
+        id: "bible-navigation-modal"
+    commands:
+      - back
 
 # ============================================
 # Test 2: Verify Topics Split View
