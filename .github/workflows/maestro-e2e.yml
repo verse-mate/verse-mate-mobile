@@ -52,12 +52,14 @@ jobs:
           echo "$HOME/.maestro/bin" >> $GITHUB_PATH
           $HOME/.maestro/bin/maestro --version
 
-      - name: Install Chromium & Xvfb
-        run: sudo apt-get update && sudo apt-get install -y chromium-browser xvfb
+      - name: Install Chromium, Xvfb & window manager
+        run: sudo apt-get update && sudo apt-get install -y chromium-browser xvfb matchbox-window-manager
 
-      - name: Start Xvfb at desktop resolution
+      - name: Start Xvfb + fullscreen window manager
         run: |
           Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp &
+          sleep 1
+          DISPLAY=:99 matchbox-window-manager -use_titlebar no &
           echo "DISPLAY=:99" >> $GITHUB_ENV
 
       - name: Build Expo web bundle
