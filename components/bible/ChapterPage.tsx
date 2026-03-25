@@ -758,7 +758,7 @@ export function ChapterPage({
             filteredHighlights={chapterHighlights}
             filteredAutoHighlights={autoHighlights}
             scrollRef={summaryScrollRef}
-            onTabContentSizeChange={(w, h) => handleTabContentSizeChange('summary', h, viewportHeightRef.current)}
+            onTabContentSizeChange={(_w, h) => handleTabContentSizeChange('summary', h, viewportHeightRef.current)}
           />
           <TabContent
             chapter={displayChapter}
@@ -775,7 +775,7 @@ export function ChapterPage({
             filteredHighlights={chapterHighlights}
             filteredAutoHighlights={autoHighlights}
             scrollRef={byLineScrollRef}
-            onTabContentSizeChange={(w, h) => handleTabContentSizeChange('byline', h, viewportHeightRef.current)}
+            onTabContentSizeChange={(_w, h) => handleTabContentSizeChange('byline', h, viewportHeightRef.current)}
           />
           <TabContent
             chapter={displayChapter}
@@ -792,7 +792,7 @@ export function ChapterPage({
             filteredHighlights={chapterHighlights}
             filteredAutoHighlights={autoHighlights}
             scrollRef={detailedScrollRef}
-            onTabContentSizeChange={(w, h) => handleTabContentSizeChange('detailed', h, viewportHeightRef.current)}
+            onTabContentSizeChange={(_w, h) => handleTabContentSizeChange('detailed', h, viewportHeightRef.current)}
           />
         </View>
       )}
