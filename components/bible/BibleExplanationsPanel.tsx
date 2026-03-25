@@ -182,17 +182,17 @@ export function BibleExplanationsPanel({
   };
 
   // Per-tab content extraction
-  const getContentFromData = (data: typeof summaryData) => {
+  const extractContent = (data: unknown): string | null => {
     if (!data) return null;
-    if (typeof data === 'object' && 'content' in data) {
-      return data.content as string;
+    if (typeof data === 'object' && data !== null && 'content' in data) {
+      return (data as { content: string }).content;
     }
     return null;
   };
 
-  const summaryContent = useMemo(() => getContentFromData(summaryData), [summaryData]);
-  const byLineContent = useMemo(() => getContentFromData(byLineData), [byLineData]);
-  const detailedContent = useMemo(() => getContentFromData(detailedData), [detailedData]);
+  const summaryContent = extractContent(summaryData);
+  const byLineContent = extractContent(byLineData);
+  const detailedContent = extractContent(detailedData);
 
   /**
    * Handle touch start - record time and position
