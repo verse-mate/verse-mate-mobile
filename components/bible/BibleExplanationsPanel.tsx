@@ -189,11 +189,6 @@ export function BibleExplanationsPanel({
     }
   }, [activeTab, summaryData, byLineData, detailedData]);
 
-  const isLoading =
-    (activeTab === 'summary' && summaryLoading) ||
-    (activeTab === 'byline' && byLineLoading) ||
-    (activeTab === 'detailed' && detailedLoading);
-
   // Handle tab change with haptic feedback
   const handleTabChange = (tab: ContentTabType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
