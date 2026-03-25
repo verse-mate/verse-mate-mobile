@@ -14,8 +14,98 @@ on:
         description: "Build fresh APK (only needed for native changes). Default: reuse latest + OTA update."
 
 jobs:
+  # ── Web Desktop E2E (runs in parallel — no emulator needed) ────
+  web-desktop-e2e:
+    name: Web Desktop E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+          $HOME/.maestro/bin/maestro --version
+
+      - name: Install Chromium & Xvfb
+        run: sudo apt-get update && sudo apt-get install -y chromium-browser xvfb
+
+      - name: Start Xvfb at desktop resolution
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Start Expo web dev server
+        run: |
+          EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081 &
+          npx wait-on http://localhost:8081 --timeout 120000
+        env:
+          CI: true
+
+      - name: Run Maestro web-desktop tests
+        run: bash .github/scripts/run-web-desktop-tests.sh
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Run Playwright desktop E2E tests
+        run: npx playwright test --project=desktop-e2e
+        env:
+          DISPLAY: ':99'
+
+      - name: Upload web desktop test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-desktop-test-results
+          path: |
+            ~/.maestro/tests/
+            test-results/
+            playwright-report/
+          retention-days: 14
+
+      - name: Web desktop workflow summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## Web Desktop E2E Test Results
+
+          | Property | Value |
+          |----------|-------|
+          | **Viewport** | 1920x1080 (Xvfb) |
+          | **Split View Threshold** | >= 1024px |
+          | **Maestro Tests** | .maestro/web-desktop/ (6 tests) |
+          | **Playwright Tests** | e2e/desktop/ (3 specs) |
+          EOF
+
+  # ── Mobile E2E (existing — unchanged) ─────────────────────────
   maestro-e2e:
-    name: Maestro E2E Tests
+    name: Maestro E2E Tests (Mobile)
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
