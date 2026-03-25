@@ -121,6 +121,7 @@ export default function SettingsScreen() {
   // UI state
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const errorClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track if we need to save on blur
   const hasPendingChangesRef = useRef(false);
@@ -348,11 +349,17 @@ export default function SettingsScreen() {
     if (!firstName.trim() || !lastName.trim() || !email.trim()) {
       setGlobalError('All fields are required.');
       setSaveStatus('error');
+      if (errorClearTimeoutRef.current) clearTimeout(errorClearTimeoutRef.current);
+      errorClearTimeoutRef.current = setTimeout(() => {
+        setSaveStatus('idle');
+        setGlobalError(null);
+      }, 5000);
       return;
     }
 
     setGlobalError(null);
     setSaveStatus('saving');
+    if (errorClearTimeoutRef.current) clearTimeout(errorClearTimeoutRef.current);
 
     try {
       const { error } = await putAuthProfile({
@@ -412,6 +419,11 @@ export default function SettingsScreen() {
 
       setGlobalError(errorMessage);
       setSaveStatus('error');
+      if (errorClearTimeoutRef.current) clearTimeout(errorClearTimeoutRef.current);
+      errorClearTimeoutRef.current = setTimeout(() => {
+        setSaveStatus('idle');
+        setGlobalError(null);
+      }, 5000);
     }
   };
 
@@ -661,7 +673,11 @@ export default function SettingsScreen() {
                     />
                   )}
                 </View>
-                <Text style={styles.profileSubtext}>Update your personal information</Text>
+                {saveStatus === 'error' && globalError ? (
+                  <Text style={styles.profileErrorText}>{globalError}</Text>
+                ) : (
+                  <Text style={styles.profileSubtext}>Update your personal information</Text>
+                )}
               </View>
             </View>
 
@@ -693,11 +709,6 @@ export default function SettingsScreen() {
               />
             </View>
 
-            {globalError && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{globalError}</Text>
-              </View>
-            )}
           </View>
         )}
 
@@ -1022,6 +1033,10 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     profileSubtext: {
       fontSize: 12,
       color: colors.textSecondary,
+    },
+    profileErrorText: {
+      fontSize: 12,
+      color: colors.error,
     },
     form: {
       marginBottom: 8,
