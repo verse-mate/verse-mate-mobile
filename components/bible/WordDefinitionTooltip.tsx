@@ -379,7 +379,13 @@ export function WordDefinitionTooltip({
 
       {/* Animated Modal Content */}
       <Animated.View
-        style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
+        style={[
+          styles.container,
+          { transform: [{ translateY: slideAnim }] },
+          !useModal && useSplitView && splitViewMode !== 'left-full' && tooltipWidth
+            ? { marginLeft: windowWidth - tooltipWidth }
+            : undefined,
+        ]}
         pointerEvents="auto"
         testID="word-definition-tooltip"
       >
@@ -618,6 +624,7 @@ const createStyles = (
       borderTopRightRadius: tooltipWidth ? 0 : 16,
       maxHeight: '80%',
       width: tooltipWidth ?? '100%',
+      alignSelf: tooltipWidth ? 'center' : 'stretch',
       paddingBottom: bottomInset > 0 ? bottomInset : spacing.md,
     },
     contentContainer: {
