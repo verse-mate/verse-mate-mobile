@@ -175,34 +175,11 @@ export function BibleExplanationsPanel({
     }
   );
 
-  // Get current tab data
-  const currentData = useMemo(() => {
-    switch (activeTab) {
-      case 'summary':
-        return summaryData;
-      case 'byline':
-        return byLineData;
-      case 'detailed':
-        return detailedData;
-      default:
-        return null;
-    }
-  }, [activeTab, summaryData, byLineData, detailedData]);
-
   // Handle tab change with haptic feedback
   const handleTabChange = (tab: ContentTabType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onTabChange(tab);
   };
-
-  // Get content string from data
-  const content = useMemo(() => {
-    if (!currentData) return null;
-    if (typeof currentData === 'object' && 'content' in currentData) {
-      return currentData.content as string;
-    }
-    return null;
-  }, [currentData]);
 
   // Per-tab content extraction
   const getContentFromData = (data: typeof summaryData) => {
