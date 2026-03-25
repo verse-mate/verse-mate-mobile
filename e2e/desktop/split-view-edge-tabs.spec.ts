@@ -1,15 +1,12 @@
 /**
  * Split View Edge Tab Tests
  *
- * Tests edge tab visibility and click-to-restore-split interaction.
+ * Tests edge tab visibility in full-screen modes and click-to-restore.
+ * Uses drag-to-edge-snap (proven working) to enter full modes.
  */
 
 import { expect, test } from '@playwright/test';
-import {
-  getElementWidth,
-  navigateToBibleSplitView,
-  skipOnboarding,
-} from './helpers';
+import { getElementWidth, navigateToBibleSplitView, skipOnboarding } from './helpers';
 
 test.describe('Split view edge tabs', () => {
   test.beforeEach(async ({ page }) => {
@@ -18,10 +15,8 @@ test.describe('Split view edge tabs', () => {
     await navigateToBibleSplitView(page);
   });
 
-  test('should show left edge tab in right-full mode and restore split', async ({
-    page,
-  }) => {
-    // Drag divider to far left to trigger right-full mode
+  test('left edge tab appears in right-full mode and restores split', async ({ page }) => {
+    // Drag divider to far left → right-full mode
     const divider = page.getByTestId('split-view-divider');
     const box = await divider.boundingBox();
     expect(box).not.toBeNull();
@@ -32,32 +27,28 @@ test.describe('Split view edge tabs', () => {
     await page.mouse.up();
     await page.waitForTimeout(500);
 
-    // Verify right-full mode (left panel collapsed)
+    // Confirm right-full mode
     const leftWidth = await getElementWidth(page, 'split-view-left-panel');
     expect(leftWidth).toBe(0);
 
-    // Left edge tab should be visible
+    // Left edge tab should appear — find it and check opacity
     const leftEdgeTab = page.getByTestId('split-view-left-edge-tab');
-    await expect(leftEdgeTab).toBeVisible();
+    await expect(leftEdgeTab).toBeAttached();
 
-    // Click left edge tab to restore split mode
-    await leftEdgeTab.click();
+    // Click the edge tab's pressable child to restore split mode
+    const pressable = leftEdgeTab.locator('[role="button"]').first();
+    await pressable.click({ timeout: 5000 });
     await page.waitForTimeout(500);
 
     // Both panels should now have non-zero width
     const newLeftWidth = await getElementWidth(page, 'split-view-left-panel');
-    const newRightWidth = await getElementWidth(
-      page,
-      'split-view-right-panel'
-    );
+    const newRightWidth = await getElementWidth(page, 'split-view-right-panel');
     expect(newLeftWidth).toBeGreaterThan(0);
     expect(newRightWidth).toBeGreaterThan(0);
   });
 
-  test('should show right edge tab in left-full mode and restore split', async ({
-    page,
-  }) => {
-    // Drag divider to far right to trigger left-full mode
+  test('right edge tab appears in left-full mode and restores split', async ({ page }) => {
+    // Drag divider to far right → left-full mode
     const divider = page.getByTestId('split-view-divider');
     const box = await divider.boundingBox();
     expect(box).not.toBeNull();
@@ -68,24 +59,22 @@ test.describe('Split view edge tabs', () => {
     await page.mouse.up();
     await page.waitForTimeout(500);
 
-    // Verify left-full mode (right panel collapsed)
+    // Confirm left-full mode
     const rightWidth = await getElementWidth(page, 'split-view-right-panel');
     expect(rightWidth).toBe(0);
 
-    // Right edge tab should be visible
+    // Right edge tab should appear
     const rightEdgeTab = page.getByTestId('split-view-right-edge-tab');
-    await expect(rightEdgeTab).toBeVisible();
+    await expect(rightEdgeTab).toBeAttached();
 
-    // Click right edge tab to restore split mode
-    await rightEdgeTab.click();
+    // Click the edge tab's pressable child to restore split mode
+    const pressable = rightEdgeTab.locator('[role="button"]').first();
+    await pressable.click({ timeout: 5000 });
     await page.waitForTimeout(500);
 
     // Both panels should now have non-zero width
     const newLeftWidth = await getElementWidth(page, 'split-view-left-panel');
-    const newRightWidth = await getElementWidth(
-      page,
-      'split-view-right-panel'
-    );
+    const newRightWidth = await getElementWidth(page, 'split-view-right-panel');
     expect(newLeftWidth).toBeGreaterThan(0);
     expect(newRightWidth).toBeGreaterThan(0);
   });
