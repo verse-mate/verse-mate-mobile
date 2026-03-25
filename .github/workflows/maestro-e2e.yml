@@ -60,12 +60,15 @@ jobs:
           Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp &
           echo "DISPLAY=:99" >> $GITHUB_ENV
 
-      - name: Start Expo web dev server
-        run: |
-          EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081 &
-          npx wait-on http://localhost:8081 --timeout 120000
+      - name: Build Expo web bundle
+        run: EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo export --platform web
         env:
-          CI: true
+          NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Serve static web bundle
+        run: |
+          npx serve dist -l 8081 -s &
+          npx wait-on http://localhost:8081 --timeout 30000
 
       - name: Run Maestro web-desktop tests
         run: bash .github/scripts/run-web-desktop-tests.sh
