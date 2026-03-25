@@ -11,15 +11,12 @@ url: http://localhost:8081
 # Open the web app in Maestro's managed Chromium
 - openLink: "http://localhost:8081"
 
-# Wait for onboarding screen to fully load
-- extendedWaitUntil:
-    visible:
-      text: "Skip"
-    timeout: 60000
-
-# Skip onboarding
-- tapOn:
-    text: "Skip"
+# Skip onboarding if shown (conditional — may already be completed from warmup)
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn: "Skip"
 
 # Dismiss font loading error overlays (headless Chromium may timeout on icon fonts)
 - runFlow:
