@@ -458,6 +458,7 @@ function BibleNavigationModalComponent({
         };
       }
     },
+    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization
     [selectedBookId, selectedSection]
   );
 
