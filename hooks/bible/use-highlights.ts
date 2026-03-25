@@ -436,7 +436,9 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
                 {
                   highlights: chapterCache.highlights.map((h) =>
                     h.highlight_id === serverHighlight.highlight_id ||
-                    (!h.highlight_id && h.start_verse === serverHighlight.start_verse && h.end_verse === serverHighlight.end_verse)
+                    (!h.highlight_id &&
+                      h.start_verse === serverHighlight.start_verse &&
+                      h.end_verse === serverHighlight.end_verse)
                       ? serverHighlight
                       : h
                   ),
