@@ -835,7 +835,6 @@ const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: b
       color: colors.textTertiary,
     },
     verseText: {
-      flex: 1,
       fontSize: fontSizes.bodyLarge,
       fontWeight: fontWeights.regular,
       lineHeight: fontSizes.bodyLarge * 2.0,
