@@ -379,7 +379,6 @@ export function ChapterPage({
   };
 
   // Sync scroll position when switching from Bible to explanations view
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional deps for view switch scroll sync
   useEffect(() => {
     if (activeView !== 'bible') {
       hasScrolledRef.current = true;
