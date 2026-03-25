@@ -328,9 +328,27 @@ export function BibleExplanationsPanel({
 
       {/* Content Area — one ScrollView per tab for independent scroll positions */}
       {([
-        { key: 'summary' as const, ref: summaryScrollRef, data: summaryContent, loading: summaryLoading, title: `Summary of ${bookName} ${chapterNumber}` },
-        { key: 'byline' as const, ref: byLineScrollRef, data: byLineContent, loading: byLineLoading, title: `Line-by-Line: ${bookName} ${chapterNumber}` },
-        { key: 'detailed' as const, ref: detailedScrollRef, data: detailedContent, loading: detailedLoading, title: `Detailed Insight: ${bookName} ${chapterNumber}` },
+        {
+          key: 'summary' as const,
+          ref: summaryScrollRef,
+          data: summaryContent,
+          loading: summaryLoading,
+          title: `Summary of ${bookName} ${chapterNumber}`,
+        },
+        {
+          key: 'byline' as const,
+          ref: byLineScrollRef,
+          data: byLineContent,
+          loading: byLineLoading,
+          title: `Line-by-Line: ${bookName} ${chapterNumber}`,
+        },
+        {
+          key: 'detailed' as const,
+          ref: detailedScrollRef,
+          data: detailedContent,
+          loading: detailedLoading,
+          title: `Detailed Insight: ${bookName} ${chapterNumber}`,
+        },
       ] as const).map((tab) => (
         <ScrollView
           key={tab.key}
