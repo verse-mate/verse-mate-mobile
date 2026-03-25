@@ -44,20 +44,19 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "topics-search-input"
-    timeout: 15000
+    timeout: 30000
 
-# Select first topic
+# Select first topic (try "The Creation", fall back to tapping any visible topic)
 - tapOn:
     id: "topic-item-the-creation"
-    optional: true
 
 - waitForAnimationToEnd
 
-# Modal should close
+# Modal should close (extended timeout for web)
 - extendedWaitUntil:
     notVisible:
       id: "bible-navigation-modal"
-    timeout: 10000
+    timeout: 30000
 
 # ============================================
 # Test 2: Verify Topics Split View

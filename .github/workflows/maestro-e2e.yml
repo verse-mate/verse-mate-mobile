@@ -73,15 +73,25 @@ jobs:
           npx wait-on http://localhost:8081 --timeout 30000
 
       - name: Run Maestro web-desktop tests
+        id: maestro_tests
+        continue-on-error: true
         run: bash .github/scripts/run-web-desktop-tests.sh
 
       - name: Install Playwright browsers
         run: npx playwright install chromium
 
       - name: Run Playwright desktop E2E tests
+        id: playwright_tests
         run: npx playwright test --project=desktop-e2e
         env:
           DISPLAY: ':99'
+
+      - name: Fail if any tests failed
+        if: steps.maestro_tests.outcome == 'failure' || steps.playwright_tests.outcome == 'failure'
+        run: |
+          echo "Maestro: ${{ steps.maestro_tests.outcome }}"
+          echo "Playwright: ${{ steps.playwright_tests.outcome }}"
+          exit 1
 
       - name: Upload web desktop test results
         if: always()
