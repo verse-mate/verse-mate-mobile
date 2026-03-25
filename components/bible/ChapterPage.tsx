@@ -372,10 +372,15 @@ export function ChapterPage({
   }, [bookId, chapterNumber]);
 
   // Track explanation tab content heights for scroll syncing
-  const tabContentHeightsRef = useRef<Record<string, { contentHeight: number; viewHeight: number }>>({});
+  const tabContentHeightsRef = useRef<
+    Record<string, { contentHeight: number; viewHeight: number }>
+  >({});
 
   const handleTabContentSizeChange = (tab: string, contentHeight: number, viewHeight: number) => {
-    tabContentHeightsRef.current[tab] = { contentHeight, viewHeight: viewHeight || viewportHeightRef.current };
+    tabContentHeightsRef.current[tab] = {
+      contentHeight,
+      viewHeight: viewHeight || viewportHeightRef.current,
+    };
   };
 
   // Sync scroll position when switching from Bible to explanations view
@@ -387,9 +392,11 @@ export function ChapterPage({
       const fraction = bibleScrollFractionRef.current;
       if (fraction > 0.01) {
         const targetRef =
-          activeTab === 'summary' ? summaryScrollRef :
-          activeTab === 'byline' ? byLineScrollRef :
-          detailedScrollRef;
+          activeTab === 'summary'
+            ? summaryScrollRef
+            : activeTab === 'byline'
+              ? byLineScrollRef
+              : detailedScrollRef;
 
         // Small delay to allow layout after view switch
         setTimeout(() => {
@@ -757,7 +764,9 @@ export function ChapterPage({
             filteredHighlights={chapterHighlights}
             filteredAutoHighlights={autoHighlights}
             scrollRef={summaryScrollRef}
-            onTabContentSizeChange={(_w, h) => handleTabContentSizeChange('summary', h, viewportHeightRef.current)}
+            onTabContentSizeChange={(_w, h) =>
+              handleTabContentSizeChange('summary', h, viewportHeightRef.current)
+            }
           />
           <TabContent
             chapter={displayChapter}
@@ -774,7 +783,9 @@ export function ChapterPage({
             filteredHighlights={chapterHighlights}
             filteredAutoHighlights={autoHighlights}
             scrollRef={byLineScrollRef}
-            onTabContentSizeChange={(_w, h) => handleTabContentSizeChange('byline', h, viewportHeightRef.current)}
+            onTabContentSizeChange={(_w, h) =>
+              handleTabContentSizeChange('byline', h, viewportHeightRef.current)
+            }
           />
           <TabContent
             chapter={displayChapter}
@@ -791,7 +802,9 @@ export function ChapterPage({
             filteredHighlights={chapterHighlights}
             filteredAutoHighlights={autoHighlights}
             scrollRef={detailedScrollRef}
-            onTabContentSizeChange={(_w, h) => handleTabContentSizeChange('detailed', h, viewportHeightRef.current)}
+            onTabContentSizeChange={(_w, h) =>
+              handleTabContentSizeChange('detailed', h, viewportHeightRef.current)
+            }
           />
         </View>
       )}
