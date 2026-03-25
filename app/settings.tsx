@@ -708,7 +708,6 @@ export default function SettingsScreen() {
                 testID="settings-email-input"
               />
             </View>
-
           </View>
         )}
 
