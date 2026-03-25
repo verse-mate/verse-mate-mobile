@@ -46,10 +46,11 @@ describe('Highlight Workflows Integration Tests', () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
+    jest.useFakeTimers();
     resetHighlightStore();
     queryClient = new QueryClient({
       defaultOptions: {
-        queries: { retry: false },
+        queries: { retry: false, gcTime: 0 },
         mutations: { retry: false },
       },
     });
@@ -66,9 +67,12 @@ describe('Highlight Workflows Integration Tests', () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    queryClient.cancelQueries();
     queryClient.clear();
     server.restoreHandlers();
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
   });
 
   const createWrapper = () => {
