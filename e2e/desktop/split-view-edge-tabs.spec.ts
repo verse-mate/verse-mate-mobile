@@ -35,9 +35,10 @@ test.describe('Split view edge tabs', () => {
     const leftEdgeTab = page.getByTestId('split-view-left-edge-tab');
     await expect(leftEdgeTab).toBeAttached();
 
-    // Click the edge tab's pressable child to restore split mode
-    const pressable = leftEdgeTab.locator('[role="button"]').first();
-    await pressable.click({ timeout: 5000 });
+    // Click inside the edge tab to restore split mode
+    const tabBox = await leftEdgeTab.boundingBox();
+    expect(tabBox).not.toBeNull();
+    await page.mouse.click(tabBox!.x + tabBox!.width / 2, tabBox!.y + tabBox!.height / 2);
     await page.waitForTimeout(500);
 
     // Both panels should now have non-zero width
@@ -67,9 +68,10 @@ test.describe('Split view edge tabs', () => {
     const rightEdgeTab = page.getByTestId('split-view-right-edge-tab');
     await expect(rightEdgeTab).toBeAttached();
 
-    // Click the edge tab's pressable child to restore split mode
-    const pressable = rightEdgeTab.locator('[role="button"]').first();
-    await pressable.click({ timeout: 5000 });
+    // Click inside the edge tab to restore split mode
+    const tabBox2 = await rightEdgeTab.boundingBox();
+    expect(tabBox2).not.toBeNull();
+    await page.mouse.click(tabBox2!.x + tabBox2!.width / 2, tabBox2!.y + tabBox2!.height / 2);
     await page.waitForTimeout(500);
 
     // Both panels should now have non-zero width
