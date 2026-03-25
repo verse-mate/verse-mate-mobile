@@ -112,9 +112,10 @@ export function useAutoHighlights({
       'auto-highlights',
       bookId,
       chapterNumber,
-      preferencesData,
-      themesData,
-      defaultEnabledData,
+      // Use serializable primitives instead of complex objects for stable query keys
+      JSON.stringify(preferencesData),
+      JSON.stringify(themesData),
+      JSON.stringify(defaultEnabledData),
       localEnabled,
     ],
     queryFn: async () => {
