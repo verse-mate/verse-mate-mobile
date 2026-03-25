@@ -46,9 +46,9 @@ tags:
       id: "topics-search-input"
     timeout: 30000
 
-# Select first topic (try "The Creation", fall back to tapping any visible topic)
+# Select a topic — use text since testIDs are dynamic
 - tapOn:
-    id: "topic-item-the-creation"
+    text: "The Creation"
 
 - waitForAnimationToEnd
 
