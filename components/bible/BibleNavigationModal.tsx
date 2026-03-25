@@ -458,11 +458,11 @@ function BibleNavigationModalComponent({
         };
       }
     },
-    // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization
     [selectedBookId, selectedSection]
   );
 
   // Auto-scroll effect - triggers when a book is expanded
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedBookId and selectedSection intentionally trigger scroll on expand
   useEffect(() => {
     if (!lastExpandedBookRef.current) return;
 
