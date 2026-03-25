@@ -268,9 +268,18 @@ export function BibleExplanationsPanel({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header Bar - Only for Menu now */}
+      {/* Header Bar */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
+          <ShareButton
+            bookId={bookId}
+            chapterNumber={chapterNumber}
+            bookName={bookName}
+            insightType={activeTab}
+            size={20}
+            color={specs.headerTextColor}
+            testID={`${testID}-share-button`}
+          />
           <View style={{ flex: 1 }} />
           {onMenuPress && (
             <Pressable
@@ -351,41 +360,6 @@ export function BibleExplanationsPanel({
           <SkeletonLoader />
         ) : content ? (
           <>
-            {/* Content Title Row (Moved from Header) */}
-            <View style={styles.contentTitleRow}>
-              <Text style={styles.contentTitle}>
-                {activeTab === 'summary'
-                  ? `Summary of ${bookName} ${chapterNumber}`
-                  : activeTab === 'byline'
-                    ? `Line-by-Line: ${bookName} ${chapterNumber}`
-                    : `Detailed Insight: ${bookName} ${chapterNumber}`}
-              </Text>
-              <View style={styles.contentActions}>
-                <ShareButton
-                  bookId={bookId}
-                  chapterNumber={chapterNumber}
-                  bookName={bookName}
-                  insightType={activeTab}
-                  size={22}
-                  color={colors.textSecondary}
-                  testID={`${testID}-share-button`}
-                />
-                {/* 
-                TODO: Re-enable when backend supports insight_type in bookmarks response.
-                Currently GET /bible/book/bookmarks does not return insight_type, so persistence fails.
-
-                <InsightBookmarkButton
-                  bookId={bookId}
-                  chapterNumber={chapterNumber}
-                  insightType={activeTab}
-                  size={22}
-                  color={colors.textSecondary}
-                  testID={`${testID}-bookmark-button`}
-                /> 
-                */}
-              </View>
-            </View>
-
             <Markdown style={markdownStyles}>{content}</Markdown>
             <BottomLogo />
           </>
