@@ -462,6 +462,7 @@ function BibleNavigationModalComponent({
   );
 
   // Auto-scroll effect - triggers when a book is expanded
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedBookId and selectedSection intentionally trigger scroll on expand
   useEffect(() => {
     if (!lastExpandedBookRef.current) return;
 
@@ -482,7 +483,6 @@ function BibleNavigationModalComponent({
     }, 200);
 
     return () => clearTimeout(scrollTimeout);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedBookId and selectedSection trigger scroll on expand
   }, [selectedBookId, selectedSection, bookSections]);
 
   // Handle chapter selection
