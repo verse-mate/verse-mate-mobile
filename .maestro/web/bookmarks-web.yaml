@@ -1,0 +1,99 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Bookmark Feature Web E2E Test (Unauthenticated)
+#
+# Adapted from .maestro/bookmarks/bookmark-flow.yaml for Expo Web.
+#
+# This flow tests bookmark feature behavior for unauthenticated users:
+# 1. Tap bookmark toggle -> navigates to bookmarks screen (login prompt)
+# 2. Verify login prompt is shown
+# 3. Navigate via hamburger menu to bookmarks -> same login prompt
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/bookmarks-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Bookmark Toggle (Unauthenticated)
+# ============================================
+
+# Verify bookmark toggle is visible
+- assertVisible:
+    id: "bookmark-toggle-1-1"
+
+# Tap bookmark toggle (should navigate to bookmarks screen for unauthenticated users)
+- tapOn:
+    id: "bookmark-toggle-1-1"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify we're on bookmarks screen with login prompt
+- assertVisible:
+    text: "Please login to view your bookmarks"
+
+# Verify login button is present
+- assertVisible:
+    id: "bookmarks-login-button"
+
+# Go back to chapter
+- tapOn:
+    id: "bookmarks-back-button"
+
+# Wait for navigation back
+- waitForAnimationToEnd
+
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 2: Hamburger Menu -> Bookmarks (Unauthenticated)
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu to open
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Verify bookmarks menu item is visible
+- assertVisible:
+    id: "menu-item-bookmarks"
+
+# Tap on bookmarks menu item
+- tapOn:
+    id: "menu-item-bookmarks"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify bookmarks screen with login prompt
+- assertVisible:
+    text: "Please login to view your bookmarks"
+
+# Verify back button is visible
+- assertVisible:
+    id: "bookmarks-back-button"
+
+# ============================================
+# Test Complete
+# ============================================

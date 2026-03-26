@@ -46,7 +46,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import PagerView from 'react-native-pager-view';
+import PagerView from '@/components/common/PagerView';
 import type { TopicListItem } from '@/types/topics';
 import {
   getTopicFromIndex,
