@@ -1,0 +1,205 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Swipe Header Sync Web E2E Test
+#
+# Adapted from .maestro/swipe/swipe-header-sync-test.yaml for Expo Web.
+#
+# This test verifies the core bug that V1 and V2 failed to fix:
+# - Header must ALWAYS show the correct chapter after navigating
+# - No duplicate chapters
+# - No backwards navigation during forward navigation
+#
+# Web adaptation: Uses FAB button navigation instead of swipe
+# (Selenium mouse drag doesn't trigger CSS scroll-snap on PagerView).
+#
+# Strategy: Scroll to bottom of chapter content to make FABs permanently
+# visible (isAtBottom triggers permanent visibility), then tap the FAB.
+#
+# Test Flow:
+# 1. Launch app and navigate to Genesis 1
+# 2. Navigate forward 5 times via FAB
+# 3. After each navigation, verify header shows correct chapter
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/swipe-header-sync-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# ============================================
+# Setup: Ensure we start at Genesis 1
+# ============================================
+
+# Wait for app to fully load (chapter selector should be visible)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Open navigation modal to go to Genesis 1
+- tapOn:
+    id: "chapter-selector-button"
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Go to Old Testament tab
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+# Select Genesis from book list
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+# Select chapter 1
+- tapOn:
+    id: "chapter-1"
+
+# Wait for Genesis 1 to load
+- waitForAnimationToEnd
+
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify we're on Genesis 1 - header should show "Genesis 1"
+- assertVisible:
+    text: "Genesis 1"
+
+# ============================================
+# Test: Navigate forward 5 times via FAB and verify header
+# ============================================
+
+# Nav 1: Genesis 1 -> Genesis 2
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Verify header shows Genesis 2
+- assertVisible:
+    text: "Genesis 2"
+
+# Nav 2: Genesis 2 -> Genesis 3
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Verify header shows Genesis 3
+- assertVisible:
+    text: "Genesis 3"
+
+# Nav 3: Genesis 3 -> Genesis 4
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Verify header shows Genesis 4
+- assertVisible:
+    text: "Genesis 4"
+
+# Nav 4: Genesis 4 -> Genesis 5
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Verify header shows Genesis 5
+- assertVisible:
+    text: "Genesis 5"
+
+# Nav 5: Genesis 5 -> Genesis 6
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Verify header shows Genesis 6
+- assertVisible:
+    text: "Genesis 6"
+
+# ============================================
+# Test Complete: Header correctly synced
+# ============================================
