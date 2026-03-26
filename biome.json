@@ -13,6 +13,7 @@
       "types/**/*.{js,jsx,ts,tsx}",
       "scripts/**/*.{js,jsx,ts,tsx}",
       "__tests__/**/*.{js,jsx,ts,tsx}",
+      "e2e/**/*.{js,jsx,ts,tsx}",
       "agent-os/references/**/*.{js,jsx,ts,tsx}",
       "*.{js,jsx,ts,tsx}"
     ],
@@ -87,6 +88,19 @@
         "rules": {
           "suspicious": {
             "noArrayIndexKey": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["e2e/**/*.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
           }
         }
       }

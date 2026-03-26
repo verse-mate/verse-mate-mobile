@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import PagerView from 'react-native-pager-view';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -14,6 +13,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import PagerView from '@/components/common/PagerView';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 
