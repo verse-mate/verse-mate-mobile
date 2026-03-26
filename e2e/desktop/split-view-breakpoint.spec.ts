@@ -73,9 +73,7 @@ test.describe('Split view breakpoint', () => {
     await page.waitForTimeout(1000); // Allow React to re-render
 
     await expect(page.getByTestId('split-view')).not.toBeVisible();
-    await expect(
-      page.getByTestId('chapter-selector-button')
-    ).toBeVisible();
+    await expect(page.getByTestId('chapter-selector-button')).toBeVisible();
 
     // Resize back above threshold — split view returns
     await page.setViewportSize({ width: 1280, height: 800 });
