@@ -80,6 +80,9 @@ function RootLayoutInner() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: router.replace is stable but not typed as such
   useEffect(() => {
     async function checkOnboarding() {
+      // Skip during SSR on web (no window/localStorage)
+      if (Platform.OS === 'web' && typeof window === 'undefined') return;
+
       // Avoid redirecting if already on the onboarding screen
       if (segments[0] === 'onboarding') return;
 
@@ -208,6 +211,10 @@ function RootLayoutInner() {
       }
     };
 
+    // On web, Expo Router handles URL routing natively — skip deep link handling
+    // to avoid parsing localhost URLs as deep links and causing redirect loops.
+    if (Platform.OS === 'web') return;
+
     // Handle initial URL (app opened from link)
     const getInitialURL = async () => {
       const initialUrl = await Linking.getInitialURL();
@@ -240,6 +247,30 @@ function RootLayoutInner() {
       }
     };
   }, [router]);
+
+  // Web: copy data-testid → id for Maestro web E2E compatibility
+  // Maestro's web driver uses Selenium which matches `id` attribute, not `data-testid`.
+  // This MutationObserver mirrors testIDs to id attributes so the same flows work on web.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const sync = () => {
+      document.querySelectorAll('[data-testid]').forEach((el) => {
+        const testId = el.getAttribute('data-testid')!;
+        if (el.id !== testId) el.id = testId;
+      });
+    };
+
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-testid'],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   // System UI setup for Android
   // Note: edgeToEdgeEnabled is set in app.json, which makes nav bar transparent automatically
