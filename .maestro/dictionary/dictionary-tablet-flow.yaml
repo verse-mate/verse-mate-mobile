@@ -1,0 +1,123 @@
+---
+appId: org.versemate.app
+name: Dictionary Tablet Flow
+description: Tests dictionary popup positioning on iPad/tablet in both portrait and split-view modes
+tags:
+  - dictionary
+  - tablet
+  - user-flow
+
+---
+
+# Dictionary Tablet E2E Test Flow
+#
+# This flow tests dictionary popup positioning on tablet devices:
+# 1. Open Genesis 1 in tablet mode
+# 2. Long-press a word to trigger dictionary lookup
+# 3. Verify tooltip appears and is properly positioned (visible on screen)
+# 4. Dismiss and verify cleanup
+#
+# Covers: GH-166 (iPad dictionary popup positioning)
+#
+# Run on tablet/iPad simulator:
+#   maestro test .maestro/dictionary/dictionary-tablet-flow.yaml
+
+- runFlow: ../shared/setup-warm-tablet.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 45000
+
+# ============================================
+# Test 1: Verify tablet layout loaded
+# ============================================
+
+# On tablet, we may be in split view
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 2: Long-press on verse text to trigger dictionary
+# ============================================
+
+# Long-press on a common word in Genesis 1
+- longPressOn:
+    text: "God"
+
+# ============================================
+# Test 3: Verify tooltip appears and is visible
+# ============================================
+
+# Wait for the word definition tooltip
+- extendedWaitUntil:
+    visible:
+      id: "word-definition-tooltip"
+    timeout: 5000
+
+# Verify tooltip title is visible (confirms it's on screen, not off-center)
+- assertVisible:
+    text: "Word Definition"
+
+# ============================================
+# Test 4: Dismiss tooltip
+# ============================================
+
+# Swipe down to dismiss
+- swipe:
+    direction: DOWN
+    duration: 300
+
+# Wait for dismiss animation
+- waitForAnimationToEnd
+
+# Verify tooltip is gone
+- assertNotVisible:
+    id: "word-definition-tooltip"
+
+# ============================================
+# Test 5: Test in split view (if available)
+# ============================================
+
+# Switch to explanations view to trigger split view on tablet
+- tapOn:
+    id: "commentary-view-toggle"
+
+# Wait for view switch
+- waitForAnimationToEnd
+
+# Switch back to Bible view
+- tapOn:
+    id: "bible-view-toggle"
+
+# Wait for view switch
+- waitForAnimationToEnd
+
+# Long-press again to test dictionary in split-view context
+- longPressOn:
+    text: "God"
+
+# Verify tooltip appears again
+- extendedWaitUntil:
+    visible:
+      id: "word-definition-tooltip"
+    timeout: 5000
+
+- assertVisible:
+    text: "Word Definition"
+
+# Dismiss
+- swipe:
+    direction: DOWN
+    duration: 300
+
+- waitForAnimationToEnd
+
+# Verify we're still on the chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================
