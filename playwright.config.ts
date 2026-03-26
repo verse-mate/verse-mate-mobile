@@ -72,6 +72,17 @@ export default defineConfig({
         hasTouch: true,
       },
     },
+
+    // Desktop E2E tests — split view breakpoint, divider drag, edge tabs
+    {
+      name: 'desktop-e2e',
+      testDir: './e2e/desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 },
+        baseURL: 'http://localhost:8081',
+      },
+    },
   ],
 
   // Web server configuration (not used for web app captures)

@@ -1,0 +1,124 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Chapter Navigation Web E2E Test
+#
+# Adapted from .maestro/navigation/chapter-navigation-flow.yaml for Expo Web.
+#
+# This flow tests chapter navigation using floating action buttons:
+# - Next chapter button
+# - Previous chapter button
+#
+# Strategy: Use repeat scroll to reach bottom of chapter content.
+# When isAtBottom is true, FABs stay permanently visible (no auto-hide).
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/chapter-navigation-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# Wait for app to load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Verify we start at Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+
+# Scroll to bottom to keep FABs permanently visible
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+# Wait for FABs to appear (isAtBottom triggers permanent visibility)
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+# Test next chapter button -> Genesis 2
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 2"
+
+# Scroll to bottom again for new chapter
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+# Test next chapter again -> Genesis 3
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 3"
+
+# Scroll to bottom for FABs
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+# Test previous chapter -> Genesis 2
+- tapOn:
+    id: "previous-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 2"
+
+# Scroll to bottom for FABs
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+# Test previous chapter again -> Genesis 1
+- tapOn:
+    id: "previous-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 1"
