@@ -1,0 +1,32 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Shared desktop web setup: open app in browser, skip onboarding, wait for split view.
+# Usage: - runFlow: ../shared/setup-desktop-web.yaml
+#
+# Requires:
+#   - Xvfb at >= 1920x1080 (so Chromium viewport >= 1024px triggers split view)
+#   - EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+
+# Open the web app in Maestro's managed Chromium
+- openLink: "http://localhost:8081"
+
+# Skip onboarding if shown (conditional — may already be completed from warmup)
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn: "Skip"
+
+# Dismiss font loading error overlays (headless Chromium may timeout on icon fonts)
+- runFlow:
+    when:
+      visible: "Dismiss"
+    commands:
+      - tapOn: "Dismiss"
+
+# Wait for split view to render (desktop viewport >= 1024px triggers split view)
+- extendedWaitUntil:
+    visible:
+      id: "split-view"
+    timeout: 60000

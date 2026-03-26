@@ -1,0 +1,33 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Shared web setup: open app in browser, skip onboarding, wait for Bible screen.
+# Usage: - runFlow: ../shared/setup-web.yaml
+#
+# Requires: EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+
+# Open the web app in Maestro's managed Chromium
+- openLink: "http://localhost:8081"
+
+# Wait for onboarding screen to fully load
+- extendedWaitUntil:
+    visible:
+      text: "Skip"
+    timeout: 60000
+
+# Skip onboarding
+- tapOn:
+    text: "Skip"
+
+# Dismiss font loading error overlays (headless Chromium may timeout on icon fonts)
+- runFlow:
+    when:
+      visible: "Dismiss"
+    commands:
+      - tapOn: "Dismiss"
+
+# Wait for Bible chapter to fully load (testID available via MutationObserver id sync)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
