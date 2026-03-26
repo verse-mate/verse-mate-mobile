@@ -123,6 +123,12 @@ export function getDeviceInfo(): DeviceInfo {
  * ```
  */
 export function shouldUseSplitView(): boolean {
+  if (Platform.OS === 'web') {
+    // Desktop browsers don't rotate — only check width threshold
+    const { screenWidth } = getDeviceInfo();
+    return screenWidth >= BREAKPOINTS.SPLIT_VIEW_MIN_WIDTH;
+  }
+
   const { isLandscape, screenWidth } = getDeviceInfo();
 
   // Only enable split view in landscape with sufficient width
