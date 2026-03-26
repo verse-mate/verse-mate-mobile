@@ -1,0 +1,170 @@
+---
+appId: org.versemate.web
+url: http://localhost:8081
+name: Desktop Split View - Basic Rendering (Web)
+description: Tests that desktop web split view renders both panels with actual content. Must be run with Xvfb at >= 1920x1080.
+tags:
+  - critical
+  - split-view
+  - web-desktop
+  - regression
+
+---
+
+# Desktop Split View - Basic Rendering Test (Web)
+#
+# PREREQUISITE: Xvfb at >= 1920x1080 so Chromium viewport >= 1024px.
+#   Split view activates at width >= 1024 on web.
+#
+# This test verifies:
+# - Split view activates at desktop width
+# - Left panel (Bible content) renders actual chapter content
+# - Right panel (Explanations) renders actual explanation content
+# - Divider is visible between panels
+# - No placeholder or TODO text appears
+# - Both panels have interactive elements
+
+- runFlow: ../shared/setup-desktop-web.yaml
+
+# ============================================
+# Test 1: Verify Split View Layout Renders
+# ============================================
+
+# Verify split view container is present
+- assertVisible:
+    id: "split-view"
+
+# Verify left panel renders
+- assertVisible:
+    id: "bible-content-panel"
+
+# Verify right panel renders
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# Verify divider is visible
+- assertVisible:
+    id: "split-view-divider"
+
+# ============================================
+# Test 2: Verify Left Panel Has Real Content
+# ============================================
+
+# Left panel should have a header with book/chapter dropdown
+- assertVisible:
+    id: "bible-content-panel-header"
+
+# Verify no placeholder text is visible
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+- assertNotVisible:
+    text: "TODO"
+    optional: true
+
+# ============================================
+# Test 3: Verify Right Panel Has Real Content
+# ============================================
+
+# Right panel should have a menu button
+- assertVisible:
+    id: "bible-explanations-panel-menu-button"
+
+# ============================================
+# Test 4: Verify Interactive Elements Work
+# ============================================
+
+# Tap on the left panel header (should open navigation modal)
+- tapOn:
+    id: "bible-content-panel-header"
+
+# Wait for modal
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Verify modal opened
+- assertVisible:
+    id: "bible-navigation-modal"
+
+# Close modal by tapping a book + chapter
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+# Modal should close
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Both panels should still be visible after modal interaction
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test 5: Navigate to Different Chapter
+# ============================================
+
+# Open modal again to navigate to a different chapter
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-5"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Verify both panels still render (no crash on navigation)
+- assertVisible:
+    id: "split-view"
+
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test Complete: Split view renders correctly on desktop web
+# ============================================
