@@ -79,10 +79,9 @@ tags:
 # ============================================
 
 # FAB forward: Genesis 5 → 6
-# Scroll slightly to trigger FAB visibility, then tap content area
-- scroll
+# Tap content area to trigger FAB visibility (avoid header at top)
 - tapOn:
-    point: "50%,15%"
+    point: "50%,50%"
 
 - extendedWaitUntil:
     visible:
@@ -100,7 +99,7 @@ tags:
 
 # FAB backward: Genesis 6 → 5
 - tapOn:
-    point: "50%,15%"
+    point: "50%,50%"
 
 - extendedWaitUntil:
     visible:
@@ -118,7 +117,7 @@ tags:
 
 # FAB forward: Genesis 5 → 6
 - tapOn:
-    point: "50%,15%"
+    point: "50%,50%"
 
 - extendedWaitUntil:
     visible:
@@ -136,7 +135,7 @@ tags:
 
 # FAB backward: Genesis 6 → 5
 - tapOn:
-    point: "50%,15%"
+    point: "50%,50%"
 
 - extendedWaitUntil:
     visible:
@@ -154,7 +153,7 @@ tags:
 
 # FAB forward: Genesis 5 → 6
 - tapOn:
-    point: "50%,15%"
+    point: "50%,50%"
 
 - extendedWaitUntil:
     visible:
