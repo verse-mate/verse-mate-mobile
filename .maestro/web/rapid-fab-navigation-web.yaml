@@ -1,0 +1,226 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Rapid FAB Navigation Web Stress Test
+#
+# Adapted from .maestro/regression/rapid-fab-navigation-test.yaml for Expo Web.
+#
+# Regression test for:
+# - #80: Navigation Buttons Cause Chapter State Desync
+# - #87: Chapter Mismatch/Lockup Bug Causing App-wide State Failures
+#
+# Test Flow:
+# 1. Navigate to Genesis 3 via picker (avoids starting chapter edge case)
+# 2. Tap next-chapter-button 5 times, verify header after each
+# 3. Tap previous-chapter-button 3 times, verify header after each
+# 4. Final assertion: header shows "Genesis 5"
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/rapid-fab-navigation-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# ============================================
+# Setup: Navigate to Genesis 3 via picker
+# ============================================
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-3"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify starting state
+- assertVisible:
+    text: "Genesis 3"
+
+# ============================================
+# Test: 5 rapid forward taps (Genesis 3 -> 8)
+# ============================================
+
+# Forward 1: Genesis 3 -> Genesis 4
+# Tap chapter heading area (y=15%) to trigger FAB visibility without opening Verse Insight
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 4"
+
+# Forward 2: Genesis 4 -> Genesis 5
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 5"
+
+# Forward 3: Genesis 5 -> Genesis 6
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# Forward 4: Genesis 6 -> Genesis 7
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 7"
+
+# Forward 5: Genesis 7 -> Genesis 8
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 8"
+
+# ============================================
+# Test: 3 rapid backward taps (Genesis 8 -> 5)
+# ============================================
+
+# Backward 1: Genesis 8 -> Genesis 7
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 7"
+
+# Backward 2: Genesis 7 -> Genesis 6
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 6"
+
+# Backward 3: Genesis 6 -> Genesis 5
+- tapOn:
+    point: "50%,15%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+- assertVisible:
+    text: "Genesis 5"
+
+# ============================================
+# Test Complete: Header correctly synced
+# through 8 FAB navigations (5 fwd + 3 bwd)
+# ============================================

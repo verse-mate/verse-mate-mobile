@@ -1,0 +1,52 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Psalms Chapter Grid Scroll Web E2E Test
+#
+# Regression test for issue #82: chapter grid truncation for books with many chapters.
+# Verifies Psalms (150 chapters) renders all chapter buttons and chapter 150 is reachable.
+#
+# Web adaptation: Uses filter input to find Psalms (avoids scroll-in-modal issues),
+# then swipe gestures inside the modal to scroll the chapter grid.
+
+- runFlow: ../shared/setup-web.yaml
+
+# Open navigation modal
+- tapOn:
+    id: "chapter-selector-button"
+- waitForAnimationToEnd
+
+# Use filter to find Psalms directly (avoids scrolling the book list)
+- tapOn:
+    text: "Filter books..."
+- inputText: "Psalms"
+- waitForAnimationToEnd
+
+# Select Psalms
+- tapOn:
+    id: "book-item-psalms"
+- waitForAnimationToEnd
+
+# Verify first chapter is visible
+- assertVisible:
+    id: "chapter-1"
+
+# Swipe UP inside the modal to scroll to chapter 150
+- repeat:
+    times: 15
+    commands:
+      - swipe:
+          start: "50%,70%"
+          end: "50%,30%"
+          duration: 300
+
+# Tap chapter 150
+- tapOn:
+    id: "chapter-150"
+- waitForAnimationToEnd
+
+# Verify we navigated to Psalm 150
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 15000

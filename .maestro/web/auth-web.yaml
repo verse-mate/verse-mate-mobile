@@ -1,0 +1,139 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Authentication UI Navigation Web E2E Test
+#
+# Adapted from .maestro/auth/auth-flow.yaml for Expo Web.
+#
+# This flow tests authentication UI accessibility and navigation:
+# 1. Navigate to Login via hamburger menu
+# 2. Verify login form elements
+# 3. Navigate to Signup via link
+# 4. Verify signup form elements
+#
+# Web adaptation: Uses conditional setup to handle warm state
+# (if onboarding was already completed, "Skip" won't be visible).
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/auth-web.yaml
+
+# Open the web app in Maestro's managed Chromium
+- openLink: "http://localhost:8081"
+
+# Handle onboarding conditionally (may already be completed in warm state)
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn:
+          text: "Skip"
+
+# Dismiss font loading error overlays (headless Chromium may timeout on icon fonts)
+- runFlow:
+    when:
+      visible: "Dismiss"
+    commands:
+      - tapOn: "Dismiss"
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Login via Hamburger Menu
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu to open
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Verify Login menu item is visible (shows when not authenticated)
+- assertVisible:
+    id: "menu-item-login"
+
+# Tap on Login menu item
+- tapOn:
+    id: "menu-item-login"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify login screen is visible
+- assertVisible:
+    text: "Welcome back"
+
+# Verify login form fields are present
+- assertVisible:
+    id: "login-email"
+
+- assertVisible:
+    id: "login-password"
+
+# Verify submit button is present
+- assertVisible:
+    id: "login-submit"
+
+# ============================================
+# Test 2: Navigate to Signup via Link
+# ============================================
+
+# Tap on "Don't have an account? Sign up" link
+- tapOn:
+    id: "login-signup-link"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify signup screen is visible
+- assertVisible:
+    text: "Create Account"
+
+# Verify signup form fields are present
+- assertVisible:
+    id: "signup-first-name"
+
+- assertVisible:
+    id: "signup-last-name"
+
+- assertVisible:
+    id: "signup-email"
+
+- assertVisible:
+    id: "signup-password"
+
+# Verify submit button is present
+- assertVisible:
+    id: "signup-submit"
+
+# ============================================
+# Test 3: Navigate Back to Login
+# ============================================
+
+# Tap on "Already have an account? Login" link
+- tapOn:
+    id: "signup-login-link"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify login screen is visible
+- assertVisible:
+    text: "Welcome back"
+
+# ============================================
+# Test Complete
+# ============================================
