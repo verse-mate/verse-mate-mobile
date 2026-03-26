@@ -1,0 +1,176 @@
+---
+appId: org.versemate.web
+url: http://localhost:8081
+name: Desktop Split View - Navigation Flows (Web)
+description: Tests navigation flows within desktop split view — modal, hamburger menu, screen transitions.
+tags:
+  - split-view
+  - web-desktop
+  - navigation
+
+---
+
+# Desktop Split View - Navigation Flows (Web)
+#
+# PREREQUISITE: Xvfb at >= 1920x1080.
+#
+# Tests:
+# 1. Navigation modal from left panel header
+# 2. Hamburger menu from right panel
+# 3. Navigate to other screens and back — split view restored
+
+- runFlow: ../shared/setup-desktop-web.yaml
+
+# ============================================
+# Test 1: Navigation Modal from Left Panel
+# ============================================
+
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Navigate OT → NT
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-matthew"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Verify Matthew 1 loaded in split view
+- assertVisible:
+    text: "Matthew 1"
+
+- assertVisible:
+    id: "split-view"
+
+# ============================================
+# Test 2: Hamburger Menu from Right Panel
+# ============================================
+
+- tapOn:
+    id: "bible-explanations-panel-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-modal"
+    timeout: 10000
+
+- assertVisible:
+    id: "hamburger-menu"
+
+# Close menu
+- tapOn:
+    id: "menu-close-button"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "hamburger-menu-modal"
+    timeout: 10000
+
+# Split view still intact
+- assertVisible:
+    id: "split-view"
+
+# ============================================
+# Test 3: Navigate to Settings and Back
+# ============================================
+
+- tapOn:
+    id: "bible-explanations-panel-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "menu-item-settings"
+
+- waitForAnimationToEnd
+
+# Settings screen should show
+- extendedWaitUntil:
+    visible:
+      id: "settings-back-button"
+    timeout: 10000
+
+# Go back
+- tapOn:
+    id: "settings-back-button"
+
+- waitForAnimationToEnd
+
+# Split view should be restored
+- extendedWaitUntil:
+    visible:
+      id: "split-view"
+    timeout: 10000
+
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test 4: Navigate to Bookmarks and Back
+# ============================================
+
+- tapOn:
+    id: "bible-explanations-panel-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "menu-item-bookmarks"
+
+- waitForAnimationToEnd
+
+# Bookmarks screen
+- extendedWaitUntil:
+    visible:
+      id: "bookmarks-back-button"
+    timeout: 10000
+
+# Go back
+- tapOn:
+    id: "bookmarks-back-button"
+
+- waitForAnimationToEnd
+
+# Split view restored
+- extendedWaitUntil:
+    visible:
+      id: "split-view"
+    timeout: 10000
+
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test Complete: Navigation flows work with split view
+# ============================================

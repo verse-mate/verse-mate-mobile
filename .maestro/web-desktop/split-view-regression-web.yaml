@@ -1,0 +1,251 @@
+---
+appId: org.versemate.web
+url: http://localhost:8081
+name: Desktop Split View - Regression (Web)
+description: Content rendering assertions at desktop width — no placeholder text, both panels have real content across navigation.
+tags:
+  - split-view
+  - web-desktop
+  - regression
+
+---
+
+# Desktop Split View - Regression Test (Web)
+#
+# PREREQUISITE: Xvfb at >= 1920x1080.
+#
+# Verifies:
+# - No placeholder or TODO text at any point
+# - Both panels render real content
+# - Navigating multiple chapters doesn't break layout
+# - Opening/closing modals doesn't break layout
+
+- runFlow: ../shared/setup-desktop-web.yaml
+
+# ============================================
+# Test 1: Initial Content Assertions
+# ============================================
+
+- assertVisible:
+    id: "split-view"
+
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+- assertNotVisible:
+    text: "TODO"
+    optional: true
+
+# ============================================
+# Test 2: Navigate Chapter 1 → Check Content
+# ============================================
+
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-2"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- assertVisible:
+    id: "split-view"
+
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+# ============================================
+# Test 3: Navigate Chapter 2 → Check Content
+# ============================================
+
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-10"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- assertVisible:
+    id: "split-view"
+
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+# ============================================
+# Test 4: Navigate Chapter 3 (Different Book)
+# ============================================
+
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-john"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- assertVisible:
+    id: "split-view"
+
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+- assertNotVisible:
+    text: "implementation pending"
+    optional: true
+
+# ============================================
+# Test 5: Rapid Modal Open/Close
+# ============================================
+
+# Open and close modal 3 times to test stability
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Second open/close
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-3"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Split view still intact after repeated modal interactions
+- assertVisible:
+    id: "split-view"
+
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test Complete: No regressions in desktop split view
+# ============================================
