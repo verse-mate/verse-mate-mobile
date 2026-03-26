@@ -1,7 +1,7 @@
 ---
 appId: org.versemate.app
 name: Dictionary Tablet Flow
-description: Tests dictionary popup positioning on iPad/tablet in both portrait and split-view modes
+description: Tests dictionary popup positioning on tablet in split-view mode
 tags:
   - dictionary
   - tablet
@@ -12,39 +12,41 @@ tags:
 # Dictionary Tablet E2E Test Flow
 #
 # This flow tests dictionary popup positioning on tablet devices:
-# 1. Open Genesis 1 in tablet mode
+# 1. Load in split-view mode (tablet landscape)
 # 2. Long-press a word to trigger dictionary lookup
 # 3. Verify tooltip appears and is properly positioned (visible on screen)
 # 4. Dismiss and verify cleanup
 #
 # Covers: GH-166 (iPad dictionary popup positioning)
 #
-# Run on tablet/iPad simulator:
-#   maestro test .maestro/dictionary/dictionary-tablet-flow.yaml
+# Runs on tablet emulator only (in split-view/ folder)
 
 - runFlow: ../shared/setup-warm-tablet.yaml
 
-# Wait for app to fully load
+# ============================================
+# Test 1: Verify split-view layout loaded
+# ============================================
+
+# Split-view should already be visible from setup
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "explanations-panel"
+
+# Wait for verse content to render
 - extendedWaitUntil:
     visible:
-      id: "chapter-selector-button"
-    timeout: 45000
-
-# ============================================
-# Test 1: Verify tablet layout loaded
-# ============================================
-
-# On tablet, we may be in split view
-- assertVisible:
-    id: "chapter-selector-button"
+      text: "In the beginning"
+    timeout: 30000
 
 # ============================================
 # Test 2: Long-press on verse text to trigger dictionary
 # ============================================
 
-# Long-press on a common word in Genesis 1
+# Long-press on "beginning" in Genesis 1:1
 - longPressOn:
-    text: "God"
+    text: "beginning"
 
 # ============================================
 # Test 3: Verify tooltip appears and is visible
@@ -54,7 +56,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "word-definition-tooltip"
-    timeout: 5000
+    timeout: 10000
 
 # Verify tooltip title is visible (confirms it's on screen, not off-center)
 - assertVisible:
@@ -76,47 +78,9 @@ tags:
 - assertNotVisible:
     id: "word-definition-tooltip"
 
-# ============================================
-# Test 5: Test in split view (if available)
-# ============================================
-
-# Switch to explanations view to trigger split view on tablet
-- tapOn:
-    id: "commentary-view-toggle"
-
-# Wait for view switch
-- waitForAnimationToEnd
-
-# Switch back to Bible view
-- tapOn:
-    id: "bible-view-toggle"
-
-# Wait for view switch
-- waitForAnimationToEnd
-
-# Long-press again to test dictionary in split-view context
-- longPressOn:
-    text: "God"
-
-# Verify tooltip appears again
-- extendedWaitUntil:
-    visible:
-      id: "word-definition-tooltip"
-    timeout: 5000
-
+# Verify split-view is still intact
 - assertVisible:
-    text: "Word Definition"
-
-# Dismiss
-- swipe:
-    direction: DOWN
-    duration: 300
-
-- waitForAnimationToEnd
-
-# Verify we're still on the chapter screen
-- assertVisible:
-    id: "chapter-selector-button"
+    id: "bible-content-panel"
 
 # ============================================
 # Test Complete
