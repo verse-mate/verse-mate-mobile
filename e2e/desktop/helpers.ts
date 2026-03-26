@@ -25,11 +25,7 @@ export async function skipOnboarding(page: Page): Promise<void> {
  * Navigate to a Bible chapter and wait for split view to render.
  * Assumes onboarding is already skipped.
  */
-export async function navigateToBibleSplitView(
-  page: Page,
-  bookId = 1,
-  chapter = 1
-): Promise<void> {
+export async function navigateToBibleSplitView(page: Page, bookId = 1, chapter = 1): Promise<void> {
   await page.goto(`${BASE_URL}/bible/${bookId}/${chapter}`);
   await waitForSplitView(page);
 }
@@ -53,10 +49,7 @@ export async function waitForSingleColumn(page: Page): Promise<void> {
 /**
  * Get the bounding box width of an element by testID.
  */
-export async function getElementWidth(
-  page: Page,
-  testId: string
-): Promise<number> {
+export async function getElementWidth(page: Page, testId: string): Promise<number> {
   const el = page.getByTestId(testId);
   const box = await el.boundingBox();
   return box?.width ?? 0;

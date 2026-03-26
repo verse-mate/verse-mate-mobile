@@ -91,6 +91,19 @@
           }
         }
       }
+    },
+    {
+      "includes": ["e2e/**/*.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
     }
   ]
 }
