@@ -1,0 +1,314 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Reverse Direction Stress Web E2E Test
+#
+# Adapted from .maestro/regression/reverse-direction-stress-test.yaml for Expo Web.
+#
+# Regression test for:
+# - #80: Navigation Buttons Cause Chapter State Desync
+# - #87: Chapter Mismatch/Lockup Bug Causing App-wide State Failures
+#
+# Tests rapid back-and-forth navigation that was reported to trigger desync.
+#
+# Web adaptation: Uses FAB button navigation for all direction changes
+# (Selenium mouse drag doesn't trigger CSS scroll-snap on PagerView).
+#
+# Strategy: Scroll to bottom of chapter content to make FABs permanently
+# visible (isAtBottom triggers permanent visibility), then tap the FAB.
+#
+# Test Flow:
+# Part A: FAB direction changes from Genesis 5
+#   forward -> back -> forward -> back -> forward (5 changes)
+#   Expected: 5 -> 6 -> 5 -> 6 -> 5 -> 6
+#
+# Part B: FAB direction changes from Genesis 6
+#   forward -> back -> forward -> back -> forward (5 changes)
+#   Expected: 6 -> 7 -> 6 -> 7 -> 6 -> 7
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/reverse-direction-stress-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# ============================================
+# Setup: Navigate to Genesis 5 via picker
+# ============================================
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+
+- tapOn:
+    id: "chapter-5"
+
+- waitForAnimationToEnd
+
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Verify starting state
+- assertVisible:
+    text: "Genesis 5"
+
+# ============================================
+# Part A: FAB rapid direction changes
+# Genesis 5 -> 6 -> 5 -> 6 -> 5 -> 6
+# ============================================
+
+# FAB forward: Genesis 5 -> 6
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 6"
+
+# FAB backward: Genesis 6 -> 5
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 5"
+
+# FAB forward: Genesis 5 -> 6
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 6"
+
+# FAB backward: Genesis 6 -> 5
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 5"
+
+# FAB forward: Genesis 5 -> 6
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 6"
+
+# ============================================
+# Part B: FAB rapid direction changes (continued)
+# Genesis 6 -> 7 -> 6 -> 7 -> 6 -> 7
+# ============================================
+
+# FAB forward: Genesis 6 -> 7
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 7"
+
+# FAB backward: Genesis 7 -> 6
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 6"
+
+# FAB forward: Genesis 6 -> 7
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 7"
+
+# FAB backward: Genesis 7 -> 6
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 6"
+
+# FAB forward: Genesis 6 -> 7
+- repeat:
+    times: 10
+    commands:
+      - scroll
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 10000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+- assertVisible:
+    text: "Genesis 7"
+
+# ============================================
+# Test Complete: Header correctly synced through
+# 10 rapid direction changes (all via FAB)
+# ============================================

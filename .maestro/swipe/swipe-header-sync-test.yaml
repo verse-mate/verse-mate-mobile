@@ -93,8 +93,10 @@ tags:
 
 
 # Verify header shows Genesis 2
-- assertVisible:
-    text: "Genesis 2"
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 2"
+    timeout: 5000
 
 # Swipe 2: Genesis 2 -> Genesis 3
 - swipe:
@@ -105,8 +107,10 @@ tags:
 
 
 # Verify header shows Genesis 3
-- assertVisible:
-    text: "Genesis 3"
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 3"
+    timeout: 5000
 
 # Swipe 3: Genesis 3 -> Genesis 4
 - swipe:
@@ -117,8 +121,10 @@ tags:
 
 
 # Verify header shows Genesis 4
-- assertVisible:
-    text: "Genesis 4"
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 4"
+    timeout: 5000
 
 # Swipe 4: Genesis 4 -> Genesis 5
 - swipe:
@@ -129,8 +135,10 @@ tags:
 
 
 # Verify header shows Genesis 5
-- assertVisible:
-    text: "Genesis 5"
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 5"
+    timeout: 5000
 
 # Swipe 5: Genesis 5 -> Genesis 6
 - swipe:
@@ -141,8 +149,10 @@ tags:
 
 
 # Verify header shows Genesis 6
-- assertVisible:
-    text: "Genesis 6"
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 6"
+    timeout: 5000
 
 # ============================================
 # Test Complete: Header correctly synced

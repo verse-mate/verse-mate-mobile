@@ -1,0 +1,29 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Warm web setup: open app in browser without clearing localStorage.
+# Use this for tests that need pre-initialized state (topics).
+#
+# On web there is no clearState equivalent — localStorage persists
+# between runs, so we just open the URL.
+#
+# Usage: - runFlow: ../shared/setup-warm-web.yaml
+
+- openLink: "http://localhost:8081"
+
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn: "Skip"
+
+- runFlow:
+    when:
+      visible: "Dismiss"
+    commands:
+      - tapOn: "Dismiss"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000

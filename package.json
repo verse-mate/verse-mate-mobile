@@ -8,6 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "web:export": "expo export --platform web",
+    "web:deploy": "expo export --platform web && npx wrangler pages deploy dist --project-name=verse-mate-web",
     "format": "biome format --write app components hooks constants utils types scripts __tests__ src services",
     "lint": "biome check app components hooks constants utils types scripts __tests__ src services && eslint .",
     "lint:fix": "biome check --write app components hooks constants utils types scripts __tests__ src services && eslint --fix .",

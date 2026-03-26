@@ -48,7 +48,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import PagerView from 'react-native-pager-view';
+import PagerView from '@/components/common/PagerView';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import type { TestamentBook } from '@/src/api';
 

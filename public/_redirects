@@ -1,0 +1,7 @@
+# Cloudflare Pages redirects
+# https://developers.cloudflare.com/pages/configuration/redirects/
+
+# SPA fallback: serve index.html for any route that doesn't match a static file.
+# Expo Router handles client-side routing from there.
+# The 200 status means "rewrite" (not redirect), preserving the URL.
+/*  /index.html  200

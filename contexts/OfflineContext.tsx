@@ -42,7 +42,7 @@ import {
 } from '@/services/offline';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNetInfo } from '@react-native-community/netinfo';
-import { InteractionManager } from 'react-native';
+import { InteractionManager, Platform } from 'react-native';
 import React, {
   createContext,
   useCallback,
@@ -107,7 +107,46 @@ export interface OfflineContextType {
 
 const OfflineContext = createContext<OfflineContextType | null>(null);
 
+// No-op context value for web — all data comes from API, no SQLite
+const webOnlyValue: OfflineContextType = {
+  isAutoSyncEnabled: false,
+  setAutoSyncEnabled: () => {},
+  isOnline: true,
+  isInitialized: true,
+  manifest: null,
+  downloadedBibleVersions: [],
+  downloadedCommentaryLanguages: [],
+  downloadedTopicLanguages: [],
+  bibleVersionsInfo: [],
+  commentaryInfo: [],
+  topicsInfo: [],
+  languageBundles: [],
+  isUserDataSynced: false,
+  isSyncing: false,
+  syncProgress: null,
+  lastSyncTime: null,
+  setLastSyncTime: () => {},
+  totalStorageUsed: 0,
+  refreshManifest: async () => {},
+  downloadBibleVersion: async () => {},
+  downloadCommentaries: async () => {},
+  downloadTopics: async () => {},
+  deleteBibleVersion: async () => {},
+  deleteCommentaries: async () => {},
+  deleteTopics: async () => {},
+  deleteAllData: async () => {},
+  checkForUpdates: async () => {},
+  downloadLanguage: async () => {},
+  deleteLanguage: async () => {},
+  syncUserData: async () => {},
+};
+
 export function OfflineProvider({ children }: { children: ReactNode }) {
+  // Web: skip SQLite initialization, all data fetched from API
+  if (Platform.OS === 'web') {
+    return <OfflineContext.Provider value={webOnlyValue}>{children}</OfflineContext.Provider>;
+  }
+
   const { isAuthenticated } = useAuth();
   const netInfo = useNetInfo();
   const isOnline = netInfo.isConnected === true;

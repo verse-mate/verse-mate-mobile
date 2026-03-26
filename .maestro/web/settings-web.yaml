@@ -1,0 +1,83 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Settings Web E2E Test
+#
+# Adapted from .maestro/settings/settings-flow.yaml for Expo Web.
+#
+# This flow tests settings management functionality:
+# 1. Navigate to settings via hamburger menu
+# 2. Verify settings elements are visible
+# 3. Navigate back to chapter screen
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/settings-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Settings via Hamburger Menu
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu to open
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Tap on Settings menu item
+- tapOn:
+    id: "menu-item-settings"
+
+# Wait for navigation to settings screen
+- waitForAnimationToEnd
+
+
+# ============================================
+# Test 2: Verify Settings Screen Elements
+# ============================================
+
+# Verify settings back button is visible
+- assertVisible:
+    id: "settings-back-button"
+
+# Verify Bible Version section is visible (available to all users)
+- assertVisible:
+    text: "Bible Version"
+
+# For unauthenticated user, sign in button should be visible
+- assertVisible:
+    id: "settings-sign-in-button"
+
+# ============================================
+# Test 3: Navigate Back to Chapter
+# ============================================
+
+# Use settings back button
+- tapOn:
+    id: "settings-back-button"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================
