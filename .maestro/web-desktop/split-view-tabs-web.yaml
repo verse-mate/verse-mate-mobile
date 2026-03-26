@@ -1,0 +1,122 @@
+---
+appId: org.versemate.web
+url: http://localhost:8081
+name: Desktop Split View - Explanation Tabs (Web)
+description: Tests explanation tab switching within the right panel at desktop width.
+tags:
+  - split-view
+  - web-desktop
+  - tabs
+
+---
+
+# Desktop Split View - Explanation Tab Switching (Web)
+#
+# PREREQUISITE: Xvfb at >= 1920x1080.
+#
+# Tests that the right panel's explanation tabs (Summary, By Line, Detailed)
+# are accessible and functional within the split view layout.
+
+- runFlow: ../shared/setup-desktop-web.yaml
+
+# ============================================
+# Test 1: Verify Right Panel Has Tabs
+# ============================================
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# Verify tab buttons are visible
+- assertVisible:
+    id: "bible-explanations-panel-tab-summary"
+
+- assertVisible:
+    id: "bible-explanations-panel-tab-byline"
+
+- assertVisible:
+    id: "bible-explanations-panel-tab-detailed"
+
+# ============================================
+# Test 2: Switch Between Tabs
+# ============================================
+
+# Tap Summary tab
+- tapOn:
+    id: "bible-explanations-panel-tab-summary"
+
+- waitForAnimationToEnd
+
+# Tap By Line tab
+- tapOn:
+    id: "bible-explanations-panel-tab-byline"
+
+- waitForAnimationToEnd
+
+# Tap Detailed tab
+- tapOn:
+    id: "bible-explanations-panel-tab-detailed"
+
+- waitForAnimationToEnd
+
+# Right panel still visible after tab switching
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# Left panel unaffected
+- assertVisible:
+    id: "bible-content-panel"
+
+# ============================================
+# Test 3: Tabs Work After Navigation
+# ============================================
+
+# Navigate to a different chapter
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-3"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Tabs should still be functional
+- assertVisible:
+    id: "bible-explanations-panel-tab-summary"
+
+- tapOn:
+    id: "bible-explanations-panel-tab-summary"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "bible-explanations-panel-tab-detailed"
+
+- waitForAnimationToEnd
+
+# Both panels intact
+- assertVisible:
+    id: "split-view"
+
+# ============================================
+# Test Complete: Explanation tabs work in split view
+# ============================================

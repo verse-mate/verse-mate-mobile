@@ -120,13 +120,20 @@ Tests are organized into feature-based subfolders for easier navigation and sele
 │   ├── swipe-header-sync-test.yaml              # Header sync during rapid swiping
 │   ├── swipe-navigation-basic.yaml              # Basic swipe gestures
 │   └── swipe-navigation-boundaries.yaml         # Boundary edge cases
-└── topics/
-    ├── topics-reading-flow.yaml                 # Topics reading
-    ├── topics-swipe-navigation.yaml             # Topic swipe with circular wrap
-    └── topics-view-switching.yaml               # Topic Bible/Insight view switching
+├── topics/
+│   ├── topics-reading-flow.yaml                 # Topics reading
+│   ├── topics-swipe-navigation.yaml             # Topic swipe with circular wrap
+│   └── topics-view-switching.yaml               # Topic Bible/Insight view switching
+└── web-desktop/
+    ├── split-view-basic-web.yaml                # Desktop split view rendering
+    ├── split-view-sync-web.yaml                 # Desktop split view panel sync
+    ├── split-view-tabs-web.yaml                 # Explanation tab switching in split view
+    ├── split-view-navigation-web.yaml           # Navigation flows in split view
+    ├── split-view-topics-web.yaml               # Topics in desktop split view
+    └── split-view-regression-web.yaml           # Desktop split view regression assertions
 ```
 
-**Total**: 27 test files across 11 feature folders
+**Total**: 33 test files across 12 feature folders (+ 3 Playwright desktop specs in `e2e/desktop/`)
 
 ### File Naming Conventions
 
@@ -143,8 +150,9 @@ Tests are organized into feature-based subfolders for easier navigation and sele
 | `regression` | Prevents specific bugs from recurring |
 | `navigation` | Tests navigation features and flows |
 | `settings` | Settings and configuration tests |
-| `split-view` | Split view / landscape tests (require tablet emulator) |
+| `split-view` | Split view / landscape tests (require tablet emulator or desktop viewport) |
 | `landscape` | Tests requiring landscape orientation |
+| `web-desktop` | Desktop web split-view tests (require Xvfb >= 1920x1080) |
 
 ---
 
@@ -179,8 +187,14 @@ Tests are organized into feature-based subfolders for easier navigation and sele
 | `topics/` | `topics-reading-flow.yaml` | User Flow | Topic navigation and reading | `user-flow` |
 | `topics/` | `topics-swipe-navigation.yaml` | User Flow | Topic swipe navigation with circular wrap | `critical`, `topics`, `swipe`, `navigation` |
 | `topics/` | `topics-view-switching.yaml` | User Flow | Topic Bible/Insight view switching | `topics`, `navigation`, `view-switching` |
+| `web-desktop/` | `split-view-basic-web.yaml` | User Flow | Desktop web split view rendering | `critical`, `split-view`, `web-desktop`, `regression` |
+| `web-desktop/` | `split-view-sync-web.yaml` | Regression | Desktop web panel sync during navigation | `critical`, `split-view`, `web-desktop`, `sync`, `regression` |
+| `web-desktop/` | `split-view-tabs-web.yaml` | User Flow | Explanation tab switching in split view | `split-view`, `web-desktop`, `tabs` |
+| `web-desktop/` | `split-view-navigation-web.yaml` | User Flow | Navigation flows in desktop split view | `split-view`, `web-desktop`, `navigation` |
+| `web-desktop/` | `split-view-topics-web.yaml` | User Flow | Topics in desktop split view | `split-view`, `web-desktop`, `topics` |
+| `web-desktop/` | `split-view-regression-web.yaml` | Regression | Desktop split view content assertions | `split-view`, `web-desktop`, `regression` |
 
-**Note**: Tests in `split-view/` require running on an Android tablet emulator in landscape orientation (or iPad simulator in landscape for local testing). See the split-view test files for setup instructions.
+**Note**: Tests in `split-view/` require running on an Android tablet emulator in landscape orientation (or iPad simulator in landscape for local testing). Tests in `web-desktop/` require Xvfb at >= 1920x1080 so Maestro's Chromium has a desktop viewport. See the respective test files for setup instructions.
 
 ---
 

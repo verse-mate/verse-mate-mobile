@@ -1,0 +1,209 @@
+---
+appId: org.versemate.web
+url: http://localhost:8081
+name: Desktop Split View - Panel Sync (Web)
+description: Tests that Bible left panel and explanations right panel stay in sync during navigation on desktop web.
+tags:
+  - critical
+  - split-view
+  - web-desktop
+  - sync
+  - regression
+
+---
+
+# Desktop Split View - Panel Sync Test (Web)
+#
+# PREREQUISITE: Xvfb at >= 1920x1080.
+#
+# Verifies both panels stay in sync during navigation:
+# 1. Navigate to specific chapter → verify header
+# 2. Navigate to different chapter → verify update, no stale content
+# 3. Cross-book navigation → verify clean switch
+# 4. Right panel menu accessible
+
+- runFlow: ../shared/setup-desktop-web.yaml
+
+# ============================================
+# Test 1: Verify Split View Renders
+# ============================================
+
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+- assertNotVisible:
+    text: "placeholder"
+    optional: true
+
+# ============================================
+# Test 2: Navigate to Genesis 1
+# ============================================
+
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Verify both panels still showing
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# Verify header shows Genesis 1
+- assertVisible:
+    text: "Genesis 1"
+
+# ============================================
+# Test 3: Navigate to Genesis 5 and Verify Sync
+# ============================================
+
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-genesis"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-5"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Verify header updated to Genesis 5
+- assertVisible:
+    text: "Genesis 5"
+
+# No stale content
+- assertNotVisible:
+    text: "Genesis 1"
+    optional: true
+
+# Both panels visible
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test 4: Navigate to Different Book (Exodus 1)
+# ============================================
+
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-exodus"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Verify header shows Exodus 1
+- assertVisible:
+    text: "Exodus 1"
+
+# Split view intact
+- assertVisible:
+    id: "split-view"
+
+# No leftover Genesis text
+- assertNotVisible:
+    text: "Genesis"
+    optional: true
+
+# ============================================
+# Test 5: Right Panel Menu Interaction
+# ============================================
+
+- assertVisible:
+    id: "bible-explanations-panel-menu-button"
+
+- tapOn:
+    id: "bible-explanations-panel-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-modal"
+    timeout: 10000
+
+- tapOn:
+    id: "menu-close-button"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "hamburger-menu-modal"
+    timeout: 10000
+
+# Both panels still visible after menu
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "bible-explanations-panel"
+
+# ============================================
+# Test Complete: Panels stay in sync on desktop web
+# ============================================
