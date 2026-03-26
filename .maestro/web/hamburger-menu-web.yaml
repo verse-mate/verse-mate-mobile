@@ -1,0 +1,306 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Hamburger Menu Web E2E Test
+#
+# Adapted from .maestro/navigation/hamburger-menu-flow.yaml for Expo Web.
+#
+# This flow tests the hamburger menu functionality:
+# 1. Open menu via hamburger-menu-button
+# 2. Navigate to each destination (Bookmarks, Highlights, Notes, Settings)
+# 3. Verify menu closes after navigation
+# 4. Test menu close button and backdrop
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/hamburger-menu-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Open Hamburger Menu
+# ============================================
+
+# Verify hamburger menu button is visible
+- assertVisible:
+    id: "hamburger-menu-button"
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu content to be visible
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Verify close button is visible
+- assertVisible:
+    id: "menu-close-button"
+
+# ============================================
+# Test 2: Verify All Menu Items Present
+# ============================================
+
+# Verify Bookmarks menu item
+- assertVisible:
+    id: "menu-item-bookmarks"
+
+# Verify Highlights menu item
+- assertVisible:
+    id: "menu-item-highlights"
+
+# Verify Notes menu item
+- assertVisible:
+    id: "menu-item-notes"
+
+# Verify Settings menu item
+- assertVisible:
+    id: "menu-item-settings"
+
+# ============================================
+# Test 3: Navigate to Bookmarks
+# ============================================
+
+# Tap Bookmarks menu item
+- tapOn:
+    id: "menu-item-bookmarks"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Menu should close after navigation
+- assertNotVisible:
+    id: "hamburger-menu"
+
+# Wait for bookmarks screen to load
+- extendedWaitUntil:
+    visible:
+      id: "bookmarks-back-button"
+    timeout: 5000
+
+# Go back to chapter screen
+- tapOn:
+    id: "bookmarks-back-button"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 4: Navigate to Highlights
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu
+- waitForAnimationToEnd
+
+
+# Verify menu opened
+- assertVisible:
+    id: "hamburger-menu"
+
+# Tap Highlights menu item
+- tapOn:
+    id: "menu-item-highlights"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Menu should close after navigation
+- assertNotVisible:
+    id: "hamburger-menu"
+
+# Wait for highlights screen to load
+- extendedWaitUntil:
+    visible:
+      id: "highlights-back-button"
+    timeout: 5000
+
+# Go back to chapter screen
+- tapOn:
+    id: "highlights-back-button"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 5: Navigate to Notes
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu
+- waitForAnimationToEnd
+
+
+# Verify menu opened
+- assertVisible:
+    id: "hamburger-menu"
+
+# Tap Notes menu item
+- tapOn:
+    id: "menu-item-notes"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Menu should close after navigation
+- assertNotVisible:
+    id: "hamburger-menu"
+
+# Wait for notes screen to load
+- extendedWaitUntil:
+    visible:
+      id: "notes-back-button"
+    timeout: 5000
+
+# Go back to chapter screen
+- tapOn:
+    id: "notes-back-button"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 6: Navigate to Settings
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu
+- waitForAnimationToEnd
+
+
+# Verify menu opened
+- assertVisible:
+    id: "hamburger-menu"
+
+# Tap Settings menu item
+- tapOn:
+    id: "menu-item-settings"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Menu should close after navigation
+- assertNotVisible:
+    id: "hamburger-menu"
+
+# Verify settings back button is visible
+- assertVisible:
+    id: "settings-back-button"
+
+# Go back to chapter screen
+- tapOn:
+    id: "settings-back-button"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+
+# Verify back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 7: Close Menu via Close Button
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu
+- waitForAnimationToEnd
+
+
+# Verify menu opened
+- assertVisible:
+    id: "hamburger-menu"
+
+# Close menu via close button
+- tapOn:
+    id: "menu-close-button"
+
+# Wait for menu to close
+- waitForAnimationToEnd
+
+
+# Menu should be closed
+- assertNotVisible:
+    id: "hamburger-menu"
+
+# Verify still on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 8: Close Menu via Backdrop
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu
+- waitForAnimationToEnd
+
+
+# Verify menu opened
+- assertVisible:
+    id: "hamburger-menu"
+
+# Close menu via backdrop
+- tapOn:
+    id: "menu-backdrop"
+
+# Wait for menu to close
+- waitForAnimationToEnd
+
+
+# Menu should be closed
+- assertNotVisible:
+    id: "hamburger-menu"
+
+# Verify still on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================

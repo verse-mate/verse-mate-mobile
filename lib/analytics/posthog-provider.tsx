@@ -94,8 +94,7 @@ function PostHogInitializer({ children }: { children: ReactNode }) {
     hasInitialized.current = true;
 
     // Register platform super property (Task 4.6)
-    // This ensures every event automatically includes platform: 'mobile'
-    posthog.register({ platform: 'mobile' });
+    posthog.register({ platform: Platform.OS === 'web' ? 'web' : 'mobile' });
 
     // Get device locale information (Task 4.5)
     const { language, country } = getLocaleInfo();
@@ -134,17 +133,19 @@ export function AppPostHogProvider({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
+  // Skip PostHog during SSR on web (AsyncStorage requires window/localStorage)
+  if (Platform.OS === 'web' && typeof window === 'undefined') {
+    return <>{children}</>;
+  }
+
   return (
     <PostHogProvider
       apiKey={posthogApiKey}
       options={{
         host: posthogHost,
-        // Enable session replay based on environment variable
-        enableSessionReplay: sessionReplayEnabled,
-        // Enable automatic app lifecycle events tracking (Time-Based Analytics Phase 1)
-        // This automatically captures: Application Installed, Application Updated,
-        // Application Opened, Application Became Active, Application Backgrounded
-        captureAppLifecycleEvents: true,
+        // Session replay and lifecycle events are mobile-only
+        enableSessionReplay: Platform.OS !== 'web' && sessionReplayEnabled,
+        captureAppLifecycleEvents: Platform.OS !== 'web',
       }}
     >
       <PostHogInitializer>{children}</PostHogInitializer>

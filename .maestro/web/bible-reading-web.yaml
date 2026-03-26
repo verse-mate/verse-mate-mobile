@@ -1,0 +1,52 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Bible Reading Web E2E Test
+#
+# Verifies the core reading flow works on Expo Web.
+# Adapted from .maestro/bible-reading/bible-reading-flow.yaml.
+#
+# Web adaptation: Uses conditional setup to handle warm state
+# (if onboarding was already completed, "Skip" won't be visible).
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/bible-reading-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# Verify Genesis 1 loaded from API
+- assertVisible:
+    text: "Genesis 1"
+
+- assertVisible:
+    text: "The Creation"
+
+# Verify navigation tabs
+- assertVisible:
+    text: "Bible"
+
+- assertVisible:
+    text: "Insight"
+
+# Switch to Insight view
+- tapOn:
+    text: "Insight"
+
+- waitForAnimationToEnd
+
+# Verify tabs appear in Insight view
+- assertVisible:
+    text: "Summary"
+
+# Switch back to Bible view
+- tapOn:
+    text: "Bible"
+
+- waitForAnimationToEnd
+
+# Verify chapter content still visible
+- assertVisible:
+    text: "The Creation"
