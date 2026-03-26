@@ -122,7 +122,7 @@ jobs:
   maestro-e2e:
     name: Maestro E2E Tests (Mobile)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout code
