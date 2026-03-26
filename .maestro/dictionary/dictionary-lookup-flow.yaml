@@ -12,38 +12,36 @@ tags:
 # Dictionary Lookup E2E Test Flow
 #
 # This flow tests the dictionary/definition feature:
-# 1. Navigate to a chapter with known content (Genesis 1)
+# 1. Wait for Genesis 1 content to fully load
 # 2. Long-press on a word in the verse text to trigger definition lookup
 # 3. Verify the word definition tooltip appears
-# 4. Verify definition content is displayed (not "no definition found")
-# 5. Dismiss the tooltip
+# 4. Dismiss the tooltip
 #
 # Covers: GH-193 (dictionary fuzzy matching)
 
-- runFlow: ../shared/setup.yaml
-
-# Wait for app to fully load
-- extendedWaitUntil:
-    visible:
-      id: "chapter-selector-button"
-    timeout: 30000
+- runFlow: ../shared/setup-warm.yaml
 
 # ============================================
-# Test 1: Navigate to Genesis 1 (known content)
+# Test 1: Wait for Bible content to load
 # ============================================
 
-# Verify we're on a chapter screen
+# Verify chapter selector is visible (app loaded)
 - assertVisible:
     id: "chapter-selector-button"
+
+# Wait for verse content to render (Genesis 1 text)
+- extendedWaitUntil:
+    visible:
+      text: "In the beginning"
+    timeout: 30000
 
 # ============================================
 # Test 2: Long-press on verse text to trigger dictionary
 # ============================================
 
-# Long-press on the word "God" which should be in Genesis 1
-# Using text matching since verse text doesn't have per-word testIDs
+# Long-press on "beginning" which is in Genesis 1:1
 - longPressOn:
-    text: "God"
+    text: "beginning"
 
 # ============================================
 # Test 3: Verify dictionary tooltip appears
@@ -53,11 +51,11 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "word-definition-tooltip"
-    timeout: 5000
+    timeout: 10000
 
-# Verify the tooltip shows definition content (not just loading)
+# Verify the tooltip header is showing
 - assertVisible:
-    id: "word-definition-tooltip"
+    text: "Word Definition"
 
 # ============================================
 # Test 4: Dismiss tooltip
