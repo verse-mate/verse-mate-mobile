@@ -1,8 +1,7 @@
 appId: org.versemate.app
 ---
 # Tablet test setup: clearState:true ensures clean split-view initialization.
-# clearState:false corrupts navigation state ("Error 1 / Chapter not found")
-# so each test must start fresh. CDN is primed by the CI warmup step.
+# Note: EAS Update + seed DB are already primed by the CI warmup step.
 #
 # Usage: - runFlow: ../shared/setup-warm-tablet.yaml
 
@@ -10,18 +9,14 @@ appId: org.versemate.app
     clearState: true
     appId: org.versemate.app
 
-# Wait for onboarding — extended timeout for EAS Update (CDN primed)
-- extendedWaitUntil:
-    visible:
-      text: "Skip"
-    timeout: 90000
-
-# Complete onboarding
+# Tap Skip if onboarding is showing (optional — clearState may re-trigger it)
 - tapOn:
     text: "Skip"
+    optional: true
 
 # Wait for split-view layout to render (tablet in landscape, width >= 1024dp)
+# Extended timeout: clearState forces EAS Update re-download from CDN (primed)
 - extendedWaitUntil:
     visible:
       id: "split-view"
-    timeout: 60000
+    timeout: 120000

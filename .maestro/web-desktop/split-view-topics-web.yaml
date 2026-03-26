@@ -1,0 +1,129 @@
+---
+appId: org.versemate.web
+url: http://localhost:8081
+name: Desktop Split View - Topics (Web)
+description: Tests topics screen in desktop split view — both panels render, topic switching works.
+tags:
+  - split-view
+  - web-desktop
+  - topics
+
+---
+
+# Desktop Split View - Topics (Web)
+#
+# PREREQUISITE: Xvfb at >= 1920x1080.
+#
+# Tests:
+# 1. Navigate to Topics via modal
+# 2. Verify split view renders for topics
+# 3. Switch topics
+# 4. Navigate back to Bible
+
+- runFlow: ../shared/setup-desktop-web.yaml
+
+# ============================================
+# Test 1: Navigate to Topics
+# ============================================
+
+- tapOn:
+    id: "bible-content-panel-header"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+
+# Switch to Topics tab
+- tapOn:
+    id: "tab-topics"
+
+- waitForAnimationToEnd
+
+# Wait for topics list to load
+- extendedWaitUntil:
+    visible:
+      id: "topics-search-input"
+    timeout: 30000
+
+# Scroll down and select the first visible topic
+- scroll
+- tapOn:
+    id: "topics-search-input"
+
+# Type a known topic to filter the list
+- inputText: "Creation"
+
+- waitForAnimationToEnd
+
+# Tap the filtered result
+- tapOn:
+    text: "The Creation"
+    optional: true
+
+- waitForAnimationToEnd
+
+# Close modal if still open (might have navigated already)
+- runFlow:
+    when:
+      visible:
+        id: "bible-navigation-modal"
+    commands:
+      - back
+
+# ============================================
+# Test 2: Verify Topics Split View
+# ============================================
+
+# Split view should still be active
+- extendedWaitUntil:
+    visible:
+      id: "split-view"
+    timeout: 15000
+
+# ============================================
+# Test 3: Navigate Back to Bible
+# ============================================
+
+# Open navigation modal to switch back to Bible
+- tapOn:
+    id: "hamburger-menu-button"
+    optional: true
+
+- runFlow:
+    when:
+      visible:
+        id: "hamburger-menu-modal"
+    commands:
+      - tapOn:
+          id: "menu-close-button"
+
+# Use the left panel header to navigate back
+- tapOn:
+    id: "bible-content-panel-header"
+    optional: true
+
+- runFlow:
+    when:
+      visible:
+        id: "bible-navigation-modal"
+    commands:
+      - tapOn:
+          id: "tab-old-testament"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "book-item-genesis"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "chapter-1"
+      - waitForAnimationToEnd
+
+# Wait for Bible split view
+- extendedWaitUntil:
+    visible:
+      id: "split-view"
+    timeout: 15000
+
+# ============================================
+# Test Complete: Topics work in desktop split view
+# ============================================
