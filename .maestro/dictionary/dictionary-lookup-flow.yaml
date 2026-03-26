@@ -29,19 +29,24 @@ tags:
 - assertVisible:
     id: "chapter-selector-button"
 
-# Wait for verse content to render (Genesis 1 text)
+# Switch to Bible view to ensure verse text is showing
+- tapOn:
+    id: "bible-view-toggle"
+    optional: true
+
+# Wait for verse content to render — look for Verse 1 accessibility label
 - extendedWaitUntil:
     visible:
-      text: "In the beginning"
+      label: "Verse 1"
     timeout: 30000
 
 # ============================================
 # Test 2: Long-press on verse text to trigger dictionary
 # ============================================
 
-# Long-press on "beginning" which is in Genesis 1:1
+# Long-press on Verse 1 text (triggers word selection on the verse)
 - longPressOn:
-    text: "beginning"
+    label: "Verse 1"
 
 # ============================================
 # Test 3: Verify dictionary tooltip appears
