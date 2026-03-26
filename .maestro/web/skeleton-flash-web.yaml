@@ -1,0 +1,151 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Skeleton Flash Web E2E Test - Explanations View
+#
+# Adapted from .maestro/regression/skeleton-flash-test.yaml for Expo Web.
+#
+# This flow tests that skeleton loading doesn't flash unnecessarily
+# when navigating between chapters in Explanations view when data is cached.
+#
+# Web adaptation: Uses FAB button navigation instead of swipe
+# (Selenium mouse drag doesn't trigger CSS scroll-snap on PagerView).
+#
+# User Journey:
+# 1. Launch app to Genesis 1
+# 2. Switch to Explanations view
+# 3. Wait for explanation to load (ensure it's cached)
+# 4. Navigate to Genesis 2 via FAB (trigger cache + new fetch)
+# 5. Verify no skeleton flash during transition
+# 6. Verify explanation content appears smoothly
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/skeleton-flash-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# Wait for chapter to load - verify chapter selector is visible
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Wait for content to load
+- waitForAnimationToEnd
+
+
+# Switch to Explanations view by tapping the explanations icon
+- tapOn:
+    id: "commentary-view-toggle"
+
+# Wait for explanations to load
+- waitForAnimationToEnd
+
+
+# Verify we're in Explanations view (tabs should be visible)
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# Wait a moment to ensure explanation is cached
+- waitForAnimationToEnd
+
+
+# Take screenshot before navigation
+- takeScreenshot: before-nav-chapter-1
+
+# Navigate to next chapter via FAB
+# This is the critical moment - we should NOT see skeleton flash
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "next-chapter-button"
+
+# Wait for animation to complete
+- waitForAnimationToEnd
+
+
+# Take screenshot after navigation
+- takeScreenshot: after-nav-chapter-2
+
+# Verify chapter selector button is visible (chapter loaded)
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Verify we're still in Explanations view (tabs visible)
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# CRITICAL: Verify skeleton loader is NOT visible
+# If skeleton is visible, it means the flash happened
+- assertNotVisible:
+    id: "skeleton-loader"
+
+# Navigate to next chapter again via FAB (test consecutive navigations)
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "next-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "next-chapter-button"
+
+- waitForAnimationToEnd
+
+
+# Take screenshot after second navigation
+- takeScreenshot: after-nav-chapter-3
+
+# Verify chapter selector button still visible
+- assertVisible:
+    id: "chapter-selector-button"
+
+# CRITICAL: Again verify skeleton is not visible
+- assertNotVisible:
+    id: "skeleton-loader"
+
+# Navigate backward via FAB (test reverse direction)
+- tapOn:
+    point: "50%,50%"
+
+- extendedWaitUntil:
+    visible:
+      id: "previous-chapter-button"
+    timeout: 5000
+
+- tapOn:
+    id: "previous-chapter-button"
+
+- waitForAnimationToEnd
+
+
+# Take screenshot after reverse navigation
+- takeScreenshot: after-nav-back-chapter-2
+
+# Verify chapter selector button visible
+- assertVisible:
+    id: "chapter-selector-button"
+
+# CRITICAL: Skeleton should not be visible
+- assertNotVisible:
+    id: "skeleton-loader"
+
+# Switch back to Bible view to verify view switching works
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+
+# Verify Bible content is visible (not skeleton)
+- assertNotVisible:
+    id: "skeleton-loader"

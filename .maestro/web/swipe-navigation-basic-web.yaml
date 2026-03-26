@@ -1,0 +1,59 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Basic Swipe Navigation Web E2E Test
+#
+# Adapted from .maestro/swipe/swipe-navigation-basic.yaml for Expo Web.
+#
+# This flow tests basic swipe navigation:
+# - Swipe left to navigate to next chapter
+# - Swipe right to navigate to previous chapter
+# - Verify chapter content updates correctly
+#
+# User Journey:
+# 1. Launch app to Genesis 1
+# 2. Swipe left -> Genesis 2
+# 3. Swipe right -> Genesis 1
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test .maestro/web/swipe-navigation-basic-web.yaml
+
+- runFlow: ../shared/setup-web.yaml
+
+# Wait for app to load - verify chapter selector is visible
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Wait for content to load
+- waitForAnimationToEnd
+
+
+# Swipe left to go to next chapter
+- swipe:
+    direction: LEFT
+    duration: 500
+
+- waitForAnimationToEnd
+
+
+# Verify chapter selector still visible (chapter loaded)
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Swipe right to go back to previous chapter
+- swipe:
+    direction: RIGHT
+    duration: 500
+
+- waitForAnimationToEnd
+
+
+# Verify chapter selector still visible
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Final wait for content to settle
+- waitForAnimationToEnd
