@@ -93,12 +93,12 @@
         "releaseStatus": "completed"
       },
       "ios": {
-        "ascAppId": "6754565256"
+        "ascAppId": "6756897180"
       }
     },
     "production": {
       "ios": {
-        "ascAppId": "6754565256"
+        "ascAppId": "6756897180"
       }
     }
   }
