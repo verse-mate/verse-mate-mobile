@@ -1,0 +1,87 @@
+---
+appId: org.versemate.app
+name: Dictionary Lookup Flow
+description: Tests dictionary word definition lookup via long-press on Bible verse text
+tags:
+  - dictionary
+  - user-flow
+  - critical
+
+---
+
+# Dictionary Lookup E2E Test Flow
+#
+# This flow tests the dictionary/definition feature:
+# 1. Wait for Genesis 1 content to fully load
+# 2. Long-press on a word in the verse text to trigger definition lookup
+# 3. Verify the word definition tooltip appears
+# 4. Dismiss the tooltip
+#
+# Covers: GH-193 (dictionary fuzzy matching)
+
+- runFlow: ../shared/setup-warm.yaml
+
+# ============================================
+# Test 1: Wait for Bible content to load
+# ============================================
+
+# Verify chapter selector is visible (app loaded)
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Switch to Bible view to ensure verse text is showing
+- tapOn:
+    id: "bible-view-toggle"
+    optional: true
+
+# Wait for verse content to render — look for Verse 1 accessibility label
+- extendedWaitUntil:
+    visible:
+      label: "Verse 1"
+    timeout: 30000
+
+# ============================================
+# Test 2: Long-press on verse text to trigger dictionary
+# ============================================
+
+# Long-press on Verse 1 text (triggers word selection on the verse)
+- longPressOn:
+    label: "Verse 1"
+
+# ============================================
+# Test 3: Verify dictionary tooltip appears
+# ============================================
+
+# Wait for the word definition tooltip to appear
+- extendedWaitUntil:
+    visible:
+      id: "word-definition-tooltip"
+    timeout: 10000
+
+# Verify the tooltip header is showing
+- assertVisible:
+    text: "Word Definition"
+
+# ============================================
+# Test 4: Dismiss tooltip
+# ============================================
+
+# Swipe down to dismiss the tooltip
+- swipe:
+    direction: DOWN
+    duration: 300
+
+# Wait for dismiss animation
+- waitForAnimationToEnd
+
+# Verify tooltip is gone
+- assertNotVisible:
+    id: "word-definition-tooltip"
+
+# Verify we're still on the chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================
