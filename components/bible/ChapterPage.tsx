@@ -99,6 +99,8 @@ function TabContent({
   onTouchEnd,
   filteredHighlights,
   filteredAutoHighlights,
+  scrollRef,
+  onTabContentSizeChange,
 }: {
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
@@ -113,6 +115,8 @@ function TabContent({
   onTouchEnd?: (event: GestureResponderEvent) => void;
   filteredHighlights?: Highlight[];
   filteredAutoHighlights?: AutoHighlight[];
+  scrollRef?: React.RefObject<ScrollView | null>;
+  onTabContentSizeChange?: (contentWidth: number, contentHeight: number) => void;
 }) {
   const { colors } = useTheme();
   const styles = createStyles(colors); // Use local createStyles for TabContent
@@ -132,6 +136,7 @@ function TabContent({
   // Use absolute positioning + pointerEvents to hide inactive tabs
   return (
     <ScrollView
+      ref={scrollRef}
       style={[
         styles.container,
         isHidden && {
@@ -152,6 +157,7 @@ function TabContent({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       pointerEvents={visible ? 'auto' : 'none'}
+      onContentSizeChange={onTabContentSizeChange}
     >
       {error ? (
         <Animated.View
@@ -272,6 +278,12 @@ export function ChapterPage({
   const hasScrolledRef = useRef(false);
   // Track current scroll position manually for distance calc (JS side)
   const currentScrollYRef = useRef(0);
+  // Track Bible view scroll fraction (0-1) for syncing to explanation tabs
+  const bibleScrollFractionRef = useRef(0);
+  // Refs for explanation tab ScrollViews to sync scroll position
+  const byLineScrollRef = useRef<ScrollView>(null);
+  const summaryScrollRef = useRef<ScrollView>(null);
+  const detailedScrollRef = useRef<ScrollView>(null);
 
   // Note Modals State
   const [notesModalVisible, setNotesModalVisible] = useState(false);
@@ -359,13 +371,45 @@ export function ChapterPage({
     visibleYRangeRef.current = null;
   }, [bookId, chapterNumber]);
 
-  // Mark as scrolled when user switches to explanations view
-  // This prevents animation from restarting when returning to Bible
+  // Track explanation tab content heights for scroll syncing
+  const tabContentHeightsRef = useRef<
+    Record<string, { contentHeight: number; viewHeight: number }>
+  >({});
+
+  const handleTabContentSizeChange = (tab: string, contentHeight: number, viewHeight: number) => {
+    tabContentHeightsRef.current[tab] = {
+      contentHeight,
+      viewHeight: viewHeight || viewportHeightRef.current,
+    };
+  };
+
+  // Sync scroll position when switching from Bible to explanations view
   useEffect(() => {
     if (activeView !== 'bible') {
       hasScrolledRef.current = true;
+
+      // Sync scroll position from Bible view to the active explanation tab
+      const fraction = bibleScrollFractionRef.current;
+      if (fraction > 0.01) {
+        const targetRef =
+          activeTab === 'summary'
+            ? summaryScrollRef
+            : activeTab === 'byline'
+              ? byLineScrollRef
+              : detailedScrollRef;
+
+        // Small delay to allow layout after view switch
+        setTimeout(() => {
+          const dims = tabContentHeightsRef.current[activeTab];
+          if (dims && dims.contentHeight > dims.viewHeight) {
+            const scrollableHeight = dims.contentHeight - dims.viewHeight;
+            const targetY = Math.round(fraction * scrollableHeight);
+            targetRef.current?.scrollTo({ y: targetY, animated: false });
+          }
+        }, 100);
+      }
     }
-  }, [activeView]);
+  }, [activeView, activeTab]);
 
   // Track last scroll position and timestamp for velocity calculation
   const lastScrollY = useRef(0);
@@ -604,6 +648,12 @@ export function ChapterPage({
     const scrollHeight = contentSize.height - layoutMeasurement.height;
     const isAtBottom = scrollHeight - currentScrollY <= BOTTOM_THRESHOLD;
 
+    // Track scroll fraction for cross-view sync
+    const scrollableHeight = contentSize.height - layoutMeasurement.height;
+    if (scrollableHeight > 0) {
+      bibleScrollFractionRef.current = currentScrollY / scrollableHeight;
+    }
+
     // Update refs
     lastScrollY.current = currentScrollY;
     lastScrollTime.current = currentTime;
@@ -713,6 +763,10 @@ export function ChapterPage({
             onTouchEnd={handleTouchEnd}
             filteredHighlights={chapterHighlights}
             filteredAutoHighlights={autoHighlights}
+            scrollRef={summaryScrollRef}
+            onTabContentSizeChange={(_w, h) =>
+              handleTabContentSizeChange('summary', h, viewportHeightRef.current)
+            }
           />
           <TabContent
             chapter={displayChapter}
@@ -728,6 +782,10 @@ export function ChapterPage({
             onTouchEnd={handleTouchEnd}
             filteredHighlights={chapterHighlights}
             filteredAutoHighlights={autoHighlights}
+            scrollRef={byLineScrollRef}
+            onTabContentSizeChange={(_w, h) =>
+              handleTabContentSizeChange('byline', h, viewportHeightRef.current)
+            }
           />
           <TabContent
             chapter={displayChapter}
@@ -743,6 +801,10 @@ export function ChapterPage({
             onTouchEnd={handleTouchEnd}
             filteredHighlights={chapterHighlights}
             filteredAutoHighlights={autoHighlights}
+            scrollRef={detailedScrollRef}
+            onTabContentSizeChange={(_w, h) =>
+              handleTabContentSizeChange('detailed', h, viewportHeightRef.current)
+            }
           />
         </View>
       )}
