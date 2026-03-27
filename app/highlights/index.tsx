@@ -175,14 +175,6 @@ export default function HighlightsScreen() {
   };
 
   /**
-   * Handle login button press
-   * Navigate to login screen
-   */
-  const handleLoginPress = () => {
-    router.push('/auth/login');
-  };
-
-  /**
    * Handle back button press
    * Navigate back to previous screen
    */
