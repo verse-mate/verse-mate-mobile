@@ -412,9 +412,10 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           });
         }
 
-        // Update all-highlights cache if it exists (append server data, don't refetch)
+        // Update caches with server-confirmed highlight data (replaces optimistic entry)
         const serverHighlight = (data as { highlight?: Highlight })?.highlight;
         if (serverHighlight) {
+          // Update all-highlights cache if it exists
           const allCache =
             queryClient.getQueryData<GetBibleHighlightsByUserIdResponse>(allHighlightsQueryKey);
           if (allCache) {
@@ -422,11 +423,33 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
               highlights: [...allCache.highlights, serverHighlight],
             });
           }
+
+          // Update chapter cache with server data — replace the optimistic entry
+          if (!fetchAllHighlights) {
+            const chapterCache =
+              queryClient.getQueryData<GetBibleHighlightsByUserIdByBookIdByChapterNumberResponse>(
+                chapterHighlightsQueryKey
+              );
+            if (chapterCache) {
+              queryClient.setQueryData<GetBibleHighlightsByUserIdByBookIdByChapterNumberResponse>(
+                chapterHighlightsQueryKey,
+                {
+                  highlights: chapterCache.highlights.map((h) =>
+                    h.highlight_id === serverHighlight.highlight_id ||
+                    (h.start_verse === serverHighlight.start_verse &&
+                      h.end_verse === serverHighlight.end_verse &&
+                      h.book_id === serverHighlight.book_id &&
+                      h.chapter_number === serverHighlight.chapter_number)
+                      ? serverHighlight
+                      : h
+                  ),
+                }
+              );
+            }
+          }
         }
       } finally {
-        // Invalidate in finally to ensure cache consistency even if analytics/cache update throws
-        queryClient.invalidateQueries({ queryKey: chapterHighlightsQueryKey });
-
+        // Only invalidate offline fallback caches — chapter/all caches are already up to date
         if (!isOnline) {
           queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
           queryClient.invalidateQueries({
