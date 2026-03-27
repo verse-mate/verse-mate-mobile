@@ -743,6 +743,7 @@ export function HighlightedText({
       onTextLayout={handleTextLayout}
       onLayout={handleLayout}
       onPress={handleOuterPress}
+      testID={`verse-text-${verseNumber}`}
       {...textProps}
     >
       {segments.map((segment) => {
