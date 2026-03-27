@@ -1,0 +1,87 @@
+---
+appId: org.versemate.app
+name: Dictionary Tablet Flow
+description: Tests dictionary popup positioning on tablet in split-view mode
+tags:
+  - dictionary
+  - tablet
+  - user-flow
+
+---
+
+# Dictionary Tablet E2E Test Flow
+#
+# This flow tests dictionary popup positioning on tablet devices:
+# 1. Load in split-view mode (tablet landscape)
+# 2. Long-press a word to trigger dictionary lookup
+# 3. Verify tooltip appears and is properly positioned (visible on screen)
+# 4. Dismiss and verify cleanup
+#
+# Covers: GH-166 (iPad dictionary popup positioning)
+#
+# Runs on tablet emulator only (in split-view/ folder)
+
+- runFlow: ../shared/setup-warm-tablet.yaml
+
+# ============================================
+# Test 1: Verify split-view layout loaded
+# ============================================
+
+# Split-view should already be visible from setup
+- assertVisible:
+    id: "bible-content-panel"
+
+- assertVisible:
+    id: "explanations-panel"
+
+# Wait for verse content to render
+- extendedWaitUntil:
+    visible:
+      label: "Verse 1"
+    timeout: 30000
+
+# ============================================
+# Test 2: Long-press on verse text to trigger dictionary
+# ============================================
+
+# Long-press on Verse 1 text
+- longPressOn:
+    label: "Verse 1"
+
+# ============================================
+# Test 3: Verify tooltip appears and is visible
+# ============================================
+
+# Wait for the word definition tooltip
+- extendedWaitUntil:
+    visible:
+      id: "word-definition-tooltip"
+    timeout: 10000
+
+# Verify tooltip title is visible (confirms it's on screen, not off-center)
+- assertVisible:
+    text: "Word Definition"
+
+# ============================================
+# Test 4: Dismiss tooltip
+# ============================================
+
+# Swipe down to dismiss
+- swipe:
+    direction: DOWN
+    duration: 300
+
+# Wait for dismiss animation
+- waitForAnimationToEnd
+
+# Verify tooltip is gone
+- assertNotVisible:
+    id: "word-definition-tooltip"
+
+# Verify split-view is still intact
+- assertVisible:
+    id: "bible-content-panel"
+
+# ============================================
+# Test Complete
+# ============================================
