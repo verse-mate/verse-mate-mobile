@@ -257,9 +257,18 @@ export function BibleExplanationsPanel({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header Bar - Only for Menu now */}
+      {/* Header Bar */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
+          <ShareButton
+            bookId={bookId}
+            chapterNumber={chapterNumber}
+            bookName={bookName}
+            insightType={activeTab}
+            size={20}
+            color={specs.headerTextColor}
+            testID={`${testID}-share-button`}
+          />
           <View style={{ flex: 1 }} />
           {onMenuPress && (
             <Pressable
@@ -334,21 +343,18 @@ export function BibleExplanationsPanel({
             ref: summaryScrollRef,
             data: summaryContent,
             loading: summaryLoading,
-            title: `Summary of ${bookName} ${chapterNumber}`,
           },
           {
             key: 'byline' as const,
             ref: byLineScrollRef,
             data: byLineContent,
             loading: byLineLoading,
-            title: `Line-by-Line: ${bookName} ${chapterNumber}`,
           },
           {
             key: 'detailed' as const,
             ref: detailedScrollRef,
             data: detailedContent,
             loading: detailedLoading,
-            title: `Detailed Insight: ${bookName} ${chapterNumber}`,
           },
         ] as const
       ).map((tab) => (
@@ -366,20 +372,6 @@ export function BibleExplanationsPanel({
             <SkeletonLoader />
           ) : tab.data ? (
             <>
-              <View style={styles.contentTitleRow}>
-                <Text style={styles.contentTitle}>{tab.title}</Text>
-                <View style={styles.contentActions}>
-                  <ShareButton
-                    bookId={bookId}
-                    chapterNumber={chapterNumber}
-                    bookName={bookName}
-                    insightType={tab.key}
-                    size={22}
-                    color={colors.textSecondary}
-                    testID={`${testID}-share-button`}
-                  />
-                </View>
-              </View>
               <Markdown style={markdownStyles}>{tab.data}</Markdown>
               <BottomLogo />
             </>
