@@ -119,14 +119,18 @@ export function BibleExplanationsPanel({
   const touchStartTime = useRef(0);
   const touchStartY = useRef(0);
 
-  // Ref for scroll reset on tab/chapter change
-  const scrollViewRef = useRef<ScrollView>(null);
+  // Separate scroll refs per tab to maintain independent scroll positions
+  const summaryScrollRef = useRef<ScrollView>(null);
+  const byLineScrollRef = useRef<ScrollView>(null);
+  const detailedScrollRef = useRef<ScrollView>(null);
 
-  // Reset scroll position when tab or chapter changes
+  // Reset all scroll positions only when chapter changes (not on tab switch)
   // biome-ignore lint/correctness/useExhaustiveDependencies: deps are intentional triggers for scroll reset
   useEffect(() => {
-    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
-  }, [activeTab, bookId, chapterNumber]);
+    summaryScrollRef.current?.scrollTo({ y: 0, animated: false });
+    byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
+    detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [bookId, chapterNumber]);
 
   // Animate indicator when active tab changes
   useEffect(() => {
@@ -171,39 +175,24 @@ export function BibleExplanationsPanel({
     }
   );
 
-  // Get current tab data
-  const currentData = useMemo(() => {
-    switch (activeTab) {
-      case 'summary':
-        return summaryData;
-      case 'byline':
-        return byLineData;
-      case 'detailed':
-        return detailedData;
-      default:
-        return null;
-    }
-  }, [activeTab, summaryData, byLineData, detailedData]);
-
-  const isLoading =
-    (activeTab === 'summary' && summaryLoading) ||
-    (activeTab === 'byline' && byLineLoading) ||
-    (activeTab === 'detailed' && detailedLoading);
-
   // Handle tab change with haptic feedback
   const handleTabChange = (tab: ContentTabType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onTabChange(tab);
   };
 
-  // Get content string from data
-  const content = useMemo(() => {
-    if (!currentData) return null;
-    if (typeof currentData === 'object' && 'content' in currentData) {
-      return currentData.content as string;
+  // Per-tab content extraction
+  const extractContent = (data: unknown): string | null => {
+    if (!data) return null;
+    if (typeof data === 'object' && data !== null && 'content' in data) {
+      return (data as { content: string }).content;
     }
     return null;
-  }, [currentData]);
+  };
+
+  const summaryContent = extractContent(summaryData);
+  const byLineContent = extractContent(byLineData);
+  const detailedContent = extractContent(detailedData);
 
   /**
    * Handle touch start - record time and position
@@ -346,29 +335,53 @@ export function BibleExplanationsPanel({
         </View>
       </View>
 
-      {/* Content Area */}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-        onScroll={handleInternalScroll}
-        scrollEventThrottle={16}
-        testID={`${testID}-scroll`}
-      >
-        {isLoading ? (
-          <SkeletonLoader />
-        ) : content ? (
-          <>
-            <Markdown style={markdownStyles}>{content}</Markdown>
-            <BottomLogo />
-          </>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No explanations available for this chapter.</Text>
-          </View>
-        )}
-      </ScrollView>
+      {/* Content Area — one ScrollView per tab for independent scroll positions */}
+      {(
+        [
+          {
+            key: 'summary' as const,
+            ref: summaryScrollRef,
+            data: summaryContent,
+            loading: summaryLoading,
+          },
+          {
+            key: 'byline' as const,
+            ref: byLineScrollRef,
+            data: byLineContent,
+            loading: byLineLoading,
+          },
+          {
+            key: 'detailed' as const,
+            ref: detailedScrollRef,
+            data: detailedContent,
+            loading: detailedLoading,
+          },
+        ] as const
+      ).map((tab) => (
+        <ScrollView
+          key={tab.key}
+          ref={tab.ref}
+          style={[styles.scrollView, activeTab !== tab.key && { display: 'none' }]}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          onScroll={activeTab === tab.key ? handleInternalScroll : undefined}
+          scrollEventThrottle={16}
+          testID={`${testID}-scroll-${tab.key}`}
+        >
+          {tab.loading ? (
+            <SkeletonLoader />
+          ) : tab.data ? (
+            <>
+              <Markdown style={markdownStyles}>{tab.data}</Markdown>
+              <BottomLogo />
+            </>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No explanations available for this chapter.</Text>
+            </View>
+          )}
+        </ScrollView>
+      ))}
     </View>
   );
 }
