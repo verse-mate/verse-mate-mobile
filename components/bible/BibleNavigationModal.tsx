@@ -73,7 +73,7 @@ import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useBibleTestaments } from '@/src/api';
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId } from '@/types/bible';
-import type { TopicCategory, TopicListItem } from '@/types/topics';
+import type { TopicCategory } from '@/types/topics';
 
 interface BibleNavigationModalProps {
   /** Whether modal is visible */
@@ -462,6 +462,7 @@ function BibleNavigationModalComponent({
   );
 
   // Auto-scroll effect - triggers when a book is expanded
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedBookId and selectedSection intentionally trigger scroll on expand
   useEffect(() => {
     if (!lastExpandedBookRef.current) return;
 
