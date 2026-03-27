@@ -41,7 +41,7 @@ if [ -z "$TEST_FOLDER" ]; then
   # Run all folders except split-view (split-view requires tablet emulator)
   echo "Running all phone test folders..."
   OVERALL_EXIT=0
-  for folder in auth bible-reading bookmarks highlights notes regression settings swipe topics navigation; do
+  for folder in auth bible-reading bookmarks dictionary highlights notes regression settings swipe topics navigation; do
     echo "=========================================="
     echo "Running tests in .maestro/$folder/"
     echo "=========================================="
