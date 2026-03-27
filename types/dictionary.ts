@@ -31,6 +31,19 @@ export interface LookupResult {
 }
 
 /**
+ * Webster's 1913 Unabridged Dictionary entry
+ */
+export interface WebsterEntry {
+  term: string;
+  definition: string;
+}
+
+/**
+ * Dictionary keyed by normalized English word
+ */
+export type WebsterDictionary = Record<string, WebsterEntry>;
+
+/**
  * Easton's Bible Dictionary entry
  */
 export interface EastonEntry {
@@ -53,5 +66,6 @@ export interface DictionaryResult {
   strongsNumber?: string;
   strongsEntry?: StrongsEntry;
   eastonEntry?: EastonEntry;
-  source: 'native' | 'strongs' | 'easton' | 'none';
+  websterEntry?: WebsterEntry;
+  source: 'native' | 'strongs' | 'easton' | 'webster' | 'none';
 }
