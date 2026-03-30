@@ -98,11 +98,13 @@ interface BibleNavigationModalProps {
   customTranslateY?: SharedValue<number>;
 }
 
+type BookListItem = BookMetadata & { _listKey: string };
+
 interface BookListSection {
   key: string;
   title: string;
   section: 'RECENTS' | 'ALL_BOOKS';
-  data: BookMetadata[];
+  data: BookListItem[];
 }
 
 /**
@@ -162,7 +164,7 @@ function BibleNavigationModalComponent({
   const [buttonHeight, setButtonHeight] = useState(0);
 
   // Ref for SectionList to enable programmatic scrolling
-  const sectionListRef = useRef<SectionList<BookMetadata, BookListSection>>(null);
+  const sectionListRef = useRef<SectionList<BookListItem, BookListSection>>(null);
 
   // Animate main tab indicator when selectedTab changes
   useEffect(() => {
@@ -367,15 +369,14 @@ function BibleNavigationModalComponent({
     });
   }, [currentTopics, topicFilterText]);
 
-  // Recent books across all testaments (excluding current book, sorted by timestamp)
+  // Recent books across all testaments (sorted by timestamp)
   const recentBooksFiltered = useMemo(() => {
-    // Filter out current book and sort by timestamp (most recent first)
+    // Sort by timestamp (most recent first)
     return recentBooks
-      .filter((rb) => rb.bookId !== currentBookId)
       .sort((a, b) => b.timestamp - a.timestamp)
       .map((rb) => allBooks.find((b) => b.id === rb.bookId))
       .filter((book): book is BookMetadata => book !== undefined);
-  }, [allBooks, recentBooks, currentBookId]);
+  }, [allBooks, recentBooks]);
 
   // Build SectionList sections for book list
   const bookSections = useMemo((): BookListSection[] => {
@@ -387,14 +388,14 @@ function BibleNavigationModalComponent({
         key: 'recents',
         title: 'RECENTS',
         section: 'RECENTS',
-        data: recentBooksFiltered,
+        data: recentBooksFiltered.map((book) => ({ ...book, _listKey: `recent-${book.id}` })),
       });
     }
     sections.push({
       key: 'all-books',
       title: isFiltering ? '' : 'ALL BOOKS',
       section: 'ALL_BOOKS',
-      data: filteredBooks,
+      data: filteredBooks.map((book) => ({ ...book, _listKey: `book-${book.id}` })),
     });
     return sections;
   }, [recentBooksFiltered, filteredBooks, filterText]);
@@ -832,13 +833,13 @@ function BibleNavigationModalComponent({
 
     return (
       <GestureDetector gesture={scrollGesture}>
-        <SectionList<BookMetadata, BookListSection>
+        <SectionList<BookListItem, BookListSection>
           ref={sectionListRef}
           sections={bookSections}
           style={styles.bookList}
           contentContainerStyle={styles.bookListContent}
           keyboardShouldPersistTaps="always"
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item._listKey}
           renderSectionHeader={({ section }) => {
             if (!section.title) return null;
             return (
