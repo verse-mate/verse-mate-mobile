@@ -338,6 +338,7 @@ export function NoteEditModal({
                 placeholder="Type your note here..."
                 placeholderTextColor={colors.textTertiary}
                 scrollEnabled={false} // Allow ScrollView to handle scrolling
+                testID="note-edit-input"
               />
 
               {interimTranscript ? (
@@ -366,6 +367,7 @@ export function NoteEditModal({
                 style={[styles.primaryButton, isSaveDisabled && styles.primaryButtonDisabled]}
                 onPress={handleSave}
                 disabled={isSaveDisabled}
+                testID="note-save-button"
               >
                 <Text style={styles.primaryButtonText}>
                   {isUpdatingNote ? 'Saving...' : 'Save Note'}
