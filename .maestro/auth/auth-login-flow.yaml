@@ -1,0 +1,130 @@
+---
+appId: org.versemate.app
+name: Login with Credentials Flow
+description: Tests actual login with test credentials and verifies authenticated state
+tags:
+  - critical
+  - auth
+  - user-flow
+
+---
+
+# Login with Credentials E2E Test
+#
+# This flow tests actual authentication with real credentials:
+# 1. Navigate to login and authenticate
+# 2. Verify authenticated state (logout visible, login not visible)
+# 3. Verify settings show profile (authenticated state)
+#
+# Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Login and Authenticate
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Tap Login
+- tapOn:
+    id: "menu-item-login"
+
+- waitForAnimationToEnd
+
+# Enter email
+- tapOn:
+    id: "login-email"
+- inputText: "${E2E_TEST_EMAIL}"
+
+# Enter password
+- tapOn:
+    id: "login-password"
+- inputText: "${E2E_TEST_PASSWORD}"
+
+# Submit
+- tapOn:
+    id: "login-submit"
+
+# Wait for redirect back to Bible screen
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 15000
+
+# ============================================
+# Test 2: Verify Authenticated State
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Verify logout is visible (authenticated)
+- assertVisible:
+    id: "menu-item-logout"
+
+# Verify login is NOT visible (already authenticated)
+- assertNotVisible:
+    id: "menu-item-login"
+
+# Close menu
+- tapOn:
+    id: "menu-close-button"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test 3: Verify Settings Show Profile
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Navigate to Settings
+- tapOn:
+    id: "menu-item-settings"
+
+- waitForAnimationToEnd
+
+# Verify logout button is visible (authenticated)
+- assertVisible:
+    id: "settings-logout-button"
+
+# Verify sign-in button is NOT visible
+- assertNotVisible:
+    id: "settings-sign-in-button"
+
+# Go back
+- tapOn:
+    id: "settings-back-button"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test Complete
+# ============================================

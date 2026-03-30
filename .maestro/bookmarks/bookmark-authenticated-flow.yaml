@@ -1,0 +1,122 @@
+---
+appId: org.versemate.app
+name: Bookmark CRUD Flow (Authenticated)
+description: Tests bookmark add, verify in list, navigate from bookmark, and remove for authenticated users
+tags:
+  - critical
+  - auth
+  - user-flow
+
+---
+
+# Bookmark CRUD E2E Test (Authenticated)
+#
+# This flow tests full bookmark lifecycle for authenticated users:
+# 1. Add a bookmark via toggle
+# 2. Verify bookmark appears in bookmarks list
+# 3. Navigate to chapter from bookmark
+# 4. Remove bookmark (cleanup)
+#
+# Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+
+- runFlow: ../shared/setup-authenticated.yaml
+
+# Wait for Bible screen (Genesis 1)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# ============================================
+# Test 1: Add Bookmark
+# ============================================
+
+# Verify bookmark toggle is visible
+- assertVisible:
+    id: "bookmark-toggle-1-1"
+
+# Tap bookmark toggle to add bookmark for Genesis 1
+- tapOn:
+    id: "bookmark-toggle-1-1"
+
+# Wait for bookmark animation
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Bookmark in List
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Navigate to Bookmarks
+- tapOn:
+    id: "menu-item-bookmarks"
+
+- waitForAnimationToEnd
+
+# Verify bookmarks list is visible (not login prompt)
+- assertVisible:
+    id: "bookmarks-list"
+
+# Verify Genesis 1 bookmark is present
+- assertVisible:
+    id: "bookmark-item-1-1"
+
+# ============================================
+# Test 3: Navigate to Chapter from Bookmark
+# ============================================
+
+# Tap bookmark to navigate
+- tapOn:
+    id: "bookmark-item-1-1"
+
+- waitForAnimationToEnd
+
+# Verify we're back on the chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 4: Remove Bookmark (Cleanup)
+# ============================================
+
+# Tap bookmark toggle again to remove
+- tapOn:
+    id: "bookmark-toggle-1-1"
+
+- waitForAnimationToEnd
+
+# Open hamburger menu to verify removal
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+- tapOn:
+    id: "menu-item-bookmarks"
+
+- waitForAnimationToEnd
+
+# Verify bookmark is gone
+- assertNotVisible:
+    id: "bookmark-item-1-1"
+
+# Go back
+- tapOn:
+    id: "bookmarks-back-button"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test Complete
+# ============================================
