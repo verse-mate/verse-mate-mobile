@@ -20,7 +20,6 @@ import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomLogo } from '@/components/bible/BottomLogo';
 import {
   fontSizes,
   fontWeights,
@@ -320,8 +319,6 @@ export function TopicExplanationsPanel({
             </Text>
           </View>
         )}
-
-        <BottomLogo />
       </ScrollView>
     </View>
   );
