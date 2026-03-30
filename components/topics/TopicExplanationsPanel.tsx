@@ -319,7 +319,6 @@ export function TopicExplanationsPanel({
             </Text>
           </View>
         )}
-
       </ScrollView>
     </View>
   );
