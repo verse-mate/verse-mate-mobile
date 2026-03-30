@@ -194,7 +194,6 @@ function TabContent({
           )}
         </View>
       )}
-      <BottomLogo />
     </ScrollView>
   );
 }
