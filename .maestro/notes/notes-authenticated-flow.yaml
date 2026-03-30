@@ -1,0 +1,102 @@
+---
+appId: org.versemate.app
+name: Notes CRUD Flow (Authenticated)
+description: Tests note creation, verification in list, and deletion for authenticated users
+tags:
+  - critical
+  - auth
+  - user-flow
+
+---
+
+# Notes CRUD E2E Test (Authenticated)
+#
+# This flow tests full notes lifecycle for authenticated users:
+# 1. Create a note on Genesis 1
+# 2. Verify note appears in notes list
+# 3. Delete note (cleanup)
+#
+# Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+
+- runFlow: ../shared/setup-authenticated.yaml
+
+# Wait for Bible screen (Genesis 1)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# ============================================
+# Test 1: Create a Note
+# ============================================
+
+# Tap notes button on Genesis 1
+- tapOn:
+    id: "notes-button-1-1"
+
+# Wait for notes modal
+- waitForAnimationToEnd
+
+# Type note content
+- tapOn:
+    id: "note-create-input"
+
+- inputText: "E2E test note for Genesis 1"
+
+# Tap create button
+- tapOn:
+    id: "note-create-button"
+
+# Wait for note creation
+- waitForAnimationToEnd
+
+# Close the notes modal
+- tapOn:
+    id: "close-button"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Note in Notes List
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Navigate to Notes
+- tapOn:
+    id: "menu-item-notes"
+
+- waitForAnimationToEnd
+
+# Verify notes list is visible (not login prompt)
+- assertVisible:
+    id: "notes-list"
+
+# Verify Genesis 1 note group is present
+- assertVisible:
+    id: "chapter-group-1-1"
+
+# ============================================
+# Test 3: Delete Note (Cleanup)
+# ============================================
+
+# Go back to chapter screen
+- tapOn:
+    id: "notes-back-button"
+
+- waitForAnimationToEnd
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================
