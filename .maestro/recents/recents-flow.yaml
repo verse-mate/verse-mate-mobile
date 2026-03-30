@@ -1,0 +1,129 @@
+---
+appId: org.versemate.app
+name: Recents/History Flow
+description: Tests that recently visited books appear in the RECENTS section of the navigation modal
+tags:
+  - critical
+  - user-flow
+  - navigation
+
+---
+
+# Recents/History E2E Test
+#
+# This flow tests the recents history feature in the navigation modal:
+# 1. Navigate to multiple books to build recents history
+# 2. Verify RECENTS section appears in navigation modal
+# 3. Navigate from recents entry
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load (starts at Genesis 1)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Multiple Books
+# ============================================
+
+# Navigate to Matthew (NT)
+- tapOn:
+    id: "chapter-selector-button"
+
+- assertVisible:
+    id: "bible-navigation-modal"
+
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-matthew"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+# Verify we navigated
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Navigate to Exodus (OT)
+- tapOn:
+    id: "chapter-selector-button"
+
+- assertVisible:
+    id: "bible-navigation-modal"
+
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-exodus"
+
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "chapter-1"
+
+- waitForAnimationToEnd
+
+# Verify we navigated
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 2: Verify RECENTS Section Appears
+# ============================================
+
+# Open navigation modal
+- tapOn:
+    id: "chapter-selector-button"
+
+- assertVisible:
+    id: "bible-navigation-modal"
+
+# Verify RECENTS section header is visible
+- assertVisible:
+    text: "RECENTS"
+
+# Verify recently visited books appear
+- assertVisible:
+    id: "book-item-exodus"
+
+- assertVisible:
+    id: "book-item-matthew"
+
+# ============================================
+# Test 3: Navigate from Recents
+# ============================================
+
+# Tap Matthew from recents
+- tapOn:
+    id: "book-item-matthew"
+
+# Wait for chapter grid
+- waitForAnimationToEnd
+
+# Select chapter 1
+- tapOn:
+    id: "chapter-1"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+# Verify we're on the chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================

@@ -12,6 +12,8 @@ on:
         type: boolean
         default: false
         description: "Build fresh APK (only needed for native changes). Default: reuse latest + OTA update."
+  pull_request:
+    branches: [main]
 
 jobs:
   # ── Web Desktop E2E (runs in parallel — no emulator needed) ────
@@ -296,4 +298,140 @@ jobs:
           ### How it works
           - **Default**: Downloads the latest \`e2e-test\` APK from EAS, pushes an OTA JS update, then runs tests.
           - **force-rebuild=true**: Builds a fresh APK via EAS (only needed when native code changes — new SDK, native modules, etc.)
+          EOF
+
+  # ── PR Regression E2E (lightweight subset on pull_request) ───────
+  regression-e2e:
+    name: PR Regression E2E Tests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+          $HOME/.maestro/bin/maestro --version
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Enable KVM hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download latest APK from EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "Fetching latest e2e-test APK from EAS..."
+          BUILD_JSON=$(eas build:list --platform android --profile e2e-test --status finished --limit 1 --non-interactive --json)
+
+          APK_URL=$(echo "$BUILD_JSON" | jq -r '.[0].artifacts.buildUrl')
+          BUILD_ID=$(echo "$BUILD_JSON" | jq -r '.[0].id')
+
+          if [ -z "$APK_URL" ] || [ "$APK_URL" = "null" ]; then
+            echo "Error: No existing e2e-test APK found."
+            exit 1
+          fi
+
+          echo "Reusing APK from build $BUILD_ID"
+          curl -L -o app.apk "$APK_URL"
+
+      - name: Push OTA update
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "Pushing JS update to e2e-test branch..."
+          eas update --branch e2e-test --message "PR regression E2E for ${{ github.sha }}" --non-interactive
+
+      - name: Run regression tests on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            adb install app.apk
+
+            # Pre-launch for EAS Update download
+            adb shell am start -n org.versemate.app/.MainActivity
+            sleep 30
+            adb shell am force-stop org.versemate.app
+            sleep 3
+            adb shell input keyevent KEYCODE_HOME
+
+            # Warmup
+            if ! maestro test .maestro/shared/warmup.yaml; then
+              sleep 15
+              maestro test .maestro/shared/warmup.yaml || true
+            fi
+
+            # Run regression folder only
+            OVERALL_EXIT=0
+            for folder in regression search recents; do
+              echo "=========================================="
+              echo "Running tests in .maestro/$folder/"
+              echo "=========================================="
+              maestro test ".maestro/$folder/" || OVERALL_EXIT=1
+            done
+            if [ $OVERALL_EXIT -ne 0 ]; then
+              echo "Some regression tests failed"
+              exit 1
+            fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-regression-test-results
+          path: ~/.maestro/tests/
+          retention-days: 14
+
+      - name: PR regression summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## PR Regression E2E Test Results
+
+          | Property | Value |
+          |----------|-------|
+          | **Test Folders** | regression/, search/, recents/ |
+          | **Emulator** | Pixel 6, API 34 |
+          | **Trigger** | Pull Request |
           EOF
