@@ -516,12 +516,12 @@ export function useNotes(): UseNotesResult {
   // Loading if:
   // 1. Auth is still loading, OR
   // 2. Query is actively fetching (remote or local), OR
-  // 3. Auth is loaded, we are online, but query hasn't fetched yet (dataUpdatedAt === 0)
+  // 3. Auth is loaded, we are online, data not yet synced, and query hasn't fetched yet (dataUpdatedAt === 0)
   const isFetchingNotes =
     isAuthLoading ||
     isQueryFetching ||
     isLocalFetching ||
-    (isAuthenticated && !isDeviceOffline && dataUpdatedAt === 0);
+    (isAuthenticated && !isDeviceOffline && !isUserDataSynced && dataUpdatedAt === 0);
 
   return {
     notes,
