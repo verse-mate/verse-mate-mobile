@@ -19,7 +19,6 @@ import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } f
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomLogo } from '@/components/bible/BottomLogo';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import {
   fontSizes,
@@ -371,10 +370,7 @@ export function BibleExplanationsPanel({
           {tab.loading ? (
             <SkeletonLoader />
           ) : tab.data ? (
-            <>
-              <Markdown style={markdownStyles}>{tab.data}</Markdown>
-              <BottomLogo />
-            </>
+            <Markdown style={markdownStyles}>{tab.data}</Markdown>
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No explanations available for this chapter.</Text>
