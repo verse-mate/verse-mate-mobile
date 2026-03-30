@@ -181,9 +181,10 @@ describe('BibleNavigationModal', () => {
       />
     );
 
-    // Psalms is the current book, select it from ALL BOOKS list
-    const psalmsButton = screen.getByLabelText('Psalms, 150 chapters');
-    fireEvent.press(psalmsButton);
+    // Psalms is the current book — it appears in both RECENTS and ALL BOOKS,
+    // so use getAllByLabelText and select the last one (ALL BOOKS section)
+    const psalmsButtons = screen.getAllByLabelText('Psalms, 150 chapters');
+    fireEvent.press(psalmsButtons[psalmsButtons.length - 1]);
 
     // Verify all 150 chapters are rendered
     await waitFor(() => {
