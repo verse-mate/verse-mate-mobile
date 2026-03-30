@@ -545,7 +545,6 @@ export function TopicPage({
               )}
             </View>
           )}
-          <BottomLogo />
         </ScrollView>
       )}
     </View>
