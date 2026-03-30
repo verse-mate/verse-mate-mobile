@@ -23,6 +23,12 @@ jest.mock('@/services/word-mapping-service', () => ({
   normalizeWord: (w: string) => w.toLowerCase().replace(/[.,;:!?'"()]/g, ''),
 }));
 
+// Mock webster-service
+const mockLookupWebster = jest.fn();
+jest.mock('@/services/webster-service', () => ({
+  lookupWebster: (...args: unknown[]) => mockLookupWebster(...args),
+}));
+
 const mockEastonEntry = {
   term: 'Love',
   definition: 'This word seems to require explanation.',
@@ -60,6 +66,7 @@ describe('dictionary-service', () => {
     mockGetStrongsNumber.mockReturnValue(null);
     mockIsValidStrongsNumber.mockReturnValue(false);
     mockLookup.mockResolvedValue({ found: false, entry: null });
+    mockLookupWebster.mockResolvedValue(null);
   });
 
   describe('priority order', () => {
@@ -204,6 +211,63 @@ describe('dictionary-service', () => {
 
       // Falls through to direct Strong's check which also fails
       expect(result.source).toBe('none');
+    });
+  });
+
+  describe("Webster's dictionary fallback", () => {
+    const mockWebsterEntry = {
+      term: 'The',
+      definition: 'A word placed before nouns to limit or individualize their meaning.',
+    };
+
+    it("should try Webster's when Easton and Strong's miss", async () => {
+      mockLookupWebster.mockResolvedValue(mockWebsterEntry);
+
+      const result = await lookupWord('the');
+
+      expect(result.source).toBe('webster');
+      expect(result.websterEntry).toEqual(mockWebsterEntry);
+      expect(mockLookupWebster).toHaveBeenCalledWith('the');
+    });
+
+    it('should work on all platforms', async () => {
+      mockLookupWebster.mockResolvedValue(mockWebsterEntry);
+
+      const result = await lookupWord('the');
+
+      expect(result.source).toBe('webster');
+      expect(result.websterEntry).toEqual(mockWebsterEntry);
+    });
+
+    it("should return none when Webster's also misses", async () => {
+      mockLookupWebster.mockResolvedValue(null);
+
+      const result = await lookupWord('xyzzy');
+
+      expect(result.source).toBe('none');
+      expect(mockLookupWebster).toHaveBeenCalledWith('xyzzy');
+    });
+
+    it("should prefer Easton over Webster's", async () => {
+      mockLookupEaston.mockResolvedValue(mockEastonEntry);
+      mockLookupWebster.mockResolvedValue(mockWebsterEntry);
+
+      const result = await lookupWord('love');
+
+      expect(result.source).toBe('easton');
+      expect(mockLookupWebster).not.toHaveBeenCalled();
+    });
+
+    it("should prefer Strong's over Webster's", async () => {
+      mockHasStrongsNumber.mockReturnValue(true);
+      mockGetStrongsNumber.mockReturnValue('G26');
+      mockLookup.mockResolvedValue({ found: true, entry: mockStrongsEntry });
+      mockLookupWebster.mockResolvedValue(mockWebsterEntry);
+
+      const result = await lookupWord('love');
+
+      expect(result.source).toBe('strongs');
+      expect(mockLookupWebster).not.toHaveBeenCalled();
     });
   });
 
