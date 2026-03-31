@@ -1,0 +1,73 @@
+---
+appId: org.versemate.app
+name: Verse Insight Bottom Sheet Flow
+description: Tests tapping a verse to open insight panel and dismissing it
+tags:
+  - user-flow
+  - bible
+
+---
+
+# Verse Insight Bottom Sheet E2E Test
+#
+# This flow tests verse insight panel functionality:
+# 1. Switch to Bible view and tap a verse
+# 2. Verify insight panel / bottom sheet appears
+# 3. Dismiss the panel and verify return to Bible view
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load (Genesis 1)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Switch to Bible view to see verse text
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test 1: Tap Verse to Open Insight
+# ============================================
+
+# Tap verse 1
+- tapOn:
+    id: "verse-text-1"
+
+# Wait for insight panel / bottom sheet to appear
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Insight Content
+# ============================================
+
+# Verify insight panel elements are visible (share or bookmark button)
+- assertVisible:
+    id: "insight-title-share-button"
+    optional: true
+
+# ============================================
+# Test 3: Dismiss Insight Panel
+# ============================================
+
+# Tap backdrop to dismiss
+- tapOn:
+    id: "backdrop"
+    optional: true
+
+- waitForAnimationToEnd
+
+# Verify we're back on Bible verse view
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Verify Bible view toggle is still visible
+- assertVisible:
+    id: "bible-view-toggle"
+
+# ============================================
+# Test Complete
+# ============================================

@@ -339,6 +339,7 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
                   value={newNoteContent}
                   onChangeText={setNewNoteContent}
                   maxLength={NOTES_CONFIG.MAX_CONTENT_LENGTH}
+                  testID="note-create-input"
                 />
 
                 {interimTranscript ? (
@@ -365,6 +366,7 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
                     disabled={isAddButtonDisabled}
                     style={[styles.addButton, isAddButtonDisabled && styles.addButtonDisabled]}
                     activeOpacity={0.7}
+                    testID="note-create-button"
                   >
                     <Text
                       style={[

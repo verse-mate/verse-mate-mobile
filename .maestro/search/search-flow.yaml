@@ -1,0 +1,105 @@
+---
+appId: org.versemate.app
+name: Search Feature Flow
+description: Tests searching for a book in the navigation modal, navigating from result, and clearing search
+tags:
+  - critical
+  - user-flow
+  - search
+
+---
+
+# Search Feature E2E Test
+#
+# This flow tests the book search functionality within the navigation modal:
+# 1. Open modal and search for a book by name
+# 2. Verify search filters the book list
+# 3. Navigate from a search result
+# 4. Clear search and verify all books return
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Open Modal and Search for a Book
+# ============================================
+
+# Open navigation modal
+- tapOn:
+    id: "chapter-selector-button"
+
+# Verify modal opened
+- assertVisible:
+    id: "bible-navigation-modal"
+
+# Tap search input to focus
+- tapOn:
+    id: "books-search-input"
+
+# Type search query
+- inputText: "Matthew"
+
+# Verify search result is visible
+- assertVisible:
+    id: "book-item-matthew"
+
+# Verify filtered-out book is NOT visible
+- assertNotVisible:
+    id: "book-item-genesis"
+
+# ============================================
+# Test 2: Navigate from Search Result
+# ============================================
+
+# Tap search result
+- tapOn:
+    id: "book-item-matthew"
+
+# Wait for chapter grid
+- waitForAnimationToEnd
+
+# Select chapter 1
+- tapOn:
+    id: "chapter-1"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+# Verify modal closed
+- assertNotVisible:
+    id: "bible-navigation-modal"
+
+# Verify we're on the chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test 3: Clear Search and Verify All Books
+# ============================================
+
+# Open navigation modal again
+- tapOn:
+    id: "chapter-selector-button"
+
+# Verify modal opened
+- assertVisible:
+    id: "bible-navigation-modal"
+
+# Switch to OT tab to verify Genesis is visible (search cleared on modal reopen)
+- tapOn:
+    id: "tab-old-testament"
+
+- waitForAnimationToEnd
+
+# Verify all books are shown (Genesis should be visible)
+- assertVisible:
+    id: "book-item-genesis"
+
+# ============================================
+# Test Complete
+# ============================================

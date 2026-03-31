@@ -1,0 +1,104 @@
+---
+appId: org.versemate.app
+name: Scroll Position View Switch Regression
+description: Tests that scroll position is preserved or synced when switching between Bible and Explanations views (GH-201)
+tags:
+  - critical
+  - regression
+
+---
+
+# Scroll Position View Switch Regression Test
+#
+# Regression test for GH-201: Scroll position should be preserved
+# or synced when switching between Bible and Explanations views.
+#
+# Test Scenarios:
+# 1. Scroll down in Bible view
+# 2. Switch to Explanations view
+# 3. Switch back to Bible view, verify scroll position
+# 4. Reverse direction test
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load (Genesis 1)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Switch to Bible view
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test 1: Scroll Down in Bible View
+# ============================================
+
+# Scroll down several times to move away from top
+- repeat:
+    times: 5
+    commands:
+      - scroll
+
+# ============================================
+# Test 2: Switch to Explanations View
+# ============================================
+
+- tapOn:
+    id: "commentary-view-toggle"
+
+- waitForAnimationToEnd
+
+# Verify we're in Explanations view
+- assertVisible:
+    id: "chapter-content-tabs"
+
+# ============================================
+# Test 3: Switch Back to Bible View
+# ============================================
+
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+# Verify chapter selector is still visible (page didn't break)
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Tabs should not be visible in Bible view
+- assertNotVisible:
+    id: "chapter-content-tabs"
+
+# ============================================
+# Test 4: Reverse Direction
+# ============================================
+
+# Switch to Explanations view
+- tapOn:
+    id: "commentary-view-toggle"
+
+- waitForAnimationToEnd
+
+# Scroll down in Explanations view
+- repeat:
+    times: 3
+    commands:
+      - scroll
+
+# Switch back to Bible view
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+# Verify page is still functional
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================

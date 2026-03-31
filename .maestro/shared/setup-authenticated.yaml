@@ -1,0 +1,58 @@
+appId: org.versemate.app
+name: Setup Authenticated Session
+tags:
+  - setup
+  - auth
+---
+# Shared authenticated setup: launch app, skip onboarding, login with test credentials.
+# Usage from any test subfolder: - runFlow: ../shared/setup-authenticated.yaml
+#
+# Required env vars:
+#   E2E_TEST_EMAIL    - test account email
+#   E2E_TEST_PASSWORD - test account password
+#
+# Pass via CLI: maestro test --env E2E_TEST_EMAIL=... --env E2E_TEST_PASSWORD=...
+# Or via .maestro/.env file (gitignored)
+
+- runFlow: setup.yaml
+
+# Verify Bible screen loaded
+- assertVisible:
+    id: "chapter-selector-button"
+    timeout: 10000
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+# Wait for menu to open
+- assertVisible:
+    id: "hamburger-menu"
+
+# Tap Login
+- tapOn:
+    id: "menu-item-login"
+
+# Wait for login screen
+- assertVisible:
+    id: "login-email"
+    timeout: 5000
+
+# Enter email
+- tapOn:
+    id: "login-email"
+- inputText: "${E2E_TEST_EMAIL}"
+
+# Enter password
+- tapOn:
+    id: "login-password"
+- inputText: "${E2E_TEST_PASSWORD}"
+
+# Submit login
+- tapOn:
+    id: "login-submit"
+
+# Wait for redirect back to Bible screen
+- assertVisible:
+    id: "chapter-selector-button"
+    timeout: 15000

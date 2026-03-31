@@ -87,30 +87,43 @@ Tests are organized into feature-based subfolders for easier navigation and sele
 .maestro/
 ├── README.md                                    # This documentation
 ├── auth/
-│   └── auth-flow.yaml                           # Authentication flows
+│   ├── auth-flow.yaml                           # Authentication UI flows
+│   └── auth-login-flow.yaml                     # Login with credentials
 ├── bible-reading/
 │   ├── bible-reading-flow.yaml                  # Core Bible reading
+│   ├── verse-insight-flow.yaml                  # Verse insight bottom sheet
 │   └── view-switcher-flow.yaml                  # View switching
 ├── bookmarks/
-│   └── bookmark-flow.yaml                       # Bookmarks feature
+│   ├── bookmark-flow.yaml                       # Bookmarks (unauthenticated)
+│   └── bookmark-authenticated-flow.yaml         # Bookmark CRUD (authenticated)
 ├── highlights/
-│   └── highlights-flow.yaml                     # Highlights feature
+│   ├── highlights-flow.yaml                     # Highlights (unauthenticated)
+│   └── highlights-authenticated-flow.yaml       # Highlights CRUD (authenticated)
 ├── navigation/
 │   ├── chapter-navigation-flow.yaml             # Button navigation
 │   ├── hamburger-menu-flow.yaml                 # Menu navigation
 │   ├── navigation-modal-flow.yaml               # Navigation modal
 │   └── tab-switching-flow.yaml                  # Content tab switching
 ├── notes/
-│   └── notes-flow.yaml                          # Notes feature
+│   ├── notes-flow.yaml                          # Notes (unauthenticated)
+│   └── notes-authenticated-flow.yaml            # Notes CRUD (authenticated)
+├── recents/
+│   └── recents-flow.yaml                        # Recents/history navigation
 ├── regression/
 │   ├── content-rendering-assertions.yaml        # No placeholder/TODO text
 │   ├── cross-chapter-count-navigation-test.yaml # Verse count differential sync
 │   ├── mixed-navigation-sync-test.yaml          # FAB + swipe + picker sync
 │   ├── rapid-fab-navigation-test.yaml           # Rapid FAB button stress test
 │   ├── reverse-direction-stress-test.yaml       # Rapid direction changes
-│   └── skeleton-flash-test.yaml                 # Loading skeleton
+│   ├── scroll-position-view-switch-test.yaml    # Scroll position across views
+│   ├── skeleton-flash-test.yaml                 # Loading skeleton
+│   ├── specific-chapter-load-test.yaml          # Galatians 6 load test
+│   └── tab-scroll-independence-test.yaml        # Tab scroll independence
+├── search/
+│   └── search-flow.yaml                         # Book search in modal
 ├── settings/
-│   └── settings-flow.yaml                       # Settings management
+│   ├── settings-flow.yaml                       # Settings management
+│   └── theme-switching-flow.yaml                # Theme switching
 ├── split-view/
 │   ├── landscape-split-view-basic.yaml          # Split view rendering (landscape)
 │   └── split-view-bible-sync.yaml               # Split view panel sync (landscape)
@@ -133,7 +146,7 @@ Tests are organized into feature-based subfolders for easier navigation and sele
     └── split-view-regression-web.yaml           # Desktop split view regression assertions
 ```
 
-**Total**: 33 test files across 12 feature folders (+ 3 Playwright desktop specs in `e2e/desktop/`)
+**Total**: 44 test files across 14 feature folders (+ 3 Playwright desktop specs in `e2e/desktop/`)
 
 ### File Naming Conventions
 
@@ -153,6 +166,31 @@ Tests are organized into feature-based subfolders for easier navigation and sele
 | `split-view` | Split view / landscape tests (require tablet emulator or desktop viewport) |
 | `landscape` | Tests requiring landscape orientation |
 | `web-desktop` | Desktop web split-view tests (require Xvfb >= 1920x1080) |
+| `search` | Book search functionality tests |
+
+### Shared Flows
+
+| Flow | Description |
+|------|-------------|
+| `shared/setup.yaml` | Launch app, clear state, skip onboarding, wait for Bible screen |
+| `shared/setup-authenticated.yaml` | Setup + login with test credentials (requires `E2E_TEST_EMAIL` and `E2E_TEST_PASSWORD` env vars) |
+| `shared/setup-warm.yaml` | Launch without clearing state (preserves EAS Update) |
+| `shared/warmup.yaml` | CI warmup flow (pre-seeds app state) |
+
+### Running Authenticated Tests
+
+Tests that require authentication use `setup-authenticated.yaml`. Pass credentials via env vars:
+
+```bash
+maestro test --env E2E_TEST_EMAIL=you@example.com --env E2E_TEST_PASSWORD=secret .maestro/auth/auth-login-flow.yaml
+```
+
+Or create a `.maestro/.env` file (gitignored) with:
+
+```
+E2E_TEST_EMAIL=you@example.com
+E2E_TEST_PASSWORD=secret
+```
 
 ---
 
@@ -160,23 +198,34 @@ Tests are organized into feature-based subfolders for easier navigation and sele
 
 | Folder | File | Type | Description | Tags |
 |--------|------|------|-------------|------|
-| `auth/` | `auth-flow.yaml` | User Flow | Login, signup, and authentication flows | `critical`, `auth` |
+| `auth/` | `auth-flow.yaml` | User Flow | Login, signup, and authentication UI flows | `critical`, `auth` |
+| `auth/` | `auth-login-flow.yaml` | User Flow | Login with real credentials, verify authenticated state | `critical`, `auth`, `user-flow` |
 | `bible-reading/` | `bible-reading-flow.yaml` | User Flow | Core Bible reading and view switching | `critical`, `user-flow` |
+| `bible-reading/` | `verse-insight-flow.yaml` | User Flow | Verse insight bottom sheet open/dismiss | `user-flow`, `bible` |
 | `bible-reading/` | `view-switcher-flow.yaml` | User Flow | Bible/Explanations view switching | `navigation` |
-| `bookmarks/` | `bookmark-flow.yaml` | User Flow | Bookmark creation, viewing, and navigation | `user-flow` |
-| `highlights/` | `highlights-flow.yaml` | User Flow | Highlight creation and management | `user-flow` |
+| `bookmarks/` | `bookmark-flow.yaml` | User Flow | Bookmark feature for unauthenticated users | `user-flow` |
+| `bookmarks/` | `bookmark-authenticated-flow.yaml` | User Flow | Bookmark CRUD for authenticated users | `critical`, `auth`, `user-flow` |
+| `highlights/` | `highlights-flow.yaml` | User Flow | Highlights feature for unauthenticated users | `user-flow` |
+| `highlights/` | `highlights-authenticated-flow.yaml` | User Flow | Highlights CRUD for authenticated users | `critical`, `auth`, `user-flow` |
 | `navigation/` | `chapter-navigation-flow.yaml` | User Flow | Chapter navigation via buttons | `navigation` |
 | `navigation/` | `hamburger-menu-flow.yaml` | User Flow | Hamburger menu navigation to all destinations | `navigation` |
 | `navigation/` | `navigation-modal-flow.yaml` | User Flow | Bible navigation modal (book/chapter selection) | `navigation` |
 | `navigation/` | `tab-switching-flow.yaml` | User Flow | Content tab switching (Summary/By-Line/Detailed) | `navigation` |
-| `notes/` | `notes-flow.yaml` | User Flow | Note creation and management | `user-flow` |
+| `notes/` | `notes-flow.yaml` | User Flow | Notes feature for unauthenticated users | `user-flow` |
+| `notes/` | `notes-authenticated-flow.yaml` | User Flow | Notes CRUD for authenticated users | `critical`, `auth`, `user-flow` |
+| `recents/` | `recents-flow.yaml` | User Flow | Recents/history navigation flow | `critical`, `user-flow`, `navigation` |
 | `regression/` | `content-rendering-assertions.yaml` | Regression | No placeholder/TODO text on any screen | `critical`, `regression`, `content-rendering` |
 | `regression/` | `cross-chapter-count-navigation-test.yaml` | Regression | Verse count differential sync (Psalm 119→120) | `critical`, `regression`, `navigation` |
 | `regression/` | `mixed-navigation-sync-test.yaml` | Regression | FAB + swipe + picker navigation sync | `critical`, `regression`, `navigation` |
 | `regression/` | `rapid-fab-navigation-test.yaml` | Regression | Rapid FAB button stress test (5 fwd + 3 bwd) | `critical`, `regression`, `navigation` |
 | `regression/` | `reverse-direction-stress-test.yaml` | Regression | Rapid direction changes (10 alternations) | `critical`, `regression`, `navigation` |
+| `regression/` | `scroll-position-view-switch-test.yaml` | Regression | Scroll position preservation across view switches (GH-201) | `critical`, `regression` |
 | `regression/` | `skeleton-flash-test.yaml` | Regression | Skeleton loader display during loading | `regression` |
+| `regression/` | `specific-chapter-load-test.yaml` | Regression | Galatians 6 loads without infinite spinner (GH-199) | `critical`, `regression` |
+| `regression/` | `tab-scroll-independence-test.yaml` | Regression | Commentary tab scroll independence (GH-189) | `critical`, `regression` |
+| `search/` | `search-flow.yaml` | User Flow | Book search in navigation modal | `critical`, `user-flow`, `search` |
 | `settings/` | `settings-flow.yaml` | User Flow | Settings, theme switching, profile editing | `critical`, `settings` |
+| `settings/` | `theme-switching-flow.yaml` | User Flow | Theme picker and switching between themes | `settings`, `user-flow` |
 | `split-view/` | `landscape-split-view-basic.yaml` | Regression | Split view renders both panels (requires landscape) | `critical`, `split-view`, `landscape`, `regression` |
 | `split-view/` | `split-view-bible-sync.yaml` | Regression | Split view panels stay in sync (requires landscape) | `critical`, `split-view`, `landscape`, `sync`, `regression` |
 | `swipe/` | `book-crossing-swipe-test.yaml` | Regression | Cross-book swipe updates header correctly | `critical`, `cross-book` |
@@ -194,7 +243,7 @@ Tests are organized into feature-based subfolders for easier navigation and sele
 | `web-desktop/` | `split-view-topics-web.yaml` | User Flow | Topics in desktop split view | `split-view`, `web-desktop`, `topics` |
 | `web-desktop/` | `split-view-regression-web.yaml` | Regression | Desktop split view content assertions | `split-view`, `web-desktop`, `regression` |
 
-**Note**: Tests in `split-view/` require running on an Android tablet emulator in landscape orientation (or iPad simulator in landscape for local testing). Tests in `web-desktop/` require Xvfb at >= 1920x1080 so Maestro's Chromium has a desktop viewport. See the respective test files for setup instructions.
+**Note**: Tests in `split-view/` require running on an Android tablet emulator in landscape orientation (or iPad simulator in landscape for local testing). Tests in `web-desktop/` require Xvfb at >= 1920x1080 so Maestro's Chromium has a desktop viewport. Tests tagged `auth` require `E2E_TEST_EMAIL` and `E2E_TEST_PASSWORD` env vars. See the respective test files for setup instructions.
 
 ---
 
@@ -348,6 +397,22 @@ All tests use `id:` (testID) selectors for stability. Below is the complete inve
 | `settings-logout-button` | Pressable | Logout button |
 | `settings-sign-in-button` | Pressable | Sign in prompt |
 | `theme-selector` | Pressable | Theme selection |
+| `theme-selector-button` | Pressable | Opens theme picker dropdown |
+| `theme-option-{value}` | Pressable | Theme option (auto, light, dark, etc.) |
+
+#### NoteEditModal
+
+| testID | Element | Description |
+|--------|---------|-------------|
+| `note-edit-input` | TextInput | Note content text input |
+| `note-save-button` | Pressable | Save note button |
+
+#### NotesModal
+
+| testID | Element | Description |
+|--------|---------|-------------|
+| `note-create-input` | TextInput | New note text input |
+| `note-create-button` | TouchableOpacity | Add note button |
 
 ---
 
@@ -477,6 +542,10 @@ For local development, iOS remains the recommended platform. Use `maestro test .
 
 ## Recent Changes
 
+- **2026-03-30**: Added 11 new Maestro test flows for critical coverage gaps (GH-240): search, recents, bookmark/notes/highlights CRUD (authenticated), auth login, theme switching, verse insight, tab scroll independence, scroll position view switch, specific chapter load regression tests
+- **2026-03-30**: Added `setup-authenticated.yaml` shared flow for authenticated E2E testing
+- **2026-03-30**: Added testIDs to ThemeSelector, NoteEditModal, NotesModal components
+- **2026-03-30**: Updated CI workflow with PR-triggered regression test subset
 - **2026-03-05**: Added 4 navigation state desync regression tests (#80, #81, #85, #87): rapid-fab-navigation, mixed-navigation-sync, cross-chapter-count-navigation, reverse-direction-stress
 - **2026-02-09**: Reorganized 23 test files from flat directory into 11 feature-based subfolders
 - **2026-02-09**: Adapted split-view tests from iPad to Android tablet emulator
