@@ -12,14 +12,17 @@ tags:
 # Dictionary Lookup E2E Test Flow
 #
 # This flow tests the dictionary/definition feature:
-# 1. Wait for Genesis 1 content to fully load
+# 1. Wait for Genesis 1 content to fully load in Bible view
 # 2. Long-press on a word in the verse text to trigger definition lookup
 # 3. Verify the word definition tooltip appears
 # 4. Dismiss the tooltip
 #
 # Covers: GH-193 (dictionary fuzzy matching)
+#
+# Note: Uses setup.yaml (clearState) which defaults to Bible view.
+# Do NOT tap bible-view-toggle — that would switch AWAY to Explanations.
 
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: ../shared/setup.yaml
 
 # ============================================
 # Test 1: Wait for Bible content to load
@@ -29,16 +32,12 @@ tags:
 - assertVisible:
     id: "chapter-selector-button"
 
-# Switch to Bible view to ensure verse text is showing
-- tapOn:
-    id: "bible-view-toggle"
-    optional: true
-
-# Wait for verse text to render (HighlightedText component)
+# Wait for verse text to render in the default Bible view
+# Extended timeout for slow CI emulators (API fetch + HighlightedText render)
 - extendedWaitUntil:
     visible:
       id: "verse-text-1"
-    timeout: 30000
+    timeout: 60000
 
 # ============================================
 # Test 2: Long-press on verse text to trigger dictionary

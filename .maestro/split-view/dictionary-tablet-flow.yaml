@@ -31,14 +31,18 @@ tags:
 - assertVisible:
     id: "bible-content-panel"
 
-- assertVisible:
-    id: "bible-explanations-panel"
+# Wait for explanations panel (may take a moment on slow emulators)
+- extendedWaitUntil:
+    visible:
+      id: "bible-explanations-panel"
+    timeout: 30000
 
-# Wait for verse text to render (HighlightedText component)
+# Wait for verse text to render in the Bible content panel
+# Extended timeout: clearState in tablet setup forces fresh content load
 - extendedWaitUntil:
     visible:
       id: "verse-text-1"
-    timeout: 30000
+    timeout: 60000
 
 # ============================================
 # Test 2: Long-press on verse text to trigger dictionary
