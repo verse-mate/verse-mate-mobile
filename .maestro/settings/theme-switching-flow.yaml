@@ -46,40 +46,45 @@ tags:
 - waitForAnimationToEnd
 
 # ============================================
-# Test 1: Open Theme Picker
+# Test 1: Open Theme Picker and Switch to Dark
 # ============================================
+
+# Scroll down to ensure theme selector is visible
+- scrollUntilVisible:
+    element:
+      id: "theme-selector-button"
+    direction: DOWN
+    timeout: 10000
 
 # Tap theme selector to open picker
 - tapOn:
     id: "theme-selector-button"
 
-# Verify theme options are visible
-- assertVisible:
-    id: "theme-option-dark"
+# Wait for picker to expand
+- extendedWaitUntil:
+    visible:
+      id: "theme-option-dark"
+    timeout: 5000
 
-- assertVisible:
-    id: "theme-option-light"
-
-- assertVisible:
-    id: "theme-option-auto"
-
-# ============================================
-# Test 2: Switch to Dark Theme
-# ============================================
-
+# Select dark theme
 - tapOn:
     id: "theme-option-dark"
 
-# Wait for theme change animation
+# Wait for theme change and picker to close
 - waitForAnimationToEnd
 
 # ============================================
-# Test 3: Switch to Light Theme
+# Test 2: Switch to Light Theme
 # ============================================
 
 # Reopen picker
 - tapOn:
     id: "theme-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "theme-option-light"
+    timeout: 5000
 
 - tapOn:
     id: "theme-option-light"
@@ -88,12 +93,17 @@ tags:
 - waitForAnimationToEnd
 
 # ============================================
-# Test 4: Switch Back to Auto
+# Test 3: Switch Back to Auto
 # ============================================
 
 # Reopen picker
 - tapOn:
     id: "theme-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "theme-option-auto"
+    timeout: 5000
 
 - tapOn:
     id: "theme-option-auto"
