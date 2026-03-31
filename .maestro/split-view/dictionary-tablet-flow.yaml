@@ -37,11 +37,10 @@ tags:
       id: "bible-explanations-panel"
     timeout: 30000
 
-# Scroll to find verse-text-1 in the Bible content panel
-# (handles slow rendering and virtualized lists on CI emulators)
+# Wait for verse group to render (View element, more reliable than nested Text)
 - scrollUntilVisible:
     element:
-      id: "verse-text-1"
+      id: "verse-group-1"
     direction: DOWN
     timeout: 60000
 
@@ -49,9 +48,9 @@ tags:
 # Test 2: Long-press on verse text to trigger dictionary
 # ============================================
 
-# Long-press on verse 1 text content (triggers word selection via HighlightedText onLongPress)
+# Long-press on verse group (View wrapper triggers word selection via HighlightedText onLongPress)
 - longPressOn:
-    id: "verse-text-1"
+    id: "verse-group-1"
 
 # ============================================
 # Test 3: Verify tooltip appears and is visible

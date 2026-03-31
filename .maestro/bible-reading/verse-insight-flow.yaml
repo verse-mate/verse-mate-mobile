@@ -30,10 +30,10 @@ tags:
 
 - waitForAnimationToEnd
 
-# Scroll to find verse-text-1 (handles slow rendering on CI emulators)
+# Wait for verse group to render (View element, more reliable than nested Text)
 - scrollUntilVisible:
     element:
-      id: "verse-text-1"
+      id: "verse-group-1"
     direction: DOWN
     timeout: 60000
 
@@ -41,9 +41,9 @@ tags:
 # Test 1: Tap Verse to Open Insight
 # ============================================
 
-# Tap verse 1
+# Tap the verse group (View wrapper around verse text)
 - tapOn:
-    id: "verse-text-1"
+    id: "verse-group-1"
 
 # Wait for insight panel / bottom sheet to appear
 - waitForAnimationToEnd
