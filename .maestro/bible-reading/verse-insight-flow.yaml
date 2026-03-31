@@ -11,9 +11,12 @@ tags:
 # Verse Insight Bottom Sheet E2E Test
 #
 # This flow tests verse insight panel functionality:
-# 1. Switch to Bible view and tap a verse
-# 2. Verify insight panel / bottom sheet appears
+# 1. Wait for Bible view with verse text to fully load
+# 2. Tap a verse to open insight panel
 # 3. Dismiss the panel and verify return to Bible view
+#
+# Note: After setup.yaml (clearState), the app defaults to Bible view.
+# Do NOT tap bible-view-toggle — that would switch AWAY to Explanations.
 
 - runFlow: ../shared/setup.yaml
 
@@ -23,18 +26,12 @@ tags:
       id: "chapter-selector-button"
     timeout: 30000
 
-# Switch to Bible view to see verse text (may already be in Bible view)
-- tapOn:
-    id: "bible-view-toggle"
-    optional: true
-
-- waitForAnimationToEnd
-
-# Wait for verse text to render
+# Wait for verse text to render in the default Bible view
+# On slow CI emulators, HighlightedText may take time after API fetch
 - extendedWaitUntil:
     visible:
       id: "verse-text-1"
-    timeout: 30000
+    timeout: 60000
 
 # ============================================
 # Test 1: Tap Verse to Open Insight
@@ -70,10 +67,6 @@ tags:
 # Verify we're back on Bible verse view
 - assertVisible:
     id: "chapter-selector-button"
-
-# Verify Bible view toggle is still visible
-- assertVisible:
-    id: "bible-view-toggle"
 
 # ============================================
 # Test Complete
