@@ -5,49 +5,50 @@ import type { WebsterDictionary, WebsterEntry } from '@/types/dictionary';
 const shardCache = new Map<string, WebsterDictionary>();
 
 /**
- * Static shard loaders — Metro bundler requires static require() paths.
- * Each loader is only invoked when the shard is first accessed.
+ * Dynamic shard loaders — uses import() for code splitting so the ~27MB of
+ * dictionary JSON is not embedded in the main JS bundle. Each shard is only
+ * fetched when first accessed.
  */
-const SHARD_LOADERS: Record<string, () => WebsterDictionary> = {
-  a: () => require('@/assets/data/webster-a.json'),
-  b: () => require('@/assets/data/webster-b.json'),
-  c: () => require('@/assets/data/webster-c.json'),
-  d: () => require('@/assets/data/webster-d.json'),
-  e: () => require('@/assets/data/webster-e.json'),
-  f: () => require('@/assets/data/webster-f.json'),
-  g: () => require('@/assets/data/webster-g.json'),
-  h: () => require('@/assets/data/webster-h.json'),
-  i: () => require('@/assets/data/webster-i.json'),
-  j: () => require('@/assets/data/webster-j.json'),
-  k: () => require('@/assets/data/webster-k.json'),
-  l: () => require('@/assets/data/webster-l.json'),
-  m: () => require('@/assets/data/webster-m.json'),
-  n: () => require('@/assets/data/webster-n.json'),
-  o: () => require('@/assets/data/webster-o.json'),
-  p: () => require('@/assets/data/webster-p.json'),
-  q: () => require('@/assets/data/webster-q.json'),
-  r: () => require('@/assets/data/webster-r.json'),
-  s: () => require('@/assets/data/webster-s.json'),
-  t: () => require('@/assets/data/webster-t.json'),
-  u: () => require('@/assets/data/webster-u.json'),
-  v: () => require('@/assets/data/webster-v.json'),
-  w: () => require('@/assets/data/webster-w.json'),
-  x: () => require('@/assets/data/webster-x.json'),
-  y: () => require('@/assets/data/webster-y.json'),
-  z: () => require('@/assets/data/webster-z.json'),
+const SHARD_LOADERS: Record<string, () => Promise<unknown>> = {
+  a: () => import('@/assets/data/webster-a.json'),
+  b: () => import('@/assets/data/webster-b.json'),
+  c: () => import('@/assets/data/webster-c.json'),
+  d: () => import('@/assets/data/webster-d.json'),
+  e: () => import('@/assets/data/webster-e.json'),
+  f: () => import('@/assets/data/webster-f.json'),
+  g: () => import('@/assets/data/webster-g.json'),
+  h: () => import('@/assets/data/webster-h.json'),
+  i: () => import('@/assets/data/webster-i.json'),
+  j: () => import('@/assets/data/webster-j.json'),
+  k: () => import('@/assets/data/webster-k.json'),
+  l: () => import('@/assets/data/webster-l.json'),
+  m: () => import('@/assets/data/webster-m.json'),
+  n: () => import('@/assets/data/webster-n.json'),
+  o: () => import('@/assets/data/webster-o.json'),
+  p: () => import('@/assets/data/webster-p.json'),
+  q: () => import('@/assets/data/webster-q.json'),
+  r: () => import('@/assets/data/webster-r.json'),
+  s: () => import('@/assets/data/webster-s.json'),
+  t: () => import('@/assets/data/webster-t.json'),
+  u: () => import('@/assets/data/webster-u.json'),
+  v: () => import('@/assets/data/webster-v.json'),
+  w: () => import('@/assets/data/webster-w.json'),
+  x: () => import('@/assets/data/webster-x.json'),
+  y: () => import('@/assets/data/webster-y.json'),
+  z: () => import('@/assets/data/webster-z.json'),
 };
 
 /**
  * Lazy loads a Webster dictionary shard by first letter
  */
-function loadShard(letter: string): WebsterDictionary {
+async function loadShard(letter: string): Promise<WebsterDictionary> {
   const cached = shardCache.get(letter);
   if (cached) return cached;
 
   const loader = SHARD_LOADERS[letter];
   if (!loader) return {};
 
-  const data = loader();
+  const data = await loader();
   const dictionary = ((data as Record<string, unknown>).default || data) as WebsterDictionary;
   shardCache.set(letter, dictionary);
   return dictionary;
@@ -69,7 +70,7 @@ export async function lookupWebster(word: string): Promise<WebsterEntry | null> 
   const firstLetter = normalized[0];
   if (firstLetter < 'a' || firstLetter > 'z') return null;
 
-  const shard = loadShard(firstLetter);
+  const shard = await loadShard(firstLetter);
   return shard[normalized] ?? null;
 }
 
