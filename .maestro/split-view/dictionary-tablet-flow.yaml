@@ -32,7 +32,7 @@ tags:
     id: "bible-content-panel"
 
 - assertVisible:
-    id: "explanations-panel"
+    id: "bible-explanations-panel"
 
 # Wait for verse text to render (HighlightedText component)
 - extendedWaitUntil:

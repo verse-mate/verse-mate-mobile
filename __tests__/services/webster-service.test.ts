@@ -5,7 +5,7 @@ jest.mock('@/services/word-mapping-service', () => ({
   normalizeWord: (w: string) => w.toLowerCase().replace(/[.,;:!?'"()]/g, ''),
 }));
 
-// Mock the JSON shard requires
+// Mock the JSON shard dynamic imports
 const mockShardA = {
   abandon: { term: 'Abandon', definition: 'To give up absolutely; to forsake entirely.' },
   apple: { term: 'Apple', definition: 'The fruit of a tree.' },

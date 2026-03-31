@@ -23,11 +23,18 @@ tags:
       id: "chapter-selector-button"
     timeout: 30000
 
-# Switch to Bible view to see verse text
+# Switch to Bible view to see verse text (may already be in Bible view)
 - tapOn:
     id: "bible-view-toggle"
+    optional: true
 
 - waitForAnimationToEnd
+
+# Wait for verse text to render
+- extendedWaitUntil:
+    visible:
+      id: "verse-text-1"
+    timeout: 30000
 
 # ============================================
 # Test 1: Tap Verse to Open Insight
