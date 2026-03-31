@@ -37,11 +37,12 @@ tags:
       id: "bible-explanations-panel"
     timeout: 30000
 
-# Wait for verse text to render in the Bible content panel
-# Extended timeout: clearState in tablet setup forces fresh content load
-- extendedWaitUntil:
-    visible:
+# Scroll to find verse-text-1 in the Bible content panel
+# (handles slow rendering and virtualized lists on CI emulators)
+- scrollUntilVisible:
+    element:
       id: "verse-text-1"
+    direction: DOWN
     timeout: 60000
 
 # ============================================

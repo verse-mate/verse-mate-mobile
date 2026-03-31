@@ -18,9 +18,6 @@ tags:
 # 4. Dismiss the tooltip
 #
 # Covers: GH-193 (dictionary fuzzy matching)
-#
-# Note: Uses setup.yaml (clearState) which defaults to Bible view.
-# Do NOT tap bible-view-toggle — that would switch AWAY to Explanations.
 
 - runFlow: ../shared/setup.yaml
 
@@ -32,11 +29,17 @@ tags:
 - assertVisible:
     id: "chapter-selector-button"
 
-# Wait for verse text to render in the default Bible view
-# Extended timeout for slow CI emulators (API fetch + HighlightedText render)
-- extendedWaitUntil:
-    visible:
+# Explicitly tap Bible view to ensure we're in Bible view
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+# Scroll to find verse-text-1 (handles slow rendering on CI emulators)
+- scrollUntilVisible:
+    element:
       id: "verse-text-1"
+    direction: DOWN
     timeout: 60000
 
 # ============================================
