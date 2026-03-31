@@ -1,0 +1,119 @@
+---
+appId: org.versemate.app
+name: Theme Switching Flow
+description: Tests theme picker open, switching between dark/light/auto themes
+tags:
+  - settings
+  - user-flow
+
+---
+
+# Theme Switching E2E Test
+#
+# This flow tests the theme switching functionality:
+# 1. Navigate to Settings
+# 2. Open theme picker
+# 3. Switch to Dark theme
+# 4. Switch to Light theme
+# 5. Switch back to Auto theme
+# 6. Navigate back to chapter screen
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Navigate to Settings
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Navigate to Settings
+- tapOn:
+    id: "menu-item-settings"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test 1: Open Theme Picker
+# ============================================
+
+# Tap theme selector to open picker
+- tapOn:
+    id: "theme-selector-button"
+
+# Verify theme options are visible
+- assertVisible:
+    id: "theme-option-dark"
+
+- assertVisible:
+    id: "theme-option-light"
+
+- assertVisible:
+    id: "theme-option-auto"
+
+# ============================================
+# Test 2: Switch to Dark Theme
+# ============================================
+
+- tapOn:
+    id: "theme-option-dark"
+
+# Wait for theme change animation
+- waitForAnimationToEnd
+
+# ============================================
+# Test 3: Switch to Light Theme
+# ============================================
+
+# Reopen picker
+- tapOn:
+    id: "theme-selector-button"
+
+- tapOn:
+    id: "theme-option-light"
+
+# Wait for theme change
+- waitForAnimationToEnd
+
+# ============================================
+# Test 4: Switch Back to Auto
+# ============================================
+
+# Reopen picker
+- tapOn:
+    id: "theme-selector-button"
+
+- tapOn:
+    id: "theme-option-auto"
+
+# Wait for theme change
+- waitForAnimationToEnd
+
+# ============================================
+# Navigate Back
+# ============================================
+
+- tapOn:
+    id: "settings-back-button"
+
+- waitForAnimationToEnd
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================

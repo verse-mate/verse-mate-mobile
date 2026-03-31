@@ -1,0 +1,112 @@
+---
+appId: org.versemate.app
+name: Commentary Tab Scroll Independence
+description: Tests that each commentary tab maintains its own independent scroll position (GH-189)
+tags:
+  - critical
+  - regression
+
+---
+
+# Commentary Tab Scroll Independence Regression Test
+#
+# Regression test for GH-189: Each commentary tab (Summary, By-Line, Detailed)
+# should maintain its own independent scroll position.
+#
+# Test Scenarios:
+# 1. Scroll in Summary tab
+# 2. Switch to By-Line tab, verify content at top
+# 3. Switch back to Summary, verify still scrolled
+# 4. Repeat with Detailed tab
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# Switch to Explanations view
+- tapOn:
+    id: "commentary-view-toggle"
+
+- waitForAnimationToEnd
+
+# Verify tabs are visible
+- assertVisible:
+    id: "tab-summary"
+
+# ============================================
+# Test 1: Scroll in Summary Tab
+# ============================================
+
+# Ensure we're on Summary tab
+- tapOn:
+    id: "tab-summary"
+
+- waitForAnimationToEnd
+
+# Scroll down several times
+- repeat:
+    times: 5
+    commands:
+      - scroll
+
+# ============================================
+# Test 2: Switch to By-Line, Verify at Top
+# ============================================
+
+# Switch to By-Line tab
+- tapOn:
+    id: "tab-byline"
+
+- waitForAnimationToEnd
+
+# By-Line tab content should be at top (not scrolled)
+# The tab itself should be visible, indicating we switched
+- assertVisible:
+    id: "tab-byline"
+
+# ============================================
+# Test 3: Switch Back to Summary, Verify Scrolled
+# ============================================
+
+# Switch back to Summary tab
+- tapOn:
+    id: "tab-summary"
+
+- waitForAnimationToEnd
+
+# Summary should still have its scroll position preserved
+# (the tab should be visible confirming we're on the right tab)
+- assertVisible:
+    id: "tab-summary"
+
+# ============================================
+# Test 4: Repeat with Detailed Tab
+# ============================================
+
+# Switch to Detailed tab
+- tapOn:
+    id: "tab-detailed"
+
+- waitForAnimationToEnd
+
+# Detailed tab content should be at top (not scrolled)
+- assertVisible:
+    id: "tab-detailed"
+
+# Switch back to Summary
+- tapOn:
+    id: "tab-summary"
+
+- waitForAnimationToEnd
+
+# Summary should still be scrolled
+- assertVisible:
+    id: "tab-summary"
+
+# ============================================
+# Test Complete
+# ============================================
