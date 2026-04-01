@@ -37,10 +37,10 @@ echo "Warm-up complete"
 
 TEST_FOLDER="$1"
 
-# Build env var flags for authenticated tests
-ENV_FLAGS=""
+# Build env var flags for authenticated tests using arrays (safe for special chars)
+ENV_ARGS=()
 if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
-  ENV_FLAGS="--env E2E_TEST_EMAIL=$E2E_TEST_EMAIL --env E2E_TEST_PASSWORD=$E2E_TEST_PASSWORD"
+  ENV_ARGS+=(--env "E2E_TEST_EMAIL=${E2E_TEST_EMAIL}" --env "E2E_TEST_PASSWORD=${E2E_TEST_PASSWORD}")
   echo "Authenticated test credentials configured"
 fi
 
@@ -52,7 +52,7 @@ if [ -z "$TEST_FOLDER" ]; then
     echo "=========================================="
     echo "Running tests in .maestro/$folder/"
     echo "=========================================="
-    maestro test $ENV_FLAGS ".maestro/$folder/" || OVERALL_EXIT=1
+    maestro test "${ENV_ARGS[@]}" ".maestro/$folder/" || OVERALL_EXIT=1
   done
   if [ $OVERALL_EXIT -ne 0 ]; then
     echo "Some phone tests failed"
@@ -62,5 +62,5 @@ elif [ "$TEST_FOLDER" = "split-view" ]; then
   echo "Skipping phone step (split-view tests run on tablet emulator only)"
 else
   echo "Running tests in .maestro/$TEST_FOLDER/"
-  maestro test $ENV_FLAGS ".maestro/$TEST_FOLDER/"
+  maestro test "${ENV_ARGS[@]}" ".maestro/$TEST_FOLDER/"
 fi
