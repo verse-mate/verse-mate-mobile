@@ -37,20 +37,20 @@ tags:
       id: "bible-explanations-panel"
     timeout: 30000
 
-# Wait for verse text to render in the Bible content panel
-# Extended timeout: clearState in tablet setup forces fresh content load
-- extendedWaitUntil:
-    visible:
-      id: "verse-text-1"
+# Wait for verse group View to render (more reliable than nested Text testID on Android)
+- scrollUntilVisible:
+    element:
+      id: "verse-group-1"
+    direction: DOWN
     timeout: 60000
 
 # ============================================
 # Test 2: Long-press on verse text to trigger dictionary
 # ============================================
 
-# Long-press on verse 1 text content (triggers word selection via HighlightedText onLongPress)
+# Long-press on verse group
 - longPressOn:
-    id: "verse-text-1"
+    id: "verse-group-1"
 
 # ============================================
 # Test 3: Verify tooltip appears and is visible
