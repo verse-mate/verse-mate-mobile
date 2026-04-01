@@ -1,0 +1,121 @@
+appId: org.versemate.web
+url: http://localhost:8081
+---
+# Auth Login Web E2E Test — Debug version
+#
+# Tests actual login with credentials on Expo Web (Chromium).
+# Used to debug the inputText + secureTextEntry issue.
+#
+# Prerequisites:
+#   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
+#
+# Run:
+#   maestro test --env E2E_TEST_EMAIL=chaves.augusto+verse@gmail.com --env E2E_TEST_PASSWORD=VerseMateTest2026 .maestro/web/auth-login-web.yaml
+
+# Open the web app
+- openLink: "http://localhost:8081"
+
+# Handle onboarding conditionally
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn:
+          text: "Skip"
+
+# Dismiss font loading error overlays
+- runFlow:
+    when:
+      visible: "Dismiss"
+    commands:
+      - tapOn: "Dismiss"
+
+# Wait for Bible screen
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 60000
+
+# ============================================
+# Step 1: Navigate to Login
+# ============================================
+
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+- tapOn:
+    id: "menu-item-login"
+
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 10000
+
+# ============================================
+# Step 2: Enter email
+# ============================================
+
+- tapOn:
+    id: "login-email"
+- eraseText:
+    charactersToErase: 50
+- inputText: "${E2E_TEST_EMAIL}"
+
+# ============================================
+# Step 3: Enter password (toggle visibility first)
+# ============================================
+
+# Toggle password visibility — makes secureTextEntry=false
+# so inputText works reliably (Maestro limitation on secure fields)
+- tapOn:
+    id: "login-password-toggle-visibility"
+
+- tapOn:
+    id: "login-password"
+- eraseText:
+    charactersToErase: 50
+- inputText: "${E2E_TEST_PASSWORD}"
+
+# ============================================
+# Step 4: Submit
+# ============================================
+
+- hideKeyboard
+
+- tapOn:
+    id: "login-submit"
+
+# Wait for redirect back to Bible screen
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Step 5: Verify authenticated state
+# ============================================
+
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Logout should be visible if login succeeded
+- assertVisible:
+    id: "menu-item-logout"
+
+# Login should NOT be visible
+- assertNotVisible:
+    id: "menu-item-login"
+
+# ============================================
+# Test Complete — Login works!
+# ============================================

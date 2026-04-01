@@ -1,7 +1,7 @@
 ---
 appId: org.versemate.app
 name: Login with Credentials Flow
-description: Tests actual login with test credentials and verifies authenticated state
+description: Tests authenticated state after token seeding and verifies auth UI
 tags:
   - critical
   - auth
@@ -9,80 +9,20 @@ tags:
 
 ---
 
-# Login with Credentials E2E Test
+# Login Verification E2E Test
 #
-# This flow tests actual authentication with real credentials:
-# 1. Navigate to login and authenticate
-# 2. Verify authenticated state (logout visible, login not visible)
-# 3. Verify settings show profile (authenticated state)
+# Auth tokens are pre-seeded into AsyncStorage by the CI script
+# (.github/scripts/seed-auth-tokens.sh) before Maestro tests run.
 #
-# Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+# This flow verifies:
+# 1. App launches in authenticated state (restoreSession picks up tokens)
+# 2. Menu shows logout (not login)
+# 3. Settings show authenticated profile
 
-- runFlow: ../shared/setup.yaml
-
-# Wait for app to fully load
-- extendedWaitUntil:
-    visible:
-      id: "chapter-selector-button"
-    timeout: 60000
+- runFlow: ../shared/setup-authenticated.yaml
 
 # ============================================
-# Test 1: Navigate to Login and Authenticate
-# ============================================
-
-# Open hamburger menu
-- tapOn:
-    id: "hamburger-menu-button"
-
-- extendedWaitUntil:
-    visible:
-      id: "hamburger-menu"
-    timeout: 5000
-
-# Tap Login
-- tapOn:
-    id: "menu-item-login"
-
-# Wait for login screen to fully render
-- extendedWaitUntil:
-    visible:
-      id: "login-email"
-    timeout: 10000
-
-# Enter email - tap, clear, then type
-- tapOn:
-    id: "login-email"
-- eraseText:
-    charactersToErase: 50
-- inputText: "${E2E_TEST_EMAIL}"
-
-# Toggle password visibility BEFORE typing (Maestro's inputText fails
-# silently on secureTextEntry fields on Android — known limitation)
-- tapOn:
-    id: "login-password-toggle-visibility"
-
-# Enter password - tap, clear, then type (now visible, inputText works)
-- tapOn:
-    id: "login-password"
-- eraseText:
-    charactersToErase: 50
-- inputText: "${E2E_TEST_PASSWORD}"
-
-# Hide keyboard before tapping submit (keyboard may cover button on Android)
-- hideKeyboard
-
-# Submit
-- tapOn:
-    id: "login-submit"
-
-# Wait for redirect back to Bible screen (login + token storage + session fetch)
-- extendedWaitUntil:
-    visible:
-      id: "chapter-selector-button"
-    timeout: 30000
-
-# ============================================
-# Test 2: Verify Authenticated State
+# Test 1: Verify Authenticated State in Menu
 # ============================================
 
 # Open hamburger menu
@@ -109,7 +49,7 @@ tags:
 - waitForAnimationToEnd
 
 # ============================================
-# Test 3: Verify Settings Show Profile
+# Test 2: Verify Settings Show Profile
 # ============================================
 
 # Open hamburger menu
