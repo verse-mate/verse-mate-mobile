@@ -4,72 +4,33 @@ tags:
   - setup
   - auth
 ---
-# Shared authenticated setup: launch app, skip onboarding, login with test credentials.
-# Usage from any test subfolder: - runFlow: ../shared/setup-authenticated.yaml
+# Shared authenticated setup: launch app with pre-seeded auth tokens.
 #
-# Required env vars:
-#   E2E_TEST_EMAIL    - test account email
-#   E2E_TEST_PASSWORD - test account password
+# Auth tokens are seeded into AsyncStorage by the CI script
+# (.github/scripts/seed-auth-tokens.sh) BEFORE Maestro tests run.
+# This avoids Maestro's inputText limitation on secureTextEntry fields
+# on Android (known issue: mobile-dev-inc/maestro#1061).
 #
-# Pass via CLI: maestro test --env E2E_TEST_EMAIL=... --env E2E_TEST_PASSWORD=...
-# Or via .maestro/.env file (gitignored)
+# The app's restoreSession() automatically picks up the stored tokens
+# and authenticates the user on launch.
+#
+# For local testing, run the seed script manually first:
+#   bash .github/scripts/seed-auth-tokens.sh
+#
+# Or use .maestro/.env with E2E_TEST_EMAIL and E2E_TEST_PASSWORD.
 
-- runFlow: setup.yaml
+# Launch app WITHOUT clearState to preserve the seeded tokens
+- launchApp:
+    appId: org.versemate.app
+    clearState: false
 
-# Verify Bible screen loaded
+# Tap Skip if onboarding appears (may not appear if state preserved)
+- tapOn:
+    text: "Skip"
+    optional: true
+
+# Wait for Bible screen (restoreSession picks up stored tokens automatically)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
     timeout: 60000
-
-# Open hamburger menu
-- tapOn:
-    id: "hamburger-menu-button"
-
-# Wait for menu to open
-- extendedWaitUntil:
-    visible:
-      id: "hamburger-menu"
-    timeout: 5000
-
-# Tap Login
-- tapOn:
-    id: "menu-item-login"
-
-# Wait for login screen to fully render
-- extendedWaitUntil:
-    visible:
-      id: "login-email"
-    timeout: 10000
-
-# Enter email - tap, clear, then type
-- tapOn:
-    id: "login-email"
-- eraseText:
-    charactersToErase: 50
-- inputText: "${E2E_TEST_EMAIL}"
-
-# Toggle password visibility BEFORE typing (Maestro's inputText fails
-# silently on secureTextEntry fields on Android — known limitation)
-- tapOn:
-    id: "login-password-toggle-visibility"
-
-# Enter password - tap, clear, then type (now visible, inputText works)
-- tapOn:
-    id: "login-password"
-- eraseText:
-    charactersToErase: 50
-- inputText: "${E2E_TEST_PASSWORD}"
-
-# Hide keyboard before tapping submit
-- hideKeyboard
-
-# Submit login
-- tapOn:
-    id: "login-submit"
-
-# Wait for redirect back to Bible screen (login + token storage + session fetch)
-- extendedWaitUntil:
-    visible:
-      id: "chapter-selector-button"
-    timeout: 30000
