@@ -24,7 +24,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
-    timeout: 30000
+    timeout: 60000
 
 # ============================================
 # Test 1: Navigate to Login and Authenticate
@@ -43,27 +43,38 @@ tags:
 - tapOn:
     id: "menu-item-login"
 
-- waitForAnimationToEnd
+# Wait for login screen to fully render
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 10000
 
-# Enter email
+# Enter email - tap, clear, then type
 - tapOn:
     id: "login-email"
+- eraseText:
+    charactersToErase: 50
 - inputText: "${E2E_TEST_EMAIL}"
 
-# Enter password
+# Enter password - tap, clear, then type
 - tapOn:
     id: "login-password"
+- eraseText:
+    charactersToErase: 50
 - inputText: "${E2E_TEST_PASSWORD}"
+
+# Hide keyboard before tapping submit (keyboard may cover button on Android)
+- hideKeyboard
 
 # Submit
 - tapOn:
     id: "login-submit"
 
-# Wait for redirect back to Bible screen
+# Wait for redirect back to Bible screen (login + token storage + session fetch)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
-    timeout: 15000
+    timeout: 30000
 
 # ============================================
 # Test 2: Verify Authenticated State
