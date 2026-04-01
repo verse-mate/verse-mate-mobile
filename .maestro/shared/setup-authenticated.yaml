@@ -49,7 +49,12 @@ tags:
     charactersToErase: 50
 - inputText: "${E2E_TEST_EMAIL}"
 
-# Enter password - tap, clear, then type
+# Toggle password visibility BEFORE typing (Maestro's inputText fails
+# silently on secureTextEntry fields on Android — known limitation)
+- tapOn:
+    id: "login-password-toggle-visibility"
+
+# Enter password - tap, clear, then type (now visible, inputText works)
 - tapOn:
     id: "login-password"
 - eraseText:
