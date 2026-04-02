@@ -6,20 +6,14 @@ tags:
 ---
 # Shared authenticated setup: launch app with pre-seeded auth tokens.
 #
-# Auth tokens are seeded into AsyncStorage by the CI script
-# (.github/scripts/seed-auth-tokens.sh) BEFORE Maestro tests run.
-# This avoids Maestro's inputText limitation on secureTextEntry fields
-# on Android (known issue: mobile-dev-inc/maestro#1061).
+# Auth tokens are seeded into AsyncStorage by the CI script BEFORE each
+# folder that contains authenticated tests. The app's restoreSession()
+# automatically picks up the stored tokens on launch.
 #
-# The app's restoreSession() automatically picks up the stored tokens
-# and authenticates the user on launch.
-#
-# For local testing, run the seed script manually first:
-#   bash .github/scripts/seed-auth-tokens.sh
-#
-# Or use .maestro/.env with E2E_TEST_EMAIL and E2E_TEST_PASSWORD.
+# IMPORTANT: Do NOT use clearState: true — it wipes the seeded tokens.
+# Each authenticated test folder gets fresh tokens seeded by CI.
 
-# Launch app WITHOUT clearState to preserve the seeded tokens
+# Launch app WITHOUT clearing state (preserves seeded auth tokens)
 - launchApp:
     appId: org.versemate.app
     clearState: false
@@ -29,7 +23,7 @@ tags:
     text: "Skip"
     optional: true
 
-# Wait for Bible screen (restoreSession picks up stored tokens automatically)
+# Wait for Bible screen (restoreSession picks up stored tokens)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
