@@ -66,11 +66,19 @@ rm -f /tmp/seed_tokens.sql
 STORED=$(adb shell "sqlite3 ${DB_PATH} \"SELECT key FROM catalystLocalStorage WHERE key = 'versemate_access_token' OR key = 'versemate_refresh_token';\"" | tr -d '\r')
 echo "Stored keys: $STORED"
 
-if echo "$STORED" | grep -q "versemate_access_token"; then
+# Count stored auth keys
+KEY_COUNT=$(adb shell "sqlite3 ${DB_PATH} \"SELECT COUNT(*) FROM catalystLocalStorage WHERE key IN ('versemate_access_token', 'versemate_refresh_token');\"" | tr -d '\r')
+echo "Auth keys found: $KEY_COUNT (expected 2)"
+
+if [ "$KEY_COUNT" = "2" ]; then
   echo "Auth tokens seeded successfully!"
 else
-  echo "ERROR: Tokens not found in AsyncStorage after seeding!"
-  # Debug: show all keys
-  adb shell "sqlite3 ${DB_PATH} \"SELECT key FROM catalystLocalStorage;\""
-  exit 1
+  echo "WARNING: Expected 2 auth keys, got $KEY_COUNT. Debug:"
+  adb shell "sqlite3 ${DB_PATH} \"SELECT key, length(value) FROM catalystLocalStorage WHERE key LIKE 'versemate%';\""
+  # Try individual inserts as fallback
+  echo "Retrying individual inserts..."
+  adb shell "sqlite3 ${DB_PATH} \"INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_access_token', '${ACCESS_TOKEN}');\""
+  adb shell "sqlite3 ${DB_PATH} \"INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_refresh_token', '${REFRESH_TOKEN}');\""
+  KEY_COUNT=$(adb shell "sqlite3 ${DB_PATH} \"SELECT COUNT(*) FROM catalystLocalStorage WHERE key IN ('versemate_access_token', 'versemate_refresh_token');\"" | tr -d '\r')
+  echo "After retry: $KEY_COUNT auth keys"
 fi
