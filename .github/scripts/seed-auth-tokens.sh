@@ -59,6 +59,8 @@ SQLEOF
 
 adb push /tmp/seed_tokens.sql /data/local/tmp/seed_tokens.sql
 adb shell "sqlite3 ${DB_PATH} < /data/local/tmp/seed_tokens.sql"
+# Force WAL checkpoint so data is visible to all readers (app uses separate connection)
+adb shell "sqlite3 ${DB_PATH} 'PRAGMA wal_checkpoint(TRUNCATE);'"
 adb shell "rm /data/local/tmp/seed_tokens.sql"
 rm -f /tmp/seed_tokens.sql
 
