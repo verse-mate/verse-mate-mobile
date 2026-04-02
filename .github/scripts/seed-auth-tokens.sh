@@ -35,22 +35,27 @@ echo "Got tokens successfully."
 PACKAGE="org.versemate.app"
 DB_PATH="/data/data/${PACKAGE}/databases/RKStorage"
 
+# On CI emulators (Google APIs), use adb root for direct file access
+# (run-as doesn't work on non-debuggable release builds)
+adb root 2>/dev/null || true
+sleep 2
+
 # Check if DB exists — if not, create it with the correct table
 DB_EXISTS=$(adb shell "test -f ${DB_PATH} && echo yes || echo no" | tr -d '\r')
 if [ "$DB_EXISTS" = "no" ]; then
   echo "AsyncStorage DB doesn't exist yet, creating it..."
-  # Ensure the databases directory exists
-  adb shell "run-as ${PACKAGE} mkdir -p /data/data/${PACKAGE}/databases" 2>/dev/null || true
-  # Create the DB and table using run-as for proper permissions
-  adb shell "run-as ${PACKAGE} sqlite3 /data/data/${PACKAGE}/databases/RKStorage 'CREATE TABLE IF NOT EXISTS catalystLocalStorage (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);'"
+  adb shell "mkdir -p /data/data/${PACKAGE}/databases" 2>/dev/null || true
+  adb shell "sqlite3 ${DB_PATH} 'CREATE TABLE IF NOT EXISTS catalystLocalStorage (key TEXT NOT NULL PRIMARY KEY, value TEXT NOT NULL);'"
+  # Fix ownership so the app can read the DB
+  adb shell "chown -R $(adb shell stat -c '%u:%g' /data/data/${PACKAGE}/) /data/data/${PACKAGE}/databases/" 2>/dev/null || true
 fi
 
-# Insert or replace the auth tokens using run-as for proper file permissions
+# Insert or replace the auth tokens
 echo "Writing tokens to AsyncStorage..."
-adb shell "run-as ${PACKAGE} sqlite3 ${DB_PATH} \"INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_access_token', '${ACCESS_TOKEN}');\""
-adb shell "run-as ${PACKAGE} sqlite3 ${DB_PATH} \"INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_refresh_token', '${REFRESH_TOKEN}');\""
+adb shell "sqlite3 ${DB_PATH} \"INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_access_token', '${ACCESS_TOKEN}');\""
+adb shell "sqlite3 ${DB_PATH} \"INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_refresh_token', '${REFRESH_TOKEN}');\""
 
 # Verify
-STORED=$(adb shell "run-as ${PACKAGE} sqlite3 ${DB_PATH} \"SELECT key FROM catalystLocalStorage WHERE key LIKE 'versemate_%';\"" | tr -d '\r')
+STORED=$(adb shell "sqlite3 ${DB_PATH} \"SELECT key FROM catalystLocalStorage WHERE key LIKE 'versemate_%';\"" | tr -d '\r')
 echo "Stored keys: $STORED"
 echo "Auth tokens seeded successfully!"
