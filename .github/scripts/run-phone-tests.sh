@@ -61,10 +61,30 @@ if [ -z "$TEST_FOLDER" ]; then
   # Run all folders except split-view (split-view requires tablet emulator)
   echo "Running all phone test folders..."
   OVERALL_EXIT=0
+  # Folders that contain authenticated tests (need token re-seeding before each)
+  AUTH_FOLDERS="auth bookmarks highlights notes"
+
   for folder in auth bible-reading bookmarks dictionary highlights notes regression search recents settings swipe topics navigation; do
     echo "=========================================="
     echo "Running tests in .maestro/$folder/"
     echo "=========================================="
+
+    # Re-seed auth tokens before folders with authenticated tests
+    # (previous test's clearState may have wiped them)
+    if echo " $AUTH_FOLDERS " | grep -q " $folder "; then
+      if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
+        echo "Re-seeding auth tokens for $folder/..."
+        adb shell am force-stop org.versemate.app 2>/dev/null || true
+        sleep 1
+        # Quick re-launch to recreate AsyncStorage DB if wiped
+        adb shell am start -n org.versemate.app/.MainActivity 2>/dev/null || true
+        sleep 5
+        adb shell am force-stop org.versemate.app 2>/dev/null || true
+        sleep 1
+        bash .github/scripts/seed-auth-tokens.sh || echo "WARNING: Token re-seeding failed for $folder"
+      fi
+    fi
+
     maestro test "${ENV_ARGS[@]}" ".maestro/$folder/" || OVERALL_EXIT=1
   done
   if [ $OVERALL_EXIT -ne 0 ]; then
