@@ -50,12 +50,27 @@ if [ "$DB_EXISTS" = "no" ]; then
   adb shell "chown -R $(adb shell stat -c '%u:%g' /data/data/${PACKAGE}/) /data/data/${PACKAGE}/databases/" 2>/dev/null || true
 fi
 
-# Insert or replace the auth tokens
+# Write SQL to a temp file to avoid shell quoting issues with JWT tokens
 echo "Writing tokens to AsyncStorage..."
-adb shell "sqlite3 ${DB_PATH} \"INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_access_token', '${ACCESS_TOKEN}');\""
-adb shell "sqlite3 ${DB_PATH} \"INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_refresh_token', '${REFRESH_TOKEN}');\""
+cat > /tmp/seed_tokens.sql << SQLEOF
+INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_access_token', '${ACCESS_TOKEN}');
+INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_refresh_token', '${REFRESH_TOKEN}');
+SQLEOF
 
-# Verify
-STORED=$(adb shell "sqlite3 ${DB_PATH} \"SELECT key FROM catalystLocalStorage WHERE key LIKE 'versemate_%';\"" | tr -d '\r')
+adb push /tmp/seed_tokens.sql /data/local/tmp/seed_tokens.sql
+adb shell "sqlite3 ${DB_PATH} < /data/local/tmp/seed_tokens.sql"
+adb shell "rm /data/local/tmp/seed_tokens.sql"
+rm -f /tmp/seed_tokens.sql
+
+# Verify tokens were stored
+STORED=$(adb shell "sqlite3 ${DB_PATH} \"SELECT key FROM catalystLocalStorage WHERE key = 'versemate_access_token' OR key = 'versemate_refresh_token';\"" | tr -d '\r')
 echo "Stored keys: $STORED"
-echo "Auth tokens seeded successfully!"
+
+if echo "$STORED" | grep -q "versemate_access_token"; then
+  echo "Auth tokens seeded successfully!"
+else
+  echo "ERROR: Tokens not found in AsyncStorage after seeding!"
+  # Debug: show all keys
+  adb shell "sqlite3 ${DB_PATH} \"SELECT key FROM catalystLocalStorage;\""
+  exit 1
+fi
