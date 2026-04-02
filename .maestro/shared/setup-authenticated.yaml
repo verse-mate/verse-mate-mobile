@@ -8,12 +8,16 @@ tags:
 #
 # Auth tokens are seeded into AsyncStorage by the CI script BEFORE each
 # folder that contains authenticated tests. The app's restoreSession()
-# automatically picks up the stored tokens on launch.
+# reads tokens from AsyncStorage on cold launch and auto-authenticates.
 #
-# IMPORTANT: Do NOT use clearState: true — it wipes the seeded tokens.
-# Each authenticated test folder gets fresh tokens seeded by CI.
+# IMPORTANT: Uses stopApp + launchApp to force a cold launch so
+# restoreSession() re-reads AsyncStorage (hot resume won't re-read).
 
-# Launch app WITHOUT clearing state (preserves seeded auth tokens)
+# Force-kill the app to ensure a cold launch
+- stopApp:
+    appId: org.versemate.app
+
+# Cold launch — restoreSession() will find the seeded tokens in AsyncStorage
 - launchApp:
     appId: org.versemate.app
     clearState: false
