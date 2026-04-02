@@ -19,16 +19,6 @@ sleep 3
 adb shell input keyevent KEYCODE_HOME
 adb shell input keyevent KEYCODE_BACK
 
-# Phase 1.5: Seed auth tokens into AsyncStorage (if credentials available)
-# This avoids Maestro's inputText limitation on secureTextEntry fields on Android
-# (known issue: mobile-dev-inc/maestro#1061)
-if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
-  echo "=========================================="
-  echo "Phase 1.5: Seeding auth tokens into AsyncStorage"
-  echo "=========================================="
-  bash .github/scripts/seed-auth-tokens.sh || echo "WARNING: Auth token seeding failed (non-fatal)"
-fi
-
 # Phase 2: Maestro warmup with clearState:false — preserves EAS Update
 # and seed DB from Phase 1. Skip tap is optional (onboarding may be done).
 echo "=========================================="
@@ -44,6 +34,19 @@ if ! maestro test .maestro/shared/warmup.yaml; then
   fi
 fi
 echo "Warm-up complete"
+
+# Phase 2.5: Seed auth tokens into AsyncStorage (AFTER warmup so DB exists)
+# This avoids Maestro's inputText limitation on secureTextEntry fields on Android
+# (known issue: mobile-dev-inc/maestro#1061)
+if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
+  echo "=========================================="
+  echo "Phase 2.5: Seeding auth tokens into AsyncStorage"
+  echo "=========================================="
+  # Force-stop the app so the seeded tokens are picked up on next launch
+  adb shell am force-stop org.versemate.app
+  sleep 2
+  bash .github/scripts/seed-auth-tokens.sh || echo "WARNING: Auth token seeding failed (non-fatal)"
+fi
 
 TEST_FOLDER="$1"
 
