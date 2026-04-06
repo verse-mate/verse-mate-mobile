@@ -6,12 +6,11 @@ tags:
 ---
 # Shared authenticated setup for E2E tests.
 #
-# The e2e-test EAS build has EXPO_PUBLIC_E2E_AUTO_LOGIN_EMAIL and
-# EXPO_PUBLIC_E2E_AUTO_LOGIN_PASSWORD baked in. AuthContext auto-logs in
-# on mount when these env vars are present — no password typing needed.
+# Logs in via the UI: navigates to login screen, enters email,
+# toggles password visibility (Maestro can't type into secureTextEntry
+# on Android), enters password, and submits.
 #
-# This flow simply launches the app with clean state and waits for it
-# to finish auto-login + load the Bible screen.
+# Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
 
 - launchApp:
     appId: org.versemate.app
@@ -22,8 +21,50 @@ tags:
     text: "Skip"
     optional: true
 
-# Wait for Bible screen (auto-login happens during mount)
+# Wait for Bible screen
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
     timeout: 60000
+
+# Navigate to login
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+- tapOn:
+    id: "menu-item-login"
+
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 10000
+
+# Enter email
+- tapOn:
+    id: "login-email"
+- inputText: "${E2E_TEST_EMAIL}"
+
+# Toggle password visibility so inputText works on Android
+- tapOn:
+    id: "login-password-toggle-visibility"
+
+# Enter password (now a plain text field)
+- tapOn:
+    id: "login-password"
+- inputText: "${E2E_TEST_PASSWORD}"
+
+# Hide keyboard and submit
+- hideKeyboard
+- tapOn:
+    id: "login-submit"
+
+# Wait for redirect back to Bible screen
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
