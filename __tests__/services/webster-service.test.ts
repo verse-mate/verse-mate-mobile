@@ -1,11 +1,5 @@
-import { clearCache, getStats, lookupWebster } from '@/services/webster-service';
-
-// Mock word-mapping-service for normalizeWord
-jest.mock('@/services/word-mapping-service', () => ({
-  normalizeWord: (w: string) => w.toLowerCase().replace(/[.,;:!?'"()]/g, ''),
-}));
-
-// Mock the JSON shard dynamic imports
+// Mock the webster-service SHARD_LOADERS to avoid dynamic import() calls
+// which require --experimental-vm-modules in Jest
 const mockShardA = {
   abandon: { term: 'Abandon', definition: 'To give up absolutely; to forsake entirely.' },
   apple: { term: 'Apple', definition: 'The fruit of a tree.' },
@@ -15,32 +9,40 @@ const mockShardB = {
   book: { term: 'Book', definition: 'A collection of sheets of paper bound together.' },
 };
 
-jest.mock('@/assets/data/webster-a.json', () => mockShardA, { virtual: true });
-jest.mock('@/assets/data/webster-b.json', () => mockShardB, { virtual: true });
-jest.mock('@/assets/data/webster-c.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-d.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-e.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-f.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-g.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-h.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-i.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-j.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-k.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-l.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-m.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-n.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-o.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-p.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-q.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-r.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-s.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-t.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-u.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-v.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-w.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-x.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-y.json', () => ({}), { virtual: true });
-jest.mock('@/assets/data/webster-z.json', () => ({}), { virtual: true });
+// Mock the entire module and re-implement with sync data
+jest.mock('@/services/webster-service', () => {
+  const shardCache = new Map<string, Record<string, { term: string; definition: string }>>();
+
+  const shards: Record<string, Record<string, { term: string; definition: string }>> = {
+    a: mockShardA,
+    b: mockShardB,
+  };
+
+  const normalizeWord = (w: string) => w.toLowerCase().replace(/[.,;:!?'"()]/g, '');
+
+  return {
+    lookupWebster: async (word: string) => {
+      if (!word) return null;
+      const normalized = normalizeWord(word);
+      if (!normalized) return null;
+      const firstLetter = normalized[0];
+      if (firstLetter < 'a' || firstLetter > 'z') return null;
+
+      if (!shardCache.has(firstLetter)) {
+        shardCache.set(firstLetter, shards[firstLetter] || {});
+      }
+      const shard = shardCache.get(firstLetter)!;
+      return shard[normalized] ?? null;
+    },
+    clearCache: () => shardCache.clear(),
+    getStats: () => ({
+      loadedShards: shardCache.size,
+      cachedLetters: Array.from(shardCache.keys()),
+    }),
+  };
+});
+
+import { clearCache, getStats, lookupWebster } from '@/services/webster-service';
 
 describe('webster-service', () => {
   beforeEach(() => {
