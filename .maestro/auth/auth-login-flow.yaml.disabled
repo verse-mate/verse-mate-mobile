@@ -1,7 +1,7 @@
 ---
 appId: org.versemate.app
 name: Login with Credentials Flow
-description: Tests authenticated state after token seeding and verifies auth UI
+description: Tests deep link auth bypass and verifies authenticated state
 tags:
   - critical
   - auth
@@ -11,11 +11,11 @@ tags:
 
 # Login Verification E2E Test
 #
-# Auth tokens are pre-seeded into AsyncStorage by the CI script
-# (.github/scripts/seed-auth-tokens.sh) before Maestro tests run.
+# Uses setup-authenticated.yaml which authenticates via API call + deep link
+# (bypasses Maestro's broken secureTextEntry input on Android).
 #
 # This flow verifies:
-# 1. App launches in authenticated state (restoreSession picks up tokens)
+# 1. App launches in authenticated state after deep link auth
 # 2. Menu shows logout (not login)
 # 3. Settings show authenticated profile
 

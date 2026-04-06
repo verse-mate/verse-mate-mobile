@@ -394,6 +394,13 @@ function RootLayoutInner() {
               headerShown: false,
             }}
           />
+          <Stack.Screen
+            name="e2e-auth"
+            options={{
+              headerShown: false,
+              animation: 'none',
+            }}
+          />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
