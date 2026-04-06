@@ -48,6 +48,7 @@ import {
   type ThemeMode,
 } from '@/constants/bible-design-tokens';
 import { NOTES_CONFIG } from '@/constants/notes';
+import { useTextSize } from '@/contexts/TextSizeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useNotes } from '@/hooks/bible/use-notes';
@@ -77,7 +78,8 @@ export interface NotesModalProps {
  */
 export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }: NotesModalProps) {
   const { colors, mode } = useTheme();
-  const styles = createStyles(colors, mode);
+  const { scaledFontSize } = useTextSize();
+  const styles = createStyles(colors, mode, scaledFontSize);
   const { addNote, isAddingNote, deleteNote } = useNotes();
   const { showToast } = useToast();
   const {
@@ -445,7 +447,11 @@ export function NotesModal({ visible, bookId, chapterNumber, bookName, onClose }
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => {
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  mode: ThemeMode,
+  scaledFontSize: (b: number) => number = (b) => b
+) => {
   const modalSpecs = getModalSpecs(mode);
 
   return StyleSheet.create({
@@ -579,9 +585,9 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     },
     noteContent: {
       flex: 1,
-      fontSize: fontSizes.body,
+      fontSize: scaledFontSize(fontSizes.body),
       color: colors.textPrimary,
-      lineHeight: fontSizes.body * 1.5,
+      lineHeight: scaledFontSize(fontSizes.body) * 1.5,
     },
     noteMenuButton: {
       padding: spacing.xs,

@@ -47,6 +47,7 @@ import {
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
+import { useTextSize } from '@/contexts/TextSizeContext';
 import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -262,9 +263,16 @@ export function ChapterReader({
   filteredAutoHighlights,
 }: ChapterReaderProps) {
   const { colors, mode } = useTheme();
+  const { scaledFontSize } = useTextSize();
   const specs = getHeaderSpecs(mode);
-  const styles = createStyles(colors, explanationsOnly);
-  const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
+  const styles = useMemo(
+    () => createStyles(colors, explanationsOnly, scaledFontSize),
+    [colors, explanationsOnly, scaledFontSize]
+  );
+  const markdownStyles = useMemo(
+    () => createMarkdownStyles(colors, scaledFontSize),
+    [colors, scaledFontSize]
+  );
   const { showToast } = useToast();
 
   // Use Bible Interaction Context for highlights and interactions
@@ -776,8 +784,18 @@ export function ChapterReader({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: boolean) =>
-  StyleSheet.create({
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  explanationsOnly?: boolean,
+  scaledFontSize: (base: number) => number = (b) => b
+) => {
+  const scaledBodyLarge = scaledFontSize(fontSizes.bodyLarge);
+  const scaledDisplayMedium = scaledFontSize(fontSizes.displayMedium);
+  const scaledHeading1 = scaledFontSize(fontSizes.heading1);
+  const scaledHeading2 = scaledFontSize(fontSizes.heading2);
+  const scaledCaption = scaledFontSize(fontSizes.caption);
+
+  return StyleSheet.create({
     container: {
       flex: 1,
     },
@@ -789,9 +807,9 @@ const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: b
     },
     chapterTitle: {
       flex: 1,
-      fontSize: fontSizes.displayMedium,
+      fontSize: scaledDisplayMedium,
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.displayMedium * lineHeights.display,
+      lineHeight: scaledDisplayMedium * lineHeights.display,
       color: colors.textPrimary,
       marginRight: spacing.md,
     },
@@ -801,16 +819,16 @@ const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: b
       gap: spacing.xs,
     },
     sectionSubtitle: {
-      fontSize: fontSizes.heading2,
+      fontSize: scaledHeading2,
       fontWeight: fontWeights.semibold,
-      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      lineHeight: scaledHeading2 * lineHeights.heading,
       color: colors.textPrimary,
       marginBottom: spacing.sm,
     },
     verseRange: {
-      fontSize: fontSizes.caption,
+      fontSize: scaledCaption,
       fontWeight: fontWeights.regular,
-      lineHeight: fontSizes.caption * lineHeights.ui,
+      lineHeight: scaledCaption * lineHeights.ui,
       color: colors.textTertiary,
       marginBottom: spacing.md,
     },
@@ -823,34 +841,34 @@ const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: b
       marginBottom: spacing.md,
     },
     verseNumber: {
-      fontSize: fontSizes.caption,
+      fontSize: scaledCaption,
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      lineHeight: scaledBodyLarge * lineHeights.body,
       color: colors.textTertiary,
       marginRight: spacing.xs,
       marginTop: -4,
     },
     verseNumberSuperscript: {
-      fontSize: fontSizes.bodyLarge,
+      fontSize: scaledBodyLarge,
       fontWeight: fontWeights.bold,
       color: colors.textTertiary,
     },
     verseText: {
-      fontSize: fontSizes.bodyLarge,
+      fontSize: scaledBodyLarge,
       fontWeight: fontWeights.regular,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      lineHeight: scaledBodyLarge * 2.0,
       color: colors.textPrimary,
     },
     verseTextInline: {
-      fontSize: fontSizes.bodyLarge,
+      fontSize: scaledBodyLarge,
       fontWeight: fontWeights.regular,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      lineHeight: scaledBodyLarge * 2.0,
       color: colors.textPrimary,
     },
     verseTextParagraph: {
-      fontSize: fontSizes.bodyLarge,
+      fontSize: scaledBodyLarge,
       fontWeight: fontWeights.regular,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      lineHeight: scaledBodyLarge * 2.0,
       color: colors.textPrimary,
       marginBottom: spacing.md,
     },
@@ -866,13 +884,12 @@ const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: b
       justifyContent: 'space-between',
       marginBottom: spacing.lg,
     },
-    // Removed explanationTitleContainer as we are reverting to direct Text usage like titleRow
     explanationTitle: {
       flex: 1,
-      fontSize: fontSizes.heading1,
+      fontSize: scaledHeading1,
       fontWeight: fontWeights.bold,
       color: colors.textPrimary,
-      lineHeight: fontSizes.heading1 * lineHeights.heading, // Fixed: Multiply fontSize by lineHeight
+      lineHeight: scaledHeading1 * lineHeights.heading,
       marginRight: spacing.md,
     },
     explanationTitleActions: {
@@ -881,41 +898,51 @@ const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: b
       gap: spacing.xs,
     },
   });
+};
 
-const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
-  StyleSheet.create({
+const createMarkdownStyles = (
+  colors: ReturnType<typeof getColors>,
+  scaledFontSize: (base: number) => number = (b) => b
+) => {
+  const scaledBodyLarge = scaledFontSize(fontSizes.bodyLarge);
+  const scaledBodySmall = scaledFontSize(fontSizes.bodySmall);
+  const scaledHeading1 = scaledFontSize(fontSizes.heading1);
+  const scaledHeading2 = scaledFontSize(fontSizes.heading2);
+  const scaledHeading3 = scaledFontSize(fontSizes.heading3);
+
+  return StyleSheet.create({
     body: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: scaledBodyLarge,
+      lineHeight: scaledBodyLarge * 2.0,
       color: colors.textPrimary,
     },
     heading1: {
-      fontSize: fontSizes.heading1,
+      fontSize: scaledHeading1,
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      lineHeight: scaledHeading1 * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xxl,
       marginBottom: spacing.md,
     },
     heading2: {
-      fontSize: fontSizes.heading2,
+      fontSize: scaledHeading2,
       fontWeight: fontWeights.semibold,
-      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      lineHeight: scaledHeading2 * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: 64,
       marginBottom: spacing.sm,
     },
     heading3: {
-      fontSize: fontSizes.heading3,
+      fontSize: scaledHeading3,
       fontWeight: fontWeights.semibold,
-      lineHeight: fontSizes.heading3 * lineHeights.heading,
+      lineHeight: scaledHeading3 * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: 64,
       marginBottom: spacing.sm,
     },
     paragraph: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: scaledBodyLarge,
+      lineHeight: scaledBodyLarge * 2.0,
       color: colors.textPrimary,
       marginBottom: spacing.lg,
     },
@@ -928,8 +955,8 @@ const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
       color: colors.textPrimary,
     },
     list_item: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: scaledBodyLarge,
+      lineHeight: scaledBodyLarge * 2.0,
       color: colors.textPrimary,
       marginBottom: spacing.sm,
     },
@@ -941,7 +968,7 @@ const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
     },
     code_inline: {
       fontFamily: 'monospace',
-      fontSize: fontSizes.bodySmall,
+      fontSize: scaledBodySmall,
       backgroundColor: colors.backgroundElevated,
       paddingHorizontal: spacing.xs,
       paddingVertical: 2,
@@ -950,7 +977,7 @@ const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
     },
     fence: {
       fontFamily: 'monospace',
-      fontSize: fontSizes.bodySmall,
+      fontSize: scaledBodySmall,
       backgroundColor: colors.backgroundElevated,
       padding: spacing.md,
       borderRadius: 4,
@@ -975,3 +1002,4 @@ const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
       marginVertical: spacing.xl,
     },
   });
+};

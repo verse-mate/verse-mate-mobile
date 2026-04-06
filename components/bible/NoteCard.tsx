@@ -33,6 +33,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { NOTES_CONFIG } from '@/constants/notes';
+import { useTextSize } from '@/contexts/TextSizeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Note } from '@/types/notes';
 
@@ -76,7 +77,8 @@ export function NoteCard({
   isExpanded = false,
 }: NoteCardProps) {
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const { scaledFontSize } = useTextSize();
+  const styles = createStyles(colors, scaledFontSize);
 
   const isTruncated = note.content.length > truncateLength;
 
@@ -142,7 +144,10 @@ export function NoteCard({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>) =>
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  scaledFontSize: (b: number) => number = (b) => b
+) =>
   StyleSheet.create({
     card: {
       flexDirection: 'row',
@@ -163,10 +168,10 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       marginRight: spacing.md,
     },
     text: {
-      fontSize: fontSizes.body,
+      fontSize: scaledFontSize(fontSizes.body),
       fontWeight: fontWeights.regular,
       color: colors.textPrimary,
-      lineHeight: fontSizes.body * 1.5,
+      lineHeight: scaledFontSize(fontSizes.body) * 1.5,
     },
     actions: {
       flexDirection: 'row',

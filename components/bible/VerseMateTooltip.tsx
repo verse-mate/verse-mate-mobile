@@ -49,6 +49,7 @@ import SignInModal from '@/components/bible/SignInModal';
 import SignUpModal from '@/components/bible/SignUpModal';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { getHighlightColor } from '@/constants/highlight-colors';
+import { useTextSize } from '@/contexts/TextSizeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
@@ -120,6 +121,7 @@ export function VerseMateTooltip({
   useModal = true,
 }: VerseMateTooltipProps) {
   const { colors, mode } = useTheme();
+  const { scaledFontSize } = useTextSize();
   const { bibleVersion } = useBibleVersion();
   const insets = useSafeAreaInsets();
   const { isTablet, isLandscape, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
@@ -139,8 +141,17 @@ export function VerseMateTooltip({
         : undefined;
 
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth),
-    [colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth]
+    () =>
+      createStyles(
+        colors,
+        insets.bottom,
+        isTablet,
+        isLandscape,
+        useSplitView,
+        tooltipWidth,
+        scaledFontSize
+      ),
+    [colors, insets.bottom, isTablet, isLandscape, useSplitView, tooltipWidth, scaledFontSize]
   );
 
   // ... (rest of the component state and hooks)
@@ -775,7 +786,8 @@ const createStyles = (
   _isTablet: boolean,
   isLandscape: boolean,
   useSplitView: boolean,
-  tooltipWidth?: number
+  tooltipWidth?: number,
+  scaledFontSize: (b: number) => number = (b) => b
 ) => {
   const styles = StyleSheet.create({
     overlay: {
@@ -837,12 +849,12 @@ const createStyles = (
       flex: 1,
     },
     verseText: {
-      fontSize: fontSizes.body,
+      fontSize: scaledFontSize(fontSizes.body),
       fontStyle: 'italic',
       color: colors.textSecondary,
       marginTop: spacing.xs,
       marginBottom: spacing.sm,
-      lineHeight: fontSizes.body * 1.5,
+      lineHeight: scaledFontSize(fontSizes.body) * 1.5,
     },
     colorBadge: {
       flexDirection: 'row',
@@ -1024,27 +1036,27 @@ const createStyles = (
    */
   const markdownStyles = StyleSheet.create({
     body: {
-      fontSize: fontSizes.body,
-      lineHeight: fontSizes.body * 1.5,
+      fontSize: scaledFontSize(fontSizes.body),
+      lineHeight: scaledFontSize(fontSizes.body) * 1.5,
       color: colors.textPrimary,
     },
     heading1: {
-      fontSize: fontSizes.heading3,
+      fontSize: scaledFontSize(fontSizes.heading3),
       fontWeight: fontWeights.bold,
       color: colors.textPrimary,
       marginBottom: spacing.xs,
       marginTop: spacing.sm,
     },
     heading2: {
-      fontSize: fontSizes.heading3,
+      fontSize: scaledFontSize(fontSizes.heading3),
       fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
       marginBottom: spacing.xs,
       marginTop: spacing.sm,
     },
     paragraph: {
-      fontSize: fontSizes.body,
-      lineHeight: fontSizes.body * 1.5,
+      fontSize: scaledFontSize(fontSizes.body),
+      lineHeight: scaledFontSize(fontSizes.body) * 1.5,
       color: colors.textPrimary,
       marginBottom: spacing.sm,
     },

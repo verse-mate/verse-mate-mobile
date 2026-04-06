@@ -29,6 +29,7 @@ import {
   spacing,
 } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTextSize } from '@/contexts/TextSizeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
@@ -94,11 +95,12 @@ export function BibleExplanationsPanel({
 }: BibleExplanationsPanelProps) {
   const { mode, colors } = useTheme();
   const { user } = useAuth();
+  const { scaledFontSize } = useTextSize();
   const insets = useSafeAreaInsets();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(specs, colors, insets),
-    [specs, colors, insets]
+    () => createStyles(specs, colors, insets, scaledFontSize),
+    [specs, colors, insets, scaledFontSize]
   );
 
   // Get current language from user preferences (default to 'en-US')
@@ -388,7 +390,8 @@ export function BibleExplanationsPanel({
 function createStyles(
   specs: ReturnType<typeof getSplitViewSpecs>,
   colors: ReturnType<typeof getColors>,
-  insets: ReturnType<typeof useSafeAreaInsets>
+  insets: ReturnType<typeof useSafeAreaInsets>,
+  scaledFontSize: (base: number) => number = (b) => b
 ) {
   const styles = StyleSheet.create({
     container: {
@@ -497,9 +500,9 @@ function createStyles(
     },
     contentTitle: {
       flex: 1,
-      fontSize: fontSizes.heading1,
+      fontSize: scaledFontSize(fontSizes.heading1),
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      lineHeight: scaledFontSize(fontSizes.heading1) * lineHeights.heading,
       color: colors.textPrimary,
       marginRight: spacing.md,
     },
@@ -512,29 +515,29 @@ function createStyles(
 
   const markdownStyles = StyleSheet.create({
     body: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      fontSize: scaledFontSize(fontSizes.bodyLarge),
+      lineHeight: scaledFontSize(fontSizes.bodyLarge) * lineHeights.body,
       color: colors.textPrimary,
     },
     heading1: {
-      fontSize: fontSizes.heading1,
+      fontSize: scaledFontSize(fontSizes.heading1),
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      lineHeight: scaledFontSize(fontSizes.heading1) * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xxl,
       marginBottom: spacing.md,
     },
     heading2: {
-      fontSize: fontSizes.heading2,
+      fontSize: scaledFontSize(fontSizes.heading2),
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      lineHeight: scaledFontSize(fontSizes.heading2) * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xl,
       marginBottom: spacing.sm,
     },
     paragraph: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      fontSize: scaledFontSize(fontSizes.bodyLarge),
+      lineHeight: scaledFontSize(fontSizes.bodyLarge) * lineHeights.body,
       color: colors.textPrimary,
       marginBottom: spacing.md,
     },
@@ -547,8 +550,8 @@ function createStyles(
       marginBottom: spacing.lg,
     },
     blockquote_text: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      fontSize: scaledFontSize(fontSizes.bodyLarge),
+      lineHeight: scaledFontSize(fontSizes.bodyLarge) * lineHeights.body,
       color: colors.textPrimary,
     },
   });

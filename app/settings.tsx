@@ -34,6 +34,7 @@ import { DeleteAccountFinalModal } from '@/components/account/DeleteAccountFinal
 import { DeleteAccountPasswordModal } from '@/components/account/DeleteAccountPasswordModal';
 import { DeleteAccountWarningModal } from '@/components/account/DeleteAccountWarningModal';
 import { Button } from '@/components/Button';
+import { TextSizeSelector } from '@/components/settings/TextSizeSelector';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { Avatar } from '@/components/ui/Avatar';
 import { TextInput } from '@/components/ui/TextInput';
@@ -811,6 +812,9 @@ export default function SettingsScreen() {
 
         {/* Theme Selector Section */}
         <ThemeSelector />
+
+        {/* Text Size Selector Section */}
+        <TextSizeSelector />
 
         {/* Downloads & Offline — hidden on web (online-only) */}
         {Platform.OS !== 'web' && (

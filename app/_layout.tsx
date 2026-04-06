@@ -28,6 +28,7 @@ import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
+import { TextSizeProvider } from '@/contexts/TextSizeContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { preloadAllTopicsCache } from '@/hooks/topics/use-cached-topics';
@@ -419,13 +420,15 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <CustomThemeProvider>
-              <DeviceInfoProvider>
-                <OfflineProvider>
-                  <ToastProvider>
-                    <RootLayoutInner />
-                  </ToastProvider>
-                </OfflineProvider>
-              </DeviceInfoProvider>
+              <TextSizeProvider>
+                <DeviceInfoProvider>
+                  <OfflineProvider>
+                    <ToastProvider>
+                      <RootLayoutInner />
+                    </ToastProvider>
+                  </OfflineProvider>
+                </DeviceInfoProvider>
+              </TextSizeProvider>
             </CustomThemeProvider>
           </AuthProvider>
         </QueryClientProvider>

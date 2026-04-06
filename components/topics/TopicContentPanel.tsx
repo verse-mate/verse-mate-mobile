@@ -32,6 +32,7 @@ import {
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
+import { useTextSize } from '@/contexts/TextSizeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTopicReferences } from '@/src/api';
 
@@ -141,8 +142,9 @@ export function TopicContentPanel({
   testID = 'topic-content-panel',
 }: TopicContentPanelProps) {
   const { mode, colors } = useTheme();
+  const { scaledFontSize } = useTextSize();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
-  const { styles, markdownStyles } = createStyles(specs, colors);
+  const { styles, markdownStyles } = createStyles(specs, colors, scaledFontSize);
   const insets = useSafeAreaInsets();
 
   // Reading progress state
@@ -309,7 +311,8 @@ export function TopicContentPanel({
  */
 function createStyles(
   specs: ReturnType<typeof getSplitViewSpecs>,
-  colors: ReturnType<typeof getColors>
+  colors: ReturnType<typeof getColors>,
+  scaledFontSize: (base: number) => number = (b) => b
 ) {
   const styles = StyleSheet.create({
     container: {
@@ -350,14 +353,14 @@ function createStyles(
     },
     topicTitle: {
       flex: 1,
-      fontSize: fontSizes.displayMedium,
+      fontSize: scaledFontSize(fontSizes.displayMedium),
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.displayMedium * lineHeights.display,
+      lineHeight: scaledFontSize(fontSizes.displayMedium) * lineHeights.display,
       color: colors.textPrimary,
     },
     topicDescription: {
-      fontSize: fontSizes.body,
-      lineHeight: fontSizes.body * lineHeights.body,
+      fontSize: scaledFontSize(fontSizes.body),
+      lineHeight: scaledFontSize(fontSizes.body) * lineHeights.body,
       color: colors.textSecondary,
       marginBottom: spacing.xxl,
     },
@@ -385,29 +388,29 @@ function createStyles(
 
   const markdownStyles = StyleSheet.create({
     body: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: scaledFontSize(fontSizes.bodyLarge),
+      lineHeight: scaledFontSize(fontSizes.bodyLarge) * 2.0,
       color: colors.textPrimary,
     },
     heading1: {
-      fontSize: fontSizes.heading1,
+      fontSize: scaledFontSize(fontSizes.heading1),
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      lineHeight: scaledFontSize(fontSizes.heading1) * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xxl,
       marginBottom: spacing.md,
     },
     heading2: {
-      fontSize: fontSizes.heading2,
+      fontSize: scaledFontSize(fontSizes.heading2),
       fontWeight: fontWeights.semibold,
-      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      lineHeight: scaledFontSize(fontSizes.heading2) * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: 64,
       marginBottom: spacing.sm,
     },
     paragraph: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: scaledFontSize(fontSizes.bodyLarge),
+      lineHeight: scaledFontSize(fontSizes.bodyLarge) * 2.0,
       color: colors.textPrimary,
       marginBottom: spacing.md,
     },

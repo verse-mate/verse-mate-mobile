@@ -143,6 +143,21 @@ jest.mock('@/contexts/ThemeContext', () => ({
   }),
 }));
 
+// Global mock for TextSizeContext to provide default text size in tests
+jest.mock('@/contexts/TextSizeContext', () => ({
+  TextSizeProvider: ({ children }) => children,
+  useTextSize: () => ({
+    preset: 'medium',
+    scaleFactor: 1.0,
+    setPreset: jest.fn(),
+    scaledFontSize: (base) => base,
+    isLoading: false,
+  }),
+  SCALE_FACTORS: { small: 0.85, medium: 1.0, large: 1.15, extraLarge: 1.3 },
+  PRESET_LABELS: { small: 'Small', medium: 'Medium', large: 'Large', extraLarge: 'Extra Large' },
+  PRESET_ORDER: ['small', 'medium', 'large', 'extraLarge'],
+}));
+
 // Mock Dictionary native module for tests
 // This module uses requireNativeModule which isn't available in Jest
 jest.mock('@/modules/dictionary', () => ({

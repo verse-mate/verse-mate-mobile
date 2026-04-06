@@ -1,0 +1,90 @@
+---
+appId: org.versemate.app
+name: Text Size Settings Flow
+description: Tests text size adjustment in settings screen
+tags:
+  - settings
+  - user-flow
+
+---
+
+# Text Size E2E Test Flow
+#
+# This flow tests text size selector functionality:
+# 1. Navigate to settings via hamburger menu
+# 2. Verify "Text Size" section visible
+# 3. Increase text size and verify label
+# 4. Decrease text size and verify label
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Navigate to Settings
+# ============================================
+
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+- tapOn:
+    id: "menu-item-settings"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Verify Text Size section
+# ============================================
+
+- assertVisible:
+    text: "Text Size"
+
+# Verify stepper is visible with default "Medium"
+- assertVisible:
+    id: "text-size-stepper"
+
+- assertVisible:
+    id: "text-size-label"
+
+# ============================================
+# Test: Increase text size
+# ============================================
+
+- tapOn:
+    id: "text-size-increase"
+
+# Verify label changed to "Large"
+- assertVisible:
+    text: "Large"
+
+# ============================================
+# Test: Decrease text size back
+# ============================================
+
+- tapOn:
+    id: "text-size-decrease"
+
+# Verify label changed back to "Medium"
+- assertVisible:
+    text: "Medium"
+
+# ============================================
+# Navigate back
+# ============================================
+
+- tapOn:
+    id: "settings-back-button"
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "chapter-selector-button"
