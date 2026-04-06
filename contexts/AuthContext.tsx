@@ -559,12 +559,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const e2eEmail = process.env.EXPO_PUBLIC_E2E_AUTO_LOGIN_EMAIL;
       const e2ePassword = process.env.EXPO_PUBLIC_E2E_AUTO_LOGIN_PASSWORD;
       if (e2eEmail && e2ePassword) {
-        try {
-          await login(e2eEmail, e2ePassword);
-          return; // login sets user + isLoading
-        } catch (e) {
-          console.warn('E2E auto-login failed, falling back to restoreSession:', e);
+        // Retry up to 3 times with delay (network may not be ready on cold start)
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await login(e2eEmail, e2ePassword);
+            setIsLoading(false);
+            return;
+          } catch (e) {
+            console.warn(`E2E auto-login attempt ${attempt}/3 failed:`, e);
+            if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
+          }
         }
+        console.warn('E2E auto-login exhausted retries, falling back to restoreSession');
       }
       await restoreSession();
     };
