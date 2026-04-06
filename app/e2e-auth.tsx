@@ -13,11 +13,11 @@
  * @see https://github.com/mobile-dev-inc/maestro/issues/1061
  */
 
-import { useAuth } from '@/contexts/AuthContext';
-import { setAccessToken, setRefreshToken } from '@/lib/auth/token-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import { setAccessToken, setRefreshToken } from '@/lib/auth/token-storage';
 
 const isE2E = process.env.APP_ENV === 'e2e-test';
 
