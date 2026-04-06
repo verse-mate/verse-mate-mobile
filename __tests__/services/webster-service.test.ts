@@ -1,29 +1,27 @@
-// Mock the webster-service SHARD_LOADERS to avoid dynamic import() calls
-// which require --experimental-vm-modules in Jest
-const mockShardA = {
-  abandon: { term: 'Abandon', definition: 'To give up absolutely; to forsake entirely.' },
-  apple: { term: 'Apple', definition: 'The fruit of a tree.' },
-};
-
-const mockShardB = {
-  book: { term: 'Book', definition: 'A collection of sheets of paper bound together.' },
-};
-
-// Mock the entire module and re-implement with sync data
+// Mock the entire webster-service module to avoid dynamic import() calls
+// which require --experimental-vm-modules in Jest.
+// All mock data MUST be inside the factory function due to jest.mock hoisting.
 jest.mock('@/services/webster-service', () => {
-  const shardCache = new Map<string, Record<string, { term: string; definition: string }>>();
+  const mockShardA: Record<string, { term: string; definition: string }> = {
+    abandon: { term: 'Abandon', definition: 'To give up absolutely; to forsake entirely.' },
+    apple: { term: 'Apple', definition: 'The fruit of a tree.' },
+  };
+
+  const mockShardB: Record<string, { term: string; definition: string }> = {
+    book: { term: 'Book', definition: 'A collection of sheets of paper bound together.' },
+  };
 
   const shards: Record<string, Record<string, { term: string; definition: string }>> = {
     a: mockShardA,
     b: mockShardB,
   };
 
-  const normalizeWord = (w: string) => w.toLowerCase().replace(/[.,;:!?'"()]/g, '');
+  const shardCache = new Map<string, Record<string, { term: string; definition: string }>>();
 
   return {
     lookupWebster: async (word: string) => {
       if (!word) return null;
-      const normalized = normalizeWord(word);
+      const normalized = word.toLowerCase().replace(/[.,;:!?'"()]/g, '');
       if (!normalized) return null;
       const firstLetter = normalized[0];
       if (firstLetter < 'a' || firstLetter > 'z') return null;
