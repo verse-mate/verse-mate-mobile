@@ -49,19 +49,11 @@ if [ -z "$TEST_FOLDER" ]; then
   # Run all folders except split-view (split-view requires tablet emulator)
   echo "Running all phone test folders..."
   OVERALL_EXIT=0
-  # Folders that contain authenticated tests (need token re-seeding before each)
-  AUTH_FOLDERS="auth bookmarks highlights notes"
-
-  # Note: auth-only folders (auth, bookmarks, highlights, notes) contain both
-  # unauthenticated and authenticated tests. The unauthenticated ones pass,
-  # but authenticated tests fail due to Maestro's inability to type into
-  # secureTextEntry fields on Android (mobile-dev-inc/maestro#1061).
-  # Authenticated tests are excluded until we implement a deep link auth
-  # bypass in the app. See: https://github.com/verse-mate/verse-mate-mobile/issues/251
-  #
-  # Excluded: bookmarks (auth CRUD), highlights (auth CRUD), notes (auth CRUD)
-  # auth folder kept: contains unauthenticated auth-flow.yaml + auth-login which is expected to fail
-  for folder in auth bible-reading dictionary regression search recents settings swipe topics navigation; do
+  # Authenticated test folders (bookmarks, highlights, notes) disabled until
+  # deep link auth bypass works on EAS e2e-test APK (GH-251).
+  # The e2e-auth.tsx route and setup-authenticated.yaml are ready but the
+  # openLink deep link doesn't work on the pre-built APK yet.
+  for folder in auth bible-reading dictionary navigation recents regression search settings swipe topics; do
     echo "=========================================="
     echo "Running tests in .maestro/$folder/"
     echo "=========================================="
