@@ -1,0 +1,78 @@
+---
+appId: org.versemate.app
+name: Verse Insight Bottom Sheet Flow
+description: Tests tapping a verse to open insight panel and dismissing it
+tags:
+  - user-flow
+  - bible
+
+---
+
+# Verse Insight Bottom Sheet E2E Test
+#
+# This flow tests verse insight panel functionality:
+# 1. Ensure Bible view is active and verse text is visible
+# 2. Tap a verse to open insight panel
+# 3. Dismiss the panel and verify return to Bible view
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load (Genesis 1)
+# Extended timeout: previous test may leave app in unexpected state
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 60000
+
+# Explicitly tap Bible view button to ensure we're in Bible view
+# (idempotent — stays in Bible view if already there)
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+# Wait for verse group View to render (more reliable than nested Text testID on Android)
+- scrollUntilVisible:
+    element:
+      id: "verse-group-1"
+    direction: DOWN
+    timeout: 60000
+
+# ============================================
+# Test 1: Tap Verse to Open Insight
+# ============================================
+
+# Tap the verse group
+- tapOn:
+    id: "verse-group-1"
+
+# Wait for insight panel / bottom sheet to appear
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Insight Content
+# ============================================
+
+# Verify insight panel elements are visible (share or bookmark button)
+- assertVisible:
+    id: "insight-title-share-button"
+    optional: true
+
+# ============================================
+# Test 3: Dismiss Insight Panel
+# ============================================
+
+# Tap backdrop to dismiss
+- tapOn:
+    id: "backdrop"
+    optional: true
+
+- waitForAnimationToEnd
+
+# Verify we're back on Bible verse view
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================

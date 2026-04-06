@@ -87,6 +87,7 @@ export function ThemeSelector() {
         onPress={() => setShowPicker(!showPicker)}
         accessibilityLabel="Select theme preference"
         accessibilityRole="button"
+        testID="theme-selector-button"
       >
         <Text style={styles.selectButtonText}>{selectedOption?.label || 'Select Theme'}</Text>
         <Ionicons
@@ -106,6 +107,7 @@ export function ThemeSelector() {
               accessibilityLabel={`${option.label} theme`}
               accessibilityRole="radio"
               accessibilityState={{ checked: option.value === preference }}
+              testID={`theme-option-${option.value}`}
             >
               <View style={styles.pickerItemContent}>
                 <Text

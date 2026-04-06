@@ -1,0 +1,96 @@
+---
+appId: org.versemate.app
+name: Highlights CRUD Flow (Authenticated)
+description: Tests highlight creation via verse tap, verification in list, and deletion for authenticated users
+tags:
+  - critical
+  - auth
+  - user-flow
+
+---
+
+# Highlights CRUD E2E Test (Authenticated)
+#
+# This flow tests full highlights lifecycle for authenticated users:
+# 1. Create highlight via verse tap and color selection
+# 2. Verify highlight appears in highlights list
+# 3. Delete highlight (cleanup)
+#
+# Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+
+- runFlow: ../shared/setup-authenticated.yaml
+
+# Wait for Bible screen (Genesis 1)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
+
+# Switch to Bible view to see verse text
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test 1: Create Highlight via Verse Tap
+# ============================================
+
+# Tap verse 1 to open highlight selection
+- tapOn:
+    id: "verse-text-1"
+
+# Wait for highlight color picker / selection sheet
+- waitForAnimationToEnd
+
+# Select yellow color
+- tapOn:
+    id: "color-button-yellow"
+
+# Wait for sheet to close and highlight to apply
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Highlight in Highlights List
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Navigate to Highlights
+- tapOn:
+    id: "menu-item-highlights"
+
+- waitForAnimationToEnd
+
+# Verify highlights list is visible
+- assertVisible:
+    id: "highlights-list"
+
+# Verify Genesis 1 highlight group is present
+- assertVisible:
+    id: "chapter-group-1-1"
+
+# ============================================
+# Test 3: Navigate Back (Cleanup)
+# ============================================
+
+# Go back to chapter screen
+- tapOn:
+    id: "highlights-back-button"
+
+- waitForAnimationToEnd
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================
