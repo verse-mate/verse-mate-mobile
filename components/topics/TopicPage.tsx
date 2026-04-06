@@ -33,6 +33,7 @@ import {
   lineHeights,
   spacing,
 } from '@/constants/bible-design-tokens';
+import { useTextSize } from '@/contexts/TextSizeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useTopicById, useTopicReferences } from '@/src/api';
@@ -166,7 +167,9 @@ export function TopicPage({
   onVersePress,
 }: TopicPageProps) {
   const { colors } = useTheme();
-  const { styles, markdownStyles } = createStyles(colors);
+  const { scaledFontSize } = useTextSize();
+  const styles = createStyles(colors, scaledFontSize);
+  const markdownStyles = createMarkdownStyles(colors, scaledFontSize);
 
   // TODO: Implement Bible version selection in Settings page
   // For now, hardcoded to NASB1995 (backend default)
@@ -552,11 +555,15 @@ export function TopicPage({
 }
 
 /**
- * Creates all styles for TopicPage component
- * Returns both component styles and markdown styles in a single factory
+ * Creates component styles for TopicPage.
+ * Only content font sizes (topicTitle, topicDescription) are scaled.
+ * UI chrome (emptyText) is intentionally left unscaled.
  */
-const createStyles = (colors: ReturnType<typeof getColors>) => {
-  const styles = StyleSheet.create({
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  scaledFontSize: (base: number) => number = (b) => b
+) =>
+  StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
@@ -576,9 +583,9 @@ const createStyles = (colors: ReturnType<typeof getColors>) => {
     },
     topicTitle: {
       flex: 1,
-      fontSize: fontSizes.displayMedium,
+      fontSize: scaledFontSize(fontSizes.displayMedium),
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.displayMedium * lineHeights.display,
+      lineHeight: scaledFontSize(fontSizes.displayMedium) * lineHeights.display,
       color: colors.textPrimary,
       marginRight: spacing.md,
     },
@@ -588,8 +595,8 @@ const createStyles = (colors: ReturnType<typeof getColors>) => {
       gap: spacing.xs,
     },
     topicDescription: {
-      fontSize: fontSizes.body,
-      lineHeight: fontSizes.body * lineHeights.body,
+      fontSize: scaledFontSize(fontSizes.body),
+      lineHeight: scaledFontSize(fontSizes.body) * lineHeights.body,
       color: colors.textSecondary,
       marginBottom: spacing.xxl,
     },
@@ -613,10 +620,16 @@ const createStyles = (colors: ReturnType<typeof getColors>) => {
     },
   });
 
-  /**
-   * Markdown Styles
-   * Reused from ChapterReader for consistency
-   */
+/**
+ * Creates markdown styles for TopicPage.
+ * Content font sizes (body, headings, paragraph, list_item) are scaled.
+ * Line heights are recalculated proportionally from the scaled font size.
+ * UI chrome styles are intentionally left unscaled.
+ */
+const createMarkdownStyles = (
+  colors: ReturnType<typeof getColors>,
+  scaledFontSize: (base: number) => number = (b) => b
+) => {
   const verseNumberSuperscriptStyle = {
     fontSize: fontSizes.bodyLarge,
     fontWeight: fontWeights.bold,
@@ -624,45 +637,45 @@ const createStyles = (colors: ReturnType<typeof getColors>) => {
     marginRight: spacing.xs / 2,
   };
 
-  const markdownStyles = StyleSheet.create({
+  return StyleSheet.create({
     body: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: scaledFontSize(fontSizes.bodyLarge),
+      lineHeight: scaledFontSize(fontSizes.bodyLarge) * 2.0,
       color: colors.textPrimary,
     },
     heading1: {
-      fontSize: fontSizes.heading1,
+      fontSize: scaledFontSize(fontSizes.heading1),
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      lineHeight: scaledFontSize(fontSizes.heading1) * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xxl,
       marginBottom: spacing.md,
     },
     heading2: {
-      fontSize: fontSizes.heading2,
+      fontSize: scaledFontSize(fontSizes.heading2),
       fontWeight: fontWeights.semibold,
-      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      lineHeight: scaledFontSize(fontSizes.heading2) * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: 64,
       marginBottom: spacing.sm,
     },
     heading3: {
-      fontSize: fontSizes.heading3,
+      fontSize: scaledFontSize(fontSizes.heading3),
       fontWeight: fontWeights.semibold,
-      lineHeight: fontSizes.heading3 * lineHeights.heading,
+      lineHeight: scaledFontSize(fontSizes.heading3) * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: 64,
       marginBottom: spacing.sm,
     },
     paragraph: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: scaledFontSize(fontSizes.bodyLarge),
+      lineHeight: scaledFontSize(fontSizes.bodyLarge) * 2.0,
       color: colors.textPrimary,
       marginBottom: spacing.md,
     },
     list_item: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: scaledFontSize(fontSizes.bodyLarge),
+      lineHeight: scaledFontSize(fontSizes.bodyLarge) * 2.0,
       color: colors.textPrimary,
       marginBottom: spacing.xs,
     },
@@ -689,6 +702,4 @@ const createStyles = (colors: ReturnType<typeof getColors>) => {
     },
     verseNumberSuperscript: verseNumberSuperscriptStyle,
   });
-
-  return { styles, markdownStyles };
 };

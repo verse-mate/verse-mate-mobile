@@ -40,6 +40,7 @@ import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { TextSizePopover } from '@/components/bible/TextSizePopover';
 import { SplitView } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
@@ -166,6 +167,9 @@ export default function ChapterScreen() {
 
   // Navigation modal state
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
+
+  // Text size popover state
+  const [isTextSizeOpen, setIsTextSizeOpen] = useState(false);
 
   // Hamburger menu state
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -479,6 +483,9 @@ export default function ChapterScreen() {
               onMenuPress={() => {
                 setIsMenuOpen(true);
               }}
+              onTextSizePress={() => {
+                setIsTextSizeOpen(true);
+              }}
             />
 
             {/* Content Tabs - Only visible in Explanations view */}
@@ -510,6 +517,9 @@ export default function ChapterScreen() {
 
             {/* Hamburger Menu */}
             <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+
+            {/* Text Size Popover */}
+            <TextSizePopover visible={isTextSizeOpen} onClose={() => setIsTextSizeOpen(false)} />
           </>
         )}
 
@@ -561,6 +571,7 @@ interface ChapterHeaderProps {
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
+  onTextSizePress?: () => void;
   navigationModalVisible?: boolean;
 }
 
@@ -571,6 +582,7 @@ function ChapterHeader({
   onNavigationPress,
   onViewChange,
   onMenuPress,
+  onTextSizePress,
   navigationModalVisible,
 }: ChapterHeaderProps) {
   // Get theme directly inside ChapterHeader (no props drilling)
@@ -681,6 +693,19 @@ function ChapterHeader({
 
         {/* Offline Indicator */}
         <OfflineIndicator />
+
+        {/* Text Size Button */}
+        {onTextSizePress && (
+          <Pressable
+            onPress={onTextSizePress}
+            style={styles.iconButton}
+            accessibilityLabel="Adjust text size"
+            accessibilityRole="button"
+            testID="text-size-button"
+          >
+            <Ionicons name="text" size={headerSpecs.iconSize} color={headerSpecs.iconColor} />
+          </Pressable>
+        )}
 
         {/* Hamburger Menu Icon */}
         <Pressable

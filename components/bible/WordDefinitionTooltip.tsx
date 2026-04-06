@@ -36,6 +36,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { useTextSize } from '@/contexts/TextSizeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
@@ -89,6 +90,7 @@ export function WordDefinitionTooltip({
   useModal = true,
 }: WordDefinitionTooltipProps) {
   const { colors } = useTheme();
+  const { scaledFontSize } = useTextSize();
   const { bibleVersion } = useBibleVersion();
   const insets = useSafeAreaInsets();
   const { isTablet, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
@@ -104,8 +106,8 @@ export function WordDefinitionTooltip({
         : undefined;
 
   const styles = useMemo(
-    () => createStyles(colors, insets.bottom, tooltipWidth),
-    [colors, insets.bottom, tooltipWidth]
+    () => createStyles(colors, insets.bottom, tooltipWidth, scaledFontSize),
+    [colors, insets.bottom, tooltipWidth, scaledFontSize]
   );
 
   // Internal visibility state to keep Modal mounted during exit animation
@@ -634,7 +636,8 @@ export function WordDefinitionTooltip({
 const createStyles = (
   colors: ReturnType<typeof getColors>,
   bottomInset: number,
-  tooltipWidth?: number
+  tooltipWidth?: number,
+  scaledFontSize: (b: number) => number = (b) => b
 ) => {
   return StyleSheet.create({
     overlay: {
@@ -683,7 +686,7 @@ const createStyles = (
       marginTop: spacing.sm,
     },
     wordTitle: {
-      fontSize: fontSizes.heading1,
+      fontSize: scaledFontSize(fontSizes.heading1),
       fontWeight: fontWeights.bold,
       color: colors.textPrimary,
       marginBottom: spacing.md,
@@ -724,9 +727,9 @@ const createStyles = (
       marginBottom: spacing.xs,
     },
     refsText: {
-      fontSize: fontSizes.bodySmall,
+      fontSize: scaledFontSize(fontSizes.bodySmall),
       color: colors.textSecondary,
-      lineHeight: fontSizes.bodySmall * 1.5,
+      lineHeight: scaledFontSize(fontSizes.bodySmall) * 1.5,
     },
     seeAlsoContainer: {
       marginTop: spacing.md,
@@ -755,7 +758,7 @@ const createStyles = (
       color: colors.textSecondary,
     },
     lemmaText: {
-      fontSize: fontSizes.heading2,
+      fontSize: scaledFontSize(fontSizes.heading2),
       fontWeight: fontWeights.medium,
       color: colors.textPrimary,
       marginBottom: spacing.md,
@@ -776,9 +779,9 @@ const createStyles = (
       marginBottom: spacing.md,
     },
     definitionText: {
-      fontSize: fontSizes.body,
+      fontSize: scaledFontSize(fontSizes.body),
       color: colors.textPrimary,
-      lineHeight: fontSizes.body * 1.5,
+      lineHeight: scaledFontSize(fontSizes.body) * 1.5,
     },
     derivationContainer: {
       marginBottom: spacing.sm,
@@ -790,7 +793,7 @@ const createStyles = (
       marginBottom: spacing.xs,
     },
     derivationText: {
-      fontSize: fontSizes.bodySmall,
+      fontSize: scaledFontSize(fontSizes.bodySmall),
       color: colors.textSecondary,
       fontStyle: 'italic',
     },
@@ -804,7 +807,7 @@ const createStyles = (
       marginBottom: spacing.xs,
     },
     kjvText: {
-      fontSize: fontSizes.bodySmall,
+      fontSize: scaledFontSize(fontSizes.bodySmall),
       color: colors.textSecondary,
     },
     verseReference: {
