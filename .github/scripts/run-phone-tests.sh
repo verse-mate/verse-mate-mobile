@@ -49,11 +49,8 @@ if [ -z "$TEST_FOLDER" ]; then
   # Run all folders except split-view (split-view requires tablet emulator)
   echo "Running all phone test folders..."
   OVERALL_EXIT=0
-  # Authenticated test folders (bookmarks, highlights, notes) disabled until
-  # deep link auth bypass works on EAS e2e-test APK (GH-251).
-  # The e2e-auth.tsx route and setup-authenticated.yaml are ready but the
-  # openLink deep link doesn't work on the pre-built APK yet.
-  for folder in auth bible-reading dictionary navigation recents regression search settings swipe topics; do
+  # All test folders including authenticated ones (auto-login via build env vars)
+  for folder in auth bible-reading bookmarks dictionary highlights navigation notes recents regression search settings swipe topics; do
     echo "=========================================="
     echo "Running tests in .maestro/$folder/"
     echo "=========================================="

@@ -552,9 +552,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Restore session on mount
+  // Restore session on mount (or auto-login for E2E test builds)
   useEffect(() => {
-    restoreSession();
+    const init = async () => {
+      // E2E auto-login: if credentials are embedded in the build, login automatically
+      const e2eEmail = process.env.EXPO_PUBLIC_E2E_AUTO_LOGIN_EMAIL;
+      const e2ePassword = process.env.EXPO_PUBLIC_E2E_AUTO_LOGIN_PASSWORD;
+      if (e2eEmail && e2ePassword) {
+        try {
+          await login(e2eEmail, e2ePassword);
+          return; // login sets user + isLoading
+        } catch (e) {
+          console.warn('E2E auto-login failed, falling back to restoreSession:', e);
+        }
+      }
+      await restoreSession();
+    };
+    init();
   }, []);
 
   const value: AuthContextValue = {
