@@ -1,0 +1,53 @@
+appId: org.versemate.app
+name: Setup Authenticated Session
+tags:
+  - setup
+  - auth
+---
+# Shared authenticated setup: login via API + deep link auth bypass.
+#
+# Maestro's inputText silently fails on secureTextEntry password fields
+# on Android (mobile-dev-inc/maestro#1061). This flow works around the
+# issue by calling the login API from Maestro's JavaScript engine, then
+# passing the tokens to the app via a deep link to the e2e-auth route.
+#
+# Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+
+# Step 1: Call login API from Maestro to get tokens
+- evalScript: |
+    ${
+      var email = E2E_TEST_EMAIL || '';
+      var password = E2E_TEST_PASSWORD || '';
+      var response = http.post('https://api.versemate.org/auth/login', {
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email: email, password: password})
+      });
+      var data = json(response.body);
+      output.accessToken = data.accessToken || '';
+      output.refreshToken = data.refreshToken || '';
+    }
+
+# Step 2: Launch app with clean state
+- launchApp:
+    appId: org.versemate.app
+    clearState: true
+
+# Skip onboarding
+- tapOn:
+    text: "Skip"
+    optional: true
+
+# Wait for app to load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 60000
+
+# Step 3: Open deep link with tokens to auto-authenticate
+- openLink: "versemate://e2e-auth?accessToken=${output.accessToken}&refreshToken=${output.refreshToken}"
+
+# Step 4: Wait for auth to complete and redirect to Bible
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000

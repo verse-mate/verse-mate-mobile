@@ -532,6 +532,7 @@ export function ChapterReader({
                   return (
                     <View
                       key={groupKey}
+                      testID={`verse-group-${group[0].verseNumber}`}
                       onLayout={(e) =>
                         handleVerseLayout(
                           group[0].verseNumber,

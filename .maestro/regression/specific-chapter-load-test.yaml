@@ -1,0 +1,111 @@
+---
+appId: org.versemate.app
+name: Specific Chapter Load Test (Galatians 6)
+description: Tests that navigating to Galatians 6 loads content without infinite spinner (GH-199)
+tags:
+  - critical
+  - regression
+
+---
+
+# Specific Chapter Load Regression Test
+#
+# Regression test for GH-199: Galatians 6 (and other specific chapters)
+# should load without getting stuck on an infinite loading spinner.
+#
+# Test Scenarios:
+# 1. Navigate to Galatians 6 via navigation modal
+# 2. Verify content loads without lingering skeleton
+# 3. Verify both Bible and Explanations views work
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Test 1: Navigate to Galatians 6
+# ============================================
+
+# Open navigation modal
+- tapOn:
+    id: "chapter-selector-button"
+
+- assertVisible:
+    id: "bible-navigation-modal"
+
+# Switch to New Testament tab
+- tapOn:
+    id: "tab-new-testament"
+
+- waitForAnimationToEnd
+
+# Search for Galatians to find it quickly
+- tapOn:
+    id: "books-search-input"
+
+- inputText: "Galatians"
+
+# Tap Galatians
+- tapOn:
+    id: "book-item-galatians"
+
+# Wait for chapter grid
+- waitForAnimationToEnd
+
+# Select chapter 6
+- tapOn:
+    id: "chapter-6"
+
+# Wait for navigation
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Content Loads
+# ============================================
+
+# Verify chapter selector button is visible (page loaded)
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Wait a moment for content to fully load
+- waitForAnimationToEnd
+
+# CRITICAL: Verify skeleton loader is NOT visible (content loaded)
+- assertNotVisible:
+    id: "skeleton-loader"
+
+# ============================================
+# Test 3: Verify Both Views Work
+# ============================================
+
+# Switch to Explanations view
+- tapOn:
+    id: "commentary-view-toggle"
+
+- waitForAnimationToEnd
+
+# Verify explanations loaded (tabs visible)
+- assertVisible:
+    id: "tab-summary"
+
+# Switch back to Bible view
+- tapOn:
+    id: "bible-view-toggle"
+
+- waitForAnimationToEnd
+
+# Verify Bible view works
+- assertVisible:
+    id: "chapter-selector-button"
+
+# Verify no skeleton in Bible view either
+- assertNotVisible:
+    id: "skeleton-loader"
+
+# ============================================
+# Test Complete
+# ============================================

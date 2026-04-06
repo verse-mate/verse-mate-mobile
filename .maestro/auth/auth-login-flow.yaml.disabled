@@ -1,0 +1,86 @@
+---
+appId: org.versemate.app
+name: Login with Credentials Flow
+description: Tests deep link auth bypass and verifies authenticated state
+tags:
+  - critical
+  - auth
+  - user-flow
+
+---
+
+# Login Verification E2E Test
+#
+# Uses setup-authenticated.yaml which authenticates via API call + deep link
+# (bypasses Maestro's broken secureTextEntry input on Android).
+#
+# This flow verifies:
+# 1. App launches in authenticated state after deep link auth
+# 2. Menu shows logout (not login)
+# 3. Settings show authenticated profile
+
+- runFlow: ../shared/setup-authenticated.yaml
+
+# ============================================
+# Test 1: Verify Authenticated State in Menu
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Verify logout is visible (authenticated)
+- assertVisible:
+    id: "menu-item-logout"
+
+# Verify login is NOT visible (already authenticated)
+- assertNotVisible:
+    id: "menu-item-login"
+
+# Close menu
+- tapOn:
+    id: "menu-close-button"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Verify Settings Show Profile
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Navigate to Settings
+- tapOn:
+    id: "menu-item-settings"
+
+- waitForAnimationToEnd
+
+# Verify logout button is visible (authenticated)
+- assertVisible:
+    id: "settings-logout-button"
+
+# Verify sign-in button is NOT visible
+- assertNotVisible:
+    id: "settings-sign-in-button"
+
+# Go back
+- tapOn:
+    id: "settings-back-button"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test Complete
+# ============================================

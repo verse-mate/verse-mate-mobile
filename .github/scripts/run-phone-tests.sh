@@ -35,17 +35,30 @@ if ! maestro test .maestro/shared/warmup.yaml; then
 fi
 echo "Warm-up complete"
 
+
 TEST_FOLDER="$1"
+
+# Build env var flags for authenticated tests using arrays (safe for special chars)
+ENV_ARGS=()
+if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
+  ENV_ARGS+=(--env "E2E_TEST_EMAIL=${E2E_TEST_EMAIL}" --env "E2E_TEST_PASSWORD=${E2E_TEST_PASSWORD}")
+  echo "Authenticated test credentials configured"
+fi
 
 if [ -z "$TEST_FOLDER" ]; then
   # Run all folders except split-view (split-view requires tablet emulator)
   echo "Running all phone test folders..."
   OVERALL_EXIT=0
-  for folder in auth bible-reading bookmarks dictionary highlights notes regression settings swipe topics navigation; do
+  # Authenticated test folders (bookmarks, highlights, notes) disabled until
+  # deep link auth bypass works on EAS e2e-test APK (GH-251).
+  # The e2e-auth.tsx route and setup-authenticated.yaml are ready but the
+  # openLink deep link doesn't work on the pre-built APK yet.
+  for folder in auth bible-reading dictionary navigation recents regression search settings swipe topics; do
     echo "=========================================="
     echo "Running tests in .maestro/$folder/"
     echo "=========================================="
-    maestro test ".maestro/$folder/" || OVERALL_EXIT=1
+
+    maestro test "${ENV_ARGS[@]}" ".maestro/$folder/" || OVERALL_EXIT=1
   done
   if [ $OVERALL_EXIT -ne 0 ]; then
     echo "Some phone tests failed"
@@ -55,5 +68,5 @@ elif [ "$TEST_FOLDER" = "split-view" ]; then
   echo "Skipping phone step (split-view tests run on tablet emulator only)"
 else
   echo "Running tests in .maestro/$TEST_FOLDER/"
-  maestro test ".maestro/$TEST_FOLDER/"
+  maestro test "${ENV_ARGS[@]}" ".maestro/$TEST_FOLDER/"
 fi

@@ -1,0 +1,129 @@
+---
+appId: org.versemate.app
+name: Theme Switching Flow
+description: Tests theme picker open, switching between dark/light/auto themes
+tags:
+  - settings
+  - user-flow
+
+---
+
+# Theme Switching E2E Test
+#
+# This flow tests the theme switching functionality:
+# 1. Navigate to Settings
+# 2. Open theme picker
+# 3. Switch to Dark theme
+# 4. Switch to Light theme
+# 5. Switch back to Auto theme
+# 6. Navigate back to chapter screen
+
+- runFlow: ../shared/setup.yaml
+
+# Wait for app to fully load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+# ============================================
+# Navigate to Settings
+# ============================================
+
+# Open hamburger menu
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+# Navigate to Settings
+- tapOn:
+    id: "menu-item-settings"
+
+- waitForAnimationToEnd
+
+# ============================================
+# Test 1: Open Theme Picker and Switch to Dark
+# ============================================
+
+# Scroll down to ensure theme selector is visible
+- scrollUntilVisible:
+    element:
+      id: "theme-selector-button"
+    direction: DOWN
+    timeout: 10000
+
+# Tap theme selector to open picker
+- tapOn:
+    id: "theme-selector-button"
+
+# Wait for picker to expand
+- extendedWaitUntil:
+    visible:
+      id: "theme-option-dark"
+    timeout: 5000
+
+# Select dark theme
+- tapOn:
+    id: "theme-option-dark"
+
+# Wait for theme change and picker to close
+- waitForAnimationToEnd
+
+# ============================================
+# Test 2: Switch to Light Theme
+# ============================================
+
+# Reopen picker
+- tapOn:
+    id: "theme-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "theme-option-light"
+    timeout: 5000
+
+- tapOn:
+    id: "theme-option-light"
+
+# Wait for theme change
+- waitForAnimationToEnd
+
+# ============================================
+# Test 3: Switch Back to Auto
+# ============================================
+
+# Reopen picker
+- tapOn:
+    id: "theme-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "theme-option-auto"
+    timeout: 5000
+
+- tapOn:
+    id: "theme-option-auto"
+
+# Wait for theme change
+- waitForAnimationToEnd
+
+# ============================================
+# Navigate Back
+# ============================================
+
+- tapOn:
+    id: "settings-back-button"
+
+- waitForAnimationToEnd
+
+# Verify we're back on chapter screen
+- assertVisible:
+    id: "chapter-selector-button"
+
+# ============================================
+# Test Complete
+# ============================================
