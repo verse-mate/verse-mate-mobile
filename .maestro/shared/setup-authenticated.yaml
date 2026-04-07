@@ -60,7 +60,8 @@ tags:
     id: "login-submit"
 
 # Wait for redirect back to Bible screen
+# Extended timeout: login makes 2 API calls (postAuthLogin + fetchUserSession)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
-    timeout: 30000
+    timeout: 60000
