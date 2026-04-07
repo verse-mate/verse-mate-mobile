@@ -7,11 +7,9 @@ tags:
 # Shared authenticated setup for E2E tests.
 #
 # In e2e-test builds, secureTextEntry is disabled on password fields
-# (workaround for Maestro Android issue #1061). This allows inputText
-# to type passwords normally.
+# (workaround for Maestro Android issue #1061).
 #
-# IMPORTANT: Uses clearState: false to preserve EAS Update cache.
-# clearState: true wipes the OTA update, causing the app to fail to load.
+# Uses clearState:false to preserve EAS Update cache.
 #
 # Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
 
@@ -23,7 +21,7 @@ tags:
     appId: org.versemate.app
     clearState: false
 
-# Tap Skip if onboarding appears (unlikely with preserved state)
+# Tap Skip if onboarding appears
 - tapOn:
     text: "Skip"
     optional: true
@@ -43,7 +41,6 @@ tags:
       id: "hamburger-menu"
     timeout: 5000
 
-# Check if already logged in — if logout is visible, tap it first
 - runFlow:
     when:
       visible:
@@ -55,7 +52,6 @@ tags:
           visible:
             id: "chapter-selector-button"
           timeout: 10000
-      # Re-open menu after logout
       - tapOn:
           id: "hamburger-menu-button"
       - extendedWaitUntil:
@@ -88,7 +84,26 @@ tags:
     id: "login-submit"
 
 # Wait for redirect back to Bible screen
+# Retry: if network fails, wait and try again
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
-    timeout: 60000
+    timeout: 15000
+    optional: true
+
+# If still on login screen (network error), retry submit
+- runFlow:
+    when:
+      visible:
+        id: "login-submit"
+    commands:
+      # Wait for network to recover
+      - swipe:
+          direction: DOWN
+          duration: 100
+      - tapOn:
+          id: "login-submit"
+      - extendedWaitUntil:
+          visible:
+            id: "chapter-selector-button"
+          timeout: 30000
