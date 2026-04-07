@@ -37,9 +37,7 @@
         "EXPO_PUBLIC_POSTHOG_KEY": "phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC",
         "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "false",
-        "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false",
-        "EXPO_PUBLIC_E2E_AUTO_LOGIN_EMAIL": "chaves.augusto+verse@gmail.com",
-        "EXPO_PUBLIC_E2E_AUTO_LOGIN_PASSWORD": "VerseMateTest2026"
+        "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
       }
     },
     "preview": {

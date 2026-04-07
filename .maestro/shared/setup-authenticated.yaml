@@ -6,9 +6,9 @@ tags:
 ---
 # Shared authenticated setup for E2E tests.
 #
-# Logs in via the UI: navigates to login screen, enters email,
-# toggles password visibility (Maestro can't type into secureTextEntry
-# on Android), enters password, and submits.
+# In e2e-test builds, secureTextEntry is disabled on password fields
+# (workaround for Maestro Android issue #1061). This allows inputText
+# to type passwords normally without any toggle or deep link hacks.
 #
 # Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
 
@@ -49,16 +49,12 @@ tags:
     id: "login-email"
 - inputText: "${E2E_TEST_EMAIL}"
 
-# Toggle password visibility so inputText works on Android
-- tapOn:
-    id: "login-password-toggle-visibility"
-
-# Enter password (now a plain text field)
+# Enter password (secureTextEntry disabled in e2e-test builds)
 - tapOn:
     id: "login-password"
 - inputText: "${E2E_TEST_PASSWORD}"
 
-# Hide keyboard and submit
+# Submit
 - hideKeyboard
 - tapOn:
     id: "login-submit"
