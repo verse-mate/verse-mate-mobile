@@ -8,15 +8,22 @@ tags:
 #
 # In e2e-test builds, secureTextEntry is disabled on password fields
 # (workaround for Maestro Android issue #1061). This allows inputText
-# to type passwords normally without any toggle or deep link hacks.
+# to type passwords normally.
+#
+# IMPORTANT: Uses clearState: false to preserve EAS Update cache.
+# clearState: true wipes the OTA update, causing the app to fail to load.
 #
 # Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
 
+# Stop and restart app (preserves EAS Update + onboarding completion)
+- stopApp:
+    appId: org.versemate.app
+
 - launchApp:
     appId: org.versemate.app
-    clearState: true
+    clearState: false
 
-# Tap Skip if onboarding appears
+# Tap Skip if onboarding appears (unlikely with preserved state)
 - tapOn:
     text: "Skip"
     optional: true
@@ -27,7 +34,7 @@ tags:
       id: "chapter-selector-button"
     timeout: 60000
 
-# Navigate to login
+# Logout if already authenticated (from a previous test)
 - tapOn:
     id: "hamburger-menu-button"
 
@@ -36,6 +43,27 @@ tags:
       id: "hamburger-menu"
     timeout: 5000
 
+# Check if already logged in — if logout is visible, tap it first
+- runFlow:
+    when:
+      visible:
+        id: "menu-item-logout"
+    commands:
+      - tapOn:
+          id: "menu-item-logout"
+      - extendedWaitUntil:
+          visible:
+            id: "chapter-selector-button"
+          timeout: 10000
+      # Re-open menu after logout
+      - tapOn:
+          id: "hamburger-menu-button"
+      - extendedWaitUntil:
+          visible:
+            id: "hamburger-menu"
+          timeout: 5000
+
+# Navigate to login
 - tapOn:
     id: "menu-item-login"
 
@@ -60,7 +88,6 @@ tags:
     id: "login-submit"
 
 # Wait for redirect back to Bible screen
-# Extended timeout: login makes 2 API calls (postAuthLogin + fetchUserSession)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
