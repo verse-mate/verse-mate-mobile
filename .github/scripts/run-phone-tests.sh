@@ -35,6 +35,14 @@ if ! maestro test .maestro/shared/warmup.yaml; then
 fi
 echo "Warm-up complete"
 
+# Seed auth tokens into AsyncStorage (after warmup so DB exists)
+# Tokens are fetched from API on the HOST (emulator can't reach API directly)
+if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
+  echo "=========================================="
+  echo "Seeding auth tokens into AsyncStorage"
+  echo "=========================================="
+  bash .github/scripts/seed-auth-tokens.sh || echo "WARNING: Token seeding failed (non-fatal)"
+fi
 
 TEST_FOLDER="$1"
 
