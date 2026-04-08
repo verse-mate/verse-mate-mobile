@@ -33,10 +33,16 @@ DB_PATH="/data/data/${PACKAGE}/databases/RKStorage"
 adb root 2>/dev/null || true
 sleep 2
 
-# Write tokens via temp SQL file (avoids shell quoting issues with JWTs)
+# Also fetch the user session (needed for offline restoreSession fallback)
+echo "Fetching user session..."
+USER_SESSION=$(curl -s --max-time 30 -X GET https://api.versemate.org/auth/session \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}")
+
+# Write tokens + cached user via temp SQL file (avoids shell quoting issues)
 cat > /tmp/seed_tokens.sql << SQLEOF
 INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_access_token', '${ACCESS_TOKEN}');
 INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_refresh_token', '${REFRESH_TOKEN}');
+INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_cached_user', '${USER_SESSION}');
 SQLEOF
 
 adb push /tmp/seed_tokens.sql /data/local/tmp/seed_tokens.sql
@@ -46,8 +52,8 @@ adb shell "rm /data/local/tmp/seed_tokens.sql"
 rm -f /tmp/seed_tokens.sql
 
 # Verify
-KEY_COUNT=$(adb shell "sqlite3 ${DB_PATH} \"SELECT COUNT(*) FROM catalystLocalStorage WHERE key IN ('versemate_access_token', 'versemate_refresh_token');\"" | tr -d '\r')
-echo "Auth keys stored: $KEY_COUNT/2"
+KEY_COUNT=$(adb shell "sqlite3 ${DB_PATH} \"SELECT COUNT(*) FROM catalystLocalStorage WHERE key IN ('versemate_access_token', 'versemate_refresh_token', 'versemate_cached_user');\"" | tr -d '\r')
+echo "Auth keys stored: $KEY_COUNT/3"
 
 # Force-stop app so next launch triggers restoreSession with fresh tokens
 adb shell am force-stop ${PACKAGE}
