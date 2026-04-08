@@ -6,38 +6,18 @@ tags:
 ---
 # Shared authenticated setup for E2E tests.
 #
-# Uses Maestro's evalScript to call the login API from the host machine
-# (CI emulator has network issues reaching the API directly). Gets tokens
-# and passes them to the app via the e2e-auth deep link.
+# Auth tokens are pre-seeded into AsyncStorage by the CI script
+# (seed-auth-tokens.sh) which calls the API from the HOST machine
+# (the Android emulator can't reach api.versemate.org directly).
 #
-# Fallback: if deep link doesn't work, types credentials into the login form
-# (secureTextEntry is disabled in e2e-test builds).
+# This flow just stops and relaunches the app. On launch, the
+# AuthContext's restoreSession() finds the seeded tokens in
+# AsyncStorage and auto-authenticates.
 #
-# Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+# IMPORTANT: clearState: false — preserves both EAS Update cache
+# AND the seeded auth tokens.
 
-# Step 1: Get auth tokens from the API via Maestro's host-side JS engine
-- evalScript: |
-    ${
-      var email = E2E_TEST_EMAIL || '';
-      var password = E2E_TEST_PASSWORD || '';
-      output.hasCredentials = (email && password) ? 'true' : 'false';
-      if (email && password) {
-        try {
-          var response = http.post('https://api.versemate.org/auth/login', {
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({email: email, password: password})
-          });
-          var data = json(response.body);
-          output.accessToken = data.accessToken || '';
-          output.refreshToken = data.refreshToken || '';
-          output.loginOk = data.accessToken ? 'true' : 'false';
-        } catch(e) {
-          output.loginOk = 'false';
-        }
-      }
-    }
-
-# Step 2: Stop and restart app (preserves EAS Update cache)
+# Stop and cold-launch (triggers restoreSession with seeded tokens)
 - stopApp:
     appId: org.versemate.app
 
@@ -50,62 +30,8 @@ tags:
     text: "Skip"
     optional: true
 
-# Wait for Bible screen
+# Wait for Bible screen (restoreSession auto-authenticates)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
     timeout: 60000
-
-# Step 3: Try deep link auth (passes tokens from host-side API call)
-- openLink: "versemate://e2e-auth?accessToken=${output.accessToken}&refreshToken=${output.refreshToken}"
-
-# Wait for auth to complete
-- extendedWaitUntil:
-    visible:
-      id: "chapter-selector-button"
-    timeout: 15000
-    optional: true
-
-# Step 4: Verify authenticated — if not, fall back to UI login
-- tapOn:
-    id: "hamburger-menu-button"
-
-- extendedWaitUntil:
-    visible:
-      id: "hamburger-menu"
-    timeout: 5000
-
-# If already authenticated (deep link worked), we're done
-- runFlow:
-    when:
-      visible:
-        id: "menu-item-logout"
-    commands:
-      - tapOn:
-          id: "menu-close-button"
-
-# If not authenticated (deep link didn't work), do UI login
-- runFlow:
-    when:
-      visible:
-        id: "menu-item-login"
-    commands:
-      - tapOn:
-          id: "menu-item-login"
-      - extendedWaitUntil:
-          visible:
-            id: "login-email"
-          timeout: 10000
-      - tapOn:
-          id: "login-email"
-      - inputText: "${E2E_TEST_EMAIL}"
-      - tapOn:
-          id: "login-password"
-      - inputText: "${E2E_TEST_PASSWORD}"
-      - hideKeyboard
-      - tapOn:
-          id: "login-submit"
-      - extendedWaitUntil:
-          visible:
-            id: "chapter-selector-button"
-          timeout: 60000
