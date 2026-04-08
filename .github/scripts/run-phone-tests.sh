@@ -57,11 +57,22 @@ if [ -z "$TEST_FOLDER" ]; then
   # Run all folders except split-view (split-view requires tablet emulator)
   echo "Running all phone test folders..."
   OVERALL_EXIT=0
-  # All test folders including authenticated ones (auto-login via build env vars)
+  # Folders that need auth token re-seeding before running
+  AUTH_FOLDERS=" auth bookmarks highlights notes "
+
   for folder in auth bible-reading bookmarks dictionary highlights navigation notes recents regression search settings swipe topics; do
     echo "=========================================="
     echo "Running tests in .maestro/$folder/"
     echo "=========================================="
+
+    # Re-seed auth tokens before folders with authenticated tests
+    # (previous test's clearState may have wiped them)
+    if echo "$AUTH_FOLDERS" | grep -q " $folder "; then
+      if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
+        echo "Re-seeding auth tokens for $folder..."
+        bash .github/scripts/seed-auth-tokens.sh 2>&1 || echo "WARNING: Re-seeding failed"
+      fi
+    fi
 
     maestro test "${ENV_ARGS[@]}" ".maestro/$folder/" || OVERALL_EXIT=1
   done
