@@ -6,18 +6,15 @@ tags:
 ---
 # Shared authenticated setup for E2E tests.
 #
-# Auth tokens are pre-seeded into AsyncStorage by the CI script
-# (seed-auth-tokens.sh) which calls the API from the HOST machine
-# (the Android emulator can't reach api.versemate.org directly).
+# Auth tokens are seeded into AsyncStorage by the CI script before each
+# auth test folder. This flow cold-launches the app (clearState:false to
+# preserve tokens + EAS Update), then navigates to Genesis 1 to ensure
+# a clean Bible screen.
 #
-# This flow just stops and relaunches the app. On launch, the
-# AuthContext's restoreSession() finds the seeded tokens in
-# AsyncStorage and auto-authenticates.
-#
-# IMPORTANT: clearState: false — preserves both EAS Update cache
-# AND the seeded auth tokens.
+# The CI script re-seeds tokens before each auth folder, so even if a
+# previous test's clearState wiped them, they're fresh.
 
-# Stop and cold-launch (triggers restoreSession with seeded tokens)
+# Cold launch — preserves seeded tokens + EAS Update cache
 - stopApp:
     appId: org.versemate.app
 
@@ -30,8 +27,39 @@ tags:
     text: "Skip"
     optional: true
 
-# Wait for Bible screen (restoreSession auto-authenticates)
+# Wait for any screen to load (might be error page or Bible)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
     timeout: 60000
+
+# Navigate to Genesis 1 explicitly (in case app is on a broken route)
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+# Select OT tab and Genesis
+- tapOn:
+    id: "tab-old-testament"
+    optional: true
+
+- tapOn:
+    id: "book-item-genesis"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-1"
+    timeout: 5000
+
+- tapOn:
+    id: "chapter-1"
+
+# Wait for Genesis 1 to load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
