@@ -6,14 +6,38 @@ tags:
 ---
 # Shared authenticated setup for E2E tests.
 #
-# In e2e-test builds, secureTextEntry is disabled on password fields
-# (workaround for Maestro Android issue #1061).
+# Uses Maestro's evalScript to call the login API from the host machine
+# (CI emulator has network issues reaching the API directly). Gets tokens
+# and passes them to the app via the e2e-auth deep link.
 #
-# Uses clearState:false to preserve EAS Update cache.
+# Fallback: if deep link doesn't work, types credentials into the login form
+# (secureTextEntry is disabled in e2e-test builds).
 #
 # Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
 
-# Stop and restart app (preserves EAS Update + onboarding completion)
+# Step 1: Get auth tokens from the API via Maestro's host-side JS engine
+- evalScript: |
+    ${
+      var email = E2E_TEST_EMAIL || '';
+      var password = E2E_TEST_PASSWORD || '';
+      output.hasCredentials = (email && password) ? 'true' : 'false';
+      if (email && password) {
+        try {
+          var response = http.post('https://api.versemate.org/auth/login', {
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email: email, password: password})
+          });
+          var data = json(response.body);
+          output.accessToken = data.accessToken || '';
+          output.refreshToken = data.refreshToken || '';
+          output.loginOk = data.accessToken ? 'true' : 'false';
+        } catch(e) {
+          output.loginOk = 'false';
+        }
+      }
+    }
+
+# Step 2: Stop and restart app (preserves EAS Update cache)
 - stopApp:
     appId: org.versemate.app
 
@@ -32,7 +56,17 @@ tags:
       id: "chapter-selector-button"
     timeout: 60000
 
-# Logout if already authenticated (from a previous test)
+# Step 3: Try deep link auth (passes tokens from host-side API call)
+- openLink: "versemate://e2e-auth?accessToken=${output.accessToken}&refreshToken=${output.refreshToken}"
+
+# Wait for auth to complete
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 15000
+    optional: true
+
+# Step 4: Verify authenticated — if not, fall back to UI login
 - tapOn:
     id: "hamburger-menu-button"
 
@@ -41,69 +75,37 @@ tags:
       id: "hamburger-menu"
     timeout: 5000
 
+# If already authenticated (deep link worked), we're done
 - runFlow:
     when:
       visible:
         id: "menu-item-logout"
     commands:
       - tapOn:
-          id: "menu-item-logout"
-      - extendedWaitUntil:
-          visible:
-            id: "chapter-selector-button"
-          timeout: 10000
-      - tapOn:
-          id: "hamburger-menu-button"
-      - extendedWaitUntil:
-          visible:
-            id: "hamburger-menu"
-          timeout: 5000
+          id: "menu-close-button"
 
-# Navigate to login
-- tapOn:
-    id: "menu-item-login"
-
-- extendedWaitUntil:
-    visible:
-      id: "login-email"
-    timeout: 10000
-
-# Enter email
-- tapOn:
-    id: "login-email"
-- inputText: "${E2E_TEST_EMAIL}"
-
-# Enter password (secureTextEntry disabled in e2e-test builds)
-- tapOn:
-    id: "login-password"
-- inputText: "${E2E_TEST_PASSWORD}"
-
-# Submit
-- hideKeyboard
-- tapOn:
-    id: "login-submit"
-
-# Wait for redirect back to Bible screen
-# Retry: if network fails, wait and try again
-- extendedWaitUntil:
-    visible:
-      id: "chapter-selector-button"
-    timeout: 15000
-    optional: true
-
-# If still on login screen (network error), retry submit
+# If not authenticated (deep link didn't work), do UI login
 - runFlow:
     when:
       visible:
-        id: "login-submit"
+        id: "menu-item-login"
     commands:
-      # Wait for network to recover
-      - swipe:
-          direction: DOWN
-          duration: 100
+      - tapOn:
+          id: "menu-item-login"
+      - extendedWaitUntil:
+          visible:
+            id: "login-email"
+          timeout: 10000
+      - tapOn:
+          id: "login-email"
+      - inputText: "${E2E_TEST_EMAIL}"
+      - tapOn:
+          id: "login-password"
+      - inputText: "${E2E_TEST_PASSWORD}"
+      - hideKeyboard
       - tapOn:
           id: "login-submit"
       - extendedWaitUntil:
           visible:
             id: "chapter-selector-button"
-          timeout: 30000
+          timeout: 60000
