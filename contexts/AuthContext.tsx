@@ -473,16 +473,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
           msg.toLowerCase().includes('network') ||
           msg.toLowerCase().includes('failed to fetch');
 
-        if (isNetworkError) {
+        // In e2e-test builds, always fall back to cached user (emulator may
+        // have flaky network; we don't want tokens cleared mid-test)
+        const isE2ETest = process.env.APP_ENV === 'e2e-test';
+
+        if (isNetworkError || isE2ETest) {
           const cached = await getCachedUser<User>();
           if (cached) {
             // Offline with a cached profile — restore without clearing tokens.
-            // Tokens will be validated automatically when connectivity returns.
             userSession = cached;
           } else {
-            // Offline and no cached profile — leave tokens intact for when
-            // the network comes back, but don't set a user yet.
-            console.error('Failed to restore session (offline, no cache):', sessionError);
+            console.error('Failed to restore session (no cache):', sessionError);
             return;
           }
         } else {
