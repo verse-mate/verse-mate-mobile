@@ -43,6 +43,7 @@ cat > /tmp/seed_tokens.sql << SQLEOF
 INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_access_token', '${ACCESS_TOKEN}');
 INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_refresh_token', '${REFRESH_TOKEN}');
 INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_cached_user', '${USER_SESSION}');
+INSERT OR REPLACE INTO catalystLocalStorage (key, value) VALUES ('versemate_e2e_mode', 'true');
 SQLEOF
 
 adb push /tmp/seed_tokens.sql /data/local/tmp/seed_tokens.sql
@@ -52,8 +53,8 @@ adb shell "rm /data/local/tmp/seed_tokens.sql"
 rm -f /tmp/seed_tokens.sql
 
 # Verify
-KEY_COUNT=$(adb shell "sqlite3 ${DB_PATH} \"SELECT COUNT(*) FROM catalystLocalStorage WHERE key IN ('versemate_access_token', 'versemate_refresh_token', 'versemate_cached_user');\"" | tr -d '\r')
-echo "Auth keys stored: $KEY_COUNT/3"
+KEY_COUNT=$(adb shell "sqlite3 ${DB_PATH} \"SELECT COUNT(*) FROM catalystLocalStorage WHERE key IN ('versemate_access_token', 'versemate_refresh_token', 'versemate_cached_user', 'versemate_e2e_mode');\"" | tr -d '\r')
+echo "Auth keys stored: $KEY_COUNT/4"
 
 # Force-stop app so next launch triggers restoreSession with fresh tokens
 adb shell am force-stop ${PACKAGE}
