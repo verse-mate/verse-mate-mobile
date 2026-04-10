@@ -461,11 +461,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       let userSession: User;
 
       // In e2e-test builds, skip the API call entirely and use cached user.
-      // CI emulators have restricted network; the cached user was seeded by
-      // seed-auth-tokens.sh alongside the tokens.
-      const isE2ETest = process.env.EXPO_PUBLIC_APP_ENV === 'e2e-test';
+      // The seed-auth-tokens.sh script sets this flag alongside the tokens.
+      const e2eFlag = await AsyncStorage.getItem('versemate_e2e_mode');
 
-      if (isE2ETest) {
+      if (e2eFlag === 'true') {
         const cached = await getCachedUser<User>();
         if (cached) {
           userSession = cached;
