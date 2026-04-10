@@ -32,6 +32,7 @@
       },
       "env": {
         "APP_ENV": "e2e-test",
+        "EXPO_PUBLIC_APP_ENV": "e2e-test",
         "EXPO_PUBLIC_API_URL": "https://api.versemate.org",
         "EXPO_PUBLIC_WEB_URL": "https://app.versemate.org",
         "EXPO_PUBLIC_POSTHOG_KEY": "phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC",

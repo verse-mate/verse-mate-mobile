@@ -91,7 +91,7 @@ export const TextInput: React.FC<TextInputProps> = ({
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={colors.textTertiary}
-          secureTextEntry={secureTextEntry && !isPasswordVisible && process.env.APP_ENV !== 'e2e-test'}
+          secureTextEntry={secureTextEntry && !isPasswordVisible && process.env.EXPO_PUBLIC_APP_ENV !== 'e2e-test'}
           testID={testID}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
