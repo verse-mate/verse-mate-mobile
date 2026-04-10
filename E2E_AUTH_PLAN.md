@@ -6,9 +6,17 @@
 
 ---
 
-## Current Status: Diagnosis Phase
+## Current Status: socat TLS proxy approach — adb reverse not reaching app
 
-We've spent many iterations building auth infrastructure but haven't yet **definitively proven** the root cause of the failures. The next step is a targeted diagnostic before committing to a large fix.
+### What's been proven:
+1. **Emulator TCP+DNS work** (nc to api.versemate.org:443 succeeds) — but TLS/HTTPS from React Native fails
+2. **Maestro login flow works perfectly** — credentials typed, password visible (secureTextEntry disabled), login submitted
+3. **socat TLS proxy works on host** — `curl http://localhost:4000/openapi/json` verified in CI
+4. **cleartext HTTP plugin works** — `usesCleartextTraffic=true` set via Expo config plugin for e2e-test builds
+5. **adb reverse is configured** — but the app still gets "Network request failed"
+
+### Next step:
+Verify `adb reverse` is actually working from within the emulator. Add `adb reverse --list` before tests and test connectivity from emulator shell: `adb shell curl http://localhost:4000/healthcheck`. If adb reverse isn't working, try `10.0.2.2:4000` (emulator host alias) instead.
 
 ---
 
