@@ -23,9 +23,8 @@ else
 fi
 # Quick test: can we reach the API through the proxy?
 curl -s --max-time 5 http://localhost:4000/openapi/json > /dev/null 2>&1 && echo "TLS proxy verified: API reachable via localhost:4000" || echo "WARNING: TLS proxy test failed"
-# Expose host port 4000 to emulator as localhost:4000
-adb reverse tcp:4000 tcp:4000
-echo "adb reverse configured: emulator localhost:4000 → host localhost:4000"
+# Emulator uses 10.0.2.2 to reach host (Android's built-in alias, no adb reverse needed)
+echo "App will connect to http://10.0.2.2:4000 → host socat → api.versemate.org:443"
 
 # Phase 0: Network diagnostic — prove whether emulator can reach api.versemate.org
 # This is the key question blocking authenticated E2E tests. Results go into the
