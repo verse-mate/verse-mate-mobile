@@ -459,38 +459,50 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Attempt to fetch a fresh session from the API.
       // On network failure fall back to the cached profile; on auth failure clear tokens.
       let userSession: User;
-      try {
-        userSession = await fetchUserSession();
-      } catch (sessionError) {
-        // Detect connectivity failures (TypeError from fetch, or error objects whose
-        // message mentions "network"). Auth errors (401 / 403) are structured objects
-        // from the SDK and will NOT match this check.
-        const msg = sessionError instanceof Error
-          ? sessionError.message
-          : String(sessionError);
-        const isNetworkError =
-          sessionError instanceof TypeError ||
-          msg.toLowerCase().includes('network') ||
-          msg.toLowerCase().includes('failed to fetch');
 
-        // In e2e-test builds, always fall back to cached user (emulator may
-        // have flaky network; we don't want tokens cleared mid-test)
-        const isE2ETest = process.env.EXPO_PUBLIC_APP_ENV === 'e2e-test';
+      // In e2e-test builds, skip the API call entirely and use cached user.
+      // CI emulators have restricted network; the cached user was seeded by
+      // seed-auth-tokens.sh alongside the tokens.
+      const isE2ETest = process.env.EXPO_PUBLIC_APP_ENV === 'e2e-test';
 
-        if (isNetworkError || isE2ETest) {
-          const cached = await getCachedUser<User>();
-          if (cached) {
-            // Offline with a cached profile — restore without clearing tokens.
-            userSession = cached;
+      if (isE2ETest) {
+        const cached = await getCachedUser<User>();
+        if (cached) {
+          userSession = cached;
+        } else {
+          console.error('[E2E] No cached user found — tokens exist but no profile seeded');
+          return;
+        }
+      } else {
+        try {
+          userSession = await fetchUserSession();
+        } catch (sessionError) {
+          // Detect connectivity failures (TypeError from fetch, or error objects whose
+          // message mentions "network"). Auth errors (401 / 403) are structured objects
+          // from the SDK and will NOT match this check.
+          const msg = sessionError instanceof Error
+            ? sessionError.message
+            : String(sessionError);
+          const isNetworkError =
+            sessionError instanceof TypeError ||
+            msg.toLowerCase().includes('network') ||
+            msg.toLowerCase().includes('failed to fetch');
+
+          if (isNetworkError) {
+            const cached = await getCachedUser<User>();
+            if (cached) {
+              // Offline with a cached profile — restore without clearing tokens.
+              userSession = cached;
+            } else {
+              console.error('Failed to restore session (no cache):', sessionError);
+              return;
+            }
           } else {
-            console.error('Failed to restore session (no cache):', sessionError);
+            // Auth error (invalid / expired tokens) — clear everything.
+            console.error('Failed to restore session:', sessionError);
+            await clearTokens();
             return;
           }
-        } else {
-          // Auth error (invalid / expired tokens) — clear everything.
-          console.error('Failed to restore session:', sessionError);
-          await clearTokens();
-          return;
         }
       }
 
