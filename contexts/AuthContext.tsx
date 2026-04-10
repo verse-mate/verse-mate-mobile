@@ -464,6 +464,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // The seed-auth-tokens.sh script sets this flag alongside the tokens.
       const e2eFlag = await AsyncStorage.getItem('versemate_e2e_mode');
 
+      // Write diagnostic BEFORE the e2e check so we can see the flag value
+      await AsyncStorage.setItem('versemate_e2e_diagnostic',
+        `flag=${String(e2eFlag)},tokens=${accessToken ? 'yes' : 'no'},time=${Date.now()}`);
+
       if (e2eFlag === 'true') {
         // Use cached user if available, otherwise create a minimal test user.
         // Skip proactive refresh, PostHog, and analytics — just set the user
@@ -475,6 +479,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           firstName: 'E2E',
           lastName: 'Test',
         } as User);
+        await AsyncStorage.setItem('versemate_e2e_diagnostic',
+          `e2e_path_taken,cached=${cached ? 'yes' : 'no'},time=${Date.now()}`);
         setUser(testUser);
         return;
       }
