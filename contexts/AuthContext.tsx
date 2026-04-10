@@ -475,7 +475,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // In e2e-test builds, always fall back to cached user (emulator may
         // have flaky network; we don't want tokens cleared mid-test)
-        const isE2ETest = process.env.APP_ENV === 'e2e-test';
+        const isE2ETest = process.env.EXPO_PUBLIC_APP_ENV === 'e2e-test';
 
         if (isNetworkError || isE2ETest) {
           const cached = await getCachedUser<User>();

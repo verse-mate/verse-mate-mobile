@@ -214,6 +214,7 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           APP_ENV: e2e-test
+          EXPO_PUBLIC_APP_ENV: e2e-test
         run: |
           echo "Pushing JS update to e2e-test branch..."
           eas update --branch e2e-test --message "E2E update for ${{ github.sha }}" --non-interactive
