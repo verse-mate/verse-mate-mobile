@@ -21,10 +21,12 @@ else
   SOCAT_PID=$!
   sleep 1
 fi
-# Quick test: can we reach the API through the proxy?
-curl -s --max-time 5 http://localhost:4000/openapi/json > /dev/null 2>&1 && echo "TLS proxy verified: API reachable via localhost:4000" || echo "WARNING: TLS proxy test failed"
-# Emulator uses 10.0.2.2 to reach host (Android's built-in alias, no adb reverse needed)
-echo "App will connect to http://10.0.2.2:4000 → host socat → api.versemate.org:443"
+# Quick test from HOST: can we reach the API through the proxy?
+curl -s --max-time 5 http://localhost:4000/openapi/json > /dev/null 2>&1 && echo "TLS proxy verified (host): API reachable via localhost:4000" || echo "WARNING: TLS proxy test failed on host"
+# Test from EMULATOR: can the emulator reach the proxy via 10.0.2.2?
+echo "--- Emulator→Host connectivity test ---"
+adb shell "echo 'GET /openapi/json HTTP/1.1\r\nHost: api.versemate.org\r\nConnection: close\r\n\r\n' | nc 10.0.2.2 4000 2>&1 | head -5" || echo "WARNING: Emulator cannot reach 10.0.2.2:4000"
+echo "--- End connectivity test ---"
 
 # Phase 0: Network diagnostic — prove whether emulator can reach api.versemate.org
 # This is the key question blocking authenticated E2E tests. Results go into the
