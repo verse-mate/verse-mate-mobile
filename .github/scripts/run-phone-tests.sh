@@ -3,6 +3,30 @@ set -e
 
 adb install app.apk
 
+# TLS proxy: socat terminates TLS on the host and exposes plain HTTP on port 4000.
+# adb reverse lets the emulator reach localhost:4000 → socat → api.versemate.org:443.
+# This bypasses the emulator's broken HTTPS (proven: TCP+DNS work but TLS fails).
+echo "=========================================="
+echo "Starting TLS proxy (socat) + adb reverse"
+echo "=========================================="
+socat TCP-LISTEN:4000,fork,reuseaddr OPENSSL-CONNECT:api.versemate.org:443,verify=1 &
+SOCAT_PID=$!
+sleep 1
+# Verify socat is running
+if kill -0 $SOCAT_PID 2>/dev/null; then
+  echo "socat TLS proxy started on port 4000 (PID: $SOCAT_PID)"
+else
+  echo "WARNING: socat failed to start, trying without verify..."
+  socat TCP-LISTEN:4000,fork,reuseaddr OPENSSL-CONNECT:api.versemate.org:443 &
+  SOCAT_PID=$!
+  sleep 1
+fi
+# Quick test: can we reach the API through the proxy?
+curl -s --max-time 5 http://localhost:4000/openapi/json > /dev/null 2>&1 && echo "TLS proxy verified: API reachable via localhost:4000" || echo "WARNING: TLS proxy test failed"
+# Expose host port 4000 to emulator as localhost:4000
+adb reverse tcp:4000 tcp:4000
+echo "adb reverse configured: emulator localhost:4000 → host localhost:4000"
+
 # Phase 0: Network diagnostic — prove whether emulator can reach api.versemate.org
 # This is the key question blocking authenticated E2E tests. Results go into the
 # workflow summary so we have definitive evidence for the next fix.
