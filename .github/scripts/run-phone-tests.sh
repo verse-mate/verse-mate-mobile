@@ -101,6 +101,17 @@ if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
   echo "Seeding auth tokens into AsyncStorage"
   echo "=========================================="
   bash .github/scripts/seed-auth-tokens.sh || echo "WARNING: Token seeding failed (non-fatal)"
+
+  # Diagnostic: list ALL databases and ALL AsyncStorage keys the app has
+  PACKAGE="org.versemate.app"
+  echo "=== DB DIAGNOSTIC ==="
+  echo "--- All database files ---"
+  adb shell "ls -la /data/data/${PACKAGE}/databases/" 2>&1
+  echo "--- All keys in RKStorage ---"
+  adb shell "sqlite3 /data/data/${PACKAGE}/databases/RKStorage \"SELECT key, length(value), substr(value,1,50) FROM catalystLocalStorage;\"" 2>&1
+  echo "--- Check for scoped DB files ---"
+  adb shell "ls -la /data/data/${PACKAGE}/databases/RKStorage*" 2>&1
+  echo "=== END DB DIAGNOSTIC ==="
 fi
 
 TEST_FOLDER="$1"
@@ -134,6 +145,13 @@ if [ -z "$TEST_FOLDER" ]; then
     fi
 
     maestro test "${ENV_ARGS[@]}" ".maestro/$folder/" || OVERALL_EXIT=1
+
+    # After auth folder tests, read the diagnostic to see what restoreSession did
+    if [ "$folder" = "auth" ] && [ -n "$E2E_TEST_EMAIL" ]; then
+      echo "=== POST-TEST AUTH DIAGNOSTIC ==="
+      adb shell "sqlite3 /data/data/org.versemate.app/databases/RKStorage \"SELECT key, substr(value,1,80) FROM catalystLocalStorage WHERE key LIKE 'versemate_e2e%';\"" 2>&1
+      echo "=== END POST-TEST DIAGNOSTIC ==="
+    fi
   done
   if [ $OVERALL_EXIT -ne 0 ]; then
     echo "Some phone tests failed"
