@@ -6,30 +6,65 @@ tags:
 ---
 # Shared authenticated setup for E2E tests.
 #
-# Auth tokens + cached user are seeded into AsyncStorage by the CI script
-# (seed-auth-tokens.sh) before each auth test folder. This flow cold-launches
-# the app so restoreSession() reads the seeded data.
+# Logs in via the actual login screen using typed credentials.
+# Uses clearState:true for a clean state (seed DB works for chapters).
+# secureTextEntry is disabled in e2e-test builds (EXPO_PUBLIC_APP_ENV).
 #
-# IMPORTANT: clearState:false preserves seeded tokens. The app may display
-# an error state for chapter content (CI emulator has no outbound API),
-# but the authenticated state (menu shows logout, not login) works.
+# Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
 
-# Cold launch — triggers restoreSession() with seeded tokens + cached user
-- stopApp:
-    appId: org.versemate.app
-
+# Fresh launch — clearState:true gives clean seed DB for chapters
 - launchApp:
     appId: org.versemate.app
-    clearState: false
+    clearState: true
 
 # Tap Skip if onboarding appears
 - tapOn:
     text: "Skip"
     optional: true
 
-# Wait for ANY app screen to load — chapter-selector-button shows even in
-# error state (displays "Error 1" instead of chapter name)
+# Wait for Bible screen to load (from seed DB)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
     timeout: 60000
+
+# Navigate to login: hamburger menu → Log In
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 5000
+
+- tapOn:
+    id: "menu-item-login"
+
+# Wait for login screen
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 10000
+
+# Type email
+- tapOn:
+    id: "login-email"
+- inputText: ${E2E_TEST_EMAIL}
+
+# Type password (secureTextEntry disabled in e2e-test builds)
+- tapOn:
+    id: "login-password"
+- inputText: ${E2E_TEST_PASSWORD}
+
+# Hide keyboard before tapping submit
+- hideKeyboard
+
+# Submit login
+- tapOn:
+    id: "login-submit"
+
+# Wait for redirect back to Bible screen (login success)
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
