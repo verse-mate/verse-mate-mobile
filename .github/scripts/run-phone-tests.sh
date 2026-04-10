@@ -87,6 +87,13 @@ if ! maestro test .maestro/shared/warmup.yaml; then
 fi
 echo "Warm-up complete"
 
+# Start logcat capture in background (before any tests run)
+# Previous approach of capturing after emulator kill always timed out
+adb logcat -c 2>/dev/null || true
+adb logcat -v time '*:W' 2>/dev/null > /tmp/emulator-logcat-live.txt &
+LOGCAT_PID=$!
+echo "Logcat capture started (PID: $LOGCAT_PID)"
+
 # Seed auth tokens into AsyncStorage (after warmup so DB exists)
 # Tokens are fetched from API on the HOST (emulator can't reach API directly)
 if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
@@ -94,6 +101,32 @@ if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
   echo "Seeding auth tokens into AsyncStorage"
   echo "=========================================="
   bash .github/scripts/seed-auth-tokens.sh || echo "WARNING: Token seeding failed (non-fatal)"
+
+  # Auth diagnostic: launch app briefly, wait for restoreSession, then check if tokens survived
+  echo "=========================================="
+  echo "Auth diagnostic: checking if tokens survive restoreSession()"
+  echo "=========================================="
+  PACKAGE="org.versemate.app"
+  DB_PATH="/data/data/${PACKAGE}/databases/RKStorage"
+
+  echo "--- BEFORE app launch (tokens just seeded) ---"
+  adb shell "sqlite3 ${DB_PATH} \"SELECT key, length(value) FROM catalystLocalStorage WHERE key LIKE 'versemate_%';\"" 2>&1 || echo "DB read failed"
+
+  # Launch app and wait for restoreSession to complete
+  adb shell am start -n ${PACKAGE}/.MainActivity
+  echo "Waiting 15s for restoreSession()..."
+  sleep 15
+
+  echo "--- AFTER app launch (restoreSession completed) ---"
+  adb shell "sqlite3 ${DB_PATH} \"SELECT key, length(value) FROM catalystLocalStorage WHERE key LIKE 'versemate_%';\"" 2>&1 || echo "DB read failed"
+
+  # Also capture React Native logs about auth
+  echo "--- Recent auth-related logs ---"
+  grep -i "restore\|session\|token\|auth\|e2e\|APP_ENV\|cached" /tmp/emulator-logcat-live.txt 2>/dev/null | tail -30 || echo "No auth logs found"
+
+  # Stop app for clean state before actual tests
+  adb shell am force-stop ${PACKAGE}
+  echo "Auth diagnostic complete"
 fi
 
 TEST_FOLDER="$1"
@@ -137,4 +170,12 @@ elif [ "$TEST_FOLDER" = "split-view" ]; then
 else
   echo "Running tests in .maestro/$TEST_FOLDER/"
   maestro test "${ENV_ARGS[@]}" ".maestro/$TEST_FOLDER/"
+fi
+
+# Stop logcat capture
+if [ -n "$LOGCAT_PID" ]; then
+  kill $LOGCAT_PID 2>/dev/null || true
+  echo "Logcat capture stopped"
+  # Copy to expected location for workflow artifact upload
+  cp /tmp/emulator-logcat-live.txt emulator-logcat.txt 2>/dev/null || true
 fi
