@@ -3,30 +3,43 @@ set -e
 
 adb install app.apk
 
-# TLS proxy: socat terminates TLS on the host and exposes plain HTTP on port 4000.
-# adb reverse lets the emulator reach localhost:4000 → socat → api.versemate.org:443.
-# This bypasses the emulator's broken HTTPS (proven: TCP+DNS work but TLS fails).
+# TCP transparent proxy: forward the emulator's HTTPS traffic to the real API.
+# The emulator's TLS stack can't connect directly (broken in CI). We fix this by:
+# 1. socat on host: forwards TCP from port 443 to the real api.versemate.org:443
+# 2. Emulator hosts file: points api.versemate.org to 10.0.2.2 (host alias)
+# Result: App → HTTPS api.versemate.org → resolves to 10.0.2.2 → socat → real API
+# TLS passes through transparently (real cert, no cleartext, no self-signed)
 echo "=========================================="
-echo "Starting TLS proxy (socat) + adb reverse"
+echo "Setting up TCP transparent proxy for API"
 echo "=========================================="
-socat TCP-LISTEN:4000,fork,reuseaddr OPENSSL-CONNECT:api.versemate.org:443,verify=1 &
+
+# Resolve the real IP of api.versemate.org BEFORE modifying anything
+REAL_API_IP=$(dig +short api.versemate.org | head -1)
+echo "Real API IP: $REAL_API_IP"
+
+# Start socat TCP forwarder on port 443 (forwards to real API)
+sudo socat TCP-LISTEN:443,fork,reuseaddr TCP:${REAL_API_IP}:443 &
 SOCAT_PID=$!
 sleep 1
-# Verify socat is running
 if kill -0 $SOCAT_PID 2>/dev/null; then
-  echo "socat TLS proxy started on port 4000 (PID: $SOCAT_PID)"
+  echo "socat TCP proxy started on port 443 (PID: $SOCAT_PID)"
 else
-  echo "WARNING: socat failed to start, trying without verify..."
-  socat TCP-LISTEN:4000,fork,reuseaddr OPENSSL-CONNECT:api.versemate.org:443 &
-  SOCAT_PID=$!
-  sleep 1
+  echo "ERROR: socat failed to start on port 443"
 fi
-# Quick test from HOST: can we reach the API through the proxy?
-curl -s --max-time 5 http://localhost:4000/openapi/json > /dev/null 2>&1 && echo "TLS proxy verified (host): API reachable via localhost:4000" || echo "WARNING: TLS proxy test failed on host"
-# Test from EMULATOR: can the emulator reach the proxy via 10.0.2.2?
-echo "--- Emulator→Host connectivity test ---"
-adb shell "echo 'GET /openapi/json HTTP/1.1\r\nHost: api.versemate.org\r\nConnection: close\r\n\r\n' | nc 10.0.2.2 4000 2>&1 | head -5" || echo "WARNING: Emulator cannot reach 10.0.2.2:4000"
-echo "--- End connectivity test ---"
+
+# Quick test from host
+curl -s --max-time 10 https://localhost/openapi/json -k > /dev/null 2>&1 && echo "TCP proxy verified (host): API reachable via localhost:443" || echo "WARNING: Host proxy test failed (expected if cert mismatch)"
+
+# Redirect emulator's DNS for api.versemate.org to host (10.0.2.2)
+adb root 2>/dev/null || true
+sleep 2
+adb shell "echo '10.0.2.2 api.versemate.org' >> /etc/hosts"
+echo "Emulator hosts file updated: api.versemate.org → 10.0.2.2"
+
+# Verify from emulator
+echo "--- Emulator DNS test ---"
+adb shell "ping -c 1 -W 3 api.versemate.org 2>&1 | head -3" || echo "Ping test done"
+echo "--- End DNS test ---"
 
 # Phase 0: Network diagnostic — prove whether emulator can reach api.versemate.org
 # This is the key question blocking authenticated E2E tests. Results go into the
