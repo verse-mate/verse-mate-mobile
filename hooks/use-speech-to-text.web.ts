@@ -26,9 +26,11 @@ type SpeechRecognitionType = typeof window extends { SpeechRecognition: infer T 
 function getSpeechRecognition(): SpeechRecognitionType | null {
   if (typeof window === 'undefined') return null;
   const win = window as unknown as Record<string, unknown>;
-  return (win.SpeechRecognition as SpeechRecognitionType)
-    || (win.webkitSpeechRecognition as SpeechRecognitionType)
-    || null;
+  return (
+    (win.SpeechRecognition as SpeechRecognitionType) ||
+    (win.webkitSpeechRecognition as SpeechRecognitionType) ||
+    null
+  );
 }
 
 export function useSpeechToText({

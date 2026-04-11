@@ -13,7 +13,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { UseAppleSignInReturn } from './useAppleSignIn';
 
-const APPLE_SCRIPT_URL = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
+const APPLE_SCRIPT_URL =
+  'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
 
 declare global {
   interface Window {
