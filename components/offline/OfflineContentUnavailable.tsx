@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { fontSizes, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
-import { fontSizes, spacing } from '@/theme/tokens';
 
 type ContentType = 'chapter' | 'explanation' | 'topic';
 

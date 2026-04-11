@@ -20,13 +20,7 @@ import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
-import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
-import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
 import {
   fontSizes,
   fontWeights,
@@ -34,9 +28,13 @@ import {
   getSplitViewSpecs,
   lineHeights,
   spacing,
-} from '@/theme/tokens';
+} from '@/constants/bible-design-tokens';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
+import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
-import { AudioInlineEntry } from './AudioInlineEntry';
 import { ShareButton } from './ShareButton';
 
 /**
@@ -337,40 +335,29 @@ export function BibleExplanationsPanel({
       </View>
 
       {/* Content Area — one ScrollView per tab for independent scroll positions */}
-      {(
-        [
-          {
-            key: 'summary' as const,
-            type: 'summary',
-            ref: summaryScrollRef,
-            data: summaryContent,
-            explanationId:
-              summaryData && 'explanationId' in summaryData ? summaryData.explanationId : null,
-            loading: summaryLoading,
-            isLocal: summaryIsLocal,
-          },
-          {
-            key: 'byline' as const,
-            type: 'byline',
-            ref: byLineScrollRef,
-            data: byLineContent,
-            explanationId:
-              byLineData && 'explanationId' in byLineData ? byLineData.explanationId : null,
-            loading: byLineLoading,
-            isLocal: byLineIsLocal,
-          },
-          {
-            key: 'detailed' as const,
-            type: 'detailed',
-            ref: detailedScrollRef,
-            data: detailedContent,
-            explanationId:
-              detailedData && 'explanationId' in detailedData ? detailedData.explanationId : null,
-            loading: detailedLoading,
-            isLocal: detailedIsLocal,
-          },
-        ] as const
-      ).map((tab) => (
+      {[
+        {
+          key: 'summary' as const,
+          ref: summaryScrollRef,
+          data: summaryContent,
+          loading: summaryLoading,
+          isLocal: summaryIsLocal,
+        },
+        {
+          key: 'byline' as const,
+          ref: byLineScrollRef,
+          data: byLineContent,
+          loading: byLineLoading,
+          isLocal: byLineIsLocal,
+        },
+        {
+          key: 'detailed' as const,
+          ref: detailedScrollRef,
+          data: detailedContent,
+          loading: detailedLoading,
+          isLocal: detailedIsLocal,
+        },
+      ].map((tab) => (
         <ScrollView
           key={tab.key}
           ref={tab.ref}
@@ -385,17 +372,14 @@ export function BibleExplanationsPanel({
             <SkeletonLoader />
           ) : tab.data ? (
             <>
-              {tab.explanationId !== null ? (
-                <AudioInlineEntry
-                  explanationId={tab.explanationId}
-                  explanationType={tab.type}
-                  bookId={bookId}
-                  chapterNumber={chapterNumber}
-                  language={language}
-                  sourceHref={`/bible/${bookId}/${chapterNumber}`}
-                />
-              ) : null}
-              {tab.isLocal && <AvailableOfflineBadge />}
+              {tab.isLocal && (
+                <View style={styles.offlineBadge}>
+                  <Ionicons name="cloud-done-outline" size={14} color={colors.textTertiary} />
+                  <Text style={[styles.offlineBadgeText, { color: colors.textTertiary }]}>
+                    Available offline
+                  </Text>
+                </View>
+              )}
               <Markdown style={markdownStyles}>{tab.data}</Markdown>
             </>
           ) : isOffline ? (
@@ -506,6 +490,15 @@ function createStyles(
       paddingHorizontal: spacing.xxl,
       paddingVertical: spacing.xxl,
       paddingBottom: 60,
+    },
+    offlineBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: spacing.sm,
+    },
+    offlineBadgeText: {
+      fontSize: fontSizes.overline,
     },
     emptyContainer: {
       flex: 1,

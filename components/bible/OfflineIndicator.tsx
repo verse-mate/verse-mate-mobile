@@ -9,11 +9,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { fontSizes, getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { getPendingSyncActions } from '@/services/offline';
-import { fontSizes, getHeaderSpecs, spacing } from '@/theme/tokens';
 
 export function OfflineIndicator() {
   const { colors, mode } = useTheme();

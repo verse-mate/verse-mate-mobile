@@ -23,7 +23,6 @@ import {
   getBibleVersionsDownloadInfo,
   getCommentaryDownloadInfo,
   getDownloadedBibleVersions,
-  getDownloadedBooksForVersion,
   getDownloadedCommentaryLanguages,
   getDownloadedTopicLanguages,
   getLanguageBundleStatus,
@@ -45,7 +44,6 @@ import {
 } from '@/services/offline';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNetInfo } from '@react-native-community/netinfo';
-import { useQueryClient } from '@tanstack/react-query';
 import { InteractionManager, Platform } from 'react-native';
 import React, {
   createContext,
@@ -71,8 +69,6 @@ export interface OfflineContextType {
 
   // Downloaded content
   downloadedBibleVersions: string[];
-  /** Map of Bible version key -> array of downloaded book IDs (book-level granularity). */
-  downloadedBibleBooks: Record<string, number[]>;
   downloadedCommentaryLanguages: string[];
   downloadedTopicLanguages: string[];
 
@@ -97,7 +93,7 @@ export interface OfflineContextType {
   totalStorageUsed: number;
 
   // Actions
-  refreshManifest: () => Promise<OfflineManifest | null>;
+  refreshManifest: () => Promise<void>;
   downloadBibleVersion: (versionKey: string) => Promise<void>;
   downloadBibleBook: (versionKey: string, bookId: number) => Promise<void>;
   deleteBibleBook: (versionKey: string, bookId: number) => Promise<void>;
@@ -123,7 +119,6 @@ const webOnlyValue: OfflineContextType = {
   isInitialized: true,
   manifest: null,
   downloadedBibleVersions: [],
-  downloadedBibleBooks: {},
   downloadedCommentaryLanguages: [],
   downloadedTopicLanguages: [],
   bibleVersionsInfo: [],
@@ -136,7 +131,7 @@ const webOnlyValue: OfflineContextType = {
   lastSyncTime: null,
   setLastSyncTime: () => {},
   totalStorageUsed: 0,
-  refreshManifest: async () => null,
+  refreshManifest: async () => {},
   downloadBibleVersion: async () => {},
   downloadBibleBook: async () => {},
   deleteBibleBook: async () => {},
@@ -162,25 +157,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const netInfo = useNetInfo();
   const isOnline = netInfo.isConnected === true;
 
-  const queryClient = useQueryClient();
-
-  // React Query key helpers — matched against the `_id` field the generated
-  // `createQueryKey` puts on the first segment, so renaming the generated
-  // operation only requires updating these strings (and TS will eventually
-  // surface it via the imported types).
-  const CHAPTER_QUERY_ID = 'getBibleBookByBookIdByChapterNumber';
-  const EXPLANATION_QUERY_ID = 'getBibleBookExplanationByBookIdByChapterNumber';
-  const matchesBookId = (queryKey: unknown, bookId: number): boolean => {
-    if (!Array.isArray(queryKey)) return false;
-    const first = queryKey[0] as { path?: { bookId?: string } } | undefined;
-    return first?.path?.bookId === String(bookId);
-  };
-  const matchesOperationId = (queryKey: unknown, id: string): boolean => {
-    if (!Array.isArray(queryKey)) return false;
-    const first = queryKey[0] as { _id?: string } | undefined;
-    return first?._id === id;
-  };
-
   // Mode state
   const [isAutoSyncEnabled, setAutoSyncEnabledState] = useState(true);
 
@@ -192,7 +168,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Downloaded content
   const [downloadedBibleVersions, setDownloadedBibleVersions] = useState<string[]>([]);
-  const [downloadedBibleBooks, setDownloadedBibleBooks] = useState<Record<string, number[]>>({});
   const [downloadedCommentaryLanguages, setDownloadedCommentaryLanguages] = useState<string[]>([]);
   const [downloadedTopicLanguages, setDownloadedTopicLanguages] = useState<string[]>([]);
 
@@ -241,11 +216,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setDownloadedTopicLanguages(topicLangs);
     setTotalStorageUsed(storage);
 
-    const bookEntries = await Promise.all(
-      bibleVersions.map(async (v) => [v, await getDownloadedBooksForVersion(v)] as const)
-    );
-    setDownloadedBibleBooks(Object.fromEntries(bookEntries));
-
     const [bibleInfo, commInfo, topicInfo] = await Promise.all([
       getBibleVersionsDownloadInfo(m),
       getCommentaryDownloadInfo(m),
@@ -286,11 +256,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         setDownloadedBibleVersions(bibleVersions);
         setDownloadedCommentaryLanguages(commentaryLangs);
         setDownloadedTopicLanguages(topicLangs);
-
-        const bookEntries = await Promise.all(
-          bibleVersions.map(async (v) => [v, await getDownloadedBooksForVersion(v)] as const)
-        );
-        setDownloadedBibleBooks(Object.fromEntries(bookEntries));
 
         const [syncTime, storage, userDataSynced] = await Promise.all([
           getLastSyncTime(),
@@ -372,14 +337,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(AUTO_SYNC_KEY, enabled.toString()).catch(console.warn);
   };
 
-  // Refresh manifest and download info. Returns the fresh manifest so callers
-  // can use the up-to-date value synchronously — React's state update from
-  // `setManifest` hasn't committed yet by the time this promise resolves, so
-  // reading `manifest` from closure would be stale.
-  const refreshManifest = useCallback(async (): Promise<OfflineManifest | null> => {
+  // Refresh manifest and download info
+  const refreshManifest = useCallback(async () => {
     if (!dbReady.current) {
       console.warn('[Offline] refreshManifest skipped — database not ready');
-      return null;
+      return;
     }
     try {
       const newManifest = await fetchManifest();
@@ -396,25 +358,18 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       setTopicsInfo(topicInfo);
 
       await refreshLanguageBundles(newManifest);
-      return newManifest;
     } catch (error) {
       console.error('Failed to refresh manifest:', error);
       throw error;
     }
-  }, [refreshLanguageBundles]);
-
-  // Return the current manifest, fetching it only once if missing. Reuses the
-  // refreshManifest result so we don't fall back to a second `fetchManifest`
-  // just because `manifest` state hasn't committed yet.
-  const ensureManifest = async (): Promise<OfflineManifest> => {
-    if (manifest) return manifest;
-    const refreshed = await refreshManifest();
-    return refreshed ?? (await fetchManifest());
-  };
+  }, [refreshLanguageBundles]); // dependencies handled inside or stable
 
   // Download Bible version
   const downloadBibleVersion = async (versionKey: string) => {
-    const currentManifest = await ensureManifest();
+    if (!manifest) {
+      await refreshManifest();
+    }
+    const currentManifest = manifest || (await fetchManifest());
 
     setIsSyncing(true);
     try {
@@ -428,22 +383,15 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Download a single Bible book
   const downloadBibleBook = async (versionKey: string, bookId: number) => {
-    if (!isOnline) {
-      const err = new Error('OFFLINE');
-      (err as Error & { code?: string }).code = 'OFFLINE';
-      throw err;
+    if (!manifest) {
+      await refreshManifest();
     }
-    const currentManifest = await ensureManifest();
+    const currentManifest = manifest || (await fetchManifest());
 
     setIsSyncing(true);
     try {
       await downloadBibleBookService(versionKey, bookId, currentManifest, setSyncProgress);
       await refreshDownloadState(currentManifest);
-      // Invalidate chapter queries for this book so stale cached payloads don't
-      // mask the newly-available local data.
-      queryClient.invalidateQueries({
-        predicate: (q) => matchesBookId(q.queryKey, bookId),
-      });
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
@@ -456,17 +404,14 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     if (manifest) {
       await refreshDownloadState(manifest);
     }
-    // Hard-remove (not just invalidate) so the next chapter render doesn't get
-    // the stale payload while the refetch is still in flight — `invalidate`
-    // keeps `data` populated, which is exactly what we don't want here.
-    queryClient.removeQueries({
-      predicate: (q) => matchesBookId(q.queryKey, bookId),
-    });
   };
 
   // Download commentaries
   const downloadCommentaries = async (languageCode: string) => {
-    const currentManifest = await ensureManifest();
+    if (!manifest) {
+      await refreshManifest();
+    }
+    const currentManifest = manifest || (await fetchManifest());
 
     setIsSyncing(true);
     try {
@@ -480,7 +425,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Download topics
   const downloadTopics = async (languageCode: string) => {
-    const currentManifest = await ensureManifest();
+    if (!manifest) {
+      await refreshManifest();
+    }
+    const currentManifest = manifest || (await fetchManifest());
 
     setIsSyncing(true);
     try {
@@ -494,7 +442,10 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Download all content for a language
   const downloadLanguage = async (languageCode: string) => {
-    const currentManifest = await ensureManifest();
+    if (!manifest) {
+      await refreshManifest();
+    }
+    const currentManifest = manifest || (await fetchManifest());
 
     setIsSyncing(true);
     try {
@@ -578,7 +529,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const deleteAllData = async () => {
     await deleteAllOfflineData();
     setDownloadedBibleVersions([]);
-    setDownloadedBibleBooks({});
     setDownloadedCommentaryLanguages([]);
     setDownloadedTopicLanguages([]);
     setTotalStorageUsed(0);
@@ -588,20 +538,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setLanguageBundles((prev) => prev.map((b) => ({ ...b, status: 'not_downloaded' as const })));
     setIsUserDataSynced(false);
     setLastSyncTime(null);
-    // Refresh manifest-backed status lists so badges like "Update Available"
-    // that were cached from before don't linger after the wipe.
-    if (manifest) {
-      await refreshDownloadState(manifest);
-    }
-    // Hard-remove (not just invalidate) chapter/explanation payloads. Delete
-    // All wipes SQLite, so the cached `data` should disappear too — `invalidate`
-    // would keep serving it until the next successful refetch, which can't
-    // happen offline.
-    queryClient.removeQueries({
-      predicate: (q) =>
-        matchesOperationId(q.queryKey, CHAPTER_QUERY_ID) ||
-        matchesOperationId(q.queryKey, EXPLANATION_QUERY_ID),
-    });
   };
 
   // Check for updates
@@ -646,7 +582,6 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
     // Downloaded content
     downloadedBibleVersions,
-    downloadedBibleBooks,
     downloadedCommentaryLanguages,
     downloadedTopicLanguages,
 
