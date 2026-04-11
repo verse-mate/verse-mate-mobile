@@ -113,7 +113,9 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
         if (initializedRef.current) return;
         initializedRef.current = true;
 
-        window.google!.accounts.id.initialize({
+        if (!window.google?.accounts?.id) return;
+
+        window.google.accounts.id.initialize({
           client_id: clientId,
           callback: (response: CredentialResponse) => {
             if (pendingResolve.current) {
@@ -132,7 +134,7 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
         document.body.appendChild(container);
         hiddenContainer.current = container;
 
-        window.google!.accounts.id.renderButton(container, {
+        window.google.accounts.id.renderButton(container, {
           type: 'standard',
           size: 'large',
           width: 200,
@@ -186,7 +188,7 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
       };
 
       // Try One Tap / FedCM first (fast, seamless)
-      window.google!.accounts.id.prompt((notification: PromptNotification) => {
+      window.google?.accounts.id.prompt((notification: PromptNotification) => {
         if (notification.isDisplayed()) {
           // Prompt is showing — wait for credential callback
           return;
@@ -195,8 +197,8 @@ export function useGoogleSignIn(): UseGoogleSignInReturn {
         // One Tap not available — click the hidden rendered button to open popup
         const btn = hiddenContainer.current?.querySelector('[role="button"]') as HTMLElement | null;
 
-        if (btn) {
-          const container = hiddenContainer.current!;
+        if (btn && hiddenContainer.current) {
+          const container = hiddenContainer.current;
           container.style.pointerEvents = 'auto';
           btn.click();
           container.style.pointerEvents = 'none';
