@@ -28,6 +28,7 @@ import {
 import type { GetAuthSessionResponse } from '@/src/api/generated/types.gen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { usePostHog } from 'posthog-react-native';
 
@@ -184,7 +185,7 @@ interface SSOErrorResponse {
 async function postAuthSso(body: {
   provider: SSOProvider;
   token: string;
-  platform: 'mobile';
+  platform: 'mobile' | 'web';
 }): Promise<{ data?: SSOAuthResponse; error?: SSOErrorResponse }> {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
 
@@ -356,7 +357,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const { data, error } = await postAuthSso({
       provider,
       token: idToken,
-      platform: 'mobile',
+      platform: Platform.OS === 'web' ? 'web' : 'mobile',
     });
 
     if (error || !data) {

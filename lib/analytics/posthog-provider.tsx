@@ -143,7 +143,9 @@ export function AppPostHogProvider({ children }: { children: ReactNode }) {
       apiKey={posthogApiKey}
       options={{
         host: posthogHost,
-        // Session replay and lifecycle events are mobile-only
+        // Session replay: enabled on native (screen recording), disabled on web
+        // posthog-react-native uses native screen capture which doesn't apply to web.
+        // For web session replay, consider adding posthog-js with rrweb-based DOM recording.
         enableSessionReplay: Platform.OS !== 'web' && sessionReplayEnabled,
         captureAppLifecycleEvents: Platform.OS !== 'web',
       }}

@@ -11,23 +11,25 @@ on:
           - staging
           - production
         default: staging
-  # Disabled: Cloudflare credentials not configured yet
-  # push:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - 'app/**'
-  #     - 'components/**'
-  #     - 'contexts/**'
-  #     - 'hooks/**'
-  #     - 'lib/**'
-  #     - 'services/**'
-  #     - 'constants/**'
-  #     - 'utils/**'
-  #     - 'assets/**'
-  #     - 'app.config.js'
-  #     - 'package.json'
-  #     - 'bun.lock'
+  # Auto-deploy to production on push to main
+  # Requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in GitHub repo secrets
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'contexts/**'
+      - 'hooks/**'
+      - 'lib/**'
+      - 'services/**'
+      - 'constants/**'
+      - 'utils/**'
+      - 'assets/**'
+      - 'public/**'
+      - 'app.config.js'
+      - 'package.json'
+      - 'bun.lock'
 
 jobs:
   deploy:
