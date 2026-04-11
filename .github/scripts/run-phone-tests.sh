@@ -13,11 +13,15 @@ echo "=========================================="
 echo "Setting up TCP transparent proxy for API"
 echo "=========================================="
 
-# Resolve the real IP of api.versemate.org BEFORE modifying anything
-REAL_API_IP=$(dig +short api.versemate.org | head -1)
+# Resolve the real IP of api.versemate.org
+REAL_API_IP=$(dig +short api.versemate.org A | grep -E '^[0-9]+\.' | head -1)
+if [ -z "$REAL_API_IP" ]; then
+  # Fallback: resolve CNAME then A record
+  REAL_API_IP=$(dig +short $(dig +short api.versemate.org CNAME | head -1) A | head -1)
+fi
 echo "Real API IP: $REAL_API_IP"
 
-# Start socat TCP forwarder on port 443 (forwards to real API)
+# Start socat TCP forwarder on host port 443 (forwards to real API)
 sudo socat TCP-LISTEN:443,fork,reuseaddr TCP:${REAL_API_IP}:443 &
 SOCAT_PID=$!
 sleep 1
@@ -27,19 +31,16 @@ else
   echo "ERROR: socat failed to start on port 443"
 fi
 
-# Quick test from host
-curl -s --max-time 10 https://localhost/openapi/json -k > /dev/null 2>&1 && echo "TCP proxy verified (host): API reachable via localhost:443" || echo "WARNING: Host proxy test failed (expected if cert mismatch)"
+# Verify proxy works from host
+curl -s --max-time 10 https://localhost/openapi/json -k > /dev/null 2>&1 && echo "TCP proxy verified (host)" || echo "WARNING: Host proxy test failed"
 
-# Redirect emulator's DNS for api.versemate.org to host (10.0.2.2)
+# Use iptables to redirect emulator traffic from real API to host (10.0.2.2)
+# This is transparent: app connects to api.versemate.org via HTTPS normally,
+# iptables redirects TCP to host, socat forwards to real API. Real cert passes through.
 adb root 2>/dev/null || true
 sleep 2
-adb shell "echo '10.0.2.2 api.versemate.org' >> /etc/hosts"
-echo "Emulator hosts file updated: api.versemate.org → 10.0.2.2"
-
-# Verify from emulator
-echo "--- Emulator DNS test ---"
-adb shell "ping -c 1 -W 3 api.versemate.org 2>&1 | head -3" || echo "Ping test done"
-echo "--- End DNS test ---"
+adb shell "iptables -t nat -A OUTPUT -p tcp -d ${REAL_API_IP} --dport 443 -j DNAT --to-destination 10.0.2.2:443" 2>&1 && echo "iptables redirect: ${REAL_API_IP}:443 → 10.0.2.2:443" || echo "WARNING: iptables failed"
+echo "Emulator traffic to api.versemate.org will route through host socat proxy"
 
 # Phase 0: Network diagnostic — prove whether emulator can reach api.versemate.org
 # This is the key question blocking authenticated E2E tests. Results go into the
