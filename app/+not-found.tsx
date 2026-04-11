@@ -10,7 +10,7 @@ export default function NotFoundScreen() {
       <Text style={[styles.code, { color: colors.textSecondary }]}>404</Text>
       <Text style={[styles.title, { color: colors.textPrimary }]}>Page not found</Text>
       <Text style={[styles.description, { color: colors.textSecondary }]}>
-        The page you're looking for doesn't exist or has been moved.
+        The page you&apos;re looking for doesn&apos;t exist or has been moved.
       </Text>
       <Link href="/bible/1/1" style={[styles.link, { color: colors.gold }]}>
         Go to Bible
