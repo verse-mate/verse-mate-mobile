@@ -1,15 +1,10 @@
-import type { ScrollViewProps } from 'react-native';
-
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, shrink-to-fit=no"
-        />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
         {/* Primary Meta */}
         <meta
@@ -27,10 +22,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
           content="Read the Bible with AI-powered explanations, commentary, and study tools."
         />
         <meta property="og:url" content="https://app.versemate.org" />
-        <meta
-          property="og:image"
-          content="https://app.versemate.org/assets/images/icon.png"
-        />
+        <meta property="og:image" content="https://app.versemate.org/assets/images/icon.png" />
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary" />

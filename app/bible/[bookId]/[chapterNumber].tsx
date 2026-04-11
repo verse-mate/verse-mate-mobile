@@ -57,9 +57,9 @@ import {
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   useBibleChapter,
