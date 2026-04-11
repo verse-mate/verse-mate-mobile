@@ -474,6 +474,59 @@ export async function deleteBibleVersion(versionKey: string): Promise<void> {
   database.runSync('DELETE FROM offline_metadata WHERE resource_key = ?', [`bible:${versionKey}`]);
 }
 
+export async function getDownloadedBooksForVersion(versionKey: string): Promise<number[]> {
+  const database = await initDatabase();
+  const rows = database.getAllSync<{ book_id: number }>(
+    'SELECT DISTINCT book_id FROM offline_verses WHERE version_key = ? ORDER BY book_id',
+    [versionKey]
+  );
+  return rows.map((r) => r.book_id);
+}
+
+export async function deleteBibleBook(versionKey: string, bookId: number): Promise<void> {
+  const database = await initDatabase();
+  database.runSync('DELETE FROM offline_verses WHERE version_key = ? AND book_id = ?', [
+    versionKey,
+    bookId,
+  ]);
+  database.runSync('DELETE FROM offline_metadata WHERE resource_key = ?', [
+    `bible:${versionKey}:book:${bookId}`,
+  ]);
+}
+
+export async function insertBibleVersesForBook(
+  versionKey: string,
+  bookId: number,
+  verses: BibleVerseData[]
+): Promise<void> {
+  const database = await initDatabase();
+  if (__DEV__)
+    console.log(`[Offline DB] Inserting ${verses.length} verses for ${versionKey} book ${bookId}`);
+
+  // Delete only this book's verses first
+  database.runSync('DELETE FROM offline_verses WHERE version_key = ? AND book_id = ?', [
+    versionKey,
+    bookId,
+  ]);
+
+  // Insert in batches
+  const batchSize = 200;
+  for (let i = 0; i < verses.length; i += batchSize) {
+    const batch = verses.slice(i, i + batchSize);
+    const values = batch
+      .map(
+        (v) =>
+          `(${escapeSQL(versionKey)}, ${escapeSQL(v.book_id)}, ${escapeSQL(v.chapter_number)}, ${escapeSQL(v.verse_number)}, ${escapeSQL(v.text)})`
+      )
+      .join(', ');
+    execSafe(
+      database,
+      `INSERT INTO offline_verses (version_key, book_id, chapter_number, verse_number, text) VALUES ${values}`,
+      `book-verses-batch-${i}`
+    );
+  }
+}
+
 export async function getSpecificVerses(
   versionKey: string,
   bookName: string,
@@ -587,6 +640,15 @@ export async function getLocalCommentary(
 
   const result = database.getFirstSync<CommentaryData>(query, params);
   return result ?? null;
+}
+
+export async function upsertSingleCommentary(
+  languageCode: string,
+  commentary: CommentaryData
+): Promise<void> {
+  const database = await initDatabase();
+  const sql = `INSERT OR REPLACE INTO offline_explanations (language_code, explanation_id, book_id, chapter_number, verse_start, verse_end, type, explanation) VALUES (${escapeSQL(languageCode)}, ${escapeSQL(commentary.explanation_id)}, ${escapeSQL(commentary.book_id)}, ${escapeSQL(commentary.chapter_number)}, ${escapeSQL(commentary.verse_start)}, ${escapeSQL(commentary.verse_end)}, ${escapeSQL(commentary.type)}, ${escapeSQL(commentary.explanation)})`;
+  execSafe(database, sql, 'upsert-single-commentary');
 }
 
 export async function isCommentaryDownloaded(languageCode: string): Promise<boolean> {

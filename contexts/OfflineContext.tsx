@@ -13,6 +13,7 @@ import {
   closeDatabase,
   deleteAllOfflineData,
   deleteLanguageBundle as deleteLanguageBundleService,
+  downloadBibleBook as downloadBibleBookService,
   downloadBibleVersion as downloadBibleVersionService,
   downloadCommentaries as downloadCommentariesService,
   downloadLanguageBundle as downloadLanguageBundleService,
@@ -31,6 +32,7 @@ import {
   initDatabase,
   isUserDataDownloaded,
   processSyncQueue,
+  removeBibleBook,
   removeBibleVersion,
   removeCommentaries,
   removeTopics,
@@ -93,6 +95,8 @@ export interface OfflineContextType {
   // Actions
   refreshManifest: () => Promise<void>;
   downloadBibleVersion: (versionKey: string) => Promise<void>;
+  downloadBibleBook: (versionKey: string, bookId: number) => Promise<void>;
+  deleteBibleBook: (versionKey: string, bookId: number) => Promise<void>;
   downloadCommentaries: (languageCode: string) => Promise<void>;
   downloadTopics: (languageCode: string) => Promise<void>;
   deleteBibleVersion: (versionKey: string) => Promise<void>;
@@ -129,6 +133,8 @@ const webOnlyValue: OfflineContextType = {
   totalStorageUsed: 0,
   refreshManifest: async () => {},
   downloadBibleVersion: async () => {},
+  downloadBibleBook: async () => {},
+  deleteBibleBook: async () => {},
   downloadCommentaries: async () => {},
   downloadTopics: async () => {},
   deleteBibleVersion: async () => {},
@@ -375,6 +381,31 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Download a single Bible book
+  const downloadBibleBook = async (versionKey: string, bookId: number) => {
+    if (!manifest) {
+      await refreshManifest();
+    }
+    const currentManifest = manifest || (await fetchManifest());
+
+    setIsSyncing(true);
+    try {
+      await downloadBibleBookService(versionKey, bookId, currentManifest, setSyncProgress);
+      await refreshDownloadState(currentManifest);
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(null);
+    }
+  };
+
+  // Delete a single Bible book
+  const deleteBibleBookAction = async (versionKey: string, bookId: number) => {
+    await removeBibleBook(versionKey, bookId);
+    if (manifest) {
+      await refreshDownloadState(manifest);
+    }
+  };
+
   // Download commentaries
   const downloadCommentaries = async (languageCode: string) => {
     if (!manifest) {
@@ -577,6 +608,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     // Actions
     refreshManifest,
     downloadBibleVersion,
+    downloadBibleBook,
+    deleteBibleBook: deleteBibleBookAction,
     downloadCommentaries,
     downloadTopics,
     deleteBibleVersion,

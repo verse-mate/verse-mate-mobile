@@ -8,6 +8,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import {
+  deleteBibleBook,
   deleteBibleVersion,
   deleteCommentaries,
   deleteSyncAction,
@@ -16,6 +17,7 @@ import {
   getMetadata,
   getPendingSyncActions,
   insertBibleVerses,
+  insertBibleVersesForBook,
   insertCommentaries,
   insertTopics,
   insertUserBookmarks,
@@ -112,6 +114,43 @@ export async function downloadBibleVersion(
 }
 
 /**
+ * Download and store a single Bible book from a version.
+ * Fetches full version data from API but only persists the target book's verses.
+ */
+export async function downloadBibleBook(
+  versionKey: string,
+  bookId: number,
+  manifest: OfflineManifest,
+  onProgress?: ProgressCallback
+): Promise<void> {
+  onProgress?.({ current: 0, total: 100, message: `Downloading book...` });
+
+  const allVerses = await fetchOfflineJSON<BibleVerseData[]>(
+    `${API_URL}/offline/bible/${versionKey}`
+  );
+
+  onProgress?.({ current: 50, total: 100, message: 'Filtering book data...' });
+
+  const bookVerses = allVerses.filter((v) => v.book_id === bookId);
+
+  onProgress?.({ current: 70, total: 100, message: 'Storing locally...' });
+
+  await insertBibleVersesForBook(versionKey, bookId, bookVerses);
+
+  onProgress?.({ current: 90, total: 100, message: 'Saving metadata...' });
+
+  const versionInfo = manifest.bible_versions.find((v) => v.key === versionKey);
+  await saveMetadata({
+    resource_key: `bible:${versionKey}:book:${bookId}`,
+    last_updated_at: versionInfo?.updated_at || new Date().toISOString(),
+    downloaded_at: new Date().toISOString(),
+    size_bytes: 0,
+  });
+
+  onProgress?.({ current: 100, total: 100, message: 'Complete!' });
+}
+
+/**
  * Download and store commentaries for a language
  */
 export async function downloadCommentaries(
@@ -190,6 +229,10 @@ export async function downloadTopics(
  */
 export async function removeBibleVersion(versionKey: string): Promise<void> {
   await deleteBibleVersion(versionKey);
+}
+
+export async function removeBibleBook(versionKey: string, bookId: number): Promise<void> {
+  await deleteBibleBook(versionKey, bookId);
 }
 
 /**
