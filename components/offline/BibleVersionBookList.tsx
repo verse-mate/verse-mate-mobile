@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BIBLE_BOOKS } from '@/constants/bible-books';
+import { fontSizes, spacing } from '@/constants/bible-design-tokens';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useToast } from '@/contexts/ToastContext';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { getDownloadedBooksForVersion } from '@/services/offline';
 
 interface BibleVersionBookListProps {
   versionKey: string;
@@ -13,23 +13,23 @@ interface BibleVersionBookListProps {
 
 export function BibleVersionBookList({ versionKey }: BibleVersionBookListProps) {
   const { colors } = useTheme();
-  const { downloadBibleBook, deleteBibleBook, downloadedBibleBooks } = useOfflineContext();
-  const { showToast } = useToast();
-  // Single source of truth: the context already tracks downloaded books for
-  // every version (refreshed after every download/delete), so read from it
-  // instead of maintaining a parallel SQLite query here.
-  const downloadedBooks = downloadedBibleBooks[versionKey] ?? [];
+  const { downloadBibleBook, deleteBibleBook } = useOfflineContext();
+  const [downloadedBooks, setDownloadedBooks] = useState<number[]>([]);
+  const [loading, setLoading] = useState(true);
   const [actionBookId, setActionBookId] = useState<number | null>(null);
+
+  useEffect(() => {
+    getDownloadedBooksForVersion(versionKey)
+      .then(setDownloadedBooks)
+      .finally(() => setLoading(false));
+  }, [versionKey]);
 
   const handleDownload = async (bookId: number) => {
     setActionBookId(bookId);
     try {
       await downloadBibleBook(versionKey, bookId);
-    } catch (err) {
-      const isOffline = (err as { code?: string } | undefined)?.code === 'OFFLINE';
-      showToast(
-        isOffline ? "You're offline. Connect to the internet to download." : 'Download failed'
-      );
+      const updated = await getDownloadedBooksForVersion(versionKey);
+      setDownloadedBooks(updated);
     } finally {
       setActionBookId(null);
     }
@@ -39,12 +39,20 @@ export function BibleVersionBookList({ versionKey }: BibleVersionBookListProps) 
     setActionBookId(bookId);
     try {
       await deleteBibleBook(versionKey, bookId);
-    } catch {
-      showToast('Failed to delete book');
+      const updated = await getDownloadedBooksForVersion(versionKey);
+      setDownloadedBooks(updated);
     } finally {
       setActionBookId(null);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={colors.gold} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

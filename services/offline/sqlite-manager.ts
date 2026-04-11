@@ -503,31 +503,28 @@ export async function insertBibleVersesForBook(
   if (__DEV__)
     console.log(`[Offline DB] Inserting ${verses.length} verses for ${versionKey} book ${bookId}`);
 
-  // DELETE + all INSERT batches must land atomically. Without this a mid-way
-  // failure would leave the book half-populated (old rows gone, new rows not
-  // yet inserted), and a subsequent chapter read would serve a corrupt view.
-  database.withTransactionSync(() => {
-    database.runSync('DELETE FROM offline_verses WHERE version_key = ? AND book_id = ?', [
-      versionKey,
-      bookId,
-    ]);
+  // Delete only this book's verses first
+  database.runSync('DELETE FROM offline_verses WHERE version_key = ? AND book_id = ?', [
+    versionKey,
+    bookId,
+  ]);
 
-    const batchSize = 200;
-    for (let i = 0; i < verses.length; i += batchSize) {
-      const batch = verses.slice(i, i + batchSize);
-      const values = batch
-        .map(
-          (v) =>
-            `(${escapeSQL(versionKey)}, ${escapeSQL(v.book_id)}, ${escapeSQL(v.chapter_number)}, ${escapeSQL(v.verse_number)}, ${escapeSQL(v.text)})`
-        )
-        .join(', ');
-      execSafe(
-        database,
-        `INSERT INTO offline_verses (version_key, book_id, chapter_number, verse_number, text) VALUES ${values}`,
-        `book-verses-batch-${i}`
-      );
-    }
-  });
+  // Insert in batches
+  const batchSize = 200;
+  for (let i = 0; i < verses.length; i += batchSize) {
+    const batch = verses.slice(i, i + batchSize);
+    const values = batch
+      .map(
+        (v) =>
+          `(${escapeSQL(versionKey)}, ${escapeSQL(v.book_id)}, ${escapeSQL(v.chapter_number)}, ${escapeSQL(v.verse_number)}, ${escapeSQL(v.text)})`
+      )
+      .join(', ');
+    execSafe(
+      database,
+      `INSERT INTO offline_verses (version_key, book_id, chapter_number, verse_number, text) VALUES ${values}`,
+      `book-verses-batch-${i}`
+    );
+  }
 }
 
 export async function getSpecificVerses(
@@ -643,27 +640,6 @@ export async function getLocalCommentary(
 
   const result = database.getFirstSync<CommentaryData>(query, params);
   return result ?? null;
-}
-
-/**
- * Cheap existence check — used by the "Available offline" badge effect to
- * avoid pulling the full explanation row just to flip a boolean, and to
- * collapse the 1–3 per-candidate-language probes down to one query.
- */
-export async function hasLocalCommentary(
-  languageCodes: string[],
-  bookId: number,
-  chapterNumber: number,
-  type: string
-): Promise<boolean> {
-  if (languageCodes.length === 0) return false;
-  const database = await initDatabase();
-  const placeholders = languageCodes.map(() => '?').join(', ');
-  const row = database.getFirstSync<{ found: number }>(
-    `SELECT 1 AS found FROM offline_explanations WHERE language_code IN (${placeholders}) AND book_id = ? AND chapter_number = ? AND type = ? LIMIT 1`,
-    [...languageCodes, bookId, chapterNumber, type]
-  );
-  return row !== null && row !== undefined;
 }
 
 export async function upsertSingleCommentary(
