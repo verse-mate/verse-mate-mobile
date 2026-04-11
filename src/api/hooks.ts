@@ -14,6 +14,7 @@ import {
   getLocalTopicExplanation,
   getLocalTopicExplanations,
   getLocalTopicReferences,
+  upsertSingleCommentary,
 } from '@/services/offline';
 import { parseAndInjectVerses } from '@/services/offline/verse-parser.service';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
@@ -264,13 +265,35 @@ export const useBibleChapterExplanation = (
         // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
 
+      // Auto-cache explanation to SQLite for future offline use (fire-and-forget)
+      if (response && 'explanation' in response && explanationType) {
+        // biome-ignore lint/suspicious/noExplicitAny: response shape varies between generated types
+        const r = response as any;
+        const expl = r.explanation;
+        if (expl && typeof expl === 'object') {
+          upsertSingleCommentary(effectiveLanguage, {
+            explanation_id: expl.explanation_id ?? 0,
+            book_id: expl.book_id ?? bookId,
+            chapter_number: expl.chapter_number ?? chapterNumber,
+            verse_start: expl.verse_start ?? null,
+            verse_end: expl.verse_end ?? null,
+            type: expl.type ?? explanationType,
+            explanation: expl.explanation ?? '',
+            language_code: expl.language_code ?? effectiveLanguage,
+          }).catch(() => {});
+        }
+      }
+
       return response;
     },
     enabled: enabled && bookId > 0 && chapterNumber > 0 && Boolean(explanationType),
   });
 
+  const isLocalData = isLocal && Boolean(explanationType) && query.data != null;
+
   return {
     ...query,
+    isLocalData,
     data: (query.data
       ? 'content' in query.data
         ? query.data // Already transformed (local path)

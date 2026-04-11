@@ -20,6 +20,7 @@ import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import {
   fontSizes,
   fontWeights,
@@ -31,6 +32,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 import { ShareButton } from './ShareButton';
@@ -94,6 +96,7 @@ export function BibleExplanationsPanel({
 }: BibleExplanationsPanelProps) {
   const { mode, colors } = useTheme();
   const { user } = useAuth();
+  const { isOffline } = useOfflineStatus();
   const insets = useSafeAreaInsets();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = useMemo(
@@ -144,35 +147,32 @@ export function BibleExplanationsPanel({
   }, [activeTab, slideAnim, getTabIndex]);
 
   // Fetch explanations based on active tab
-  const { data: summaryData, isLoading: summaryLoading } = useBibleSummary(
-    bookId,
-    chapterNumber,
-    undefined,
-    {
-      enabled: activeTab === 'summary',
-      language,
-    }
-  );
+  const {
+    data: summaryData,
+    isLoading: summaryLoading,
+    isLocalData: summaryIsLocal,
+  } = useBibleSummary(bookId, chapterNumber, undefined, {
+    enabled: activeTab === 'summary',
+    language,
+  });
 
-  const { data: byLineData, isLoading: byLineLoading } = useBibleByLine(
-    bookId,
-    chapterNumber,
-    undefined,
-    {
-      enabled: activeTab === 'byline',
-      language,
-    }
-  );
+  const {
+    data: byLineData,
+    isLoading: byLineLoading,
+    isLocalData: byLineIsLocal,
+  } = useBibleByLine(bookId, chapterNumber, undefined, {
+    enabled: activeTab === 'byline',
+    language,
+  });
 
-  const { data: detailedData, isLoading: detailedLoading } = useBibleDetailed(
-    bookId,
-    chapterNumber,
-    undefined,
-    {
-      enabled: activeTab === 'detailed',
-      language,
-    }
-  );
+  const {
+    data: detailedData,
+    isLoading: detailedLoading,
+    isLocalData: detailedIsLocal,
+  } = useBibleDetailed(bookId, chapterNumber, undefined, {
+    enabled: activeTab === 'detailed',
+    language,
+  });
 
   // Handle tab change with haptic feedback
   const handleTabChange = (tab: ContentTabType) => {
@@ -335,28 +335,29 @@ export function BibleExplanationsPanel({
       </View>
 
       {/* Content Area — one ScrollView per tab for independent scroll positions */}
-      {(
-        [
-          {
-            key: 'summary' as const,
-            ref: summaryScrollRef,
-            data: summaryContent,
-            loading: summaryLoading,
-          },
-          {
-            key: 'byline' as const,
-            ref: byLineScrollRef,
-            data: byLineContent,
-            loading: byLineLoading,
-          },
-          {
-            key: 'detailed' as const,
-            ref: detailedScrollRef,
-            data: detailedContent,
-            loading: detailedLoading,
-          },
-        ] as const
-      ).map((tab) => (
+      {[
+        {
+          key: 'summary' as const,
+          ref: summaryScrollRef,
+          data: summaryContent,
+          loading: summaryLoading,
+          isLocal: summaryIsLocal,
+        },
+        {
+          key: 'byline' as const,
+          ref: byLineScrollRef,
+          data: byLineContent,
+          loading: byLineLoading,
+          isLocal: byLineIsLocal,
+        },
+        {
+          key: 'detailed' as const,
+          ref: detailedScrollRef,
+          data: detailedContent,
+          loading: detailedLoading,
+          isLocal: detailedIsLocal,
+        },
+      ].map((tab) => (
         <ScrollView
           key={tab.key}
           ref={tab.ref}
@@ -370,7 +371,19 @@ export function BibleExplanationsPanel({
           {tab.loading ? (
             <SkeletonLoader />
           ) : tab.data ? (
-            <Markdown style={markdownStyles}>{tab.data}</Markdown>
+            <>
+              {tab.isLocal && (
+                <View style={styles.offlineBadge}>
+                  <Ionicons name="cloud-done-outline" size={14} color={colors.textTertiary} />
+                  <Text style={[styles.offlineBadgeText, { color: colors.textTertiary }]}>
+                    Available offline
+                  </Text>
+                </View>
+              )}
+              <Markdown style={markdownStyles}>{tab.data}</Markdown>
+            </>
+          ) : isOffline ? (
+            <OfflineContentUnavailable contentType="explanation" />
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No explanations available for this chapter.</Text>
@@ -477,6 +490,15 @@ function createStyles(
       paddingHorizontal: spacing.xxl,
       paddingVertical: spacing.xxl,
       paddingBottom: 60,
+    },
+    offlineBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: spacing.sm,
+    },
+    offlineBadgeText: {
+      fontSize: fontSizes.overline,
     },
     emptyContainer: {
       flex: 1,

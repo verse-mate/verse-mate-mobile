@@ -66,6 +66,7 @@ import {
   IconShare,
 } from '@/components/ui/icons';
 import type { getColors } from '@/constants/bible-design-tokens';
+import { FEATURE_FLAGS } from '@/constants/feature-flags';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getSupportConversations } from '@/lib/api/support';
@@ -93,13 +94,24 @@ interface MenuItem {
     | 'share'
     | 'about'
     | 'giving'
-    | 'help';
+    | 'help'
+    | 'reading-plans';
 }
 
 const regularMenuItems: MenuItem[] = [
   { id: 'bookmarks', label: 'Bookmarks', icon: IconBookmarkFilled, action: 'bookmarks' },
   { id: 'notes', label: 'Notes', icon: IconDocument, action: 'notes' },
   { id: 'highlights', label: 'Highlights', icon: IconHighlight, action: 'highlights' },
+  ...(FEATURE_FLAGS.READING_PLANS
+    ? [
+        {
+          id: 'reading-plans',
+          label: 'Reading Plans',
+          icon: IconDocument,
+          action: 'reading-plans' as const,
+        },
+      ]
+    : []),
   { id: 'settings', label: 'Settings', icon: IconSettings, action: 'settings' },
   { id: 'share', label: 'Share VerseMate', icon: IconShare, action: 'share' },
   { id: 'about', label: 'About', icon: IconInfo, action: 'about' },
@@ -201,6 +213,10 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       onClose();
       // biome-ignore lint/suspicious/noExplicitAny: Typed routes might be stale
       router.push('/highlights' as any);
+    } else if (item.action === 'reading-plans') {
+      onClose();
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic route, typed routes might be stale
+      router.push('/reading-plans' as any);
     } else if (item.action === 'settings') {
       onClose();
       router.push('/settings' as never);

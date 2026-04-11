@@ -40,10 +40,12 @@ import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { SplitView } from '@/components/ui/SplitView';
 import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   useActiveTab,
@@ -56,6 +58,7 @@ import {
 } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
+import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
@@ -119,6 +122,10 @@ export default function ChapterScreen() {
 
   // Bible version for analytics
   const { bibleVersion } = useBibleVersion();
+
+  // Offline status for error states
+  const { isOffline } = useOfflineStatus();
+  const { downloadBibleBook } = useOfflineContext();
 
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
@@ -393,21 +400,29 @@ export default function ChapterScreen() {
     );
   }
 
-  // Show error state (shouldn't happen due to redirect, but handle gracefully)
+  // Show error state with offline-aware messaging
   if (!chapter) {
     return (
       <View style={styles.container}>
         <ChapterHeader
-          bookName="Error"
+          bookName={isOffline ? bookName : 'Error'}
           chapterNumber={chapterNumber}
           activeView={activeView}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
           onMenuPress={() => {}}
         />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Chapter not found</Text>
-        </View>
+        {isOffline ? (
+          <OfflineContentUnavailable
+            contentType="chapter"
+            onDownload={() => downloadBibleBook(bibleVersion, bookId)}
+            downloadLabel={`Download ${bookName}`}
+          />
+        ) : (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Chapter not found</Text>
+          </View>
+        )}
       </View>
     );
   }
