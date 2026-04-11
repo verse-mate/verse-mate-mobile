@@ -8,7 +8,7 @@ export default function NotFoundScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Text style={[styles.code, { color: colors.textSecondary }]}>404</Text>
-      <Text style={[styles.title, { color: colors.text }]}>Page not found</Text>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>Page not found</Text>
       <Text style={[styles.description, { color: colors.textSecondary }]}>
         The page you're looking for doesn't exist or has been moved.
       </Text>
