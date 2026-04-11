@@ -72,6 +72,7 @@ export function isGoogleSignInConfigured(): boolean {
 let gisLoadPromise: Promise<void> | null = null;
 
 function loadGisScript(): Promise<void> {
+  // biome-ignore lint/complexity/useOptionalChain: SSR guard needed before accessing window.google
   if (typeof window !== 'undefined' && window.google?.accounts) {
     return Promise.resolve();
   }

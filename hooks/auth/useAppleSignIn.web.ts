@@ -61,21 +61,21 @@ export function useAppleSignIn(): UseAppleSignInReturn {
   const [error, setError] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState(false);
 
-  const clientId = process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID || '';
-  const redirectURI = process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI || window.location.origin;
-
   useEffect(() => {
     if (!isAppleSignInEnabled()) {
       setIsAvailable(false);
       return;
     }
 
+    const id = process.env.EXPO_PUBLIC_APPLE_WEB_CLIENT_ID || '';
+    const redirect = process.env.EXPO_PUBLIC_APPLE_WEB_REDIRECT_URI || window.location.origin;
+
     loadAppleScript()
       .then(() => {
         window.AppleID?.auth.init({
-          clientId,
+          clientId: id,
           scope: 'name email',
-          redirectURI,
+          redirectURI: redirect,
           usePopup: true,
         });
         setIsAvailable(true);
