@@ -130,7 +130,11 @@ export function ShareButton({
       // Web: use Web Share API with clipboard fallback
       if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
         if (navigator.share) {
-          await navigator.share({ title: `${bookName} ${chapterNumber}`, text: message, url: shareUrl });
+          await navigator.share({
+            title: `${bookName} ${chapterNumber}`,
+            text: message,
+            url: shareUrl,
+          });
         } else {
           await navigator.clipboard.writeText(message);
           Alert.alert('Link Copied', 'Share link copied to clipboard.');
