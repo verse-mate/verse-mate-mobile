@@ -32,7 +32,13 @@ jest.mock('../../contexts/OfflineContext', () => ({
     isUserDataSynced: false,
   }),
 }));
-jest.mock('../../services/offline');
+jest.mock('../../services/offline', () => {
+  const actual = jest.createMockFromModule<Record<string, unknown>>('../../services/offline');
+  return {
+    ...actual,
+    upsertSingleCommentary: jest.fn().mockResolvedValue(undefined),
+  };
+});
 jest.mock('../../constants/bible-books');
 
 // Create a new QueryClient for each test
