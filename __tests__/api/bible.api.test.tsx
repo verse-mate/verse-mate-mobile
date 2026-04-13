@@ -189,9 +189,10 @@ describe('Bible API Hooks', () => {
     });
 
     it('should handle offline mode with local data', async () => {
-      // Enable offline mode
+      // Enable offline mode — isLocal is now book-level, not version-level
       (useOfflineContext as jest.Mock).mockReturnValue({
         downloadedBibleVersions: ['NASB1995'],
+        downloadedBibleBooks: { NASB1995: [1] },
       });
 
       // Mock local data
