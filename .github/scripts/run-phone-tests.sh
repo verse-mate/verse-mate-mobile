@@ -4,10 +4,11 @@ set -e
 adb install app.apk
 
 # TCP transparent proxy: forward the emulator's HTTPS traffic to the real API.
-# The emulator's TLS stack can't connect directly (broken in CI). We fix this by:
+# CI Android emulators can't make direct HTTPS calls to api.versemate.org
+# (TLS handshake fails despite TCP+DNS working). We fix this by:
 # 1. socat on host: forwards TCP from port 443 to the real api.versemate.org:443
-# 2. Emulator hosts file: points api.versemate.org to 10.0.2.2 (host alias)
-# Result: App → HTTPS api.versemate.org → resolves to 10.0.2.2 → socat → real API
+# 2. iptables in emulator: redirects traffic for the real API IP to 10.0.2.2 (host)
+# Result: App → HTTPS api.versemate.org → iptables → 10.0.2.2 → socat → real API
 # TLS passes through transparently (real cert, no cleartext, no self-signed)
 echo "=========================================="
 echo "Setting up TCP transparent proxy for API"
@@ -16,12 +17,11 @@ echo "=========================================="
 # Resolve the real IP of api.versemate.org
 REAL_API_IP=$(dig +short api.versemate.org A | grep -E '^[0-9]+\.' | head -1)
 if [ -z "$REAL_API_IP" ]; then
-  # Fallback: resolve CNAME then A record
   REAL_API_IP=$(dig +short $(dig +short api.versemate.org CNAME | head -1) A | head -1)
 fi
 echo "Real API IP: $REAL_API_IP"
 
-# Start socat TCP forwarder on host port 443 (forwards to real API)
+# Start socat TCP forwarder on host port 443
 sudo socat TCP-LISTEN:443,fork,reuseaddr TCP:${REAL_API_IP}:443 &
 SOCAT_PID=$!
 sleep 1
@@ -31,68 +31,12 @@ else
   echo "ERROR: socat failed to start on port 443"
 fi
 
-# Verify proxy works from host
-curl -s --max-time 10 https://localhost/openapi/json -k > /dev/null 2>&1 && echo "TCP proxy verified (host)" || echo "WARNING: Host proxy test failed"
-
-# Use iptables to redirect emulator traffic from real API to host (10.0.2.2)
-# This is transparent: app connects to api.versemate.org via HTTPS normally,
-# iptables redirects TCP to host, socat forwards to real API. Real cert passes through.
+# Use iptables to redirect emulator traffic to host
 adb root 2>/dev/null || true
 sleep 2
-adb shell "iptables -t nat -A OUTPUT -p tcp -d ${REAL_API_IP} --dport 443 -j DNAT --to-destination 10.0.2.2:443" 2>&1 && echo "iptables redirect: ${REAL_API_IP}:443 → 10.0.2.2:443" || echo "WARNING: iptables failed"
-echo "Emulator traffic to api.versemate.org will route through host socat proxy"
-
-# Phase 0: Network diagnostic — prove whether emulator can reach api.versemate.org
-# This is the key question blocking authenticated E2E tests. Results go into the
-# workflow summary so we have definitive evidence for the next fix.
-echo "=========================================="
-echo "Phase 0: Emulator network diagnostic"
-echo "=========================================="
-
-{
-  echo "### Emulator Network Diagnostic"
-  echo ""
-  echo "\`\`\`"
-
-  echo "--- Test 1: Raw network (ping 8.8.8.8) ---"
-  adb shell "ping -c 3 -W 5 8.8.8.8" 2>&1 || echo "FAILED: ping 8.8.8.8"
-  echo ""
-
-  echo "--- Test 2: DNS configuration ---"
-  adb shell "getprop net.dns1" 2>&1 || echo "no net.dns1"
-  adb shell "getprop net.dns2" 2>&1 || echo "no net.dns2"
-  echo ""
-
-  echo "--- Test 3: DNS resolution + ping api.versemate.org ---"
-  adb shell "ping -c 3 -W 5 api.versemate.org" 2>&1 || echo "FAILED: ping api.versemate.org"
-  echo ""
-
-  echo "--- Test 4: HTTPS request via curl (if available) ---"
-  if adb shell "which curl" 2>&1 | grep -q curl; then
-    adb shell "curl -v --max-time 10 https://api.versemate.org/openapi/json 2>&1 | head -50" || echo "FAILED: curl request"
-  else
-    echo "curl not available in emulator shell"
-  fi
-  echo ""
-
-  echo "--- Test 5: HTTPS via wget (fallback) ---"
-  if adb shell "which wget" 2>&1 | grep -q wget; then
-    adb shell "wget -S --timeout=10 -O /dev/null https://api.versemate.org/openapi/json 2>&1 | head -30" || echo "FAILED: wget request"
-  else
-    echo "wget not available in emulator shell"
-  fi
-  echo ""
-
-  echo "--- Test 6: Open socket via /system/bin/toolbox ---"
-  adb shell "echo 'GET /openapi/json HTTP/1.1\r\nHost: api.versemate.org\r\nConnection: close\r\n\r\n' | /system/bin/timeout 10 /system/bin/nc api.versemate.org 443 2>&1 | head -5" || echo "nc not available or failed"
-  echo ""
-
-  echo "\`\`\`"
-} | tee -a "${GITHUB_STEP_SUMMARY:-/tmp/diagnostic-output.txt}"
-
-echo "=========================================="
-echo "Phase 0 complete — see workflow summary for results"
-echo "=========================================="
+adb shell "iptables -t nat -A OUTPUT -p tcp -d ${REAL_API_IP} --dport 443 -j DNAT --to-destination 10.0.2.2:443" 2>&1 \
+  && echo "iptables redirect: ${REAL_API_IP}:443 → 10.0.2.2:443" \
+  || echo "WARNING: iptables failed"
 
 # Phase 1: Pre-launch the app via ADB to trigger EAS Update download
 # and seed DB extraction. This is passive (never fails) and gives the
@@ -126,36 +70,14 @@ if ! maestro test .maestro/shared/warmup.yaml; then
 fi
 echo "Warm-up complete"
 
-# Start logcat capture in background (before any tests run)
-# Capture ReactNativeJS messages (I level) plus warnings/errors from all tags
+# Start logcat capture in background
 adb logcat -c 2>/dev/null || true
 adb logcat -v time 'ReactNativeJS:I' 'ReactNative:W' '*:E' 2>/dev/null > /tmp/emulator-logcat-live.txt &
 LOGCAT_PID=$!
-echo "Logcat capture started (PID: $LOGCAT_PID)"
-
-# Seed auth tokens into AsyncStorage (after warmup so DB exists)
-# Tokens are fetched from API on the HOST (emulator can't reach API directly)
-if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
-  echo "=========================================="
-  echo "Seeding auth tokens into AsyncStorage"
-  echo "=========================================="
-  bash .github/scripts/seed-auth-tokens.sh || echo "WARNING: Token seeding failed (non-fatal)"
-
-  # Diagnostic: list ALL databases and ALL AsyncStorage keys the app has
-  PACKAGE="org.versemate.app"
-  echo "=== DB DIAGNOSTIC ==="
-  echo "--- All database files ---"
-  adb shell "ls -la /data/data/${PACKAGE}/databases/" 2>&1
-  echo "--- All keys in RKStorage ---"
-  adb shell "sqlite3 /data/data/${PACKAGE}/databases/RKStorage \"SELECT key, length(value), substr(value,1,50) FROM catalystLocalStorage;\"" 2>&1
-  echo "--- Check for scoped DB files ---"
-  adb shell "ls -la /data/data/${PACKAGE}/databases/RKStorage*" 2>&1
-  echo "=== END DB DIAGNOSTIC ==="
-fi
 
 TEST_FOLDER="$1"
 
-# Build env var flags for authenticated tests using arrays (safe for special chars)
+# Build env var flags for authenticated tests
 ENV_ARGS=()
 if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
   ENV_ARGS+=(--env "E2E_TEST_EMAIL=${E2E_TEST_EMAIL}" --env "E2E_TEST_PASSWORD=${E2E_TEST_PASSWORD}")
@@ -166,31 +88,12 @@ if [ -z "$TEST_FOLDER" ]; then
   # Run all folders except split-view (split-view requires tablet emulator)
   echo "Running all phone test folders..."
   OVERALL_EXIT=0
-  # Folders that need auth token re-seeding before running
-  AUTH_FOLDERS=" auth bookmarks highlights notes "
 
   for folder in auth bible-reading bookmarks dictionary highlights navigation notes recents regression search settings swipe topics; do
     echo "=========================================="
     echo "Running tests in .maestro/$folder/"
     echo "=========================================="
-
-    # Re-seed auth tokens before folders with authenticated tests
-    # (previous test's clearState may have wiped them)
-    if echo "$AUTH_FOLDERS" | grep -q " $folder "; then
-      if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
-        echo "Re-seeding auth tokens for $folder..."
-        bash .github/scripts/seed-auth-tokens.sh 2>&1 || echo "WARNING: Re-seeding failed"
-      fi
-    fi
-
     maestro test "${ENV_ARGS[@]}" ".maestro/$folder/" || OVERALL_EXIT=1
-
-    # After auth folder tests, read the diagnostic to see what restoreSession did
-    if [ "$folder" = "auth" ] && [ -n "$E2E_TEST_EMAIL" ]; then
-      echo "=== POST-TEST AUTH DIAGNOSTIC ==="
-      adb shell "sqlite3 /data/data/org.versemate.app/databases/RKStorage \"SELECT key, substr(value,1,80) FROM catalystLocalStorage WHERE key LIKE 'versemate_e2e%';\"" 2>&1
-      echo "=== END POST-TEST DIAGNOSTIC ==="
-    fi
   done
   if [ $OVERALL_EXIT -ne 0 ]; then
     echo "Some phone tests failed"
@@ -206,7 +109,5 @@ fi
 # Stop logcat capture
 if [ -n "$LOGCAT_PID" ]; then
   kill $LOGCAT_PID 2>/dev/null || true
-  echo "Logcat capture stopped"
-  # Copy to expected location for workflow artifact upload
   cp /tmp/emulator-logcat-live.txt emulator-logcat.txt 2>/dev/null || true
 fi

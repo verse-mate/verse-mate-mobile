@@ -19,7 +19,7 @@ import { View } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { setAccessToken, setRefreshToken } from '@/lib/auth/token-storage';
 
-const isE2E = process.env.EXPO_PUBLIC_APP_ENV === 'e2e-test';
+const isE2E = process.env.APP_ENV === 'e2e-test';
 
 export default function E2EAuthScreen() {
   const { accessToken, refreshToken } = useLocalSearchParams<{

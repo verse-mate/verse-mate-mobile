@@ -133,11 +133,6 @@ const isE2E = process.env.APP_ENV === 'e2e-test';
 module.exports = {
   expo: {
     ...config,
-    plugins: [
-      ...config.plugins,
-      // Allow cleartext HTTP in e2e-test builds (socat TLS proxy on localhost:4000)
-      ...(isE2E ? [require('./plugins/allow-cleartext-traffic')] : []),
-    ],
     updates: {
       ...config.updates,
       ...(isE2E && { fallbackToCacheTimeout: 10000 }),
