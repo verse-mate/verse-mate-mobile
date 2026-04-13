@@ -21,7 +21,7 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
@@ -306,6 +306,15 @@ export function HighlightedText({
       tapTimerRef.current = null;
     }
   };
+
+  // Clean up pending tap timer on unmount
+  useEffect(() => {
+    return () => {
+      if (tapTimerRef.current) {
+        clearTimeout(tapTimerRef.current);
+      }
+    };
+  }, []);
 
   // Track text layout for coordinate-based word detection
   const textLayoutRef = useRef<TextLayoutLine[]>([]);
