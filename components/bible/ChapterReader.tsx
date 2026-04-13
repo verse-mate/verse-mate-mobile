@@ -545,6 +545,7 @@ export function ChapterReader({
                     >
                       <Text
                         style={styles.verseTextParagraph}
+                        selectable={true}
                         onTextLayout={(e) => handleTextLayout(groupKey, e)}
                       >
                         {group.map((verse, verseIndex) => {

@@ -281,6 +281,32 @@ export function HighlightedText({
   // Get current theme mode for highlight color selection
   const { mode } = useTheme();
 
+  // Debounce timer to distinguish single-tap from double-tap
+  // When selectable={true}, double-tap triggers native text selection.
+  // We delay onPress by 300ms and cancel if a second tap (double-tap) or long-press occurs.
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const debouncedPress = (callback: () => void) => {
+    if (tapTimerRef.current) {
+      // Second tap within 300ms = double-tap for native selection, cancel tooltip
+      clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+      return;
+    }
+    tapTimerRef.current = setTimeout(() => {
+      tapTimerRef.current = null;
+      callback();
+    }, 300);
+  };
+
+  // Cancel pending tap when long-press fires (dictionary lookup)
+  const cancelPendingTap = () => {
+    if (tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+    }
+  };
+
   // Track text layout for coordinate-based word detection
   const textLayoutRef = useRef<TextLayoutLine[]>([]);
   const containerWidthRef = useRef<number>(0);
@@ -423,32 +449,38 @@ export function HighlightedText({
 
   /**
    * Handle tap on a user highlight segment
-   * Shows grouped/single highlight tooltip
+   * Debounced to avoid firing on double-tap (native text selection)
    */
   const handleHighlightTap = (highlightId: number) => {
     if (!onHighlightTap) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onHighlightTap(highlightId);
+    debouncedPress(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onHighlightTap(highlightId);
+    });
   };
 
   /**
    * Handle tap on auto-highlight segment
-   * Shows auto-highlight tooltip
+   * Debounced to avoid firing on double-tap (native text selection)
    */
   const handleAutoHighlightPress = (autoHighlight: AutoHighlight) => {
     if (!onAutoHighlightPress) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onAutoHighlightPress(autoHighlight);
+    debouncedPress(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onAutoHighlightPress(autoHighlight);
+    });
   };
 
   /**
    * Handle tap on plain text
-   * Shows verse insight tooltip
+   * Debounced to avoid firing on double-tap (native text selection)
    */
   const handleVerseTap = () => {
     if (!onVerseTap) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onVerseTap(verseNumber);
+    debouncedPress(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onVerseTap(verseNumber);
+    });
   };
 
   /**
@@ -477,6 +509,7 @@ export function HighlightedText({
     segmentStartChar: number,
     event: GestureResponderEvent
   ) => {
+    cancelPendingTap();
     const { locationX, locationY, pageX, pageY } = event.nativeEvent;
 
     // Use line layout for accurate wrapped text detection
@@ -564,6 +597,7 @@ export function HighlightedText({
     endChar: number,
     event: GestureResponderEvent
   ) => {
+    cancelPendingTap();
     const { pageX, pageY } = event.nativeEvent;
 
     // Clean punctuation from word
@@ -696,7 +730,7 @@ export function HighlightedText({
     const tokens = tokenizeText(segment.text);
 
     return (
-      <Text key={segment.key} style={segmentStyle} suppressHighlighting={true}>
+      <Text key={segment.key} style={segmentStyle}>
         {tokens.map((token) => {
           // Calculate absolute char positions in verse text
           const absoluteStartChar = segment.startChar + token.startChar;
@@ -723,7 +757,6 @@ export function HighlightedText({
               onLongPress={(e) =>
                 handleTokenizedWordLongPress(token.word, absoluteStartChar, absoluteEndChar, e)
               }
-              suppressHighlighting={true}
               {...responderProps}
             >
               {token.word}
@@ -738,8 +771,7 @@ export function HighlightedText({
   return (
     <Text
       style={style}
-      selectable={false}
-      suppressHighlighting={true}
+      selectable={true}
       onTextLayout={handleTextLayout}
       onLayout={handleLayout}
       onPress={handleOuterPress}
@@ -785,7 +817,6 @@ export function HighlightedText({
                 style={highlightStyle}
                 onPress={() => handleHighlightTap(highlightId)}
                 onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
-                suppressHighlighting={true}
               >
                 {selectionParts.before}
                 <Text style={selectionStyles.selected}>{selectionParts.selected}</Text>
@@ -800,7 +831,6 @@ export function HighlightedText({
               style={highlightStyle}
               onPress={() => handleHighlightTap(highlightId)}
               onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
-              suppressHighlighting={true}
             >
               {segment.text}
             </Text>
@@ -820,7 +850,6 @@ export function HighlightedText({
                 style={autoHighlightStyle}
                 onPress={() => handleAutoHighlightPress(autoHighlight)}
                 onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
-                suppressHighlighting={true}
               >
                 {selectionParts.before}
                 <Text style={selectionStyles.selected}>{selectionParts.selected}</Text>
@@ -835,7 +864,6 @@ export function HighlightedText({
               style={autoHighlightStyle}
               onPress={() => handleAutoHighlightPress(autoHighlight)}
               onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
-              suppressHighlighting={true}
             >
               {segment.text}
             </Text>
@@ -850,7 +878,6 @@ export function HighlightedText({
               key={segment.key}
               onPress={handleVerseTap}
               onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
-              suppressHighlighting={true}
             >
               {selectionParts.before}
               <Text style={selectionStyles.selected}>{selectionParts.selected}</Text>
@@ -864,7 +891,6 @@ export function HighlightedText({
             key={segment.key}
             onPress={handleVerseTap}
             onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
-            suppressHighlighting={true}
           >
             {segment.text}
           </Text>
