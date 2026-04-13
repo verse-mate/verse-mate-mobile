@@ -128,8 +128,15 @@ function PostHogInitializer({ children }: { children: ReactNode }) {
  * Otherwise renders children directly (graceful degradation)
  */
 export function AppPostHogProvider({ children }: { children: ReactNode }) {
-  if (!posthogApiKey) {
-    // No PostHog key - render children without analytics
+  // Treat placeholder / example keys as unconfigured so PostHog doesn't try
+  // to POST with a bogus key (which otherwise surfaces as red-screen
+  // "Network request failed" errors in dev).
+  const isPlaceholderKey =
+    !posthogApiKey ||
+    posthogApiKey === 'phc_your_project_api_key_here' ||
+    posthogApiKey.includes('your_project_api_key');
+
+  if (isPlaceholderKey) {
     return <>{children}</>;
   }
 

@@ -17,6 +17,7 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
@@ -28,7 +29,7 @@ import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
-import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { animations, fontSizes, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
@@ -77,6 +78,15 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     hidden: {
       display: 'none',
     },
+    offlineBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginBottom: spacing.sm,
+    },
+    offlineBadgeText: {
+      fontSize: fontSizes.overline,
+    },
   });
 
 /**
@@ -101,6 +111,7 @@ function TabContent({
   filteredAutoHighlights,
   scrollRef,
   onTabContentSizeChange,
+  isAvailableOffline,
 }: {
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
@@ -117,6 +128,7 @@ function TabContent({
   filteredAutoHighlights?: AutoHighlight[];
   scrollRef?: React.RefObject<ScrollView | null>;
   onTabContentSizeChange?: (contentWidth: number, contentHeight: number) => void;
+  isAvailableOffline?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = createStyles(colors); // Use local createStyles for TabContent
@@ -182,6 +194,14 @@ function TabContent({
         </Animated.View>
       ) : (
         <View>
+          {isAvailableOffline && (
+            <View style={styles.offlineBadge}>
+              <Ionicons name="cloud-done-outline" size={14} color={colors.textTertiary} />
+              <Text style={[styles.offlineBadgeText, { color: colors.textTertiary }]}>
+                Available offline
+              </Text>
+            </View>
+          )}
           {chapter && (
             <ChapterReader
               chapter={chapter}
@@ -483,6 +503,7 @@ export function ChapterPage({
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
+    isLocalData: summaryIsLocal,
   } = useBibleSummary(bookId, chapterNumber, undefined, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -494,6 +515,7 @@ export function ChapterPage({
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
+    isLocalData: byLineIsLocal,
   } = useBibleByLine(bookId, chapterNumber, undefined, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -505,6 +527,7 @@ export function ChapterPage({
     data: detailedData,
     isLoading: isDetailedLoading,
     error: detailedError,
+    isLocalData: detailedIsLocal,
   } = useBibleDetailed(bookId, chapterNumber, undefined, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -754,6 +777,7 @@ export function ChapterPage({
             content={summaryData}
             isLoading={isSummaryLoading}
             error={summaryError}
+            isAvailableOffline={summaryIsLocal}
             visible={activeTab === 'summary'}
             shouldRenderHidden={delayedRenderStage >= 2}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
@@ -773,6 +797,7 @@ export function ChapterPage({
             content={byLineData}
             isLoading={isByLineLoading}
             error={byLineError}
+            isAvailableOffline={byLineIsLocal}
             visible={activeTab === 'byline'}
             shouldRenderHidden={delayedRenderStage >= 3}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
@@ -792,6 +817,7 @@ export function ChapterPage({
             content={detailedData}
             isLoading={isDetailedLoading}
             error={detailedError}
+            isAvailableOffline={detailedIsLocal}
             visible={activeTab === 'detailed'}
             shouldRenderHidden={delayedRenderStage >= 4}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}

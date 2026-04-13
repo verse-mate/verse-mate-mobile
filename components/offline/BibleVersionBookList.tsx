@@ -5,6 +5,7 @@ import { BIBLE_BOOKS } from '@/constants/bible-books';
 import { fontSizes, spacing } from '@/constants/bible-design-tokens';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { getDownloadedBooksForVersion } from '@/services/offline';
 
 interface BibleVersionBookListProps {
@@ -14,6 +15,7 @@ interface BibleVersionBookListProps {
 export function BibleVersionBookList({ versionKey }: BibleVersionBookListProps) {
   const { colors } = useTheme();
   const { downloadBibleBook, deleteBibleBook } = useOfflineContext();
+  const { showToast } = useToast();
   const [downloadedBooks, setDownloadedBooks] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionBookId, setActionBookId] = useState<number | null>(null);
@@ -30,6 +32,11 @@ export function BibleVersionBookList({ versionKey }: BibleVersionBookListProps) 
       await downloadBibleBook(versionKey, bookId);
       const updated = await getDownloadedBooksForVersion(versionKey);
       setDownloadedBooks(updated);
+    } catch (err) {
+      const isOffline = (err as { code?: string } | undefined)?.code === 'OFFLINE';
+      showToast(
+        isOffline ? "You're offline. Connect to the internet to download." : 'Download failed'
+      );
     } finally {
       setActionBookId(null);
     }
