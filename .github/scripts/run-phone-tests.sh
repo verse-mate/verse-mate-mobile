@@ -14,15 +14,18 @@ echo "=========================================="
 echo "Setting up TCP transparent proxy for API"
 echo "=========================================="
 
-# Resolve the real IP of api.versemate.org
-REAL_API_IP=$(dig +short api.versemate.org A | grep -E '^[0-9]+\.' | head -1)
-if [ -z "$REAL_API_IP" ]; then
-  REAL_API_IP=$(dig +short $(dig +short api.versemate.org CNAME | head -1) A | head -1)
+# Resolve ALL IPs for api.versemate.org (Cloudflare uses multiple)
+API_CNAME=$(dig +short api.versemate.org CNAME | head -1)
+if [ -n "$API_CNAME" ]; then
+  ALL_API_IPS=$(dig +short "$API_CNAME" A | grep -E '^[0-9]+\.')
+else
+  ALL_API_IPS=$(dig +short api.versemate.org A | grep -E '^[0-9]+\.')
 fi
-echo "Real API IP: $REAL_API_IP"
+FIRST_API_IP=$(echo "$ALL_API_IPS" | head -1)
+echo "API IPs: $(echo $ALL_API_IPS | tr '\n' ' ')"
 
-# Start socat TCP forwarder on host port 443
-sudo socat TCP-LISTEN:443,fork,reuseaddr TCP:${REAL_API_IP}:443 &
+# Start socat TCP forwarder on host port 443 (uses first resolved IP)
+sudo socat TCP-LISTEN:443,fork,reuseaddr TCP:${FIRST_API_IP}:443 &
 SOCAT_PID=$!
 sleep 1
 if kill -0 $SOCAT_PID 2>/dev/null; then
@@ -31,12 +34,14 @@ else
   echo "ERROR: socat failed to start on port 443"
 fi
 
-# Use iptables to redirect emulator traffic to host
+# Use iptables to redirect ALL API IPs from emulator to host
 adb root 2>/dev/null || true
 sleep 2
-adb shell "iptables -t nat -A OUTPUT -p tcp -d ${REAL_API_IP} --dport 443 -j DNAT --to-destination 10.0.2.2:443" 2>&1 \
-  && echo "iptables redirect: ${REAL_API_IP}:443 → 10.0.2.2:443" \
-  || echo "WARNING: iptables failed"
+for ip in $ALL_API_IPS; do
+  adb shell "iptables -t nat -A OUTPUT -p tcp -d ${ip} --dport 443 -j DNAT --to-destination 10.0.2.2:443" 2>&1 \
+    && echo "iptables redirect: ${ip}:443 → 10.0.2.2:443" \
+    || echo "WARNING: iptables failed for ${ip}"
+done
 
 # Phase 1: Pre-launch the app via ADB to trigger EAS Update download
 # and seed DB extraction. This is passive (never fails) and gives the
