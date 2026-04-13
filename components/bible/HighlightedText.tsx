@@ -309,11 +309,7 @@ export function HighlightedText({
 
   // Clean up pending tap timer on unmount
   useEffect(() => {
-    return () => {
-      if (tapTimerRef.current) {
-        clearTimeout(tapTimerRef.current);
-      }
-    };
+    return cancelPendingTap;
   }, []);
 
   // Track text layout for coordinate-based word detection
@@ -462,8 +458,8 @@ export function HighlightedText({
    */
   const handleHighlightTap = (highlightId: number) => {
     if (!onHighlightTap) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     debouncedPress(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onHighlightTap(highlightId);
     });
   };
@@ -474,8 +470,8 @@ export function HighlightedText({
    */
   const handleAutoHighlightPress = (autoHighlight: AutoHighlight) => {
     if (!onAutoHighlightPress) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     debouncedPress(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onAutoHighlightPress(autoHighlight);
     });
   };
@@ -486,8 +482,8 @@ export function HighlightedText({
    */
   const handleVerseTap = () => {
     if (!onVerseTap) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     debouncedPress(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onVerseTap(verseNumber);
     });
   };

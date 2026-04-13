@@ -298,11 +298,13 @@ describe('HighlightedText', () => {
       fireEvent.press(pressableSegment);
     }
 
-    // onPress is debounced by 300ms to distinguish from double-tap
-    jest.advanceTimersByTime(300);
-
-    expect(mockOnVerseTap).toHaveBeenCalledWith(1);
+    // Haptics fire immediately on press (not debounced)
     expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
+
+    // Callback is debounced by 300ms to distinguish from double-tap
+    expect(mockOnVerseTap).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(300);
+    expect(mockOnVerseTap).toHaveBeenCalledWith(1);
   });
 
   it('should NOT call onVerseTap on double-tap (native selection)', () => {
@@ -409,11 +411,13 @@ describe('HighlightedText', () => {
       fireEvent.press(pressableWord);
     }
 
-    // onPress is debounced by 300ms
-    jest.advanceTimersByTime(300);
-
-    expect(mockOnHighlightTap).toHaveBeenCalledWith(1);
+    // Haptics fire immediately on press
     expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
+
+    // Callback is debounced by 300ms
+    expect(mockOnHighlightTap).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(300);
+    expect(mockOnHighlightTap).toHaveBeenCalledWith(1);
   });
 
   it('should handle multi-verse highlight spanning first verse', () => {
