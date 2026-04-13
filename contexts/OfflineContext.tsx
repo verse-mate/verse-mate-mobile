@@ -97,7 +97,7 @@ export interface OfflineContextType {
   totalStorageUsed: number;
 
   // Actions
-  refreshManifest: () => Promise<void>;
+  refreshManifest: () => Promise<OfflineManifest | null>;
   downloadBibleVersion: (versionKey: string) => Promise<void>;
   downloadBibleBook: (versionKey: string, bookId: number) => Promise<void>;
   deleteBibleBook: (versionKey: string, bookId: number) => Promise<void>;
@@ -136,7 +136,7 @@ const webOnlyValue: OfflineContextType = {
   lastSyncTime: null,
   setLastSyncTime: () => {},
   totalStorageUsed: 0,
-  refreshManifest: async () => {},
+  refreshManifest: async () => null,
   downloadBibleVersion: async () => {},
   downloadBibleBook: async () => {},
   deleteBibleBook: async () => {},
@@ -163,6 +163,23 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const isOnline = netInfo.isConnected === true;
 
   const queryClient = useQueryClient();
+
+  // React Query key helpers — matched against the `_id` field the generated
+  // `createQueryKey` puts on the first segment, so renaming the generated
+  // operation only requires updating these strings (and TS will eventually
+  // surface it via the imported types).
+  const CHAPTER_QUERY_ID = 'getBibleBookByBookIdByChapterNumber';
+  const EXPLANATION_QUERY_ID = 'getBibleBookExplanationByBookIdByChapterNumber';
+  const matchesBookId = (queryKey: unknown, bookId: number): boolean => {
+    if (!Array.isArray(queryKey)) return false;
+    const first = queryKey[0] as { path?: { bookId?: string } } | undefined;
+    return first?.path?.bookId === String(bookId);
+  };
+  const matchesOperationId = (queryKey: unknown, id: string): boolean => {
+    if (!Array.isArray(queryKey)) return false;
+    const first = queryKey[0] as { _id?: string } | undefined;
+    return first?._id === id;
+  };
 
   // Mode state
   const [isAutoSyncEnabled, setAutoSyncEnabledState] = useState(true);
@@ -355,11 +372,14 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(AUTO_SYNC_KEY, enabled.toString()).catch(console.warn);
   };
 
-  // Refresh manifest and download info
-  const refreshManifest = useCallback(async () => {
+  // Refresh manifest and download info. Returns the fresh manifest so callers
+  // can use the up-to-date value synchronously — React's state update from
+  // `setManifest` hasn't committed yet by the time this promise resolves, so
+  // reading `manifest` from closure would be stale.
+  const refreshManifest = useCallback(async (): Promise<OfflineManifest | null> => {
     if (!dbReady.current) {
       console.warn('[Offline] refreshManifest skipped — database not ready');
-      return;
+      return null;
     }
     try {
       const newManifest = await fetchManifest();
@@ -376,18 +396,25 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       setTopicsInfo(topicInfo);
 
       await refreshLanguageBundles(newManifest);
+      return newManifest;
     } catch (error) {
       console.error('Failed to refresh manifest:', error);
       throw error;
     }
-  }, [refreshLanguageBundles]); // dependencies handled inside or stable
+  }, [refreshLanguageBundles]);
+
+  // Return the current manifest, fetching it only once if missing. Reuses the
+  // refreshManifest result so we don't fall back to a second `fetchManifest`
+  // just because `manifest` state hasn't committed yet.
+  const ensureManifest = async (): Promise<OfflineManifest> => {
+    if (manifest) return manifest;
+    const refreshed = await refreshManifest();
+    return refreshed ?? (await fetchManifest());
+  };
 
   // Download Bible version
   const downloadBibleVersion = async (versionKey: string) => {
-    if (!manifest) {
-      await refreshManifest();
-    }
-    const currentManifest = manifest || (await fetchManifest());
+    const currentManifest = await ensureManifest();
 
     setIsSyncing(true);
     try {
@@ -406,10 +433,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       (err as Error & { code?: string }).code = 'OFFLINE';
       throw err;
     }
-    if (!manifest) {
-      await refreshManifest();
-    }
-    const currentManifest = manifest || (await fetchManifest());
+    const currentManifest = await ensureManifest();
 
     setIsSyncing(true);
     try {
@@ -418,17 +442,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       // Invalidate chapter queries for this book so stale cached payloads don't
       // mask the newly-available local data.
       queryClient.invalidateQueries({
-        predicate: (q) => {
-          const key = q.queryKey as unknown[];
-          return (
-            Array.isArray(key) &&
-            key.some((seg) => {
-              if (!seg || typeof seg !== 'object') return false;
-              const path = (seg as { path?: { bookId?: string } }).path;
-              return path?.bookId === String(bookId);
-            })
-          );
-        },
+        predicate: (q) => matchesBookId(q.queryKey, bookId),
       });
     } finally {
       setIsSyncing(false);
@@ -445,26 +459,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     // Purge React Query cache for this book's chapters; otherwise staleTime:Infinity
     // keeps serving the now-deleted payload.
     queryClient.invalidateQueries({
-      predicate: (q) => {
-        const key = q.queryKey as unknown[];
-        return (
-          Array.isArray(key) &&
-          key.some((seg) => {
-            if (!seg || typeof seg !== 'object') return false;
-            const path = (seg as { path?: { bookId?: string } }).path;
-            return path?.bookId === String(bookId);
-          })
-        );
-      },
+      predicate: (q) => matchesBookId(q.queryKey, bookId),
     });
   };
 
   // Download commentaries
   const downloadCommentaries = async (languageCode: string) => {
-    if (!manifest) {
-      await refreshManifest();
-    }
-    const currentManifest = manifest || (await fetchManifest());
+    const currentManifest = await ensureManifest();
 
     setIsSyncing(true);
     try {
@@ -478,10 +479,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Download topics
   const downloadTopics = async (languageCode: string) => {
-    if (!manifest) {
-      await refreshManifest();
-    }
-    const currentManifest = manifest || (await fetchManifest());
+    const currentManifest = await ensureManifest();
 
     setIsSyncing(true);
     try {
@@ -495,10 +493,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Download all content for a language
   const downloadLanguage = async (languageCode: string) => {
-    if (!manifest) {
-      await refreshManifest();
-    }
-    const currentManifest = manifest || (await fetchManifest());
+    const currentManifest = await ensureManifest();
 
     setIsSyncing(true);
     try {
@@ -600,11 +595,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     // Purge any cached chapter / explanation payloads so the UI doesn't keep
     // serving stale data (e.g., "Available offline" badge on deleted content).
     queryClient.invalidateQueries({
-      predicate: (q) => {
-        const first = (q.queryKey as unknown[])[0];
-        return first === 'getBibleBookByBookIdByChapterNumber' ||
-          first === 'getBibleBookExplanationByBookIdByChapterNumber';
-      },
+      predicate: (q) =>
+        matchesOperationId(q.queryKey, CHAPTER_QUERY_ID) ||
+        matchesOperationId(q.queryKey, EXPLANATION_QUERY_ID),
     });
   };
 

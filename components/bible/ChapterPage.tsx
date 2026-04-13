@@ -17,7 +17,6 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
@@ -29,7 +28,8 @@ import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
-import { animations, fontSizes, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
+import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
@@ -77,15 +77,6 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     hidden: {
       display: 'none',
-    },
-    offlineBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginBottom: spacing.sm,
-    },
-    offlineBadgeText: {
-      fontSize: fontSizes.overline,
     },
   });
 
@@ -194,14 +185,7 @@ function TabContent({
         </Animated.View>
       ) : (
         <View>
-          {isAvailableOffline && (
-            <View style={styles.offlineBadge}>
-              <Ionicons name="cloud-done-outline" size={14} color={colors.textTertiary} />
-              <Text style={[styles.offlineBadgeText, { color: colors.textTertiary }]}>
-                Available offline
-              </Text>
-            </View>
-          )}
+          {isAvailableOffline && <AvailableOfflineBadge />}
           {chapter && (
             <ChapterReader
               chapter={chapter}

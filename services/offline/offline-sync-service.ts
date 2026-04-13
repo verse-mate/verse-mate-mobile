@@ -115,7 +115,10 @@ export async function downloadBibleVersion(
 
 /**
  * Download and store a single Bible book from a version.
- * Fetches full version data from API but only persists the target book's verses.
+ *
+ * Note: the current API only exposes the whole-version `/offline/bible/{key}`
+ * endpoint, so we fetch the full payload and persist only the target book.
+ * Progress labels make that explicit until a per-book endpoint exists.
  */
 export async function downloadBibleBook(
   versionKey: string,
@@ -123,13 +126,13 @@ export async function downloadBibleBook(
   manifest: OfflineManifest,
   onProgress?: ProgressCallback
 ): Promise<void> {
-  onProgress?.({ current: 0, total: 100, message: `Downloading book...` });
+  onProgress?.({ current: 0, total: 100, message: 'Fetching version data...' });
 
   const allVerses = await fetchOfflineJSON<BibleVerseData[]>(
     `${API_URL}/offline/bible/${versionKey}`
   );
 
-  onProgress?.({ current: 50, total: 100, message: 'Filtering book data...' });
+  onProgress?.({ current: 50, total: 100, message: 'Extracting book...' });
 
   const bookVerses = allVerses.filter((v) => v.book_id === bookId);
 
@@ -140,11 +143,15 @@ export async function downloadBibleBook(
   onProgress?.({ current: 90, total: 100, message: 'Saving metadata...' });
 
   const versionInfo = manifest.bible_versions.find((v) => v.key === versionKey);
+  // Rough byte estimate so storage-used stats stay meaningful for per-book
+  // downloads. Sums the raw verse text (the dominant cost) — faster and
+  // cheaper than re-stringifying the object array.
+  const sizeBytes = bookVerses.reduce((acc, v) => acc + (v.text?.length ?? 0), 0);
   await saveMetadata({
     resource_key: `bible:${versionKey}:book:${bookId}`,
     last_updated_at: versionInfo?.updated_at || new Date().toISOString(),
     downloaded_at: new Date().toISOString(),
-    size_bytes: 0,
+    size_bytes: sizeBytes,
   });
 
   onProgress?.({ current: 100, total: 100, message: 'Complete!' });
