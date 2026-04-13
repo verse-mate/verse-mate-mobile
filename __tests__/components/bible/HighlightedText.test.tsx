@@ -335,6 +335,42 @@ describe('HighlightedText', () => {
     expect(mockOnVerseTap).not.toHaveBeenCalled();
   });
 
+  it('should cancel pending tap when long-press fires (dictionary)', () => {
+    jest.useFakeTimers();
+    const mockOnVerseTap = jest.fn();
+
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[]}
+        onVerseTap={mockOnVerseTap}
+        onWordSelect={jest.fn()}
+      />
+    );
+
+    const textElements = root.findAllByType(Text);
+    // Find an element with both onPress and onLongPress
+    const element = textElements.find(
+      (el: ReactTestInstance) => el.props.onPress && el.props.onLongPress
+    );
+
+    expect(element).toBeTruthy();
+    if (element) {
+      // Tap first (starts 300ms timer)
+      fireEvent.press(element);
+      // Then long-press (should cancel the pending tap)
+      fireEvent(element, 'longPress', {
+        nativeEvent: { pageX: 100, pageY: 200, locationX: 50, locationY: 10 },
+      });
+    }
+
+    jest.advanceTimersByTime(300);
+
+    // Tooltip should NOT have fired — long-press cancelled it
+    expect(mockOnVerseTap).not.toHaveBeenCalled();
+  });
+
   it('should call onHighlightTap when highlighted text is tapped', () => {
     jest.useFakeTimers();
     const mockOnHighlightTap = jest.fn();
