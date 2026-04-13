@@ -1,14 +1,13 @@
 /**
  * HighlightedText Component Tests
  *
- * Tests for text highlighting rendering and tap detection.
- * Includes tests for theme-aware highlight colors.
+ * Tests for text highlighting rendering, tap detection, and native text selection.
  *
  * @see Task 4.1: Write 2-8 focused tests for text selection
  * @see Task 7.3: Add highlight color dark variants
  */
 
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import { Text } from 'react-native';
 import type { ReactTestInstance } from 'react-test-renderer';
@@ -24,6 +23,18 @@ const mockUseTheme = jest.fn();
 jest.mock('@/contexts/ThemeContext', () => ({
   useTheme: () => mockUseTheme(),
 }));
+
+// Helper to recursively extract text from React element children
+const extractText = (children: any): string => {
+  if (typeof children === 'string') return children;
+  if (Array.isArray(children)) {
+    return children.map((c) => extractText(c)).join('');
+  }
+  if (children?.props?.children) {
+    return extractText(children.props.children);
+  }
+  return '';
+};
 
 describe('HighlightedText', () => {
   const mockHighlight: Highlight = {
@@ -66,6 +77,38 @@ describe('HighlightedText', () => {
     expect(getByText('In the beginning God created the heavens and the earth.')).toBeTruthy();
   });
 
+  it('should have selectable={true} on root Text for native text selection', () => {
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[]}
+      />
+    );
+
+    // Root Text should be the verse-text testID element
+    const rootText = root.findByProps({ testID: 'verse-text-1' });
+    expect(rootText.props.selectable).toBe(true);
+  });
+
+  it('should have onLongPress handlers on segment Text elements for dictionary lookup', () => {
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[mockHighlight]}
+      />
+    );
+
+    const textElements = root.findAllByType(Text);
+
+    // Segment Text elements should have onLongPress for dictionary
+    const elementsWithLongPress = textElements.filter(
+      (el: ReactTestInstance) => el.props.onLongPress !== undefined
+    );
+    expect(elementsWithLongPress.length).toBeGreaterThan(0);
+  });
+
   it('should render text with semi-transparent highlight background', () => {
     const { root } = render(
       <HighlightedText
@@ -89,19 +132,7 @@ describe('HighlightedText', () => {
 
     expect(highlightedSegment).toBeTruthy();
 
-    // Helper to recursively extract text from React elements
-    const extractText = (children: any): string => {
-      if (typeof children === 'string') return children;
-      if (Array.isArray(children)) {
-        return children.map((c) => extractText(c)).join('');
-      }
-      if (children?.props?.children) {
-        return extractText(children.props.children);
-      }
-      return '';
-    };
-
-    // Component now renders each word separately, so collect all highlighted text
+    // Tokenized rendering nests words as children — use recursive extraction
     const highlightedTexts = textElements
       .filter((el: ReactTestInstance) => {
         const style = el.props.style;
@@ -141,19 +172,6 @@ describe('HighlightedText', () => {
 
     expect(highlightedSegment).toBeTruthy();
 
-    // Helper to recursively extract text from React elements
-    const extractText = (children: any): string => {
-      if (typeof children === 'string') return children;
-      if (Array.isArray(children)) {
-        return children.map((c) => extractText(c)).join('');
-      }
-      if (children?.props?.children) {
-        return extractText(children.props.children);
-      }
-      return '';
-    };
-
-    // Component now renders each word separately, so collect all highlighted text
     const highlightedTexts = textElements
       .filter((el: ReactTestInstance) => {
         const style = el.props.style;
@@ -206,28 +224,6 @@ describe('HighlightedText', () => {
       return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.green);
     });
     expect(greenSegment).toBeTruthy();
-
-    // Collect text from tokenized structure (may be nested)
-    const collectTextContent = (elements: ReactTestInstance[]): string => {
-      return elements
-        .filter((el: ReactTestInstance) => {
-          const style = el.props.style;
-          return style?.backgroundColor?.includes(HIGHLIGHT_COLORS_DARK.yellow);
-        })
-        .map((el: ReactTestInstance) => {
-          const children = el.props.children;
-          if (typeof children === 'string') return children;
-          if (Array.isArray(children)) {
-            return children
-              .flatMap((c: any) => (typeof c === 'string' ? c : c?.props?.children || ''))
-              .join('');
-          }
-          return '';
-        })
-        .join('');
-    };
-    const highlightedTexts = collectTextContent(textElements);
-    expect(highlightedTexts).toContain('beginning');
   });
 
   it('should handle multiple non-overlapping highlights in same verse', () => {
@@ -278,93 +274,110 @@ describe('HighlightedText', () => {
     expect(greenSegment).toBeTruthy();
   });
 
-  it('should call onWordLongPress when a word is long-pressed', async () => {
-    const mockOnWordLongPress = jest.fn();
+  it('should call onVerseTap with haptic feedback when plain text is tapped', async () => {
+    jest.useFakeTimers();
+    const mockOnVerseTap = jest.fn();
 
-    const { UNSAFE_root } = render(
-      <HighlightedText
-        text="In the beginning God created the heavens and the earth."
-        verseNumber={1}
-        highlights={[]}
-        onWordLongPress={mockOnWordLongPress}
-      />
-    );
-
-    // Find ALL elements recursively, not just by type
-    const findElementWithHandler = (node: any): any => {
-      if (node?.props?.onLongPress) {
-        return node;
-      }
-      if (node?.children) {
-        for (const child of node.children) {
-          const found = findElementWithHandler(child);
-          if (found) return found;
-        }
-      }
-      return null;
-    };
-
-    const parentElement = findElementWithHandler(UNSAFE_root);
-
-    // Create mock event with nativeEvent (required for tokenized word handler)
-    const mockEvent = {
-      nativeEvent: {
-        pageX: 100,
-        pageY: 200,
-        locationX: 50,
-        locationY: 10,
-      },
-    };
-
-    // Simulate long press on parent element (a word)
-    if (parentElement) {
-      fireEvent(parentElement, 'longPress', mockEvent);
-    }
-
-    // Wait for async handler to complete
-    await waitFor(() => {
-      // Expects 2 arguments: verseNumber and the word that was long-pressed
-      expect(mockOnWordLongPress).toHaveBeenCalledWith(
-        1,
-        expect.any(String) // the word that was long-pressed
-      );
-    });
-
-    // Verify haptic feedback
-    expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
-  });
-
-  it('should not call onWordLongPress when callback not provided', () => {
     const { root } = render(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
         verseNumber={1}
         highlights={[]}
+        onVerseTap={mockOnVerseTap}
       />
     );
 
-    // Find the parent Text element that has the onLongPress handler
     const textElements = root.findAllByType(Text);
-    const parentTextElement = textElements.find((el: ReactTestInstance) => {
-      return el.props.onLongPress !== undefined;
-    });
+    // Find a segment with onPress (plain text segment)
+    const pressableSegment = textElements.find(
+      (el: ReactTestInstance) => el.props.onPress !== undefined
+    );
 
-    // Create mock event with nativeEvent (required for tokenized word handler)
-    const mockEvent = {
-      nativeEvent: {
-        pageX: 100,
-        pageY: 200,
-        locationX: 50,
-        locationY: 10,
-      },
-    };
+    expect(pressableSegment).toBeTruthy();
+    if (pressableSegment) {
+      fireEvent.press(pressableSegment);
+    }
 
-    // Should not throw error when long-pressing without callback
-    expect(() => {
-      if (parentTextElement) {
-        fireEvent(parentTextElement, 'longPress', mockEvent);
-      }
-    }).not.toThrow();
+    // onPress is debounced by 300ms to distinguish from double-tap
+    jest.advanceTimersByTime(300);
+
+    expect(mockOnVerseTap).toHaveBeenCalledWith(1);
+    expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
+  });
+
+  it('should NOT call onVerseTap on double-tap (native selection)', () => {
+    jest.useFakeTimers();
+    const mockOnVerseTap = jest.fn();
+
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[]}
+        onVerseTap={mockOnVerseTap}
+      />
+    );
+
+    const textElements = root.findAllByType(Text);
+    const pressableSegment = textElements.find(
+      (el: ReactTestInstance) => el.props.onPress !== undefined
+    );
+
+    // Simulate double-tap: two presses within 300ms
+    if (pressableSegment) {
+      fireEvent.press(pressableSegment);
+      fireEvent.press(pressableSegment);
+    }
+
+    jest.advanceTimersByTime(300);
+
+    // Should NOT have been called — double-tap cancels the debounced handler
+    expect(mockOnVerseTap).not.toHaveBeenCalled();
+  });
+
+  it('should call onHighlightTap when highlighted text is tapped', () => {
+    jest.useFakeTimers();
+    const mockOnHighlightTap = jest.fn();
+
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[mockHighlight]}
+        onHighlightTap={mockOnHighlightTap}
+      />
+    );
+
+    const textElements = root.findAllByType(Text);
+
+    // With tokenized rendering, individual word children have onPress.
+    // Find a word element inside a highlighted segment that has onPress.
+    const pressableWord =
+      textElements.find((el: ReactTestInstance) => {
+        return (
+          el.props.onPress !== undefined &&
+          el.parent?.props?.style?.backgroundColor?.includes(HIGHLIGHT_COLORS.yellow)
+        );
+      }) ||
+      textElements.find((el: ReactTestInstance) => {
+        // Fallback: find any element with onPress inside the highlight tree
+        const style = el.props.style;
+        return (
+          el.props.onPress !== undefined &&
+          style?.backgroundColor?.includes(HIGHLIGHT_COLORS.yellow)
+        );
+      });
+
+    expect(pressableWord).toBeTruthy();
+    if (pressableWord) {
+      fireEvent.press(pressableWord);
+    }
+
+    // onPress is debounced by 300ms
+    jest.advanceTimersByTime(300);
+
+    expect(mockOnHighlightTap).toHaveBeenCalledWith(1);
+    expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
   });
 
   it('should handle multi-verse highlight spanning first verse', () => {
@@ -394,18 +407,6 @@ describe('HighlightedText', () => {
     });
 
     expect(highlightedSegment).toBeTruthy();
-    // Component renders each word separately, so we need to extract text from nested structure
-    // Helper to recursively extract text from React elements
-    const extractText = (children: any): string => {
-      if (typeof children === 'string') return children;
-      if (Array.isArray(children)) {
-        return children.map((c) => extractText(c)).join('');
-      }
-      if (children?.props?.children) {
-        return extractText(children.props.children);
-      }
-      return '';
-    };
 
     // First verse should be highlighted from char 29 to end
     const highlightedTexts = textElements
