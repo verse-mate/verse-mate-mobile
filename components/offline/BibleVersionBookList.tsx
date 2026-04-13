@@ -1,12 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BIBLE_BOOKS } from '@/constants/bible-books';
 import { fontSizes, spacing } from '@/constants/bible-design-tokens';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
-import { getDownloadedBooksForVersion } from '@/services/offline';
 
 interface BibleVersionBookListProps {
   versionKey: string;
@@ -14,24 +13,18 @@ interface BibleVersionBookListProps {
 
 export function BibleVersionBookList({ versionKey }: BibleVersionBookListProps) {
   const { colors } = useTheme();
-  const { downloadBibleBook, deleteBibleBook } = useOfflineContext();
+  const { downloadBibleBook, deleteBibleBook, downloadedBibleBooks } = useOfflineContext();
   const { showToast } = useToast();
-  const [downloadedBooks, setDownloadedBooks] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Single source of truth: the context already tracks downloaded books for
+  // every version (refreshed after every download/delete), so read from it
+  // instead of maintaining a parallel SQLite query here.
+  const downloadedBooks = downloadedBibleBooks[versionKey] ?? [];
   const [actionBookId, setActionBookId] = useState<number | null>(null);
-
-  useEffect(() => {
-    getDownloadedBooksForVersion(versionKey)
-      .then(setDownloadedBooks)
-      .finally(() => setLoading(false));
-  }, [versionKey]);
 
   const handleDownload = async (bookId: number) => {
     setActionBookId(bookId);
     try {
       await downloadBibleBook(versionKey, bookId);
-      const updated = await getDownloadedBooksForVersion(versionKey);
-      setDownloadedBooks(updated);
     } catch (err) {
       const isOffline = (err as { code?: string } | undefined)?.code === 'OFFLINE';
       showToast(
@@ -46,20 +39,12 @@ export function BibleVersionBookList({ versionKey }: BibleVersionBookListProps) 
     setActionBookId(bookId);
     try {
       await deleteBibleBook(versionKey, bookId);
-      const updated = await getDownloadedBooksForVersion(versionKey);
-      setDownloadedBooks(updated);
+    } catch {
+      showToast('Failed to delete book');
     } finally {
       setActionBookId(null);
     }
   };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color={colors.gold} />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>

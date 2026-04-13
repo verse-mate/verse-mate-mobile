@@ -20,6 +20,7 @@ import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import {
   fontSizes,
@@ -372,14 +373,7 @@ export function BibleExplanationsPanel({
             <SkeletonLoader />
           ) : tab.data ? (
             <>
-              {tab.isLocal && (
-                <View style={styles.offlineBadge}>
-                  <Ionicons name="cloud-done-outline" size={14} color={colors.textTertiary} />
-                  <Text style={[styles.offlineBadgeText, { color: colors.textTertiary }]}>
-                    Available offline
-                  </Text>
-                </View>
-              )}
+              {tab.isLocal && <AvailableOfflineBadge />}
               <Markdown style={markdownStyles}>{tab.data}</Markdown>
             </>
           ) : isOffline ? (
@@ -490,15 +484,6 @@ function createStyles(
       paddingHorizontal: spacing.xxl,
       paddingVertical: spacing.xxl,
       paddingBottom: 60,
-    },
-    offlineBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginBottom: spacing.sm,
-    },
-    offlineBadgeText: {
-      fontSize: fontSizes.overline,
     },
     emptyContainer: {
       flex: 1,
