@@ -14,6 +14,7 @@ import {
   getLocalTopicExplanation,
   getLocalTopicExplanations,
   getLocalTopicReferences,
+  hasLocalCommentary,
   upsertSingleCommentary,
 } from '@/services/offline';
 import { parseAndInjectVerses } from '@/services/offline/verse-parser.service';
@@ -257,8 +258,6 @@ export const useBibleChapterExplanation = (
                 type: explanation.type,
                 content,
                 languageCode: explanation.language_code,
-                // Sentinel: consumed by isLocalData below to drive the "Available offline" badge.
-                _fromLocalCache: true,
               };
             }
           }
@@ -309,9 +308,10 @@ export const useBibleChapterExplanation = (
     enabled: enabled && bookId > 0 && chapterNumber > 0 && Boolean(explanationType),
   });
 
-  // Reflect whether this specific explanation is persisted to SQLite (online or
-  // offline). React Query's in-memory cache may serve data without re-running
-  // queryFn, so the `_fromLocalCache` sentinel alone isn't reliable.
+  // Per-item SQLite probe: flip the "Available offline" badge when the current
+  // explanation is persisted locally. A queryFn-side sentinel won't do — React
+  // Query serves from memory without re-running queryFn, so the flag would go
+  // stale after auto-cache writes.
   const [hasLocalExplanation, setHasLocalExplanation] = useState(false);
   useEffect(() => {
     if (!explanationType || bookId <= 0 || chapterNumber <= 0) {
@@ -320,22 +320,21 @@ export const useBibleChapterExplanation = (
     }
     let cancelled = false;
     (async () => {
+      // Candidates cover the three shapes a language code might take in the
+      // table (explicit match via user preferences vs. API-supplied code vs.
+      // legacy short-code rows). Collapsed into one `IN (...)` query so this
+      // effect stays to a single DB round-trip regardless of tab count.
       const candidates = Array.from(
         new Set([localLanguage, effectiveLanguage, shortCode].filter(Boolean))
       ) as string[];
       try {
-        for (const lang of candidates) {
-          const row = await getLocalCommentary(lang, bookId, chapterNumber, explanationType);
-          if (row) {
-            if (!cancelled) setHasLocalExplanation(true);
-            return;
-          }
-        }
+        const found = await hasLocalCommentary(candidates, bookId, chapterNumber, explanationType);
+        if (!cancelled) setHasLocalExplanation(found);
       } catch {
         // SQLite unavailable (tests without native mock, or transient init
         // failure) — treat as not-cached.
+        if (!cancelled) setHasLocalExplanation(false);
       }
-      if (!cancelled) setHasLocalExplanation(false);
     })();
     return () => {
       cancelled = true;

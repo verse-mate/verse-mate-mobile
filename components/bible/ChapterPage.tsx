@@ -17,7 +17,6 @@
  * @see Spec: agent-os/specs/2025-10-23-native-page-swipe-navigation/spec.md (lines 121-143)
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
@@ -79,15 +78,6 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     hidden: {
       display: 'none',
-    },
-    offlineBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginBottom: spacing.sm,
-    },
-    offlineBadgeText: {
-      fontSize: fontSizes.overline,
     },
   });
 
