@@ -23,6 +23,7 @@ import {
   getBibleVersionsDownloadInfo,
   getCommentaryDownloadInfo,
   getDownloadedBibleVersions,
+  getDownloadedBooksForVersion,
   getDownloadedCommentaryLanguages,
   getDownloadedTopicLanguages,
   getLanguageBundleStatus,
@@ -44,6 +45,7 @@ import {
 } from '@/services/offline';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNetInfo } from '@react-native-community/netinfo';
+import { useQueryClient } from '@tanstack/react-query';
 import { InteractionManager, Platform } from 'react-native';
 import React, {
   createContext,
@@ -69,6 +71,8 @@ export interface OfflineContextType {
 
   // Downloaded content
   downloadedBibleVersions: string[];
+  /** Map of Bible version key -> array of downloaded book IDs (book-level granularity). */
+  downloadedBibleBooks: Record<string, number[]>;
   downloadedCommentaryLanguages: string[];
   downloadedTopicLanguages: string[];
 
@@ -119,6 +123,7 @@ const webOnlyValue: OfflineContextType = {
   isInitialized: true,
   manifest: null,
   downloadedBibleVersions: [],
+  downloadedBibleBooks: {},
   downloadedCommentaryLanguages: [],
   downloadedTopicLanguages: [],
   bibleVersionsInfo: [],
@@ -157,6 +162,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const netInfo = useNetInfo();
   const isOnline = netInfo.isConnected === true;
 
+  const queryClient = useQueryClient();
+
   // Mode state
   const [isAutoSyncEnabled, setAutoSyncEnabledState] = useState(true);
 
@@ -168,6 +175,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Downloaded content
   const [downloadedBibleVersions, setDownloadedBibleVersions] = useState<string[]>([]);
+  const [downloadedBibleBooks, setDownloadedBibleBooks] = useState<Record<string, number[]>>({});
   const [downloadedCommentaryLanguages, setDownloadedCommentaryLanguages] = useState<string[]>([]);
   const [downloadedTopicLanguages, setDownloadedTopicLanguages] = useState<string[]>([]);
 
@@ -216,6 +224,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setDownloadedTopicLanguages(topicLangs);
     setTotalStorageUsed(storage);
 
+    const bookEntries = await Promise.all(
+      bibleVersions.map(async (v) => [v, await getDownloadedBooksForVersion(v)] as const)
+    );
+    setDownloadedBibleBooks(Object.fromEntries(bookEntries));
+
     const [bibleInfo, commInfo, topicInfo] = await Promise.all([
       getBibleVersionsDownloadInfo(m),
       getCommentaryDownloadInfo(m),
@@ -256,6 +269,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         setDownloadedBibleVersions(bibleVersions);
         setDownloadedCommentaryLanguages(commentaryLangs);
         setDownloadedTopicLanguages(topicLangs);
+
+        const bookEntries = await Promise.all(
+          bibleVersions.map(async (v) => [v, await getDownloadedBooksForVersion(v)] as const)
+        );
+        setDownloadedBibleBooks(Object.fromEntries(bookEntries));
 
         const [syncTime, storage, userDataSynced] = await Promise.all([
           getLastSyncTime(),
@@ -383,6 +401,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
   // Download a single Bible book
   const downloadBibleBook = async (versionKey: string, bookId: number) => {
+    if (!isOnline) {
+      const err = new Error('OFFLINE');
+      (err as Error & { code?: string }).code = 'OFFLINE';
+      throw err;
+    }
     if (!manifest) {
       await refreshManifest();
     }
@@ -392,6 +415,21 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     try {
       await downloadBibleBookService(versionKey, bookId, currentManifest, setSyncProgress);
       await refreshDownloadState(currentManifest);
+      // Invalidate chapter queries for this book so stale cached payloads don't
+      // mask the newly-available local data.
+      queryClient.invalidateQueries({
+        predicate: (q) => {
+          const key = q.queryKey as unknown[];
+          return (
+            Array.isArray(key) &&
+            key.some((seg) => {
+              if (!seg || typeof seg !== 'object') return false;
+              const path = (seg as { path?: { bookId?: string } }).path;
+              return path?.bookId === String(bookId);
+            })
+          );
+        },
+      });
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
@@ -404,6 +442,21 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     if (manifest) {
       await refreshDownloadState(manifest);
     }
+    // Purge React Query cache for this book's chapters; otherwise staleTime:Infinity
+    // keeps serving the now-deleted payload.
+    queryClient.invalidateQueries({
+      predicate: (q) => {
+        const key = q.queryKey as unknown[];
+        return (
+          Array.isArray(key) &&
+          key.some((seg) => {
+            if (!seg || typeof seg !== 'object') return false;
+            const path = (seg as { path?: { bookId?: string } }).path;
+            return path?.bookId === String(bookId);
+          })
+        );
+      },
+    });
   };
 
   // Download commentaries
@@ -529,6 +582,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const deleteAllData = async () => {
     await deleteAllOfflineData();
     setDownloadedBibleVersions([]);
+    setDownloadedBibleBooks({});
     setDownloadedCommentaryLanguages([]);
     setDownloadedTopicLanguages([]);
     setTotalStorageUsed(0);
@@ -538,6 +592,20 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     setLanguageBundles((prev) => prev.map((b) => ({ ...b, status: 'not_downloaded' as const })));
     setIsUserDataSynced(false);
     setLastSyncTime(null);
+    // Refresh manifest-backed status lists so badges like "Update Available"
+    // that were cached from before don't linger after the wipe.
+    if (manifest) {
+      await refreshDownloadState(manifest);
+    }
+    // Purge any cached chapter / explanation payloads so the UI doesn't keep
+    // serving stale data (e.g., "Available offline" badge on deleted content).
+    queryClient.invalidateQueries({
+      predicate: (q) => {
+        const first = (q.queryKey as unknown[])[0];
+        return first === 'getBibleBookByBookIdByChapterNumber' ||
+          first === 'getBibleBookExplanationByBookIdByChapterNumber';
+      },
+    });
   };
 
   // Check for updates
@@ -582,6 +650,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
 
     // Downloaded content
     downloadedBibleVersions,
+    downloadedBibleBooks,
     downloadedCommentaryLanguages,
     downloadedTopicLanguages,
 

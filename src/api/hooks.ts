@@ -1,7 +1,7 @@
 // Custom React Query hooks wrapping the generated options
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 // Offline mode imports
 import { BIBLE_BOOKS, getBookById } from '@/constants/bible-books';
 import { useOfflineContext } from '@/contexts/OfflineContext';
@@ -119,9 +119,13 @@ export const useBibleChapter = (
   version?: string,
   options?: { enabled?: boolean }
 ) => {
-  const { downloadedBibleVersions } = useOfflineContext();
+  const { downloadedBibleBooks } = useOfflineContext();
   const effectiveVersion = version || 'NASB1995'; // Default to NASB1995 if not specified
-  const isLocal = downloadedBibleVersions.includes(effectiveVersion);
+  // Book-level granularity: only treat as local if THIS specific book is downloaded.
+  // Version-level checks masked deletions of individual books, since the version would
+  // still be listed as "downloaded" when 65/66 books remained.
+  // Default to {} for tests that mock useOfflineContext with a partial object.
+  const isLocal = ((downloadedBibleBooks || {})[effectiveVersion] || []).includes(bookId);
 
   // Use the generated query key so prefetch cache hits work
   const generatedOpts = getBibleBookByBookIdByChapterNumberOptions({
@@ -208,7 +212,6 @@ export const useBibleChapterExplanation = (
     (dl) =>
       dl === effectiveLanguage || dl === shortCode || dl.split('-')[0].toLowerCase() === shortCode
   );
-  const isLocal = Boolean(matchedLocalLanguage);
   const localLanguage = matchedLocalLanguage || effectiveLanguage;
 
   // Use the generated query key so prefetch cache hits work
@@ -225,32 +228,43 @@ export const useBibleChapterExplanation = (
     queryKey: generatedExplOpts.queryKey,
     staleTime: 1000 * 60 * 30, // AI explanations: 30 min stale time
     queryFn: async ({ signal }) => {
-      if (isLocal && explanationType) {
-        // Local fetch - use the matched language code from the DB
-        const explanation = await getLocalCommentary(
-          localLanguage,
-          bookId,
-          chapterNumber,
-          explanationType
-        );
-
-        if (!explanation) return null;
-
-        // Inject verse text into placeholders (matches backend behavior with includeVerseNumbers: false)
-        let content = explanation.explanation;
-        if (downloadedBibleVersions.includes(effectiveVersion)) {
-          content = await parseAndInjectVerses(content, effectiveVersion, {
-            includeVerseNumbers: false,
-          });
+      // Try local SQLite first, regardless of whether the full language bundle
+      // is "downloaded" — a single explanation may have been auto-cached on a
+      // previous view (see `upsertSingleCommentary` below). This also powers the
+      // per-item "Available offline" badge downstream.
+      if (explanationType) {
+        const candidates = Array.from(
+          new Set([localLanguage, effectiveLanguage, shortCode].filter(Boolean))
+        ) as string[];
+        try {
+          for (const lang of candidates) {
+            const explanation = await getLocalCommentary(
+              lang,
+              bookId,
+              chapterNumber,
+              explanationType
+            );
+            if (explanation) {
+              let content = explanation.explanation;
+              if (downloadedBibleVersions.includes(effectiveVersion)) {
+                content = await parseAndInjectVerses(content, effectiveVersion, {
+                  includeVerseNumbers: false,
+                });
+              }
+              return {
+                bookId: explanation.book_id,
+                chapterNumber: explanation.chapter_number,
+                type: explanation.type,
+                content,
+                languageCode: explanation.language_code,
+                // Sentinel: consumed by isLocalData below to drive the "Available offline" badge.
+                _fromLocalCache: true,
+              };
+            }
+          }
+        } catch {
+          // SQLite unavailable — skip local probe, fall through to remote.
         }
-
-        return {
-          bookId: explanation.book_id,
-          chapterNumber: explanation.chapter_number,
-          type: explanation.type,
-          content,
-          languageCode: explanation.language_code,
-        };
       }
 
       // Remote fetch — reuse generatedExplOpts so the cache key matches prefetch
@@ -265,22 +279,28 @@ export const useBibleChapterExplanation = (
         // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
 
-      // Auto-cache explanation to SQLite for future offline use (fire-and-forget)
+      // Auto-cache explanation to SQLite for future offline use. Awaited so that
+      // the SQLite row exists by the time the hook's post-fetch effect checks for it
+      // (which drives the "Available offline" badge).
       if (response && 'explanation' in response && explanationType) {
         // biome-ignore lint/suspicious/noExplicitAny: response shape varies between generated types
         const r = response as any;
         const expl = r.explanation;
         if (expl && typeof expl === 'object') {
-          upsertSingleCommentary(effectiveLanguage, {
-            explanation_id: expl.explanation_id ?? 0,
-            book_id: expl.book_id ?? bookId,
-            chapter_number: expl.chapter_number ?? chapterNumber,
-            verse_start: expl.verse_start ?? null,
-            verse_end: expl.verse_end ?? null,
-            type: expl.type ?? explanationType,
-            explanation: expl.explanation ?? '',
-            language_code: expl.language_code ?? effectiveLanguage,
-          }).catch(() => {});
+          try {
+            await upsertSingleCommentary(expl.language_code ?? effectiveLanguage, {
+              explanation_id: expl.explanation_id ?? 0,
+              book_id: expl.book_id ?? bookId,
+              chapter_number: expl.chapter_number ?? chapterNumber,
+              verse_start: expl.verse_start ?? null,
+              verse_end: expl.verse_end ?? null,
+              type: expl.type ?? explanationType,
+              explanation: expl.explanation ?? '',
+              language_code: expl.language_code ?? effectiveLanguage,
+            });
+          } catch {
+            // Non-fatal — cache miss is recoverable on next fetch.
+          }
         }
       }
 
@@ -289,7 +309,48 @@ export const useBibleChapterExplanation = (
     enabled: enabled && bookId > 0 && chapterNumber > 0 && Boolean(explanationType),
   });
 
-  const isLocalData = isLocal && Boolean(explanationType) && query.data != null;
+  // Reflect whether this specific explanation is persisted to SQLite (online or
+  // offline). React Query's in-memory cache may serve data without re-running
+  // queryFn, so the `_fromLocalCache` sentinel alone isn't reliable.
+  const [hasLocalExplanation, setHasLocalExplanation] = useState(false);
+  useEffect(() => {
+    if (!explanationType || bookId <= 0 || chapterNumber <= 0) {
+      setHasLocalExplanation(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const candidates = Array.from(
+        new Set([localLanguage, effectiveLanguage, shortCode].filter(Boolean))
+      ) as string[];
+      try {
+        for (const lang of candidates) {
+          const row = await getLocalCommentary(lang, bookId, chapterNumber, explanationType);
+          if (row) {
+            if (!cancelled) setHasLocalExplanation(true);
+            return;
+          }
+        }
+      } catch {
+        // SQLite unavailable (tests without native mock, or transient init
+        // failure) — treat as not-cached.
+      }
+      if (!cancelled) setHasLocalExplanation(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    localLanguage,
+    effectiveLanguage,
+    shortCode,
+    bookId,
+    chapterNumber,
+    explanationType,
+    query.data,
+  ]);
+
+  const isLocalData = hasLocalExplanation && query.data != null;
 
   return {
     ...query,
