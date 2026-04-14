@@ -4,49 +4,80 @@ tags:
   - setup
   - auth
 ---
-# Shared authenticated setup: login via API + deep link auth bypass.
+# Shared authenticated setup for E2E tests.
 #
-# Maestro's inputText silently fails on secureTextEntry password fields
-# on Android (mobile-dev-inc/maestro#1061). This flow works around the
-# issue by calling the login API from Maestro's JavaScript engine, then
-# passing the tokens to the app via a deep link to the e2e-auth route.
+# Logs in via the actual login screen using typed credentials.
+# Uses clearState:true for a clean state (seed DB works for chapters).
+# secureTextEntry is disabled in e2e-test builds (EXPO_PUBLIC_APP_ENV).
 #
 # Requires env vars: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
 
-# Step 1: Call login API from Maestro to get tokens
-- evalScript: |
-    ${
-      var email = E2E_TEST_EMAIL || '';
-      var password = E2E_TEST_PASSWORD || '';
-      var response = http.post('https://api.versemate.org/auth/login', {
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({email: email, password: password})
-      });
-      var data = json(response.body);
-      output.accessToken = data.accessToken || '';
-      output.refreshToken = data.refreshToken || '';
-    }
-
-# Step 2: Launch app with clean state
+# Fresh launch — clearState:true gives clean seed DB for chapters
 - launchApp:
     appId: org.versemate.app
     clearState: true
 
-# Skip onboarding
+# Dismiss system dialogs (e.g., "Pixel Launcher isn't responding")
+- runFlow:
+    when:
+      visible: "Wait"
+    commands:
+      - tapOn: "Wait"
+
+# Wait for onboarding to fully load, then skip it
+- extendedWaitUntil:
+    visible:
+      text: "Skip"
+    timeout: 30000
+
 - tapOn:
     text: "Skip"
-    optional: true
 
-# Wait for app to load
+# Wait for Bible screen to load (from seed DB)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
-    timeout: 60000
+    timeout: 30000
 
-# Step 3: Open deep link with tokens to auto-authenticate
-- openLink: "versemate://e2e-auth?accessToken=${output.accessToken}&refreshToken=${output.refreshToken}"
+# Wait for page to fully settle before interacting
+- waitForAnimationToEnd
 
-# Step 4: Wait for auth to complete and redirect to Bible
+# Navigate to login: hamburger menu → Log In
+- tapOn:
+    id: "hamburger-menu-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 15000
+
+- tapOn:
+    id: "menu-item-login"
+
+# Wait for login screen
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 10000
+
+# Type email
+- tapOn:
+    id: "login-email"
+- inputText: ${E2E_TEST_EMAIL}
+
+# Type password (secureTextEntry disabled in e2e-test builds)
+- tapOn:
+    id: "login-password"
+- inputText: ${E2E_TEST_PASSWORD}
+
+# Hide keyboard before tapping submit
+- hideKeyboard
+
+# Submit login
+- tapOn:
+    id: "login-submit"
+
+# Wait for redirect back to Bible screen (login success)
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"

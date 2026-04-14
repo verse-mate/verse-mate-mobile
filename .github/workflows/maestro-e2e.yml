@@ -159,6 +159,9 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Install socat (TLS proxy for emulator API access)
+        run: sudo apt-get install -y socat
+
       - name: Enable KVM hardware acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -213,6 +216,9 @@ jobs:
       - name: Push OTA update
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APP_ENV: e2e-test
+          EXPO_PUBLIC_APP_ENV: e2e-test
+          EXPO_PUBLIC_API_URL: https://api.versemate.org
         run: |
           echo "Pushing JS update to e2e-test branch..."
           eas update --branch e2e-test --message "E2E update for ${{ github.sha }}" --non-interactive
@@ -256,12 +262,19 @@ jobs:
           retention-days: 14
 
       - name: Capture emulator logcat
-        if: failure()
+        if: always()
         timeout-minutes: 1
-        run: adb logcat -d > emulator-logcat.txt || true
+        run: |
+          # Use the live logcat captured during tests (background process)
+          if [ -f /tmp/emulator-logcat-live.txt ]; then
+            cp /tmp/emulator-logcat-live.txt emulator-logcat.txt
+          else
+            adb logcat -d > emulator-logcat.txt 2>/dev/null || echo "No logcat available" > emulator-logcat.txt
+          fi
+          wc -l emulator-logcat.txt || true
 
       - name: Upload emulator logs
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: emulator-logs

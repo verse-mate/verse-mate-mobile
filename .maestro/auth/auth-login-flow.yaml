@@ -67,9 +67,12 @@ tags:
 
 - waitForAnimationToEnd
 
-# Verify logout button is visible (authenticated)
-- assertVisible:
-    id: "settings-logout-button"
+# Scroll down to find logout button (may be below fold on smaller screens)
+- scrollUntilVisible:
+    element:
+      id: "settings-logout-button"
+    direction: DOWN
+    timeout: 10000
 
 # Verify sign-in button is NOT visible
 - assertNotVisible:
