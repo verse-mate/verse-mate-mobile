@@ -493,6 +493,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
+      // Normal (non-e2e) path continues here
       // Setup proactive refresh
       const cleanup = setupProactiveRefresh(accessToken);
       setProactiveRefreshCleanup(() => cleanup);
