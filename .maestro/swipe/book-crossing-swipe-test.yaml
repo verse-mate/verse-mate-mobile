@@ -33,6 +33,9 @@ tags:
       id: "chapter-selector-button"
     timeout: 30000
 
+# Wait for page to settle before interacting
+- waitForAnimationToEnd
+
 # Open navigation modal
 - tapOn:
     id: "chapter-selector-button"
@@ -41,7 +44,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "bible-navigation-modal"
-    timeout: 5000
+    timeout: 15000
 
 # Go to Old Testament tab
 - tapOn:

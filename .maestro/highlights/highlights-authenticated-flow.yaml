@@ -37,14 +37,15 @@ tags:
 # ============================================
 
 # Wait for verse content to load after login redirect
+# Use verse-group (View wrapper) — more reliable than verse-text (nested Text) on Android
 - extendedWaitUntil:
     visible:
-      id: "verse-text-1"
+      id: "verse-group-1"
     timeout: 15000
 
-# Tap verse 1 to open highlight selection
+# Tap verse group to open highlight selection
 - tapOn:
-    id: "verse-text-1"
+    id: "verse-group-1"
 
 # Wait for highlight color picker / selection sheet
 - waitForAnimationToEnd
