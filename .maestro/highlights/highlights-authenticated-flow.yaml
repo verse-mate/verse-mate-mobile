@@ -37,14 +37,15 @@ tags:
 # ============================================
 
 # Wait for verse content to load after login redirect
-# Use verse-group (View wrapper) — more reliable than verse-text (nested Text) on Android
-- extendedWaitUntil:
-    visible:
+- scrollUntilVisible:
+    element:
       id: "verse-group-1"
+    direction: DOWN
     timeout: 15000
 
-# Tap verse group to open highlight selection
-- tapOn:
+# Long press verse to open highlight selection (tap on View doesn't
+# propagate to Text onPress; long press triggers the context menu)
+- longPressOn:
     id: "verse-group-1"
 
 # Wait for highlight color picker / selection sheet
