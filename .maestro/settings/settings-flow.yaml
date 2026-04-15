@@ -60,9 +60,12 @@ tags:
 - assertVisible:
     text: "Bible Version"
 
-# For unauthenticated user, sign in button should be visible
-- assertVisible:
-    id: "settings-sign-in-button"
+# Scroll down to find sign-in button (may be below fold)
+- scrollUntilVisible:
+    element:
+      id: "settings-sign-in-button"
+    direction: DOWN
+    timeout: 10000
 
 # ============================================
 # Test 3: Navigate Back to Chapter

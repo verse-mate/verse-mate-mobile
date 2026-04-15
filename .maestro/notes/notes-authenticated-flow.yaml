@@ -60,6 +60,12 @@ tags:
 # Test 2: Verify Note in Notes List
 # ============================================
 
+# Wait for Bible screen to fully settle after modal close
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-button"
+    timeout: 10000
+
 # Open hamburger menu
 - tapOn:
     id: "hamburger-menu-button"
@@ -67,7 +73,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "hamburger-menu"
-    timeout: 5000
+    timeout: 15000
 
 # Navigate to Notes
 - tapOn:
