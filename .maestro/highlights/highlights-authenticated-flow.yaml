@@ -36,6 +36,12 @@ tags:
 # Test 1: Create Highlight via Verse Tap
 # ============================================
 
+# Wait for verse content to load after login redirect
+- extendedWaitUntil:
+    visible:
+      id: "verse-text-1"
+    timeout: 15000
+
 # Tap verse 1 to open highlight selection
 - tapOn:
     id: "verse-text-1"
