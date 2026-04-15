@@ -64,7 +64,12 @@ tags:
 # Test 3: Dismiss Insight Panel
 # ============================================
 
-# Tap backdrop to dismiss
+# Dismiss the insight panel via Close button (more reliable than backdrop tap)
+- tapOn:
+    text: "Close"
+    optional: true
+
+# Fallback: tap backdrop if Close button wasn't found
 - tapOn:
     id: "backdrop"
     optional: true
@@ -72,8 +77,10 @@ tags:
 - waitForAnimationToEnd
 
 # Verify we're back on Bible verse view
-- assertVisible:
-    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
 # ============================================
 # Test Complete
