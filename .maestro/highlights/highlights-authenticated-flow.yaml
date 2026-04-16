@@ -43,18 +43,33 @@ tags:
     direction: DOWN
     timeout: 15000
 
-# Tap verse group to open highlight/insight selection
+# Step 1: Tap verse to open insight tooltip
 - tapOn:
     id: "verse-group-1"
 
-# Wait for highlight color picker / selection sheet
-- waitForAnimationToEnd
+# Step 2: Wait for tooltip and tap "Save as My Highlight"
+- extendedWaitUntil:
+    visible:
+      id: "verse-tooltip-save-highlight"
+    timeout: 10000
 
-# Select yellow color
+- tapOn:
+    id: "verse-tooltip-save-highlight"
+
+# Step 3: Wait for color picker modal and select yellow
+- extendedWaitUntil:
+    visible:
+      id: "color-button-yellow"
+    timeout: 10000
+
 - tapOn:
     id: "color-button-yellow"
 
-# Wait for sheet to close and highlight to apply
+# Step 4: Save the highlight
+- tapOn:
+    text: "Save Highlight"
+
+# Wait for highlight to apply
 - waitForAnimationToEnd
 
 # ============================================
