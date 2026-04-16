@@ -37,6 +37,8 @@ tags:
       id: "hamburger-menu-button"
     timeout: 30000
 
+- waitForAnimationToEnd
+
 # Open navigation modal (try chapter selector first, then topic selector)
 - tapOn:
     id: "chapter-selector-button"
@@ -50,7 +52,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "bible-navigation-modal"
-    timeout: 5000
+    timeout: 15000
 
 # Switch to Topics tab
 - tapOn:

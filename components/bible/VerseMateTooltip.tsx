@@ -627,6 +627,7 @@ export function VerseMateTooltip({
             ) : isLoggedIn ? (
               // Plain verse - show save button
               <Pressable
+                testID="verse-tooltip-save-highlight"
                 style={[
                   styles.secondaryButton,
                   { flexDirection: 'row', gap: spacing.xs, justifyContent: 'center' },

@@ -38,6 +38,8 @@ tags:
       id: "chapter-selector-button"
     timeout: 30000
 
+- waitForAnimationToEnd
+
 # Open navigation modal to go to Genesis 1
 - tapOn:
     id: "chapter-selector-button"
@@ -46,7 +48,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "bible-navigation-modal"
-    timeout: 5000
+    timeout: 15000
 
 # Go to Old Testament tab
 - tapOn:

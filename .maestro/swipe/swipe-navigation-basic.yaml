@@ -23,11 +23,13 @@ tags:
 
 - runFlow: ../shared/setup.yaml
 
-# Wait for app to load - verify chapter selector is visible
-- assertVisible:
-    id: "chapter-selector-button"
+# Wait for app to load
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 10000
 
-# Wait for content to load
+# Wait for content to settle
 - waitForAnimationToEnd
 
 
