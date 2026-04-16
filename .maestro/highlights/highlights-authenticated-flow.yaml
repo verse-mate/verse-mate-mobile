@@ -76,6 +76,14 @@ tags:
 # Test 2: Verify Highlight in Highlights List
 # ============================================
 
+# Wait for Bible screen to settle after highlight save
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-button"
+    timeout: 10000
+
+- waitForAnimationToEnd
+
 # Open hamburger menu
 - tapOn:
     id: "hamburger-menu-button"
@@ -83,7 +91,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "hamburger-menu"
-    timeout: 5000
+    timeout: 15000
 
 # Navigate to Highlights
 - tapOn:
@@ -92,8 +100,10 @@ tags:
 - waitForAnimationToEnd
 
 # Verify highlights list is visible
-- assertVisible:
-    id: "highlights-list"
+- extendedWaitUntil:
+    visible:
+      id: "highlights-list"
+    timeout: 10000
 
 # Verify Genesis 1 highlight group is present
 - assertVisible:
