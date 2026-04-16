@@ -35,13 +35,15 @@ tags:
       id: "chapter-selector-button"
     timeout: 30000
 
+- waitForAnimationToEnd
+
 - tapOn:
     id: "chapter-selector-button"
 
 - extendedWaitUntil:
     visible:
       id: "bible-navigation-modal"
-    timeout: 5000
+    timeout: 15000
 
 - tapOn:
     id: "tab-old-testament"

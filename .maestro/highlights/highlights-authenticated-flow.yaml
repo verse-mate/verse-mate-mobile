@@ -43,9 +43,8 @@ tags:
     direction: DOWN
     timeout: 15000
 
-# Long press verse to open highlight selection (tap on View doesn't
-# propagate to Text onPress; long press triggers the context menu)
-- longPressOn:
+# Tap verse group to open highlight/insight selection
+- tapOn:
     id: "verse-group-1"
 
 # Wait for highlight color picker / selection sheet

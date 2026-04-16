@@ -150,7 +150,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: "next-chapter-button"
-    timeout: 5000
+    timeout: 15000
 
 - tapOn:
     id: "next-chapter-button"

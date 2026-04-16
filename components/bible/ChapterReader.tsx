@@ -24,6 +24,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type NativeSyntheticEvent,
+  Pressable,
   StyleSheet,
   Text,
   type TextLayoutEventData,
@@ -532,9 +533,10 @@ export function ChapterReader({
                 return groups.map((group, groupIndex) => {
                   const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
                   return (
-                    <View
+                    <Pressable
                       key={groupKey}
                       testID={`verse-group-${group[0].verseNumber}`}
+                      onPress={() => handleVerseTap(group[0].verseNumber)}
                       onLayout={(e) =>
                         handleVerseLayout(
                           group[0].verseNumber,
@@ -652,7 +654,7 @@ export function ChapterReader({
                         })}
                       </Text>
                       {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}
-                    </View>
+                    </Pressable>
                   );
                 });
               })()
