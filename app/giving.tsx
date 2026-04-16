@@ -1,21 +1,25 @@
 /**
  * Giving Screen
  *
- * Displays information about supporting VerseMate with donations.
- * Includes a contact form that opens the email app with pre-filled information.
+ * Displays the VerseMate mission and a donation menu for supporting the project.
+ * Replaces the prior contact-form flow with an app-style donation UI that mirrors
+ * the web prototype's "Warm Mission" design approved via /design-shotgun.
  *
  * Features:
  * - Header with back navigation
- * - Hero section with mission statement
- * - Contact form for donation inquiries
- * - Email submission via Linking API
- * - Theme-aware styling
+ * - Hero image + SUPPORT VERSEMATE heading and mission body
+ * - Monthly / One-time cadence toggle
+ * - Preset donation amount chips ($10 / $25 / $50 / $100 / $250 / $500)
+ * - Custom amount input
+ * - Dynamic "Give $X" CTA that composes a prefilled mailto with amount + cadence
+ * - Trust badges (501(c)(3), Secure)
+ * - Theme-aware styling, haptics on interactions
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ImageBackground,
   KeyboardAvoidingView,
@@ -31,68 +35,70 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { type getColors, spacing } from '@/constants/bible-design-tokens';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+
+type Cadence = 'monthly' | 'once';
+
+const PRESETS = [10, 25, 50, 100, 250, 500] as const;
 
 export default function GivingScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { user, isAuthenticated } = useAuth();
   const styles = createStyles(colors);
 
-  // Form state
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [cadence, setCadence] = useState<Cadence>('monthly');
+  const [selectedAmount, setSelectedAmount] = useState<number>(25);
+  const [customAmount, setCustomAmount] = useState<string>('');
 
-  // Modal state
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorModalContent, setErrorModalContent] = useState({ title: '', message: '' });
 
-  // Prefill form fields if user is logged in
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      if (user.firstName) setFirstName(user.firstName);
-      if (user.lastName) setLastName(user.lastName);
-      if (user.email) setEmail(user.email);
-    }
-  }, [isAuthenticated, user]);
+  const effectiveAmount = customAmount
+    ? Math.max(1, Number.parseInt(customAmount.replace(/\D/g, ''), 10) || 0)
+    : selectedAmount;
 
   const handleBackPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
   };
 
-  const handleSubmit = async () => {
-    // Validate required fields
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+  const handleCadenceSelect = async (next: Cadence) => {
+    if (next === cadence) return;
+    await Haptics.selectionAsync();
+    setCadence(next);
+  };
+
+  const handlePresetSelect = async (amount: number) => {
+    await Haptics.selectionAsync();
+    setSelectedAmount(amount);
+    setCustomAmount('');
+  };
+
+  const handleDonate = async () => {
+    if (effectiveAmount < 1) {
       setErrorModalContent({
-        title: 'Required Fields',
-        message: 'Please fill in your first name, last name, and email.',
+        title: 'Enter an amount',
+        message: 'Please choose a preset amount or enter a custom amount greater than $0.',
       });
       setErrorModalVisible(true);
       return;
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      setErrorModalContent({
-        title: 'Invalid Email',
-        message: 'Please enter a valid email address.',
-      });
-      setErrorModalVisible(true);
-      return;
-    }
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // Construct email
-    const subject = encodeURIComponent('Donation Inquiry from VerseMate App');
-    const bodyText = `First Name: ${firstName.trim()}\nLast Name: ${lastName.trim()}\nEmail: ${email.trim()}\n\n${
-      message.trim() ? `Message:\n${message.trim()}` : ''
-    }`;
+    const cadenceLabel = cadence === 'monthly' ? 'Monthly' : 'One-time';
+    const subject = encodeURIComponent(`${cadenceLabel} donation — $${effectiveAmount}`);
+    const bodyText = [
+      'Hi VerseMate Team,',
+      '',
+      `I'd like to give $${effectiveAmount} ${
+        cadence === 'monthly' ? 'monthly' : 'as a one-time gift'
+      } to support VerseMate.`,
+      '',
+      'Please send me the next steps to complete this donation.',
+      '',
+      'Thank you,',
+    ].join('\n');
     const body = encodeURIComponent(bodyText);
     const mailtoUrl = `mailto:info@versemate.org?subject=${subject}&body=${body}`;
 
@@ -100,11 +106,6 @@ export default function GivingScreen() {
       const canOpen = await Linking.canOpenURL(mailtoUrl);
       if (canOpen) {
         await Linking.openURL(mailtoUrl);
-        // Clear form after successful email opening
-        setFirstName('');
-        setLastName('');
-        setEmail('');
-        setMessage('');
       } else {
         setErrorModalContent({
           title: 'Email Not Available',
@@ -121,6 +122,8 @@ export default function GivingScreen() {
       setErrorModalVisible(true);
     }
   };
+
+  const cadenceLabel = cadence === 'monthly' ? ' / month' : '';
 
   return (
     <>
@@ -153,8 +156,9 @@ export default function GivingScreen() {
             { paddingBottom: insets.bottom + spacing.xl },
           ]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Hero Section */}
+          {/* Hero Section — kept from prior design */}
           <View style={styles.heroSection}>
             <ImageBackground
               source={require('@/assets/images/giving-hero.jpg')}
@@ -178,12 +182,7 @@ export default function GivingScreen() {
                       technology, or helping us reach new communities with the truth of God&apos;s
                       Word.{'\n\n'}Through your partnership, VerseMate can continue developing
                       simple, powerful tools that guide people not only to read the Bible, but to
-                      truly understand and apply it in their daily lives. We believe that when
-                      people engage Scripture with clarity, transformation follows—families are
-                      encouraged, faith grows stronger, and entire communities can be renewed.
-                      {'\n\n'}Thank you for prayerfully considering a gift to VerseMate. Together,
-                      we can equip more people across languages and cultures to connect with
-                      God&apos;s Word in a deeper way.
+                      truly understand and apply it in their daily lives.
                     </Text>
                   </View>
                 </View>
@@ -191,112 +190,122 @@ export default function GivingScreen() {
             </ImageBackground>
           </View>
 
-          {/* Form Section */}
-          <View style={styles.formSection}>
-            <View style={styles.formContent}>
-              <View style={styles.formTextContainer}>
-                <Text style={styles.formHeading}>Connect With Us About Donations</Text>
-                <Text style={styles.formDescription}>
-                  We&apos;d love to hear from you! If you&apos;re interested in supporting VerseMate
-                  with a donation, please fill out the form below. One of our team members will
-                  connect with you soon to guide you through the next steps.
-                </Text>
-              </View>
-
-              <View style={styles.formInputs}>
-                {/* First Name */}
-                <View style={styles.inputContainer}>
-                  <View style={styles.inputLabelContainer}>
-                    <Text style={styles.inputLabel}>First Name</Text>
-                    <Text style={styles.requiredStar}>*</Text>
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    value={firstName}
-                    onChangeText={setFirstName}
-                    placeholder=""
-                    placeholderTextColor={colors.textTertiary}
-                    autoCorrect={false}
-                    spellCheck={false}
-                    testID="giving-first-name-input"
-                  />
-                </View>
-
-                {/* Last Name */}
-                <View style={styles.inputContainer}>
-                  <View style={styles.inputLabelContainer}>
-                    <Text style={styles.inputLabel}>Last Name</Text>
-                    <Text style={styles.requiredStar}>*</Text>
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    value={lastName}
-                    onChangeText={setLastName}
-                    placeholder=""
-                    placeholderTextColor={colors.textTertiary}
-                    autoCorrect={false}
-                    spellCheck={false}
-                    testID="giving-last-name-input"
-                  />
-                </View>
-
-                {/* Email */}
-                <View style={styles.inputContainer}>
-                  <View style={styles.inputLabelContainer}>
-                    <Text style={styles.inputLabel}>Email</Text>
-                    <Text style={styles.requiredStar}>*</Text>
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder=""
-                    placeholderTextColor={colors.textTertiary}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    spellCheck={false}
-                    testID="giving-email-input"
-                  />
-                </View>
-
-                {/* Message */}
-                <View style={[styles.inputContainer, styles.textAreaContainer]}>
-                  <View style={styles.inputLabelContainer}>
-                    <Text style={styles.inputLabel}>Anything You&apos;d Like Us to Know</Text>
-                  </View>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={message}
-                    onChangeText={setMessage}
-                    placeholder=""
-                    placeholderTextColor={colors.textTertiary}
-                    multiline
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                    testID="giving-message-input"
-                  />
-                </View>
-              </View>
-
-              {/* Submit Button */}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.submitButton,
-                  pressed && styles.submitButtonPressed,
-                ]}
-                onPress={handleSubmit}
-                accessibilityLabel="Submit donation inquiry"
-                accessibilityRole="button"
-                testID="giving-submit-button"
-              >
-                <Text style={styles.submitButtonText}>Submit</Text>
-              </Pressable>
+          {/* Donation Menu — mirrors web "Warm Mission" design */}
+          <View style={styles.donationSection}>
+            {/* Kicker + divider */}
+            <View style={styles.kickerWrapper}>
+              <Text style={styles.kicker}>GIVE TODAY</Text>
+              <View style={styles.kickerDivider} />
             </View>
+
+            {/* Headline */}
+            <Text style={styles.donationHeadline}>Give the Word to the world.</Text>
+
+            {/* Lead */}
+            <Text style={styles.donationLead}>
+              Every gift keeps Scripture free, clear, and accessible for everyone, everywhere.
+            </Text>
+
+            {/* Cadence toggle */}
+            <View style={styles.cadenceToggle} accessibilityRole="tablist">
+              {(['monthly', 'once'] as const).map((c) => {
+                const active = cadence === c;
+                return (
+                  <Pressable
+                    key={c}
+                    onPress={() => handleCadenceSelect(c)}
+                    style={[styles.cadenceButton, active && styles.cadenceButtonActive]}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={c === 'monthly' ? 'Monthly donation' : 'One-time donation'}
+                    testID={`giving-cadence-${c}`}
+                  >
+                    <Text
+                      style={[styles.cadenceButtonText, active && styles.cadenceButtonTextActive]}
+                    >
+                      {c === 'monthly' ? 'Monthly' : 'One-time'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Preset amount chips — 3x2 grid */}
+            <View style={styles.presetGrid}>
+              {PRESETS.map((amount) => {
+                const selected = !customAmount && amount === selectedAmount;
+                return (
+                  <Pressable
+                    key={amount}
+                    onPress={() => handlePresetSelect(amount)}
+                    style={[styles.presetChip, selected && styles.presetChipSelected]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Donate $${amount}`}
+                    accessibilityState={{ selected }}
+                    testID={`giving-preset-${amount}`}
+                  >
+                    <Text
+                      style={[styles.presetChipText, selected && styles.presetChipTextSelected]}
+                    >
+                      ${amount}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Custom amount input */}
+            <View style={styles.customAmountContainer}>
+              <Text style={styles.customAmountPrefix}>$</Text>
+              <TextInput
+                style={styles.customAmountInput}
+                value={customAmount}
+                onChangeText={(v) => setCustomAmount(v.replace(/\D/g, ''))}
+                placeholder="Other amount"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="number-pad"
+                inputMode="numeric"
+                maxLength={6}
+                accessibilityLabel="Custom donation amount"
+                testID="giving-custom-amount"
+              />
+            </View>
+
+            {/* CTA — dynamic amount + cadence */}
+            <Pressable
+              style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+              onPress={handleDonate}
+              accessibilityRole="button"
+              accessibilityLabel={`Give $${effectiveAmount}${cadenceLabel}`}
+              testID="giving-submit-button"
+            >
+              <Ionicons name="heart" size={18} color="#000000" />
+              <Text style={styles.ctaText}>
+                Give ${effectiveAmount}
+                {cadenceLabel}
+              </Text>
+            </Pressable>
+
+            {/* Trust badges */}
+            <View style={styles.trustBadges}>
+              <View style={styles.trustBadge}>
+                <Ionicons name="shield-checkmark-outline" size={14} color="#808080" />
+                <Text style={styles.trustBadgeText}>501(c)(3)</Text>
+              </View>
+              <View style={styles.trustBadge}>
+                <Ionicons name="lock-closed-outline" size={14} color="#808080" />
+                <Text style={styles.trustBadgeText}>Secure</Text>
+              </View>
+            </View>
+
+            {/* Footer note */}
+            <Text style={styles.footerNote}>
+              Tap “Give” and our team will follow up with a secure donation link. Your gift is
+              tax-deductible.
+            </Text>
           </View>
         </ScrollView>
 
-        {/* Error Modal */}
         <ErrorModal
           visible={errorModalVisible}
           title={errorModalContent.title}
@@ -344,13 +353,13 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       flexGrow: 1,
     },
 
-    // Hero Section
+    // Hero
     heroSection: {
       width: '100%',
     },
     heroBackground: {
       width: '100%',
-      minHeight: 600,
+      minHeight: 520,
     },
     heroOverlay: {
       flex: 1,
@@ -359,7 +368,7 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     heroContent: {
       paddingHorizontal: 24,
       paddingVertical: 48,
-      gap: 48,
+      gap: 40,
     },
     titleBorder: {
       borderBottomWidth: 6,
@@ -390,84 +399,178 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       lineHeight: 24,
     },
 
-    // Form Section
-    formSection: {
+    // Donation menu (dark section)
+    donationSection: {
       backgroundColor: '#1b1b1b',
       paddingHorizontal: 24,
-      paddingVertical: 48,
+      paddingVertical: 40,
+      gap: 20,
     },
-    formContent: {
-      gap: 40,
+    kickerWrapper: {
+      alignItems: 'center',
+      gap: 12,
     },
-    formTextContainer: {
-      gap: 16,
+    kicker: {
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 2.4,
+      color: '#b09a6d',
+      textTransform: 'uppercase',
     },
-    formHeading: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: '#ffffff',
-      lineHeight: 24,
-    },
-    formDescription: {
-      fontSize: 16,
-      fontWeight: '300',
-      color: '#dce0e3',
-      lineHeight: 24,
-    },
-    formInputs: {
-      gap: 24,
-    },
-    inputContainer: {
-      gap: 4,
-    },
-    textAreaContainer: {
-      height: 140,
-    },
-    inputLabelContainer: {
-      flexDirection: 'row',
-    },
-    inputLabel: {
-      fontSize: 13,
-      fontWeight: '500',
-      color: '#818990',
-      lineHeight: 16,
-    },
-    requiredStar: {
-      fontSize: 13,
-      fontWeight: '500',
-      color: '#b03a42',
-      lineHeight: 16,
-    },
-    input: {
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-      borderWidth: 1,
-      borderColor: 'rgba(220, 224, 227, 0.1)',
-      borderRadius: 5,
-      height: 56,
-      paddingHorizontal: 16,
-      fontSize: 16,
-      color: '#ffffff',
-    },
-    textArea: {
-      height: 100,
-      paddingTop: 16,
-      paddingBottom: 16,
-    },
-    submitButton: {
+    kickerDivider: {
+      height: 1,
+      width: 48,
       backgroundColor: '#b09a6d',
-      height: 48,
-      borderRadius: 12,
+      opacity: 0.6,
+    },
+    donationHeadline: {
+      fontSize: 26,
+      fontWeight: '400',
+      color: '#ffffff',
+      textAlign: 'center',
+      lineHeight: 34,
+    },
+    donationLead: {
+      fontSize: 15,
+      fontWeight: '300',
+      color: 'rgba(255, 255, 255, 0.7)',
+      textAlign: 'center',
+      lineHeight: 22,
+    },
+
+    // Cadence toggle (pill)
+    cadenceToggle: {
+      flexDirection: 'row',
+      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+      borderRadius: 999,
+      padding: 4,
+      marginTop: 4,
+    },
+    cadenceButton: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: 16,
     },
-    submitButtonPressed: {
-      opacity: 0.8,
+    cadenceButtonActive: {
+      backgroundColor: '#c2b291',
     },
-    submitButtonText: {
+    cadenceButtonText: {
       fontSize: 14,
-      fontWeight: '400',
+      fontWeight: '600',
+      color: 'rgba(255, 255, 255, 0.7)',
+    },
+    cadenceButtonTextActive: {
       color: '#000000',
-      lineHeight: 24,
+    },
+
+    // Preset grid (3 columns x 2 rows)
+    presetGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    presetChip: {
+      flexGrow: 1,
+      flexBasis: '30%',
+      height: 56,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: 'rgba(194, 178, 145, 0.4)',
+      backgroundColor: 'rgba(194, 178, 145, 0.08)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    presetChipSelected: {
+      borderColor: '#c2b291',
+      backgroundColor: '#c2b291',
+    },
+    presetChipText: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#c2b291',
+    },
+    presetChipTextSelected: {
+      color: '#000000',
+    },
+
+    // Custom amount input
+    customAmountContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+      gap: 12,
+    },
+    customAmountPrefix: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: 'rgba(255, 255, 255, 0.6)',
+    },
+    customAmountInput: {
+      flex: 1,
+      fontSize: 16,
+      color: '#ffffff',
+      padding: 0,
+    },
+
+    // CTA
+    cta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: '#c2b291',
+      borderRadius: 999,
+      paddingVertical: 16,
+      marginTop: 4,
+      shadowColor: '#c2b291',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.25,
+      shadowRadius: 16,
+      elevation: 3,
+    },
+    ctaPressed: {
+      opacity: 0.88,
+    },
+    ctaText: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: '#000000',
+      letterSpacing: 0.2,
+    },
+
+    // Trust badges
+    trustBadges: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 24,
+      marginTop: 8,
+    },
+    trustBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    trustBadgeText: {
+      fontSize: 12,
+      color: '#808080',
+      fontWeight: '400',
+    },
+
+    // Footer note
+    footerNote: {
+      fontSize: 12,
+      fontWeight: '300',
+      color: 'rgba(255, 255, 255, 0.4)',
+      textAlign: 'center',
+      lineHeight: 18,
+      marginTop: 4,
+      paddingHorizontal: 8,
     },
   });
