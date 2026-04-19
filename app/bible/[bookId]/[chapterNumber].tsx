@@ -126,7 +126,7 @@ export default function ChapterScreen() {
 
   // Offline status for error states
   const { isOffline } = useOfflineStatus();
-  const { downloadBibleBook } = useOfflineContext();
+  const { downloadBibleBook, isInitialized: isOfflineInitialized } = useOfflineContext();
   const { showToast } = useToast();
 
   const handleDownloadThisBook = async () => {
@@ -203,29 +203,14 @@ export default function ChapterScreen() {
   // Calculate progress percentage
   const { progress } = useBookProgress(bookId, chapterNumber, totalChapters);
 
-  // Fetch chapter data for loading state check
-  const {
-    data: rawChapter,
-    isLoading,
-    isFetching,
-    refetch: refetchChapter,
-  } = useBibleChapter(bookId, chapterNumber);
+  // Fetch chapter data for loading state check. Reconnect-driven refetches
+  // are handled globally — `app/_layout.tsx` bridges React Query's
+  // `onlineManager` to NetInfo, and this query opts into
+  // `refetchOnReconnect: 'always'` so the UI auto-recovers when the device
+  // is back online.
+  const { data: rawChapter, isLoading, isFetching } = useBibleChapter(bookId, chapterNumber);
   // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure has varying properties not captured by generated types
   const chapter = rawChapter as any;
-
-  // When coming back online with no chapter data, trigger ONE refetch per
-  // offline→online transition so the UI recovers from the offline-fallback
-  // state. Tracking the previous `isOffline` value prevents an infinite loop:
-  // if the refetch returns null (e.g., 404), `rawChapter` stays null and a
-  // naive effect would re-fire every render.
-  const wasOfflineRef = useRef(isOffline);
-  useEffect(() => {
-    const justCameOnline = wasOfflineRef.current && !isOffline;
-    wasOfflineRef.current = isOffline;
-    if (justCameOnline && !rawChapter && !isFetching) {
-      refetchChapter();
-    }
-  }, [isOffline, rawChapter, isFetching, refetchChapter]);
 
   // Save reading position mutation (API)
   const { mutate: saveLastRead } = useSaveLastRead();
@@ -418,7 +403,7 @@ export default function ChapterScreen() {
   // Show skeleton loader while loading/fetching and no data is available.
   // `isFetching` covers refetches after react-query invalidation (e.g., after
   // coming back online), preventing a brief "Chapter not found" flash.
-  if ((isLoading || isFetching) && !chapter) {
+  if ((isLoading || isFetching || !isOfflineInitialized) && !chapter) {
     return (
       <View style={styles.container}>
         <ChapterHeader

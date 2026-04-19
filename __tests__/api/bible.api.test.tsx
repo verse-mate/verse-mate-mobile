@@ -30,6 +30,7 @@ jest.mock('../../contexts/OfflineContext', () => ({
     downloadedCommentaryLanguages: [],
     downloadedTopicLanguages: [],
     isUserDataSynced: false,
+    isInitialized: true,
   }),
 }));
 jest.mock('../../services/offline', () => {
@@ -130,6 +131,7 @@ describe('Bible API Hooks', () => {
         downloadedCommentaryLanguages: [],
         downloadedTopicLanguages: [],
         isUserDataSynced: false,
+        isInitialized: true,
       });
     });
 
@@ -193,6 +195,7 @@ describe('Bible API Hooks', () => {
       (useOfflineContext as jest.Mock).mockReturnValue({
         downloadedBibleVersions: ['NASB1995'],
         downloadedBibleBooks: { NASB1995: [1] },
+        isInitialized: true,
       });
 
       // Mock local data

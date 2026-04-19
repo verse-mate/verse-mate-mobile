@@ -26,6 +26,8 @@ jest.mock('@/contexts/OfflineContext', () => ({
     downloadedBibleVersions: [],
     downloadedCommentaryLanguages: [],
     downloadedTopicLanguages: [],
+    isInitialized: true,
+    downloadedBibleBooks: {},
   })),
 }));
 
@@ -287,8 +289,9 @@ describe('Chapter Prefetching', () => {
         },
       };
 
-      // Seed using the generated key format
-      queryClient.setQueryData(generatedOpts.queryKey, mockChapterData);
+      // Seed using the hook's key format: [...generatedKey, isLocal]
+      // isLocal=false here since downloadedBibleBooks is empty in the mock
+      queryClient.setQueryData([...generatedOpts.queryKey, false], mockChapterData);
 
       const { result } = renderHook(() => useBibleChapter(1, 2), {
         wrapper: createWrapper(queryClient),
