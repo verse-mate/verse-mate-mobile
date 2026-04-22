@@ -33,6 +33,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
+import { AudioInlineEntry } from './AudioInlineEntry';
 import { ShareButton } from './ShareButton';
 
 /**
@@ -339,20 +340,29 @@ export function BibleExplanationsPanel({
         [
           {
             key: 'summary' as const,
+            type: 'summary',
             ref: summaryScrollRef,
             data: summaryContent,
+            explanationId:
+              summaryData && 'explanationId' in summaryData ? summaryData.explanationId : null,
             loading: summaryLoading,
           },
           {
             key: 'byline' as const,
+            type: 'byline',
             ref: byLineScrollRef,
             data: byLineContent,
+            explanationId:
+              byLineData && 'explanationId' in byLineData ? byLineData.explanationId : null,
             loading: byLineLoading,
           },
           {
             key: 'detailed' as const,
+            type: 'detailed',
             ref: detailedScrollRef,
             data: detailedContent,
+            explanationId:
+              detailedData && 'explanationId' in detailedData ? detailedData.explanationId : null,
             loading: detailedLoading,
           },
         ] as const
@@ -370,7 +380,19 @@ export function BibleExplanationsPanel({
           {tab.loading ? (
             <SkeletonLoader />
           ) : tab.data ? (
-            <Markdown style={markdownStyles}>{tab.data}</Markdown>
+            <>
+              {tab.explanationId !== null ? (
+                <AudioInlineEntry
+                  explanationId={tab.explanationId}
+                  explanationType={tab.type}
+                  bookId={bookId}
+                  chapterNumber={chapterNumber}
+                  language={language}
+                  sourceHref={`/bible/${bookId}/${chapterNumber}`}
+                />
+              ) : null}
+              <Markdown style={markdownStyles}>{tab.data}</Markdown>
+            </>
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No explanations available for this chapter.</Text>

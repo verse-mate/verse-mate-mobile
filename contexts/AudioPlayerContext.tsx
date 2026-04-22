@@ -5,8 +5,8 @@
  * with the same br-audio-005 guarantee (never auto-play on load).
  * Native playback goes through an injected AudioEngine so this file
  * can be tested headless. The production engine in
- * `lib/audio/expoAvEngine.ts` wires the atoms to `expo-av`'s
- * Audio.Sound + `Audio.setAudioModeAsync({ staysActiveInBackground: true })`.
+ * `lib/audio/expoAudioEngine.ts` wires the player to expo-audio's
+ * AudioPlayer + setAudioModeAsync({ shouldPlayInBackground: true }).
  */
 import {
   createContext,

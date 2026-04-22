@@ -1,6 +1,8 @@
 // Mock the entire webster-service module to avoid dynamic import() calls
 // which require --experimental-vm-modules in Jest.
 // All mock data MUST be inside the factory function due to jest.mock hoisting.
+import { clearCache, getStats, lookupWebster } from '@/services/webster-service';
+
 jest.mock('@/services/webster-service', () => {
   const mockShardA: Record<string, { term: string; definition: string }> = {
     abandon: { term: 'Abandon', definition: 'To give up absolutely; to forsake entirely.' },
@@ -39,8 +41,6 @@ jest.mock('@/services/webster-service', () => {
     }),
   };
 });
-
-import { clearCache, getStats, lookupWebster } from '@/services/webster-service';
 
 describe('webster-service', () => {
   beforeEach(() => {
