@@ -25,6 +25,7 @@ import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
@@ -35,12 +36,19 @@ import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
 import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
+import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
 import { ONBOARDING_KEY } from './onboarding';
 
 // Keep the splash screen visible while we fetch last read position
 SplashScreen.preventAutoHideAsync();
+
+// TASK-009: single AudioPlayerProvider instance, app-lifecycle. The stub
+// engine is a no-op — swap for the real expo-av engine once it lands.
+// Mounted here (not inside the provider tree) so the engine's event
+// listeners survive React re-renders.
+const audioEngine = new StubAudioEngine();
 
 // Create a QueryClient instance (singleton)
 const queryClient = new QueryClient({
@@ -429,7 +437,9 @@ export default function RootLayout() {
               <DeviceInfoProvider>
                 <OfflineProvider>
                   <ToastProvider>
-                    <RootLayoutInner />
+                    <AudioPlayerProvider engine={audioEngine}>
+                      <RootLayoutInner />
+                    </AudioPlayerProvider>
                   </ToastProvider>
                 </OfflineProvider>
               </DeviceInfoProvider>
