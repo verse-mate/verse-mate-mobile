@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
+import { AudioInlineEntry } from '@/components/bible/AudioInlineEntry';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
@@ -182,6 +183,19 @@ function TabContent({
         </Animated.View>
       ) : (
         <View>
+          {/* TASK-017: audio entry is also mounted in BibleExplanationsPanel
+              (tablet / split-view) — this branch is the phone-portrait
+              primary reading view. Both paths render the chip the same way. */}
+          {chapter && explanationContent?.explanationId ? (
+            <AudioInlineEntry
+              explanationId={explanationContent.explanationId}
+              explanationType={activeTab}
+              bookId={chapter.bookId}
+              chapterNumber={chapter.chapterNumber}
+              language={explanationContent.languageCode}
+              sourceHref={`/bible/${chapter.bookId}/${chapter.chapterNumber}`}
+            />
+          ) : null}
           {chapter && (
             <ChapterReader
               chapter={chapter}
