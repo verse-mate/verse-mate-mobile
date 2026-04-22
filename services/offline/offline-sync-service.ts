@@ -8,6 +8,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import {
+  deleteBibleBook,
   deleteBibleVersion,
   deleteCommentaries,
   deleteSyncAction,
@@ -16,6 +17,7 @@ import {
   getMetadata,
   getPendingSyncActions,
   insertBibleVerses,
+  insertBibleVersesForBook,
   insertCommentaries,
   insertTopics,
   insertUserBookmarks,
@@ -112,6 +114,50 @@ export async function downloadBibleVersion(
 }
 
 /**
+ * Download and store a single Bible book from a version.
+ *
+ * Note: the current API only exposes the whole-version `/offline/bible/{key}`
+ * endpoint, so we fetch the full payload and persist only the target book.
+ * Progress labels make that explicit until a per-book endpoint exists.
+ */
+export async function downloadBibleBook(
+  versionKey: string,
+  bookId: number,
+  manifest: OfflineManifest,
+  onProgress?: ProgressCallback
+): Promise<void> {
+  onProgress?.({ current: 0, total: 100, message: 'Fetching version data...' });
+
+  const allVerses = await fetchOfflineJSON<BibleVerseData[]>(
+    `${API_URL}/offline/bible/${versionKey}`
+  );
+
+  onProgress?.({ current: 50, total: 100, message: 'Extracting book...' });
+
+  const bookVerses = allVerses.filter((v) => v.book_id === bookId);
+
+  onProgress?.({ current: 70, total: 100, message: 'Storing locally...' });
+
+  await insertBibleVersesForBook(versionKey, bookId, bookVerses);
+
+  onProgress?.({ current: 90, total: 100, message: 'Saving metadata...' });
+
+  const versionInfo = manifest.bible_versions.find((v) => v.key === versionKey);
+  // Rough byte estimate so storage-used stats stay meaningful for per-book
+  // downloads. Sums the raw verse text (the dominant cost) — faster and
+  // cheaper than re-stringifying the object array.
+  const sizeBytes = bookVerses.reduce((acc, v) => acc + (v.text?.length ?? 0), 0);
+  await saveMetadata({
+    resource_key: `bible:${versionKey}:book:${bookId}`,
+    last_updated_at: versionInfo?.updated_at || new Date().toISOString(),
+    downloaded_at: new Date().toISOString(),
+    size_bytes: sizeBytes,
+  });
+
+  onProgress?.({ current: 100, total: 100, message: 'Complete!' });
+}
+
+/**
  * Download and store commentaries for a language
  */
 export async function downloadCommentaries(
@@ -190,6 +236,10 @@ export async function downloadTopics(
  */
 export async function removeBibleVersion(versionKey: string): Promise<void> {
   await deleteBibleVersion(versionKey);
+}
+
+export async function removeBibleBook(versionKey: string, bookId: number): Promise<void> {
+  await deleteBibleBook(versionKey, bookId);
 }
 
 /**
