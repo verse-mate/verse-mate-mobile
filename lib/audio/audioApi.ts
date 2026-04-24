@@ -15,7 +15,7 @@ const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 30_000;
 
 export interface ReaderAudio {
-  audio_url: string;
+  url: string;
   duration_seconds: number;
   voice: string;
   language_code: string;

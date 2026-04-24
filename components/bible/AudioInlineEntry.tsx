@@ -113,7 +113,7 @@ export function AudioInlineEntry(props: AudioInlineEntryProps) {
       const track: AudioTrack = {
         audio_id: `exp-${props.explanationId}`,
         explanation_id: props.explanationId as number,
-        url: audio.audio_url,
+        url: audio.url,
         duration_seconds: audio.duration_seconds,
         voice: audio.voice,
         language_code: audio.language_code,
