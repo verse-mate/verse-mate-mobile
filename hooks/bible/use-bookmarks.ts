@@ -167,12 +167,14 @@ export function useBookmarks(): UseBookmarksResult {
   });
 
   // Extract bookmarks array from response (offline or remote)
+  // When user data is synced locally, the remote query is disabled, so we must
+  // read from the local cache regardless of network state.
   const bookmarks = useMemo(() => {
-    if (isDeviceOffline && localBookmarksData) {
+    if ((isDeviceOffline || isUserDataSynced) && localBookmarksData) {
       return localBookmarksData as Bookmark[];
     }
     return bookmarksData?.favorites || [];
-  }, [isDeviceOffline, localBookmarksData, bookmarksData]);
+  }, [isDeviceOffline, isUserDataSynced, localBookmarksData, bookmarksData]);
 
   // Add bookmark mutation
   const addMutation = useMutation({
