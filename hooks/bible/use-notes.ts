@@ -162,12 +162,14 @@ export function useNotes(): UseNotesResult {
   });
 
   // Extract notes array from response (offline or remote)
+  // When user data is synced locally, the remote query is disabled, so we must
+  // read from the local cache regardless of network state.
   const notes = useMemo(() => {
-    if (isDeviceOffline && localNotesData) {
+    if ((isDeviceOffline || isUserDataSynced) && localNotesData) {
       return localNotesData as Note[];
     }
     return notesData?.notes || [];
-  }, [isDeviceOffline, localNotesData, notesData]);
+  }, [isDeviceOffline, isUserDataSynced, localNotesData, notesData]);
 
   // Add note mutation
   const addMutation = useMutation({

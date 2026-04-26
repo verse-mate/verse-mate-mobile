@@ -263,19 +263,21 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   });
 
   // Extract highlights arrays from responses (offline or remote)
+  // When user data is synced locally, the remote query is disabled, so we must
+  // read from the local cache regardless of network state.
   const allHighlights = useMemo(() => {
-    if (isDeviceOffline && localAllHighlights) {
+    if ((isDeviceOffline || isUserDataSynced) && localAllHighlights) {
       return mapOfflineHighlights(localAllHighlights);
     }
     return allHighlightsData?.highlights || [];
-  }, [isDeviceOffline, localAllHighlights, allHighlightsData]);
+  }, [isDeviceOffline, isUserDataSynced, localAllHighlights, allHighlightsData]);
 
   const chapterHighlights = useMemo(() => {
-    if (isDeviceOffline && localChapterHighlights) {
+    if ((isDeviceOffline || isUserDataSynced) && localChapterHighlights) {
       return mapOfflineHighlights(localChapterHighlights);
     }
     return chapterHighlightsData?.highlights || [];
-  }, [isDeviceOffline, localChapterHighlights, chapterHighlightsData]);
+  }, [isDeviceOffline, isUserDataSynced, localChapterHighlights, chapterHighlightsData]);
 
   // Add highlight mutation
   const addMutation = useMutation({
