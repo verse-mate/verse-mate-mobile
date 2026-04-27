@@ -15,6 +15,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   type ReactNode,
 } from "react";
 
@@ -174,6 +175,16 @@ export interface AudioPlayerProviderProps {
 export function AudioPlayerProvider(props: AudioPlayerProviderProps) {
   const [state, dispatch] = useReducer(audioReducer, initialState);
   const engine = props.engine;
+  /**
+   * Mirrors `state.currentTrack` synchronously so `play()` / `pause()`
+   * see the latest track when called inside the same async function as
+   * `load()` (`await load(); await play()`). Without the ref, the
+   * useCallback closure would capture the pre-LOAD `currentTrack: null`
+   * and silently return early. Same bug as the web context (see
+   * verse-mate-web/src/audio/AudioPlayerContext.tsx).
+   */
+  const currentTrackRef = useRef<AudioTrack | null>(null);
+  const elapsedRef = useRef<number>(0);
 
   useEffect(() => {
     const unsubscribe = engine.subscribe((event) => {
@@ -190,6 +201,7 @@ export function AudioPlayerProvider(props: AudioPlayerProviderProps) {
 
   const load = useCallback(
     async (track: AudioTrack) => {
+      currentTrackRef.current = track;
       dispatch({ type: "LOAD", track });
       await engine.load(track);
     },
@@ -197,25 +209,27 @@ export function AudioPlayerProvider(props: AudioPlayerProviderProps) {
   );
 
   const play = useCallback(async () => {
-    if (!state.currentTrack) return;
+    const track = currentTrackRef.current;
+    if (!track) return;
     try {
       await engine.play();
       dispatch({ type: "PLAY" });
-      props.onPlaybackStarted?.(state.currentTrack, { isResume: false });
+      props.onPlaybackStarted?.(track, { isResume: false });
     } catch (err) {
       dispatch({
         type: "ERROR",
         message: err instanceof Error ? err.message : String(err),
       });
     }
-  }, [engine, state.currentTrack, props]);
+  }, [engine, props]);
 
   const pause = useCallback(async () => {
-    if (!state.currentTrack) return;
+    const track = currentTrackRef.current;
+    if (!track) return;
     await engine.pause();
     dispatch({ type: "PAUSE" });
-    props.onPlaybackPaused?.(state.currentTrack, state.elapsedSeconds, "user");
-  }, [engine, state.currentTrack, state.elapsedSeconds, props]);
+    props.onPlaybackPaused?.(track, elapsedRef.current, "user");
+  }, [engine, props]);
 
   const seek = useCallback(
     async (seconds: number) => {
@@ -229,11 +243,11 @@ export function AudioPlayerProvider(props: AudioPlayerProviderProps) {
     async (delta: number) => {
       const next = Math.max(
         0,
-        Math.min(state.durationSeconds, state.elapsedSeconds + delta),
+        Math.min(state.durationSeconds, elapsedRef.current + delta),
       );
       await seek(next);
     },
-    [seek, state.durationSeconds, state.elapsedSeconds],
+    [seek, state.durationSeconds],
   );
 
   const setSpeed = useCallback(
@@ -246,8 +260,16 @@ export function AudioPlayerProvider(props: AudioPlayerProviderProps) {
 
   const close = useCallback(async () => {
     await engine.unload();
+    currentTrackRef.current = null;
+    elapsedRef.current = 0;
     dispatch({ type: "CLOSE" });
   }, [engine]);
+
+  // Keep elapsedRef in sync so pause/seekRelative read the current
+  // position without reintroducing stale-closure deps on the callbacks.
+  useEffect(() => {
+    elapsedRef.current = state.elapsedSeconds;
+  }, [state.elapsedSeconds]);
 
   const openFullScreen = useCallback(() => dispatch({ type: "OPEN_FULL" }), []);
   const closeFullScreen = useCallback(
