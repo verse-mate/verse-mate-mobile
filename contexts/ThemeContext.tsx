@@ -19,7 +19,7 @@ import React, { createContext, useContext, useEffect, useState, type ReactNode }
 import { Platform, useColorScheme } from 'react-native';
 import SunCalc from 'suncalc';
 
-import { getColors, type ThemeMode } from '@/theme/tokens';
+import { getColors, radii, spacing, type ThemeMode, typography } from '@/theme/tokens';
 import { getPostHogInstance } from '@/lib/analytics/posthog-provider';
 
 // ============================================================================
@@ -46,6 +46,12 @@ export interface ThemeContextValue {
   mode: ThemeMode;
   /** Current color palette for the active theme */
   colors: ReturnType<typeof getColors>;
+  /** Typography scale (theme-independent — same values in light + dark) */
+  typography: typeof typography;
+  /** Spacing scale (theme-independent) */
+  spacing: typeof spacing;
+  /** Radius scale (theme-independent) */
+  radii: typeof radii;
   /** Update theme preference and persist to AsyncStorage */
   setPreference: (preference: ThemePreference) => Promise<void>;
   /** Whether theme is still loading from AsyncStorage */
@@ -258,6 +264,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     preference,
     mode,
     colors,
+    typography,
+    spacing,
+    radii,
     setPreference,
     isLoading,
   };
