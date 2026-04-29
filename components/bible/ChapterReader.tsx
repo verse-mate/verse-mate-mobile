@@ -36,14 +36,6 @@ import { HighlightedText, type WordSelection } from '@/components/bible/Highligh
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
-import {
-  fontSizes,
-  fontWeights,
-  type getColors,
-  getHeaderSpecs,
-  lineHeights,
-  spacing,
-} from '@/constants/bible-design-tokens';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
@@ -52,6 +44,14 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import {
+  fontSizes,
+  fontWeights,
+  type getColors,
+  getHeaderSpecs,
+  lineHeights,
+  spacing,
+} from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import {

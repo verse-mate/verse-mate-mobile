@@ -3,7 +3,7 @@
  *
  * Manages theme preference (auto/light/dark) with AsyncStorage persistence.
  * Resolves 'auto' preference to system color scheme and provides theme-aware
- * colors from bible-design-tokens.
+ * colors from theme/tokens.
  *
  * Pattern based on useBibleVersion hook for AsyncStorage persistence.
  *
@@ -19,7 +19,7 @@ import React, { createContext, useContext, useEffect, useState, type ReactNode }
 import { Platform, useColorScheme } from 'react-native';
 import SunCalc from 'suncalc';
 
-import { getColors, type ThemeMode } from '@/constants/bible-design-tokens';
+import { getColors, type ThemeMode } from '@/theme/tokens';
 import { getPostHogInstance } from '@/lib/analytics/posthog-provider';
 
 // ============================================================================

@@ -24,6 +24,8 @@ import { BottomLogo } from '@/components/bible/BottomLogo';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useTopicReferences } from '@/src/api';
 import {
   fontSizes,
   fontWeights,
@@ -31,9 +33,7 @@ import {
   getSplitViewSpecs,
   lineHeights,
   spacing,
-} from '@/constants/bible-design-tokens';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useTopicReferences } from '@/src/api';
+} from '@/theme/tokens';
 
 /**
  * Convert a number to Unicode superscript characters

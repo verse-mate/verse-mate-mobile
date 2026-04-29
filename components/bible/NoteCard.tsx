@@ -31,9 +31,9 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { NOTES_CONFIG } from '@/constants/notes';
 import { useTheme } from '@/contexts/ThemeContext';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { Note } from '@/types/notes';
 
 /**

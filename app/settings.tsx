@@ -38,7 +38,6 @@ import { FontSizeSelector } from '@/components/settings/FontSizeSelector';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { Avatar } from '@/components/ui/Avatar';
 import { TextInput } from '@/components/ui/TextInput';
-import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { BibleVersion } from '@/constants/bible-versions';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +51,7 @@ import {
   patchUserPreferences,
   putAuthProfile,
 } from '@/src/api/generated/sdk.gen';
+import { type getColors, spacing } from '@/theme/tokens';
 
 interface Language {
   code: string;

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
-import { fontSizes, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { fontSizes, spacing } from '@/theme/tokens';
 
 /**
  * Small inline badge rendered above explanation content when that specific

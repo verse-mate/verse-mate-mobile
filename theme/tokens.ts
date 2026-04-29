@@ -1,11 +1,18 @@
 /**
- * Bible Reading Interface Design Tokens
+ * VerseMate Design Tokens
  *
- * This file contains all design tokens (colors, typography, spacing, animations)
- * for the Bible reading interface. All values are derived from the spec and include
- * accessibility contrast ratios in JSDoc comments.
+ * Single source of truth for visual values across iOS, Android, and web.
+ * Pure values + types — no React imports. Component code consumes these via
+ * `useTheme()` (see `contexts/ThemeContext.tsx`) and the recipes module
+ * (`theme/recipes.ts`). Designer output (currently Lovable in
+ * `verse-mate-web/`) is mechanically diffed against this file by
+ * `scripts/extract-design-tokens.ts` — the script never writes here.
  *
- * @see Spec: agent-os/specs/2025-10-14-bible-reading-mobile/spec.md (lines 136-323)
+ * Accessibility: every color carries its WCAG contrast ratio in the JSDoc
+ * (against #ffffff for light, #1b1b1b/#121212 for dark).
+ *
+ * @see Spec: specs/feat-design-system-foundation/spec.md
+ * @see Companion doc: design.md (semantic intent)
  */
 
 // ============================================================================
@@ -369,6 +376,29 @@ export const spacing = {
 } as const;
 
 // ============================================================================
+// Radius System
+// ============================================================================
+
+/**
+ * Border radius scale
+ *
+ * Recipe-level rounding for primitives (Button, Card, Input, Text). Component-
+ * specific rounding (FAB pill at 28, modal corners at the modal-specific value)
+ * stays in `*Specs` exports below — those are RN-only and not part of the
+ * cross-platform design contract diffed against `verse-mate-web`.
+ */
+export const radii = {
+  /** Small radius - 4px (skeleton blocks, tight chips) */
+  sm: 4,
+  /** Medium radius - 8px (Button default, Input default — recipe-level rounding) */
+  md: 8,
+  /** Large radius - 16px (Card, modal corners) */
+  lg: 16,
+  /** Full pill — radius high enough to render fully rounded at any common width */
+  full: 9999,
+} as const;
+
+// ============================================================================
 // Animation Specifications
 // ============================================================================
 
@@ -632,6 +662,11 @@ export type FontSizeKey = keyof typeof fontSizes;
 export type SpacingKey = keyof typeof spacing;
 
 /**
+ * Type-safe access to radius keys
+ */
+export type RadiusKey = keyof typeof radii;
+
+/**
  * Type-safe access to animation keys
  */
 export type AnimationKey = keyof typeof animations;
@@ -667,6 +702,13 @@ export function getSpacing(key: SpacingKey): number {
  */
 export function getFontSize(key: FontSizeKey): number {
   return fontSizes[key];
+}
+
+/**
+ * Get radius value by key with type safety
+ */
+export function getRadius(key: RadiusKey): number {
+  return radii[key];
 }
 
 // ============================================================================

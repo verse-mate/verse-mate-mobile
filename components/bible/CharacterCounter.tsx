@@ -28,8 +28,8 @@
  */
 
 import { StyleSheet, Text } from 'react-native';
-import { fontSizes, fontWeights, type getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { fontSizes, fontWeights, type getColors } from '@/theme/tokens';
 
 /**
  * Props for CharacterCounter component

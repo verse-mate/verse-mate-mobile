@@ -20,6 +20,9 @@ import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useBibleVersion } from '@/hooks/use-bible-version';
+import { useTopicById } from '@/src/api';
 import {
   fontSizes,
   fontWeights,
@@ -27,10 +30,7 @@ import {
   getSplitViewSpecs,
   lineHeights,
   spacing,
-} from '@/constants/bible-design-tokens';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useBibleVersion } from '@/hooks/use-bible-version';
-import { useTopicById } from '@/src/api';
+} from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
 import { ShareButton } from '../bible/ShareButton';
 

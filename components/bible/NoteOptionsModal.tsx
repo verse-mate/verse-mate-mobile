@@ -17,8 +17,8 @@ import {
 import { type EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SvgProps } from 'react-native-svg';
 import { IconCopy, IconEdit, IconShare, IconTrash } from '@/components/ui/icons';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { Note } from '@/types/notes';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 

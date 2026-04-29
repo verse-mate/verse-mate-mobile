@@ -9,10 +9,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSSOLogin } from '@/hooks/auth/useSSOLogin';
 import { useLogin } from '@/hooks/useLogin';
+import { fontSizes, fontWeights, spacing } from '@/theme/tokens';
 
 interface SignInModalProps {
   visible: boolean;
@@ -278,9 +278,7 @@ export default function SignInModal({
 /**
  * Creates styles for SignInModal
  */
-function createStyles(
-  colors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>
-) {
+function createStyles(colors: ReturnType<typeof import('@/theme/tokens').getColors>) {
   return StyleSheet.create({
     modalContainer: {
       flex: 1,
