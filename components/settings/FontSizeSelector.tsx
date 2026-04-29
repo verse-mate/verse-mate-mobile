@@ -12,9 +12,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
+import { type getColors, spacing } from '@/theme/tokens';
 
 export function FontSizeSelector() {
   const { colors } = useTheme();

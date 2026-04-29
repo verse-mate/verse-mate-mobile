@@ -135,9 +135,7 @@ export function ThemeSelector() {
 // Styles
 // ============================================================================
 
-const createStyles = (
-  colors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>
-) =>
+const createStyles = (colors: ReturnType<typeof import('@/theme/tokens').getColors>) =>
   StyleSheet.create({
     container: {
       marginBottom: 24,

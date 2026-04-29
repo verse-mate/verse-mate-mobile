@@ -23,10 +23,10 @@ import {
 import { SSOButtons } from '@/components/auth/SSOButtons';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/ui/TextInput';
-import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSSOLogin } from '@/hooks/auth/useSSOLogin';
 import { useLogin } from '@/hooks/useLogin';
+import type { getColors } from '@/theme/tokens';
 
 /**
  * Login Screen Component

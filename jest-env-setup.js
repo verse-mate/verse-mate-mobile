@@ -137,7 +137,7 @@ jest.mock('@/contexts/ThemeContext', () => ({
   useTheme: () => ({
     preference: 'auto',
     mode: 'light',
-    colors: require('@/constants/bible-design-tokens').colors.light,
+    colors: require('@/theme/tokens').colors.light,
     setPreference: jest.fn(),
     isLoading: false,
   }),

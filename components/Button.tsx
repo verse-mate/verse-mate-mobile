@@ -1,7 +1,7 @@
 import type React from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
-import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import type { getColors } from '@/theme/tokens';
 
 /**
  * Button Component

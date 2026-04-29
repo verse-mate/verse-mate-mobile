@@ -10,7 +10,7 @@
  *
  * Visual Design:
  * - Icon: Ionicons share-outline
- * - Size: 24px (from bible-design-tokens headerSpecs.iconSize)
+ * - Size: 24px (from theme/tokens headerSpecs.iconSize)
  * - Color: black/dark (matches existing icon styling)
  * - Position: Right of notes button in chapter header
  *
@@ -27,9 +27,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Alert, Pressable, Share, StyleSheet } from 'react-native';
-import { getHeaderSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { getHeaderSpecs } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 

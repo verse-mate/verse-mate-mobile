@@ -35,7 +35,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SuccessModal } from '@/components/bible/SuccessModal';
 import { IconHelp } from '@/components/ui/icons';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -46,6 +45,7 @@ import {
   type SupportConversation,
   type SupportMessage,
 } from '@/lib/api/support';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 type ViewState = 'list' | 'chat' | 'newChat';
 

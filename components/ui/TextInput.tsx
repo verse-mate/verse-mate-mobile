@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import type React from 'react';
 import { useState } from 'react';
 import { TextInput as RNTextInput, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import type { getColors } from '@/theme/tokens';
 
 /**
  * TextInput Component
