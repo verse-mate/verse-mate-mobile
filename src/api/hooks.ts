@@ -275,6 +275,7 @@ export const useBibleChapterExplanation = (
                 type: explanation.type,
                 content,
                 languageCode: explanation.language_code,
+                explanationId: explanation.explanation_id ?? null,
               };
             }
           }
