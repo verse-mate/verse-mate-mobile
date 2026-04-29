@@ -1,7 +1,7 @@
 // Custom React Query hooks wrapping the generated options
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 // Offline mode imports
 import { BIBLE_BOOKS, getBookById } from '@/constants/bible-books';
 import { useOfflineContext } from '@/contexts/OfflineContext';
@@ -14,6 +14,8 @@ import {
   getLocalTopicExplanation,
   getLocalTopicExplanations,
   getLocalTopicReferences,
+  hasLocalCommentary,
+  upsertSingleCommentary,
 } from '@/services/offline';
 import { parseAndInjectVerses } from '@/services/offline/verse-parser.service';
 import type { TopicCategory, TopicListItem } from '@/types/topics';
@@ -118,9 +120,13 @@ export const useBibleChapter = (
   version?: string,
   options?: { enabled?: boolean }
 ) => {
-  const { downloadedBibleVersions } = useOfflineContext();
+  const { downloadedBibleBooks, isInitialized } = useOfflineContext();
   const effectiveVersion = version || 'NASB1995'; // Default to NASB1995 if not specified
-  const isLocal = downloadedBibleVersions.includes(effectiveVersion);
+  // Book-level granularity: only treat as local if THIS specific book is downloaded.
+  // Version-level checks masked deletions of individual books, since the version would
+  // still be listed as "downloaded" when 65/66 books remained.
+  // Default to {} for tests that mock useOfflineContext with a partial object.
+  const isLocal = (downloadedBibleBooks?.[effectiveVersion] || []).includes(bookId);
 
   // Use the generated query key so prefetch cache hits work
   const generatedOpts = getBibleBookByBookIdByChapterNumberOptions({
@@ -129,8 +135,21 @@ export const useBibleChapter = (
   });
 
   const query = useQuery({
-    queryKey: generatedOpts.queryKey,
+    // isLocal is appended to the key so that the SQLite path and the network
+    // path use separate cache entries. Without this, a chapter loaded online
+    // (API response cached under the base key with staleTime:Infinity) would
+    // be served stale when the user goes offline, bypassing the SQLite read
+    // and returning null because the transform chain doesn't match.
+    queryKey: [...generatedOpts.queryKey, isLocal],
     staleTime: Number.POSITIVE_INFINITY, // Bible text is immutable within a session
+    // Must be 'always' so the queryFn runs when offline. The default 'online'
+    // mode pauses queries when there is no network, which would prevent the
+    // isLocal=true path from reading SQLite and always show the offline screen.
+    networkMode: 'always',
+    // Always refetch when connectivity returns, even though staleTime: Infinity
+    // would otherwise suppress it — covers the case where the user was on the
+    // OfflineContentUnavailable screen and the previous fetch errored out.
+    refetchOnReconnect: 'always',
     queryFn: async ({ signal }) => {
       if (isLocal) {
         const verses = await getLocalBibleChapter(effectiveVersion, bookId, chapterNumber);
@@ -172,7 +191,11 @@ export const useBibleChapter = (
 
       return response;
     },
-    enabled: (options?.enabled ?? true) && bookId > 0 && chapterNumber > 0,
+    // isInitialized gates the query so a cold offline open doesn't fire a
+    // network fetch before SQLite is ready — which would cache an error and
+    // leave the screen stuck on OfflineContentUnavailable even when the book
+    // is downloaded. The chapter screen shows a skeleton until isInitialized.
+    enabled: isInitialized && (options?.enabled ?? true) && bookId > 0 && chapterNumber > 0,
   });
 
   return {
@@ -207,7 +230,6 @@ export const useBibleChapterExplanation = (
     (dl) =>
       dl === effectiveLanguage || dl === shortCode || dl.split('-')[0].toLowerCase() === shortCode
   );
-  const isLocal = Boolean(matchedLocalLanguage);
   const localLanguage = matchedLocalLanguage || effectiveLanguage;
 
   // Use the generated query key so prefetch cache hits work
@@ -224,33 +246,42 @@ export const useBibleChapterExplanation = (
     queryKey: generatedExplOpts.queryKey,
     staleTime: 1000 * 60 * 30, // AI explanations: 30 min stale time
     queryFn: async ({ signal }) => {
-      if (isLocal && explanationType) {
-        // Local fetch - use the matched language code from the DB
-        const explanation = await getLocalCommentary(
-          localLanguage,
-          bookId,
-          chapterNumber,
-          explanationType
-        );
-
-        if (!explanation) return null;
-
-        // Inject verse text into placeholders (matches backend behavior with includeVerseNumbers: false)
-        let content = explanation.explanation;
-        if (downloadedBibleVersions.includes(effectiveVersion)) {
-          content = await parseAndInjectVerses(content, effectiveVersion, {
-            includeVerseNumbers: false,
-          });
+      // Try local SQLite first, regardless of whether the full language bundle
+      // is "downloaded" — a single explanation may have been auto-cached on a
+      // previous view (see `upsertSingleCommentary` below). This also powers the
+      // per-item "Available offline" badge downstream.
+      if (explanationType) {
+        const candidates = Array.from(
+          new Set([localLanguage, effectiveLanguage, shortCode].filter(Boolean))
+        ) as string[];
+        try {
+          for (const lang of candidates) {
+            const explanation = await getLocalCommentary(
+              lang,
+              bookId,
+              chapterNumber,
+              explanationType
+            );
+            if (explanation) {
+              let content = explanation.explanation;
+              if (downloadedBibleVersions.includes(effectiveVersion)) {
+                content = await parseAndInjectVerses(content, effectiveVersion, {
+                  includeVerseNumbers: false,
+                });
+              }
+              return {
+                bookId: explanation.book_id,
+                chapterNumber: explanation.chapter_number,
+                type: explanation.type,
+                content,
+                languageCode: explanation.language_code,
+                explanationId: explanation.explanation_id ?? null,
+              };
+            }
+          }
+        } catch {
+          // SQLite unavailable — skip local probe, fall through to remote.
         }
-
-        return {
-          bookId: explanation.book_id,
-          chapterNumber: explanation.chapter_number,
-          type: explanation.type,
-          content,
-          languageCode: explanation.language_code,
-          explanationId: explanation.explanation_id ?? null,
-        };
       }
 
       // Remote fetch — reuse generatedExplOpts so the cache key matches prefetch
@@ -265,13 +296,82 @@ export const useBibleChapterExplanation = (
         // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
       } as any);
 
+      // Auto-cache explanation to SQLite for future offline use. Awaited so that
+      // the SQLite row exists by the time the hook's post-fetch effect checks for it
+      // (which drives the "Available offline" badge).
+      if (response && 'explanation' in response && explanationType) {
+        // biome-ignore lint/suspicious/noExplicitAny: response shape varies between generated types
+        const r = response as any;
+        const expl = r.explanation;
+        if (expl && typeof expl === 'object') {
+          try {
+            await upsertSingleCommentary(expl.language_code ?? effectiveLanguage, {
+              explanation_id: expl.explanation_id ?? 0,
+              book_id: expl.book_id ?? bookId,
+              chapter_number: expl.chapter_number ?? chapterNumber,
+              verse_start: expl.verse_start ?? null,
+              verse_end: expl.verse_end ?? null,
+              type: expl.type ?? explanationType,
+              explanation: expl.explanation ?? '',
+              language_code: expl.language_code ?? effectiveLanguage,
+            });
+          } catch {
+            // Non-fatal — cache miss is recoverable on next fetch.
+          }
+        }
+      }
+
       return response;
     },
     enabled: enabled && bookId > 0 && chapterNumber > 0 && Boolean(explanationType),
   });
 
+  // Per-item SQLite probe: flip the "Available offline" badge when the current
+  // explanation is persisted locally. A queryFn-side sentinel won't do — React
+  // Query serves from memory without re-running queryFn, so the flag would go
+  // stale after auto-cache writes.
+  const [hasLocalExplanation, setHasLocalExplanation] = useState(false);
+  useEffect(() => {
+    if (!explanationType || bookId <= 0 || chapterNumber <= 0) {
+      setHasLocalExplanation(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      // Candidates cover the three shapes a language code might take in the
+      // table (explicit match via user preferences vs. API-supplied code vs.
+      // legacy short-code rows). Collapsed into one `IN (...)` query so this
+      // effect stays to a single DB round-trip regardless of tab count.
+      const candidates = Array.from(
+        new Set([localLanguage, effectiveLanguage, shortCode].filter(Boolean))
+      ) as string[];
+      try {
+        const found = await hasLocalCommentary(candidates, bookId, chapterNumber, explanationType);
+        if (!cancelled) setHasLocalExplanation(found);
+      } catch {
+        // SQLite unavailable (tests without native mock, or transient init
+        // failure) — treat as not-cached.
+        if (!cancelled) setHasLocalExplanation(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    localLanguage,
+    effectiveLanguage,
+    shortCode,
+    bookId,
+    chapterNumber,
+    explanationType,
+    query.data,
+  ]);
+
+  const isLocalData = hasLocalExplanation && query.data != null;
+
   return {
     ...query,
+    isLocalData,
     data: (query.data
       ? 'content' in query.data
         ? query.data // Already transformed (local path)

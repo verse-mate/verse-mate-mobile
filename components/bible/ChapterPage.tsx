@@ -29,6 +29,7 @@ import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
+import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
@@ -102,6 +103,7 @@ function TabContent({
   filteredAutoHighlights,
   scrollRef,
   onTabContentSizeChange,
+  isAvailableOffline,
 }: {
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
@@ -118,6 +120,7 @@ function TabContent({
   filteredAutoHighlights?: AutoHighlight[];
   scrollRef?: React.RefObject<ScrollView | null>;
   onTabContentSizeChange?: (contentWidth: number, contentHeight: number) => void;
+  isAvailableOffline?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = createStyles(colors); // Use local createStyles for TabContent
@@ -196,6 +199,7 @@ function TabContent({
               sourceHref={`/bible/${chapter.bookId}/${chapter.chapterNumber}`}
             />
           ) : null}
+          {isAvailableOffline && <AvailableOfflineBadge />}
           {chapter && (
             <ChapterReader
               chapter={chapter}
@@ -497,6 +501,7 @@ export function ChapterPage({
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
+    isLocalData: summaryIsLocal,
   } = useBibleSummary(bookId, chapterNumber, undefined, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -508,6 +513,7 @@ export function ChapterPage({
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
+    isLocalData: byLineIsLocal,
   } = useBibleByLine(bookId, chapterNumber, undefined, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -519,6 +525,7 @@ export function ChapterPage({
     data: detailedData,
     isLoading: isDetailedLoading,
     error: detailedError,
+    isLocalData: detailedIsLocal,
   } = useBibleDetailed(bookId, chapterNumber, undefined, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -768,6 +775,7 @@ export function ChapterPage({
             content={summaryData}
             isLoading={isSummaryLoading}
             error={summaryError}
+            isAvailableOffline={summaryIsLocal}
             visible={activeTab === 'summary'}
             shouldRenderHidden={delayedRenderStage >= 2}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
@@ -787,6 +795,7 @@ export function ChapterPage({
             content={byLineData}
             isLoading={isByLineLoading}
             error={byLineError}
+            isAvailableOffline={byLineIsLocal}
             visible={activeTab === 'byline'}
             shouldRenderHidden={delayedRenderStage >= 3}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
@@ -806,6 +815,7 @@ export function ChapterPage({
             content={detailedData}
             isLoading={isDetailedLoading}
             error={detailedError}
+            isAvailableOffline={detailedIsLocal}
             visible={activeTab === 'detailed'}
             shouldRenderHidden={delayedRenderStage >= 4}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}

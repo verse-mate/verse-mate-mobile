@@ -30,9 +30,16 @@ jest.mock('../../contexts/OfflineContext', () => ({
     downloadedCommentaryLanguages: [],
     downloadedTopicLanguages: [],
     isUserDataSynced: false,
+    isInitialized: true,
   }),
 }));
-jest.mock('../../services/offline');
+jest.mock('../../services/offline', () => {
+  const actual = jest.createMockFromModule<Record<string, unknown>>('../../services/offline');
+  return {
+    ...actual,
+    upsertSingleCommentary: jest.fn().mockResolvedValue(undefined),
+  };
+});
 jest.mock('../../constants/bible-books');
 
 // Create a new QueryClient for each test
@@ -124,6 +131,7 @@ describe('Bible API Hooks', () => {
         downloadedCommentaryLanguages: [],
         downloadedTopicLanguages: [],
         isUserDataSynced: false,
+        isInitialized: true,
       });
     });
 
@@ -183,9 +191,11 @@ describe('Bible API Hooks', () => {
     });
 
     it('should handle offline mode with local data', async () => {
-      // Enable offline mode
+      // Enable offline mode — isLocal is now book-level, not version-level
       (useOfflineContext as jest.Mock).mockReturnValue({
         downloadedBibleVersions: ['NASB1995'],
+        downloadedBibleBooks: { NASB1995: [1] },
+        isInitialized: true,
       });
 
       // Mock local data

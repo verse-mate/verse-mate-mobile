@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNetInfo } from '@react-native-community/netinfo';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -56,9 +57,16 @@ describe('OfflineContext', () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
   });
 
-  const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <OfflineProvider>{children}</OfflineProvider>
-  );
+  const wrapper = ({ children }: { children: React.ReactNode }) => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    return (
+      <QueryClientProvider client={queryClient}>
+        <OfflineProvider>{children}</OfflineProvider>
+      </QueryClientProvider>
+    );
+  };
 
   it('initializes correctly', async () => {
     const { result } = renderHook(() => useOfflineContext(), { wrapper });

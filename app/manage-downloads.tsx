@@ -28,6 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { SuccessModal } from '@/components/bible/SuccessModal';
+import { BibleVersionBookList } from '@/components/offline/BibleVersionBookList';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
@@ -276,6 +277,7 @@ export default function ManageDownloadsScreen() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [processingItem, setProcessingItem] = useState<string | null>(null);
+  const [expandedVersion, setExpandedVersion] = useState<string | null>(null);
 
   // Modal state
   const [successModal, setSuccessModal] = useState<{ message: string } | null>(null);
@@ -631,18 +633,44 @@ export default function ManageDownloadsScreen() {
             {bibleVersionsInfo.length === 0 ? (
               <Text style={styles.emptyText}>No Bible versions available. Pull to refresh.</Text>
             ) : (
-              bibleVersionsInfo.map((version) => (
-                <DownloadItem
-                  key={version.key}
-                  name={version.name}
-                  status={version.status}
-                  sizeBytes={version.size_bytes}
-                  onDownload={() => handleDownloadBibleVersion(version.key)}
-                  onRequestDelete={() => handleRequestDeleteBibleVersion(version.key, version.name)}
-                  isProcessing={processingItem === `bible:${version.key}`}
-                  colors={colors}
-                />
-              ))
+              bibleVersionsInfo.map((version) => {
+                const isExpanded = expandedVersion === version.key;
+                const isDownloaded =
+                  version.status === 'downloaded' || version.status === 'update_available';
+                return (
+                  <View key={version.key}>
+                    <View style={styles.versionRow}>
+                      <View style={styles.versionMain}>
+                        <DownloadItem
+                          name={version.name}
+                          status={version.status}
+                          sizeBytes={version.size_bytes}
+                          onDownload={() => handleDownloadBibleVersion(version.key)}
+                          onRequestDelete={() =>
+                            handleRequestDeleteBibleVersion(version.key, version.name)
+                          }
+                          isProcessing={processingItem === `bible:${version.key}`}
+                          colors={colors}
+                        />
+                      </View>
+                      {isDownloaded && (
+                        <Pressable
+                          onPress={() => setExpandedVersion(isExpanded ? null : version.key)}
+                          style={styles.expandButton}
+                          testID={`expand-${version.key}`}
+                        >
+                          <Ionicons
+                            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                            size={20}
+                            color={colors.textTertiary}
+                          />
+                        </Pressable>
+                      )}
+                    </View>
+                    {isExpanded && <BibleVersionBookList versionKey={version.key} />}
+                  </View>
+                );
+              })
             )}
           </View>
         </View>
@@ -879,6 +907,18 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       borderWidth: 1,
       borderColor: colors.borderSecondary,
       overflow: 'hidden',
+    },
+    versionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    versionMain: {
+      flex: 1,
+    },
+    expandButton: {
+      padding: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     downloadItem: {
       flexDirection: 'row',

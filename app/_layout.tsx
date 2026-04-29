@@ -10,8 +10,15 @@
  * @see Task Group 4 - Deep Link Handling
  */
 
+import NetInfo from '@react-native-community/netinfo';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  MutationCache,
+  onlineManager,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -80,6 +87,16 @@ const queryClient = new QueryClient({
 // Set up client interceptors for authentication
 // Must be called before any API requests
 setupClientInterceptors();
+
+// Bridge React Query's onlineManager to React Native's connectivity signal so
+// queries with `refetchOnReconnect` automatically retry the moment NetInfo
+// reports a real connection — replaces ad-hoc per-screen offline→online
+// refetch effects.
+onlineManager.setEventListener((setOnline) =>
+  NetInfo.addEventListener((state) => {
+    setOnline(state.isConnected === true);
+  })
+);
 
 /**
  * Inner Layout Component
