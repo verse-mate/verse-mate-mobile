@@ -17,6 +17,10 @@ const config = {
       ITSAppUsesNonExemptEncryption: false,
       NSPhotoLibraryUsageDescription:
         'Allow VerseMate to access your photo library to set a profile picture.',
+      // TASK-017 / br-audio-011: keep audio playing when the app is
+      // backgrounded so explanations don't cut off when the screen
+      // locks or the user switches apps.
+      UIBackgroundModes: ['audio'],
       CFBundleURLTypes: [
         {
           CFBundleURLSchemes: [
@@ -29,7 +33,16 @@ const config = {
   android: {
     package: 'org.versemate.app',
     allowBackup: false,
-    permissions: ['RECEIVE_BOOT_COMPLETED', 'RECORD_AUDIO'],
+    // TASK-017: FOREGROUND_SERVICE + media notification permissions
+    // for background audio (br-audio-011). WAKE_LOCK keeps audio
+    // playing when the screen is off.
+    permissions: [
+      'RECEIVE_BOOT_COMPLETED',
+      'RECORD_AUDIO',
+      'FOREGROUND_SERVICE',
+      'FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+      'WAKE_LOCK',
+    ],
     blockedPermissions: ['android.permission.ACTIVITY_RECOGNITION'],
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
@@ -100,6 +113,7 @@ const config = {
     'expo-localization',
     'expo-web-browser',
     'expo-sqlite',
+    'expo-audio',
     [
       'expo-speech-recognition',
       {
