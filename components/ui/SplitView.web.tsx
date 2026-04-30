@@ -11,8 +11,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type LayoutChangeEvent, Pressable, StyleSheet, View } from 'react-native';
-import { getSplitViewSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getSplitViewSpecs } from '@/theme/tokens';
 import { BREAKPOINTS, calculatePanelWidths } from '@/utils/device-detection';
 
 export type SplitViewMode = 'split' | 'left-full' | 'right-full';

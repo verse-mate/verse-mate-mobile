@@ -12,7 +12,7 @@
  *
  * Visual Design:
  * - Icon: Ionicons bookmark (filled) / bookmark-outline (unfilled)
- * - Size: 24px (from bible-design-tokens headerSpecs.iconSize)
+ * - Size: 24px (from theme/tokens headerSpecs.iconSize)
  * - Color: black/dark (matches existing icon styling)
  * - Position: Right of chapter title, left of copy/share icons
  *
@@ -31,10 +31,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
-import { getHeaderSpecs } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
+import { getHeaderSpecs } from '@/theme/tokens';
 
 /**
  * Props for BookmarkToggle component

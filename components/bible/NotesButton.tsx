@@ -9,7 +9,7 @@
  *
  * Visual Design:
  * - Icon: Ionicons document-text (filled) / document-text-outline (unfilled)
- * - Size: 24px (from bible-design-tokens headerSpecs.iconSize)
+ * - Size: 24px (from theme/tokens headerSpecs.iconSize)
  * - Color: black/dark (matches existing icon styling)
  * - Position: Right of bookmark icon in chapter header
  *
@@ -26,9 +26,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet } from 'react-native';
-import { getHeaderSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { getHeaderSpecs } from '@/theme/tokens';
 
 /**
  * Props for NotesButton component

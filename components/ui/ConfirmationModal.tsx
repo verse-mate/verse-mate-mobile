@@ -8,8 +8,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 interface ConfirmationButton {
   text: string;

@@ -11,13 +11,8 @@
 
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import {
-  fontSizes,
-  fontWeights,
-  getSplitViewSpecs,
-  spacing,
-} from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { fontSizes, fontWeights, getSplitViewSpecs, spacing } from '@/theme/tokens';
 
 /**
  * Props for ReadingProgressBar

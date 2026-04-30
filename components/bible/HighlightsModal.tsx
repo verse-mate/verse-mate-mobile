@@ -8,6 +8,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '@/contexts/ThemeContext';
+import type { Highlight } from '@/hooks/bible/use-highlights';
 import {
   fontSizes,
   fontWeights,
@@ -15,9 +17,7 @@ import {
   getModalSpecs,
   spacing,
   type ThemeMode,
-} from '@/constants/bible-design-tokens';
-import { useTheme } from '@/contexts/ThemeContext';
-import type { Highlight } from '@/hooks/bible/use-highlights';
+} from '@/theme/tokens';
 
 /**
  * Props for HighlightsModal component

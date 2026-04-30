@@ -20,13 +20,8 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import {
-  type getColors,
-  getTabSpecs,
-  spacing,
-  type ThemeMode,
-} from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { type getColors, getTabSpecs, spacing, type ThemeMode } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
 
 interface ChapterContentTabsProps {

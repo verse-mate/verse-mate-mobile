@@ -3,9 +3,9 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fontSizes, fontWeights, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDeviceInfo } from '@/hooks/use-device-info';
+import { fontSizes, fontWeights, spacing } from '@/theme/tokens';
 
 interface ToastProps {
   visible: boolean;

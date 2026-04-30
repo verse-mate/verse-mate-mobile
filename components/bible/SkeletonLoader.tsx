@@ -7,8 +7,8 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { getSkeletonSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getSkeletonSpecs } from '@/theme/tokens';
 
 /**
  * SkeletonLoader Component
