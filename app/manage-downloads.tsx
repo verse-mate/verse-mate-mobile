@@ -30,11 +30,11 @@ import { ErrorModal } from '@/components/bible/ErrorModal';
 import { SuccessModal } from '@/components/bible/SuccessModal';
 import { BibleVersionBookList } from '@/components/offline/BibleVersionBookList';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { DownloadInfo, DownloadStatus } from '@/services/offline';
+import { type getColors, spacing } from '@/theme/tokens';
 
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';

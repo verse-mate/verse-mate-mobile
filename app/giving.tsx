@@ -34,8 +34,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorModal } from '@/components/bible/ErrorModal';
-import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { type getColors, spacing } from '@/theme/tokens';
 
 type Cadence = 'monthly' | 'once';
 

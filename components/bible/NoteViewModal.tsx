@@ -40,6 +40,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '@/contexts/ThemeContext';
 import {
   fontSizes,
   fontWeights,
@@ -47,8 +48,7 @@ import {
   getModalSpecs,
   spacing,
   type ThemeMode,
-} from '@/constants/bible-design-tokens';
-import { useTheme } from '@/contexts/ThemeContext';
+} from '@/theme/tokens';
 import type { Note } from '@/types/notes';
 
 /**

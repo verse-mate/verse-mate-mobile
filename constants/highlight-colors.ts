@@ -12,7 +12,7 @@
  * @see Spec: .agent-os/specs/2025-11-06-highlight-feature/spec.md (lines 46-52)
  */
 
-import type { ThemeMode } from '@/constants/bible-design-tokens';
+import type { ThemeMode } from '@/theme/tokens';
 
 /**
  * Highlight color type union

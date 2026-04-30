@@ -42,7 +42,6 @@ import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { SplitView } from '@/components/ui/SplitView';
-import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
@@ -70,6 +69,7 @@ import {
   usePrefetchPreviousChapter,
   useSaveLastRead,
 } from '@/src/api';
+import { getHeaderSpecs, spacing } from '@/theme/tokens';
 
 /**
  * View mode type for Bible reading interface
@@ -772,7 +772,7 @@ function ChapterHeader({
  */
 const createHeaderStyles = (
   headerSpecs: ReturnType<typeof getHeaderSpecs>,
-  themeColors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>
+  themeColors: ReturnType<typeof import('@/theme/tokens').getColors>
 ) =>
   StyleSheet.create({
     header: {
@@ -854,7 +854,7 @@ const createHeaderStyles = (
  * Creates styles for ChapterScreen component
  */
 const createStyles = (
-  colors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>,
+  colors: ReturnType<typeof import('@/theme/tokens').getColors>,
   _mode: 'light' | 'dark'
 ) =>
   StyleSheet.create({

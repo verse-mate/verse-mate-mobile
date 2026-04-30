@@ -39,6 +39,11 @@ import { CharacterCounter } from '@/components/bible/CharacterCounter';
 import { MicrophoneButton } from '@/components/bible/MicrophoneButton';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
+import { NOTES_CONFIG } from '@/constants/notes';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useNotes } from '@/hooks/bible/use-notes';
+import { useSpeechToText } from '@/hooks/use-speech-to-text';
 import {
   fontSizes,
   fontWeights,
@@ -46,12 +51,7 @@ import {
   getModalSpecs,
   spacing,
   type ThemeMode,
-} from '@/constants/bible-design-tokens';
-import { NOTES_CONFIG } from '@/constants/notes';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useToast } from '@/contexts/ToastContext';
-import { useNotes } from '@/hooks/bible/use-notes';
-import { useSpeechToText } from '@/hooks/use-speech-to-text';
+} from '@/theme/tokens';
 import type { Note } from '@/types/notes';
 
 /**

@@ -43,11 +43,11 @@ import Reanimated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SignInModal from '@/components/bible/SignInModal';
 import SignUpModal from '@/components/bible/SignUpModal';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useBibleByLine } from '@/src/api';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 

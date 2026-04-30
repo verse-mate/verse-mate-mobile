@@ -23,16 +23,10 @@ import { ChapterPage } from '@/components/bible/ChapterPage';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
-import {
-  fontSizes,
-  fontWeights,
-  type getColors,
-  getSplitViewSpecs,
-  spacing,
-} from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBookProgress } from '@/hooks/bible';
 import { useBibleTestaments } from '@/src/api';
+import { fontSizes, fontWeights, type getColors, getSplitViewSpecs, spacing } from '@/theme/tokens';
 
 /**
  * Props for BibleContentPanel

@@ -9,7 +9,7 @@
 import { render, screen } from '@testing-library/react-native';
 // Import after mocking
 import { BottomLogo } from '@/components/bible/BottomLogo';
-import { colors } from '@/constants/bible-design-tokens';
+import { colors } from '@/theme/tokens';
 
 // Create a mock that we can control per-test
 const mockUseTheme = jest.fn();

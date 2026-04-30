@@ -35,11 +35,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconBookmarkFilled, IconTrash } from '@/components/ui/icons';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useActiveView } from '@/hooks/bible';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 /**
  * Bookmarks Screen Component

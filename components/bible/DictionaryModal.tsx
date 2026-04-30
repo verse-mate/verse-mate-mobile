@@ -38,6 +38,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useNativeDictionary } from '@/hooks/use-native-dictionary';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { isValidStrongsNumber, lookup } from '@/services/lexicon-service';
+import { getStrongsNumber, hasStrongsNumber } from '@/services/word-mapping-service';
 import {
   fontSizes,
   fontWeights,
@@ -45,12 +50,7 @@ import {
   getModalSpecs,
   spacing,
   type ThemeMode,
-} from '@/constants/bible-design-tokens';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useNativeDictionary } from '@/hooks/use-native-dictionary';
-import { AnalyticsEvent, analytics } from '@/lib/analytics';
-import { isValidStrongsNumber, lookup } from '@/services/lexicon-service';
-import { getStrongsNumber, hasStrongsNumber } from '@/services/word-mapping-service';
+} from '@/theme/tokens';
 import type { StrongsEntry } from '@/types/dictionary';
 
 export interface DictionaryModalProps {

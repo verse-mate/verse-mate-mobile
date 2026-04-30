@@ -132,16 +132,22 @@ jest.mock('react-native-gesture-handler', () => {
 // Global mock for ThemeContext to avoid expo-location dependency issues in tests
 // This mock provides a simple default theme that works for all components
 // Note: __tests__/contexts/ThemeContext.test.tsx has its own mocks and is not affected by this
-jest.mock('@/contexts/ThemeContext', () => ({
-  ThemeProvider: ({ children }) => children,
-  useTheme: () => ({
-    preference: 'auto',
-    mode: 'light',
-    colors: require('@/constants/bible-design-tokens').colors.light,
-    setPreference: jest.fn(),
-    isLoading: false,
-  }),
-}));
+jest.mock('@/contexts/ThemeContext', () => {
+  const tokens = require('@/theme/tokens');
+  return {
+    ThemeProvider: ({ children }) => children,
+    useTheme: () => ({
+      preference: 'auto',
+      mode: 'light',
+      colors: tokens.colors.light,
+      typography: tokens.typography,
+      spacing: tokens.spacing,
+      radii: tokens.radii,
+      setPreference: jest.fn(),
+      isLoading: false,
+    }),
+  };
+});
 
 // Mock Dictionary native module for tests
 // This module uses requireNativeModule which isn't available in Jest

@@ -33,10 +33,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconDocument } from '@/components/ui/icons';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { Note } from '@/types/notes';
 
 /**

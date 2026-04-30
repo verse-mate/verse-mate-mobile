@@ -14,14 +14,8 @@ import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ShareButton } from '@/components/bible/ShareButton';
-import {
-  fontSizes,
-  fontWeights,
-  type getColors,
-  lineHeights,
-  spacing,
-} from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import type { ParsedTopicContent } from '@/utils/parseTopicMarkdown';
 import { parseTopicMarkdown } from '@/utils/parseTopicMarkdown';
 import { parseVerseReference } from '@/utils/topics/parseVerseReference';

@@ -29,8 +29,8 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getSplitViewSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getSplitViewSpecs } from '@/theme/tokens';
 import { BREAKPOINTS, calculatePanelWidths } from '@/utils/device-detection';
 
 /**

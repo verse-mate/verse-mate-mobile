@@ -1,11 +1,14 @@
 import type React from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
-import type { getColors } from '@/constants/bible-design-tokens';
+import { Text, TouchableOpacity } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { createButtonStyles } from '@/theme/recipes';
 
 /**
  * Button Component
- * Primary button component for VerseMate app interactions
+ * Primary button component for VerseMate app interactions.
+ *
+ * Styling lives in the Button recipe (`theme/recipes.ts`) — this component
+ * is the rendering shell.
  */
 export interface ButtonProps {
   title: string;
@@ -24,8 +27,8 @@ export const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
   testID,
 }) => {
-  const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const theme = useTheme();
+  const styles = createButtonStyles(theme);
 
   return (
     <TouchableOpacity
@@ -49,64 +52,3 @@ export const Button: React.FC<ButtonProps> = ({
     </TouchableOpacity>
   );
 };
-
-const createStyles = (colors: ReturnType<typeof getColors>) =>
-  StyleSheet.create({
-    button: {
-      paddingVertical: 12,
-      paddingHorizontal: 24,
-      borderRadius: 8,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 48,
-    },
-    primary: {
-      backgroundColor: colors.info,
-    },
-    secondary: {
-      backgroundColor: colors.gray700,
-    },
-    outline: {
-      backgroundColor: 'transparent',
-      borderWidth: 2,
-      borderColor: colors.info,
-    },
-    outlineGold: {
-      backgroundColor: 'transparent',
-      borderWidth: 2,
-      borderColor: colors.gold,
-    },
-    auth: {
-      backgroundColor: colors.gold,
-      borderRadius: 8,
-    },
-    fullWidth: {
-      width: '100%',
-    },
-    buttonDisabled: {
-      backgroundColor: colors.gray300,
-      borderColor: colors.gray300,
-    },
-    text: {
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    primaryText: {
-      color: colors.white,
-    },
-    secondaryText: {
-      color: colors.white,
-    },
-    outlineText: {
-      color: colors.info,
-    },
-    outlineGoldText: {
-      color: colors.gold,
-    },
-    authText: {
-      color: colors.background, // Contrast: Black on Gold (Dark), White on Gold (Light)
-    },
-    textDisabled: {
-      color: colors.gray500,
-    },
-  });

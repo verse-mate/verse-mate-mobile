@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import type React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getPasswordRequirements } from '@/lib/auth/password-validation';
+import type { getColors } from '@/theme/tokens';
 
 /**
  * PasswordRequirements Component

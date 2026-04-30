@@ -24,11 +24,11 @@ import { PasswordRequirements } from '@/components/auth/PasswordRequirements';
 import { SSOButtons } from '@/components/auth/SSOButtons';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/ui/TextInput';
-import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSSOLogin } from '@/hooks/auth/useSSOLogin';
 import { useSignup } from '@/hooks/useSignup';
 import { validatePassword } from '@/lib/auth/password-validation';
+import type { getColors } from '@/theme/tokens';
 
 /**
  * Signup Screen Component

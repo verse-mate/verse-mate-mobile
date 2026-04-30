@@ -25,10 +25,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { DEFAULT_HIGHLIGHT_COLOR, type HighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDeviceInfo } from '@/hooks/use-device-info';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import { HighlightColorPicker } from './HighlightColorPicker';
 
 interface SimpleColorPickerModalProps {
