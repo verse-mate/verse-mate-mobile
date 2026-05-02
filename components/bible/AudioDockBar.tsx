@@ -10,10 +10,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { nextSpeed, SPEED_OPTIONS } from '@/components/bible/AudioInlineEntry';
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { useTheme } from '@/contexts/ThemeContext';
 
 const TAB_BAR_OFFSET = 60;
+
+function formatSpeed(speed: number): string {
+  return `${speed % 1 === 0 ? speed.toFixed(0) : speed}×`;
+}
 
 function formatTime(seconds: number): string {
   const mm = Math.floor(seconds / 60);
@@ -53,6 +58,15 @@ export function AudioDockBar() {
         <Text style={styles.times}>
           {formatTime(player.elapsedSeconds)} / {formatTime(player.durationSeconds)}
         </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Playback speed ${formatSpeed(player.speed)}, tap to change`}
+        accessibilityHint={`Cycles through ${SPEED_OPTIONS.map(formatSpeed).join(', ')}`}
+        style={styles.speedButton}
+        onPress={() => player.setSpeed(nextSpeed(player.speed))}
+      >
+        <Text style={styles.speedText}>{formatSpeed(player.speed)}</Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -124,6 +138,18 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors'], bottomInset
       minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    speedButton: {
+      minWidth: 44,
+      minHeight: 44,
+      paddingHorizontal: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    speedText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textPrimary,
     },
   });
 }

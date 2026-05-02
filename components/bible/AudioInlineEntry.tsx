@@ -1,6 +1,6 @@
 /**
- * TASK-017: mobile inline "Listen · 3:47" chip rendered above the
- * explanation Markdown. Mirrors web AudioInlineEntry.
+ * TASK-017: mobile inline audio entry rendered above the explanation Markdown.
+ * Mirrors web AudioInlineEntry.
  *
  * 5 states (br-audio-014 surface alignment):
  *   - LOADING / GENERATING — spinner + "Generating… ~Xs"
@@ -10,11 +10,15 @@
  *   - EMPTY (no explanationId) — render nothing
  *
  * br-audio-005: tap explicitly loads + plays. Never auto-plays.
+ *
+ * 2026-05-02 redesign (Andy BUG-006 + BUG-007): YouVersion-style circular
+ * play button + adjacent label, plus a speed cycler chip that's visible
+ * once audio is loaded. Cycles through SPEED_OPTIONS on tap.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { type AudioTrack, useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useExplanationAudio } from '@/hooks/audio/useExplanationAudio';
@@ -31,10 +35,29 @@ export interface AudioInlineEntryProps {
   sourceHref: string;
 }
 
+/**
+ * Available playback speeds. Tapping the speed cycler advances to the
+ * next option, wrapping at the end. Mirrors AudioFullScreen's speedRow
+ * options for consistency.
+ */
+export const SPEED_OPTIONS = [0.75, 1, 1.25, 1.5, 2] as const;
+
+/** Compute the next speed in the cycle from the current value. */
+export function nextSpeed(current: number): number {
+  const idx = SPEED_OPTIONS.findIndex((s) => Math.abs(s - current) < 0.01);
+  const next = idx === -1 ? 1 : SPEED_OPTIONS[(idx + 1) % SPEED_OPTIONS.length];
+  return next;
+}
+
 function formatDuration(seconds: number): string {
   const mm = Math.floor(seconds / 60);
   const ss = Math.floor(seconds % 60);
   return `${mm}:${ss.toString().padStart(2, '0')}`;
+}
+
+function formatSpeed(speed: number): string {
+  // Drop trailing zero on whole-number speeds (1× rather than 1.0×).
+  return `${speed % 1 === 0 ? speed.toFixed(0) : speed}×`;
 }
 
 export function AudioInlineEntry(props: AudioInlineEntryProps) {
@@ -57,18 +80,17 @@ export function AudioInlineEntry(props: AudioInlineEntryProps) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Sign in to listen to other chapters"
-        style={[styles.chip, styles.chipReady]}
+        style={[styles.row, styles.rowReady]}
         onPress={() => {
-          // Surface a sign-in prompt by re-emitting via the existing
-          // auth flow. Mobile guest users land here without a session,
-          // so the global auth gate will route them appropriately.
           queryClient.invalidateQueries({
             queryKey: ['explanation-audio', props.explanationId, props.voice, props.language],
           });
         }}
       >
-        <Ionicons name="lock-closed" size={16} color={colors.textPrimary} />
-        <Text style={styles.chipText}>Sign in to listen to other chapters</Text>
+        <View style={[styles.playButton, styles.playButtonLocked]}>
+          <Ionicons name="lock-closed" size={18} color={colors.background} />
+        </View>
+        <Text style={styles.label}>Sign in to listen to other chapters</Text>
       </Pressable>
     );
   }
@@ -78,30 +100,34 @@ export function AudioInlineEntry(props: AudioInlineEntryProps) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Audio unavailable — retry (${error.message})`}
-        style={[styles.chip, styles.chipError]}
+        style={[styles.row, styles.rowError]}
         onPress={() =>
           queryClient.invalidateQueries({
             queryKey: ['explanation-audio', props.explanationId, props.voice, props.language],
           })
         }
       >
-        <Text style={[styles.chipText, styles.chipTextError]}>Audio unavailable — Retry</Text>
+        <View style={[styles.playButton, styles.playButtonError]}>
+          <Ionicons name="refresh" size={18} color={colors.background} />
+        </View>
+        <Text style={[styles.label, styles.labelError]}>Audio unavailable — Retry</Text>
       </Pressable>
     );
   }
 
   if (isGenerating || !audio) {
     return (
-      <Pressable
-        disabled
-        accessibilityRole="button"
-        accessibilityState={{ disabled: true, busy: true }}
+      <View
+        accessibilityRole="progressbar"
+        accessibilityState={{ busy: true }}
         accessibilityLabel="Audio generating"
-        style={[styles.chip, styles.chipLoading]}
+        style={[styles.row, styles.rowLoading]}
       >
-        <ActivityIndicator size="small" color={colors.gold} />
-        <Text style={styles.chipText}>Generating… ~{estimatedReadySeconds ?? 8}s</Text>
-      </Pressable>
+        <View style={[styles.playButton, styles.playButtonLoading]}>
+          <ActivityIndicator size="small" color={colors.background} />
+        </View>
+        <Text style={styles.label}>Generating… ~{estimatedReadySeconds ?? 8}s</Text>
+      </View>
     );
   }
 
@@ -127,62 +153,112 @@ export function AudioInlineEntry(props: AudioInlineEntryProps) {
       };
       await player.load(track);
     }
-    await player.play();
+    if (playingThis) {
+      await player.pause();
+    } else {
+      await player.play();
+    }
   };
 
+  const cyclePlaybackSpeed = () => player.setSpeed(nextSpeed(player.speed));
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={playingThis ? 'Playing audio explanation' : 'Play audio explanation'}
-      style={[styles.chip, playingThis ? styles.chipPlaying : styles.chipReady]}
-      onPress={startTrack}
-    >
-      <Ionicons
-        name={playingThis ? 'musical-notes' : 'play'}
-        size={16}
-        color={playingThis ? colors.gold : colors.textPrimary}
-      />
-      <Text style={styles.chipText}>
+    <View style={styles.row}>
+      {/* Circular play button — primary affordance, mirrors YouVersion pattern. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={playingThis ? 'Pause audio explanation' : 'Play audio explanation'}
+        style={[styles.playButton, playingThis ? styles.playButtonActive : styles.playButtonReady]}
+        onPress={startTrack}
+      >
+        <Ionicons name={playingThis ? 'pause' : 'play'} size={18} color={colors.background} />
+      </Pressable>
+
+      {/* Title + duration label, non-interactive. */}
+      <Text style={styles.label} numberOfLines={1}>
         {playingThis ? 'Playing…' : `Listen · ${formatDuration(audio.duration_seconds)}`}
       </Text>
-    </Pressable>
+
+      {/* Speed cycler — only visible once audio is loaded; tap to advance. */}
+      {isThisTrack && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Playback speed ${formatSpeed(player.speed)}, tap to change`}
+          accessibilityHint={`Cycles through ${SPEED_OPTIONS.map(formatSpeed).join(', ')}`}
+          style={styles.speedChip}
+          onPress={cyclePlaybackSpeed}
+        >
+          <Text style={styles.speedText}>{formatSpeed(player.speed)}</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
 function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
   return StyleSheet.create({
-    chip: {
+    row: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 12,
       alignSelf: 'flex-start',
       minHeight: 44,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
+      marginBottom: 12,
+    },
+    rowReady: {
+      // default
+    },
+    rowLoading: {
+      opacity: 0.7,
+    },
+    rowError: {
+      // styling carried by playButton + label
+    },
+    playButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    playButtonReady: {
+      backgroundColor: colors.gold,
+    },
+    playButtonActive: {
+      backgroundColor: colors.gold,
+    },
+    playButtonLoading: {
+      backgroundColor: colors.gray500,
+    },
+    playButtonLocked: {
+      backgroundColor: colors.gray500,
+    },
+    playButtonError: {
+      backgroundColor: colors.error,
+    },
+    label: {
+      fontSize: 14,
+      color: colors.textPrimary,
+      flexShrink: 1,
+    },
+    labelError: {
+      color: colors.error,
+    },
+    speedChip: {
+      minWidth: 44,
+      minHeight: 32,
+      paddingHorizontal: 10,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.gray200,
       backgroundColor: colors.backgroundElevated,
-      marginBottom: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    chipText: {
-      fontSize: 14,
+    speedText: {
+      fontSize: 13,
+      fontWeight: '600',
       color: colors.textPrimary,
-    },
-    chipTextError: {
-      color: colors.error,
-    },
-    chipLoading: {
-      opacity: 0.7,
-    },
-    chipReady: {
-      // default
-    },
-    chipPlaying: {
-      borderColor: colors.gold,
-    },
-    chipError: {
-      borderColor: colors.error,
     },
   });
 }
