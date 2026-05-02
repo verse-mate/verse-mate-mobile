@@ -130,7 +130,13 @@ function TabContent({
 
   // Determine content for the reader
   const explanationContent = content && 'content' in content ? content : undefined;
-  const hasContent = explanationContent && explanationContent.content.trim().length > 0;
+  // Defend against `content.content` being undefined/null at render time —
+  // happens when the explanations API hasn't returned a body yet (loading
+  // state) or the field is genuinely missing on a chapter. Without the guard,
+  // calling .trim() on undefined crashes TabContent and takes down the whole
+  // reader.
+  const hasContent =
+    typeof explanationContent?.content === 'string' && explanationContent.content.trim().length > 0;
 
   // Only show skeleton on initial load, not when transitioning between chapters
   // This prevents flicker when swiping between chapters
