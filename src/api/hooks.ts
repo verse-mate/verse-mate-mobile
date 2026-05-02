@@ -367,7 +367,16 @@ export const useBibleChapterExplanation = (
     query.data,
   ]);
 
-  const isLocalData = hasLocalExplanation && query.data != null;
+  // BUG-008 (Andy 2026-05-02): the "Available offline" badge previously fired
+  // for ANY explanation present in SQLite, including rows auto-cached on first
+  // view. Users expected the badge to mean "I downloaded this for offline use,"
+  // not "the app silently cached this." Tighten the rule so the badge only
+  // shows when the user has explicitly downloaded the language's commentary
+  // bundle (matchedLocalLanguage is non-null only when the language is in
+  // downloadedCommentaryLanguages from OfflineContext). Auto-cached rows still
+  // exist in SQLite and continue to power offline reading; they just don't
+  // earn the badge anymore.
+  const isLocalData = matchedLocalLanguage != null && hasLocalExplanation && query.data != null;
 
   return {
     ...query,
