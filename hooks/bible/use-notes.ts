@@ -43,6 +43,7 @@ import { useMemo } from 'react';
 import { getBookById } from '@/constants/bible-books';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
+import { useToast } from '@/contexts/ToastContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   addLocalNote,
@@ -111,6 +112,7 @@ export function useNotes(): UseNotesResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isUserDataSynced, isOnline } = useOfflineContext();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const isDeviceOffline = !isOnline;
 
@@ -250,6 +252,7 @@ export function useNotes(): UseNotesResult {
         queryClient.setQueryData(notesQueryKey, context.previousNotes);
       }
       console.error('Failed to add note:', error);
+      showToast('Failed to save note. Please try again.');
     },
     onSuccess: (_data, variables) => {
       // Track analytics: NOTE_CREATED event (never track note content)
@@ -329,6 +332,7 @@ export function useNotes(): UseNotesResult {
         queryClient.setQueryData(notesQueryKey, context.previousNotes);
       }
       console.error('Failed to update note:', error);
+      showToast('Failed to update note. Please try again.');
     },
     onSuccess: (_data, variables) => {
       // Track analytics: NOTE_EDITED event (never track note content)
@@ -387,6 +391,7 @@ export function useNotes(): UseNotesResult {
         queryClient.setQueryData(notesQueryKey, context.previousNotes);
       }
       console.error('Failed to delete note:', error);
+      showToast('Failed to delete note. Please try again.');
     },
     onSuccess: (_data, variables) => {
       // Track analytics: NOTE_DELETED event

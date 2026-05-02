@@ -3,6 +3,16 @@ import { FormData, fetch, Headers, Request, Response } from 'undici';
 import { resetPostHogMock } from './__tests__/mocks/posthog-mock';
 import { server } from './__tests__/mocks/server';
 
+// Mock toast context — no-op showToast/hideToast so hooks calling useToast() in
+// tests don't blow up on the "must be within ToastProvider" guard.
+jest.mock('@/contexts/ToastContext', () => ({
+  useToast: () => ({
+    showToast: jest.fn(),
+    hideToast: jest.fn(),
+  }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock offline context to avoid SQLite initialization in tests
 jest.mock('@/contexts/OfflineContext', () => ({
   useOfflineContext: () => ({
