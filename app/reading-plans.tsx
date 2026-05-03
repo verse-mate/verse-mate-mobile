@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BIBLE_BOOKS } from '@/constants/bible-books';
-import { fontSizes, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { READING_PLANS } from '@/constants/reading-plans';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -18,6 +17,7 @@ import {
   startReadingPlan,
   stopReadingPlan,
 } from '@/services/reading-plans/reading-plan-service';
+import { fontSizes, type getColors, spacing } from '@/theme/tokens';
 import type { UserReadingPlanProgress } from '@/types/reading-plans';
 
 export default function ReadingPlansScreen() {

@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BIBLE_BOOKS } from '@/constants/bible-books';
-import { fontSizes, spacing } from '@/constants/bible-design-tokens';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
+import { fontSizes, spacing } from '@/theme/tokens';
 
 interface BibleVersionBookListProps {
   versionKey: string;

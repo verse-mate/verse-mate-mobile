@@ -65,11 +65,11 @@ import {
   IconSettings,
   IconShare,
 } from '@/components/ui/icons';
-import type { getColors } from '@/constants/bible-design-tokens';
 import { FEATURE_FLAGS } from '@/constants/feature-flags';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getSupportConversations } from '@/lib/api/support';
+import type { getColors } from '@/theme/tokens';
 import { MessageModal } from './MessageModal';
 import { SuccessModal } from './SuccessModal';
 

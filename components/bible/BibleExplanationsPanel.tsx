@@ -22,6 +22,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
+import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
 import {
   fontSizes,
   fontWeights,
@@ -29,12 +34,7 @@ import {
   getSplitViewSpecs,
   lineHeights,
   spacing,
-} from '@/constants/bible-design-tokens';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
-import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
-import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
+} from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
 import { ShareButton } from './ShareButton';
 
