@@ -93,7 +93,7 @@ const LANGUAGE_NAMES: Record<string, string> = {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated, logout, restoreSession, refreshTokens } = useAuth();
+  const { user, isAuthenticated, logout, restoreSession } = useAuth();
   const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
   const {
@@ -318,8 +318,8 @@ export default function SettingsScreen() {
             if (!error) {
               // Clear the offline storage after successful sync
               await AsyncStorage.removeItem('@versemate:preferred_language');
-              // Refresh tokens to update claims
-              await refreshTokens();
+              // No token refresh needed per D-005 — restoreSession() picks up new claims.
+              await restoreSession();
             }
           }
         } catch (error) {
@@ -329,7 +329,7 @@ export default function SettingsScreen() {
     };
 
     syncOfflineLanguage();
-  }, [isDeviceOffline, isAuthenticated, user?.preferred_language, refreshTokens]);
+  }, [isDeviceOffline, isAuthenticated, user?.preferred_language, restoreSession]);
 
   const hasProfileChanges = () => {
     return (
@@ -522,10 +522,10 @@ export default function SettingsScreen() {
           throw error;
         }
 
-        // Refresh tokens to update claims (like language)
-        // Add a small delay to ensure backend DB consistency before issuing new token
+        // Per D-005, no token refresh — restoreSession() pulls fresh claims (e.g. language).
+        // Small delay to ensure backend DB consistency before re-fetching.
         await new Promise((resolve) => setTimeout(resolve, 500));
-        await refreshTokens();
+        await restoreSession();
       }
     } catch (error) {
       console.error('Failed to save language preference:', error);

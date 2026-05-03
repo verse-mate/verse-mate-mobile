@@ -90,7 +90,6 @@ describe('Bookmarks Screen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     // Mock bookmarks data
@@ -128,7 +127,6 @@ describe('Bookmarks Screen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     mockUseBookmarks.mockReturnValue(
@@ -166,7 +164,6 @@ describe('Bookmarks Screen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     // Mock empty bookmarks array
@@ -195,7 +192,6 @@ describe('Bookmarks Screen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     mockUseBookmarks.mockReturnValue(createMockBookmarksResult());
@@ -222,7 +218,6 @@ describe('Bookmarks Screen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     // Mock loading state
@@ -255,7 +250,6 @@ describe('Bookmarks Screen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     mockUseBookmarks.mockReturnValue(createMockBookmarksResult());
@@ -282,7 +276,6 @@ describe('Bookmarks Screen', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     mockUseBookmarks.mockReturnValue(createMockBookmarksResult());
