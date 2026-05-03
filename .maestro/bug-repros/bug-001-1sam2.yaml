@@ -1,0 +1,82 @@
+appId: org.versemate.app
+name: BUG-001 — 1 Samuel 2 portrait truncation repro
+description: |
+  Andy: end of verse text missing on 1 Samuel 2, visible truncation mid-line.
+  Workaround was rotate-to-landscape-and-back. Likely RN measurement issue.
+tags:
+  - bug-repro
+  - chapter-reader
+---
+
+- launchApp:
+    appId: org.versemate.app
+
+- runFlow:
+    when:
+      visible:
+        text: "Skip"
+    commands:
+      - tapOn:
+          text: "Skip"
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+- tapOn:
+    id: "chapter-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "tab-old-testament"
+
+# Use the filter input to disambiguate — much more reliable than scrollUntilVisible
+- tapOn: "Filter books..."
+- inputText: "1 Samuel"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "book-item-1-samuel"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-2"
+    timeout: 10000
+
+- tapOn:
+    id: "chapter-2"
+
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    notVisible:
+      id: "bible-navigation-modal"
+    timeout: 5000
+
+- assertVisible:
+    text: "1 Samuel 2"
+
+- takeScreenshot: bug-001-1sam2-portrait-top
+
+- scroll
+- waitForAnimationToEnd
+- takeScreenshot: bug-001-1sam2-portrait-scrolled
+
+- scroll
+- waitForAnimationToEnd
+- takeScreenshot: bug-001-1sam2-portrait-mid
+
+- setOrientation: LANDSCAPE_LEFT
+- waitForAnimationToEnd
+- takeScreenshot: bug-001-1sam2-landscape
+
+- setOrientation: PORTRAIT
+- waitForAnimationToEnd
+- takeScreenshot: bug-001-1sam2-portrait-after-rotation

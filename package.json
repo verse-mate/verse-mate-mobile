@@ -61,6 +61,7 @@
     "expo-location": "~19.0.8",
     "expo-navigation-bar": "~5.0.10",
     "expo-router": "~6.0.17",
+    "expo-secure-store": "^55.0.13",
     "expo-sensors": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "expo-speech-recognition": "^3.1.1",
