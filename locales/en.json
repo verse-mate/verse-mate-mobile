@@ -1,0 +1,111 @@
+{
+  "_meta": {
+    "language": "English",
+    "code": "en",
+    "version": "1.0.0",
+    "note": "Source-of-truth catalog. Per spec feat-mobile-ui-i18n (D-016). Engineer-edited; other locales translated from this."
+  },
+
+  "auth": {
+    "login": {
+      "title": "Sign In",
+      "email_label": "Email",
+      "email_placeholder": "you@example.com",
+      "password_label": "Password",
+      "submit": "Sign in",
+      "forgot_password": "Forgot password?",
+      "no_account": "Don't have an account?",
+      "create_account": "Sign up",
+      "or_continue_with": "or continue with"
+    },
+    "signup": {
+      "title": "Create your account",
+      "first_name_label": "First name",
+      "last_name_label": "Last name",
+      "email_label": "Email",
+      "password_label": "Password",
+      "submit": "Create account",
+      "have_account": "Already have an account?",
+      "sign_in": "Sign in"
+    },
+    "errors": {
+      "invalid_credentials": "Invalid email or password",
+      "rate_limited": "Too many attempts. Try again in a minute.",
+      "network_error": "Network error. Check your connection."
+    }
+  },
+
+  "onboarding": {
+    "skip": "Skip",
+    "next": "Next",
+    "get_started": "Get started"
+  },
+
+  "settings": {
+    "title": "Settings",
+    "account": "Account",
+    "preferences": "Preferences",
+    "storage": "Storage",
+    "help": "Help",
+    "logout": "Log out",
+    "delete_account": "Delete account",
+    "language": "Language",
+    "theme": "Theme",
+    "theme_auto": "Auto",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "font_size": "Font size",
+    "bible_version": "Bible version",
+    "auto_highlights": "Auto-highlights",
+    "manage_downloads": "Manage downloads"
+  },
+
+  "chapter_reader": {
+    "loading": "Loading chapter…",
+    "error": "Couldn't load this chapter. Tap to retry.",
+    "view_bible": "Bible",
+    "view_insight": "Insight",
+    "tab_summary": "Summary",
+    "tab_byline": "By verse",
+    "tab_detailed": "Detailed",
+    "no_translation_available": "Showing English (no translation available)",
+    "offline_indicator": "Offline — showing cached content"
+  },
+
+  "bookmarks": {
+    "title": "Bookmarks",
+    "empty": "No bookmarks yet. Tap the bookmark icon while reading.",
+    "remove_confirm": "Remove this bookmark?"
+  },
+
+  "highlights": {
+    "title": "Highlights",
+    "empty": "No highlights yet. Long-press a verse and pick a color.",
+    "remove_confirm": "Remove this highlight?"
+  },
+
+  "notes": {
+    "title": "Notes",
+    "empty": "No notes yet. Tap a verse to add one.",
+    "edit": "Edit note",
+    "delete": "Delete note",
+    "delete_confirm": "Delete this note?",
+    "save": "Save",
+    "cancel": "Cancel",
+    "placeholder": "Write your note…"
+  },
+
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "retry": "Retry",
+    "back": "Back",
+    "close": "Close",
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "unknown_error": "Unknown error"
+  }
+}
