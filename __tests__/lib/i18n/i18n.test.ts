@@ -21,7 +21,7 @@ describe('lib/i18n', () => {
   it('translates a known auth key', async () => {
     const i18n = await initI18n();
     expect(i18n.t('auth.login.title')).toBe('Sign In');
-    expect(i18n.t('auth.login.submit')).toBe('Sign in');
+    expect(i18n.t('auth.login.submit')).toBe('Login');
   });
 
   it('translates nested settings keys', async () => {
