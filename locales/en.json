@@ -9,6 +9,8 @@
   "auth": {
     "login": {
       "title": "Sign In",
+      "welcome_back": "Welcome back",
+      "subtitle": "Login into your account",
       "email_label": "Email",
       "email_placeholder": "you@example.com",
       "password_label": "Password",
@@ -103,18 +105,30 @@
   "bookmarks": {
     "title": "Bookmarks",
     "empty": "No bookmarks yet. Tap the bookmark icon while reading.",
+    "empty_title": "No bookmarked chapters yet",
+    "empty_subtitle": "Tap the bookmark icon while reading to save chapters for later.",
+    "login_required": "Please login to view your bookmarks",
+    "login_subtitle": "Sign in to save and access your favorite Bible chapters",
     "remove_confirm": "Remove this bookmark?"
   },
 
   "highlights": {
     "title": "Highlights",
     "empty": "No highlights yet. Long-press a verse and pick a color.",
+    "empty_title": "No highlights yet",
+    "empty_subtitle": "Start highlighting verses to see them here.",
+    "auto_highlights": "Auto-Highlights",
+    "my_highlights": "My Highlights",
     "remove_confirm": "Remove this highlight?"
   },
 
   "notes": {
     "title": "Notes",
     "empty": "No notes yet. Tap a verse to add one.",
+    "empty_title": "No notes yet",
+    "empty_subtitle": "Start taking notes while reading chapters to see them here.",
+    "login_required": "Please login to view your notes",
+    "login_subtitle": "Sign in to create and access your Bible study notes",
     "edit": "Edit note",
     "delete": "Delete note",
     "delete_confirm": "Delete this note?",
@@ -131,6 +145,7 @@
     "confirm": "Confirm",
     "retry": "Retry",
     "back": "Back",
+    "go_back": "Go back",
     "close": "Close",
     "loading": "Loading…",
     "error": "Something went wrong",
