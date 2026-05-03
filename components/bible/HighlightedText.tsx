@@ -735,7 +735,7 @@ export function HighlightedText({
     const tokens = tokenizeText(segment.text);
 
     return (
-      <Text key={segment.key} style={segmentStyle}>
+      <Text key={segment.key} style={segmentStyle} suppressHighlighting={true}>
         {tokens.map((token) => {
           // Calculate absolute char positions in verse text
           const absoluteStartChar = segment.startChar + token.startChar;
@@ -762,6 +762,7 @@ export function HighlightedText({
               onLongPress={(e) =>
                 handleTokenizedWordLongPress(token.word, absoluteStartChar, absoluteEndChar, e)
               }
+              suppressHighlighting={true}
               {...responderProps}
             >
               {token.word}
@@ -777,6 +778,7 @@ export function HighlightedText({
     <Text
       style={style}
       selectable={true}
+      suppressHighlighting={true}
       onTextLayout={handleTextLayout}
       onLayout={handleLayout}
       onPress={handleOuterPress}
@@ -822,6 +824,7 @@ export function HighlightedText({
                 style={highlightStyle}
                 onPress={() => handleHighlightTap(highlightId)}
                 onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
+                suppressHighlighting={true}
               >
                 {selectionParts.before}
                 <Text style={selectionStyles.selected}>{selectionParts.selected}</Text>
@@ -836,6 +839,7 @@ export function HighlightedText({
               style={highlightStyle}
               onPress={() => handleHighlightTap(highlightId)}
               onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
+              suppressHighlighting={true}
             >
               {segment.text}
             </Text>
@@ -855,6 +859,7 @@ export function HighlightedText({
                 style={autoHighlightStyle}
                 onPress={() => handleAutoHighlightPress(autoHighlight)}
                 onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
+                suppressHighlighting={true}
               >
                 {selectionParts.before}
                 <Text style={selectionStyles.selected}>{selectionParts.selected}</Text>
@@ -869,6 +874,7 @@ export function HighlightedText({
               style={autoHighlightStyle}
               onPress={() => handleAutoHighlightPress(autoHighlight)}
               onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
+              suppressHighlighting={true}
             >
               {segment.text}
             </Text>
@@ -883,6 +889,7 @@ export function HighlightedText({
               key={segment.key}
               onPress={handleVerseTap}
               onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
+              suppressHighlighting={true}
             >
               {selectionParts.before}
               <Text style={selectionStyles.selected}>{selectionParts.selected}</Text>
@@ -896,6 +903,7 @@ export function HighlightedText({
             key={segment.key}
             onPress={handleVerseTap}
             onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
+            suppressHighlighting={true}
           >
             {segment.text}
           </Text>
