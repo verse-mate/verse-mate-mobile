@@ -9,6 +9,8 @@
   "auth": {
     "login": {
       "title": "Sign In",
+      "welcome_back": "Welcome back",
+      "subtitle": "Login into your account",
       "email_label": "Email",
       "email_placeholder": "you@example.com",
       "password_label": "Password",
