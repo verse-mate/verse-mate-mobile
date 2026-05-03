@@ -20,14 +20,15 @@
       "or_continue_with": "or continue with"
     },
     "signup": {
-      "title": "Create your account",
+      "title": "Create Account",
+      "subtitle": "Please provide the following information to set up your account.",
       "first_name_label": "First name",
       "last_name_label": "Last name",
       "email_label": "Email",
       "password_label": "Password",
       "submit": "Create account",
       "have_account": "Already have an account?",
-      "sign_in": "Sign in"
+      "sign_in": "Login"
     },
     "errors": {
       "invalid_credentials": "Invalid email or password",
