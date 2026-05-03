@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -78,6 +79,7 @@ const PaginationDot = ({
 };
 
 export default function OnboardingScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const pagerRef = useRef<PagerView>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -175,7 +177,7 @@ export default function OnboardingScreen() {
           {currentPage < slides.length - 1 ? (
             <>
               <Pressable onPress={() => completeOnboarding('skipped')} style={styles.skipButton}>
-                <Text style={styles.skipText}>Skip</Text>
+                <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
               </Pressable>
               <Pressable onPress={handleNext} style={styles.nextButton}>
                 <Ionicons name="arrow-forward" size={24} color="#000" />
@@ -187,10 +189,10 @@ export default function OnboardingScreen() {
                 onPress={() => completeOnboarding('completed')}
                 style={styles.getStartedButton}
               >
-                <Text style={styles.getStartedText}>Get Started</Text>
+                <Text style={styles.getStartedText}>{t('onboarding.get_started')}</Text>
               </Pressable>
               <Pressable onPress={handleLogin} style={styles.loginButton}>
-                <Text style={styles.loginText}>Log In</Text>
+                <Text style={styles.loginText}>{t('onboarding.login')}</Text>
               </Pressable>
             </View>
           )}
