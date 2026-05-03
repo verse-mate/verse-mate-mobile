@@ -155,8 +155,8 @@ export default function Login() {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.heading}>Welcome back</Text>
-            <Text style={styles.subtitle}>Login into your account</Text>
+            <Text style={styles.heading}>{t('auth.login.welcome_back')}</Text>
+            <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
           </View>
 
           {/* Form */}
