@@ -72,7 +72,6 @@ describe('BookmarkToggle', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     // Default: bookmarks hook with no active bookmark
@@ -175,7 +174,6 @@ describe('BookmarkToggle', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     renderWithTheme(<BookmarkToggle bookId={1} chapterNumber={1} />);
