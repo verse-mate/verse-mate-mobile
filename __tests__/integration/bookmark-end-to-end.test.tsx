@@ -43,10 +43,6 @@ jest.mock('@/lib/auth/token-storage', () => ({
   clearTokens: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('@/lib/auth/token-refresh', () => ({
-  setupProactiveRefresh: jest.fn(() => jest.fn()),
-}));
-
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
   ImpactFeedbackStyle: {
