@@ -18,13 +18,11 @@ import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { analytics } from '@/lib/analytics/analytics';
 import type { UserProperties } from '@/lib/analytics/types';
-import * as tokenRefresh from '@/lib/auth/token-refresh';
 import * as tokenStorage from '@/lib/auth/token-storage';
 import { getAuthSession, postAuthLogin } from '@/src/api/generated/sdk.gen';
 
 // Mock dependencies
 jest.mock('@/lib/auth/token-storage');
-jest.mock('@/lib/auth/token-refresh');
 jest.mock('@/src/api/generated/sdk.gen');
 
 // Mock analytics module
@@ -39,7 +37,6 @@ jest.mock('@/lib/analytics/analytics', () => ({
 }));
 
 const mockTokenStorage = tokenStorage as jest.Mocked<typeof tokenStorage>;
-const mockTokenRefresh = tokenRefresh as jest.Mocked<typeof tokenRefresh>;
 const mockGetAuthSession = getAuthSession as jest.MockedFunction<typeof getAuthSession>;
 const mockPostAuthLogin = postAuthLogin as jest.MockedFunction<typeof postAuthLogin>;
 const mockAnalytics = analytics as jest.Mocked<typeof analytics>;
@@ -71,7 +68,6 @@ describe('Time-Based Analytics - Phase 1', () => {
     mockTokenStorage.setAccessToken.mockResolvedValue(undefined);
     mockTokenStorage.setRefreshToken.mockResolvedValue(undefined);
     mockTokenStorage.clearTokens.mockResolvedValue(undefined);
-    mockTokenRefresh.setupProactiveRefresh.mockReturnValue(() => {});
   });
 
   afterAll(() => {

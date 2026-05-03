@@ -14,7 +14,9 @@
 import { client } from '@/src/api/generated/client.gen';
 import type { ResolvedRequestOptions } from '@/src/api/generated/client/types.gen';
 import { getAccessToken } from '@/lib/auth/token-storage';
-import { refreshAccessToken } from '@/lib/auth/token-refresh';
+// refreshAccessToken removed per D-005 — access token IS the persistent session.
+// 401 means the token is genuinely revoked or expired (after 90 days); no
+// transparent refresh path. Caller observes 401 in response and routes to login.
 
 // Track retry attempts per request to prevent infinite loops
 const retryAttempts = new WeakMap<Request, number>();
@@ -116,49 +118,9 @@ async function responseInterceptor(
     }
   }
 
-  // Only handle 401 responses for token refresh
-  if (response.status !== 401) {
-    return response;
-  }
-
-  // Skip refresh for auth endpoints to prevent loops
-  if (isAuthEndpoint(path)) {
-    return response;
-  }
-
-  // Check retry count (max 1 retry per request)
-  const currentRetries = retryAttempts.get(request) || 0;
-  if (currentRetries >= 1) {
-    // Already retried once, don't retry again
-    return response;
-  }
-
-  try {
-    // Attempt to refresh the access token
-    const newToken = await refreshAccessToken();
-
-    // Update the in-memory cache with the refreshed token
-    cachedToken = newToken;
-
-    // Update retry count
-    retryAttempts.set(request, currentRetries + 1);
-
-    // Create new request with updated Authorization header
-    const headers = new Headers(request.headers);
-    headers.set('Authorization', `Bearer ${newToken}`);
-
-    const newRequest = new Request(request, { headers });
-
-    // Retry the original request with new token
-    const retryResponse = await fetch(newRequest);
-
-    return retryResponse;
-  } catch (error) {
-    // Refresh failed - return original 401 response
-    // Auth context will handle logout based on 401
-    console.error('Token refresh failed in interceptor:', error);
-    return response;
-  }
+  // Per D-005: no transparent refresh path. 401 surfaces to caller; AuthContext
+  // observes via subsequent /auth/user check and clears state.
+  return response;
 }
 
 /**

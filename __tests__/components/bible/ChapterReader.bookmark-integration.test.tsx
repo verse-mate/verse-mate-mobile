@@ -111,7 +111,6 @@ describe('ChapterReader - Bookmark Integration', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     // Default mock: no bookmarks
@@ -211,7 +210,6 @@ describe('ChapterReader - Bookmark Integration', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     const { queryByTestId } = renderWithProvider(

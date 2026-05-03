@@ -36,9 +36,6 @@ jest.mock('@/lib/auth/token-storage', () => ({
 }));
 
 // Mock token refresh
-jest.mock('@/lib/auth/token-refresh', () => ({
-  setupProactiveRefresh: jest.fn(() => jest.fn()),
-}));
 
 // Mock expo-haptics
 jest.mock('expo-haptics', () => ({

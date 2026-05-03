@@ -110,7 +110,6 @@ describe('ChapterReader - Notes Integration', () => {
       logout: jest.fn(),
       loginWithSSO: jest.fn(),
       restoreSession: jest.fn(),
-      refreshTokens: jest.fn(),
     });
 
     // Default mock: no bookmarks
