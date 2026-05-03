@@ -27,7 +27,7 @@ describe('lib/i18n', () => {
   it('translates nested settings keys', async () => {
     const i18n = await initI18n();
     expect(i18n.t('settings.theme_auto')).toBe('Auto');
-    expect(i18n.t('settings.delete_account')).toBe('Delete account');
+    expect(i18n.t('settings.delete_account')).toBe('Delete Account');
   });
 
   it('returns the key itself when missing (no infinite fallback)', async () => {

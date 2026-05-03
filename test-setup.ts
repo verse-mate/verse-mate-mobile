@@ -1,7 +1,26 @@
 import '@testing-library/jest-native/extend-expect';
+import i18next from 'i18next';
+import { initReactI18next } from 'react-i18next';
 import { FormData, fetch, Headers, Request, Response } from 'undici';
 import { resetPostHogMock } from './__tests__/mocks/posthog-mock';
 import { server } from './__tests__/mocks/server';
+import en from './locales/en.json';
+
+// Initialize i18next synchronously for tests so `useTranslation()` resolves keys
+// to English strings. Without this, `t('settings.title')` returns the literal
+// key and every getByText/i18n assertion fails. Mirrors lib/i18n/index.ts but
+// avoids expo-localization (RN-only, breaks under jest-expo node env).
+if (!i18next.isInitialized) {
+  i18next.use(initReactI18next).init({
+    resources: { en: { translation: en } },
+    lng: 'en',
+    fallbackLng: 'en',
+    interpolation: { escapeValue: false },
+    react: { useSuspense: false },
+    returnNull: false,
+    returnEmptyString: false,
+  });
+}
 
 // Mock toast context — no-op showToast/hideToast so hooks calling useToast() in
 // tests don't blow up on the "must be within ToastProvider" guard.
