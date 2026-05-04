@@ -884,7 +884,16 @@ export function ChapterPage({
       </Animated.ScrollView>
 
       {/* Note Modals - Rendered OUTSIDE ScrollView */}
+      {/*
+        NOTES-1: Force a fresh NotesModal instance per chapter.
+        This route reuses the same ChapterPage component when the
+        bookId/chapterNumber params change (Expo Router behavior),
+        so the modal's local `recentNotes` state would otherwise leak
+        across chapters and surface notes from the previously visited
+        chapter on the current one.
+      */}
       <NotesModal
+        key={`notes-${bookId}-${chapterNumber}`}
         visible={notesModalVisible}
         bookId={bookId}
         chapterNumber={chapterNumber}
