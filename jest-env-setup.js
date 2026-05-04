@@ -13,6 +13,33 @@ if (typeof global.structuredClone === 'undefined') {
   global.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
 }
 
+// Mock expo-secure-store. Per D-024, token-storage.ts imports SecureStore
+// (Keychain on iOS, EncryptedSharedPreferences on Android). The native
+// module isn't available under jest-expo, so without this mock any test
+// that transitively loads token-storage (via ThemeContext -> client-interceptors)
+// fails on require with "Cannot find native module 'ExpoSecureStore'".
+jest.mock('expo-secure-store', () => {
+  const storage = {};
+  return {
+    getItemAsync: jest.fn((key) => Promise.resolve(storage[key] ?? null)),
+    setItemAsync: jest.fn((key, value) => {
+      storage[key] = value;
+      return Promise.resolve();
+    }),
+    deleteItemAsync: jest.fn((key) => {
+      delete storage[key];
+      return Promise.resolve();
+    }),
+    isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+    WHEN_UNLOCKED: 'whenUnlocked',
+    WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'whenUnlockedThisDeviceOnly',
+    AFTER_FIRST_UNLOCK: 'afterFirstUnlock',
+    AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 'afterFirstUnlockThisDeviceOnly',
+    ALWAYS: 'always',
+    ALWAYS_THIS_DEVICE_ONLY: 'alwaysThisDeviceOnly',
+  };
+});
+
 // Mock AsyncStorage for tests
 // This provides a simple in-memory implementation for testing
 jest.mock('@react-native-async-storage/async-storage', () => {
