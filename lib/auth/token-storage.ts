@@ -59,22 +59,6 @@ export async function getAccessToken(): Promise<string | null> {
 }
 
 /**
- * @deprecated Refresh tokens are eliminated per D-005. Stub kept until
- * the companion PR removes all callers. No-op.
- */
-export async function setRefreshToken(_token: string): Promise<void> {
-  // intentional no-op
-}
-
-/**
- * @deprecated Refresh tokens are eliminated per D-005. Stub kept until
- * the companion PR removes all callers. Always returns null.
- */
-export async function getRefreshToken(): Promise<string | null> {
-  return null;
-}
-
-/**
  * Clear access token from SecureStore + sweep legacy AsyncStorage entries.
  * Used during logout.
  */
