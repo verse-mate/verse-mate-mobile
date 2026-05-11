@@ -1,0 +1,47 @@
+{
+  // Wrangler configuration for the VerseMate mobile web export (Expo for
+  // web) on Cloudflare Workers.
+  //
+  // Naming: the production custom domain is mobile.versemate.org so it
+  // does not conflict with verse-mate-web (app.versemate.org). The CF
+  // account is shared with verse-mate-web; only one Worker can bind a
+  // given custom domain, so the project names are distinct.
+  "$schema": "https://raw.githubusercontent.com/cloudflare/wrangler/main/config-schema.json",
+  "name": "verse-mate-mobile-web",
+  "main": "worker.js",
+  "compatibility_date": "2025-08-06",
+  "account_id": "e8f0b566ba1c8227a25e3784def4300e",
+
+  "workers_dev": true,
+
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Expo web export is a single-page app. Any path with no matching
+    // asset should serve /index.html (200) so expo-router can handle
+    // the client-side route. Without this, /bible/genesis/1 returns
+    // 404 instead of letting the SPA render it.
+    "not_found_handling": "single-page-application"
+  },
+
+  "dev": {
+    "ip": "localhost",
+    "port": 8790,
+    "local_protocol": "http"
+  },
+
+  "env": {
+    "preview": {
+      "name": "verse-mate-mobile-web-preview"
+    },
+    "production": {
+      "name": "verse-mate-mobile-web-production",
+      "routes": [
+        {
+          "pattern": "mobile.versemate.org",
+          "custom_domain": true
+        }
+      ]
+    }
+  }
+}

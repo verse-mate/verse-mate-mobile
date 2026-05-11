@@ -1,47 +1,45 @@
-name: Deploy Web (Cloudflare Pages)
+name: Deploy Web (Cloudflare Workers)
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
+      env:
+        description: Cloudflare env to deploy
         type: choice
+        required: true
+        default: production
         options:
-          - staging
+          - preview
           - production
-        default: staging
-  # Disabled: Cloudflare credentials not configured yet
-  # push:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - 'app/**'
-  #     - 'components/**'
-  #     - 'contexts/**'
-  #     - 'hooks/**'
-  #     - 'lib/**'
-  #     - 'services/**'
-  #     - 'constants/**'
-  #     - 'utils/**'
-  #     - 'assets/**'
-  #     - 'app.config.js'
-  #     - 'package.json'
-  #     - 'bun.lock'
+
+# Cancel in-flight runs for the same branch — last push wins.
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pick the env based on trigger:
+  #   - manual (workflow_dispatch): user picks
+  #   - push to main: production
+  #   - PR: preview (gets a per-PR workers.dev URL)
+  CLOUDFLARE_ENV: |-
+    ${{
+      github.event_name == 'workflow_dispatch' && inputs.env
+      || github.event_name == 'pull_request' && 'preview'
+      || github.ref == 'refs/heads/main' && 'production'
+      || 'preview'
+    }}
 
 jobs:
-  deploy:
-    name: Build & Deploy Web
+  build:
+    name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
-    # Default to staging for push triggers, use input for manual
-    env:
-      DEPLOY_ENV: ${{ github.event.inputs.environment || 'staging' }}
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -52,7 +50,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -60,46 +58,79 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build web export
-        run: npx expo export --platform web
+        run: bunx expo export --platform web
         env:
           EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://api.versemate.org' }}
-          EXPO_PUBLIC_WEB_URL: ${{ vars.EXPO_PUBLIC_WEB_URL || 'https://app.versemate.org' }}
+          EXPO_PUBLIC_WEB_URL: ${{ vars.EXPO_PUBLIC_WEB_URL || 'https://mobile.versemate.org' }}
           EXPO_PUBLIC_POSTHOG_KEY: ${{ vars.EXPO_PUBLIC_POSTHOG_KEY || 'phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC' }}
           EXPO_PUBLIC_POSTHOG_HOST: ${{ vars.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com' }}
           EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ vars.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '' }}
 
-      # SPA fallback: copy index.html to 404.html so Cloudflare Pages
-      # serves the app shell for client-side routes like /bible/1/1
-      - name: Add SPA fallback
-        run: cp dist/index.html dist/404.html
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+          if-no-files-found: error
 
-      - name: Deploy to Cloudflare Pages
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Skip deploy on forked PRs since secrets aren't available there.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Deploy to Cloudflare Workers
+        id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
+          # Pin to v4 — v3 doesn't parse wrangler.jsonc (only .toml).
+          wranglerVersion: "4.85.0"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || 'e8f0b566ba1c8227a25e3784def4300e' }}
-          command: pages deploy dist --project-name=verse-mate-expo-web --branch=${{ env.DEPLOY_ENV == 'production' && 'main' || github.head_ref || github.ref_name }}
-          packageManager: bun
+          command: deploy --env ${{ env.CLOUDFLARE_ENV }}
+
+      - name: Comment PR with preview URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
+        with:
+          script: |
+            const url = process.env.DEPLOY_URL;
+            if (!url) return;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📱 Mobile web preview deployed to ${url}`,
+            });
 
       - name: Deployment summary
         if: always()
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
         run: |
-          if [ "$DEPLOY_ENV" = "production" ]; then
-            URL="https://verse-mate-expo-web.pages.dev"
-          else
-            BRANCH="${{ github.head_ref || github.ref_name }}"
-            SAFE_BRANCH=$(echo "$BRANCH" | sed 's/[^a-zA-Z0-9]/-/g' | head -c 28)
-            URL="https://${SAFE_BRANCH}.verse-mate-expo-web.pages.dev"
-          fi
-
           cat >> $GITHUB_STEP_SUMMARY << EOF
-          ## Web Deployment
+          ## Mobile Web Deployment
 
           | Property | Value |
           |----------|-------|
-          | **Environment** | $DEPLOY_ENV |
-          | **URL** | $URL |
+          | **Environment** | ${{ env.CLOUDFLARE_ENV }} |
+          | **URL** | ${DEPLOY_URL:-(deploy step did not emit a URL)} |
           | **Branch** | ${{ github.ref_name }} |
           | **Commit** | ${{ github.sha }} |
-          | **Bundle size** | $(du -sh dist/ | cut -f1) |
           EOF
