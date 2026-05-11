@@ -22,7 +22,7 @@ Verify `adb reverse` is actually working from within the emulator. Add `adb reve
 
 ## What's Working
 
-- Token seeding via `adb sqlite3` — 3/3 keys stored every run (access token, refresh token, cached user profile)
+- Token seeding via `adb sqlite3` — access token + cached user profile stored every run (refresh tokens eliminated per D-005)
 - `secureTextEntry` fix — passwords can be typed in e2e-test builds (Maestro issue #1061 workaround)
 - 30+ **unauthenticated** tests pass reliably (Bible reading, navigation, swipe, search, topics, unauthenticated bookmarks/highlights/notes)
 - Infrastructure for auth: `.maestro/shared/setup-authenticated.yaml`, `.github/scripts/seed-auth-tokens.sh`, `AuthContext` e2e-test fallback
