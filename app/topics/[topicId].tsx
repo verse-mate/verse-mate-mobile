@@ -43,13 +43,6 @@ import { TopicPage } from '@/components/topics/TopicPage';
 import type { VersePress } from '@/components/topics/TopicText';
 import { TopicVerseTooltip } from '@/components/topics/TopicVerseTooltip';
 import { SplitView } from '@/components/ui/SplitView';
-import {
-  fontSizes,
-  fontWeights,
-  type getColors,
-  getHeaderSpecs,
-  spacing,
-} from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useLastReadPosition } from '@/hooks/bible';
@@ -60,6 +53,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useTopicById } from '@/src/api';
+import { fontSizes, fontWeights, type getColors, getHeaderSpecs, spacing } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
 import type { TopicCategory } from '@/types/topics';
 import { generateTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
@@ -713,7 +707,7 @@ function TopicHeader({
  */
 const createHeaderStyles = (
   headerSpecs: ReturnType<typeof getHeaderSpecs>,
-  themeColors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>
+  themeColors: ReturnType<typeof import('@/theme/tokens').getColors>
 ) =>
   StyleSheet.create({
     header: {

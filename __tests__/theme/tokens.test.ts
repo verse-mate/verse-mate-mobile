@@ -15,10 +15,12 @@ import {
   fontSizes,
   getColor,
   getFontSize,
+  getRadius,
   getSpacing,
+  radii,
   spacing,
   typography,
-} from '@/constants/bible-design-tokens';
+} from '@/theme/tokens';
 
 describe('Design Tokens', () => {
   describe('Color Contrast Ratios', () => {
@@ -170,6 +172,25 @@ describe('Design Tokens', () => {
       expect(getFontSize('body')).toBe(16);
       expect(getFontSize('displayLarge')).toBe(36);
       expect(getFontSize('caption')).toBe(12);
+    });
+
+    it('should return correct radius value using getRadius', () => {
+      expect(getRadius('sm')).toBe(4);
+      expect(getRadius('md')).toBe(8);
+      expect(getRadius('lg')).toBe(16);
+      expect(getRadius('full')).toBe(9999);
+    });
+  });
+
+  describe('Radius Scale', () => {
+    it('should expose the four radius keys', () => {
+      expect(Object.keys(radii)).toEqual(['sm', 'md', 'lg', 'full']);
+    });
+
+    it('should be ascending', () => {
+      const values = [radii.sm, radii.md, radii.lg, radii.full];
+      const sorted = [...values].sort((a, b) => a - b);
+      expect(values).toEqual(sorted);
     });
   });
 });

@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   FlatList,
@@ -33,10 +34,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconDocument } from '@/components/ui/icons';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { Note } from '@/types/notes';
 
 /**
@@ -83,6 +84,7 @@ function groupNotesByChapter(notes: Note[]): ChapterGroup[] {
  * Notes List Screen Component
  */
 export default function NotesScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -158,27 +160,25 @@ export default function NotesScreen() {
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.go_back')}
             accessibilityRole="button"
             testID="notes-back-button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Notes</Text>
+          <Text style={styles.headerTitle}>{t('notes.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
           <IconDocument width={64} height={64} color={colors.textDisabled} />
-          <Text style={styles.emptyStateTitle}>Please login to view your notes</Text>
-          <Text style={styles.emptyStateSubtitle}>
-            Sign in to create and access your Bible study notes
-          </Text>
+          <Text style={styles.emptyStateTitle}>{t('notes.login_required')}</Text>
+          <Text style={styles.emptyStateSubtitle}>{t('notes.login_subtitle')}</Text>
           <Pressable
             style={styles.loginButton}
             onPress={handleLoginPress}
             testID="notes-login-button"
           >
-            <Text style={styles.loginButtonText}>Login</Text>
+            <Text style={styles.loginButtonText}>{t('auth.login.submit')}</Text>
           </Pressable>
         </View>
       </View>
@@ -198,13 +198,13 @@ export default function NotesScreen() {
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.go_back')}
             accessibilityRole="button"
             testID="notes-back-button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Notes</Text>
+          <Text style={styles.headerTitle}>{t('notes.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
@@ -230,13 +230,13 @@ export default function NotesScreen() {
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.go_back')}
             accessibilityRole="button"
             testID="notes-back-button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Notes</Text>
+          <Text style={styles.headerTitle}>{t('notes.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <ScrollView
@@ -252,10 +252,8 @@ export default function NotesScreen() {
         >
           <View style={styles.emptyStateContainer}>
             <IconDocument width={64} height={64} color={colors.textDisabled} />
-            <Text style={styles.emptyStateTitle}>No notes yet</Text>
-            <Text style={styles.emptyStateSubtitle}>
-              Start taking notes while reading chapters to see them here.
-            </Text>
+            <Text style={styles.emptyStateTitle}>{t('notes.empty_title')}</Text>
+            <Text style={styles.emptyStateSubtitle}>{t('notes.empty_subtitle')}</Text>
           </View>
         </ScrollView>
       </View>
@@ -271,13 +269,13 @@ export default function NotesScreen() {
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.go_back')}
           accessibilityRole="button"
           testID="notes-back-button"
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>Notes</Text>
+        <Text style={styles.headerTitle}>{t('notes.title')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 

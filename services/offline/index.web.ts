@@ -57,6 +57,15 @@ export async function isBibleVersionDownloaded(_versionKey: string): Promise<boo
   return false;
 }
 export async function deleteBibleVersion(_versionKey: string): Promise<void> {}
+export async function getDownloadedBooksForVersion(_versionKey: string): Promise<number[]> {
+  return [];
+}
+export async function deleteBibleBook(_versionKey: string, _bookId: number): Promise<void> {}
+export async function insertBibleVersesForBook(
+  _versionKey: string,
+  _bookId: number,
+  _verses: BibleVerseData[]
+): Promise<void> {}
 export async function getSpecificVerses(
   _bookId: number,
   _chapter: number,
@@ -76,6 +85,10 @@ export async function getLocalCommentary(
 ): Promise<CommentaryData[]> {
   return [];
 }
+export async function upsertSingleCommentary(
+  _languageCode: string,
+  _commentary: CommentaryData
+): Promise<void> {}
 export async function isCommentaryDownloaded(_languageCode: string): Promise<boolean> {
   return false;
 }
@@ -194,7 +207,14 @@ export async function downloadTopics(
   _manifest: OfflineManifest,
   _onProgress?: ProgressCallback
 ): Promise<void> {}
+export async function downloadBibleBook(
+  _versionKey: string,
+  _bookId: number,
+  _manifest: OfflineManifest,
+  _onProgress?: ProgressCallback
+): Promise<void> {}
 export async function removeBibleVersion(_versionKey: string): Promise<void> {}
+export async function removeBibleBook(_versionKey: string, _bookId: number): Promise<void> {}
 export async function removeCommentaries(_languageCode: string): Promise<void> {}
 export async function removeTopics(_languageCode: string): Promise<void> {}
 export async function getBibleVersionsDownloadInfo(

@@ -19,8 +19,8 @@ import * as Haptics from 'expo-haptics';
 import { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { animationDurations, getFabSpecs, type ThemeMode } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { animationDurations, getFabSpecs, type ThemeMode } from '@/theme/tokens';
 
 interface FloatingActionButtonsProps {
   /** Callback fired when previous button is tapped */

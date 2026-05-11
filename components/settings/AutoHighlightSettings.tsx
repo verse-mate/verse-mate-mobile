@@ -10,7 +10,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAutoHighlightsEnabled } from '@/hooks/use-auto-highlights-enabled';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
@@ -19,6 +18,7 @@ import {
   getUserThemePreferences,
   updateUserThemePreference,
 } from '@/lib/api/auto-highlights';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 interface HighlightTheme {
   theme_id: number;

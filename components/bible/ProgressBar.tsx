@@ -22,8 +22,8 @@
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { animations, getProgressBarSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { animations, getProgressBarSpecs } from '@/theme/tokens';
 
 interface ProgressBarProps {
   /** Progress percentage (0-100) */

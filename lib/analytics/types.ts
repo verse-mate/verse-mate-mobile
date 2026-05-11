@@ -50,6 +50,13 @@ export enum AnalyticsEvent {
   VIEW_MODE_DURATION = 'VIEW_MODE_DURATION',
   TOOLTIP_READING_DURATION = 'TOOLTIP_READING_DURATION',
   CHAPTER_SCROLL_DEPTH = 'CHAPTER_SCROLL_DEPTH',
+
+  // Explanation Audio Events (feat-explanation-audio / TASK-017)
+  AUDIO_PLAYBACK_STARTED = 'AUDIO_PLAYBACK_STARTED',
+  AUDIO_PLAYBACK_PAUSED = 'AUDIO_PLAYBACK_PAUSED',
+  AUDIO_PLAYBACK_COMPLETED = 'AUDIO_PLAYBACK_COMPLETED',
+  AUDIO_PLAYBACK_SEEK = 'AUDIO_PLAYBACK_SEEK',
+  AUDIO_SPEED_CHANGED = 'AUDIO_SPEED_CHANGED',
 }
 
 // ============================================================================
@@ -259,6 +266,47 @@ export interface ChapterScrollDepthProperties {
 }
 
 // ============================================================================
+// Explanation audio event properties (feat-explanation-audio)
+// ============================================================================
+export interface AudioPlaybackStartedProperties {
+  explanationId: number;
+  explanationType: string;
+  bookId: number;
+  chapterNumber: number;
+  voice: string;
+  languageCode: string;
+  isResume: boolean;
+  resumePositionSeconds?: number;
+  ttsProvider: string;
+}
+
+export interface AudioPlaybackPausedProperties {
+  explanationId: number;
+  positionSeconds: number;
+  durationSeconds: number;
+  reason: 'user' | 'background' | 'navigation';
+}
+
+export interface AudioPlaybackCompletedProperties {
+  explanationId: number;
+  durationSeconds: number;
+  completedBy: 'natural' | 'skipped';
+}
+
+export interface AudioPlaybackSeekProperties {
+  explanationId: number;
+  fromSeconds: number;
+  toSeconds: number;
+  direction: 'forward' | 'backward';
+}
+
+export interface AudioSpeedChangedProperties {
+  explanationId: number;
+  fromSpeed: number;
+  toSpeed: number;
+}
+
+// ============================================================================
 // Event Properties Type Map
 // ============================================================================
 
@@ -294,6 +342,12 @@ export interface EventProperties {
   [AnalyticsEvent.VIEW_MODE_DURATION]: ViewModeDurationProperties;
   [AnalyticsEvent.TOOLTIP_READING_DURATION]: TooltipReadingDurationProperties;
   [AnalyticsEvent.CHAPTER_SCROLL_DEPTH]: ChapterScrollDepthProperties;
+  // Explanation Audio Events (feat-explanation-audio)
+  [AnalyticsEvent.AUDIO_PLAYBACK_STARTED]: AudioPlaybackStartedProperties;
+  [AnalyticsEvent.AUDIO_PLAYBACK_PAUSED]: AudioPlaybackPausedProperties;
+  [AnalyticsEvent.AUDIO_PLAYBACK_COMPLETED]: AudioPlaybackCompletedProperties;
+  [AnalyticsEvent.AUDIO_PLAYBACK_SEEK]: AudioPlaybackSeekProperties;
+  [AnalyticsEvent.AUDIO_SPEED_CHANGED]: AudioSpeedChangedProperties;
 }
 
 // ============================================================================

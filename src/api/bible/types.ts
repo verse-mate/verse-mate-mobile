@@ -64,6 +64,11 @@ export interface ExplanationContent {
   content: string;
   /** Language code (e.g., "en-US") */
   languageCode: string;
+  /**
+   * Explanation row id — surfaced for AudioInlineEntry (TASK-017).
+   * `null` when the source (e.g. local fallback) does not carry one.
+   */
+  explanationId: number | null;
 }
 
 // Bible book (full details)
@@ -203,5 +208,11 @@ export function transformExplanationResponse(apiResponse: {
         ? apiResponse.explanation.explanation
         : '',
     languageCode: apiResponse.explanation.language_code,
+    // Treat explanation_id=0 as "unknown id" (a sentinel used by the
+    // topic local-fallback path) so AudioInlineEntry doesn't try to
+    // fetch audio for an invalid row.
+    explanationId: apiResponse.explanation.explanation_id
+      ? apiResponse.explanation.explanation_id
+      : null,
   };
 }

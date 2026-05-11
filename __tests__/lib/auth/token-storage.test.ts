@@ -1,106 +1,63 @@
 /**
  * Token Storage Tests
  *
- * Focused tests for token storage using AsyncStorage.
- * Tests only critical behaviors: store, retrieve, and clear tokens.
+ * Per spec feat-auth-platform br-auth-001 (D-005) + Phase 1 decision D-024:
+ * tokens migrated to SecureStore. Refresh tokens eliminated. Tests cover
+ * SecureStore primary path + one-time migration from legacy AsyncStorage.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  clearTokens,
-  getAccessToken,
-  getRefreshToken,
-  setAccessToken,
-  setRefreshToken,
-} from '@/lib/auth/token-storage';
+import * as SecureStore from 'expo-secure-store';
+import { clearTokens, getAccessToken, setAccessToken } from '@/lib/auth/token-storage';
 
-// Mock @react-native-async-storage/async-storage
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  setItem: jest.fn(),
-  getItem: jest.fn(),
-  removeItem: jest.fn(),
-  multiRemove: jest.fn(),
+jest.mock('expo-secure-store', () => ({
+  setItemAsync: jest.fn(),
+  getItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
 }));
 
-describe('Token Storage', () => {
+describe('token-storage (D-024 SecureStore migration)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('setAccessToken', () => {
-    it('should store access token in AsyncStorage', async () => {
-      const token = 'test-access-token';
-
-      await setAccessToken(token);
-
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('versemate_access_token', token);
-    });
-
-    it('should handle AsyncStorage errors', async () => {
-      const error = new Error('AsyncStorage failed');
-      (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(error);
-
-      await expect(setAccessToken('token')).rejects.toThrow('AsyncStorage failed');
-    });
+  it('setAccessToken writes to SecureStore', async () => {
+    await setAccessToken('test-token');
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith('versemate_access_token', 'test-token');
   });
 
-  describe('getAccessToken', () => {
-    it('should retrieve access token from AsyncStorage', async () => {
-      const token = 'stored-access-token';
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(token);
-
-      const result = await getAccessToken();
-
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith('versemate_access_token');
-      expect(result).toBe(token);
-    });
-
-    it('should return null when no token exists', async () => {
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(null);
-
-      const result = await getAccessToken();
-
-      expect(result).toBeNull();
-    });
+  it('getAccessToken reads from SecureStore when present', async () => {
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValue('secure-token');
+    const result = await getAccessToken();
+    expect(result).toBe('secure-token');
+    expect(AsyncStorage.getItem).not.toHaveBeenCalled();
   });
 
-  describe('setRefreshToken', () => {
-    it('should store refresh token in AsyncStorage', async () => {
-      const token = 'test-refresh-token';
+  it('getAccessToken migrates legacy AsyncStorage token to SecureStore', async () => {
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue('legacy-token');
 
-      await setRefreshToken(token);
+    const result = await getAccessToken();
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('versemate_refresh_token', token);
-    });
+    expect(result).toBe('legacy-token');
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith('versemate_access_token', 'legacy-token');
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('versemate_access_token');
   });
 
-  describe('getRefreshToken', () => {
-    it('should retrieve refresh token from AsyncStorage', async () => {
-      const token = 'stored-refresh-token';
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce(token);
+  it('getAccessToken returns null when neither store has a token', async () => {
+    (SecureStore.getItemAsync as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
-      const result = await getRefreshToken();
+    const result = await getAccessToken();
 
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith('versemate_refresh_token');
-      expect(result).toBe(token);
-    });
+    expect(result).toBeNull();
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
   });
 
-  describe('clearTokens', () => {
-    it('should delete both access and refresh tokens', async () => {
-      await clearTokens();
-
-      expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
-        'versemate_access_token',
-        'versemate_refresh_token',
-      ]);
-    });
-
-    it('should handle multiRemove errors', async () => {
-      const error = new Error('multiRemove failed');
-      (AsyncStorage.multiRemove as jest.Mock).mockRejectedValueOnce(error);
-
-      await expect(clearTokens()).rejects.toThrow('multiRemove failed');
-    });
+  it('clearTokens removes from SecureStore + sweeps legacy AsyncStorage entries', async () => {
+    await clearTokens();
+    expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('versemate_access_token');
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('versemate_access_token');
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('versemate_refresh_token');
   });
 });

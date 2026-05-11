@@ -11,17 +11,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import * as tokenRefresh from '@/lib/auth/token-refresh';
 import * as tokenStorage from '@/lib/auth/token-storage';
 import { getAuthSession, postAuthLogin, postAuthSignup } from '@/src/api/generated/sdk.gen';
 
 // Mock dependencies
 jest.mock('@/lib/auth/token-storage');
-jest.mock('@/lib/auth/token-refresh');
 jest.mock('@/src/api/generated/sdk.gen');
 
 const mockTokenStorage = tokenStorage as jest.Mocked<typeof tokenStorage>;
-const mockTokenRefresh = tokenRefresh as jest.Mocked<typeof tokenRefresh>;
 const mockGetAuthSession = getAuthSession as jest.MockedFunction<typeof getAuthSession>;
 const mockPostAuthLogin = postAuthLogin as jest.MockedFunction<typeof postAuthLogin>;
 const mockPostAuthSignup = postAuthSignup as jest.MockedFunction<typeof postAuthSignup>;
@@ -43,11 +40,8 @@ describe('AuthContext', () => {
 
     // Default mock implementations
     mockTokenStorage.getAccessToken.mockResolvedValue(null);
-    mockTokenStorage.getRefreshToken.mockResolvedValue(null);
     mockTokenStorage.setAccessToken.mockResolvedValue(undefined);
-    mockTokenStorage.setRefreshToken.mockResolvedValue(undefined);
     mockTokenStorage.clearTokens.mockResolvedValue(undefined);
-    mockTokenRefresh.setupProactiveRefresh.mockReturnValue(() => {});
   });
 
   const createWrapper = () => {
@@ -75,7 +69,6 @@ describe('AuthContext', () => {
   it('should authenticate user on successful login', async () => {
     const mockTokens = {
       accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
       verified: true,
     };
 
@@ -115,10 +108,8 @@ describe('AuthContext', () => {
 
     // Verify tokens were stored
     expect(mockTokenStorage.setAccessToken).toHaveBeenCalledWith('mock-access-token');
-    expect(mockTokenStorage.setRefreshToken).toHaveBeenCalledWith('mock-refresh-token');
 
     // Verify proactive refresh was setup
-    expect(mockTokenRefresh.setupProactiveRefresh).toHaveBeenCalledWith('mock-access-token');
 
     // Verify state was updated
     await waitFor(() => {
@@ -131,7 +122,6 @@ describe('AuthContext', () => {
   it('should authenticate user on successful signup', async () => {
     const mockTokens = {
       accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
       verified: false,
     };
 
@@ -171,10 +161,8 @@ describe('AuthContext', () => {
 
     // Verify tokens were stored
     expect(mockTokenStorage.setAccessToken).toHaveBeenCalledWith('mock-access-token');
-    expect(mockTokenStorage.setRefreshToken).toHaveBeenCalledWith('mock-refresh-token');
 
     // Verify proactive refresh was setup
-    expect(mockTokenRefresh.setupProactiveRefresh).toHaveBeenCalledWith('mock-access-token');
 
     // Verify state was updated
     await waitFor(() => {
@@ -187,7 +175,6 @@ describe('AuthContext', () => {
   it('should clear auth state on logout', async () => {
     const mockTokens = {
       accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
       verified: true,
     };
 
@@ -216,9 +203,6 @@ describe('AuthContext', () => {
       response: {} as Response,
     });
 
-    const mockCleanup = jest.fn();
-    mockTokenRefresh.setupProactiveRefresh.mockReturnValue(mockCleanup);
-
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 
     // Login first
@@ -231,9 +215,7 @@ describe('AuthContext', () => {
     // Logout
     await result.current.logout();
 
-    // Verify cleanup was called
-    expect(mockCleanup).toHaveBeenCalled();
-
+    // Per D-005 — no proactive-refresh cleanup; just token clear.
     // Verify tokens were cleared
     expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
 
@@ -257,9 +239,8 @@ describe('AuthContext', () => {
       hasPassword: true,
     };
 
-    // Mock existing tokens
+    // Mock existing token
     mockTokenStorage.getAccessToken.mockResolvedValue('existing-access-token');
-    mockTokenStorage.getRefreshToken.mockResolvedValue('existing-refresh-token');
 
     mockGetAuthSession.mockResolvedValue({
       data: mockUser,
@@ -276,7 +257,6 @@ describe('AuthContext', () => {
     });
 
     // Verify proactive refresh was setup
-    expect(mockTokenRefresh.setupProactiveRefresh).toHaveBeenCalledWith('existing-access-token');
 
     // Verify state was restored
     expect(result.current.isAuthenticated).toBe(true);
@@ -286,7 +266,6 @@ describe('AuthContext', () => {
   // Test 6: Session restore should handle missing tokens gracefully
   it('should remain unauthenticated when no tokens exist', async () => {
     mockTokenStorage.getAccessToken.mockResolvedValue(null);
-    mockTokenStorage.getRefreshToken.mockResolvedValue(null);
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 
@@ -325,7 +304,6 @@ describe('AuthContext', () => {
     expect(result.current.isAuthenticated).toBe(false);
     expect(result.current.user).toBeNull();
     expect(mockTokenStorage.setAccessToken).not.toHaveBeenCalled();
-    expect(mockTokenStorage.setRefreshToken).not.toHaveBeenCalled();
   });
 
   // Test 8: useAuth hook should throw error when used outside AuthProvider

@@ -19,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react'; // NOTE: useCallback is still used for useFocusEffect which requires it
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -34,10 +35,10 @@ import { DeleteAccountFinalModal } from '@/components/account/DeleteAccountFinal
 import { DeleteAccountPasswordModal } from '@/components/account/DeleteAccountPasswordModal';
 import { DeleteAccountWarningModal } from '@/components/account/DeleteAccountWarningModal';
 import { Button } from '@/components/Button';
+import { FontSizeSelector } from '@/components/settings/FontSizeSelector';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { Avatar } from '@/components/ui/Avatar';
 import { TextInput } from '@/components/ui/TextInput';
-import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import type { BibleVersion } from '@/constants/bible-versions';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,6 +52,7 @@ import {
   patchUserPreferences,
   putAuthProfile,
 } from '@/src/api/generated/sdk.gen';
+import { type getColors, spacing } from '@/theme/tokens';
 
 interface Language {
   code: string;
@@ -91,8 +93,9 @@ const LANGUAGE_NAMES: Record<string, string> = {
 };
 
 export default function SettingsScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { user, isAuthenticated, logout, restoreSession, refreshTokens } = useAuth();
+  const { user, isAuthenticated, logout, restoreSession } = useAuth();
   const { colors } = useTheme();
   const { bibleVersion, setBibleVersion } = useBibleVersion();
   const {
@@ -317,8 +320,8 @@ export default function SettingsScreen() {
             if (!error) {
               // Clear the offline storage after successful sync
               await AsyncStorage.removeItem('@versemate:preferred_language');
-              // Refresh tokens to update claims
-              await refreshTokens();
+              // No token refresh needed per D-005 — restoreSession() picks up new claims.
+              await restoreSession();
             }
           }
         } catch (error) {
@@ -328,7 +331,7 @@ export default function SettingsScreen() {
     };
 
     syncOfflineLanguage();
-  }, [isDeviceOffline, isAuthenticated, user?.preferred_language, refreshTokens]);
+  }, [isDeviceOffline, isAuthenticated, user?.preferred_language, restoreSession]);
 
   const hasProfileChanges = () => {
     return (
@@ -481,7 +484,7 @@ export default function SettingsScreen() {
       await setBibleVersion(version.key);
       setShowVersionPicker(false);
     } catch (_error) {
-      Alert.alert('Error', 'Failed to save Bible version selection');
+      Alert.alert(t('common.error_title'), t('settings.errors.save_bible_version'));
     }
   };
 
@@ -521,22 +524,22 @@ export default function SettingsScreen() {
           throw error;
         }
 
-        // Refresh tokens to update claims (like language)
-        // Add a small delay to ensure backend DB consistency before issuing new token
+        // Per D-005, no token refresh — restoreSession() pulls fresh claims (e.g. language).
+        // Small delay to ensure backend DB consistency before re-fetching.
         await new Promise((resolve) => setTimeout(resolve, 500));
-        await refreshTokens();
+        await restoreSession();
       }
     } catch (error) {
       console.error('Failed to save language preference:', error);
-      Alert.alert('Error', 'Failed to save language preference');
+      Alert.alert(t('common.error_title'), t('settings.errors.save_language'));
     }
   };
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('settings.logout_confirm_title'), t('settings.logout_confirm_message'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Logout',
+        text: t('settings.logout'),
         style: 'destructive',
         onPress: async () => {
           await logout();
@@ -622,13 +625,13 @@ export default function SettingsScreen() {
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('settings.go_back')}
           accessibilityRole="button"
           testID="settings-back-button"
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -642,14 +645,14 @@ export default function SettingsScreen() {
         {/* Profile Information Section - Authenticated Only */}
         {isAuthenticated && user && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Profile Information</Text>
+            <Text style={styles.sectionLabel}>{t('settings.profile_information')}</Text>
             <View style={styles.profileHeader}>
               <View style={styles.profileIconWrapper}>
                 <Avatar url={user.imageSrc} size={48} />
               </View>
               <View style={styles.profileInfo}>
                 <View style={styles.profileNameRow}>
-                  <Text style={styles.profileName}>Profile Details</Text>
+                  <Text style={styles.profileName}>{t('settings.profile_details')}</Text>
                   {saveStatus === 'saving' && (
                     <ActivityIndicator
                       size="small"
@@ -677,33 +680,33 @@ export default function SettingsScreen() {
                 {saveStatus === 'error' && globalError ? (
                   <Text style={styles.profileErrorText}>{globalError}</Text>
                 ) : (
-                  <Text style={styles.profileSubtext}>Update your personal information</Text>
+                  <Text style={styles.profileSubtext}>{t('settings.profile_subtext')}</Text>
                 )}
               </View>
             </View>
 
             <View style={styles.form}>
               <TextInput
-                label="First Name"
+                label={t('settings.first_name')}
                 value={firstName}
                 onChangeText={setFirstName}
-                placeholder="Enter your first name"
+                placeholder={t('settings.first_name_placeholder')}
                 testID="settings-first-name-input"
               />
 
               <TextInput
-                label="Last Name"
+                label={t('settings.last_name')}
                 value={lastName}
                 onChangeText={setLastName}
-                placeholder="Enter your last name"
+                placeholder={t('settings.last_name_placeholder')}
                 testID="settings-last-name-input"
               />
 
               <TextInput
-                label="Email"
+                label={t('settings.email')}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Enter your email"
+                placeholder={t('settings.email_placeholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 testID="settings-email-input"
@@ -714,13 +717,13 @@ export default function SettingsScreen() {
 
         {/* Bible Version Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Bible Version</Text>
+          <Text style={styles.sectionLabel}>{t('settings.bible_version')}</Text>
           <Pressable
             style={styles.selectButton}
             onPress={() => setShowVersionPicker(!showVersionPicker)}
           >
             <Text style={styles.selectButtonText}>
-              {selectedVersionData?.value || 'Select Version'}
+              {selectedVersionData?.value || t('settings.select_version')}
             </Text>
             <Ionicons
               name={showVersionPicker ? 'chevron-up' : 'chevron-down'}
@@ -759,7 +762,7 @@ export default function SettingsScreen() {
 
         {/* Language Preferences Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Language Preferences</Text>
+          <Text style={styles.sectionLabel}>{t('settings.language_preferences')}</Text>
           <Pressable
             style={styles.selectButton}
             onPress={() => setShowLanguagePicker(!showLanguagePicker)}
@@ -769,7 +772,9 @@ export default function SettingsScreen() {
                 const selectedLang = availableLanguages.find(
                   (lang) => lang.code === selectedLanguage
                 );
-                return selectedLang ? formatLanguageDisplay(selectedLang) : 'Select Language';
+                return selectedLang
+                  ? formatLanguageDisplay(selectedLang)
+                  : t('settings.select_language');
               })()}
             </Text>
             <Ionicons
@@ -809,17 +814,20 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* Font Size Section */}
+        <FontSizeSelector />
+
         {/* Theme Selector Section */}
         <ThemeSelector />
 
         {/* Downloads & Offline — hidden on web (online-only) */}
         {Platform.OS !== 'web' && (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Downloads & Offline</Text>
+            <Text style={styles.sectionLabel}>{t('settings.downloads_offline')}</Text>
             <Pressable
               style={[styles.selectButton, styles.manageDownloadsButton]}
               onPress={() => router.push('/manage-downloads')}
-              accessibilityLabel="Manage offline downloads"
+              accessibilityLabel={t('settings.manage_downloads_a11y')}
               accessibilityRole="button"
             >
               <Ionicons
@@ -833,9 +841,11 @@ export default function SettingsScreen() {
                   style={[styles.selectButtonText, styles.manageDownloadsTitle]}
                   numberOfLines={1}
                 >
-                  Manage Downloads
+                  {t('settings.manage_downloads')}
                 </Text>
-                <Text style={styles.manageDownloadsSubtitle}>Download content for offline use</Text>
+                <Text style={styles.manageDownloadsSubtitle}>
+                  {t('settings.manage_downloads_subtitle')}
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </Pressable>
@@ -846,7 +856,7 @@ export default function SettingsScreen() {
         {isAuthenticated && (
           <View style={styles.section}>
             <Button
-              title="Logout"
+              title={t('settings.logout')}
               onPress={handleLogout}
               variant="outlineGold"
               fullWidth
@@ -861,12 +871,12 @@ export default function SettingsScreen() {
             <Pressable
               style={styles.deleteAccountButton}
               onPress={handleDeleteAccountPress}
-              accessibilityLabel="Delete account permanently"
+              accessibilityLabel={t('settings.delete_account_a11y')}
               accessibilityRole="button"
-              accessibilityHint="This action cannot be undone"
+              accessibilityHint={t('settings.delete_account_hint')}
             >
               <Ionicons name="trash-outline" size={20} color="#dc2626" />
-              <Text style={styles.deleteAccountText}>Delete Account</Text>
+              <Text style={styles.deleteAccountText}>{t('settings.delete_account')}</Text>
             </Pressable>
           </View>
         )}
@@ -875,11 +885,9 @@ export default function SettingsScreen() {
         {!isAuthenticated && (
           <View style={styles.notAuthenticatedContainer}>
             <Ionicons name="person-outline" size={64} color={colors.textTertiary} />
-            <Text style={styles.notAuthenticatedText}>
-              Sign in to access auto-highlights and profile settings.
-            </Text>
+            <Text style={styles.notAuthenticatedText}>{t('settings.sign_in_message')}</Text>
             <Button
-              title="Sign In"
+              title={t('auth.login.title')}
               onPress={() => router.push('/auth/login')}
               variant="primary"
               testID="settings-sign-in-button"

@@ -34,6 +34,7 @@ import { useMemo } from 'react';
 import { getBookById } from '@/constants/bible-books';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
+import { useToast } from '@/contexts/ToastContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   addLocalBookmark,
@@ -119,6 +120,7 @@ export function useBookmarks(): UseBookmarksResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isUserDataSynced, isOnline } = useOfflineContext();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const isDeviceOffline = !isOnline;
 
@@ -167,12 +169,14 @@ export function useBookmarks(): UseBookmarksResult {
   });
 
   // Extract bookmarks array from response (offline or remote)
+  // When user data is synced locally, the remote query is disabled, so we must
+  // read from the local cache regardless of network state.
   const bookmarks = useMemo(() => {
-    if (isDeviceOffline && localBookmarksData) {
+    if ((isDeviceOffline || isUserDataSynced) && localBookmarksData) {
       return localBookmarksData as Bookmark[];
     }
     return bookmarksData?.favorites || [];
-  }, [isDeviceOffline, localBookmarksData, bookmarksData]);
+  }, [isDeviceOffline, isUserDataSynced, localBookmarksData, bookmarksData]);
 
   // Add bookmark mutation
   const addMutation = useMutation({
@@ -258,6 +262,7 @@ export function useBookmarks(): UseBookmarksResult {
         queryClient.setQueryData(bookmarksQueryKey, context.previousBookmarks);
       }
       console.error('Failed to add bookmark:', error);
+      showToast('Failed to add bookmark. Please try again.');
     },
     onSuccess: (_data, variables) => {
       // Track analytics: BOOKMARK_ADDED event
@@ -338,6 +343,7 @@ export function useBookmarks(): UseBookmarksResult {
         queryClient.setQueryData(bookmarksQueryKey, context.previousBookmarks);
       }
       console.error('Failed to remove bookmark:', error);
+      showToast('Failed to remove bookmark. Please try again.');
     },
     onSuccess: (_data, variables) => {
       // Track analytics: BOOKMARK_REMOVED event

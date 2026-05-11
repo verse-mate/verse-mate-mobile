@@ -43,6 +43,7 @@ import { useMemo } from 'react';
 import { getBookById } from '@/constants/bible-books';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
+import { useToast } from '@/contexts/ToastContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   addLocalNote,
@@ -111,6 +112,7 @@ export function useNotes(): UseNotesResult {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isUserDataSynced, isOnline } = useOfflineContext();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const isDeviceOffline = !isOnline;
 
@@ -162,12 +164,14 @@ export function useNotes(): UseNotesResult {
   });
 
   // Extract notes array from response (offline or remote)
+  // When user data is synced locally, the remote query is disabled, so we must
+  // read from the local cache regardless of network state.
   const notes = useMemo(() => {
-    if (isDeviceOffline && localNotesData) {
+    if ((isDeviceOffline || isUserDataSynced) && localNotesData) {
       return localNotesData as Note[];
     }
     return notesData?.notes || [];
-  }, [isDeviceOffline, localNotesData, notesData]);
+  }, [isDeviceOffline, isUserDataSynced, localNotesData, notesData]);
 
   // Add note mutation
   const addMutation = useMutation({
@@ -202,7 +206,34 @@ export function useNotes(): UseNotesResult {
       if (!fn) throw new Error('Mutation function missing');
 
       // biome-ignore lint/suspicious/noExplicitAny: context required by type
-      return fn(variables, undefined as any);
+      const response = await fn(variables, undefined as any);
+
+      // NOTES-1: When the user's data is synced locally, the remote notes
+      // query is disabled (see line ~139) and the UI reads from the local
+      // SQLite cache. A bare POST leaves that cache stale, so the standalone
+      // notes screen never sees the new note until the next full sync.
+      // Mirror the server-confirmed note into the local cache so consumers
+      // that read from `localNotesData` reflect the add immediately.
+      if (isUserDataSynced && response?.note && variables.body) {
+        try {
+          await addLocalNote({
+            note_id: response.note.note_id,
+            book_id: variables.body.book_id,
+            chapter_number: variables.body.chapter_number,
+            verse_number:
+              typeof response.note.verse_id === 'number' ? response.note.verse_id : null,
+            content: response.note.content,
+            updated_at: response.note.updated_at,
+          });
+        } catch (err) {
+          // Don't fail the mutation if the local mirror write fails —
+          // the server is still the source of truth and invalidateQueries
+          // below will eventually reconcile.
+          console.warn('[notes] failed to mirror new note into local cache', err);
+        }
+      }
+
+      return response;
     },
     onMutate: async (variables) => {
       // Cancel any outgoing refetches
@@ -248,6 +279,7 @@ export function useNotes(): UseNotesResult {
         queryClient.setQueryData(notesQueryKey, context.previousNotes);
       }
       console.error('Failed to add note:', error);
+      showToast('Failed to save note. Please try again.');
     },
     onSuccess: (_data, variables) => {
       // Track analytics: NOTE_CREATED event (never track note content)
@@ -327,6 +359,7 @@ export function useNotes(): UseNotesResult {
         queryClient.setQueryData(notesQueryKey, context.previousNotes);
       }
       console.error('Failed to update note:', error);
+      showToast('Failed to update note. Please try again.');
     },
     onSuccess: (_data, variables) => {
       // Track analytics: NOTE_EDITED event (never track note content)
@@ -385,6 +418,7 @@ export function useNotes(): UseNotesResult {
         queryClient.setQueryData(notesQueryKey, context.previousNotes);
       }
       console.error('Failed to delete note:', error);
+      showToast('Failed to delete note. Please try again.');
     },
     onSuccess: (_data, variables) => {
       // Track analytics: NOTE_DELETED event

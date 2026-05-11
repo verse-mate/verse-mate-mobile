@@ -17,9 +17,9 @@ import {
 import { type EdgeInsets, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SvgProps } from 'react-native-svg';
 import { IconCopy, IconShare, IconTrash } from '@/components/ui/icons';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 interface HighlightOptionsModalProps {
   visible: boolean;
