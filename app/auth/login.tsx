@@ -11,6 +11,7 @@
 
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -41,6 +42,7 @@ import type { getColors } from '@/theme/tokens';
  * - "Continue without account" option
  */
 export default function Login() {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const params = useLocalSearchParams<{ fromOnboarding?: string }>();
@@ -153,8 +155,8 @@ export default function Login() {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.heading}>Welcome back</Text>
-            <Text style={styles.subtitle}>Login into your account</Text>
+            <Text style={styles.heading}>{t('auth.login.welcome_back')}</Text>
+            <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
           </View>
 
           {/* Form */}
@@ -170,10 +172,10 @@ export default function Login() {
 
             {/* Email */}
             <TextInput
-              label="Email"
+              label={t('auth.login.email_label')}
               value={email}
               onChangeText={setEmail}
-              placeholder="Email"
+              placeholder={t('auth.login.email_label')}
               keyboardType="email-address"
               autoCorrect={false}
               spellCheck={false}
@@ -183,10 +185,10 @@ export default function Login() {
 
             {/* Password */}
             <TextInput
-              label="Password"
+              label={t('auth.login.password_label')}
               value={password}
               onChangeText={setPassword}
-              placeholder="Password"
+              placeholder={t('auth.login.password_label')}
               secureTextEntry
               autoCorrect={false}
               spellCheck={false}
@@ -200,14 +202,14 @@ export default function Login() {
             {error && !ssoError && (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>
-                  {error?.message || 'An error occurred during login. Please try again.'}
+                  {error?.message || t('auth.errors.network_error')}
                 </Text>
               </View>
             )}
 
             {/* Submit Button */}
             <Button
-              title={isPending ? 'Logging in...' : 'Login'}
+              title={isPending ? t('common.loading') : t('auth.login.submit')}
               onPress={handleSubmit}
               variant="auth"
               fullWidth
@@ -217,9 +219,9 @@ export default function Login() {
 
             {/* Signup Link */}
             <View style={styles.linkContainer}>
-              <Text style={styles.linkText}>{"Don't have account? "}</Text>
+              <Text style={styles.linkText}>{t('auth.login.no_account')} </Text>
               <TouchableOpacity onPress={handleSignupPress} testID="login-signup-link">
-                <Text style={styles.linkTextUnderlined}>Create New Account</Text>
+                <Text style={styles.linkTextUnderlined}>{t('auth.login.create_account')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -228,7 +230,7 @@ export default function Login() {
               onPress={handleContinueWithout}
               testID="login-continue-without-account"
             >
-              <Text style={styles.continueText}>Continue without an account</Text>
+              <Text style={styles.continueText}>{t('auth.login.continue_without')}</Text>
             </TouchableOpacity>
           </View>
         </View>

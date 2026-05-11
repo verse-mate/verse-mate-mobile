@@ -2,6 +2,7 @@
 const { defineConfig } = require('eslint/config');
 const expoConfig = require('eslint-config-expo/flat');
 const reactCompilerPlugin = require('eslint-plugin-react-compiler');
+const i18nextPlugin = require('eslint-plugin-i18next');
 const biomeConfig = require('eslint-config-biome');
 
 module.exports = defineConfig([
@@ -29,6 +30,35 @@ module.exports = defineConfig([
       'react-hooks/rules-of-hooks': 'error',
       // React Compiler rules for Rules of React violations
       'react-compiler/react-compiler': 'error',
+    },
+  },
+
+  // i18n: forbid raw English strings in user-facing UI (D-016 part 3).
+  // Warn (not error) until the chapter-reader and remaining modal/component
+  // screens are codemodded — escalate to error once coverage is complete.
+  // Scoped to app/ and components/ where rendered strings live; lib/, hooks/,
+  // utils/ are exempt because they don't render text directly.
+  {
+    files: ['app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*.stories.{ts,tsx}', 'components/ui/icons/**'],
+    plugins: { i18next: i18nextPlugin },
+    rules: {
+      'i18next/no-literal-string': [
+        'warn',
+        {
+          markupOnly: true,
+          // Function args to skip — already wrapped in i18n or pure config.
+          callees: { exclude: ['^(t|i18n\\.t|i18next\\.t)$'] },
+          // JSX attributes that don't surface to users.
+          'jsx-attributes': {
+            exclude: [
+              '^(testID|nativeID|accessibilityRole|placeholderTextColor|keyboardType|autoCapitalize|autoComplete|autoCorrect|textContentType|returnKeyType|secureTextEntry|spellCheck|name|source|style|className|key|color|size|variant|fullWidth|numberOfLines|ellipsizeMode)$',
+            ],
+          },
+          // Words/phrases short enough to be technical or already-localized.
+          words: { exclude: ['^[A-Z_]+$', '^\\d+$', '^\\s*$'] },
+        },
+      ],
     },
   },
 
