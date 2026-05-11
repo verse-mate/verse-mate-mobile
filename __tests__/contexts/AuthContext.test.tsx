@@ -40,7 +40,6 @@ describe('AuthContext', () => {
 
     // Default mock implementations
     mockTokenStorage.getAccessToken.mockResolvedValue(null);
-    mockTokenStorage.getRefreshToken.mockResolvedValue(null);
     mockTokenStorage.setAccessToken.mockResolvedValue(undefined);
     mockTokenStorage.clearTokens.mockResolvedValue(undefined);
   });
@@ -240,9 +239,8 @@ describe('AuthContext', () => {
       hasPassword: true,
     };
 
-    // Mock existing tokens
+    // Mock existing token
     mockTokenStorage.getAccessToken.mockResolvedValue('existing-access-token');
-    mockTokenStorage.getRefreshToken.mockResolvedValue('existing-refresh-token');
 
     mockGetAuthSession.mockResolvedValue({
       data: mockUser,
@@ -268,7 +266,6 @@ describe('AuthContext', () => {
   // Test 6: Session restore should handle missing tokens gracefully
   it('should remain unauthenticated when no tokens exist', async () => {
     mockTokenStorage.getAccessToken.mockResolvedValue(null);
-    mockTokenStorage.getRefreshToken.mockResolvedValue(null);
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 

@@ -23,13 +23,9 @@ const API_BASE_URL = 'http://localhost:4000';
 // NOTE: Using 'test-user-123' to match MOCK_USER_ID from highlights.data.ts
 jest.mock('@/lib/auth/token-storage', () => ({
   getAccessToken: jest.fn().mockResolvedValue('mock-access-token-test-user-123'),
-  getRefreshToken: jest.fn().mockResolvedValue('mock-refresh-token-test-user-123'),
   setAccessToken: jest.fn().mockResolvedValue(undefined),
-  setRefreshToken: jest.fn().mockResolvedValue(undefined),
   clearTokens: jest.fn().mockResolvedValue(undefined),
 }));
-
-// Mock token refresh
 
 // Mock expo-haptics
 jest.mock('expo-haptics', () => ({

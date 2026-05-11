@@ -64,9 +64,7 @@ describe('Time-Based Analytics - Phase 1', () => {
 
     // Default mock implementations
     mockTokenStorage.getAccessToken.mockResolvedValue(null);
-    mockTokenStorage.getRefreshToken.mockResolvedValue(null);
     mockTokenStorage.setAccessToken.mockResolvedValue(undefined);
-    mockTokenStorage.setRefreshToken.mockResolvedValue(undefined);
     mockTokenStorage.clearTokens.mockResolvedValue(undefined);
   });
 
@@ -205,9 +203,8 @@ describe('Time-Based Analytics - Phase 1', () => {
 
     // Test 5: Verify last_login_at is NOT set on restoreSession()
     it('should NOT set last_login_at when session is restored', async () => {
-      // Mock existing tokens
+      // Mock existing token
       mockTokenStorage.getAccessToken.mockResolvedValue('existing-access-token');
-      mockTokenStorage.getRefreshToken.mockResolvedValue('existing-refresh-token');
 
       mockGetAuthSession.mockResolvedValue({
         data: mockUser,

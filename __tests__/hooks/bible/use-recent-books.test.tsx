@@ -32,13 +32,9 @@ const TEST_ACCESS_TOKEN = `mock-access-token-${TEST_USER_ID}`;
 // Mock auth tokens
 jest.mock('@/lib/auth/token-storage', () => ({
   getAccessToken: jest.fn().mockResolvedValue(TEST_ACCESS_TOKEN),
-  getRefreshToken: jest.fn().mockResolvedValue(`mock-refresh-token-${TEST_USER_ID}`),
   setAccessToken: jest.fn().mockResolvedValue(undefined),
-  setRefreshToken: jest.fn().mockResolvedValue(undefined),
   clearTokens: jest.fn().mockResolvedValue(undefined),
 }));
-
-// Mock token refresh
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
