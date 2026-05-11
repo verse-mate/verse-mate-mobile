@@ -1,19 +1,8 @@
 name: Deploy Web (Cloudflare Workers)
 
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
-    inputs:
-      env:
-        description: Cloudflare env to deploy
-        type: choice
-        required: true
-        default: production
-        options:
-          - preview
-          - production
 
 # Cancel in-flight runs for the same branch — last push wins.
 concurrency:
@@ -21,17 +10,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Pick the env based on trigger:
-  #   - manual (workflow_dispatch): user picks
-  #   - push to main: production
-  #   - PR: preview (gets a per-PR workers.dev URL)
-  CLOUDFLARE_ENV: |-
-    ${{
-      github.event_name == 'workflow_dispatch' && inputs.env
-      || github.event_name == 'pull_request' && 'preview'
-      || github.ref == 'refs/heads/main' && 'production'
-      || 'preview'
-    }}
+  # Preview-only: mobile web shares the verse-mate-web-preview Worker
+  # slot with verse-mate-web (operator decision, VER-12). No production
+  # deploy from this workflow — mobile.versemate.org binding is
+  # deferred until the repo CF API token is broadened to cover a
+  # dedicated mobile Worker. Pushes to main do not deploy.
+  CLOUDFLARE_ENV: preview
 
 jobs:
   build:

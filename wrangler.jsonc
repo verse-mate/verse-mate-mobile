@@ -2,12 +2,19 @@
   // Wrangler configuration for the VerseMate mobile web export (Expo for
   // web) on Cloudflare Workers.
   //
-  // Naming: the production custom domain is mobile.versemate.org so it
-  // does not conflict with verse-mate-web (app.versemate.org). The CF
-  // account is shared with verse-mate-web; only one Worker can bind a
-  // given custom domain, so the project names are distinct.
+  // Preview-only deploy. Mobile web shares the `verse-mate-web-preview`
+  // Worker service with verse-mate-web (operator decision, VER-12). The
+  // existing repo CF API token covers that service slot; rotating to a
+  // broader-scoped token was declined.
+  //
+  // Trade-off: any PR (mobile OR web) that triggers a preview deploy
+  // overwrites whichever build was deployed last. Preview URLs reflect
+  // the most recent deploy, not the PR being reviewed. No production
+  // env here so mobile cannot deploy to mobile.versemate.org or
+  // app.versemate.org. Custom-domain binding for mobile is deferred to
+  // a future token-scope expansion.
   "$schema": "https://raw.githubusercontent.com/cloudflare/wrangler/main/config-schema.json",
-  "name": "verse-mate-mobile-web",
+  "name": "verse-mate-web-preview",
   "main": "worker.js",
   "compatibility_date": "2025-08-06",
   "account_id": "e8f0b566ba1c8227a25e3784def4300e",
@@ -32,16 +39,7 @@
 
   "env": {
     "preview": {
-      "name": "verse-mate-mobile-web-preview"
-    },
-    "production": {
-      "name": "verse-mate-mobile-web-production",
-      "routes": [
-        {
-          "pattern": "mobile.versemate.org",
-          "custom_domain": true
-        }
-      ]
+      "name": "verse-mate-web-preview"
     }
   }
 }
