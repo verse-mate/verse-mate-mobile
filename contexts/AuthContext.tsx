@@ -154,7 +154,6 @@ interface AuthProviderProps {
  */
 interface SSOAuthResponse {
   accessToken: string;
-  refreshToken?: string;
   verified?: boolean;
   isNewUser?: boolean;
 }
