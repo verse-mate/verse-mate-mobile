@@ -4,25 +4,28 @@ set -e
 adb install app.apk
 
 # TCP transparent proxy: forward the emulator's HTTPS traffic to the real API.
-# The emulator's TLS stack can't connect directly (broken in CI). We fix this by:
+# CI Android emulators can't make direct HTTPS calls to api.versemate.org
+# (TLS handshake fails despite TCP+DNS working). We fix this by:
 # 1. socat on host: forwards TCP from port 443 to the real api.versemate.org:443
-# 2. Emulator hosts file: points api.versemate.org to 10.0.2.2 (host alias)
-# Result: App → HTTPS api.versemate.org → resolves to 10.0.2.2 → socat → real API
+# 2. iptables in emulator: redirects traffic for the real API IP to 10.0.2.2 (host)
+# Result: App → HTTPS api.versemate.org → iptables → 10.0.2.2 → socat → real API
 # TLS passes through transparently (real cert, no cleartext, no self-signed)
 echo "=========================================="
 echo "Setting up TCP transparent proxy for API"
 echo "=========================================="
 
-# Resolve the real IP of api.versemate.org
-REAL_API_IP=$(dig +short api.versemate.org A | grep -E '^[0-9]+\.' | head -1)
-if [ -z "$REAL_API_IP" ]; then
-  # Fallback: resolve CNAME then A record
-  REAL_API_IP=$(dig +short $(dig +short api.versemate.org CNAME | head -1) A | head -1)
+# Resolve ALL IPs for api.versemate.org (Cloudflare uses multiple)
+API_CNAME=$(dig +short api.versemate.org CNAME | head -1)
+if [ -n "$API_CNAME" ]; then
+  ALL_API_IPS=$(dig +short "$API_CNAME" A | grep -E '^[0-9]+\.')
+else
+  ALL_API_IPS=$(dig +short api.versemate.org A | grep -E '^[0-9]+\.')
 fi
-echo "Real API IP: $REAL_API_IP"
+FIRST_API_IP=$(echo "$ALL_API_IPS" | head -1)
+echo "API IPs: $(echo $ALL_API_IPS | tr '\n' ' ')"
 
-# Start socat TCP forwarder on host port 443 (forwards to real API)
-sudo socat TCP-LISTEN:443,fork,reuseaddr TCP:${REAL_API_IP}:443 &
+# Start socat TCP forwarder on host port 443 (uses first resolved IP)
+sudo socat TCP-LISTEN:443,fork,reuseaddr TCP:${FIRST_API_IP}:443 &
 SOCAT_PID=$!
 sleep 1
 if kill -0 $SOCAT_PID 2>/dev/null; then
@@ -34,12 +37,14 @@ fi
 # Verify proxy works from host
 curl -s --max-time 10 https://localhost/openapi/json -k > /dev/null 2>&1 && echo "TCP proxy verified (host)" || echo "WARNING: Host proxy test failed"
 
-# Use iptables to redirect emulator traffic from real API to host (10.0.2.2)
-# This is transparent: app connects to api.versemate.org via HTTPS normally,
-# iptables redirects TCP to host, socat forwards to real API. Real cert passes through.
+# Use iptables to redirect ALL API IPs from emulator to host (10.0.2.2)
 adb root 2>/dev/null || true
 sleep 2
-adb shell "iptables -t nat -A OUTPUT -p tcp -d ${REAL_API_IP} --dport 443 -j DNAT --to-destination 10.0.2.2:443" 2>&1 && echo "iptables redirect: ${REAL_API_IP}:443 → 10.0.2.2:443" || echo "WARNING: iptables failed"
+for ip in $ALL_API_IPS; do
+  adb shell "iptables -t nat -A OUTPUT -p tcp -d ${ip} --dport 443 -j DNAT --to-destination 10.0.2.2:443" 2>&1 \
+    && echo "iptables redirect: ${ip}:443 → 10.0.2.2:443" \
+    || echo "WARNING: iptables failed for ${ip}"
+done
 echo "Emulator traffic to api.versemate.org will route through host socat proxy"
 
 # Phase 0: Network diagnostic — prove whether emulator can reach api.versemate.org
@@ -155,7 +160,7 @@ fi
 
 TEST_FOLDER="$1"
 
-# Build env var flags for authenticated tests using arrays (safe for special chars)
+# Build env var flags for authenticated tests
 ENV_ARGS=()
 if [ -n "$E2E_TEST_EMAIL" ] && [ -n "$E2E_TEST_PASSWORD" ]; then
   ENV_ARGS+=(--env "E2E_TEST_EMAIL=${E2E_TEST_EMAIL}" --env "E2E_TEST_PASSWORD=${E2E_TEST_PASSWORD}")

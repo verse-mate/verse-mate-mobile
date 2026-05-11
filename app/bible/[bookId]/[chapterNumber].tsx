@@ -40,11 +40,13 @@ import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { SplitView } from '@/components/ui/SplitView';
-import { getHeaderSpecs, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { BibleInteractionProvider } from '@/contexts/BibleInteractionContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import {
   useActiveTab,
   useActiveView,
@@ -56,6 +58,7 @@ import {
 } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
+import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
@@ -67,6 +70,7 @@ import {
   usePrefetchPreviousChapter,
   useSaveLastRead,
 } from '@/src/api';
+import { getHeaderSpecs, spacing } from '@/theme/tokens';
 
 /**
  * View mode type for Bible reading interface
@@ -120,6 +124,22 @@ export default function ChapterScreen() {
 
   // Bible version for analytics
   const { bibleVersion } = useBibleVersion();
+
+  // Offline status for error states
+  const { isOffline } = useOfflineStatus();
+  const { downloadBibleBook, isInitialized: isOfflineInitialized } = useOfflineContext();
+  const { showToast } = useToast();
+
+  const handleDownloadThisBook = async () => {
+    try {
+      await downloadBibleBook(bibleVersion, bookId);
+    } catch (err) {
+      const isOfflineErr = (err as { code?: string } | undefined)?.code === 'OFFLINE';
+      showToast(
+        isOfflineErr ? "You're offline. Connect to the internet to download." : 'Download failed'
+      );
+    }
+  };
 
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
@@ -184,8 +204,12 @@ export default function ChapterScreen() {
   // Calculate progress percentage
   const { progress } = useBookProgress(bookId, chapterNumber, totalChapters);
 
-  // Fetch chapter data for loading state check
-  const { data: rawChapter, isLoading } = useBibleChapter(bookId, chapterNumber);
+  // Fetch chapter data for loading state check. Reconnect-driven refetches
+  // are handled globally — `app/_layout.tsx` bridges React Query's
+  // `onlineManager` to NetInfo, and this query opts into
+  // `refetchOnReconnect: 'always'` so the UI auto-recovers when the device
+  // is back online.
+  const { data: rawChapter, isLoading, isFetching } = useBibleChapter(bookId, chapterNumber);
   // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure has varying properties not captured by generated types
   const chapter = rawChapter as any;
 
@@ -384,38 +408,84 @@ export default function ChapterScreen() {
     ]
   );
 
-  // Show skeleton loader while loading and no data is available
-  if (isLoading && !chapter) {
+  // Show skeleton loader while loading/fetching and no data is available.
+  // `isFetching` covers refetches after react-query invalidation (e.g., after
+  // coming back online), preventing a brief "Chapter not found" flash.
+  if ((isLoading || isFetching || !isOfflineInitialized) && !chapter) {
     return (
       <View style={styles.container}>
         <ChapterHeader
           bookName={bookName}
           chapterNumber={chapterNumber}
           activeView={activeView}
-          onNavigationPress={() => {}}
+          onNavigationPress={() => setIsNavigationModalOpen(true)}
+          navigationModalVisible={isNavigationModalOpen}
           onViewChange={handleViewChange}
-          onMenuPress={() => {}}
+          onMenuPress={() => setIsMenuOpen(true)}
         />
         <SkeletonLoader />
+        <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+        <BibleNavigationModal
+          visible={isNavigationModalOpen}
+          onClose={() => setIsNavigationModalOpen(false)}
+          currentBookId={bookId}
+          currentChapter={chapterNumber}
+          onSelectChapter={(selectedBookId, chapterNum) => {
+            setIsNavigationModalOpen(false);
+            setActiveView('bible');
+            navigateToChapter(selectedBookId, chapterNum);
+          }}
+          onSelectTopic={(topicId, category) => {
+            setIsNavigationModalOpen(false);
+            setActiveView('bible');
+            router.push({ pathname: '/topics/[topicId]', params: { topicId, category } });
+          }}
+        />
       </View>
     );
   }
 
-  // Show error state (shouldn't happen due to redirect, but handle gracefully)
+  // Show error state with offline-aware messaging
   if (!chapter) {
     return (
       <View style={styles.container}>
         <ChapterHeader
-          bookName="Error"
+          bookName={bookName}
           chapterNumber={chapterNumber}
           activeView={activeView}
-          onNavigationPress={() => {}}
+          onNavigationPress={() => setIsNavigationModalOpen(true)}
+          navigationModalVisible={isNavigationModalOpen}
           onViewChange={handleViewChange}
-          onMenuPress={() => {}}
+          onMenuPress={() => setIsMenuOpen(true)}
         />
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Chapter not found</Text>
-        </View>
+        {isOffline ? (
+          <OfflineContentUnavailable
+            contentType="chapter"
+            onDownload={handleDownloadThisBook}
+            downloadLabel={`Download ${bookName}`}
+          />
+        ) : (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Chapter not found</Text>
+          </View>
+        )}
+        <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+        <BibleNavigationModal
+          visible={isNavigationModalOpen}
+          onClose={() => setIsNavigationModalOpen(false)}
+          currentBookId={bookId}
+          currentChapter={chapterNumber}
+          onSelectChapter={(selectedBookId, chapterNum) => {
+            setIsNavigationModalOpen(false);
+            setActiveView('bible');
+            navigateToChapter(selectedBookId, chapterNum);
+          }}
+          onSelectTopic={(topicId, category) => {
+            setIsNavigationModalOpen(false);
+            setActiveView('bible');
+            router.push({ pathname: '/topics/[topicId]', params: { topicId, category } });
+          }}
+        />
       </View>
     );
   }
@@ -710,7 +780,7 @@ function ChapterHeader({
  */
 const createHeaderStyles = (
   headerSpecs: ReturnType<typeof getHeaderSpecs>,
-  themeColors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>
+  themeColors: ReturnType<typeof import('@/theme/tokens').getColors>
 ) =>
   StyleSheet.create({
     header: {
@@ -792,7 +862,7 @@ const createHeaderStyles = (
  * Creates styles for ChapterScreen component
  */
 const createStyles = (
-  colors: ReturnType<typeof import('@/constants/bible-design-tokens').getColors>,
+  colors: ReturnType<typeof import('@/theme/tokens').getColors>,
   _mode: 'light' | 'dark'
 ) =>
   StyleSheet.create({

@@ -49,6 +49,7 @@ import { useMemo } from 'react';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
+import { useToast } from '@/contexts/ToastContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   addLocalHighlight,
@@ -177,6 +178,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isUserDataSynced, isOnline } = useOfflineContext();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   const { bookId, chapterNumber } = options || {};
   const isDeviceOffline = !isOnline;
@@ -263,19 +265,21 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
   });
 
   // Extract highlights arrays from responses (offline or remote)
+  // When user data is synced locally, the remote query is disabled, so we must
+  // read from the local cache regardless of network state.
   const allHighlights = useMemo(() => {
-    if (isDeviceOffline && localAllHighlights) {
+    if ((isDeviceOffline || isUserDataSynced) && localAllHighlights) {
       return mapOfflineHighlights(localAllHighlights);
     }
     return allHighlightsData?.highlights || [];
-  }, [isDeviceOffline, localAllHighlights, allHighlightsData]);
+  }, [isDeviceOffline, isUserDataSynced, localAllHighlights, allHighlightsData]);
 
   const chapterHighlights = useMemo(() => {
-    if (isDeviceOffline && localChapterHighlights) {
+    if ((isDeviceOffline || isUserDataSynced) && localChapterHighlights) {
       return mapOfflineHighlights(localChapterHighlights);
     }
     return chapterHighlightsData?.highlights || [];
-  }, [isDeviceOffline, localChapterHighlights, chapterHighlightsData]);
+  }, [isDeviceOffline, isUserDataSynced, localChapterHighlights, chapterHighlightsData]);
 
   // Add highlight mutation
   const addMutation = useMutation({
@@ -397,6 +401,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         queryClient.setQueryData(chapterHighlightsQueryKey, context.previousChapterHighlights);
       }
       console.error('Failed to add highlight:', error);
+      showToast('Failed to save highlight. Please try again.');
 
       // Re-throw error for component to handle (especially overlap errors)
       throw error;
@@ -555,6 +560,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         queryClient.setQueryData(chapterHighlightsQueryKey, context.previousChapterHighlights);
       }
       console.error('Failed to update highlight color:', error);
+      showToast('Failed to update highlight. Please try again.');
     },
     onSuccess: (_data, variables) => {
       try {
@@ -647,6 +653,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
         queryClient.setQueryData(chapterHighlightsQueryKey, context.previousChapterHighlights);
       }
       console.error('Failed to delete highlight:', error);
+      showToast('Failed to remove highlight. Please try again.');
     },
     onSuccess: (_data, variables) => {
       try {

@@ -13,6 +13,33 @@ if (typeof global.structuredClone === 'undefined') {
   global.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
 }
 
+// Mock expo-secure-store. Per D-024, token-storage.ts imports SecureStore
+// (Keychain on iOS, EncryptedSharedPreferences on Android). The native
+// module isn't available under jest-expo, so without this mock any test
+// that transitively loads token-storage (via ThemeContext -> client-interceptors)
+// fails on require with "Cannot find native module 'ExpoSecureStore'".
+jest.mock('expo-secure-store', () => {
+  const storage = {};
+  return {
+    getItemAsync: jest.fn((key) => Promise.resolve(storage[key] ?? null)),
+    setItemAsync: jest.fn((key, value) => {
+      storage[key] = value;
+      return Promise.resolve();
+    }),
+    deleteItemAsync: jest.fn((key) => {
+      delete storage[key];
+      return Promise.resolve();
+    }),
+    isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+    WHEN_UNLOCKED: 'whenUnlocked',
+    WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'whenUnlockedThisDeviceOnly',
+    AFTER_FIRST_UNLOCK: 'afterFirstUnlock',
+    AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 'afterFirstUnlockThisDeviceOnly',
+    ALWAYS: 'always',
+    ALWAYS_THIS_DEVICE_ONLY: 'alwaysThisDeviceOnly',
+  };
+});
+
 // Mock AsyncStorage for tests
 // This provides a simple in-memory implementation for testing
 jest.mock('@react-native-async-storage/async-storage', () => {
@@ -132,16 +159,22 @@ jest.mock('react-native-gesture-handler', () => {
 // Global mock for ThemeContext to avoid expo-location dependency issues in tests
 // This mock provides a simple default theme that works for all components
 // Note: __tests__/contexts/ThemeContext.test.tsx has its own mocks and is not affected by this
-jest.mock('@/contexts/ThemeContext', () => ({
-  ThemeProvider: ({ children }) => children,
-  useTheme: () => ({
-    preference: 'auto',
-    mode: 'light',
-    colors: require('@/constants/bible-design-tokens').colors.light,
-    setPreference: jest.fn(),
-    isLoading: false,
-  }),
-}));
+jest.mock('@/contexts/ThemeContext', () => {
+  const tokens = require('@/theme/tokens');
+  return {
+    ThemeProvider: ({ children }) => children,
+    useTheme: () => ({
+      preference: 'auto',
+      mode: 'light',
+      colors: tokens.colors.light,
+      typography: tokens.typography,
+      spacing: tokens.spacing,
+      radii: tokens.radii,
+      setPreference: jest.fn(),
+      isLoading: false,
+    }),
+  };
+});
 
 // Mock Dictionary native module for tests
 // This module uses requireNativeModule which isn't available in Jest

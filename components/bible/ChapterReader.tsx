@@ -36,6 +36,14 @@ import { HighlightedText, type WordSelection } from '@/components/bible/Highligh
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
+import type { HighlightColor } from '@/constants/highlight-colors';
+import { getHighlightColor } from '@/constants/highlight-colors';
+import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
+import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useFontSize } from '@/hooks/bible/use-font-size';
+import type { Highlight } from '@/hooks/bible/use-highlights';
 import {
   fontSizes,
   fontWeights,
@@ -43,14 +51,7 @@ import {
   getHeaderSpecs,
   lineHeights,
   spacing,
-} from '@/constants/bible-design-tokens';
-import type { HighlightColor } from '@/constants/highlight-colors';
-import { getHighlightColor } from '@/constants/highlight-colors';
-import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
-import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityContext';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useToast } from '@/contexts/ToastContext';
-import type { Highlight } from '@/hooks/bible/use-highlights';
+} from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import {
@@ -263,7 +264,8 @@ export function ChapterReader({
 }: ChapterReaderProps) {
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
-  const styles = createStyles(colors, explanationsOnly);
+  const { fontSize: userFontSize } = useFontSize();
+  const styles = createStyles(colors, explanationsOnly, userFontSize);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
   const { showToast } = useToast();
 
@@ -543,6 +545,7 @@ export function ChapterReader({
                     >
                       <Text
                         style={styles.verseTextParagraph}
+                        selectable={true}
                         onTextLayout={(e) => handleTextLayout(groupKey, e)}
                       >
                         {group.map((verse, verseIndex) => {
@@ -776,7 +779,11 @@ export function ChapterReader({
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: boolean) =>
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  explanationsOnly?: boolean,
+  userFontSize: number = fontSizes.bodyLarge
+) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -836,21 +843,21 @@ const createStyles = (colors: ReturnType<typeof getColors>, explanationsOnly?: b
       color: colors.textTertiary,
     },
     verseText: {
-      fontSize: fontSizes.bodyLarge,
+      fontSize: userFontSize,
       fontWeight: fontWeights.regular,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      lineHeight: userFontSize * 2.0,
       color: colors.textPrimary,
     },
     verseTextInline: {
-      fontSize: fontSizes.bodyLarge,
+      fontSize: userFontSize,
       fontWeight: fontWeights.regular,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      lineHeight: userFontSize * 2.0,
       color: colors.textPrimary,
     },
     verseTextParagraph: {
-      fontSize: fontSizes.bodyLarge,
+      fontSize: userFontSize,
       fontWeight: fontWeights.regular,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      lineHeight: userFontSize * 2.0,
       color: colors.textPrimary,
       marginBottom: spacing.md,
     },

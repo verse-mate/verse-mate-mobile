@@ -17,11 +17,10 @@ import {
   View,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-
-import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { isAppleSignInEnabled } from '@/hooks/auth/useAppleSignIn';
 import { isGoogleSignInConfigured } from '@/hooks/auth/useGoogleSignIn';
+import type { getColors } from '@/theme/tokens';
 
 /**
  * Google "G" Logo SVG Component

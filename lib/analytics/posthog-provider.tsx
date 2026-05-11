@@ -33,6 +33,14 @@ export function getPostHogInstance() {
 const posthogApiKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const posthogHost = process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com';
 const sessionReplayEnabled = process.env.EXPO_PUBLIC_POSTHOG_SESSION_REPLAY === 'true';
+// Explicit kill-switch (e.g. local dev without analytics). Takes precedence
+// over the API key so contributors can set it without clobbering their env.
+const posthogDisabled = process.env.EXPO_PUBLIC_POSTHOG_DISABLED === 'true';
+// A valid PostHog project key starts with `phc_` followed by a long random
+// suffix. `.env.example` ships with the literal `phc_your_project_api_key_here`
+// so contributors who forget to swap it shouldn't cause red-screen flushes.
+const PHC_KEY_FORMAT = /^phc_[a-zA-Z0-9]{20,}$/;
+const hasValidKey = typeof posthogApiKey === 'string' && PHC_KEY_FORMAT.test(posthogApiKey);
 
 /**
  * Extract language and country from device locale
@@ -128,8 +136,10 @@ function PostHogInitializer({ children }: { children: ReactNode }) {
  * Otherwise renders children directly (graceful degradation)
  */
 export function AppPostHogProvider({ children }: { children: ReactNode }) {
-  if (!posthogApiKey) {
-    // No PostHog key - render children without analytics
+  // Bail out when explicitly disabled or when the key isn't a valid PostHog
+  // project key (e.g. the `.env.example` placeholder). Either path prevents
+  // the SDK from POSTing with a bogus key and crashing on dev.
+  if (posthogDisabled || !hasValidKey) {
     return <>{children}</>;
   }
 

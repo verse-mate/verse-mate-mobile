@@ -43,6 +43,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HighlightColorPicker } from '@/components/bible/HighlightColorPicker';
+import type { HighlightColor } from '@/constants/highlight-colors';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useDeviceInfo } from '@/hooks/use-device-info';
 import {
   fontSizes,
   fontWeights,
@@ -50,10 +53,7 @@ import {
   getModalSpecs,
   spacing,
   type ThemeMode,
-} from '@/constants/bible-design-tokens';
-import type { HighlightColor } from '@/constants/highlight-colors';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useDeviceInfo } from '@/hooks/use-device-info';
+} from '@/theme/tokens';
 
 /**
  * Verse range for the highlight selection

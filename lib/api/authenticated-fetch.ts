@@ -8,7 +8,8 @@
  */
 
 import { getAccessToken } from '@/lib/auth/token-storage';
-import { refreshAccessToken } from '@/lib/auth/token-refresh';
+// refreshAccessToken removed per D-005 — access token IS the persistent session;
+// 401 means token revoked or expired (after 90 days). Caller should clear tokens.
 
 /**
  * Fetch wrapper with automatic 401 handling and token refresh
@@ -43,34 +44,10 @@ export async function authenticatedFetch(
     headers,
   });
 
-  // If 401 and not already retrying, attempt token refresh
-  if (response.status === 401 && retryCount === 0) {
-    // Don't refresh on auth endpoints themselves
-    const isAuthEndpoint =
-      url.includes('/auth/login') ||
-      url.includes('/auth/signup') ||
-      url.includes('/auth/refresh');
-
-    if (!isAuthEndpoint) {
-      try {
-        // Refresh the access token
-        const newAccessToken = await refreshAccessToken();
-
-        if (newAccessToken) {
-          // Retry the request with the new token
-          const retryHeaders = {
-            ...headers,
-            Authorization: `Bearer ${newAccessToken}`,
-          };
-
-          return authenticatedFetch(url, { ...init, headers: retryHeaders }, retryCount + 1);
-        }
-      } catch (error) {
-        console.error('Token refresh failed during 401 retry:', error);
-        // Fall through to return the original 401 response
-      }
-    }
-  }
+  // 401 retry-with-refresh removed per D-005 — access token IS the persistent
+  // session. A 401 means the token is genuinely revoked/expired; no refresh
+  // path. Callers should observe 401 in the response and route to login.
+  void retryCount;
 
   return response;
 }

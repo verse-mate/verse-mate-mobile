@@ -35,12 +35,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useNativeDictionary } from '@/hooks/use-native-dictionary';
 import { lookupWord } from '@/services/dictionary-service';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { DictionaryResult, EastonEntry, StrongsEntry, WebsterEntry } from '@/types/dictionary';
 
 interface WordDefinitionTooltipProps {

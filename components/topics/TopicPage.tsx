@@ -26,16 +26,10 @@ import { BottomLogo } from '@/components/bible/BottomLogo';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { TopicText, type VersePress } from '@/components/topics/TopicText';
-import {
-  fontSizes,
-  fontWeights,
-  type getColors,
-  lineHeights,
-  spacing,
-} from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useTopicById, useTopicReferences } from '@/src/api';
+import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
 
 /**

@@ -56,6 +56,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useRecentBooks } from '@/hooks/bible/use-recent-books';
+import { useCachedTopics } from '@/hooks/topics/use-cached-topics';
+import { useDeviceInfo } from '@/hooks/use-device-info';
+import { useBibleTestaments } from '@/src/api';
 import {
   fontSizes,
   fontWeights,
@@ -65,12 +70,7 @@ import {
   spacing,
   springConfig,
   type ThemeMode,
-} from '@/constants/bible-design-tokens';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useRecentBooks } from '@/hooks/bible/use-recent-books';
-import { useCachedTopics } from '@/hooks/topics/use-cached-topics';
-import { useDeviceInfo } from '@/hooks/use-device-info';
-import { useBibleTestaments } from '@/src/api';
+} from '@/theme/tokens';
 import type { BookMetadata, Testament } from '@/types/bible';
 import { getTestamentFromBookId } from '@/types/bible';
 import type { TopicCategory } from '@/types/topics';

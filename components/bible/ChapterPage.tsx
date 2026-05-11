@@ -22,13 +22,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
+import { AudioInlineEntry } from '@/components/bible/AudioInlineEntry';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
-import { animations, type getColors, spacing } from '@/constants/bible-design-tokens';
+import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
@@ -38,6 +39,7 @@ import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
+import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
@@ -101,6 +103,7 @@ function TabContent({
   filteredAutoHighlights,
   scrollRef,
   onTabContentSizeChange,
+  isAvailableOffline,
 }: {
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
@@ -117,6 +120,7 @@ function TabContent({
   filteredAutoHighlights?: AutoHighlight[];
   scrollRef?: React.RefObject<ScrollView | null>;
   onTabContentSizeChange?: (contentWidth: number, contentHeight: number) => void;
+  isAvailableOffline?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = createStyles(colors); // Use local createStyles for TabContent
@@ -126,7 +130,13 @@ function TabContent({
 
   // Determine content for the reader
   const explanationContent = content && 'content' in content ? content : undefined;
-  const hasContent = explanationContent && explanationContent.content.trim().length > 0;
+  // Defend against `content.content` being undefined/null at render time —
+  // happens when the explanations API hasn't returned a body yet (loading
+  // state) or the field is genuinely missing on a chapter. Without the guard,
+  // calling .trim() on undefined crashes TabContent and takes down the whole
+  // reader.
+  const hasContent =
+    typeof explanationContent?.content === 'string' && explanationContent.content.trim().length > 0;
 
   // Only show skeleton on initial load, not when transitioning between chapters
   // This prevents flicker when swiping between chapters
@@ -182,6 +192,20 @@ function TabContent({
         </Animated.View>
       ) : (
         <View>
+          {/* TASK-017: audio entry is also mounted in BibleExplanationsPanel
+              (tablet / split-view) — this branch is the phone-portrait
+              primary reading view. Both paths render the chip the same way. */}
+          {chapter && explanationContent?.explanationId ? (
+            <AudioInlineEntry
+              explanationId={explanationContent.explanationId}
+              explanationType={activeTab}
+              bookId={chapter.bookId}
+              chapterNumber={chapter.chapterNumber}
+              language={explanationContent.languageCode}
+              sourceHref={`/bible/${chapter.bookId}/${chapter.chapterNumber}`}
+            />
+          ) : null}
+          {isAvailableOffline && <AvailableOfflineBadge />}
           {chapter && (
             <ChapterReader
               chapter={chapter}
@@ -483,6 +507,7 @@ export function ChapterPage({
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
+    isLocalData: summaryIsLocal,
   } = useBibleSummary(bookId, chapterNumber, undefined, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -494,6 +519,7 @@ export function ChapterPage({
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
+    isLocalData: byLineIsLocal,
   } = useBibleByLine(bookId, chapterNumber, undefined, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -505,6 +531,7 @@ export function ChapterPage({
     data: detailedData,
     isLoading: isDetailedLoading,
     error: detailedError,
+    isLocalData: detailedIsLocal,
   } = useBibleDetailed(bookId, chapterNumber, undefined, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -754,6 +781,7 @@ export function ChapterPage({
             content={summaryData}
             isLoading={isSummaryLoading}
             error={summaryError}
+            isAvailableOffline={summaryIsLocal}
             visible={activeTab === 'summary'}
             shouldRenderHidden={delayedRenderStage >= 2}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
@@ -773,6 +801,7 @@ export function ChapterPage({
             content={byLineData}
             isLoading={isByLineLoading}
             error={byLineError}
+            isAvailableOffline={byLineIsLocal}
             visible={activeTab === 'byline'}
             shouldRenderHidden={delayedRenderStage >= 3}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
@@ -792,6 +821,7 @@ export function ChapterPage({
             content={detailedData}
             isLoading={isDetailedLoading}
             error={detailedError}
+            isAvailableOffline={detailedIsLocal}
             visible={activeTab === 'detailed'}
             shouldRenderHidden={delayedRenderStage >= 4}
             testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
@@ -854,7 +884,16 @@ export function ChapterPage({
       </Animated.ScrollView>
 
       {/* Note Modals - Rendered OUTSIDE ScrollView */}
+      {/*
+        NOTES-1: Force a fresh NotesModal instance per chapter.
+        This route reuses the same ChapterPage component when the
+        bookId/chapterNumber params change (Expo Router behavior),
+        so the modal's local `recentNotes` state would otherwise leak
+        across chapters and surface notes from the previously visited
+        chapter on the current one.
+      */}
       <NotesModal
+        key={`notes-${bookId}-${chapterNumber}`}
         visible={notesModalVisible}
         bookId={bookId}
         chapterNumber={chapterNumber}

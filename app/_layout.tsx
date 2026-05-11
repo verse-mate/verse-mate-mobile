@@ -10,8 +10,15 @@
  * @see Task Group 4 - Deep Link Handling
  */
 
+import NetInfo from '@react-native-community/netinfo';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  MutationCache,
+  onlineManager,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -25,22 +32,40 @@ import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AppErrorBoundary } from '@/components/AppErrorBoundary';
+import { MobileAudioPlayerRoot } from '@/components/bible/MobileAudioPlayerRoot';
+import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { preloadAllTopicsCache } from '@/hooks/topics/use-cached-topics';
+import {
+  trackAudioPlaybackCompleted,
+  trackAudioPlaybackPaused,
+  trackAudioPlaybackStarted,
+} from '@/lib/analytics/audio-events';
 import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
 import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
+import { ExpoAudioEngine } from '@/lib/audio/expoAudioEngine';
+import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
+import { I18nProvider } from '@/lib/i18n/I18nProvider';
 import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
 import { ONBOARDING_KEY } from './onboarding';
 
 // Keep the splash screen visible while we fetch last read position
 SplashScreen.preventAutoHideAsync();
+
+// TASK-009 / TASK-017: single AudioPlayerProvider instance, app-lifecycle.
+// E2E test runs use the in-memory StubAudioEngine to avoid native deps;
+// every other build uses the real expo-audio engine.
+// Mounted here (not inside the provider tree) so the engine's event
+// listeners survive React re-renders.
+const audioEngine =
+  process.env.APP_ENV === 'e2e-test' ? new StubAudioEngine() : new ExpoAudioEngine();
 
 // Create a QueryClient instance (singleton)
 const queryClient = new QueryClient({
@@ -63,6 +88,16 @@ const queryClient = new QueryClient({
 // Set up client interceptors for authentication
 // Must be called before any API requests
 setupClientInterceptors();
+
+// Bridge React Query's onlineManager to React Native's connectivity signal so
+// queries with `refetchOnReconnect` automatically retry the moment NetInfo
+// reports a real connection — replaces ad-hoc per-screen offline→online
+// refetch effects.
+onlineManager.setEventListener((setOnline) =>
+  NetInfo.addEventListener((state) => {
+    setOnline(state.isConnected === true);
+  })
+);
 
 /**
  * Inner Layout Component
@@ -422,21 +457,56 @@ function RootLayoutInner() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppPostHogProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <CustomThemeProvider>
-              <DeviceInfoProvider>
-                <OfflineProvider>
-                  <ToastProvider>
-                    <RootLayoutInner />
-                  </ToastProvider>
-                </OfflineProvider>
-              </DeviceInfoProvider>
-            </CustomThemeProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </AppPostHogProvider>
+      <I18nProvider>
+        <AppPostHogProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <CustomThemeProvider>
+                <DeviceInfoProvider>
+                  <OfflineProvider>
+                    <ToastProvider>
+                      <AudioPlayerProvider
+                        engine={audioEngine}
+                        onPlaybackStarted={(track, args) =>
+                          trackAudioPlaybackStarted({
+                            explanationId: track.explanation_id,
+                            explanationType: track.explanation_type,
+                            bookId: track.book_id,
+                            chapterNumber: track.chapter_number,
+                            voice: track.voice,
+                            languageCode: track.language_code,
+                            isResume: args.isResume,
+                            resumePositionSeconds: args.resumePositionSeconds,
+                            ttsProvider: track.tts_provider,
+                          })
+                        }
+                        onPlaybackPaused={(track, positionSeconds, reason) =>
+                          trackAudioPlaybackPaused({
+                            explanationId: track.explanation_id,
+                            positionSeconds,
+                            durationSeconds: track.duration_seconds,
+                            reason,
+                          })
+                        }
+                        onPlaybackCompleted={(track) =>
+                          trackAudioPlaybackCompleted({
+                            explanationId: track.explanation_id,
+                            durationSeconds: track.duration_seconds,
+                            completedBy: 'natural',
+                          })
+                        }
+                      >
+                        <RootLayoutInner />
+                        <MobileAudioPlayerRoot />
+                      </AudioPlayerProvider>
+                    </ToastProvider>
+                  </OfflineProvider>
+                </DeviceInfoProvider>
+              </CustomThemeProvider>
+            </AuthProvider>
+          </QueryClientProvider>
+        </AppPostHogProvider>
+      </I18nProvider>
     </GestureHandlerRootView>
   );
 }

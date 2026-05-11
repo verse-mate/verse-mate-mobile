@@ -5,6 +5,7 @@
  * without initializing SQLite or offline sync.
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook } from '@testing-library/react-native';
 import type React from 'react';
 import { Platform } from 'react-native';
@@ -43,9 +44,16 @@ describe('OfflineContext on web', () => {
   });
 
   it('provides online-only context value on web', () => {
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <OfflineProvider>{children}</OfflineProvider>
-    );
+    const wrapper = ({ children }: { children: React.ReactNode }) => {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      return (
+        <QueryClientProvider client={queryClient}>
+          <OfflineProvider>{children}</OfflineProvider>
+        </QueryClientProvider>
+      );
+    };
 
     const { result } = renderHook(() => useOfflineContext(), { wrapper });
 
@@ -57,9 +65,16 @@ describe('OfflineContext on web', () => {
   });
 
   it('does not call initDatabase on web', () => {
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <OfflineProvider>{children}</OfflineProvider>
-    );
+    const wrapper = ({ children }: { children: React.ReactNode }) => {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      return (
+        <QueryClientProvider client={queryClient}>
+          <OfflineProvider>{children}</OfflineProvider>
+        </QueryClientProvider>
+      );
+    };
 
     renderHook(() => useOfflineContext(), { wrapper });
 
@@ -67,9 +82,16 @@ describe('OfflineContext on web', () => {
   });
 
   it('provides no-op functions that do not throw', () => {
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <OfflineProvider>{children}</OfflineProvider>
-    );
+    const wrapper = ({ children }: { children: React.ReactNode }) => {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
+      return (
+        <QueryClientProvider client={queryClient}>
+          <OfflineProvider>{children}</OfflineProvider>
+        </QueryClientProvider>
+      );
+    };
 
     const { result } = renderHook(() => useOfflineContext(), { wrapper });
 

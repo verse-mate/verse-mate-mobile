@@ -17,8 +17,8 @@ import * as Haptics from 'expo-haptics';
 import { router, Stack } from 'expo-router';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
+import { type getColors, spacing } from '@/theme/tokens';
 
 export default function AboutScreen() {
   const insets = useSafeAreaInsets();

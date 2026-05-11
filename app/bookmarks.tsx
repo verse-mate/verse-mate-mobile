@@ -24,6 +24,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -35,11 +36,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconBookmarkFilled, IconTrash } from '@/components/ui/icons';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useActiveView } from '@/hooks/bible';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 /**
  * Bookmarks Screen Component
@@ -58,6 +59,7 @@ import { useBookmarks } from '@/hooks/bible/use-bookmarks';
  * - Navigates to /bible/{bookId}/{chapterNumber}
  */
 export default function Bookmarks() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -150,27 +152,25 @@ export default function Bookmarks() {
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.go_back')}
             accessibilityRole="button"
             testID="bookmarks-back-button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Bookmarks</Text>
+          <Text style={styles.headerTitle}>{t('bookmarks.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
           <IconBookmarkFilled width={64} height={64} color={colors.textDisabled} />
-          <Text style={styles.emptyStateTitle}>Please login to view your bookmarks</Text>
-          <Text style={styles.emptyStateSubtitle}>
-            Sign in to save and access your favorite Bible chapters
-          </Text>
+          <Text style={styles.emptyStateTitle}>{t('bookmarks.login_required')}</Text>
+          <Text style={styles.emptyStateSubtitle}>{t('bookmarks.login_subtitle')}</Text>
           <Pressable
             style={styles.loginButton}
             onPress={handleLoginPress}
             testID="bookmarks-login-button"
           >
-            <Text style={styles.loginButtonText}>Login</Text>
+            <Text style={styles.loginButtonText}>{t('auth.login.submit')}</Text>
           </Pressable>
         </View>
       </View>
@@ -190,13 +190,13 @@ export default function Bookmarks() {
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.go_back')}
             accessibilityRole="button"
             testID="bookmarks-back-button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Bookmarks</Text>
+          <Text style={styles.headerTitle}>{t('bookmarks.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
@@ -219,21 +219,19 @@ export default function Bookmarks() {
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.go_back')}
             accessibilityRole="button"
             testID="bookmarks-back-button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Bookmarks</Text>
+          <Text style={styles.headerTitle}>{t('bookmarks.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
           <IconBookmarkFilled width={64} height={64} color={colors.textDisabled} />
-          <Text style={styles.emptyStateTitle}>No bookmarked chapters yet</Text>
-          <Text style={styles.emptyStateSubtitle}>
-            Tap the bookmark icon while reading to save chapters for later.
-          </Text>
+          <Text style={styles.emptyStateTitle}>{t('bookmarks.empty_title')}</Text>
+          <Text style={styles.emptyStateSubtitle}>{t('bookmarks.empty_subtitle')}</Text>
         </View>
       </View>
     );
@@ -248,13 +246,13 @@ export default function Bookmarks() {
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.go_back')}
           accessibilityRole="button"
           testID="bookmarks-back-button"
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>Bookmarks</Text>
+        <Text style={styles.headerTitle}>{t('bookmarks.title')}</Text>
         <View style={styles.headerSpacer} />
       </View>
       <FlatList

@@ -36,13 +36,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CharacterCounter } from '@/components/bible/CharacterCounter';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { MicrophoneButton } from '@/components/bible/MicrophoneButton';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { NOTES_CONFIG } from '@/constants/notes';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useNoteDraft } from '@/hooks/bible/use-note-draft';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useSpeechToText } from '@/hooks/use-speech-to-text';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { Note } from '@/types/notes';
 import { generateChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 

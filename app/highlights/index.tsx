@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,10 +16,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AutoHighlightSettings } from '@/components/settings/AutoHighlightSettings';
 import { IconHighlight } from '@/components/ui/icons';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/constants/bible-design-tokens';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 /**
  * Bible book names mapping
@@ -140,6 +141,7 @@ function groupHighlightsByChapter(highlights: Highlight[]): ChapterGroup[] {
  * Highlights List Screen Component
  */
 export default function HighlightsScreen() {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const insets = useSafeAreaInsets();
@@ -207,20 +209,20 @@ export default function HighlightsScreen() {
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.go_back')}
             accessibilityRole="button"
             testID="highlights-back-button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Highlights</Text>
+          <Text style={styles.headerTitle}>{t('highlights.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {/* Auto-Highlights Section */}
           <View style={styles.sectionDivider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Auto-Highlights</Text>
+            <Text style={styles.dividerText}>{t('highlights.auto_highlights')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
@@ -247,13 +249,13 @@ export default function HighlightsScreen() {
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.go_back')}
             accessibilityRole="button"
             testID="highlights-back-button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Highlights</Text>
+          <Text style={styles.headerTitle}>{t('highlights.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.centerContent}>
@@ -279,13 +281,13 @@ export default function HighlightsScreen() {
           <Pressable
             onPress={handleBackPress}
             style={styles.backButton}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('common.go_back')}
             accessibilityRole="button"
             testID="highlights-back-button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Highlights</Text>
+          <Text style={styles.headerTitle}>{t('highlights.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <ScrollView
@@ -302,23 +304,21 @@ export default function HighlightsScreen() {
           {/* My Highlights Section Header */}
           <View style={styles.sectionDivider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>My Highlights</Text>
+            <Text style={styles.dividerText}>{t('highlights.my_highlights')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
           {/* Empty State */}
           <View style={styles.emptyStateContainer}>
             <IconHighlight width={64} height={64} color={colors.textDisabled} />
-            <Text style={styles.emptyStateTitle}>No highlights yet</Text>
-            <Text style={styles.emptyStateSubtitle}>
-              Start highlighting verses to see them here.
-            </Text>
+            <Text style={styles.emptyStateTitle}>{t('highlights.empty_title')}</Text>
+            <Text style={styles.emptyStateSubtitle}>{t('highlights.empty_subtitle')}</Text>
           </View>
 
           {/* Divider */}
           <View style={styles.sectionDivider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Auto-Highlights</Text>
+            <Text style={styles.dividerText}>{t('highlights.auto_highlights')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
@@ -342,13 +342,13 @@ export default function HighlightsScreen() {
         <Pressable
           onPress={handleBackPress}
           style={styles.backButton}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t('common.go_back')}
           accessibilityRole="button"
           testID="highlights-back-button"
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>Highlights</Text>
+        <Text style={styles.headerTitle}>{t('highlights.title')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -396,7 +396,7 @@ export default function HighlightsScreen() {
             {/* Divider */}
             <View style={styles.sectionDivider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Auto-Highlights</Text>
+              <Text style={styles.dividerText}>{t('highlights.auto_highlights')}</Text>
               <View style={styles.dividerLine} />
             </View>
 

@@ -10,7 +10,7 @@
  *
  * Visual Design:
  * - Icon: Ionicons bookmark/bookmark-outline
- * - Size: 24px (from bible-design-tokens headerSpecs.iconSize)
+ * - Size: 24px (from theme/tokens headerSpecs.iconSize)
  * - Color: Gold (#D4AF37) when bookmarked, theme textPrimary when not
  * - Position: Right of share button in explanations panel header
  *
@@ -24,9 +24,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet } from 'react-native';
-import { getHeaderSpecs } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBookmarks } from '@/hooks/bible/use-bookmarks';
+import { getHeaderSpecs } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
 
 /**

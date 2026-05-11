@@ -11,6 +11,7 @@
 
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -24,11 +25,11 @@ import { PasswordRequirements } from '@/components/auth/PasswordRequirements';
 import { SSOButtons } from '@/components/auth/SSOButtons';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/ui/TextInput';
-import type { getColors } from '@/constants/bible-design-tokens';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSSOLogin } from '@/hooks/auth/useSSOLogin';
 import { useSignup } from '@/hooks/useSignup';
 import { validatePassword } from '@/lib/auth/password-validation';
+import type { getColors } from '@/theme/tokens';
 
 /**
  * Signup Screen Component
@@ -45,6 +46,7 @@ import { validatePassword } from '@/lib/auth/password-validation';
  * - "Continue without account" option
  */
 export default function Signup() {
+  const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const params = useLocalSearchParams<{ fromOnboarding?: string }>();
@@ -187,10 +189,8 @@ export default function Signup() {
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.heading}>Create Account</Text>
-            <Text style={styles.subtitle}>
-              Please provide the following information to set up your account.
-            </Text>
+            <Text style={styles.heading}>{t('auth.signup.title')}</Text>
+            <Text style={styles.subtitle}>{t('auth.signup.subtitle')}</Text>
           </View>
 
           {/* Form */}
@@ -208,10 +208,10 @@ export default function Signup() {
             <View style={styles.nameRow}>
               <View style={styles.nameField}>
                 <TextInput
-                  label="First name"
+                  label={t('auth.signup.first_name_label')}
                   value={firstName}
                   onChangeText={setFirstName}
-                  placeholder="First name"
+                  placeholder={t('auth.signup.first_name_label')}
                   error={errors.firstName}
                   testID="signup-first-name"
                   autoCapitalize="words"
@@ -219,10 +219,10 @@ export default function Signup() {
               </View>
               <View style={styles.nameField}>
                 <TextInput
-                  label="Last name"
+                  label={t('auth.signup.last_name_label')}
                   value={lastName}
                   onChangeText={setLastName}
-                  placeholder="Last name"
+                  placeholder={t('auth.signup.last_name_label')}
                   error={errors.lastName}
                   testID="signup-last-name"
                   autoCapitalize="words"
@@ -232,10 +232,10 @@ export default function Signup() {
 
             {/* Email */}
             <TextInput
-              label="Email"
+              label={t('auth.signup.email_label')}
               value={email}
               onChangeText={setEmail}
-              placeholder="Email"
+              placeholder={t('auth.signup.email_label')}
               keyboardType="email-address"
               autoCorrect={false}
               spellCheck={false}
@@ -245,10 +245,10 @@ export default function Signup() {
 
             {/* Password */}
             <TextInput
-              label="Password"
+              label={t('auth.signup.password_label')}
               value={password}
               onChangeText={setPassword}
-              placeholder="Password"
+              placeholder={t('auth.signup.password_label')}
               secureTextEntry
               autoCorrect={false}
               spellCheck={false}
@@ -265,14 +265,14 @@ export default function Signup() {
             {error && !ssoError && (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>
-                  {error?.message || 'An error occurred during signup. Please try again.'}
+                  {error?.message || t('auth.errors.network_error')}
                 </Text>
               </View>
             )}
 
             {/* Submit Button */}
             <Button
-              title={isPending ? 'Creating account...' : 'Create account'}
+              title={isPending ? t('common.loading') : t('auth.signup.submit')}
               onPress={handleSubmit}
               variant="auth"
               fullWidth
@@ -282,9 +282,9 @@ export default function Signup() {
 
             {/* Login Link */}
             <View style={styles.linkContainer}>
-              <Text style={styles.linkText}>Already have an account? </Text>
+              <Text style={styles.linkText}>{t('auth.signup.have_account')} </Text>
               <TouchableOpacity onPress={handleLoginPress} testID="signup-login-link">
-                <Text style={styles.linkTextUnderlined}>Login</Text>
+                <Text style={styles.linkTextUnderlined}>{t('auth.signup.sign_in')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -293,7 +293,7 @@ export default function Signup() {
               onPress={handleContinueWithout}
               testID="signup-continue-without-account"
             >
-              <Text style={styles.continueText}>Continue without an account</Text>
+              <Text style={styles.continueText}>{t('auth.login.continue_without')}</Text>
             </TouchableOpacity>
           </View>
         </View>
