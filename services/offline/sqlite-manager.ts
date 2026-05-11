@@ -966,7 +966,16 @@ export async function getLocalTopicExplanations(
 
 export async function insertUserNotes(notes: OfflineNote[]): Promise<void> {
   const database = await initDatabase();
-  if (__DEV__) console.log(`[Offline DB] Inserting ${notes.length} notes`);
+  if (__DEV__) console.log(`[Offline DB] Merging ${notes.length} notes`);
+
+  // VER-9: merge instead of wipe-and-replace. The previous DELETE+INSERT was
+  // racy with NOTES-1's local mirror: a freshly POST-confirmed note that the
+  // server's /offline/user-data snapshot hadn't yet propagated would be
+  // deleted here and the standalone Notes screen would show empty.
+  // Trade-off: a note deleted on web won't disappear from mobile via this
+  // sync until an explicit local-data clear; that's smaller than silently
+  // losing user-authored notes.
+  if (notes.length === 0) return;
 
   const batchSize = 100;
   const inserts: string[] = [];
@@ -979,22 +988,20 @@ export async function insertUserNotes(notes: OfflineNote[]): Promise<void> {
       )
       .join(', ');
     inserts.push(
-      `INSERT INTO offline_notes (note_id, book_id, chapter_number, verse_number, content, updated_at) VALUES ${values}`
+      `INSERT OR REPLACE INTO offline_notes (note_id, book_id, chapter_number, verse_number, content, updated_at) VALUES ${values}`
     );
   }
 
-  // DELETE + all inserts in a single transaction so a crash cannot leave the
-  // table empty after the delete but before the inserts complete.
-  execSafe(
-    database,
-    ['BEGIN', 'DELETE FROM offline_notes', ...inserts, 'COMMIT'].join(';\n'),
-    'notes-replace-all'
-  );
+  execSafe(database, ['BEGIN', ...inserts, 'COMMIT'].join(';\n'), 'notes-merge');
 }
 
 export async function insertUserHighlights(highlights: OfflineHighlight[]): Promise<void> {
   const database = await initDatabase();
-  if (__DEV__) console.log(`[Offline DB] Inserting ${highlights.length} highlights`);
+  if (__DEV__) console.log(`[Offline DB] Merging ${highlights.length} highlights`);
+
+  // VER-9: see insertUserNotes for rationale. Merge instead of wipe-and-replace
+  // so locally-mirrored highlights survive a stale server snapshot.
+  if (highlights.length === 0) return;
 
   const batchSize = 100;
   const inserts: string[] = [];
@@ -1007,20 +1014,19 @@ export async function insertUserHighlights(highlights: OfflineHighlight[]): Prom
       )
       .join(', ');
     inserts.push(
-      `INSERT INTO offline_highlights (highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at) VALUES ${values}`
+      `INSERT OR REPLACE INTO offline_highlights (highlight_id, book_id, chapter_number, start_verse, end_verse, color, start_char, end_char, updated_at) VALUES ${values}`
     );
   }
 
-  execSafe(
-    database,
-    ['BEGIN', 'DELETE FROM offline_highlights', ...inserts, 'COMMIT'].join(';\n'),
-    'highlights-replace-all'
-  );
+  execSafe(database, ['BEGIN', ...inserts, 'COMMIT'].join(';\n'), 'highlights-merge');
 }
 
 export async function insertUserBookmarks(bookmarks: OfflineBookmark[]): Promise<void> {
   const database = await initDatabase();
-  if (__DEV__) console.log(`[Offline DB] Inserting ${bookmarks.length} bookmarks`);
+  if (__DEV__) console.log(`[Offline DB] Merging ${bookmarks.length} bookmarks`);
+
+  // VER-9: see insertUserNotes for rationale.
+  if (bookmarks.length === 0) return;
 
   const batchSize = 200;
   const inserts: string[] = [];
@@ -1033,15 +1039,11 @@ export async function insertUserBookmarks(bookmarks: OfflineBookmark[]): Promise
       )
       .join(', ');
     inserts.push(
-      `INSERT INTO offline_bookmarks (favorite_id, book_id, chapter_number, created_at, insight_type) VALUES ${values}`
+      `INSERT OR REPLACE INTO offline_bookmarks (favorite_id, book_id, chapter_number, created_at, insight_type) VALUES ${values}`
     );
   }
 
-  execSafe(
-    database,
-    ['BEGIN', 'DELETE FROM offline_bookmarks', ...inserts, 'COMMIT'].join(';\n'),
-    'bookmarks-replace-all'
-  );
+  execSafe(database, ['BEGIN', ...inserts, 'COMMIT'].join(';\n'), 'bookmarks-merge');
 }
 
 export async function getLocalNotes(
