@@ -12,17 +12,13 @@
 import {
   clearTokens,
   getAccessToken,
-  getRefreshToken,
   setAccessToken,
-  setRefreshToken,
 } from '@/lib/auth/token-storage';
 import { clearTokenCache } from '@/lib/api/client-interceptors';
-import { setupProactiveRefresh } from '@/lib/auth/token-refresh';
 import { analytics, AnalyticsEvent } from '@/lib/analytics';
 import {
   getAuthSession,
   postAuthLogin,
-  postAuthRefresh,
   postAuthSignup,
 } from '@/src/api/generated/sdk.gen';
 import type { GetAuthSessionResponse } from '@/src/api/generated/types.gen';
@@ -135,12 +131,6 @@ export interface AuthMethods {
    * Called automatically on app launch
    */
   restoreSession(): Promise<void>;
-
-  /**
-   * Force a token refresh
-   * Useful when user claims (like language) change
-   */
-  refreshTokens(): Promise<void>;
 }
 
 /**
@@ -222,9 +212,6 @@ async function postAuthSso(body: {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [proactiveRefreshCleanup, setProactiveRefreshCleanup] = useState<
-    (() => void) | null
-  >(null);
 
   // Get PostHog instance for analytics
   const posthog = usePostHog();
@@ -263,14 +250,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Store tokens
     await setAccessToken(data.accessToken);
-    if (data.refreshToken) {
-      await setRefreshToken(data.refreshToken);
-    }
-
-    // Setup proactive refresh
-    const cleanup = setupProactiveRefresh(data.accessToken);
-    setProactiveRefreshCleanup(() => cleanup);
-
     // Fetch and update user session
     const userSession = await fetchUserSession();
     setUser(userSession);
@@ -315,14 +294,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Store tokens
     await setAccessToken(data.accessToken);
-    if (data.refreshToken) {
-      await setRefreshToken(data.refreshToken);
-    }
-
-    // Setup proactive refresh
-    const cleanup = setupProactiveRefresh(data.accessToken);
-    setProactiveRefreshCleanup(() => cleanup);
-
     // Fetch and update user session
     const userSession = await fetchUserSession();
     setUser(userSession);
@@ -374,14 +345,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Store tokens
     await setAccessToken(data.accessToken);
-    if (data.refreshToken) {
-      await setRefreshToken(data.refreshToken);
-    }
-
-    // Setup proactive refresh
-    const cleanup = setupProactiveRefresh(data.accessToken);
-    setProactiveRefreshCleanup(() => cleanup);
-
     // Fetch and update user session
     const userSession = await fetchUserSession();
     setUser(userSession);
@@ -416,12 +379,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Logout method implementation
    */
   const logout = async (): Promise<void> => {
-    // Cancel proactive refresh timer
-    if (proactiveRefreshCleanup) {
-      proactiveRefreshCleanup();
-      setProactiveRefreshCleanup(null);
-    }
-
     // Track analytics: fire LOGOUT event before resetting identity
     analytics.track(AnalyticsEvent.LOGOUT, {});
 
@@ -447,12 +404,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setIsLoading(true);
 
-      // Check for existing tokens
+      // Check for existing access token (D-005: access token IS the persistent session)
       const accessToken = await getAccessToken();
-      const refreshToken = await getRefreshToken();
 
-      if (!accessToken || !refreshToken) {
-        // No tokens found - remain unauthenticated
+      if (!accessToken) {
+        // No token found - remain unauthenticated
         return;
       }
 
@@ -494,10 +450,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // Normal (non-e2e) path continues here
-      // Setup proactive refresh
-      const cleanup = setupProactiveRefresh(accessToken);
-      setProactiveRefreshCleanup(() => cleanup);
-
+      // No proactive refresh per D-005 — Redis cache validates tokens server-side.
       // Update state
       setUser(userSession);
 
@@ -524,34 +477,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  /**
-   * Refresh tokens manually
-   */
-  const refreshTokens = async (): Promise<void> => {
-    try {
-      const refreshToken = await getRefreshToken();
-      if (!refreshToken) return;
-
-      const { data, error } = await postAuthRefresh({
-        body: { refreshToken },
-      });
-
-      if (error || !data) {
-        throw new Error('Failed to refresh tokens');
-      }
-
-      await setAccessToken(data.accessToken);
-      if (data.refreshToken) {
-        await setRefreshToken(data.refreshToken);
-      }
-
-      // Fetch and update user session
-      const userSession = await fetchUserSession();
-      setUser(userSession);
-    } catch (error) {
-      console.error('Failed to refresh tokens manually:', error);
-    }
-  };
+  // refreshTokens() removed per D-005 — access token IS the persistent
+  // session token (90-day TTL); backend Redis cache validates every token
+  // so server-side logout immediately revokes regardless of JWT expiry.
 
   // Restore session on mount
   useEffect(() => {
@@ -567,7 +495,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loginWithSSO,
     logout,
     restoreSession,
-    refreshTokens,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
