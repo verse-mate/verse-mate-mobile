@@ -11,19 +11,34 @@
  * iOS Keychain / Android Keystore via `expo-secure-store`. AsyncStorage is
  * checked once per launch as a one-time migration: if a legacy token is
  * found there, it's copied to SecureStore and removed.
+ *
+ * On web, `expo-secure-store` has no native module — its methods throw
+ * `getValueWithKeyAsync is not a function`. The web build falls back to
+ * AsyncStorage (which is backed by `localStorage`) so the request
+ * interceptor can complete and API fetches actually fire.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 const ACCESS_TOKEN_KEY = 'versemate_access_token';
 const LEGACY_REFRESH_TOKEN_KEY = 'versemate_refresh_token';
 
+// Resolved per-call (not cached) so tests can flip Platform.OS without
+// re-importing the module.
+const isWebPlatform = (): boolean => Platform.OS === 'web';
+
 /**
  * Store access token in SecureStore (encrypted at rest via OS keychain).
+ * On web, falls back to AsyncStorage / localStorage.
  */
 export async function setAccessToken(token: string): Promise<void> {
   try {
+    if (isWebPlatform()) {
+      await AsyncStorage.setItem(ACCESS_TOKEN_KEY, token);
+      return;
+    }
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
   } catch (error) {
     console.error('Failed to store access token:', error);
@@ -37,9 +52,15 @@ export async function setAccessToken(token: string): Promise<void> {
  * Performs a one-time migration on first call: if a legacy AsyncStorage token
  * exists (from before D-024) it's copied into SecureStore and the AsyncStorage
  * entry removed.
+ *
+ * On web, reads from AsyncStorage directly (no SecureStore on web).
  */
 export async function getAccessToken(): Promise<string | null> {
   try {
+    if (isWebPlatform()) {
+      return await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+    }
+
     const secure = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
     if (secure) return secure;
 
@@ -64,6 +85,14 @@ export async function getAccessToken(): Promise<string | null> {
  */
 export async function clearTokens(): Promise<void> {
   try {
+    if (isWebPlatform()) {
+      await Promise.all([
+        AsyncStorage.removeItem(ACCESS_TOKEN_KEY),
+        AsyncStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY),
+      ]);
+      return;
+    }
+
     await Promise.all([
       SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
       // Sweep legacy entries (refresh-token D-005 + AsyncStorage migration D-024)
