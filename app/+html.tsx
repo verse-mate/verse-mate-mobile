@@ -1,3 +1,5 @@
+import { ScrollViewStyleReset } from 'expo-router/html';
+
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -5,6 +7,14 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+        {/*
+          Required for full-screen React Native Web layouts. Without this,
+          html/body/#root collapse to height 0 and `flex: 1` containers
+          (onboarding pager, chapter reader, etc.) render blank in the
+          static web export served at mobile.versemate.org.
+        */}
+        <ScrollViewStyleReset />
 
         {/* Primary Meta */}
         <meta
