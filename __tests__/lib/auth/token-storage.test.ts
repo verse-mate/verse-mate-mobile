@@ -8,6 +8,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { clearTokens, getAccessToken, setAccessToken } from '@/lib/auth/token-storage';
 
 jest.mock('expo-secure-store', () => ({
@@ -59,5 +60,42 @@ describe('token-storage (D-024 SecureStore migration)', () => {
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith('versemate_access_token');
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('versemate_access_token');
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith('versemate_refresh_token');
+  });
+});
+
+describe('token-storage on web (VER-15 SecureStore fallback)', () => {
+  // expo-secure-store has no web implementation; reads/writes there throw
+  // `getValueWithKeyAsync is not a function`, which crashed the request
+  // interceptor before any API fetch could fire. On web we fall back to
+  // AsyncStorage (localStorage) so the chapter screen actually fetches.
+  const originalOS = Platform.OS;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.defineProperty(Platform, 'OS', { value: 'web', configurable: true });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', { value: originalOS, configurable: true });
+  });
+
+  it('setAccessToken writes to AsyncStorage on web (not SecureStore)', async () => {
+    await setAccessToken('web-token');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('versemate_access_token', 'web-token');
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalled();
+  });
+
+  it('getAccessToken reads from AsyncStorage on web (not SecureStore)', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue('web-token');
+    const result = await getAccessToken();
+    expect(result).toBe('web-token');
+    expect(SecureStore.getItemAsync).not.toHaveBeenCalled();
+  });
+
+  it('clearTokens removes only AsyncStorage entries on web', async () => {
+    await clearTokens();
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('versemate_access_token');
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith('versemate_refresh_token');
+    expect(SecureStore.deleteItemAsync).not.toHaveBeenCalled();
   });
 });
