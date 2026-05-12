@@ -26,7 +26,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Alert, Pressable, Share, StyleSheet } from 'react-native';
+import { Alert, Platform, Pressable, Share, StyleSheet } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { getHeaderSpecs } from '@/theme/tokens';
@@ -127,22 +127,29 @@ export function ShareButton({
       // Format share message
       const message = `Check out ${bookName} ${chapterNumber} on VerseMate: ${shareUrl}`;
 
-      // Open system share sheet
-      const result = await Share.share({
-        message,
-        url: shareUrl, // iOS uses this for better handling
-      });
-
-      if (result.action === Share.sharedAction) {
-        // Track analytics: CHAPTER_SHARED event on successful share
-        analytics.track(AnalyticsEvent.CHAPTER_SHARED, {
-          bookId,
-          chapterNumber,
+      // Web: use Web Share API with clipboard fallback
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
+        if (navigator.share) {
+          await navigator.share({
+            title: `${bookName} ${chapterNumber}`,
+            text: message,
+            url: shareUrl,
+          });
+        } else {
+          await navigator.clipboard.writeText(message);
+          Alert.alert('Link Copied', 'Share link copied to clipboard.');
+        }
+        analytics.track(AnalyticsEvent.CHAPTER_SHARED, { bookId, chapterNumber });
+      } else {
+        // Native: open system share sheet
+        const result = await Share.share({
+          message,
+          url: shareUrl, // iOS uses this for better handling
         });
-        console.log('Chapter shared successfully');
-      } else if (result.action === Share.dismissedAction) {
-        // User dismissed share sheet - no action needed
-        console.log('Share dismissed');
+
+        if (result.action === Share.sharedAction) {
+          analytics.track(AnalyticsEvent.CHAPTER_SHARED, { bookId, chapterNumber });
+        }
       }
     } catch (error) {
       console.error('Failed to share chapter:', error);

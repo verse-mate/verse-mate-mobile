@@ -62,6 +62,7 @@ import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   useBibleChapter,
@@ -365,6 +366,13 @@ export default function ChapterScreen() {
     // Update state via hook (V3: single source of truth)
     navigateToChapter(nextChapter.bookId, nextChapter.chapterNumber);
   }, [canGoNext, nextChapter, navigateToChapter, showButtons]);
+
+  // Web keyboard shortcuts: arrow keys for chapter navigation, Escape to close modal
+  useKeyboardShortcuts({
+    onNextChapter: handleNext,
+    onPrevChapter: handlePrevious,
+    onEscape: () => setIsNavigationModalOpen(false),
+  });
 
   /**
    * Render chapter page content for SimpleChapterPager

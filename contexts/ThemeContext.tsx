@@ -204,7 +204,11 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
           stored === 'sunrise_sunset' ||
           stored === 'ambient'
         )) {
-          setPreferenceState(stored as ThemePreference);
+          // On web, sensor/location-dependent modes aren't available — fall back to 'auto'
+          const sanitized = Platform.OS === 'web' && (stored === 'sunrise_sunset' || stored === 'ambient')
+            ? 'auto'
+            : stored;
+          setPreferenceState(sanitized as ThemePreference);
         }
       } catch (error) {
         console.error('Failed to load theme preference:', error);
