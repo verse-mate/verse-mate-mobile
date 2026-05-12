@@ -195,8 +195,8 @@ describe('SQLite Manager', () => {
     });
   });
 
-  describe('insertUserNotes', () => {
-    it('wraps DELETE and all inserts in a single transaction', async () => {
+  describe('insertUserNotes (VER-9: merge, not wipe)', () => {
+    it('merges via INSERT OR REPLACE and never deletes existing rows', async () => {
       const notes = [
         {
           note_id: 'n1',
@@ -210,30 +210,39 @@ describe('SQLite Manager', () => {
 
       await insertUserNotes(notes);
 
-      // There should be exactly one execSync call that contains BOTH DELETE and INSERT
-      const atomicCall = mockExecSync.mock.calls.find(
+      const mergeCall = mockExecSync.mock.calls.find(
         (call: any[]) =>
-          typeof call[0] === 'string' &&
-          call[0].includes('DELETE FROM offline_notes') &&
-          call[0].includes('INSERT INTO offline_notes')
+          typeof call[0] === 'string' && call[0].includes('INSERT OR REPLACE INTO offline_notes')
       );
-      expect(atomicCall).toBeDefined();
-      expect(atomicCall?.[0]).toContain('My note');
-    });
+      expect(mergeCall).toBeDefined();
+      expect(mergeCall?.[0]).toContain('My note');
 
-    it('only issues a DELETE when notes array is empty', async () => {
-      await insertUserNotes([]);
-
-      const atomicCall = mockExecSync.mock.calls.find(
+      // Critical: no DELETE FROM offline_notes — locally-mirrored notes that
+      // the server snapshot hasn't propagated yet must survive this sync.
+      const deleteCall = mockExecSync.mock.calls.find(
         (call: any[]) =>
           typeof call[0] === 'string' && call[0].includes('DELETE FROM offline_notes')
       );
-      expect(atomicCall).toBeDefined();
+      expect(deleteCall).toBeUndefined();
+    });
+
+    it('is a no-op for an empty notes payload (does not wipe local rows)', async () => {
+      mockExecSync.mockClear();
+      await insertUserNotes([]);
+
+      const mutatingCall = mockExecSync.mock.calls.find(
+        (call: any[]) =>
+          typeof call[0] === 'string' &&
+          (call[0].includes('DELETE FROM offline_notes') ||
+            call[0].includes('INSERT INTO offline_notes') ||
+            call[0].includes('INSERT OR REPLACE INTO offline_notes'))
+      );
+      expect(mutatingCall).toBeUndefined();
     });
   });
 
-  describe('insertUserHighlights', () => {
-    it('wraps DELETE and all inserts in a single transaction', async () => {
+  describe('insertUserHighlights (VER-9: merge, not wipe)', () => {
+    it('merges via INSERT OR REPLACE and never deletes existing rows', async () => {
       const highlights = [
         {
           highlight_id: 1,
@@ -250,14 +259,19 @@ describe('SQLite Manager', () => {
 
       await insertUserHighlights(highlights);
 
-      const atomicCall = mockExecSync.mock.calls.find(
+      const mergeCall = mockExecSync.mock.calls.find(
         (call: any[]) =>
           typeof call[0] === 'string' &&
-          call[0].includes('DELETE FROM offline_highlights') &&
-          call[0].includes('INSERT INTO offline_highlights')
+          call[0].includes('INSERT OR REPLACE INTO offline_highlights')
       );
-      expect(atomicCall).toBeDefined();
-      expect(atomicCall?.[0]).toContain('yellow');
+      expect(mergeCall).toBeDefined();
+      expect(mergeCall?.[0]).toContain('yellow');
+
+      const deleteCall = mockExecSync.mock.calls.find(
+        (call: any[]) =>
+          typeof call[0] === 'string' && call[0].includes('DELETE FROM offline_highlights')
+      );
+      expect(deleteCall).toBeUndefined();
     });
 
     it('escapes all numeric fields via escapeSQL', async () => {
@@ -277,17 +291,18 @@ describe('SQLite Manager', () => {
 
       await insertUserHighlights(highlights);
 
-      const atomicCall = mockExecSync.mock.calls.find(
+      const mergeCall = mockExecSync.mock.calls.find(
         (call: any[]) =>
-          typeof call[0] === 'string' && call[0].includes('INSERT INTO offline_highlights')
+          typeof call[0] === 'string' &&
+          call[0].includes('INSERT OR REPLACE INTO offline_highlights')
       );
-      expect(atomicCall?.[0]).toContain('42');
-      expect(atomicCall?.[0]).toContain('7');
+      expect(mergeCall?.[0]).toContain('42');
+      expect(mergeCall?.[0]).toContain('7');
     });
   });
 
-  describe('insertUserBookmarks', () => {
-    it('wraps DELETE and all inserts in a single transaction', async () => {
+  describe('insertUserBookmarks (VER-9: merge, not wipe)', () => {
+    it('merges via INSERT OR REPLACE and never deletes existing rows', async () => {
       const bookmarks = [
         {
           favorite_id: 10,
@@ -300,13 +315,18 @@ describe('SQLite Manager', () => {
 
       await insertUserBookmarks(bookmarks);
 
-      const atomicCall = mockExecSync.mock.calls.find(
+      const mergeCall = mockExecSync.mock.calls.find(
         (call: any[]) =>
           typeof call[0] === 'string' &&
-          call[0].includes('DELETE FROM offline_bookmarks') &&
-          call[0].includes('INSERT INTO offline_bookmarks')
+          call[0].includes('INSERT OR REPLACE INTO offline_bookmarks')
       );
-      expect(atomicCall).toBeDefined();
+      expect(mergeCall).toBeDefined();
+
+      const deleteCall = mockExecSync.mock.calls.find(
+        (call: any[]) =>
+          typeof call[0] === 'string' && call[0].includes('DELETE FROM offline_bookmarks')
+      );
+      expect(deleteCall).toBeUndefined();
     });
   });
 });
