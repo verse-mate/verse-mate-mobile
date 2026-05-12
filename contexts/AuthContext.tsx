@@ -24,6 +24,7 @@ import {
 import type { GetAuthSessionResponse } from '@/src/api/generated/types.gen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { usePostHog } from 'posthog-react-native';
 
@@ -153,7 +154,6 @@ interface AuthProviderProps {
  */
 interface SSOAuthResponse {
   accessToken: string;
-  refreshToken?: string;
   verified?: boolean;
   isNewUser?: boolean;
 }
@@ -174,7 +174,7 @@ interface SSOErrorResponse {
 async function postAuthSso(body: {
   provider: SSOProvider;
   token: string;
-  platform: 'mobile';
+  platform: 'mobile' | 'web';
 }): Promise<{ data?: SSOAuthResponse; error?: SSOErrorResponse }> {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
 
@@ -327,7 +327,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const { data, error } = await postAuthSso({
       provider,
       token: idToken,
-      platform: 'mobile',
+      platform: Platform.OS === 'web' ? 'web' : 'mobile',
     });
 
     if (error || !data) {
@@ -415,38 +415,61 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Attempt to fetch a fresh session from the API.
       // On network failure fall back to the cached profile; on auth failure clear tokens.
       let userSession: User;
+
+      // In e2e-test builds, skip the API call entirely and use a test user.
+      // The seed-auth-tokens.sh script sets this flag alongside the tokens.
+      const e2eFlag = await AsyncStorage.getItem('versemate_e2e_mode');
+
+      // Write diagnostic BEFORE the e2e check so we can see the flag value
+      await AsyncStorage.setItem('versemate_e2e_diagnostic',
+        `flag=${String(e2eFlag)},tokens=${accessToken ? 'yes' : 'no'},time=${Date.now()}`);
+
+      if (e2eFlag === 'true') {
+        // Use cached user if available, otherwise create a minimal test user.
+        // Skip proactive refresh, PostHog, and analytics — just set the user
+        // and return immediately to avoid any possible failure in those paths.
+        const cached = await getCachedUser<User>();
+        const testUser = cached ?? ({
+          id: 'e2e-test-user',
+          email: 'e2e@versemate.org',
+          firstName: 'E2E',
+          lastName: 'Test',
+        } as User);
+        await AsyncStorage.setItem('versemate_e2e_diagnostic',
+          `e2e_path_taken,cached=${cached ? 'yes' : 'no'},time=${Date.now()}`);
+        setUser(testUser);
+        return;
+      }
+
       try {
         userSession = await fetchUserSession();
       } catch (sessionError) {
-        // Detect connectivity failures (TypeError from fetch, or error objects whose
-        // message mentions "network"). Auth errors (401 / 403) are structured objects
-        // from the SDK and will NOT match this check.
-        const msg = sessionError instanceof Error
-          ? sessionError.message
-          : String(sessionError);
-        const isNetworkError =
-          sessionError instanceof TypeError ||
-          msg.toLowerCase().includes('network') ||
-          msg.toLowerCase().includes('failed to fetch');
+          // Detect connectivity failures (TypeError from fetch, or error objects whose
+          // message mentions "network"). Auth errors (401 / 403) are structured objects
+          // from the SDK and will NOT match this check.
+          const msg = sessionError instanceof Error
+            ? sessionError.message
+            : String(sessionError);
+          const isNetworkError =
+            sessionError instanceof TypeError ||
+            msg.toLowerCase().includes('network') ||
+            msg.toLowerCase().includes('failed to fetch');
 
-        if (isNetworkError) {
-          const cached = await getCachedUser<User>();
-          if (cached) {
-            // Offline with a cached profile — restore without clearing tokens.
-            // Tokens will be validated automatically when connectivity returns.
-            userSession = cached;
+          if (isNetworkError) {
+            const cached = await getCachedUser<User>();
+            if (cached) {
+              // Offline with a cached profile — restore without clearing tokens.
+              userSession = cached;
+            } else {
+              console.error('Failed to restore session (no cache):', sessionError);
+              return;
+            }
           } else {
-            // Offline and no cached profile — leave tokens intact for when
-            // the network comes back, but don't set a user yet.
-            console.error('Failed to restore session (offline, no cache):', sessionError);
+            // Auth error (invalid / expired tokens) — clear everything.
+            console.error('Failed to restore session:', sessionError);
+            await clearTokens();
             return;
           }
-        } else {
-          // Auth error (invalid / expired tokens) — clear everything.
-          console.error('Failed to restore session:', sessionError);
-          await clearTokens();
-          return;
-        }
       }
 
       // Normal (non-e2e) path continues here

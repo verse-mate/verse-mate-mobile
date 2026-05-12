@@ -43,6 +43,44 @@ jobs:
       - name: Run tests
         run: npm test
 
+  web-build:
+    name: Web Build Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Export web build
+        run: npx expo export --platform web
+        env:
+          EXPO_PUBLIC_API_URL: https://api.versemate.org
+          EXPO_PUBLIC_WEB_URL: https://app.versemate.org
+
+      - name: Verify build output
+        run: |
+          if [ ! -f dist/index.html ]; then
+            echo "❌ Web build failed — dist/index.html not found"
+            exit 1
+          fi
+          echo "✅ Web build successful — $(find dist -name '*.html' | wc -l) HTML files, $(du -sh dist/ | cut -f1) total"
+
   lint-staged-test:
     name: Test Lint-staged
     runs-on: ubuntu-latest
