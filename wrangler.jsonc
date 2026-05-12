@@ -7,7 +7,8 @@
   //     No custom domain; uses the *.workers.dev URL. Distinct from the
   //     verse-mate-web preview slot so the two repos no longer collide.
   //   - production (`verse-mate-mobile-web`): deployed on push to main.
-  //     Bound to `mobile.versemate.org/*` via Cloudflare zone routes.
+  //     Bound to `mobile.versemate.org` as a Cloudflare Custom Domain
+  //     (auto-provisions DNS + TLS on first deploy).
   //
   // The repo CF API token must cover both Worker services. Token scope
   // expansion is operator-managed (VER-19).
@@ -44,8 +45,8 @@
       "workers_dev": false,
       "routes": [
         {
-          "pattern": "mobile.versemate.org/*",
-          "zone_name": "versemate.org"
+          "pattern": "mobile.versemate.org",
+          "custom_domain": true
         }
       ]
     }
