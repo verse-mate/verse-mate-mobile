@@ -79,11 +79,20 @@ export async function insertCommentaries(
   _commentaries: CommentaryData[]
 ): Promise<void> {}
 export async function getLocalCommentary(
+  _languageCode: string,
   _bookId: number,
-  _chapter: number,
-  _languageCode: string
-): Promise<CommentaryData[]> {
-  return [];
+  _chapterNumber: number,
+  _type?: string
+): Promise<CommentaryData | null> {
+  return null;
+}
+export async function hasLocalCommentary(
+  _languageCodes: string[],
+  _bookId: number,
+  _chapterNumber: number,
+  _type: string
+): Promise<boolean> {
+  return false;
 }
 export async function upsertSingleCommentary(
   _languageCode: string,
