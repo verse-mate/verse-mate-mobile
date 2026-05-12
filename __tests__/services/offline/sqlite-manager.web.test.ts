@@ -80,8 +80,8 @@ describe('sqlite-manager.web (no-op stubs)', () => {
     expect(await getLocalTopicReferences('1')).toBeNull();
   });
 
-  it('getLocalCommentary returns empty array', async () => {
-    expect(await getLocalCommentary(1, 1, 'en')).toEqual([]);
+  it('getLocalCommentary returns null', async () => {
+    expect(await getLocalCommentary('en', 1, 1, 'summary')).toBeNull();
   });
 
   it('getMetadata returns null', async () => {
