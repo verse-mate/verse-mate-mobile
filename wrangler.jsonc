@@ -2,19 +2,17 @@
   // Wrangler configuration for the VerseMate mobile web export (Expo for
   // web) on Cloudflare Workers.
   //
-  // Preview-only deploy. Mobile web shares the `verse-mate-web-preview`
-  // Worker service with verse-mate-web (operator decision, VER-12). The
-  // existing repo CF API token covers that service slot; rotating to a
-  // broader-scoped token was declined.
+  // Two environments:
+  //   - preview (`verse-mate-mobile-web-preview`): deployed on every PR.
+  //     No custom domain; uses the *.workers.dev URL. Distinct from the
+  //     verse-mate-web preview slot so the two repos no longer collide.
+  //   - production (`verse-mate-mobile-web`): deployed on push to main.
+  //     Bound to `mobile.versemate.org/*` via Cloudflare zone routes.
   //
-  // Trade-off: any PR (mobile OR web) that triggers a preview deploy
-  // overwrites whichever build was deployed last. Preview URLs reflect
-  // the most recent deploy, not the PR being reviewed. No production
-  // env here so mobile cannot deploy to mobile.versemate.org or
-  // app.versemate.org. Custom-domain binding for mobile is deferred to
-  // a future token-scope expansion.
+  // The repo CF API token must cover both Worker services. Token scope
+  // expansion is operator-managed (VER-19).
   "$schema": "https://raw.githubusercontent.com/cloudflare/wrangler/main/config-schema.json",
-  "name": "verse-mate-web-preview",
+  "name": "verse-mate-mobile-web-preview",
   "main": "worker.js",
   "compatibility_date": "2025-08-06",
   "account_id": "e8f0b566ba1c8227a25e3784def4300e",
@@ -39,7 +37,17 @@
 
   "env": {
     "preview": {
-      "name": "verse-mate-web-preview"
+      "name": "verse-mate-mobile-web-preview"
+    },
+    "production": {
+      "name": "verse-mate-mobile-web",
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "mobile.versemate.org/*",
+          "zone_name": "versemate.org"
+        }
+      ]
     }
   }
 }

@@ -2,20 +2,21 @@ name: Deploy Web (Cloudflare Workers)
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
-# Cancel in-flight runs for the same branch — last push wins.
+# Cancel in-flight runs for the same ref — last push wins.
 concurrency:
   group: deploy-web-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Preview-only: mobile web shares the verse-mate-web-preview Worker
-  # slot with verse-mate-web (operator decision, VER-12). No production
-  # deploy from this workflow — mobile.versemate.org binding is
-  # deferred until the repo CF API token is broadened to cover a
-  # dedicated mobile Worker. Pushes to main do not deploy.
-  CLOUDFLARE_ENV: preview
+  # PRs deploy to the `preview` env (verse-mate-mobile-web-preview); pushes
+  # to main deploy to the `production` env (verse-mate-mobile-web), which
+  # is bound to mobile.versemate.org via wrangler routes. The repo CF API
+  # token must cover both Worker services.
+  CLOUDFLARE_ENV: ${{ github.event_name == 'push' && 'production' || 'preview' }}
 
 jobs:
   build:
@@ -113,13 +114,19 @@ jobs:
         env:
           DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
         run: |
+          if [ "${{ env.CLOUDFLARE_ENV }}" = "production" ]; then
+            PROD_URL="https://mobile.versemate.org"
+          else
+            PROD_URL="${DEPLOY_URL:-(deploy step did not emit a URL)}"
+          fi
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ## Mobile Web Deployment
 
           | Property | Value |
           |----------|-------|
           | **Environment** | ${{ env.CLOUDFLARE_ENV }} |
-          | **URL** | ${DEPLOY_URL:-(deploy step did not emit a URL)} |
+          | **Worker URL** | ${DEPLOY_URL:-(deploy step did not emit a URL)} |
+          | **Public URL** | ${PROD_URL} |
           | **Branch** | ${{ github.ref_name }} |
           | **Commit** | ${{ github.sha }} |
           EOF
