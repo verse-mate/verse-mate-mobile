@@ -15,6 +15,7 @@
 
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+import { t } from 'i18next';
 import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -256,17 +257,24 @@ export function NoteEditModal({
 
   const _handleShare = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const message = `Note on ${bookName} ${chapterNumber}:\n\n"${content}"`;
 
     let url: string | undefined;
     try {
       url = generateChapterShareUrl(note.book_id, note.chapter_number);
     } catch {}
 
+    const title = t('sharing.note.title', { book: bookName, chapter: chapterNumber });
+    const message = t('sharing.note.body', {
+      book: bookName,
+      chapter: chapterNumber,
+      content,
+      url: url ?? '',
+    });
+
     await Share.share({
       message,
       url,
-      title: `Note: ${bookName} ${chapterNumber}`,
+      title,
     });
   };
 
