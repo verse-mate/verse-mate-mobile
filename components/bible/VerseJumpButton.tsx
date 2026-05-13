@@ -10,17 +10,30 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
-import { fontSizes, fontWeights, type getColors, spacing, type ThemeMode } from '@/theme/tokens';
+import {
+  animationDurations,
+  fontSizes,
+  fontWeights,
+  type getColors,
+  spacing,
+  type ThemeMode,
+} from '@/theme/tokens';
 
 export interface VerseJumpButtonProps {
   /** Ordered list of verse numbers available in the By Line view */
   verses: number[];
   /** Called with the chosen verse number after the modal closes */
   onSelect: (verseNumber: number) => void;
-  /** Hide the button entirely (e.g. when the tab is not active) */
+  /**
+   * Drives the fade-in/out animation. Mirrors the scroll-arrow auto-hide so
+   * the pill disappears on idle and reappears on scroll/tap (VERA-39). The
+   * pill stays mounted at opacity 0 — tapping the faded pill still opens the
+   * verse picker, matching the no-dead-zone arrow behavior.
+   */
   visible?: boolean;
   /**
    * Distance from the parent's bottom edge in dp. Defaults to mobile portrait
@@ -29,6 +42,11 @@ export interface VerseJumpButtonProps {
    * the host passes a tighter value (typically `spacing.lg`).
    */
   bottomOffset?: number;
+  /**
+   * Called when the user taps the pill. Lets the host reset its auto-hide
+   * timer so the verse-jump pill and scroll arrows re-show together.
+   */
+  onInteraction?: () => void;
   /** Test id prefix; sub-elements append a suffix (verse cells, backdrop, modal) */
   testID?: string;
 }
@@ -46,16 +64,28 @@ export function VerseJumpButton({
   onSelect,
   visible = true,
   bottomOffset,
+  onInteraction,
   testID = 'verse-jump-button',
 }: VerseJumpButtonProps) {
   const { mode, colors } = useTheme();
   const [open, setOpen] = useState(false);
   const styles = createStyles(mode, colors, bottomOffset);
 
-  if (!visible || verses.length === 0) return null;
+  // Mirror FloatingActionButtons fade — pill stays mounted at opacity 0 so
+  // tapping the faded pill area still opens the picker (VERA-39).
+  const opacity = useSharedValue(visible ? 1 : 0);
+  useEffect(() => {
+    opacity.value = withTiming(visible ? 1 : 0, {
+      duration: animationDurations.normal,
+    });
+  }, [visible, opacity]);
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  if (verses.length === 0) return null;
 
   const handleOpen = () => {
     triggerHaptic();
+    onInteraction?.();
     setOpen(true);
   };
 
@@ -71,19 +101,21 @@ export function VerseJumpButton({
 
   return (
     <>
-      <Pressable
-        onPress={handleOpen}
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-        accessibilityLabel="Jump to verse"
-        accessibilityRole="button"
-        accessibilityHint="Open the list of verses to jump to one in the By Line view"
-        testID={testID}
-      >
-        <Ionicons name="list" size={22} color="#ffffff" />
-        <Text style={styles.fabLabel} accessibilityElementsHidden>
-          Verse
-        </Text>
-      </Pressable>
+      <Animated.View style={[styles.fabContainer, animatedStyle]}>
+        <Pressable
+          onPress={handleOpen}
+          style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+          accessibilityLabel="Jump to verse"
+          accessibilityRole="button"
+          accessibilityHint="Open the list of verses to jump to one in the By Line view"
+          testID={testID}
+        >
+          <Ionicons name="list" size={22} color="#ffffff" />
+          <Text style={styles.fabLabel} accessibilityElementsHidden>
+            Verse
+          </Text>
+        </Pressable>
+      </Animated.View>
       <Modal
         visible={open}
         animationType="fade"
@@ -134,13 +166,20 @@ const createStyles = (
   bottomOffset?: number
 ) =>
   StyleSheet.create({
-    fab: {
+    // Animated wrapper drives fade-in/out (VERA-39). The Pressable inside
+    // retains its hit-target even at opacity 0, so taps on the faded pill
+    // still open the verse picker — mirrors FloatingActionButtons.
+    fabContainer: {
       position: 'absolute',
       right: spacing.lg,
       // Stack the pill ABOVE the chapter-nav FAB row by default (phone portrait
       // path through ChapterPage). Hosts without a chapter-nav row beneath the
       // ScrollView (split-view / desktop right panel) override via bottomOffset.
       bottom: bottomOffset ?? spacing.lg + 60 + 56 + spacing.md,
+      width: FAB_SIZE,
+      height: FAB_SIZE,
+    },
+    fab: {
       width: FAB_SIZE,
       height: FAB_SIZE,
       borderRadius: FAB_SIZE / 2,
