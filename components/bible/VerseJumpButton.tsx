@@ -125,7 +125,11 @@ const createStyles = (mode: ThemeMode, colors: ReturnType<typeof getColors>) =>
     fab: {
       position: 'absolute',
       right: spacing.lg,
-      bottom: spacing.lg + 60, // sit above the progress bar / FAB row
+      // Stack the pill ABOVE the chapter-nav FAB row instead of co-locating
+      // (chapter-nav row: bottom 60 + size 56 = top edge 116 from screen bottom).
+      // 60 (chapter-nav bottomOffset) + 56 (chapter-nav FAB size) + spacing.md
+      // gap, then spacing.lg breathing room above the progress bar.
+      bottom: spacing.lg + 60 + 56 + spacing.md,
       width: FAB_SIZE,
       height: FAB_SIZE,
       borderRadius: FAB_SIZE / 2,
