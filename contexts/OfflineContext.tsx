@@ -456,10 +456,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     if (manifest) {
       await refreshDownloadState(manifest);
     }
-    // Hard-remove (not just invalidate) so the next chapter render doesn't get
-    // the stale payload while the refetch is still in flight — `invalidate`
-    // keeps `data` populated, which is exactly what we don't want here.
-    queryClient.removeQueries({
+    // Purge React Query cache for this book's chapters; otherwise staleTime:Infinity
+    // keeps serving the now-deleted payload.
+    queryClient.invalidateQueries({
       predicate: (q) => matchesBookId(q.queryKey, bookId),
     });
   };
@@ -593,11 +592,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     if (manifest) {
       await refreshDownloadState(manifest);
     }
-    // Hard-remove (not just invalidate) chapter/explanation payloads. Delete
-    // All wipes SQLite, so the cached `data` should disappear too — `invalidate`
-    // would keep serving it until the next successful refetch, which can't
-    // happen offline.
-    queryClient.removeQueries({
+    // Purge any cached chapter / explanation payloads so the UI doesn't keep
+    // serving stale data (e.g., "Available offline" badge on deleted content).
+    queryClient.invalidateQueries({
       predicate: (q) =>
         matchesOperationId(q.queryKey, CHAPTER_QUERY_ID) ||
         matchesOperationId(q.queryKey, EXPLANATION_QUERY_ID),

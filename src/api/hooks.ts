@@ -120,13 +120,13 @@ export const useBibleChapter = (
   version?: string,
   options?: { enabled?: boolean }
 ) => {
-  const { downloadedBibleBooks, isInitialized } = useOfflineContext();
+  const { downloadedBibleBooks } = useOfflineContext();
   const effectiveVersion = version || 'NASB1995'; // Default to NASB1995 if not specified
   // Book-level granularity: only treat as local if THIS specific book is downloaded.
   // Version-level checks masked deletions of individual books, since the version would
   // still be listed as "downloaded" when 65/66 books remained.
   // Default to {} for tests that mock useOfflineContext with a partial object.
-  const isLocal = (downloadedBibleBooks?.[effectiveVersion] || []).includes(bookId);
+  const isLocal = ((downloadedBibleBooks || {})[effectiveVersion] || []).includes(bookId);
 
   // Use the generated query key so prefetch cache hits work
   const generatedOpts = getBibleBookByBookIdByChapterNumberOptions({
@@ -135,21 +135,8 @@ export const useBibleChapter = (
   });
 
   const query = useQuery({
-    // isLocal is appended to the key so that the SQLite path and the network
-    // path use separate cache entries. Without this, a chapter loaded online
-    // (API response cached under the base key with staleTime:Infinity) would
-    // be served stale when the user goes offline, bypassing the SQLite read
-    // and returning null because the transform chain doesn't match.
-    queryKey: [...generatedOpts.queryKey, isLocal],
+    queryKey: generatedOpts.queryKey,
     staleTime: Number.POSITIVE_INFINITY, // Bible text is immutable within a session
-    // Must be 'always' so the queryFn runs when offline. The default 'online'
-    // mode pauses queries when there is no network, which would prevent the
-    // isLocal=true path from reading SQLite and always show the offline screen.
-    networkMode: 'always',
-    // Always refetch when connectivity returns, even though staleTime: Infinity
-    // would otherwise suppress it — covers the case where the user was on the
-    // OfflineContentUnavailable screen and the previous fetch errored out.
-    refetchOnReconnect: 'always',
     queryFn: async ({ signal }) => {
       if (isLocal) {
         const verses = await getLocalBibleChapter(effectiveVersion, bookId, chapterNumber);
@@ -191,11 +178,7 @@ export const useBibleChapter = (
 
       return response;
     },
-    // isInitialized gates the query so a cold offline open doesn't fire a
-    // network fetch before SQLite is ready — which would cache an error and
-    // leave the screen stuck on OfflineContentUnavailable even when the book
-    // is downloaded. The chapter screen shows a skeleton until isInitialized.
-    enabled: isInitialized && (options?.enabled ?? true) && bookId > 0 && chapterNumber > 0,
+    enabled: (options?.enabled ?? true) && bookId > 0 && chapterNumber > 0,
   });
 
   return {
@@ -275,7 +258,6 @@ export const useBibleChapterExplanation = (
                 type: explanation.type,
                 content,
                 languageCode: explanation.language_code,
-                explanationId: explanation.explanation_id ?? null,
               };
             }
           }
@@ -367,16 +349,7 @@ export const useBibleChapterExplanation = (
     query.data,
   ]);
 
-  // BUG-008 (Andy 2026-05-02): the "Available offline" badge previously fired
-  // for ANY explanation present in SQLite, including rows auto-cached on first
-  // view. Users expected the badge to mean "I downloaded this for offline use,"
-  // not "the app silently cached this." Tighten the rule so the badge only
-  // shows when the user has explicitly downloaded the language's commentary
-  // bundle (matchedLocalLanguage is non-null only when the language is in
-  // downloadedCommentaryLanguages from OfflineContext). Auto-cached rows still
-  // exist in SQLite and continue to power offline reading; they just don't
-  // earn the badge anymore.
-  const isLocalData = matchedLocalLanguage != null && hasLocalExplanation && query.data != null;
+  const isLocalData = hasLocalExplanation && query.data != null;
 
   return {
     ...query,

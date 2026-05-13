@@ -36,7 +36,6 @@ import {
   spacing,
 } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
-import { AudioInlineEntry } from './AudioInlineEntry';
 import { ShareButton } from './ShareButton';
 
 /**
@@ -337,40 +336,29 @@ export function BibleExplanationsPanel({
       </View>
 
       {/* Content Area — one ScrollView per tab for independent scroll positions */}
-      {(
-        [
-          {
-            key: 'summary' as const,
-            type: 'summary',
-            ref: summaryScrollRef,
-            data: summaryContent,
-            explanationId:
-              summaryData && 'explanationId' in summaryData ? summaryData.explanationId : null,
-            loading: summaryLoading,
-            isLocal: summaryIsLocal,
-          },
-          {
-            key: 'byline' as const,
-            type: 'byline',
-            ref: byLineScrollRef,
-            data: byLineContent,
-            explanationId:
-              byLineData && 'explanationId' in byLineData ? byLineData.explanationId : null,
-            loading: byLineLoading,
-            isLocal: byLineIsLocal,
-          },
-          {
-            key: 'detailed' as const,
-            type: 'detailed',
-            ref: detailedScrollRef,
-            data: detailedContent,
-            explanationId:
-              detailedData && 'explanationId' in detailedData ? detailedData.explanationId : null,
-            loading: detailedLoading,
-            isLocal: detailedIsLocal,
-          },
-        ] as const
-      ).map((tab) => (
+      {[
+        {
+          key: 'summary' as const,
+          ref: summaryScrollRef,
+          data: summaryContent,
+          loading: summaryLoading,
+          isLocal: summaryIsLocal,
+        },
+        {
+          key: 'byline' as const,
+          ref: byLineScrollRef,
+          data: byLineContent,
+          loading: byLineLoading,
+          isLocal: byLineIsLocal,
+        },
+        {
+          key: 'detailed' as const,
+          ref: detailedScrollRef,
+          data: detailedContent,
+          loading: detailedLoading,
+          isLocal: detailedIsLocal,
+        },
+      ].map((tab) => (
         <ScrollView
           key={tab.key}
           ref={tab.ref}
@@ -385,16 +373,6 @@ export function BibleExplanationsPanel({
             <SkeletonLoader />
           ) : tab.data ? (
             <>
-              {tab.explanationId !== null ? (
-                <AudioInlineEntry
-                  explanationId={tab.explanationId}
-                  explanationType={tab.type}
-                  bookId={bookId}
-                  chapterNumber={chapterNumber}
-                  language={language}
-                  sourceHref={`/bible/${bookId}/${chapterNumber}`}
-                />
-              ) : null}
               {tab.isLocal && <AvailableOfflineBadge />}
               <Markdown style={markdownStyles}>{tab.data}</Markdown>
             </>
