@@ -264,12 +264,15 @@ export function NoteEditModal({
     } catch {}
 
     const title = t('sharing.note.title', { book: bookName, chapter: chapterNumber });
-    const message = t('sharing.note.body', {
+    const rawMessage = t('sharing.note.body', {
       book: bookName,
       chapter: chapterNumber,
       content,
       url: url ?? '',
     });
+    // If URL generation failed, strip the trailing blank URL slot so the
+    // recipient doesn't see dangling whitespace at the end of the message.
+    const message = url ? rawMessage : rawMessage.replace(/\s+$/, '');
 
     await Share.share({
       message,
