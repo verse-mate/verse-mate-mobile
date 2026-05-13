@@ -3,6 +3,9 @@
  *
  * Verifies the quick-verse-jump control rendered above the By Line tab:
  * - hides itself when there are no verses to jump to
+ * - fades (rather than unmounts) when visible=false so the pill auto-hides
+ *   on the same trigger as the chapter-nav scroll arrows (VERA-39)
+ * - keeps the hit-target during fade-out and reveals the picker on tap
  * - opens a modal listing every verse on tap
  * - emits the chosen verse number on cell tap and dismisses the modal
  * - dismisses on backdrop tap without emitting
@@ -26,10 +29,30 @@ describe('VerseJumpButton', () => {
     expect(screen.queryByTestId('verse-jump-button')).toBeNull();
   });
 
-  it('renders nothing when visible=false', () => {
+  it('stays mounted but fades out when visible=false (mirrors scroll-arrow auto-hide)', () => {
     const onSelect = jest.fn();
     renderWithProviders(<VerseJumpButton verses={[1, 2, 3]} onSelect={onSelect} visible={false} />);
-    expect(screen.queryByTestId('verse-jump-button')).toBeNull();
+    // Pill stays in the tree so the hit-target survives the fade — no dead-zone
+    // regression vs. the previous always-visible pill.
+    expect(screen.getByTestId('verse-jump-button')).toBeTruthy();
+  });
+
+  it('still opens the picker when tapped while faded out', () => {
+    const onSelect = jest.fn();
+    const onInteraction = jest.fn();
+    renderWithProviders(
+      <VerseJumpButton
+        verses={[1, 2, 3]}
+        onSelect={onSelect}
+        visible={false}
+        onInteraction={onInteraction}
+      />
+    );
+    fireEvent.press(screen.getByTestId('verse-jump-button'));
+    expect(screen.getByTestId('verse-jump-button-verse-2')).toBeTruthy();
+    // Tap also signals interaction so the host can reset the auto-hide timer
+    // and re-show the pill alongside the scroll arrows.
+    expect(onInteraction).toHaveBeenCalledTimes(1);
   });
 
   it('opens the modal and lists every supplied verse on tap', () => {
