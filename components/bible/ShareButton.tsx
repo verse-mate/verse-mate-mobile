@@ -26,6 +26,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { t } from 'i18next';
 import { Alert, Platform, Pressable, Share, StyleSheet } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
@@ -66,9 +67,8 @@ export interface ShareButtonProps {
  * - Handles share errors gracefully
  * - Generates shareable URL using generateChapterShareUrl()
  *
- * Share Message Format:
- * "Check out [Book Name] [Chapter Number] on VerseMate: [URL]"
- * Example: "Check out John 3 on VerseMate: https://app.versemate.org/bible/43/3"
+ * Share Message Format (i18n key `sharing.chapter.body`, spec feat-humanize-share):
+ * "Reading [Book] [Chapter] — thought you might like this too. [URL]"
  *
  * Accessibility:
  * - accessibilityRole="button"
@@ -124,14 +124,22 @@ export function ShareButton({
       // Generate shareable URL with optional insight type
       const shareUrl = generateChapterShareUrl(bookId, chapterNumber, insightType);
 
-      // Format share message
-      const message = `Check out ${bookName} ${chapterNumber} on VerseMate: ${shareUrl}`;
+      // Build share copy via i18n (spec: feat-humanize-share, br-hs-004)
+      const title = t('sharing.chapter.title', {
+        book: bookName,
+        chapter: chapterNumber,
+      });
+      const message = t('sharing.chapter.body', {
+        book: bookName,
+        chapter: chapterNumber,
+        url: shareUrl,
+      });
 
       // Web: use Web Share API with clipboard fallback
       if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
         if (navigator.share) {
           await navigator.share({
-            title: `${bookName} ${chapterNumber}`,
+            title,
             text: message,
             url: shareUrl,
           });
@@ -143,6 +151,7 @@ export function ShareButton({
       } else {
         // Native: open system share sheet
         const result = await Share.share({
+          title,
           message,
           url: shareUrl, // iOS uses this for better handling
         });
