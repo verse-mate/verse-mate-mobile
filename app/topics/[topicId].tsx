@@ -26,6 +26,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
+import { t } from 'i18next';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import { Alert, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
@@ -296,9 +297,11 @@ export default function TopicDetailScreen() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       const url = generateTopicShareUrl(currentTopicCategory, currentTopic.name);
-      const message = `Check out ${currentTopic.name} on VerseMate: ${url}`;
+      const title = t('sharing.topic.title', { topic: currentTopic.name });
+      const message = t('sharing.topic.body', { topic: currentTopic.name, url });
 
       const result = await Share.share({
+        title,
         message,
         url,
       });

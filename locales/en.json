@@ -137,6 +137,21 @@
     "placeholder": "Write your note…"
   },
 
+  "sharing": {
+    "chapter": {
+      "title": "{{book}} {{chapter}}",
+      "body": "Reading {{book}} {{chapter}} — thought you might like this too. {{url}}"
+    },
+    "topic": {
+      "title": "{{topic}}",
+      "body": "Found this on {{topic}} and thought of you. {{url}}"
+    },
+    "note": {
+      "title": "Note on {{book}} {{chapter}}",
+      "body": "A note I made on {{book}} {{chapter}}:\n\n\"{{content}}\"\n\n{{url}}"
+    }
+  },
+
   "common": {
     "ok": "OK",
     "cancel": "Cancel",

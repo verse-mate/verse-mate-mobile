@@ -15,6 +15,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { t } from 'i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
@@ -192,9 +193,11 @@ export function TopicExplanationsPanel({
       };
 
       const shareUrl = generateTopicShareUrl(topic.category, topic.name, activeTab);
-      const message = `Check out ${topicName} on VerseMate: ${shareUrl}`;
+      const title = t('sharing.topic.title', { topic: topicName });
+      const message = t('sharing.topic.body', { topic: topicName, url: shareUrl });
 
       const result = await Share.share({
+        title,
         message,
         url: shareUrl,
       });
