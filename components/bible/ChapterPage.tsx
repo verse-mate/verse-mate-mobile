@@ -20,7 +20,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { findNodeHandle, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { findNodeHandle, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
 import { AudioInlineEntry } from '@/components/bible/AudioInlineEntry';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
@@ -43,6 +43,7 @@ import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
+import { computeByLineJumpY } from '@/utils/bible/byLineJump';
 import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { BottomLogo } from './BottomLogo';
@@ -792,6 +793,29 @@ export function ChapterPage({
     const node = byLineSectionRefs.current[verseNumber];
     const scrollView = byLineScrollRef.current;
     if (!node || !scrollView) return;
+
+    // react-native-web ships `View.measureLayout` as a stub that never invokes
+    // either callback, so the native path silently no-ops on web. On web, read
+    // positions from the DOM via getBoundingClientRect + the ScrollView's
+    // current scrollTop. See verse-mate-mobile #77 / VERA-35 QA round 2.
+    if (Platform.OS === 'web') {
+      const scrollNode = (
+        scrollView as unknown as { getScrollableNode?: () => HTMLElement | null }
+      ).getScrollableNode?.();
+      const sectionEl = node as unknown as HTMLElement;
+      if (scrollNode && typeof sectionEl.getBoundingClientRect === 'function') {
+        const sRect = scrollNode.getBoundingClientRect();
+        const nRect = sectionEl.getBoundingClientRect();
+        const y = computeByLineJumpY(
+          { top: sRect.top, scrollTop: scrollNode.scrollTop },
+          { top: nRect.top },
+          spacing.md
+        );
+        scrollView.scrollTo({ y, animated: true });
+      }
+      return;
+    }
+
     const scrollHandle = findNodeHandle(scrollView);
     if (scrollHandle == null) return;
     // measureLayout reports the section's offset relative to the ScrollView
