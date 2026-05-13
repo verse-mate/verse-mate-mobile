@@ -40,4 +40,19 @@ describe('Note share copy (feat-humanize-share)', () => {
     expect(noteSrc).toContain("t('sharing.note.title'");
     expect(noteSrc).not.toMatch(/`Note on \$\{bookName\} \$\{chapterNumber\}/);
   });
+
+  it('strips the trailing URL slot when generateChapterShareUrl fails', () => {
+    // Mirrors the fallback branch in NoteEditModal._handleShare: when URL
+    // generation throws, the rendered body must not leave dangling whitespace
+    // where {{url}} would have been (br-hs-003: no behavior regression).
+    const raw = t('sharing.note.body', {
+      book: 'John',
+      chapter: 3,
+      content: 'Quiet morning.',
+      url: '',
+    });
+    const cleaned = raw.replace(/\s+$/, '');
+    expect(cleaned.endsWith('"Quiet morning."')).toBe(true);
+    expect(cleaned).not.toMatch(/\n\n$/);
+  });
 });
