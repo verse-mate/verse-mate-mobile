@@ -18,9 +18,9 @@
  */
 
 import { router } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { findNodeHandle, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
 import { AudioInlineEntry } from '@/components/bible/AudioInlineEntry';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
@@ -43,10 +43,13 @@ import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
 import type { Note } from '@/types/notes';
+import { computeByLineJumpY } from '@/utils/bible/byLineJump';
 import { groupConsecutiveHighlights } from '@/utils/bible/groupConsecutiveHighlights';
+import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
+import { VerseJumpButton } from './VerseJumpButton';
 
 // Styles for the overall ChapterPage component
 const createStyles = (colors: ReturnType<typeof getColors>) =>
@@ -104,6 +107,7 @@ function TabContent({
   scrollRef,
   onTabContentSizeChange,
   isAvailableOffline,
+  onByLineSectionRegister,
 }: {
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
@@ -121,6 +125,7 @@ function TabContent({
   scrollRef?: React.RefObject<ScrollView | null>;
   onTabContentSizeChange?: (contentWidth: number, contentHeight: number) => void;
   isAvailableOffline?: boolean;
+  onByLineSectionRegister?: (verseNumber: number, node: View | null) => void;
 }) {
   const { colors } = useTheme();
   const styles = createStyles(colors); // Use local createStyles for TabContent
@@ -214,6 +219,7 @@ function TabContent({
               explanation={explanationContent}
               filteredHighlights={filteredHighlights}
               filteredAutoHighlights={filteredAutoHighlights}
+              onByLineSectionRegister={activeTab === 'byline' ? onByLineSectionRegister : undefined}
             />
           )}
         </View>
@@ -251,6 +257,17 @@ export interface ChapterPageProps {
   onTap?: () => void;
   /** Hide the chapter title text (used in split view where parent has a header) */
   hideChapterTitle?: boolean;
+  /**
+   * Drives the verse-jump pill fade. Pass the same `fabVisible` state used by
+   * the chapter-nav scroll arrows so the pill auto-hides on the same trigger
+   * (VERA-39). Defaults to `true` for callers that don't track FAB visibility.
+   */
+  fabVisible?: boolean;
+  /**
+   * Called when the user taps the verse-jump pill. Wire to `showButtons` from
+   * `useFABVisibility` so the arrows and the pill re-show together.
+   */
+  onFABInteraction?: () => void;
 }
 
 /**
@@ -288,6 +305,8 @@ export function ChapterPage({
   onScroll,
   onTap,
   hideChapterTitle = false,
+  fabVisible = true,
+  onFABInteraction,
 }: ChapterPageProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors); // Use local createStyles for ChapterPage
@@ -307,6 +326,10 @@ export function ChapterPage({
   const byLineScrollRef = useRef<ScrollView>(null);
   const summaryScrollRef = useRef<ScrollView>(null);
   const detailedScrollRef = useRef<ScrollView>(null);
+
+  // Quick-verse-jump: refs to the rendered View for each By Line verse section.
+  // Used with measureLayout(byLineScrollRef) to compute the scroll-to Y on tap.
+  const byLineSectionRefs = useRef<Record<number, View | null>>({});
 
   // Note Modals State
   const [notesModalVisible, setNotesModalVisible] = useState(false);
@@ -754,6 +777,81 @@ export function ChapterPage({
   // Memoize context value to avoid unnecessary re-renders
   const textVisibilityContextValue = useMemo(() => ({ visibleYRange }), [visibleYRange]);
 
+  // Quick-verse-jump for the By Line tab (issue verse-mate-mobile#77).
+  // Parse the byline markdown once per content change to know which verse
+  // numbers are jumpable. Skip the parse when the tab is hidden.
+  const byLineVerses = useMemo(() => {
+    const content = byLineData && 'content' in byLineData ? byLineData.content : undefined;
+    if (!content) return [] as number[];
+    return parseByLineSections(content, chapterNumber)
+      .map((section) => section.verseNumber)
+      .filter((verseNumber) => verseNumber > 0);
+  }, [byLineData, chapterNumber]);
+
+  // Reset section refs when chapter changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refs reset on chapter swap
+  useEffect(() => {
+    byLineSectionRefs.current = {};
+  }, [bookId, chapterNumber]);
+
+  const handleByLineSectionRegister = useCallback((verseNumber: number, node: View | null) => {
+    if (node === null) {
+      delete byLineSectionRefs.current[verseNumber];
+      return;
+    }
+    byLineSectionRefs.current[verseNumber] = node;
+  }, []);
+
+  const handleByLineVerseJump = useCallback((verseNumber: number) => {
+    const node = byLineSectionRefs.current[verseNumber];
+    const scrollView = byLineScrollRef.current;
+    if (!node || !scrollView) return;
+
+    // react-native-web ships `View.measureLayout` as a stub that never invokes
+    // either callback, so the native path silently no-ops on web. On web, read
+    // positions from the DOM via getBoundingClientRect + the ScrollView's
+    // current scrollTop. See verse-mate-mobile #77 / VERA-35 QA round 2.
+    if (Platform.OS === 'web') {
+      const scrollNode = (
+        scrollView as unknown as { getScrollableNode?: () => HTMLElement | null }
+      ).getScrollableNode?.();
+      const sectionEl = node as unknown as HTMLElement;
+      if (scrollNode && typeof sectionEl.getBoundingClientRect === 'function') {
+        const sRect = scrollNode.getBoundingClientRect();
+        const nRect = sectionEl.getBoundingClientRect();
+        const y = computeByLineJumpY(
+          { top: sRect.top, scrollTop: scrollNode.scrollTop },
+          { top: nRect.top },
+          spacing.md
+        );
+        scrollView.scrollTo({ y, animated: true });
+      }
+      return;
+    }
+
+    const scrollHandle = findNodeHandle(scrollView);
+    if (scrollHandle == null) return;
+    // measureLayout reports the section's offset relative to the ScrollView
+    // content, which is exactly what scrollTo expects on the y-axis.
+    (
+      node as unknown as {
+        measureLayout: (
+          node: number,
+          onSuccess: (x: number, y: number, w: number, h: number) => void,
+          onFail: () => void
+        ) => void;
+      }
+    ).measureLayout(
+      scrollHandle,
+      (_x, y) => {
+        // Bias by a small offset so the verse heading isn't flush with the
+        // viewport top.
+        scrollView.scrollTo({ y: Math.max(0, y - spacing.md), animated: true });
+      },
+      () => {}
+    );
+  }, []);
+
   return (
     <View style={styles.container} collapsable={false}>
       {/* Explanations View - Always render when user is in explanations view (even on buffer pages
@@ -814,7 +912,19 @@ export function ChapterPage({
             onTabContentSizeChange={(_w, h) =>
               handleTabContentSizeChange('byline', h, viewportHeightRef.current)
             }
+            onByLineSectionRegister={handleByLineSectionRegister}
           />
+          {/* Quick-verse-jump overlay - byline tab only (issue verse-mate-mobile#77).
+              Mount on the byline tab; fade with the scroll-arrow auto-hide (VERA-39). */}
+          {activeView === 'explanations' && activeTab === 'byline' && (
+            <VerseJumpButton
+              verses={byLineVerses}
+              onSelect={handleByLineVerseJump}
+              visible={fabVisible}
+              onInteraction={onFABInteraction}
+              testID={`chapter-page-${bookId}-${chapterNumber}-verse-jump`}
+            />
+          )}
           <TabContent
             chapter={displayChapter}
             activeTab="detailed"

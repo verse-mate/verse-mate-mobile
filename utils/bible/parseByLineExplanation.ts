@@ -211,3 +211,59 @@ export function extractVerseTextFromByLine(
 
   return verseTexts.join(' ');
 }
+
+export interface ByLineSection {
+  verseNumber: number;
+  markdown: string;
+}
+
+/**
+ * Splits byline markdown into per-verse sections.
+ * Anything before the first `## <Chapter>:<Verse>` header is returned as a
+ * leading prelude with verseNumber = 0 (preserves intro text from the model).
+ *
+ * Used by the quick-verse-jump control to anchor each verse section in the
+ * ScrollView so taps on a verse number can scrollTo the right Y position.
+ */
+export function parseByLineSections(
+  markdownContent: string,
+  chapterNumber: number
+): ByLineSection[] {
+  if (!markdownContent) return [];
+
+  const content = markdownContent.replace(/\r\n/g, '\n');
+  const lines = content.split('\n');
+
+  const sections: ByLineSection[] = [];
+  let currentVerse = 0;
+  let buffer: string[] = [];
+
+  const flush = () => {
+    const body = buffer.join('\n').trim();
+    if (body.length > 0) {
+      sections.push({ verseNumber: currentVerse, markdown: body });
+    }
+    buffer = [];
+  };
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      const match = line.match(/(\d+):(\d+)/);
+      if (match) {
+        const foundChapter = parseInt(match[1], 10);
+        const foundVerse = parseInt(match[2], 10);
+        if (foundChapter === chapterNumber) {
+          flush();
+          currentVerse = foundVerse;
+          buffer.push(line);
+          continue;
+        }
+      }
+    }
+    buffer.push(line);
+  }
+
+  flush();
+
+  return sections;
+}

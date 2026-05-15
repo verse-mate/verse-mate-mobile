@@ -58,6 +58,7 @@ import {
   findGroupByHighlightId,
   groupConsecutiveHighlights,
 } from '@/utils/bible/groupConsecutiveHighlights';
+import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
@@ -162,6 +163,14 @@ interface ChapterReaderProps {
   hideChapterTitle?: boolean;
   /** Callback to report Y-position of verse sections for scrolling */
   onContentLayout?: (sectionPositions: Record<number, number>) => void;
+  /**
+   * Register the rendered React Native View for a verse section in the By Line
+   * explanation tab. The parent uses `measureLayout` against its ScrollView ref
+   * to compute the absolute scroll offset for that verse.
+   *
+   * Receives `null` for verse sections that no longer exist (cleanup).
+   */
+  onByLineSectionRegister?: (verseNumber: number, node: View | null) => void;
   /** Callback to open notes modal */
   onOpenNotes?: () => void;
   /** Optional filtered highlights (overrides context highlights) */
@@ -258,6 +267,7 @@ export function ChapterReader({
   explanationsOnly = false,
   hideChapterTitle = false,
   onContentLayout,
+  onByLineSectionRegister,
   onOpenNotes,
   filteredHighlights,
   filteredAutoHighlights,
@@ -744,7 +754,26 @@ export function ChapterReader({
               )}
 
               {/* Markdown content */}
-              <Markdown style={markdownStyles}>{contentWithoutTitle}</Markdown>
+              {activeTab === 'byline' && onByLineSectionRegister ? (
+                (() => {
+                  const sections = parseByLineSections(contentWithoutTitle, chapter.chapterNumber);
+                  if (sections.length === 0) {
+                    return <Markdown style={markdownStyles}>{contentWithoutTitle}</Markdown>;
+                  }
+                  return sections.map((section, index) => (
+                    <View
+                      key={`byline-section-${section.verseNumber}-${index}`}
+                      ref={(node) => onByLineSectionRegister(section.verseNumber, node)}
+                      testID={`byline-verse-section-${section.verseNumber}`}
+                      collapsable={false}
+                    >
+                      <Markdown style={markdownStyles}>{section.markdown}</Markdown>
+                    </View>
+                  ));
+                })()
+              ) : (
+                <Markdown style={markdownStyles}>{contentWithoutTitle}</Markdown>
+              )}
             </View>
           );
         })()}
