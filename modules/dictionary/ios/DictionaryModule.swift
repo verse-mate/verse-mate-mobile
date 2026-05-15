@@ -35,6 +35,22 @@ public class DictionaryModule: Module {
           topController = presentedVC
         }
 
+        // iPad requires a popover anchor for UIReferenceLibraryViewController.
+        // Without one, the sheet renders unsized/misformatted (VER-48). The JS
+        // bridge does not pass source coordinates, so anchor to the top view's
+        // center with no arrow direction.
+        if UIDevice.current.userInterfaceIdiom == .pad {
+          referenceVC.modalPresentationStyle = .popover
+          if let popover = referenceVC.popoverPresentationController {
+            let anchorView = topController.view ?? rootViewController.view
+            popover.sourceView = anchorView
+            if let bounds = anchorView?.bounds {
+              popover.sourceRect = CGRect(x: bounds.midX, y: bounds.midY, width: 0, height: 0)
+            }
+            popover.permittedArrowDirections = []
+          }
+        }
+
         topController.present(referenceVC, animated: true)
         return true
       }
