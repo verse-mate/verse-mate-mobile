@@ -14,9 +14,18 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  findNodeHandle,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
@@ -36,8 +45,11 @@ import {
   spacing,
 } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
+import { computeByLineJumpY } from '@/utils/bible/byLineJump';
+import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { AudioInlineEntry } from './AudioInlineEntry';
 import { ShareButton } from './ShareButton';
+import { VerseJumpButton } from './VerseJumpButton';
 
 /**
  * Tab configuration for explanation types
@@ -76,6 +88,20 @@ export interface BibleExplanationsPanelProps {
   /** Callback for tap events (for FAB visibility control) */
   onTap?: () => void;
 
+  /**
+   * Drives the verse-jump pill fade. Pass the same `fabVisible` state used
+   * by the chapter-nav scroll arrows so the pill auto-hides on the same
+   * trigger (VERA-39 / VERA-36). Defaults to `true` for callers that don't
+   * track FAB visibility.
+   */
+  fabVisible?: boolean;
+
+  /**
+   * Called when the user taps the verse-jump pill. Wire to `showButtons`
+   * from `useFABVisibility` so the arrows and the pill re-show together.
+   */
+  onFABInteraction?: () => void;
+
   /** Test ID for testing */
   testID?: string;
 }
@@ -94,6 +120,8 @@ export function BibleExplanationsPanel({
   onMenuPress,
   onScroll,
   onTap,
+  fabVisible = true,
+  onFABInteraction,
   testID = 'bible-explanations-panel',
 }: BibleExplanationsPanelProps) {
   const { mode, colors } = useTheme();
@@ -128,12 +156,18 @@ export function BibleExplanationsPanel({
   const byLineScrollRef = useRef<ScrollView>(null);
   const detailedScrollRef = useRef<ScrollView>(null);
 
+  // Quick-verse-jump (VERA-35 / VERA-36): refs to each rendered By Line
+  // verse-section View. Populated when byline content is split into per-verse
+  // sections below. Reset on chapter swap so stale nodes can't be reached.
+  const byLineSectionRefs = useRef<Record<number, View | null>>({});
+
   // Reset all scroll positions only when chapter changes (not on tab switch)
   // biome-ignore lint/correctness/useExhaustiveDependencies: deps are intentional triggers for scroll reset
   useEffect(() => {
     summaryScrollRef.current?.scrollTo({ y: 0, animated: false });
     byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
     detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
+    byLineSectionRefs.current = {};
   }, [bookId, chapterNumber]);
 
   // Animate indicator when active tab changes
@@ -194,6 +228,66 @@ export function BibleExplanationsPanel({
   const summaryContent = extractContent(summaryData);
   const byLineContent = extractContent(byLineData);
   const detailedContent = extractContent(detailedData);
+
+  // Quick-verse-jump for the By Line tab (VERA-36): desktop / split-view path.
+  // ChapterPage handles the phone-portrait path; this panel covers
+  // landscape-tablet and web desktop (width >= 900dp, see
+  // utils/device-detection.ts -> shouldUseSplitView).
+  const byLineSections = useMemo(() => {
+    if (!byLineContent) return [] as ReturnType<typeof parseByLineSections>;
+    return parseByLineSections(byLineContent, chapterNumber);
+  }, [byLineContent, chapterNumber]);
+
+  const byLineVerses = useMemo(
+    () => byLineSections.map((section) => section.verseNumber).filter((v) => v > 0),
+    [byLineSections]
+  );
+
+  const handleByLineVerseJump = useCallback((verseNumber: number) => {
+    const node = byLineSectionRefs.current[verseNumber];
+    const scrollView = byLineScrollRef.current;
+    if (!node || !scrollView) return;
+
+    // react-native-web's `View.measureLayout` is a no-op stub, so the native
+    // path silently fails on web. On web, read positions from the DOM via
+    // getBoundingClientRect + the ScrollView's scrollTop. Mirrors the logic in
+    // ChapterPage.tsx (VERA-35 QA round 2 / verse-mate-mobile #77).
+    if (Platform.OS === 'web') {
+      const scrollNode = (
+        scrollView as unknown as { getScrollableNode?: () => HTMLElement | null }
+      ).getScrollableNode?.();
+      const sectionEl = node as unknown as HTMLElement;
+      if (scrollNode && typeof sectionEl.getBoundingClientRect === 'function') {
+        const sRect = scrollNode.getBoundingClientRect();
+        const nRect = sectionEl.getBoundingClientRect();
+        const y = computeByLineJumpY(
+          { top: sRect.top, scrollTop: scrollNode.scrollTop },
+          { top: nRect.top },
+          spacing.md
+        );
+        scrollView.scrollTo({ y, animated: true });
+      }
+      return;
+    }
+
+    const scrollHandle = findNodeHandle(scrollView);
+    if (scrollHandle == null) return;
+    (
+      node as unknown as {
+        measureLayout: (
+          node: number,
+          onSuccess: (x: number, y: number, w: number, h: number) => void,
+          onFail: () => void
+        ) => void;
+      }
+    ).measureLayout(
+      scrollHandle,
+      (_x, y) => {
+        scrollView.scrollTo({ y: Math.max(0, y - spacing.md), animated: true });
+      },
+      () => {}
+    );
+  }, []);
 
   /**
    * Handle touch start - record time and position
@@ -396,7 +490,27 @@ export function BibleExplanationsPanel({
                 />
               ) : null}
               {tab.isLocal && <AvailableOfflineBadge />}
-              <Markdown style={markdownStyles}>{tab.data}</Markdown>
+              {tab.key === 'byline' && byLineSections.length > 0 ? (
+                byLineSections.map((section, index) => (
+                  <View
+                    // biome-ignore lint/suspicious/noArrayIndexKey: stable within a single parsed render
+                    key={`byline-section-${section.verseNumber}-${index}`}
+                    ref={(node) => {
+                      if (node === null) {
+                        delete byLineSectionRefs.current[section.verseNumber];
+                      } else {
+                        byLineSectionRefs.current[section.verseNumber] = node;
+                      }
+                    }}
+                    testID={`byline-verse-section-${section.verseNumber}`}
+                    collapsable={false}
+                  >
+                    <Markdown style={markdownStyles}>{section.markdown}</Markdown>
+                  </View>
+                ))
+              ) : (
+                <Markdown style={markdownStyles}>{tab.data}</Markdown>
+              )}
             </>
           ) : isOffline ? (
             <OfflineContentUnavailable contentType="explanation" />
@@ -407,6 +521,21 @@ export function BibleExplanationsPanel({
           )}
         </ScrollView>
       ))}
+
+      {/* Quick-verse-jump FAB (VERA-36): byline-only. No chapter-nav row
+          beneath this ScrollView in split / desktop right panel, so use a
+          tighter bottom offset than the phone-portrait default.
+          Fades with the scroll-arrow auto-hide (VERA-39 / VERA-36 parity). */}
+      {activeTab === 'byline' && (
+        <VerseJumpButton
+          verses={byLineVerses}
+          onSelect={handleByLineVerseJump}
+          visible={fabVisible}
+          onInteraction={onFABInteraction}
+          bottomOffset={spacing.lg}
+          testID={`${testID}-verse-jump`}
+        />
+      )}
     </View>
   );
 }
