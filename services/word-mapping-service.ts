@@ -111,11 +111,26 @@ const wordToStrongs: Record<string, string> = {
   ...greekWordMappings,
 };
 
+// Latin ligatures used in KJV typography (e.g., "Zacchæus", "Cæsar", "Phœnicia").
+// Unicode treats these as independent letters, so NFKD does not decompose them — we map explicitly.
+const LIGATURE_MAP: Record<string, string> = {
+  æ: 'ae',
+  Æ: 'AE',
+  œ: 'oe',
+  Œ: 'OE',
+};
+
 /**
- * Normalizes a word for lookup by converting to lowercase and removing punctuation
+ * Normalizes a word for lookup by expanding KJV ligatures, stripping diacritics,
+ * lowercasing, and removing punctuation.
  */
 export function normalizeWord(word: string): string {
-  return word.toLowerCase().replace(/[.,;:!?'"()]/g, '');
+  return word
+    .replace(/[æÆœŒ]/g, (c) => LIGATURE_MAP[c])
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[.,;:!?'"()]/g, '');
 }
 
 /**
