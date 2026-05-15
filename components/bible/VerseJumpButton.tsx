@@ -22,6 +22,13 @@ export interface VerseJumpButtonProps {
   onSelect: (verseNumber: number) => void;
   /** Hide the button entirely (e.g. when the tab is not active) */
   visible?: boolean;
+  /**
+   * Distance from the parent's bottom edge in dp. Defaults to mobile portrait
+   * stacking (above the chapter-nav FAB row + progress bar). Split-view /
+   * desktop panels have no chapter-nav row below the byline ScrollView, so
+   * the host passes a tighter value (typically `spacing.lg`).
+   */
+  bottomOffset?: number;
   /** Test id prefix; sub-elements append a suffix (verse cells, backdrop, modal) */
   testID?: string;
 }
@@ -38,11 +45,12 @@ export function VerseJumpButton({
   verses,
   onSelect,
   visible = true,
+  bottomOffset,
   testID = 'verse-jump-button',
 }: VerseJumpButtonProps) {
   const { mode, colors } = useTheme();
   const [open, setOpen] = useState(false);
-  const styles = createStyles(mode, colors);
+  const styles = createStyles(mode, colors, bottomOffset);
 
   if (!visible || verses.length === 0) return null;
 
@@ -120,16 +128,19 @@ export function VerseJumpButton({
 const FAB_SIZE = 52;
 const CELL_SIZE = 48;
 
-const createStyles = (mode: ThemeMode, colors: ReturnType<typeof getColors>) =>
+const createStyles = (
+  mode: ThemeMode,
+  colors: ReturnType<typeof getColors>,
+  bottomOffset?: number
+) =>
   StyleSheet.create({
     fab: {
       position: 'absolute',
       right: spacing.lg,
-      // Stack the pill ABOVE the chapter-nav FAB row instead of co-locating
-      // (chapter-nav row: bottom 60 + size 56 = top edge 116 from screen bottom).
-      // 60 (chapter-nav bottomOffset) + 56 (chapter-nav FAB size) + spacing.md
-      // gap, then spacing.lg breathing room above the progress bar.
-      bottom: spacing.lg + 60 + 56 + spacing.md,
+      // Stack the pill ABOVE the chapter-nav FAB row by default (phone portrait
+      // path through ChapterPage). Hosts without a chapter-nav row beneath the
+      // ScrollView (split-view / desktop right panel) override via bottomOffset.
+      bottom: bottomOffset ?? spacing.lg + 60 + 56 + spacing.md,
       width: FAB_SIZE,
       height: FAB_SIZE,
       borderRadius: FAB_SIZE / 2,
