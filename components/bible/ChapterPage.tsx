@@ -257,6 +257,17 @@ export interface ChapterPageProps {
   onTap?: () => void;
   /** Hide the chapter title text (used in split view where parent has a header) */
   hideChapterTitle?: boolean;
+  /**
+   * Drives the verse-jump pill fade. Pass the same `fabVisible` state used by
+   * the chapter-nav scroll arrows so the pill auto-hides on the same trigger
+   * (VERA-39). Defaults to `true` for callers that don't track FAB visibility.
+   */
+  fabVisible?: boolean;
+  /**
+   * Called when the user taps the verse-jump pill. Wire to `showButtons` from
+   * `useFABVisibility` so the arrows and the pill re-show together.
+   */
+  onFABInteraction?: () => void;
 }
 
 /**
@@ -294,6 +305,8 @@ export function ChapterPage({
   onScroll,
   onTap,
   hideChapterTitle = false,
+  fabVisible = true,
+  onFABInteraction,
 }: ChapterPageProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors); // Use local createStyles for ChapterPage
@@ -901,13 +914,17 @@ export function ChapterPage({
             }
             onByLineSectionRegister={handleByLineSectionRegister}
           />
-          {/* Quick-verse-jump overlay - byline tab only (issue verse-mate-mobile#77) */}
-          <VerseJumpButton
-            verses={byLineVerses}
-            onSelect={handleByLineVerseJump}
-            visible={activeView === 'explanations' && activeTab === 'byline'}
-            testID={`chapter-page-${bookId}-${chapterNumber}-verse-jump`}
-          />
+          {/* Quick-verse-jump overlay - byline tab only (issue verse-mate-mobile#77).
+              Mount on the byline tab; fade with the scroll-arrow auto-hide (VERA-39). */}
+          {activeView === 'explanations' && activeTab === 'byline' && (
+            <VerseJumpButton
+              verses={byLineVerses}
+              onSelect={handleByLineVerseJump}
+              visible={fabVisible}
+              onInteraction={onFABInteraction}
+              testID={`chapter-page-${bookId}-${chapterNumber}-verse-jump`}
+            />
+          )}
           <TabContent
             chapter={displayChapter}
             activeTab="detailed"
