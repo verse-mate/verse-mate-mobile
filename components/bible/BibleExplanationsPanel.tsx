@@ -88,6 +88,20 @@ export interface BibleExplanationsPanelProps {
   /** Callback for tap events (for FAB visibility control) */
   onTap?: () => void;
 
+  /**
+   * Drives the verse-jump pill fade. Pass the same `fabVisible` state used
+   * by the chapter-nav scroll arrows so the pill auto-hides on the same
+   * trigger (VERA-39 / VERA-36). Defaults to `true` for callers that don't
+   * track FAB visibility.
+   */
+  fabVisible?: boolean;
+
+  /**
+   * Called when the user taps the verse-jump pill. Wire to `showButtons`
+   * from `useFABVisibility` so the arrows and the pill re-show together.
+   */
+  onFABInteraction?: () => void;
+
   /** Test ID for testing */
   testID?: string;
 }
@@ -106,6 +120,8 @@ export function BibleExplanationsPanel({
   onMenuPress,
   onScroll,
   onTap,
+  fabVisible = true,
+  onFABInteraction,
   testID = 'bible-explanations-panel',
 }: BibleExplanationsPanelProps) {
   const { mode, colors } = useTheme();
@@ -508,14 +524,18 @@ export function BibleExplanationsPanel({
 
       {/* Quick-verse-jump FAB (VERA-36): byline-only. No chapter-nav row
           beneath this ScrollView in split / desktop right panel, so use a
-          tighter bottom offset than the phone-portrait default. */}
-      <VerseJumpButton
-        verses={byLineVerses}
-        onSelect={handleByLineVerseJump}
-        visible={activeTab === 'byline'}
-        bottomOffset={spacing.lg}
-        testID={`${testID}-verse-jump`}
-      />
+          tighter bottom offset than the phone-portrait default.
+          Fades with the scroll-arrow auto-hide (VERA-39 / VERA-36 parity). */}
+      {activeTab === 'byline' && (
+        <VerseJumpButton
+          verses={byLineVerses}
+          onSelect={handleByLineVerseJump}
+          visible={fabVisible}
+          onInteraction={onFABInteraction}
+          bottomOffset={spacing.lg}
+          testID={`${testID}-verse-jump`}
+        />
+      )}
     </View>
   );
 }

@@ -393,6 +393,8 @@ export default function ChapterScreen() {
           isPreloading={!isCurrent}
           targetVerse={isCurrent ? targetVerse : undefined}
           targetEndVerse={isCurrent ? targetEndVerse : undefined}
+          fabVisible={fabVisible}
+          onFABInteraction={showButtons}
         />
       );
     },
@@ -405,6 +407,8 @@ export default function ChapterScreen() {
       chapterNumber,
       targetVerse,
       targetEndVerse,
+      fabVisible,
+      showButtons,
     ]
   );
 
@@ -535,6 +539,8 @@ export default function ChapterScreen() {
                   onMenuPress={() => setIsMenuOpen(true)}
                   onScroll={handleScroll}
                   onTap={handleTap}
+                  fabVisible={fabVisible}
+                  onFABInteraction={showButtons}
                 />
               }
             />
