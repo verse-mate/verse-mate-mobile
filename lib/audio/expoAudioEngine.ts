@@ -89,6 +89,19 @@ export class ExpoAudioEngine implements AudioEngine {
         this.endedFired = true;
         this.emit({ type: "ended" });
       }
+      // VER-77: detect mid-playback stalls. expo-audio surfaces an
+      // `isBuffering` flag, but on some platforms a stall just shows
+      // up as `playing: false` with no buffering bit set. We treat
+      // either signal as buffering once playback has actually advanced
+      // past 0, and ignore the natural `didJustFinish` case so the end
+      // of a track is not misclassified as a stall.
+      const stalledMidPlayback =
+        !status.didJustFinish &&
+        status.currentTime > 0 &&
+        (status.isBuffering || !status.playing);
+      if (stalledMidPlayback) {
+        this.emit({ type: "buffering" });
+      }
     });
     this.statusUnsub = () => subscription.remove();
   }

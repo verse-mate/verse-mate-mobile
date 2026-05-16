@@ -60,6 +60,7 @@ export type AudioEngineEvent =
   | { type: "time"; currentTime: number }
   | { type: "duration"; duration: number }
   | { type: "ended" }
+  | { type: "buffering" }
   | { type: "error"; message: string };
 
 interface State {
@@ -84,6 +85,7 @@ type Action =
   | { type: "ERROR"; message: string }
   | { type: "TIME"; currentTime: number }
   | { type: "DURATION"; duration: number }
+  | { type: "BUFFERING" }
   | { type: "OPEN_FULL" }
   | { type: "CLOSE_FULL" };
 
@@ -125,8 +127,29 @@ export function audioReducer(state: State, action: Action): State {
       return { ...state, playbackState: "ended" };
     case "ERROR":
       return { ...state, playbackState: "error", error: action.message };
-    case "TIME":
-      return { ...state, elapsedSeconds: action.currentTime };
+    case "TIME": {
+      // VER-77: if we entered "loading" mid-play because of a buffer
+      // stall, an advancing TIME event means the player resumed.
+      // Transition back to "playing". The initial post-LOAD "loading"
+      // state never sees advancing time before PLAY, so this only
+      // recovers from buffering, not from a fresh load.
+      const resumedFromBuffering =
+        state.playbackState === "loading" &&
+        state.currentTrack !== null &&
+        action.currentTime > state.elapsedSeconds;
+      return {
+        ...state,
+        elapsedSeconds: action.currentTime,
+        playbackState: resumedFromBuffering ? "playing" : state.playbackState,
+      };
+    }
+    case "BUFFERING":
+      // Only transition into the buffering view from active playback.
+      // Ignores the post-pause status flood that also reports
+      // playing=false from the native player.
+      return state.playbackState === "playing"
+        ? { ...state, playbackState: "loading" }
+        : state;
     case "DURATION":
       return { ...state, durationSeconds: action.duration };
     case "CLOSE":
@@ -193,6 +216,7 @@ export function AudioPlayerProvider(props: AudioPlayerProviderProps) {
       else if (event.type === "duration")
         dispatch({ type: "DURATION", duration: event.duration });
       else if (event.type === "ended") dispatch({ type: "ENDED" });
+      else if (event.type === "buffering") dispatch({ type: "BUFFERING" });
       else if (event.type === "error")
         dispatch({ type: "ERROR", message: event.message });
     });
