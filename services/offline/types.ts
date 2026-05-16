@@ -81,12 +81,30 @@ export interface TopicsDownloadData {
   explanations: TopicExplanationData[];
 }
 
+/**
+ * How an offline_metadata row came to exist.
+ *
+ * - `explicit`: the user initiated the download from the offline UI.
+ * - `auto-sync`: Pass 2 of `checkAndSyncUpdates` cross-populated the content
+ *   silently because the user already had the sibling content type
+ *   (e.g. user has topics:en, so commentary:en gets pulled too).
+ *
+ * The "Available offline" badge only fires for `explicit` rows. `auto-sync`
+ * content is still usable offline; we just don't claim the user asked for it.
+ *
+ * Legacy rows written before this column existed read back as `undefined`
+ * and are treated as `auto-sync` (no badge) — see filter in
+ * `getDownloadedCommentaryLanguages`.
+ */
+export type OfflineDownloadOrigin = 'explicit' | 'auto-sync';
+
 // Local metadata for tracking downloads
 export interface OfflineMetadata {
   resource_key: string; // e.g., "bible:NASB1995", "commentary:en", "topics:en"
   last_updated_at: string;
   downloaded_at: string;
   size_bytes: number;
+  origin?: OfflineDownloadOrigin;
 }
 
 // Download status

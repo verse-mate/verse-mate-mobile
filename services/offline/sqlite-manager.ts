@@ -160,7 +160,8 @@ const CREATE_TABLES_SQL = `
     resource_key TEXT PRIMARY KEY,
     last_updated_at TEXT NOT NULL,
     downloaded_at TEXT NOT NULL,
-    size_bytes INTEGER NOT NULL
+    size_bytes INTEGER NOT NULL,
+    origin TEXT
   );
 
   CREATE TABLE IF NOT EXISTS offline_sync_queue (
@@ -254,6 +255,21 @@ function performInitSync(): SQLite.SQLiteDatabase {
       if (!colNames.includes('insight_type')) {
         if (__DEV__) console.log('[Offline DB] Adding insight_type column to offline_bookmarks');
         database.execSync('ALTER TABLE offline_bookmarks ADD COLUMN insight_type TEXT');
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Add origin to offline_metadata (VER-87). Distinguishes user-initiated
+    // ("explicit") downloads from Pass 2 cross-populated ("auto-sync") rows so
+    // the "Available offline" badge only fires for content the user asked for.
+    // Legacy rows have NULL origin and are treated as auto-sync on read.
+    try {
+      const metaCols = database.getAllSync<{ name: string }>('PRAGMA table_info(offline_metadata)');
+      const colNames = metaCols.map((c) => c.name);
+      if (!colNames.includes('origin')) {
+        if (__DEV__) console.log('[Offline DB] Adding origin column to offline_metadata');
+        database.execSync('ALTER TABLE offline_metadata ADD COLUMN origin TEXT');
       }
     } catch {
       /* ignore */
@@ -1122,15 +1138,21 @@ export async function deleteAllUserData(): Promise<void> {
 export async function saveMetadata(metadata: OfflineMetadata): Promise<void> {
   const database = await initDatabase();
   database.runSync(
-    'INSERT OR REPLACE INTO offline_metadata (resource_key, last_updated_at, downloaded_at, size_bytes) VALUES (?, ?, ?, ?)',
-    [metadata.resource_key, metadata.last_updated_at, metadata.downloaded_at, metadata.size_bytes]
+    'INSERT OR REPLACE INTO offline_metadata (resource_key, last_updated_at, downloaded_at, size_bytes, origin) VALUES (?, ?, ?, ?, ?)',
+    [
+      metadata.resource_key,
+      metadata.last_updated_at,
+      metadata.downloaded_at,
+      metadata.size_bytes,
+      metadata.origin ?? null,
+    ]
   );
 }
 
 export async function getMetadata(resourceKey: string): Promise<OfflineMetadata | null> {
   const database = await initDatabase();
   const result = database.getFirstSync<OfflineMetadata>(
-    'SELECT resource_key, last_updated_at, downloaded_at, size_bytes FROM offline_metadata WHERE resource_key = ?',
+    'SELECT resource_key, last_updated_at, downloaded_at, size_bytes, origin FROM offline_metadata WHERE resource_key = ?',
     [resourceKey]
   );
   return result ?? null;
@@ -1139,7 +1161,7 @@ export async function getMetadata(resourceKey: string): Promise<OfflineMetadata 
 export async function getAllMetadata(): Promise<OfflineMetadata[]> {
   const database = await initDatabase();
   return database.getAllSync<OfflineMetadata>(
-    'SELECT resource_key, last_updated_at, downloaded_at, size_bytes FROM offline_metadata'
+    'SELECT resource_key, last_updated_at, downloaded_at, size_bytes, origin FROM offline_metadata'
   );
 }
 
