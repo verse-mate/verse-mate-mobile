@@ -14,6 +14,7 @@ import type {
   LanguageBundle,
   LanguageBundleStatus,
   OfflineBookmark,
+  OfflineDownloadOrigin,
   OfflineHighlight,
   OfflineManifest,
   OfflineMetadata,
@@ -204,23 +205,27 @@ export async function fetchManifest(): Promise<OfflineManifest> {
 export async function downloadBibleVersion(
   _versionKey: string,
   _manifest: OfflineManifest,
-  _onProgress?: ProgressCallback
+  _onProgress?: ProgressCallback,
+  _origin?: OfflineDownloadOrigin
 ): Promise<void> {}
 export async function downloadCommentaries(
   _languageCode: string,
   _manifest: OfflineManifest,
-  _onProgress?: ProgressCallback
+  _onProgress?: ProgressCallback,
+  _origin?: OfflineDownloadOrigin
 ): Promise<void> {}
 export async function downloadTopics(
   _languageCode: string,
   _manifest: OfflineManifest,
-  _onProgress?: ProgressCallback
+  _onProgress?: ProgressCallback,
+  _origin?: OfflineDownloadOrigin
 ): Promise<void> {}
 export async function downloadBibleBook(
   _versionKey: string,
   _bookId: number,
   _manifest: OfflineManifest,
-  _onProgress?: ProgressCallback
+  _onProgress?: ProgressCallback,
+  _origin?: OfflineDownloadOrigin
 ): Promise<void> {}
 export async function removeBibleVersion(_versionKey: string): Promise<void> {}
 export async function removeBibleBook(_versionKey: string, _bookId: number): Promise<void> {}
