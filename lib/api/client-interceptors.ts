@@ -21,9 +21,12 @@ import { getAccessToken } from '@/lib/auth/token-storage';
 // Track retry attempts per request to prevent infinite loops
 const retryAttempts = new WeakMap<Request, number>();
 
-// In-memory token cache to avoid repeated AsyncStorage reads on every request
+// In-memory token cache to avoid repeated AsyncStorage / SecureStore reads on
+// every request once the user is signed in. A null value means "unknown" —
+// the next interceptor invocation re-reads storage. This is what lets a
+// post-login request pick up the token written by setAccessToken without
+// requiring callers to remember to invalidate the cache. (VER-38)
 let cachedToken: string | null = null;
-let tokenCachePopulated = false;
 
 /**
  * Clear the in-memory token cache.
@@ -31,7 +34,6 @@ let tokenCachePopulated = false;
  */
 export function clearTokenCache(): void {
   cachedToken = null;
-  tokenCachePopulated = false;
 }
 
 // PostHog instance for error tracking
@@ -47,16 +49,21 @@ export function setPostHogInstance(posthog: { captureException: (error: unknown,
 }
 
 /**
- * Request interceptor: Add Authorization header with access token
+ * Request interceptor: Add Authorization header with access token.
+ *
+ * Exported for direct unit testing — production callers go through
+ * `setupClientInterceptors()`, which wires this into the generated client.
  */
-async function requestInterceptor(
+export async function requestInterceptor(
   request: Request,
   _options: ResolvedRequestOptions,
 ): Promise<Request> {
-  // Use cached token if available, otherwise read from AsyncStorage and cache it
-  if (!tokenCachePopulated) {
+  // Re-read from storage whenever the cache is empty. Treating null as
+  // "unknown" rather than a sticky "no token" answer is what makes the
+  // first request after login pick up the freshly written token. The cache
+  // still skips storage reads on the hot path once a token is known.
+  if (cachedToken === null) {
     cachedToken = await getAccessToken();
-    tokenCachePopulated = true;
   }
   const token = cachedToken;
 
