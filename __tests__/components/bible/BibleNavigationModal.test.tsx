@@ -366,4 +366,140 @@ describe('BibleNavigationModal', () => {
       expect(useTopicsSearch as jest.Mock).toHaveBeenCalled();
     });
   });
+
+  /**
+   * recentBooksFiltered derivation (VER-95 / spec
+   * 2026-05-16-1200-recents-current-book).
+   *
+   * The modal pins the currently-open book at position 0 of RECENTS so
+   * users never see a Recents list that omits where they are reading.
+   * These tests assert the four behaviors of the derivation by inspecting
+   * rendered book items in section order: RECENTS (which we are testing)
+   * always renders before ALL BOOKS, so the first N rendered book items
+   * are the RECENTS slice and the remainder are ALL BOOKS for the
+   * default testament.
+   */
+  describe('recentBooksFiltered derivation (VER-95)', () => {
+    // currentBookId = 1 (Genesis, OT). Default testament is derived from the
+    // current book, so ALL BOOKS shows OT books: Genesis, Exodus, Psalms.
+    const setRecentBooks = (recentBooks: { bookId: number; timestamp: number }[]) => {
+      (useRecentBooks as jest.Mock).mockReturnValue({
+        recentBooks,
+        addRecentBook: jest.fn(),
+        clearRecentBooks: jest.fn(),
+        isLoading: false,
+        error: null,
+      });
+    };
+
+    it('shows current book at position 0 when not in stored recents', () => {
+      setRecentBooks([{ bookId: 40, timestamp: 1000 }]); // Matthew only
+
+      renderWithTheme(
+        <BibleNavigationModal
+          visible={true}
+          currentBookId={1}
+          currentChapter={1}
+          onClose={mockOnClose}
+          onSelectChapter={mockOnSelectChapter}
+        />
+      );
+
+      const items = screen.getAllByTestId(/^book-item-/);
+      // RECENTS[0] = Genesis (current, pinned), RECENTS[1] = Matthew (stored).
+      expect(items[0].props.testID).toBe('book-item-genesis');
+      expect(items[1].props.testID).toBe('book-item-matthew');
+    });
+
+    it('deduplicates current book already in stored recents', () => {
+      // Genesis is current AND in stored recents — must appear only once in RECENTS.
+      setRecentBooks([
+        { bookId: 1, timestamp: 2000 }, // Genesis (older recent — would dup without filter)
+        { bookId: 40, timestamp: 1000 }, // Matthew
+      ]);
+
+      renderWithTheme(
+        <BibleNavigationModal
+          visible={true}
+          currentBookId={1}
+          currentChapter={1}
+          onClose={mockOnClose}
+          onSelectChapter={mockOnSelectChapter}
+        />
+      );
+
+      // Genesis must appear exactly twice total (RECENTS slot 0 + ALL BOOKS),
+      // never three times. Three would mean the dedup failed.
+      expect(screen.getAllByTestId('book-item-genesis')).toHaveLength(2);
+
+      const items = screen.getAllByTestId(/^book-item-/);
+      expect(items[0].props.testID).toBe('book-item-genesis');
+      expect(items[1].props.testID).toBe('book-item-matthew');
+      // ALL BOOKS section starts at items[2] with Genesis again.
+      expect(items[2].props.testID).toBe('book-item-genesis');
+    });
+
+    it('shows current book as only entry when stored list is empty', () => {
+      setRecentBooks([]);
+
+      renderWithTheme(
+        <BibleNavigationModal
+          visible={true}
+          currentBookId={1}
+          currentChapter={1}
+          onClose={mockOnClose}
+          onSelectChapter={mockOnSelectChapter}
+        />
+      );
+
+      // RECENTS = [Genesis] only. ALL BOOKS (OT) = [Genesis, Exodus, Psalms].
+      // Genesis appears 2x; Matthew/Mark (NT) do not appear at all.
+      expect(screen.getAllByTestId('book-item-genesis')).toHaveLength(2);
+      expect(screen.queryAllByTestId('book-item-matthew')).toHaveLength(0);
+      expect(screen.queryAllByTestId('book-item-mark')).toHaveLength(0);
+
+      const items = screen.getAllByTestId(/^book-item-/);
+      // First item is RECENTS Genesis; second is ALL BOOKS Genesis (RECENTS
+      // had only one entry, so ALL BOOKS section follows immediately).
+      expect(items[0].props.testID).toBe('book-item-genesis');
+      expect(items[1].props.testID).toBe('book-item-genesis');
+    });
+
+    it('respects MAX_RECENT_BOOKS after injection', () => {
+      // 4 stored entries with descending timestamps. MAX_RECENT_BOOKS = 4, so
+      // after injecting current book the slice keeps only 3 stored entries
+      // (newest by timestamp). Mark (oldest) must be dropped.
+      setRecentBooks([
+        { bookId: 40, timestamp: 4000 }, // Matthew (newest)
+        { bookId: 2, timestamp: 3000 }, // Exodus
+        { bookId: 19, timestamp: 2000 }, // Psalms
+        { bookId: 41, timestamp: 1000 }, // Mark (oldest — should be sliced off)
+      ]);
+
+      renderWithTheme(
+        <BibleNavigationModal
+          visible={true}
+          currentBookId={1} // Genesis — not in stored, so it's injected at 0
+          currentChapter={1}
+          onClose={mockOnClose}
+          onSelectChapter={mockOnSelectChapter}
+        />
+      );
+
+      const items = screen.getAllByTestId(/^book-item-/);
+
+      // First 4 items = RECENTS = [Genesis, Matthew, Exodus, Psalms].
+      expect(items.slice(0, 4).map((n) => n.props.testID)).toEqual([
+        'book-item-genesis',
+        'book-item-matthew',
+        'book-item-exodus',
+        'book-item-psalms',
+      ]);
+      // Mark was sliced off RECENTS and is NT (not in default OT ALL BOOKS),
+      // so it must not be rendered at all.
+      expect(screen.queryAllByTestId('book-item-mark')).toHaveLength(0);
+      // ALL BOOKS (OT) section starts after the 4 RECENTS entries with Genesis.
+      expect(items[4].props.testID).toBe('book-item-genesis');
+    });
+  });
 });
