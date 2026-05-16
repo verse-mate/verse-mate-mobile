@@ -13,6 +13,7 @@
 import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
@@ -37,6 +38,8 @@ interface TopicTextProps {
   markdownContent: string;
   onShare?: () => void;
   onVersePress?: (data: VersePress) => void;
+  /** Callback when a word is long-pressed for dictionary lookup */
+  onWordSelect?: (selection: WordSelection, clearSelection: () => void) => void;
 }
 
 /**
@@ -64,7 +67,13 @@ function toSuperscript(num: number): string {
     .join('');
 }
 
-export function TopicText({ topicName, markdownContent, onShare, onVersePress }: TopicTextProps) {
+export function TopicText({
+  topicName,
+  markdownContent,
+  onShare,
+  onVersePress,
+  onWordSelect,
+}: TopicTextProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
@@ -150,6 +159,8 @@ export function TopicText({ topicName, markdownContent, onShare, onVersePress }:
                   (verse.reference || verse.clickableReference) && onVersePress
                 );
 
+                const parsedVerseNumber = Number.parseInt(verse.verseNumber ?? '', 10) || 0;
+
                 return (
                   <Text key={`${verse.verseNumber}-${verse.reference}-${verseIndex}`}>
                     {/* Verse number as superscript - only show if verse number exists */}
@@ -158,10 +169,12 @@ export function TopicText({ topicName, markdownContent, onShare, onVersePress }:
                         {toSuperscript(Number.parseInt(verse.verseNumber, 10))}
                       </Text>
                     )}
-                    {/* Verse text - use onPress directly on Text to maintain inline flow */}
-                    <Text
+                    {/* Verse text — HighlightedText adds word long-press for dictionary lookup */}
+                    <HighlightedText
+                      text={verse.text}
+                      verseNumber={parsedVerseNumber}
                       style={[styles.verseText, isPressable && styles.verseTextPressable]}
-                      onPress={
+                      onVerseTap={
                         isPressable
                           ? () =>
                               handleVersePress(
@@ -171,14 +184,13 @@ export function TopicText({ topicName, markdownContent, onShare, onVersePress }:
                               )
                           : undefined
                       }
-                      suppressHighlighting={!isPressable}
-                    >
-                      {verse.text}
-                      {/* Reference citation (grayed out) - only show if reference exists (DISPLAY ONLY) */}
-                      {verse.reference && (
-                        <Text style={styles.verseReference}> ({verse.reference})</Text>
-                      )}
-                    </Text>
+                      onWordSelect={onWordSelect}
+                      isVisible={true}
+                    />
+                    {/* Reference citation (grayed out) - only show if reference exists (DISPLAY ONLY) */}
+                    {verse.reference && (
+                      <Text style={styles.verseReference}> ({verse.reference})</Text>
+                    )}
                     {/* Add space between verses */}
                     {verseIndex < section.verses.length - 1 && ' '}
                   </Text>
