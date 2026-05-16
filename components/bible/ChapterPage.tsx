@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { findNodeHandle, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioInlineEntry } from '@/components/bible/AudioInlineEntry';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
 import { NoteEditModal } from '@/components/bible/NoteEditModal';
@@ -52,7 +53,7 @@ import { SkeletonLoader } from './SkeletonLoader';
 import { VerseJumpButton } from './VerseJumpButton';
 
 // Styles for the overall ChapterPage component
-const createStyles = (colors: ReturnType<typeof getColors>) =>
+const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -62,8 +63,10 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       flexGrow: 1,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.xxl,
-      // Add bottom padding to account for floating action buttons AND progress bar
-      paddingBottom: 60, // FAB height + bottom offset + progress bar + extra spacing
+      // FAB height + bottom offset + progress bar + extra spacing, plus the
+      // device's bottom safe-area inset so the last verse clears the home
+      // indicator on notched iPhones (VER-70).
+      paddingBottom: 60 + bottomInset,
     },
     readerContainer: {
       flex: 1,
@@ -128,7 +131,8 @@ function TabContent({
   onByLineSectionRegister?: (verseNumber: number, node: View | null) => void;
 }) {
   const { colors } = useTheme();
-  const styles = createStyles(colors); // Use local createStyles for TabContent
+  const insets = useSafeAreaInsets();
+  const styles = createStyles(colors, insets.bottom); // Use local createStyles for TabContent
 
   const isHidden = !visible;
   if (isHidden && !shouldRenderHidden) return null;
@@ -309,7 +313,8 @@ export function ChapterPage({
   onFABInteraction,
 }: ChapterPageProps) {
   const { colors } = useTheme();
-  const styles = createStyles(colors); // Use local createStyles for ChapterPage
+  const insets = useSafeAreaInsets();
+  const styles = createStyles(colors, insets.bottom); // Use local createStyles for ChapterPage
 
   // Use Reanimated ref for the animated ScrollView
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
