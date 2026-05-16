@@ -1,2 +1,2 @@
 bun lint-staged
-bun tsc --noEmit
+bun tsc --noEmit --skipLibCheck

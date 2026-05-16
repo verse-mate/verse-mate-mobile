@@ -17,7 +17,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect } from 'react';
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { animationDurations, getFabSpecs, type ThemeMode } from '@/theme/tokens';
@@ -44,6 +44,10 @@ interface FloatingActionButtonsProps {
  * Features fade in/out animation based on user interaction:
  * - Fades out when reading (slow scroll or idle)
  * - Fades in when navigating (fast scroll, tap, or at bottom)
+ *
+ * Hit areas are always active regardless of opacity so that a tap at an arrow's
+ * last-visible position still triggers navigation rather than falling through to
+ * verse text beneath (VER-46). Only the visual chrome is animated.
  */
 export function FloatingActionButtons({
   onPrevious,
@@ -66,34 +70,31 @@ export function FloatingActionButtons({
     });
   }, [visible, opacity]);
 
-  // Animated style for fade in/out
+  // Animated style for fade in/out — applied to inner visual only, not the hit area
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
   }));
 
   const handlePreviousPress = () => {
-    // Haptic feedback: medium impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onPrevious();
   };
 
   const handleNextPress = () => {
-    // Haptic feedback: medium impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onNext();
   };
 
   return (
-    <Animated.View style={[styles.container, animatedStyle]} pointerEvents="box-none">
+    // Static (non-animated) container so hit areas are always active regardless of opacity.
+    // On web, Reanimated's opacity animation can suppress pointer events on children even
+    // with pointerEvents="box-none"; keeping the container un-animated fixes the
+    // tap-fallthrough bug (VER-46) where taps on faded arrows landed on verse text.
+    <View style={styles.container} pointerEvents="box-none">
       {/* Previous Chapter Button (Left) */}
       <Pressable
         onPress={showPrevious ? handlePreviousPress : undefined}
-        style={({ pressed }) => [
-          styles.fab,
-          styles.fabLeft,
-          showPrevious && pressed && styles.fabPressed,
-          !showPrevious && styles.fabDisabled,
-        ]}
+        style={styles.fabHitArea}
         accessibilityLabel="Previous chapter"
         accessibilityRole="button"
         accessibilityHint="Navigate to the previous chapter"
@@ -101,18 +102,24 @@ export function FloatingActionButtons({
         testID="previous-chapter-button"
         disabled={!showPrevious}
       >
-        <Ionicons name="chevron-back" size={specs.iconSize} color={specs.iconColor} />
+        {({ pressed }) => (
+          <Animated.View
+            style={[
+              styles.fab,
+              showPrevious && pressed && styles.fabPressed,
+              !showPrevious && styles.fabDisabled,
+              animatedStyle,
+            ]}
+          >
+            <Ionicons name="chevron-back" size={specs.iconSize} color={specs.iconColor} />
+          </Animated.View>
+        )}
       </Pressable>
 
       {/* Next Chapter Button (Right) */}
       <Pressable
         onPress={showNext ? handleNextPress : undefined}
-        style={({ pressed }) => [
-          styles.fab,
-          styles.fabRight,
-          showNext && pressed && styles.fabPressed,
-          !showNext && styles.fabDisabled,
-        ]}
+        style={styles.fabHitArea}
         accessibilityLabel="Next chapter"
         accessibilityRole="button"
         accessibilityHint="Navigate to the next chapter"
@@ -120,9 +127,20 @@ export function FloatingActionButtons({
         testID="next-chapter-button"
         disabled={!showNext}
       >
-        <Ionicons name="chevron-forward" size={specs.iconSize} color={specs.iconColor} />
+        {({ pressed }) => (
+          <Animated.View
+            style={[
+              styles.fab,
+              showNext && pressed && styles.fabPressed,
+              !showNext && styles.fabDisabled,
+              animatedStyle,
+            ]}
+          >
+            <Ionicons name="chevron-forward" size={specs.iconSize} color={specs.iconColor} />
+          </Animated.View>
+        )}
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -138,8 +156,13 @@ const createStyles = (mode: ThemeMode) => {
       flexDirection: 'row',
       justifyContent: 'space-between',
       paddingHorizontal: specs.sideOffset, // 20px from edges
-      // Allow touches to pass through empty space
+      // Allow touches to pass through empty space between buttons
       pointerEvents: 'box-none',
+    },
+    // Hit area for each button — same size as visual, always interactive
+    fabHitArea: {
+      width: specs.size,
+      height: specs.size,
     },
     fab: {
       width: specs.size,
@@ -160,12 +183,6 @@ const createStyles = (mode: ThemeMode) => {
           elevation: 8,
         },
       }),
-    },
-    fabLeft: {
-      // Positioned on the left side
-    },
-    fabRight: {
-      // Positioned on the right side
     },
     fabPressed: {
       // Slight opacity change on press for visual feedback
