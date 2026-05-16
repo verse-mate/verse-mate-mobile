@@ -596,7 +596,7 @@ function createStyles(
       gap: 4,
       position: 'relative',
       minHeight: 36,
-      alignSelf: 'flex-start',
+      alignSelf: 'center',
     },
     slidingIndicator: {
       position: 'absolute',
@@ -646,25 +646,6 @@ function createStyles(
       fontSize: fontSizes.body,
       color: colors.textSecondary,
       textAlign: 'center',
-    },
-    contentTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: spacing.lg,
-    },
-    contentTitle: {
-      flex: 1,
-      fontSize: fontSizes.heading1,
-      fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading1 * lineHeights.heading,
-      color: colors.textPrimary,
-      marginRight: spacing.md,
-    },
-    contentActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
     },
   });
 
