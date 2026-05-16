@@ -286,15 +286,22 @@ export function HighlightedText({
   // We delay onPress by 300ms and cancel if a second tap (double-tap) or long-press occurs.
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Verse-tap selection state: briefly highlights the whole verse while the
+  // debounce window is open so the user sees feedback before the insight
+  // tooltip opens (regressed by PR #260; restored per VER-78).
+  const [verseTapSelected, setVerseTapSelected] = useState(false);
+
   const debouncedPress = (callback: () => void) => {
     if (tapTimerRef.current) {
       // Second tap within 300ms = double-tap for native selection, cancel tooltip
       clearTimeout(tapTimerRef.current);
       tapTimerRef.current = null;
+      setVerseTapSelected(false);
       return;
     }
     tapTimerRef.current = setTimeout(() => {
       tapTimerRef.current = null;
+      setVerseTapSelected(false);
       callback();
     }, 300);
   };
@@ -305,6 +312,7 @@ export function HighlightedText({
       clearTimeout(tapTimerRef.current);
       tapTimerRef.current = null;
     }
+    setVerseTapSelected(false);
   };
 
   // Clean up pending tap timer on unmount
@@ -483,6 +491,9 @@ export function HighlightedText({
   const handleVerseTap = () => {
     if (!onVerseTap) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Mark the whole verse as selected for the duration of the debounce window
+    // so the user sees a clear tap target before the insight tooltip opens.
+    setVerseTapSelected(true);
     debouncedPress(() => {
       onVerseTap(verseNumber);
     });
@@ -757,7 +768,7 @@ export function HighlightedText({
           return (
             <Text
               key={`word-${segment.key}-${token.startChar}`}
-              style={isSelected ? selectionStyles.selected : undefined}
+              style={isSelected || verseTapSelected ? selectionStyles.selected : undefined}
               onPress={onPressHandler}
               onLongPress={(e) =>
                 handleTokenizedWordLongPress(token.word, absoluteStartChar, absoluteEndChar, e)
@@ -841,7 +852,11 @@ export function HighlightedText({
               onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
               suppressHighlighting={true}
             >
-              {segment.text}
+              {verseTapSelected ? (
+                <Text style={selectionStyles.selected}>{segment.text}</Text>
+              ) : (
+                segment.text
+              )}
             </Text>
           );
         }
@@ -876,7 +891,11 @@ export function HighlightedText({
               onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
               suppressHighlighting={true}
             >
-              {segment.text}
+              {verseTapSelected ? (
+                <Text style={selectionStyles.selected}>{segment.text}</Text>
+              ) : (
+                segment.text
+              )}
             </Text>
           );
         }
@@ -905,7 +924,11 @@ export function HighlightedText({
             onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
             suppressHighlighting={true}
           >
-            {segment.text}
+            {verseTapSelected ? (
+              <Text style={selectionStyles.selected}>{segment.text}</Text>
+            ) : (
+              segment.text
+            )}
           </Text>
         );
       })}
