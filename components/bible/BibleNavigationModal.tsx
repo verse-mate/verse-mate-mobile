@@ -72,7 +72,7 @@ import {
   type ThemeMode,
 } from '@/theme/tokens';
 import type { BookMetadata, Testament } from '@/types/bible';
-import { getTestamentFromBookId } from '@/types/bible';
+import { getTestamentFromBookId, MAX_RECENT_BOOKS } from '@/types/bible';
 import type { TopicCategory } from '@/types/topics';
 
 interface BibleNavigationModalProps {
@@ -369,14 +369,20 @@ function BibleNavigationModalComponent({
     });
   }, [currentTopics, topicFilterText]);
 
-  // Recent books across all testaments (sorted by timestamp)
+  // Recent books across all testaments — current book always at position 0
   const recentBooksFiltered = useMemo(() => {
-    // Sort by timestamp (most recent first)
-    return recentBooks
+    // Build stored list, removing any entry that matches currentBookId (dedup)
+    const stored = recentBooks
+      .filter((rb) => rb.bookId !== currentBookId)
       .sort((a, b) => b.timestamp - a.timestamp)
       .map((rb) => allBooks.find((b) => b.id === rb.bookId))
-      .filter((book): book is BookMetadata => book !== undefined);
-  }, [allBooks, recentBooks]);
+      .filter((book): book is BookMetadata => book !== undefined)
+      .slice(0, MAX_RECENT_BOOKS - 1); // leave room for current book at position 0
+
+    // Inject current book at position 0
+    const currentBook = allBooks.find((b) => b.id === currentBookId);
+    return currentBook ? [currentBook, ...stored] : stored;
+  }, [allBooks, recentBooks, currentBookId]);
 
   // Build SectionList sections for book list
   const bookSections = useMemo((): BookListSection[] => {

@@ -158,8 +158,10 @@ describe('BibleNavigationModal', () => {
     expect(screen.getAllByText('Genesis')[0]).toBeTruthy();
 
     // Select Genesis (current book) from ALL BOOKS list
-    const genesisButton = screen.getByLabelText('Genesis, 50 chapters');
-    fireEvent.press(genesisButton);
+    // Genesis appears in both RECENTS (pinned current book) and ALL BOOKS;
+    // select the ALL BOOKS instance (last match), matching the Psalms pattern below.
+    const genesisButtons = screen.getAllByLabelText('Genesis, 50 chapters');
+    fireEvent.press(genesisButtons[genesisButtons.length - 1]);
 
     // Wait for chapter grid to render
     await waitFor(() => {
@@ -210,8 +212,10 @@ describe('BibleNavigationModal', () => {
     );
 
     // Select Genesis from ALL BOOKS list
-    const genesisButton = screen.getByLabelText('Genesis, 50 chapters');
-    fireEvent.press(genesisButton);
+    // Genesis appears in both RECENTS (pinned current book) and ALL BOOKS;
+    // select the ALL BOOKS instance (last match), matching the Psalms pattern below.
+    const genesisButtons = screen.getAllByLabelText('Genesis, 50 chapters');
+    fireEvent.press(genesisButtons[genesisButtons.length - 1]);
 
     // Wait for chapter grid to render
     await waitFor(() => {
@@ -284,8 +288,10 @@ describe('BibleNavigationModal', () => {
       );
 
       // Select Genesis from book list
-      const genesisButton = screen.getByLabelText('Genesis, 50 chapters');
-      fireEvent.press(genesisButton);
+      // Genesis appears in both RECENTS (pinned current book) and ALL BOOKS;
+      // select the ALL BOOKS instance (last match).
+      const genesisButtons = screen.getAllByLabelText('Genesis, 50 chapters');
+      fireEvent.press(genesisButtons[genesisButtons.length - 1]);
 
       // Wait for chapter grid
       await waitFor(() => {
