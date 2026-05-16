@@ -60,6 +60,17 @@ function cleanupBylineReferences(content: string): string {
 }
 
 /**
+ * Strip the leading H1–H6 heading line from AI-generated markdown.
+ *
+ * The header bar already renders "{topicName} Insights"; AI bodies usually
+ * begin with a duplicate `# {topicName}` heading. Mirrors the strip pattern
+ * in `ChapterReader` (VER-73 / GH-186).
+ */
+function stripLeadingHeading(content: string): string {
+  return content.replace(/^#{1,6}\s+.+?(?:\r?\n|$)/, '');
+}
+
+/**
  * Tab option for the header
  */
 interface TabOption {
@@ -168,11 +179,16 @@ export function TopicExplanationsPanel({
   };
 
   const rawExplanationContent = getExplanationContent();
-  // Clean up byline content to remove redundant verse references
-  const explanationContent =
+  // Clean up byline content to remove redundant verse references, then strip
+  // the duplicate leading `# {topicName}` heading the header bar already shows.
+  const cleanedExplanationContent =
     activeTab === 'byline' && rawExplanationContent
       ? cleanupBylineReferences(rawExplanationContent)
       : rawExplanationContent;
+  const explanationContent =
+    typeof cleanedExplanationContent === 'string'
+      ? stripLeadingHeading(cleanedExplanationContent)
+      : cleanedExplanationContent;
   const hasContent = explanationContent && typeof explanationContent === 'string';
 
   // Custom share handler for topics
@@ -372,7 +388,7 @@ function createStyles(
       gap: 4,
       position: 'relative',
       minHeight: 36,
-      alignSelf: 'flex-start',
+      alignSelf: 'center',
     },
     slidingIndicator: {
       position: 'absolute',
