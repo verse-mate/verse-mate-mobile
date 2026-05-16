@@ -137,4 +137,61 @@ describe('SplitView', () => {
     expect(screen.queryByTestId('left-content')).toBeNull();
     expect(screen.queryByTestId('right-content')).toBeNull();
   });
+
+  // Regression test for VER-103: the edge-tab Pressable hit area must stay reachable
+  // even when edgeTabsVisible=false (i.e. opacity has faded to 0). The opacity
+  // animation is intentionally scoped to an inner Reanimated.View so Pressable.onPress
+  // still fires when the visual chrome is invisible. Mirrors the VER-46 / PR #311 fix.
+  describe('edge-tab hit-test (VER-103 regression)', () => {
+    it('fires left edge-tab onPress when edgeTabsVisible=false (right-full mode)', () => {
+      const onViewModeChange = jest.fn();
+      render(
+        <SplitView
+          {...defaultProps}
+          viewMode="right-full"
+          edgeTabsVisible={false}
+          onViewModeChange={onViewModeChange}
+        />
+      );
+      simulateLayout('split-view');
+
+      const leftTabButton = screen.getByTestId('split-view-left-edge-tab-button');
+      fireEvent.press(leftTabButton);
+
+      expect(onViewModeChange).toHaveBeenCalledWith('split');
+    });
+
+    it('fires right edge-tab onPress when edgeTabsVisible=false (left-full mode)', () => {
+      const onViewModeChange = jest.fn();
+      render(
+        <SplitView
+          {...defaultProps}
+          viewMode="left-full"
+          edgeTabsVisible={false}
+          onViewModeChange={onViewModeChange}
+        />
+      );
+      simulateLayout('split-view');
+
+      const rightTabButton = screen.getByTestId('split-view-right-edge-tab-button');
+      fireEvent.press(rightTabButton);
+
+      expect(onViewModeChange).toHaveBeenCalledWith('split');
+    });
+
+    it('does not put opacity on the outer edge-tab wrapper', () => {
+      render(<SplitView {...defaultProps} viewMode="right-full" edgeTabsVisible={false} />);
+      simulateLayout('split-view');
+
+      // The outer wrapper carries slide-only animated style; opacity must live on the
+      // inner visual chrome so the hit area remains active during fade.
+      const leftEdgeTab = screen.getByTestId('split-view-left-edge-tab');
+      const flatten = (style: unknown): Record<string, unknown> => {
+        if (Array.isArray(style)) return Object.assign({}, ...style.map(flatten));
+        return (style as Record<string, unknown>) ?? {};
+      };
+      const merged = flatten(leftEdgeTab.props.style);
+      expect(merged.opacity).toBeUndefined();
+    });
+  });
 });
