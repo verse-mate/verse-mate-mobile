@@ -55,6 +55,35 @@ describe('VerseJumpButton', () => {
     expect(onInteraction).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the hit-test container static so faded pill stays tappable on web (VER-102)', () => {
+    // Regression: on web, Reanimated opacity on a Pressable's parent suppresses
+    // pointer events on the child (VER-46). The Pressable's ancestor chain up
+    // to the absolute-positioned container must therefore carry no opacity
+    // style. The animated opacity must live INSIDE the Pressable, not above it.
+    const onSelect = jest.fn();
+    const { getByTestId } = renderWithProviders(
+      <VerseJumpButton verses={[1, 2, 3]} onSelect={onSelect} visible={false} />
+    );
+
+    const flatten = (style: unknown): Record<string, unknown>[] => {
+      if (!style) return [];
+      if (Array.isArray(style)) return style.flatMap(flatten);
+      if (typeof style === 'object') return [style as Record<string, unknown>];
+      return [];
+    };
+
+    let node: ReturnType<typeof getByTestId>['parent'] = getByTestId('verse-jump-button').parent;
+    let hops = 0;
+    while (node && hops < 5) {
+      const styles = flatten(node.props?.style);
+      for (const layer of styles) {
+        expect(layer).not.toHaveProperty('opacity');
+      }
+      node = node.parent;
+      hops += 1;
+    }
+  });
+
   it('opens the modal and lists every supplied verse on tap', () => {
     const onSelect = jest.fn();
     renderWithProviders(<VerseJumpButton verses={[1, 2, 17, 176]} onSelect={onSelect} />);
