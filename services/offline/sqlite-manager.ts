@@ -265,9 +265,7 @@ function performInitSync(): SQLite.SQLiteDatabase {
     // the "Available offline" badge only fires for content the user asked for.
     // Legacy rows have NULL origin and are treated as auto-sync on read.
     try {
-      const metaCols = database.getAllSync<{ name: string }>(
-        'PRAGMA table_info(offline_metadata)'
-      );
+      const metaCols = database.getAllSync<{ name: string }>('PRAGMA table_info(offline_metadata)');
       const colNames = metaCols.map((c) => c.name);
       if (!colNames.includes('origin')) {
         if (__DEV__) console.log('[Offline DB] Adding origin column to offline_metadata');
