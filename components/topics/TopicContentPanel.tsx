@@ -14,7 +14,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
@@ -22,9 +22,12 @@ import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
+import type { WordSelection } from '@/components/bible/HighlightedText';
+import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useTopicReferences } from '@/src/api';
 import {
   fontSizes,
@@ -144,6 +147,7 @@ export function TopicContentPanel({
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = createStyles(specs, colors);
   const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
 
   // Reading progress state
   const [progress, setProgress] = useState(0);
@@ -152,6 +156,28 @@ export function TopicContentPanel({
   // Velocity tracking
   const lastScrollY = useRef(0);
   const lastScrollTime = useRef(0);
+
+  // Word definition tooltip state (long-press dictionary lookup)
+  const [wordToDefine, setWordToDefine] = useState<{
+    word: string;
+    verseNumber: number;
+  } | null>(null);
+  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
+
+  const handleWordSelect = useCallback((selection: WordSelection, clearSelection: () => void) => {
+    setWordToDefine({ word: selection.word, verseNumber: selection.verseNumber });
+    setWordDefinitionVisible(true);
+    clearSelection();
+  }, []);
+
+  const handleWordDefinitionClose = useCallback(() => {
+    setWordDefinitionVisible(false);
+    setWordToDefine(null);
+  }, []);
+
+  const handleWordDefinitionCopy = useCallback(() => {
+    showToast('Copied to clipboard');
+  }, [showToast]);
 
   // Fetch references for this topic
   const { data: references } = useTopicReferences(topicId);
@@ -241,6 +267,7 @@ export function TopicContentPanel({
                 markdownContent={contentString}
                 onShare={onShare}
                 onVersePress={onVersePress}
+                onWordSelect={handleWordSelect}
               />
             ) : (
               <>
@@ -300,6 +327,19 @@ export function TopicContentPanel({
         showNext={hasNextTopic}
         visible={visible}
       />
+
+      {/* Word Definition Tooltip — dictionary lookup on long-press */}
+      {wordToDefine && (
+        <WordDefinitionTooltip
+          visible={wordDefinitionVisible}
+          word={wordToDefine.word}
+          bookName={topicName}
+          chapterNumber={0}
+          verseNumber={wordToDefine.verseNumber}
+          onClose={handleWordDefinitionClose}
+          onCopy={handleWordDefinitionCopy}
+        />
+      )}
     </View>
   );
 }

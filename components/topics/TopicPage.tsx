@@ -17,16 +17,19 @@
  * @see Spec: agent-os/specs/2025-12-08-topic-swipe-navigation/spec.md
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { BottomLogo } from '@/components/bible/BottomLogo';
+import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useTopicById, useTopicReferences } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
@@ -161,10 +164,52 @@ export function TopicPage({
 }: TopicPageProps) {
   const { colors } = useTheme();
   const { styles, markdownStyles } = createStyles(colors);
+  const { showToast } = useToast();
 
   // TODO: Implement Bible version selection in Settings page
   // For now, hardcoded to NASB1995 (backend default)
   const bibleVersion = 'NASB1995';
+
+  // Word definition tooltip state (long-press dictionary lookup)
+  const [wordToDefine, setWordToDefine] = useState<{
+    word: string;
+    verseNumber: number;
+  } | null>(null);
+  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
+
+  const handleWordSelect = useCallback((selection: WordSelection, clearSelection: () => void) => {
+    setWordToDefine({ word: selection.word, verseNumber: selection.verseNumber });
+    setWordDefinitionVisible(true);
+    clearSelection();
+  }, []);
+
+  const handleWordDefinitionClose = useCallback(() => {
+    setWordDefinitionVisible(false);
+    setWordToDefine(null);
+  }, []);
+
+  const handleWordDefinitionCopy = useCallback(() => {
+    showToast('Copied to clipboard');
+  }, [showToast]);
+
+  // Markdown text rule that wraps text nodes with HighlightedText for word
+  // long-press dictionary lookup (used in the Explanations view markdown).
+  const dictionaryMarkdownRules: RenderRules = useMemo(
+    () => ({
+      ...markdownRules,
+      text: (node, _children, _parent, styles, inheritedStyles = {}) => (
+        <HighlightedText
+          key={node.key}
+          text={node.content}
+          verseNumber={0}
+          style={[inheritedStyles, styles.text]}
+          onWordSelect={handleWordSelect}
+          isVisible={true}
+        />
+      ),
+    }),
+    [handleWordSelect]
+  );
 
   // Track last scroll position and timestamp for velocity calculation
   const lastScrollY = useRef(0);
@@ -377,6 +422,7 @@ export function TopicPage({
               markdownContent={displayReferences.content}
               onShare={onShare}
               onVersePress={onVersePress}
+              onWordSelect={handleWordSelect}
             />
           ) : (
             <>
@@ -482,7 +528,7 @@ export function TopicPage({
             >
               {displayTopicData?.explanation?.summary &&
               typeof displayTopicData.explanation.summary === 'string' ? (
-                <Markdown style={markdownStyles} rules={markdownRules}>
+                <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
                   {displayTopicData.explanation.summary.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
                 </Markdown>
               ) : (
@@ -503,7 +549,7 @@ export function TopicPage({
             >
               {displayTopicData?.explanation?.byline &&
               typeof displayTopicData.explanation.byline === 'string' ? (
-                <Markdown style={markdownStyles} rules={markdownRules}>
+                <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
                   {cleanupBylineReferences(displayTopicData.explanation.byline).replace(
                     /#{1,6}\s*Summary\s*\n/gi,
                     '\n'
@@ -527,7 +573,7 @@ export function TopicPage({
             >
               {displayTopicData?.explanation?.detailed &&
               typeof displayTopicData.explanation.detailed === 'string' ? (
-                <Markdown style={markdownStyles} rules={markdownRules}>
+                <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
                   {displayTopicData.explanation.detailed.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
                 </Markdown>
               ) : (
@@ -540,6 +586,19 @@ export function TopicPage({
             </View>
           )}
         </ScrollView>
+      )}
+
+      {/* Word Definition Tooltip — dictionary lookup on long-press */}
+      {wordToDefine && (
+        <WordDefinitionTooltip
+          visible={wordDefinitionVisible}
+          word={wordToDefine.word}
+          bookName={topic?.name || ''}
+          chapterNumber={0}
+          verseNumber={wordToDefine.verseNumber}
+          onClose={handleWordDefinitionClose}
+          onCopy={handleWordDefinitionCopy}
+        />
       )}
     </View>
   );

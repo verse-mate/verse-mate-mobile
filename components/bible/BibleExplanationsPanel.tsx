@@ -26,13 +26,16 @@ import {
   Text,
   View,
 } from 'react-native';
-import Markdown from 'react-native-markdown-display';
+import Markdown, { type RenderRules } from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
@@ -132,6 +135,47 @@ export function BibleExplanationsPanel({
   const { styles, markdownStyles } = useMemo(
     () => createStyles(specs, colors, insets),
     [specs, colors, insets]
+  );
+  const { showToast } = useToast();
+
+  // Word definition tooltip state (long-press dictionary lookup on markdown text)
+  const [wordToDefine, setWordToDefine] = useState<{
+    word: string;
+    verseNumber: number;
+  } | null>(null);
+  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
+
+  const handleWordSelect = useCallback((selection: WordSelection, clearSelection: () => void) => {
+    setWordToDefine({ word: selection.word, verseNumber: selection.verseNumber });
+    setWordDefinitionVisible(true);
+    clearSelection();
+  }, []);
+
+  const handleWordDefinitionClose = useCallback(() => {
+    setWordDefinitionVisible(false);
+    setWordToDefine(null);
+  }, []);
+
+  const handleWordDefinitionCopy = useCallback(() => {
+    showToast('Copied to clipboard');
+  }, [showToast]);
+
+  // Custom markdown rule that wraps each text leaf with HighlightedText so
+  // long-press triggers the dictionary tooltip across Summary/By Line/Detailed.
+  const dictionaryMarkdownRules: RenderRules = useMemo(
+    () => ({
+      text: (node, _children, _parent, styles, inheritedStyles = {}) => (
+        <HighlightedText
+          key={node.key}
+          text={node.content}
+          verseNumber={0}
+          style={[inheritedStyles, styles.text]}
+          onWordSelect={handleWordSelect}
+          isVisible={true}
+        />
+      ),
+    }),
+    [handleWordSelect]
   );
 
   // Get current language from user preferences (default to 'en-US')
@@ -505,11 +549,15 @@ export function BibleExplanationsPanel({
                     testID={`byline-verse-section-${section.verseNumber}`}
                     collapsable={false}
                   >
-                    <Markdown style={markdownStyles}>{section.markdown}</Markdown>
+                    <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+                      {section.markdown}
+                    </Markdown>
                   </View>
                 ))
               ) : (
-                <Markdown style={markdownStyles}>{tab.data}</Markdown>
+                <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+                  {tab.data}
+                </Markdown>
               )}
             </>
           ) : isOffline ? (
@@ -534,6 +582,19 @@ export function BibleExplanationsPanel({
           onInteraction={onFABInteraction}
           bottomOffset={spacing.lg}
           testID={`${testID}-verse-jump`}
+        />
+      )}
+
+      {/* Word Definition Tooltip — dictionary lookup on long-press */}
+      {wordToDefine && (
+        <WordDefinitionTooltip
+          visible={wordDefinitionVisible}
+          word={wordToDefine.word}
+          bookName={bookName}
+          chapterNumber={chapterNumber}
+          verseNumber={wordToDefine.verseNumber}
+          onClose={handleWordDefinitionClose}
+          onCopy={handleWordDefinitionCopy}
         />
       )}
     </View>
