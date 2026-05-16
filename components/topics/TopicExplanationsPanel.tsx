@@ -16,12 +16,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { t } from 'i18next';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
+import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useTopicById } from '@/src/api';
 import {
@@ -113,8 +116,50 @@ export function TopicExplanationsPanel({
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = createStyles(specs, colors);
   const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
 
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Word definition tooltip state (long-press dictionary lookup on markdown text)
+  const [wordToDefine, setWordToDefine] = useState<{
+    word: string;
+    verseNumber: number;
+  } | null>(null);
+  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
+
+  const handleWordSelect = useCallback((selection: WordSelection, clearSelection: () => void) => {
+    setWordToDefine({ word: selection.word, verseNumber: selection.verseNumber });
+    setWordDefinitionVisible(true);
+    clearSelection();
+  }, []);
+
+  const handleWordDefinitionClose = useCallback(() => {
+    setWordDefinitionVisible(false);
+    setWordToDefine(null);
+  }, []);
+
+  const handleWordDefinitionCopy = useCallback(() => {
+    showToast('Copied to clipboard');
+  }, [showToast]);
+
+  // Custom markdown rule that wraps each text leaf with HighlightedText so
+  // long-press triggers the dictionary tooltip across Summary/By Line/Detailed.
+  const dictionaryMarkdownRules: RenderRules = useMemo(
+    () => ({
+      ...markdownRules,
+      text: (node, _children, _parent, styles, inheritedStyles = {}) => (
+        <HighlightedText
+          key={node.key}
+          text={node.content}
+          verseNumber={0}
+          style={[inheritedStyles, styles.text]}
+          onWordSelect={handleWordSelect}
+          isVisible={true}
+        />
+      ),
+    }),
+    [handleWordSelect]
+  );
 
   // Animation for sliding tab indicator
   const getTabIndex = (tab: ContentTabType) => TAB_OPTIONS.findIndex((t) => t.id === tab);
@@ -311,7 +356,7 @@ export function TopicExplanationsPanel({
         {/* Explanation Content */}
         {hasContent ? (
           <View style={styles.explanationContainer}>
-            <Markdown style={markdownStyles} rules={markdownRules}>
+            <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
               {explanationContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
             </Markdown>
           </View>
@@ -323,6 +368,19 @@ export function TopicExplanationsPanel({
           </View>
         )}
       </ScrollView>
+
+      {/* Word Definition Tooltip — dictionary lookup on long-press */}
+      {wordToDefine && (
+        <WordDefinitionTooltip
+          visible={wordDefinitionVisible}
+          word={wordToDefine.word}
+          bookName={topicName}
+          chapterNumber={0}
+          verseNumber={wordToDefine.verseNumber}
+          onClose={handleWordDefinitionClose}
+          onCopy={handleWordDefinitionCopy}
+        />
+      )}
     </View>
   );
 }
