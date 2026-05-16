@@ -134,20 +134,33 @@ export function SplitView({
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
       const { width, x } = event.nativeEvent.layout;
-      containerWidth.value = width;
-      containerX.value = x;
+      // onLayout reports the container's outer width, but the container has
+      // paddingLeft/paddingRight equal to the horizontal safe-area insets
+      // (notch on landscape). Panels must size against the inner width so the
+      // right panel doesn't overflow into the notch region. (VER-70)
+      const innerWidth = Math.max(0, width - insets.left - insets.right);
+      containerWidth.value = innerWidth;
+      containerX.value = x + insets.left;
 
       // Initialize split position if needed
-      if (!isLayoutReady || Math.abs(containerWidth.value - width) > 1) {
-        const { leftWidth } = calculatePanelWidths(width, splitRatio);
+      if (!isLayoutReady || Math.abs(containerWidth.value - innerWidth) > 1) {
+        const { leftWidth } = calculatePanelWidths(innerWidth, splitRatio);
         committedSplitPosition.value = leftWidth;
       }
 
-      if (!isLayoutReady && width > 0) {
+      if (!isLayoutReady && innerWidth > 0) {
         setIsLayoutReady(true);
       }
     },
-    [splitRatio, committedSplitPosition, containerWidth, containerX, isLayoutReady]
+    [
+      splitRatio,
+      committedSplitPosition,
+      containerWidth,
+      containerX,
+      isLayoutReady,
+      insets.left,
+      insets.right,
+    ]
   );
 
   // --- Sync Props to Internal State ---
