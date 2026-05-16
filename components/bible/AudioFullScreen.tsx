@@ -18,7 +18,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { trackAudioSeek, trackAudioSpeedChanged } from '@/lib/analytics/audio-events';
 import type { ResumeProgress } from '@/lib/audio/audioApi';
 
-const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
+const SPEEDS = [0.5, 1, 1.25, 1.5, 2];
 
 function formatTime(seconds: number): string {
   const mm = Math.floor(seconds / 60);

@@ -8,6 +8,7 @@
  * `lib/audio/expoAudioEngine.ts` wires the player to expo-audio's
  * AudioPlayer + setAudioModeAsync({ shouldPlayInBackground: true }).
  */
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   createContext,
   useCallback,
@@ -18,6 +19,9 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+
+const SPEED_STORAGE_KEY = "vm_audio_speed";
+const VALID_SPEEDS = [0.5, 1, 1.25, 1.5, 2];
 
 export interface AudioTrack {
   audio_id: string;
@@ -210,6 +214,15 @@ export function AudioPlayerProvider(props: AudioPlayerProviderProps) {
   const elapsedRef = useRef<number>(0);
 
   useEffect(() => {
+    AsyncStorage.getItem(SPEED_STORAGE_KEY).then((stored) => {
+      const parsed = Number.parseFloat(stored ?? "");
+      if (VALID_SPEEDS.includes(parsed)) {
+        dispatch({ type: "SPEED", speed: parsed });
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = engine.subscribe((event) => {
       if (event.type === "time")
         dispatch({ type: "TIME", currentTime: event.currentTime });
@@ -278,6 +291,7 @@ export function AudioPlayerProvider(props: AudioPlayerProviderProps) {
     async (speed: number) => {
       await engine.setSpeed(speed);
       dispatch({ type: "SPEED", speed });
+      await AsyncStorage.setItem(SPEED_STORAGE_KEY, String(speed));
     },
     [engine],
   );
