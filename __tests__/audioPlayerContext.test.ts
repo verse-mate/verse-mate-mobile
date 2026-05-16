@@ -67,6 +67,63 @@ describe('mobile audioReducer', () => {
     expect(next.playbackState).toBe('idle');
   });
 
+  test('BUFFERING transitions playing → loading and TIME advance restores playing (VER-77)', () => {
+    const playingState = {
+      currentTrack: sample,
+      playbackState: 'playing' as const,
+      elapsedSeconds: 30,
+      durationSeconds: 200,
+      speed: 1,
+      error: null,
+      dockVisible: true,
+      fullScreenOpen: false,
+    };
+    const buffering = audioReducer(playingState, { type: 'BUFFERING' });
+    expect(buffering.playbackState).toBe('loading');
+    expect(buffering.elapsedSeconds).toBe(30);
+
+    // Non-advancing TIME keeps us in loading
+    const stillStalled = audioReducer(buffering, { type: 'TIME', currentTime: 30 });
+    expect(stillStalled.playbackState).toBe('loading');
+
+    // First advancing TIME restores playing
+    const resumed = audioReducer(buffering, { type: 'TIME', currentTime: 30.25 });
+    expect(resumed.playbackState).toBe('playing');
+    expect(resumed.elapsedSeconds).toBeCloseTo(30.25);
+  });
+
+  test('BUFFERING is a no-op when paused (VER-77)', () => {
+    const pausedState = {
+      currentTrack: sample,
+      playbackState: 'paused' as const,
+      elapsedSeconds: 10,
+      durationSeconds: 200,
+      speed: 1,
+      error: null,
+      dockVisible: true,
+      fullScreenOpen: false,
+    };
+    const next = audioReducer(pausedState, { type: 'BUFFERING' });
+    expect(next.playbackState).toBe('paused');
+  });
+
+  test('TIME from initial post-LOAD loading does not auto-flip to playing (VER-77)', () => {
+    // br-audio-005: LOAD never transitions to playing. A 0→0 TIME tick
+    // before the user clicks play must not promote loading → playing.
+    const initialLoaded = {
+      currentTrack: sample,
+      playbackState: 'loading' as const,
+      elapsedSeconds: 0,
+      durationSeconds: 200,
+      speed: 1,
+      error: null,
+      dockVisible: true,
+      fullScreenOpen: false,
+    };
+    const next = audioReducer(initialLoaded, { type: 'TIME', currentTime: 0 });
+    expect(next.playbackState).toBe('loading');
+  });
+
   test('CLOSE resets except keeps speed', () => {
     const state = {
       currentTrack: sample,
@@ -140,5 +197,38 @@ describe('AudioPlayerProvider — stale-closure regression', () => {
     expect(calls).toEqual(['load', 'play']);
     expect(result.current.playbackState).toBe('playing');
     expect(onPlaybackStarted).toHaveBeenCalledWith(sample, { isResume: false });
+  });
+
+  test('engine "buffering" event mid-play surfaces loading state, advancing TIME restores playing (VER-77)', async () => {
+    const { engine, emit } = createStubEngine();
+
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(AudioPlayerProvider, { engine, children });
+    const { result } = renderHook(() => useAudioPlayer(), { wrapper });
+
+    await act(async () => {
+      await result.current.load(sample);
+      await result.current.play();
+    });
+    expect(result.current.playbackState).toBe('playing');
+
+    // Mid-play stall: time advanced, then the engine reports buffering.
+    await act(async () => {
+      emit({ type: 'time', currentTime: 12 });
+      emit({ type: 'buffering' });
+    });
+    expect(result.current.playbackState).toBe('loading');
+
+    // A non-advancing time tick keeps us stalled.
+    await act(async () => {
+      emit({ type: 'time', currentTime: 12 });
+    });
+    expect(result.current.playbackState).toBe('loading');
+
+    // Audio resumes — time starts advancing again.
+    await act(async () => {
+      emit({ type: 'time', currentTime: 12.25 });
+    });
+    expect(result.current.playbackState).toBe('playing');
   });
 });

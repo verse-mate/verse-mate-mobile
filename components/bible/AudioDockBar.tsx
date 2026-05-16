@@ -8,7 +8,7 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nextSpeed, SPEED_OPTIONS } from '@/components/bible/AudioInlineEntry';
 import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
@@ -40,6 +40,7 @@ export function AudioDockBar() {
     player.durationSeconds > 0 ? Math.min(1, player.elapsedSeconds / player.durationSeconds) : 0;
 
   const isPlaying = state === 'playing';
+  const isBuffering = state === 'loading';
 
   return (
     <View accessibilityRole="toolbar" accessibilityLabel="Audio player" style={styles.container}>
@@ -70,11 +71,22 @@ export function AudioDockBar() {
       </Pressable>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+        accessibilityLabel={isBuffering ? 'Buffering' : isPlaying ? 'Pause' : 'Play'}
+        accessibilityState={{ busy: isBuffering }}
         style={styles.iconButton}
+        disabled={isBuffering}
         onPress={() => (isPlaying ? player.pause() : player.play())}
+        testID="audio-dock-play-toggle"
       >
-        <Ionicons name={isPlaying ? 'pause' : 'play'} size={22} color={colors.textPrimary} />
+        {isBuffering ? (
+          <ActivityIndicator
+            size="small"
+            color={colors.textPrimary}
+            testID="audio-dock-buffering-indicator"
+          />
+        ) : (
+          <Ionicons name={isPlaying ? 'pause' : 'play'} size={22} color={colors.textPrimary} />
+        )}
       </Pressable>
       <Pressable
         accessibilityRole="button"
