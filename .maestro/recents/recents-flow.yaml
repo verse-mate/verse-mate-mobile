@@ -25,6 +25,30 @@ tags:
     timeout: 30000
 
 # ============================================
+# Test 0: Current book appears in Recents immediately (no prior navigation)
+# ============================================
+
+# Open navigation modal before navigating anywhere
+- tapOn:
+    id: "chapter-selector-button"
+
+- assertVisible:
+    id: "bible-navigation-modal"
+
+# RECENTS section must be visible with the currently-open book (Genesis)
+- assertVisible:
+    text: "RECENTS"
+
+- assertVisible:
+    id: "book-item-genesis"
+
+# Close modal
+- tapOn:
+    id: "close-modal-button"
+
+- waitForAnimationToEnd
+
+# ============================================
 # Test 1: Navigate to Multiple Books
 # ============================================
 
