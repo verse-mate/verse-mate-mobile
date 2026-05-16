@@ -36,6 +36,7 @@ import type {
   DownloadStatus,
   LanguageBundle,
   LanguageBundleStatus,
+  OfflineDownloadOrigin,
   OfflineManifest,
   SyncProgress,
   TopicsDownloadData,
@@ -81,12 +82,19 @@ export async function fetchManifest(): Promise<OfflineManifest> {
 }
 
 /**
- * Download and store a Bible version
+ * Download and store a Bible version.
+ *
+ * `origin` tags the metadata row so we can later distinguish user-initiated
+ * downloads from Pass 2 cross-populated content. Bible versions don't drive
+ * the "Available offline" badge, but the tag keeps schema consistent so a
+ * Pass 1 re-download preserves the row's prior intent rather than silently
+ * promoting an auto-sync row to explicit.
  */
 export async function downloadBibleVersion(
   versionKey: string,
   manifest: OfflineManifest,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  origin: OfflineDownloadOrigin = 'explicit'
 ): Promise<void> {
   onProgress?.({ current: 0, total: 100, message: `Downloading ${versionKey}...` });
 
@@ -108,6 +116,7 @@ export async function downloadBibleVersion(
     last_updated_at: versionInfo?.updated_at || new Date().toISOString(),
     downloaded_at: new Date().toISOString(),
     size_bytes: versionInfo?.size_bytes || 0,
+    origin,
   });
 
   onProgress?.({ current: 100, total: 100, message: 'Complete!' });
@@ -124,7 +133,8 @@ export async function downloadBibleBook(
   versionKey: string,
   bookId: number,
   manifest: OfflineManifest,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  origin: OfflineDownloadOrigin = 'explicit'
 ): Promise<void> {
   onProgress?.({ current: 0, total: 100, message: 'Fetching version data...' });
 
@@ -152,18 +162,25 @@ export async function downloadBibleBook(
     last_updated_at: versionInfo?.updated_at || new Date().toISOString(),
     downloaded_at: new Date().toISOString(),
     size_bytes: sizeBytes,
+    origin,
   });
 
   onProgress?.({ current: 100, total: 100, message: 'Complete!' });
 }
 
 /**
- * Download and store commentaries for a language
+ * Download and store commentaries for a language.
+ *
+ * `origin` defaults to `'explicit'` so the offline UI's "Download" button
+ * keeps producing badge-eligible rows. Pass 2 of `checkAndSyncUpdates` must
+ * pass `'auto-sync'` explicitly so the badge does not fire for
+ * cross-populated content the user never asked for.
  */
 export async function downloadCommentaries(
   languageCode: string,
   manifest: OfflineManifest,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  origin: OfflineDownloadOrigin = 'explicit'
 ): Promise<void> {
   onProgress?.({
     current: 0,
@@ -191,18 +208,21 @@ export async function downloadCommentaries(
     last_updated_at: langInfo?.updated_at || new Date().toISOString(),
     downloaded_at: new Date().toISOString(),
     size_bytes: langInfo?.size_bytes || 0,
+    origin,
   });
 
   onProgress?.({ current: 100, total: 100, message: 'Complete!' });
 }
 
 /**
- * Download and store topics for a language
+ * Download and store topics for a language. See `downloadCommentaries` for
+ * the `origin` parameter's role.
  */
 export async function downloadTopics(
   languageCode: string,
   manifest: OfflineManifest,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  origin: OfflineDownloadOrigin = 'explicit'
 ): Promise<void> {
   onProgress?.({ current: 0, total: 100, message: `Downloading topics (${languageCode})...` });
 
@@ -226,6 +246,7 @@ export async function downloadTopics(
     last_updated_at: langInfo?.updated_at || new Date().toISOString(),
     downloaded_at: new Date().toISOString(),
     size_bytes: langInfo?.size_bytes || 0,
+    origin,
   });
 
   onProgress?.({ current: 100, total: 100, message: 'Complete!' });
@@ -403,12 +424,21 @@ export async function getDownloadedBibleVersions(): Promise<string[]> {
 }
 
 /**
- * Get list of downloaded commentary language codes
+ * Get list of commentary languages the user explicitly downloaded.
+ *
+ * Only `origin === 'explicit'` rows are returned. Pass 2 cross-populated
+ * rows (`origin === 'auto-sync'`) and legacy rows (`origin` undefined /
+ * NULL) are excluded so the "Available offline" badge — driven by
+ * `matchedLocalLanguage` in `useBibleChapterExplanation` — only fires for
+ * content the user actively asked for.
+ *
+ * Auto-sync content remains queryable through the regular offline read
+ * paths; it just doesn't claim to be "your" download in the UI.
  */
 export async function getDownloadedCommentaryLanguages(): Promise<string[]> {
   const metadata = await getAllMetadata();
   return metadata
-    .filter((m) => m.resource_key.startsWith('commentary:'))
+    .filter((m) => m.resource_key.startsWith('commentary:') && m.origin === 'explicit')
     .map((m) => m.resource_key.replace('commentary:', ''));
 }
 
@@ -465,12 +495,19 @@ export async function checkAndSyncUpdates(onProgress?: ProgressCallback): Promis
         message: `Updating ${type}: ${key}...`,
       });
 
+      // Preserve the row's existing origin so a Pass 1 re-download doesn't
+      // silently promote auto-sync content to explicit (or vice versa).
+      // Legacy rows (origin = NULL) read back as undefined and are treated
+      // as auto-sync, which matches the badge-suppression intent for content
+      // a prior build pulled in without the user knowing.
+      const preservedOrigin: OfflineDownloadOrigin = meta.origin ?? 'auto-sync';
+
       if (type === 'bible') {
-        await downloadBibleVersion(key, manifest);
+        await downloadBibleVersion(key, manifest, undefined, preservedOrigin);
       } else if (type === 'commentary') {
-        await downloadCommentaries(key, manifest);
+        await downloadCommentaries(key, manifest, undefined, preservedOrigin);
       } else if (type === 'topics') {
-        await downloadTopics(key, manifest);
+        await downloadTopics(key, manifest, undefined, preservedOrigin);
       }
 
       updated++;
@@ -500,7 +537,9 @@ export async function checkAndSyncUpdates(onProgress?: ProgressCallback): Promis
         message: `Downloading new topics (${langCode})...`,
       });
 
-      await downloadTopics(langCode, manifest);
+      // Pass 2 cross-population — user never asked for this. Tag as
+      // auto-sync so the badge stays off.
+      await downloadTopics(langCode, manifest, undefined, 'auto-sync');
       updated++;
     }
   }
@@ -517,7 +556,7 @@ export async function checkAndSyncUpdates(onProgress?: ProgressCallback): Promis
         message: `Downloading new commentaries (${langCode})...`,
       });
 
-      await downloadCommentaries(langCode, manifest);
+      await downloadCommentaries(langCode, manifest, undefined, 'auto-sync');
       updated++;
     }
   }

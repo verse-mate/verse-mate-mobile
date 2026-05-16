@@ -31,6 +31,8 @@ jest.mock('@/services/offline/sqlite-manager', () => ({
   deleteCommentaries: jest.fn(),
   deleteTopics: jest.fn(),
   deleteBibleVersion: jest.fn(),
+  getAllMetadata: jest.fn(),
+  getMetadata: jest.fn(),
 }));
 
 // Mock global fetch
@@ -440,6 +442,97 @@ describe('OfflineSyncService', () => {
 
       expect(progressValues[0]).toBe(0);
       expect(progressValues[progressValues.length - 1]).toBeGreaterThan(0);
+    });
+  });
+
+  // VER-87: the "Available offline" badge in useBibleChapterExplanation
+  // reads from getDownloadedCommentaryLanguages. Only explicit user-initiated
+  // downloads should drive it — Pass 2 auto-synced rows must not, and legacy
+  // pre-migration rows (origin = NULL) must not either.
+  describe('getDownloadedCommentaryLanguages (VER-87 badge filter)', () => {
+    it('returns only languages with origin === "explicit"', async () => {
+      (sqliteManager.getAllMetadata as jest.Mock).mockResolvedValue([
+        {
+          resource_key: 'commentary:en',
+          last_updated_at: '2024-01-01',
+          downloaded_at: '2024-01-01',
+          size_bytes: 100,
+          origin: 'explicit',
+        },
+        {
+          resource_key: 'commentary:pt',
+          last_updated_at: '2024-01-01',
+          downloaded_at: '2024-01-01',
+          size_bytes: 100,
+          origin: 'auto-sync',
+        },
+        {
+          resource_key: 'commentary:es',
+          last_updated_at: '2024-01-01',
+          downloaded_at: '2024-01-01',
+          size_bytes: 100,
+          // legacy row — origin column NULL → reads as undefined
+        },
+      ]);
+
+      const result = await syncService.getDownloadedCommentaryLanguages();
+
+      expect(result).toEqual(['en']);
+    });
+
+    it('ignores non-commentary metadata rows', async () => {
+      (sqliteManager.getAllMetadata as jest.Mock).mockResolvedValue([
+        {
+          resource_key: 'topics:en',
+          last_updated_at: '2024-01-01',
+          downloaded_at: '2024-01-01',
+          size_bytes: 100,
+          origin: 'explicit',
+        },
+        {
+          resource_key: 'bible:NASB1995',
+          last_updated_at: '2024-01-01',
+          downloaded_at: '2024-01-01',
+          size_bytes: 100,
+          origin: 'explicit',
+        },
+      ]);
+
+      const result = await syncService.getDownloadedCommentaryLanguages();
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('downloadCommentaries origin tagging (VER-87)', () => {
+    beforeEach(() => {
+      server.use(
+        http.get('https://api.versemate.org/offline/commentaries/:lang', () => {
+          return HttpResponse.json([]);
+        })
+      );
+    });
+
+    it('defaults to origin="explicit" so user-initiated downloads light the badge', async () => {
+      await syncService.downloadCommentaries('en', mockManifest as any);
+
+      expect(sqliteManager.saveMetadata).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resource_key: 'commentary:en',
+          origin: 'explicit',
+        })
+      );
+    });
+
+    it('honors a caller-provided "auto-sync" origin (Pass 2 cross-populate)', async () => {
+      await syncService.downloadCommentaries('en', mockManifest as any, undefined, 'auto-sync');
+
+      expect(sqliteManager.saveMetadata).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resource_key: 'commentary:en',
+          origin: 'auto-sync',
+        })
+      );
     });
   });
 });
