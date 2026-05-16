@@ -227,17 +227,21 @@ export function SplitView({
           </View>
 
           {/* Left Edge Tab (visible when right-full) */}
+          {/* pointerEvents lives on the View prop, not in the inline style — */}
+          {/* RNW translates inline pointerEvents to an inline `pointer-events` */}
+          {/* declaration that its reconciler intermittently fails to clear when */}
+          {/* the value transitions from 'none' to 'box-none' (VER-103). */}
           <View
             style={[
               styles.edgeTab,
               styles.leftEdgeTab,
               {
                 opacity: isRightFull && edgeTabsVisible ? 1 : 0,
-                pointerEvents: isRightFull ? 'box-none' : 'none',
                 transitionProperty: 'opacity',
                 transitionDuration: TRANSITION_MS,
               } as any,
             ]}
+            pointerEvents={isRightFull ? 'box-none' : 'none'}
             testID={`${testID}-left-edge-tab`}
           >
             <Pressable
@@ -247,6 +251,7 @@ export function SplitView({
                 { backgroundColor: colors.backgroundElevated },
               ]}
               onPress={() => onViewModeChange?.('split')}
+              testID={`${testID}-left-edge-tab-button`}
             >
               <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
             </Pressable>
@@ -259,11 +264,11 @@ export function SplitView({
               styles.rightEdgeTab,
               {
                 opacity: isLeftFull && edgeTabsVisible ? 1 : 0,
-                pointerEvents: isLeftFull ? 'box-none' : 'none',
                 transitionProperty: 'opacity',
                 transitionDuration: TRANSITION_MS,
               } as any,
             ]}
+            pointerEvents={isLeftFull ? 'box-none' : 'none'}
             testID={`${testID}-right-edge-tab`}
           >
             <Pressable
@@ -273,6 +278,7 @@ export function SplitView({
                 { backgroundColor: colors.backgroundElevated },
               ]}
               onPress={() => onViewModeChange?.('split')}
+              testID={`${testID}-right-edge-tab-button`}
             >
               <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
             </Pressable>
