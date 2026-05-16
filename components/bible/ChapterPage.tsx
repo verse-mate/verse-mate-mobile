@@ -31,6 +31,7 @@ import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
+import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
@@ -38,6 +39,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
@@ -133,6 +135,7 @@ function TabContent({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors, insets.bottom); // Use local createStyles for TabContent
+  const { isOffline } = useOfflineStatus();
 
   const isHidden = !visible;
   if (isHidden && !shouldRenderHidden) return null;
@@ -179,26 +182,38 @@ function TabContent({
       onContentSizeChange={onTabContentSizeChange}
     >
       {error ? (
-        <Animated.View
-          entering={FadeIn.duration(animations.tabSwitch.duration)}
-          exiting={FadeOut.duration(animations.tabSwitch.duration)}
-          style={styles.errorContainer}
-        >
-          <Text style={styles.errorText}>Failed to load {activeTab} explanation.</Text>
-        </Animated.View>
+        isOffline ? (
+          <OfflineContentUnavailable contentType="explanation" />
+        ) : (
+          <Animated.View
+            entering={FadeIn.duration(animations.tabSwitch.duration)}
+            exiting={FadeOut.duration(animations.tabSwitch.duration)}
+            style={styles.errorContainer}
+          >
+            <Text style={styles.errorText}>Failed to load {activeTab} explanation.</Text>
+          </Animated.View>
+        )
       ) : showSkeleton ? (
         // Only show skeleton on initial load when no content exists yet
         <SkeletonLoader />
       ) : !hasContent ? (
-        <Animated.View
-          entering={FadeIn.duration(animations.tabSwitch.duration)}
-          exiting={FadeOut.duration(animations.tabSwitch.duration)}
-          style={styles.errorContainer}
-        >
-          <Text style={styles.errorText}>
-            No {activeTab} explanation available for this chapter yet.
-          </Text>
-        </Animated.View>
+        // VER-39: When offline and the explanation isn't cached locally, the
+        // remote fetch fails (or never resolves) and we'd otherwise lie that
+        // the content doesn't exist. Match BibleExplanationsPanel and surface
+        // the proper "You're offline / Manage Downloads" placeholder instead.
+        isOffline ? (
+          <OfflineContentUnavailable contentType="explanation" />
+        ) : (
+          <Animated.View
+            entering={FadeIn.duration(animations.tabSwitch.duration)}
+            exiting={FadeOut.duration(animations.tabSwitch.duration)}
+            style={styles.errorContainer}
+          >
+            <Text style={styles.errorText}>
+              No {activeTab} explanation available for this chapter yet.
+            </Text>
+          </Animated.View>
+        )
       ) : (
         <View>
           {/* TASK-017: audio entry is also mounted in BibleExplanationsPanel
