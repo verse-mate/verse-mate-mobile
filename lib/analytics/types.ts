@@ -77,7 +77,7 @@ export interface ViewModeSwitchedProperties {
 }
 
 export interface ExplanationTabChangedProperties {
-  tab: 'summary' | 'byline' | 'detailed';
+  tab: 'summary' | 'byline' | 'detailed' | 'study';
 }
 
 /**

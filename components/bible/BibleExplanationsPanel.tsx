@@ -52,6 +52,7 @@ import { computeByLineJumpY } from '@/utils/bible/byLineJump';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { AudioInlineEntry } from './AudioInlineEntry';
 import { ShareButton } from './ShareButton';
+import { StudyPanel } from './StudyPanel';
 import { VerseJumpButton } from './VerseJumpButton';
 
 /**
@@ -61,6 +62,7 @@ const TABS: { id: ContentTabType; label: string }[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'byline', label: 'By Line' },
   { id: 'detailed', label: 'Detailed' },
+  { id: 'study', label: 'Study' },
 ];
 
 /**
@@ -199,6 +201,7 @@ export function BibleExplanationsPanel({
   const summaryScrollRef = useRef<ScrollView>(null);
   const byLineScrollRef = useRef<ScrollView>(null);
   const detailedScrollRef = useRef<ScrollView>(null);
+  const studyScrollRef = useRef<ScrollView>(null);
 
   // Quick-verse-jump (VERA-35 / VERA-36): refs to each rendered By Line
   // verse-section View. Populated when byline content is split into per-verse
@@ -430,11 +433,12 @@ export function BibleExplanationsPanel({
           style={styles.tabsRow}
           onLayout={(event) => {
             const { width } = event.nativeEvent.layout;
-            const singleTabWidth = (width - 16) / 3;
+            // 4 tabs: padding 8 + 3 gaps × 4 = 20 subtracted.
+            const singleTabWidth = (width - 20) / 4;
             setTabWidth(singleTabWidth);
           }}
         >
-          {/* Sliding active indicator */}
+          {/* Sliding active indicator. Animation indices match TABS order. */}
           <Animated.View
             style={[
               styles.slidingIndicator,
@@ -443,8 +447,8 @@ export function BibleExplanationsPanel({
                 transform: [
                   {
                     translateX: slideAnim.interpolate({
-                      inputRange: [0, 1, 2],
-                      outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2],
+                      inputRange: [0, 1, 2, 3],
+                      outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2, (tabWidth + 4) * 3],
                     }),
                   },
                 ],
@@ -569,6 +573,22 @@ export function BibleExplanationsPanel({
           )}
         </ScrollView>
       ))}
+
+      {/* Study tab — bundled content from @versemate/studies (no API fetch,
+          no loading state, no offline concerns). Always mounted, hidden
+          when not active so its scroll position persists across tab
+          switches like the other 3 tabs. */}
+      <ScrollView
+        ref={studyScrollRef}
+        style={[styles.scrollView, activeTab !== 'study' && { display: 'none' }]}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        onScroll={activeTab === 'study' ? handleInternalScroll : undefined}
+        scrollEventThrottle={16}
+        testID={`${testID}-scroll-study`}
+      >
+        <StudyPanel bookId={bookId} chapter={chapterNumber} testID={`${testID}-study`} />
+      </ScrollView>
 
       {/* Quick-verse-jump FAB (VERA-36): byline-only. No chapter-nav row
           beneath this ScrollView in split / desktop right panel, so use a
