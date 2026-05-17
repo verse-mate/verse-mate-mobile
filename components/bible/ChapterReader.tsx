@@ -33,9 +33,16 @@ import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
+import { LexiconPopover } from '@/components/bible/LexiconPopover';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
+import {
+  type AlignedToken,
+  type ChapterAlignment,
+  type LexEntry,
+  loadAlignmentFor,
+} from '@versemate/lexicon';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
@@ -318,11 +325,35 @@ export function ChapterReader({
     return groupConsecutiveHighlights(chapterHighlights);
   }, [chapterHighlights]);
 
-  // Word definition tooltip state
+  // Word definition tooltip state (legacy Easton/Strong/Webster path — used
+  // as fallback for words the lexicon doesn't cover).
   const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
   const [wordToDefine, setWordToDefine] = useState<{
     word: string;
     verseNumber: number;
+  } | null>(null);
+
+  // Chapter-aligned Greek/Hebrew lexicon — preferred path. `loadAlignmentFor`
+  // returns null for chapters with no alignment (e.g. before the ingest runs
+  // on a new book), in which case every long-press falls back to the legacy
+  // dictionary tooltip.
+  const [alignment, setAlignment] = useState<ChapterAlignment | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setAlignment(null);
+    loadAlignmentFor(chapter.bookId, chapter.chapterNumber).then((a) => {
+      if (!cancelled) setAlignment(a);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [chapter.bookId, chapter.chapterNumber]);
+
+  const [lexiconActive, setLexiconActive] = useState<{
+    surface: string;
+    entry: LexEntry;
+    token: AlignedToken;
+    isTheme: boolean;
   } | null>(null);
 
   // Line layout information for paragraph groups (for accurate tap detection)
@@ -376,18 +407,42 @@ export function ChapterReader({
   };
 
   /**
-   * Handle word selection from HighlightedText
-   * Directly opens dictionary definition (no intermediate selection UI)
+   * Handle word selection (long-press) from HighlightedText.
+   *
+   * Routing: if the pressed word matches a token in this chapter's
+   * alignment, open the LexiconPopover (Greek/Hebrew lexical card).
+   * Otherwise fall back to the legacy dictionary tooltip
+   * (Easton/Strong/Webster). The fallback covers (a) chapters with no
+   * alignment yet, and (b) words inside an aligned chapter that aren't
+   * tagged (proper nouns, English filler).
    */
   const handleWordSelect = (selection: WordSelection, clearSelection: () => void) => {
-    // Directly open definition
+    const tokens = alignment?.verses[selection.verseNumber] ?? [];
+    if (tokens.length > 0) {
+      // Strip trailing punctuation and lowercase for whole-word match.
+      const normalized = selection.word.toLowerCase().replace(/[.,;:!?'"’()]+$/g, '');
+      const matched = tokens.find((t) => t.surface.toLowerCase() === normalized);
+      if (matched) {
+        const entry = alignment?.lexicon[matched.lemma];
+        if (entry) {
+          setLexiconActive({
+            surface: selection.word,
+            entry,
+            token: matched,
+            isTheme: alignment?.themeLemmas?.includes(matched.lemma) ?? false,
+          });
+          clearSelection();
+          return;
+        }
+      }
+    }
+
+    // Fallback: legacy dictionary tooltip.
     setWordToDefine({
       word: selection.word,
       verseNumber: selection.verseNumber,
     });
     setWordDefinitionVisible(true);
-
-    // Clear any selection highlight
     clearSelection();
   };
 
@@ -792,7 +847,7 @@ export function ChapterReader({
         onClose={() => setErrorModalVisible(false)}
       />
 
-      {/* Word Definition Tooltip */}
+      {/* Word Definition Tooltip — legacy dictionary fallback */}
       {wordToDefine && (
         <WordDefinitionTooltip
           visible={wordDefinitionVisible}
@@ -802,6 +857,18 @@ export function ChapterReader({
           verseNumber={wordToDefine.verseNumber}
           onClose={handleWordDefinitionClose}
           onCopy={handleWordDefinitionCopy}
+        />
+      )}
+
+      {/* Lexicon Popover — preferred path for words with chapter alignment */}
+      {lexiconActive && (
+        <LexiconPopover
+          visible={true}
+          onClose={() => setLexiconActive(null)}
+          surface={lexiconActive.surface}
+          entry={lexiconActive.entry}
+          token={lexiconActive.token}
+          isTheme={lexiconActive.isTheme}
         />
       )}
     </View>
