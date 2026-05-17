@@ -27,7 +27,7 @@ import type {
   StudyMovement,
   StudyStep,
 } from '@versemate/studies/types';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -44,7 +44,32 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
   const styles = useMemo(() => createStyles(colors), [colors]);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
 
-  const study = getStudyFor(bookId, chapter) as InductiveStudy | null;
+  // getStudyFor is async — each chapter is its own bundler chunk to keep
+  // assets under Cloudflare Workers' 25 MiB per-file limit at full Bible
+  // coverage. First visit to a chapter pays one fetch; subsequent reads
+  // hit Metro's module cache + the in-package CACHE map.
+  const [study, setStudy] = useState<InductiveStudy | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    getStudyFor(bookId, chapter).then((s) => {
+      if (cancelled) return;
+      setStudy(s);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, chapter]);
+
+  if (loading) {
+    return (
+      <View style={styles.emptyContainer} testID={`${testID}-loading`}>
+        <Text style={styles.emptyText}>Loading…</Text>
+      </View>
+    );
+  }
 
   if (!study) {
     return (
