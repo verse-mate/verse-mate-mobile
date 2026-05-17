@@ -214,6 +214,7 @@ export function BibleExplanationsPanel({
     summaryScrollRef.current?.scrollTo({ y: 0, animated: false });
     byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
     detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
+    studyScrollRef.current?.scrollTo({ y: 0, animated: false });
     byLineSectionRefs.current = {};
   }, [bookId, chapterNumber]);
 
