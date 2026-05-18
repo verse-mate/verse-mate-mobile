@@ -161,7 +161,7 @@ export function WordDefinitionTooltip({
 
         // Check native dictionary availability (iOS only, or when no other source found)
         let hasNative = false;
-        if (nativeAvailable && (Platform.OS === 'ios' || result.source === 'none')) {
+        if (nativeAvailable && result.source === 'none' && Platform.OS !== 'ios') {
           hasNative = await hasDefinitionRef.current(word);
         }
 
