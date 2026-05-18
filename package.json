@@ -43,7 +43,7 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@tanstack/react-query": "^5.90.2",
-    "@versemate/lexicon": "file:../verse-mate-lexicon",
+    "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#26012e6790ad734e203f9901efe029d729133409",
     "axios": "^1.12.2",
     "expo": "~54.0.27",
     "expo-apple-authentication": "~8.0.8",
