@@ -100,6 +100,12 @@ export interface ChapterStateResult {
   booksMetadata: TestamentBook[] | undefined;
   /** Total chapters for the current book (defaults to 50 while loading) */
   totalChapters: number;
+  /**
+   * Real chapter count for the current book, or undefined while metadata loads.
+   * Callers that must not act on the fallback (e.g. prefetch boundary checks)
+   * should use this instead of `totalChapters`.
+   */
+  chapterCount: number | undefined;
 }
 
 /**
@@ -143,7 +149,8 @@ export function useChapterState(): ChapterStateResult {
     () => booksMetadata?.find((b) => b.id === state.bookId),
     [booksMetadata, state.bookId]
   );
-  const totalChapters = bookMetadata?.chapterCount || 50;
+  const chapterCount = bookMetadata?.chapterCount;
+  const totalChapters = chapterCount ?? 50;
 
   // Compute book name from bookId
   const bookName = useMemo(() => {
@@ -268,5 +275,6 @@ export function useChapterState(): ChapterStateResult {
     navigateToChapter,
     booksMetadata,
     totalChapters,
+    chapterCount,
   };
 }
