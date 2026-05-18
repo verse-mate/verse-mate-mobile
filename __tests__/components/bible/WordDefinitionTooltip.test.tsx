@@ -10,7 +10,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
-import { Share } from 'react-native';
+import { Platform, Share } from 'react-native';
 import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import type { DictionaryResult, StrongsEntry } from '@/types/dictionary';
 
@@ -525,7 +525,21 @@ describe('WordDefinitionTooltip', () => {
   });
 
   describe('Native Dictionary', () => {
-    it('should show native dictionary button when available', async () => {
+    it('should not show native dictionary button on iOS even when available', async () => {
+      mockHasDefinition.mockResolvedValue(true);
+
+      const { queryByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
+
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(queryByTestId('word-definition-native-button')).toBeNull();
+      });
+    });
+
+    it('should show native dictionary button on Android when available and no internal definition', async () => {
+      const originalOS = Platform.OS;
+      (Platform as { OS: string }).OS = 'android';
       mockHasDefinition.mockResolvedValue(true);
 
       const { getByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
@@ -535,6 +549,8 @@ describe('WordDefinitionTooltip', () => {
       await waitFor(() => {
         expect(getByTestId('word-definition-native-button')).toBeTruthy();
       });
+
+      (Platform as { OS: string }).OS = originalOS;
     });
 
     it('should not show native dictionary button when unavailable', async () => {
@@ -555,7 +571,9 @@ describe('WordDefinitionTooltip', () => {
       });
     });
 
-    it('should call showDefinition when native button pressed', async () => {
+    it('should call showDefinition when native button pressed on Android', async () => {
+      const originalOS = Platform.OS;
+      (Platform as { OS: string }).OS = 'android';
       mockHasDefinition.mockResolvedValue(true);
 
       const { getByTestId } = render(<WordDefinitionTooltip {...defaultProps} />);
@@ -568,11 +586,12 @@ describe('WordDefinitionTooltip', () => {
 
       fireEvent.press(getByTestId('word-definition-native-button'));
 
-      // Wait for async handler to complete
       await waitFor(() => {
         expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Light);
         expect(mockShowDefinition).toHaveBeenCalledWith('love');
       });
+
+      (Platform as { OS: string }).OS = originalOS;
     });
   });
 
