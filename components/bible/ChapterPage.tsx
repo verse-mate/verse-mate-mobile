@@ -408,12 +408,28 @@ export function ChapterPage({
     };
   }, [isPreloading]);
 
+  // Track explanation tab content heights for scroll syncing
+  const tabContentHeightsRef = useRef<
+    Record<string, { contentHeight: number; viewHeight: number }>
+  >({});
+
+  // VER-74: Pending scroll fractions awaiting a tab's first measurement.
+  // The previous one-shot 100ms timeout raced against staggered tab mounting
+  // (byline mounts at stage 3 / 1600ms when inactive) and against in-flight
+  // explanation fetches. We now stash the fraction here on view switch and let
+  // handleTabContentSizeChange apply it as soon as dims arrive.
+  const pendingScrollFractionRef = useRef<Record<string, number>>({});
+
   // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
   useEffect(() => {
     hasScrolledRef.current = false;
     sectionPositionsRef.current = {};
     currentScrollYRef.current = 0;
+    // VER-74: clear cross-view scroll state so a fraction or pending scroll
+    // from the previous chapter can't fire on the new one's first tab switch.
+    bibleScrollFractionRef.current = 0;
+    pendingScrollFractionRef.current = {};
 
     // Reset scroll position to top when chapter changes
     // This prevents "height teleportation" from previous chapter
@@ -437,16 +453,36 @@ export function ChapterPage({
     visibleYRangeRef.current = null;
   }, [bookId, chapterNumber]);
 
-  // Track explanation tab content heights for scroll syncing
-  const tabContentHeightsRef = useRef<
-    Record<string, { contentHeight: number; viewHeight: number }>
-  >({});
+  // Stable across renders: only reads refs, never state. Wrapping in useCallback
+  // with [] keeps the effect-dep list quiet without spurious re-runs.
+  const applyPendingScroll = useCallback((tab: string) => {
+    const fraction = pendingScrollFractionRef.current[tab];
+    if (fraction == null) return;
+    const dims = tabContentHeightsRef.current[tab];
+    if (!dims || dims.contentHeight <= dims.viewHeight) return;
+
+    const targetRef =
+      tab === 'summary'
+        ? summaryScrollRef
+        : tab === 'byline'
+          ? byLineScrollRef
+          : tab === 'detailed'
+            ? detailedScrollRef
+            : null;
+    if (!targetRef) return;
+
+    const scrollableHeight = dims.contentHeight - dims.viewHeight;
+    const targetY = Math.round(fraction * scrollableHeight);
+    targetRef.current?.scrollTo({ y: targetY, animated: false });
+    delete pendingScrollFractionRef.current[tab];
+  }, []);
 
   const handleTabContentSizeChange = (tab: string, contentHeight: number, viewHeight: number) => {
     tabContentHeightsRef.current[tab] = {
       contentHeight,
       viewHeight: viewHeight || viewportHeightRef.current,
     };
+    applyPendingScroll(tab);
   };
 
   // Sync scroll position when switching from Bible to explanations view
@@ -454,28 +490,17 @@ export function ChapterPage({
     if (activeView !== 'bible') {
       hasScrolledRef.current = true;
 
-      // Sync scroll position from Bible view to the active explanation tab
       const fraction = bibleScrollFractionRef.current;
       if (fraction > 0.01) {
-        const targetRef =
-          activeTab === 'summary'
-            ? summaryScrollRef
-            : activeTab === 'byline'
-              ? byLineScrollRef
-              : detailedScrollRef;
-
-        // Small delay to allow layout after view switch
-        setTimeout(() => {
-          const dims = tabContentHeightsRef.current[activeTab];
-          if (dims && dims.contentHeight > dims.viewHeight) {
-            const scrollableHeight = dims.contentHeight - dims.viewHeight;
-            const targetY = Math.round(fraction * scrollableHeight);
-            targetRef.current?.scrollTo({ y: targetY, animated: false });
-          }
-        }, 100);
+        // Record the desired fraction for the active tab. If dims are already
+        // measured we can scroll immediately; otherwise applyPendingScroll
+        // fires from handleTabContentSizeChange when the tab finishes mounting
+        // and its content lays out.
+        pendingScrollFractionRef.current[activeTab] = fraction;
+        applyPendingScroll(activeTab);
       }
     }
-  }, [activeView, activeTab]);
+  }, [activeView, activeTab, applyPendingScroll]);
 
   // Track last scroll position and timestamp for velocity calculation
   const lastScrollY = useRef(0);
