@@ -1001,7 +1001,7 @@ function BibleNavigationModalComponent({
       >
         {/* Backdrop that handles both tap to close and swipe to dismiss - positioned first to be behind modal */}
         <GestureDetector gesture={Gesture.Simultaneous(backdropPanGesture, backdropTapGesture)}>
-          <Animated.View style={styles.backdropTouchable} />
+          <Animated.View style={styles.backdropTouchable} testID="close-modal-button" />
         </GestureDetector>
         <Animated.View
           style={[styles.container, animatedModalStyle]}
