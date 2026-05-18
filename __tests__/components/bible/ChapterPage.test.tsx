@@ -69,6 +69,14 @@ jest.mock('@/contexts/AuthContext', () => ({
   })),
 }));
 
+// Mock NetInfo so useOfflineStatus (now called inside TabContent for VER-39) can
+// initialise without hitting the real native module. Mirrors the stub used in
+// the other Bible-tree tests (chapterNumber.test.tsx, topic-swipe-integration.test.tsx).
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(() => Promise.resolve({ isInternetReachable: true })),
+}));
+
 // Mock Safe Area Context (used by ToastProvider)
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: jest.fn(({ children }) => children),
