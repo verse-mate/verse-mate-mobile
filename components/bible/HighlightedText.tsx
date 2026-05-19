@@ -838,34 +838,49 @@ export function HighlightedText({
 
           // Lexicon-covered word? Render with dotted underline and route tap
           // to the lexicon callback (not the segment's regular tap).
+          //
+          // Splitting:
+          //   token.word may include trailing punctuation ("trials,", "joy.").
+          //   We underline ONLY the word characters — punctuation and the
+          //   trailing space stay in a separate, unstyled Text so the dotted
+          //   line doesn't bleed past the word itself.
           const lexHit = lexiconMatch(token.word);
           if (lexHit && onLexiconWordPress) {
             const lexStyle = lexHit.isTheme
               ? lexiconWordStyles.theme
               : lexiconWordStyles.regular;
+            const match = token.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
+            const wordCore = match ? match[1] : token.word;
+            const trailing = match ? match[2] : '';
+            const space = token.hasTrailingSpace ? ' ' : '';
             return (
               <Text
                 key={`word-${segment.key}-${token.startChar}`}
-                style={[
-                  lexStyle,
-                  (isSelected || verseTapSelected) && selectionStyles.selected,
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onLexiconWordPress({
-                    surface: token.word,
-                    token: lexHit.token,
-                    entry: lexHit.entry,
-                    isTheme: lexHit.isTheme,
-                  });
-                }}
                 suppressHighlighting={true}
-                accessibilityRole="button"
-                accessibilityLabel={`${token.word} — ${lexHit.entry.translit}, ${lexHit.entry.basicGloss}`}
                 {...responderProps}
               >
-                {token.word}
-                {token.hasTrailingSpace ? ' ' : ''}
+                <Text
+                  style={[
+                    lexStyle,
+                    (isSelected || verseTapSelected) && selectionStyles.selected,
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    onLexiconWordPress({
+                      surface: wordCore,
+                      token: lexHit.token,
+                      entry: lexHit.entry,
+                      isTheme: lexHit.isTheme,
+                    });
+                  }}
+                  suppressHighlighting={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${wordCore} — ${lexHit.entry.translit}, ${lexHit.entry.basicGloss}`}
+                >
+                  {wordCore}
+                </Text>
+                {trailing}
+                {space}
               </Text>
             );
           }
@@ -1061,26 +1076,44 @@ const selectionStyles = StyleSheet.create({
 
 /**
  * Styles for lexicon-covered words. Dotted underline in gold to mirror
- * the web's `.lex-word` / `.lex-word-theme` treatment. iOS renders
- * `textDecorationStyle: 'dotted'` correctly; Android falls back to a
- * solid underline (RN limitation). Theme words get a slightly thicker
- * underline so the chapter's spine reads at a glance.
+ * the web's `.lex-word` / `.lex-word-theme` treatment.
  *
- * Hex from web's index.css: rgba(176,154,109,0.55) — alpha-blended into
- * a static hex here since RN's text decoration color doesn't accept rgba
- * reliably across both platforms.
+ * Implementation note: `textDecorationStyle: 'dotted'` is iOS-only — Android
+ * silently falls back to a solid line. To get real dots on both platforms
+ * we use a Text-level `borderBottom` with `borderStyle: 'dotted'`, which
+ * Android honors on inline Text. Combined with `textDecoration*` for iOS
+ * (where the border approach can render lower than expected), both
+ * platforms get a true dotted line.
+ *
+ * Theme words use a slightly thicker border + heavier weight so the
+ * chapter's spine reads at a glance.
  */
 const LEX_UNDERLINE = '#B09A6D';
 const lexiconWordStyles = StyleSheet.create({
-  regular: {
-    textDecorationLine: 'underline',
-    textDecorationStyle: Platform.OS === 'ios' ? 'dotted' : 'solid',
-    textDecorationColor: LEX_UNDERLINE,
-  },
-  theme: {
-    textDecorationLine: 'underline',
-    textDecorationStyle: Platform.OS === 'ios' ? 'dotted' : 'solid',
-    textDecorationColor: LEX_UNDERLINE,
-    fontWeight: '500',
-  },
+  regular: Platform.select({
+    ios: {
+      textDecorationLine: 'underline' as const,
+      textDecorationStyle: 'dotted' as const,
+      textDecorationColor: LEX_UNDERLINE,
+    },
+    default: {
+      borderBottomWidth: 1,
+      borderStyle: 'dotted' as const,
+      borderColor: LEX_UNDERLINE,
+    },
+  }),
+  theme: Platform.select({
+    ios: {
+      textDecorationLine: 'underline' as const,
+      textDecorationStyle: 'dotted' as const,
+      textDecorationColor: LEX_UNDERLINE,
+      fontWeight: '500' as const,
+    },
+    default: {
+      borderBottomWidth: 1.5,
+      borderStyle: 'dotted' as const,
+      borderColor: LEX_UNDERLINE,
+      fontWeight: '500' as const,
+    },
+  }),
 });
