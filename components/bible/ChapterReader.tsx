@@ -32,11 +32,10 @@ import {
 import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { ErrorModal } from '@/components/bible/ErrorModal';
-import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
+import { HighlightedText } from '@/components/bible/HighlightedText';
 import { LexiconPopover } from '@/components/bible/LexiconPopover';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
-import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import {
   type AlignedToken,
   type ChapterAlignment,
@@ -325,18 +324,11 @@ export function ChapterReader({
     return groupConsecutiveHighlights(chapterHighlights);
   }, [chapterHighlights]);
 
-  // Word definition tooltip state (legacy Easton/Strong/Webster path — used
-  // as fallback for words the lexicon doesn't cover).
-  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
-  const [wordToDefine, setWordToDefine] = useState<{
-    word: string;
-    verseNumber: number;
-  } | null>(null);
-
-  // Chapter-aligned Greek/Hebrew lexicon — preferred path. `loadAlignmentFor`
-  // returns null for chapters with no alignment (e.g. before the ingest runs
-  // on a new book), in which case every long-press falls back to the legacy
-  // dictionary tooltip.
+  // Chapter-aligned Greek/Hebrew lexicon. `loadAlignmentFor` returns null
+  // for chapters with no alignment (e.g. before the ingest runs on a new
+  // book) — in that case no words get the dotted underline and tap falls
+  // through to the regular verse-insight handler. Long-press always goes
+  // to native text selection in this screen now.
   const [alignment, setAlignment] = useState<ChapterAlignment | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -407,46 +399,6 @@ export function ChapterReader({
   };
 
   /**
-   * Handle word selection (long-press) from HighlightedText.
-   *
-   * Routing: if the pressed word matches a token in this chapter's
-   * alignment, open the LexiconPopover (Greek/Hebrew lexical card).
-   * Otherwise fall back to the legacy dictionary tooltip
-   * (Easton/Strong/Webster). The fallback covers (a) chapters with no
-   * alignment yet, and (b) words inside an aligned chapter that aren't
-   * tagged (proper nouns, English filler).
-   */
-  const handleWordSelect = (selection: WordSelection, clearSelection: () => void) => {
-    const tokens = alignment?.verses[selection.verseNumber] ?? [];
-    if (tokens.length > 0) {
-      // Strip trailing punctuation and lowercase for whole-word match.
-      const normalized = selection.word.toLowerCase().replace(/[.,;:!?'"’()]+$/g, '');
-      const matched = tokens.find((t) => t.surface.toLowerCase() === normalized);
-      if (matched) {
-        const entry = alignment?.lexicon[matched.lemma];
-        if (entry) {
-          setLexiconActive({
-            surface: selection.word,
-            entry,
-            token: matched,
-            isTheme: alignment?.themeLemmas?.includes(matched.lemma) ?? false,
-          });
-          clearSelection();
-          return;
-        }
-      }
-    }
-
-    // Fallback: legacy dictionary tooltip.
-    setWordToDefine({
-      word: selection.word,
-      verseNumber: selection.verseNumber,
-    });
-    setWordDefinitionVisible(true);
-    clearSelection();
-  };
-
-  /**
    * Handle tap on highlighted text
    * Shows grouped tooltip via context
    */
@@ -500,18 +452,20 @@ export function ChapterReader({
   };
 
   /**
-   * Handle close word definition tooltip
+   * Tap on a lexicon-covered word in the verse text — open the popover.
    */
-  const handleWordDefinitionClose = () => {
-    setWordDefinitionVisible(false);
-    setWordToDefine(null);
-  };
-
-  /**
-   * Handle copy from word definition tooltip
-   */
-  const handleWordDefinitionCopy = () => {
-    showToast('Copied to clipboard');
+  const handleLexiconWordPress = ({
+    surface,
+    token,
+    entry,
+    isTheme,
+  }: {
+    surface: string;
+    token: NonNullable<typeof lexiconActive>['token'];
+    entry: LexEntry;
+    isTheme: boolean;
+  }) => {
+    setLexiconActive({ surface, token, entry, isTheme });
   };
 
   /**
@@ -708,7 +662,8 @@ export function ChapterReader({
                                 onHighlightTap={handleHighlightTap}
                                 onAutoHighlightPress={handleAutoHighlightPress}
                                 onVerseTap={handleVerseTap}
-                                onWordSelect={handleWordSelect}
+                                alignment={alignment}
+                                onLexiconWordPress={handleLexiconWordPress}
                                 style={styles.verseTextInline}
                                 isVisible={isVerseVisible(group[0].verseNumber)}
                               />
@@ -739,7 +694,8 @@ export function ChapterReader({
                       onHighlightTap={handleHighlightTap}
                       onAutoHighlightPress={handleAutoHighlightPress}
                       onVerseTap={handleVerseTap}
-                      onWordSelect={handleWordSelect}
+                      alignment={alignment}
+                      onLexiconWordPress={handleLexiconWordPress}
                       style={styles.verseText}
                       isVisible={true}
                     />
@@ -847,20 +803,11 @@ export function ChapterReader({
         onClose={() => setErrorModalVisible(false)}
       />
 
-      {/* Word Definition Tooltip — legacy dictionary fallback */}
-      {wordToDefine && (
-        <WordDefinitionTooltip
-          visible={wordDefinitionVisible}
-          word={wordToDefine.word}
-          bookName={chapter.title.split(' ').slice(0, -1).join(' ')}
-          chapterNumber={chapter.chapterNumber}
-          verseNumber={wordToDefine.verseNumber}
-          onClose={handleWordDefinitionClose}
-          onCopy={handleWordDefinitionCopy}
-        />
-      )}
-
-      {/* Lexicon Popover — preferred path for words with chapter alignment */}
+      {/* Lexicon Popover — opens on tap of a dotted-underlined word.
+          Long-press is now reserved for native text selection; the legacy
+          Easton/Strong/Webster WordDefinitionTooltip is no longer wired
+          into the Bible reader (it still serves BibleExplanationsPanel
+          and topic surfaces, which keep the long-press → dictionary flow). */}
       {lexiconActive && (
         <LexiconPopover
           visible={true}
