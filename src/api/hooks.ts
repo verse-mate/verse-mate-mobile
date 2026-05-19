@@ -589,12 +589,17 @@ export const useBibleDetailed = (
 export const usePrefetchNextChapter = (
   bookId: number,
   currentChapter: number,
-  totalChapters: number
+  totalChapters: number | undefined
 ) => {
   const queryClient = useQueryClient();
   const preferredLanguage = usePreferredLanguage();
 
   useEffect(() => {
+    // Skip prefetch until the book's real chapter count is known. Without this guard
+    // a stale fallback (e.g. 50) on a short book like Galatians would request
+    // Galatians 7 and 404, instead of crossing into the next book.
+    if (!totalChapters) return;
+
     let nextBookId = bookId;
     let nextChapter = currentChapter + 1;
 
