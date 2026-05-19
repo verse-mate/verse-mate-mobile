@@ -420,6 +420,14 @@ export function ChapterPage({
     // ONLY if shouldResetScroll is true (skipped during seamless pager snaps)
     if (shouldResetScroll) {
       animatedScrollRef.current?.scrollTo({ y: 0, animated: false });
+      // VER-100: explanation tab ScrollViews preserve their own scrollTop
+      // across chapter changes (most visibly on web, where the ScrollView's
+      // DOM node persists). Reset all three so users land at verse 1 of the
+      // new chapter on By Line / Summary / Detailed — matches the split-view
+      // path in BibleExplanationsPanel.tsx.
+      summaryScrollRef.current?.scrollTo({ y: 0, animated: false });
+      byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
+      detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
     }
 
     // Close tooltip and clear timers when changing book/chapter
