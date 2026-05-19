@@ -112,6 +112,7 @@ export function LexiconPopover({
   // Drive animations off the `visible` prop. Open on mount, close on
   // visible → false. The close path calls onClose synchronously so the
   // parent (ChapterReader) can clear its activeLexicon state.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: animateOpen/animateClose/slideAnim/backdropOpacity/screenHeight are stable refs and closure-captured constants
   useEffect(() => {
     if (visible) {
       slideAnim.setValue(screenHeight);
@@ -120,7 +121,6 @@ export function LexiconPopover({
     } else if (internalVisibleRef.current) {
       animateClose();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   // PanResponder for swipe-to-dismiss from anywhere on the sheet.
@@ -167,7 +167,7 @@ export function LexiconPopover({
         }
       },
       onPanResponderTerminationRequest: () => false,
-    }),
+    })
   ).current;
 
   // Dedicated pan responder for the handle area — bypasses the scroll-at-top
@@ -191,7 +191,7 @@ export function LexiconPopover({
           }).start();
         }
       },
-    }),
+    })
   ).current;
 
   const contextual = token.contextual;
@@ -207,10 +207,7 @@ export function LexiconPopover({
     >
       <View style={styles.overlay} pointerEvents="box-none" testID={testID}>
         {/* Backdrop with fade */}
-        <Animated.View
-          style={[styles.backdrop, { opacity: backdropOpacity }]}
-          pointerEvents="auto"
-        >
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} pointerEvents="auto">
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
 
@@ -280,8 +277,8 @@ export function LexiconPopover({
             {entry.semanticRange && entry.semanticRange.length > 0 ? (
               <Section label="Semantic range" styles={styles} testID={`${testID}-range`}>
                 <View style={styles.listWrap}>
-                  {entry.semanticRange.map((s, i) => (
-                    <View key={`${s}-${i}`} style={styles.listRow}>
+                  {entry.semanticRange.map((s) => (
+                    <View key={s} style={styles.listRow}>
                       <Text style={styles.listBullet}>•</Text>
                       <Text style={styles.listText}>{s}</Text>
                     </View>
@@ -299,12 +296,7 @@ export function LexiconPopover({
                     return (
                       <View key={`${r.lemma}-${i}`} style={styles.relatedItem}>
                         <View style={styles.relatedHeadRow}>
-                          <Text
-                            style={[
-                              styles.relatedLemma,
-                              rIsHebrew && styles.lemmaRtl,
-                            ]}
-                          >
+                          <Text style={[styles.relatedLemma, rIsHebrew && styles.lemmaRtl]}>
                             {r.lemma}
                           </Text>
                           <Text style={styles.relatedTranslit}>{r.translit}</Text>
@@ -328,8 +320,8 @@ export function LexiconPopover({
             {entry.loaded ? (
               <View style={styles.caveatBlock} testID={`${testID}-loaded`}>
                 <Text style={styles.caveatText}>
-                  Context-sensitive: this word carries multiple senses across
-                  the NT. Meaning is governed by usage, not a single gloss.
+                  Context-sensitive: this word carries multiple senses across the NT. Meaning is
+                  governed by usage, not a single gloss.
                 </Text>
               </View>
             ) : null}
@@ -352,10 +344,7 @@ interface SectionProps {
 
 function Section({ label, highlight, styles, testID, children }: SectionProps) {
   return (
-    <View
-      style={[styles.section, highlight ? styles.sectionHighlight : null]}
-      testID={testID}
-    >
+    <View style={[styles.section, highlight ? styles.sectionHighlight : null]} testID={testID}>
       <Text style={styles.sectionLabel}>{label}</Text>
       {children}
     </View>
@@ -366,7 +355,7 @@ function Section({ label, highlight, styles, testID, children }: SectionProps) {
 
 const createStyles = (
   colors: ReturnType<typeof getColors>,
-  insets: { bottom: number; top: number; left: number; right: number },
+  insets: { bottom: number; top: number; left: number; right: number }
 ) =>
   StyleSheet.create({
     overlay: {

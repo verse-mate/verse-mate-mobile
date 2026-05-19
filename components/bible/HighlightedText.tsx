@@ -20,13 +20,13 @@
  * @see Visual: after-selected-text-popup.png (highlighted text appearance)
  */
 
+import type { AlignedToken, ChapterAlignment, LexEntry } from '@versemate/lexicon';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
-  Platform,
   StyleSheet,
   Text,
   type TextLayoutEventData,
@@ -36,7 +36,6 @@ import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import type { AutoHighlight } from '@/types/auto-highlights';
-import type { AlignedToken, ChapterAlignment, LexEntry } from '@versemate/lexicon';
 
 /**
  * Opacity value for highlight backgrounds
@@ -314,10 +313,7 @@ export function HighlightedText({
   // verseNumber changes.
   const lexiconLookup = useMemo(() => {
     if (!alignment || !alignment.verses[verseNumber]) return null;
-    const map = new Map<
-      string,
-      { token: AlignedToken; entry: LexEntry; isTheme: boolean }
-    >();
+    const map = new Map<string, { token: AlignedToken; entry: LexEntry; isTheme: boolean }>();
     const themeSet = new Set(alignment.themeLemmas ?? []);
     for (const token of alignment.verses[verseNumber]) {
       const entry = alignment.lexicon[token.lemma];
@@ -380,6 +376,7 @@ export function HighlightedText({
   };
 
   // Clean up pending tap timer on unmount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cancelPendingTap is closure-stable for unmount cleanup
   useEffect(() => {
     return cancelPendingTap;
   }, []);
@@ -846,9 +843,7 @@ export function HighlightedText({
           //   line doesn't bleed past the word itself.
           const lexHit = lexiconMatch(token.word);
           if (lexHit && onLexiconWordPress) {
-            const lexStyle = lexHit.isTheme
-              ? lexiconWordStyles.theme
-              : lexiconWordStyles.regular;
+            const lexStyle = lexHit.isTheme ? lexiconWordStyles.theme : lexiconWordStyles.regular;
             const match = token.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
             const wordCore = match ? match[1] : token.word;
             const trailing = match ? match[2] : '';
@@ -860,10 +855,7 @@ export function HighlightedText({
                 {...responderProps}
               >
                 <Text
-                  style={[
-                    lexStyle,
-                    (isSelected || verseTapSelected) && selectionStyles.selected,
-                  ]}
+                  style={[lexStyle, (isSelected || verseTapSelected) && selectionStyles.selected]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     onLexiconWordPress({
