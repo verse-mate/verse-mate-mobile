@@ -31,25 +31,26 @@ interface ChapterContentTabsProps {
   onTabChange: (tab: ContentTabType) => void;
   /** Whether tabs should be disabled (optional) */
   disabled?: boolean;
+  /**
+   * When true, append a 5th "Visuals" tab. Caller gates this on the
+   * current book being in BOOKS_WITH_VISUALS (see `bookHasVisuals` in
+   * VisualsPanel). Default false so books without curated visuals keep
+   * the legacy 4-tab layout.
+   */
+  showVisuals?: boolean;
 }
 
-/**
- * Tab configuration. Order MUST match BibleExplanationsPanel.TABS — both
- * components share the same animation index space.
- */
-const TABS = [
-  { id: 'summary' as ContentTabType, label: 'Summary' },
-  { id: 'byline' as ContentTabType, label: 'By Line' },
-  { id: 'detailed' as ContentTabType, label: 'Detailed' },
-  { id: 'study' as ContentTabType, label: 'Study' },
+type Tab = { id: ContentTabType; label: string };
+
+/** Base tabs — order MUST match BibleExplanationsPanel.TABS. */
+const BASE_TABS: readonly Tab[] = [
+  { id: 'summary', label: 'Summary' },
+  { id: 'byline', label: 'By Line' },
+  { id: 'detailed', label: 'Detailed' },
+  { id: 'study', label: 'Study' },
 ] as const;
 
-/**
- * Get tab index for animation positioning
- */
-const getTabIndex = (tab: ContentTabType) => {
-  return TABS.findIndex((t) => t.id === tab);
-};
+const VISUALS_TAB: Tab = { id: 'visuals', label: 'Visuals' };
 
 /**
  * ChapterContentTabs Component
@@ -61,9 +62,16 @@ export function ChapterContentTabs({
   activeTab,
   onTabChange,
   disabled = false,
+  showVisuals = false,
 }: ChapterContentTabsProps) {
   const { colors, mode } = useTheme();
   const styles = createStyles(colors, mode);
+
+  // Compose the tab list once per render. When `showVisuals` flips
+  // (between books with/without curated visuals), tab count and tab
+  // width both recompute below.
+  const tabs = showVisuals ? [...BASE_TABS, VISUALS_TAB] : BASE_TABS;
+  const getTabIndex = (tab: ContentTabType) => tabs.findIndex((t) => t.id === tab);
 
   // Animation value for sliding indicator
   const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
@@ -72,13 +80,15 @@ export function ChapterContentTabs({
   // Animate indicator when active tab changes
   useEffect(() => {
     const targetIndex = getTabIndex(activeTab);
+    // Negative index (e.g. activeTab='visuals' while showVisuals just
+    // toggled off) shouldn't animate — clamp to 0 instead of NaN.
     Animated.spring(slideAnim, {
-      toValue: targetIndex,
+      toValue: targetIndex < 0 ? 0 : targetIndex,
       useNativeDriver: true,
       friction: 8,
       tension: 50,
     }).start();
-  }, [activeTab, slideAnim]);
+  }, [activeTab, slideAnim, getTabIndex]);
 
   /**
    * Handle tab press
@@ -97,21 +107,32 @@ export function ChapterContentTabs({
     onTabChange(tab);
   };
 
-  // Measure container width to calculate tab positions
+  // Measure container width to calculate tab positions. Math is
+  // derived from tabs.length so adding the Visuals tab doesn't break
+  // layout: container has 4px padding on each side and a 4px gap
+  // between tabs, so usable width = W - 8 - (N-1)*4 and per-tab
+  // width = usable / N.
   const handleLayout = (event: { nativeEvent: { layout: { width: number } } }) => {
     const { width } = event.nativeEvent.layout;
-    // Each tab width = (containerWidth - padding - gaps) / N
-    // containerWidth - 8 (padding 4 each side) - (N-1) × 4 (gaps) for N tabs.
-    // 4 tabs: 8 + 12 = 20 subtracted; width per tab = (W - 20) / 4.
-    const singleTabWidth = (width - 20) / 4;
-    setTabWidth(singleTabWidth);
+    const n = tabs.length;
+    const usableWidth = width - 8 - (n - 1) * 4;
+    setTabWidth(usableWidth / n);
   };
 
-  // Calculate translateX for sliding indicator. inputRange/outputRange length
-  // must equal TABS.length; each step shifts by (tabWidth + 4 gap).
+  // Calculate translateX for sliding indicator. Animated.interpolate
+  // requires inputRange.length === outputRange.length and a
+  // monotonically increasing inputRange — both built from tabs.length.
+  const indicatorInputRange = tabs.map((_, i) => i);
+  const indicatorOutputRange = tabs.map((_, i) => i * (tabWidth + 4));
+  // interpolate() rejects single-element ranges (e.g. if tabs.length
+  // somehow became 1) — pad to two entries so animation never throws.
+  if (indicatorInputRange.length < 2) {
+    indicatorInputRange.push(1);
+    indicatorOutputRange.push(tabWidth + 4);
+  }
   const indicatorTranslateX = slideAnim.interpolate({
-    inputRange: [0, 1, 2, 3],
-    outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2, (tabWidth + 4) * 3],
+    inputRange: indicatorInputRange,
+    outputRange: indicatorOutputRange,
   });
 
   return (
@@ -128,7 +149,7 @@ export function ChapterContentTabs({
           ]}
         />
 
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
 
           return (

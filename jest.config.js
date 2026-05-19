@@ -25,9 +25,10 @@ module.exports = {
 
   // Transform Expo, React Native, and MSW packages
   transformIgnorePatterns: [
-    // Whitelist @versemate/studies — ships .ts source via a github: dep,
-    // so Jest needs to run it through babel-jest like any project file.
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|msw|@mswjs/.*|@bundled-es-modules/.*|until-async|@versemate/studies))',
+    // Whitelist @versemate/studies + @versemate/visuals — both ship .ts
+    // source via a github:/file: dep, so Jest needs to run them through
+    // babel-jest like any project file.
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|msw|@mswjs/.*|@bundled-es-modules/.*|until-async|@versemate/(studies|visuals)))',
   ],
 
   // Ignore flow type files

@@ -54,16 +54,22 @@ import { AudioInlineEntry } from './AudioInlineEntry';
 import { ShareButton } from './ShareButton';
 import { StudyPanel } from './StudyPanel';
 import { VerseJumpButton } from './VerseJumpButton';
+import { bookHasVisuals, VisualsPanel } from './VisualsPanel';
 
 /**
- * Tab configuration for explanation types
+ * Tab configuration for explanation types. The Visuals tab is appended
+ * at render time for books with curated visuals (see `bookHasVisuals`);
+ * keeping it out of the base list lets the indicator math below match
+ * tab count.
  */
-const TABS: { id: ContentTabType; label: string }[] = [
+type TabDef = { id: ContentTabType; label: string };
+const BASE_TABS: readonly TabDef[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'byline', label: 'By Line' },
   { id: 'detailed', label: 'Detailed' },
   { id: 'study', label: 'Study' },
 ];
+const VISUALS_TAB: TabDef = { id: 'visuals', label: 'Visuals' };
 
 /**
  * Props for BibleExplanationsPanel
@@ -184,8 +190,14 @@ export function BibleExplanationsPanel({
   // This ensures the query key changes when language changes
   const language = typeof user?.preferred_language === 'string' ? user.preferred_language : 'en-US';
 
+  // Visuals tab is gated per-book; check once per render. Computed
+  // here (not deferred to the JSX) because the tab list, indicator
+  // math, and slide animation all depend on the final tab count.
+  const hasVisuals = bookHasVisuals(bookId);
+  const tabs: readonly TabDef[] = hasVisuals ? [...BASE_TABS, VISUALS_TAB] : BASE_TABS;
+
   // Animation for sliding tab indicator
-  const getTabIndex = (tab: ContentTabType) => TABS.findIndex((t) => t.id === tab);
+  const getTabIndex = (tab: ContentTabType) => tabs.findIndex((t) => t.id === tab);
   const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
   const [tabWidth, setTabWidth] = useState(0);
 
@@ -202,6 +214,7 @@ export function BibleExplanationsPanel({
   const byLineScrollRef = useRef<ScrollView>(null);
   const detailedScrollRef = useRef<ScrollView>(null);
   const studyScrollRef = useRef<ScrollView>(null);
+  const visualsScrollRef = useRef<ScrollView>(null);
 
   // Quick-verse-jump (VERA-35 / VERA-36): refs to each rendered By Line
   // verse-section View. Populated when byline content is split into per-verse
@@ -215,6 +228,7 @@ export function BibleExplanationsPanel({
     byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
     detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
     studyScrollRef.current?.scrollTo({ y: 0, animated: false });
+    visualsScrollRef.current?.scrollTo({ y: 0, animated: false });
     byLineSectionRefs.current = {};
   }, [bookId, chapterNumber]);
 
@@ -434,12 +448,14 @@ export function BibleExplanationsPanel({
           style={styles.tabsRow}
           onLayout={(event) => {
             const { width } = event.nativeEvent.layout;
-            // 4 tabs: padding 8 + 3 gaps × 4 = 20 subtracted.
-            const singleTabWidth = (width - 20) / 4;
-            setTabWidth(singleTabWidth);
+            // Container has 4px padding each side + 4px gap between
+            // tabs, so usable width = W - 8 - (N-1)*4 for N tabs.
+            const n = tabs.length;
+            const usableWidth = width - 8 - (n - 1) * 4;
+            setTabWidth(usableWidth / n);
           }}
         >
-          {/* Sliding active indicator. Animation indices match TABS order. */}
+          {/* Sliding active indicator. Animation indices match `tabs` order. */}
           <Animated.View
             style={[
               styles.slidingIndicator,
@@ -448,8 +464,15 @@ export function BibleExplanationsPanel({
                 transform: [
                   {
                     translateX: slideAnim.interpolate({
-                      inputRange: [0, 1, 2, 3],
-                      outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2, (tabWidth + 4) * 3],
+                      // inputRange must be monotonically increasing
+                      // with length === outputRange.length; both built
+                      // from `tabs.length` so this scales with the
+                      // optional Visuals tab.
+                      inputRange: tabs.length < 2 ? [0, 1] : tabs.map((_, i) => i),
+                      outputRange:
+                        tabs.length < 2
+                          ? [0, tabWidth + 4]
+                          : tabs.map((_, i) => i * (tabWidth + 4)),
                     }),
                   },
                 ],
@@ -457,7 +480,7 @@ export function BibleExplanationsPanel({
             ]}
           />
 
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <Pressable
@@ -590,6 +613,29 @@ export function BibleExplanationsPanel({
       >
         <StudyPanel bookId={bookId} chapter={chapterNumber} testID={`${testID}-study`} />
       </ScrollView>
+
+      {/* Visuals tab — bundled content from @versemate/visuals. Only
+          mounted for books in BOOKS_WITH_VISUALS (most are), gated by
+          `hasVisuals`. Same hidden-not-unmounted pattern as Study so the
+          lightbox state and scroll position survive tab switches. */}
+      {hasVisuals ? (
+        <ScrollView
+          ref={visualsScrollRef}
+          style={[styles.scrollView, activeTab !== 'visuals' && { display: 'none' }]}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          onScroll={activeTab === 'visuals' ? handleInternalScroll : undefined}
+          scrollEventThrottle={16}
+          testID={`${testID}-scroll-visuals`}
+        >
+          <VisualsPanel
+            bookId={bookId}
+            chapter={chapterNumber}
+            bookName={bookName}
+            testID={`${testID}-visuals`}
+          />
+        </ScrollView>
+      ) : null}
 
       {/* Quick-verse-jump FAB (VERA-36): byline-only. No chapter-nav row
           beneath this ScrollView in split / desktop right panel, so use a

@@ -22,7 +22,7 @@ import { getBookSlug, parseBookParam } from '../bookSlugs';
  *
  * @param bookId - Bible book ID (1-66, where 1=Genesis, 66=Revelation)
  * @param chapterNumber - Chapter number within the book (positive integer)
- * @param insightType - Optional insight tab type (summary, byline, detailed)
+ * @param insightType - Optional insight tab type (summary, byline, detailed, study, visuals)
  * @returns Formatted HTTPS URL for sharing with book slug and optional tab query param
  * @throws Error if EXPO_PUBLIC_WEB_URL environment variable is not configured
  *

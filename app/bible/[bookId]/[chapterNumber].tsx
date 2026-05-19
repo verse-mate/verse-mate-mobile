@@ -40,6 +40,7 @@ import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { bookHasVisuals } from '@/components/bible/VisualsPanel';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { SplitView } from '@/components/ui/SplitView';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,6 +72,7 @@ import {
   useSaveLastRead,
 } from '@/src/api';
 import { getHeaderSpecs, spacing } from '@/theme/tokens';
+import { isContentTabType } from '@/types/bible';
 
 /**
  * View mode type for Bible reading interface
@@ -181,8 +183,10 @@ export default function ChapterScreen() {
     const deeplinkTab = params.tab;
     if (deeplinkTab && !hasSetInitialTab.current) {
       hasSetInitialTab.current = true;
-      // Validate that the tab parameter is a valid ContentTabType
-      if (deeplinkTab === 'summary' || deeplinkTab === 'byline' || deeplinkTab === 'detailed') {
+      // Use the centralized ContentTabType validator so every tab the
+      // type union knows about (summary / byline / detailed / study /
+      // visuals) is accepted from the URL.
+      if (isContentTabType(deeplinkTab)) {
         setActiveTab(deeplinkTab);
         // Force explanations view to show the insight tab
         if (activeView !== 'explanations') {
@@ -574,9 +578,15 @@ export default function ChapterScreen() {
               }}
             />
 
-            {/* Content Tabs - Only visible in Explanations view */}
+            {/* Content Tabs - Only visible in Explanations view. The
+                Visuals tab is gated on the book having curated visuals
+                (most books do — see @versemate/visuals registry). */}
             <View style={activeView !== 'explanations' && { height: 0, overflow: 'hidden' }}>
-              <ChapterContentTabs activeTab={activeTab} onTabChange={setActiveTab} />
+              <ChapterContentTabs
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                showVisuals={bookHasVisuals(bookId)}
+              />
             </View>
 
             {/* SimpleChapterPager - V3 3-page window with linear navigation */}
