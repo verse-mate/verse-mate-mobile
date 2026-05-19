@@ -141,8 +141,12 @@ export function LexiconPopover({
   const scrollYRef = useRef(0);
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) => {
+      // Capture phase — fires BEFORE children (the ScrollView) receive
+      // touch events. We only return true (and steal the gesture from
+      // the ScrollView) when the user is at the top of scrollable
+      // content AND drags downward, so normal scrolling is unaffected.
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponderCapture: (_, g) => {
         const isVerticalDown = g.dy > 5 && Math.abs(g.dy) > Math.abs(g.dx);
         const atTop = scrollYRef.current <= 0;
         return isVerticalDown && atTop;
@@ -162,6 +166,7 @@ export function LexiconPopover({
           }).start();
         }
       },
+      onPanResponderTerminationRequest: () => false,
     }),
   ).current;
 
