@@ -42,7 +42,7 @@ export function __TEST_ONLY_RESET_CACHE() {
  * Hook to manage active tab state with AsyncStorage persistence
  *
  * @returns {UseActiveTabResult} Object containing:
- *   - activeTab: Currently active tab ('summary' | 'byline' | 'detailed')
+ *   - activeTab: Currently active tab ('summary' | 'byline' | 'detailed' | 'study' | 'visuals')
  *   - setActiveTab: Function to change active tab (updates state AND storage)
  *   - isLoading: Whether initial load from storage is in progress
  *   - error: Error object if loading or saving failed
@@ -94,7 +94,7 @@ export function useActiveTab(): UseActiveTabResult {
     try {
       if (!isContentTabType(tab)) {
         throw new Error(
-          `Invalid tab type: ${tab}. Must be 'summary', 'byline', 'detailed', or 'study'.`
+          `Invalid tab type: ${tab}. Must be 'summary', 'byline', 'detailed', 'study', or 'visuals'.`
         );
       }
       setActiveTabState(tab);

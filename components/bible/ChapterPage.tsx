@@ -29,7 +29,9 @@ import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
+import { StudyPanel } from '@/components/bible/StudyPanel';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
+import { bookHasVisuals, VisualsPanel } from '@/components/bible/VisualsPanel';
 import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,7 +54,6 @@ import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
-import { StudyPanel } from './StudyPanel';
 import { VerseJumpButton } from './VerseJumpButton';
 
 // Styles for the overall ChapterPage component
@@ -1028,6 +1029,28 @@ export function ChapterPage({
           >
             <StudyPanel bookId={bookId} chapter={chapterNumber} />
           </ScrollView>
+
+          {/* Visuals tab — bundled content from @versemate/visuals. Only
+              rendered for books in BOOKS_WITH_VISUALS. Same hidden-not-
+              unmounted pattern as Study. */}
+          {displayChapter && bookHasVisuals(displayChapter.bookId) ? (
+            <ScrollView
+              style={[styles.container, activeTab !== 'visuals' && { display: 'none' }]}
+              showsVerticalScrollIndicator={true}
+              testID={`chapter-page-scroll-${bookId}-${chapterNumber}-visuals`}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              <VisualsPanel
+                bookId={displayChapter.bookId}
+                chapter={displayChapter.chapterNumber}
+                bookName={displayChapter.bookName}
+                testID={`visuals-panel-${bookId}-${chapterNumber}`}
+              />
+            </ScrollView>
+          ) : null}
         </View>
       )}
 
