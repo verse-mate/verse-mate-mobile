@@ -91,7 +91,31 @@ describe('HighlightedText', () => {
     expect(rootText.props.selectable).toBe(true);
   });
 
-  it('should have onLongPress handlers on segment Text elements for dictionary lookup', () => {
+  it('should wire onLongPress on segment Text elements when onWordSelect is provided', () => {
+    // Long-press is opt-in now: callers that want the legacy word-select
+    // gesture (BibleExplanationsPanel / TopicContentPanel) must pass
+    // onWordSelect. ChapterReader's lexicon mode deliberately leaves it
+    // off so native text selection can take over.
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[mockHighlight]}
+        onWordSelect={() => {}}
+      />
+    );
+
+    const textElements = root.findAllByType(Text);
+    const elementsWithLongPress = textElements.filter(
+      (el: ReactTestInstance) => el.props.onLongPress !== undefined
+    );
+    expect(elementsWithLongPress.length).toBeGreaterThan(0);
+  });
+
+  it('should NOT wire onLongPress when neither onWordSelect nor onWordLongPress is provided', () => {
+    // Lexicon mode (ChapterReader after the dotted-underline migration):
+    // no per-word long-press handler so native text selection works on
+    // the outer selectable Text.
     const { root } = render(
       <HighlightedText
         text="In the beginning God created the heavens and the earth."
@@ -101,12 +125,10 @@ describe('HighlightedText', () => {
     );
 
     const textElements = root.findAllByType(Text);
-
-    // Segment Text elements should have onLongPress for dictionary
     const elementsWithLongPress = textElements.filter(
       (el: ReactTestInstance) => el.props.onLongPress !== undefined
     );
-    expect(elementsWithLongPress.length).toBeGreaterThan(0);
+    expect(elementsWithLongPress.length).toBe(0);
   });
 
   it('should render text with semi-transparent highlight background', () => {
