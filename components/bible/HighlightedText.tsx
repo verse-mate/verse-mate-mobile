@@ -1075,45 +1075,29 @@ const selectionStyles = StyleSheet.create({
 });
 
 /**
- * Styles for lexicon-covered words. Dotted underline in gold to mirror
- * the web's `.lex-word` / `.lex-word-theme` treatment.
+ * Styles for lexicon-covered words.
  *
- * Implementation note: `textDecorationStyle: 'dotted'` is iOS-only — Android
- * silently falls back to a solid line. To get real dots on both platforms
- * we use a Text-level `borderBottom` with `borderStyle: 'dotted'`, which
- * Android honors on inline Text. Combined with `textDecoration*` for iOS
- * (where the border approach can render lower than expected), both
- * platforms get a true dotted line.
+ * On iOS we get an actual dotted line via `textDecorationStyle: 'dotted'`,
+ * matching the web's `.lex-word` treatment exactly. On Android, RN's
+ * `textDecorationStyle` quietly falls back to `solid` — and `borderStyle:
+ * 'dotted'` doesn't render on inline `<Text>` either. So Android shows a
+ * solid gold underline for now; a custom SVG-based dotted underline is
+ * a follow-up.
  *
- * Theme words use a slightly thicker border + heavier weight so the
- * chapter's spine reads at a glance.
+ * Theme words get a slightly heavier weight so the chapter's spine
+ * reads at a glance.
  */
 const LEX_UNDERLINE = '#B09A6D';
 const lexiconWordStyles = StyleSheet.create({
-  regular: Platform.select({
-    ios: {
-      textDecorationLine: 'underline' as const,
-      textDecorationStyle: 'dotted' as const,
-      textDecorationColor: LEX_UNDERLINE,
-    },
-    default: {
-      borderBottomWidth: 1,
-      borderStyle: 'dotted' as const,
-      borderColor: LEX_UNDERLINE,
-    },
-  }),
-  theme: Platform.select({
-    ios: {
-      textDecorationLine: 'underline' as const,
-      textDecorationStyle: 'dotted' as const,
-      textDecorationColor: LEX_UNDERLINE,
-      fontWeight: '500' as const,
-    },
-    default: {
-      borderBottomWidth: 1.5,
-      borderStyle: 'dotted' as const,
-      borderColor: LEX_UNDERLINE,
-      fontWeight: '500' as const,
-    },
-  }),
+  regular: {
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'dotted', // iOS: real dots; Android: falls back to solid
+    textDecorationColor: LEX_UNDERLINE,
+  },
+  theme: {
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'dotted',
+    textDecorationColor: LEX_UNDERLINE,
+    fontWeight: '500',
+  },
 });
