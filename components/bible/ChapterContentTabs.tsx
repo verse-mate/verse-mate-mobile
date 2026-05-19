@@ -18,7 +18,7 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type getColors, getTabSpecs, spacing, type ThemeMode } from '@/theme/tokens';
@@ -71,7 +71,13 @@ export function ChapterContentTabs({
   // (between books with/without curated visuals), tab count and tab
   // width both recompute below.
   const tabs = showVisuals ? [...BASE_TABS, VISUALS_TAB] : BASE_TABS;
-  const getTabIndex = (tab: ContentTabType) => tabs.findIndex((t) => t.id === tab);
+  // useCallback so the slide-animation useEffect can include this in its
+  // deps without re-running on every render (Biome
+  // lint/correctness/useExhaustiveDependencies).
+  const getTabIndex = useCallback(
+    (tab: ContentTabType) => tabs.findIndex((t) => t.id === tab),
+    [tabs]
+  );
 
   // Animation value for sliding indicator
   const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
