@@ -31,9 +31,7 @@ import {
   Text,
   type TextLayoutEventData,
   type TextProps,
-  View,
 } from 'react-native';
-import Svg, { Line } from 'react-native-svg';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
@@ -838,12 +836,19 @@ export function HighlightedText({
             onResponderTerminationRequest: () => true,
           };
 
-          // Lexicon-covered word? Render via LexiconWord (Text + SVG dotted
-          // underline) and route tap to the lexicon callback. Trailing
-          // punctuation + space are siblings so the underline stops at the
-          // last word character.
+          // Lexicon-covered word? Render with dotted underline and route tap
+          // to the lexicon callback (not the segment's regular tap).
+          //
+          // Splitting:
+          //   token.word may include trailing punctuation ("trials,", "joy.").
+          //   We underline ONLY the word characters — punctuation and the
+          //   trailing space stay in a separate, unstyled Text so the dotted
+          //   line doesn't bleed past the word itself.
           const lexHit = lexiconMatch(token.word);
           if (lexHit && onLexiconWordPress) {
+            const lexStyle = lexHit.isTheme
+              ? lexiconWordStyles.theme
+              : lexiconWordStyles.regular;
             const match = token.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
             const wordCore = match ? match[1] : token.word;
             const trailing = match ? match[2] : '';
@@ -854,10 +859,11 @@ export function HighlightedText({
                 suppressHighlighting={true}
                 {...responderProps}
               >
-                <LexiconWord
-                  text={wordCore}
-                  isTheme={lexHit.isTheme}
-                  selected={isSelected || verseTapSelected}
+                <Text
+                  style={[
+                    lexStyle,
+                    (isSelected || verseTapSelected) && selectionStyles.selected,
+                  ]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     onLexiconWordPress({
@@ -867,8 +873,12 @@ export function HighlightedText({
                       isTheme: lexHit.isTheme,
                     });
                   }}
+                  suppressHighlighting={true}
+                  accessibilityRole="button"
                   accessibilityLabel={`${wordCore} — ${lexHit.entry.translit}, ${lexHit.entry.basicGloss}`}
-                />
+                >
+                  {wordCore}
+                </Text>
                 {trailing}
                 {space}
               </Text>
@@ -1065,85 +1075,29 @@ const selectionStyles = StyleSheet.create({
 });
 
 /**
- * Lexicon-covered words. We can't rely on `textDecorationStyle: 'dotted'`
- * because Android silently falls back to solid, and `borderStyle: 'dotted'`
- * doesn't render on inline `<Text>` on Android. So we draw the underline
- * ourselves with an inline SVG element positioned beneath the word — works
- * the same on both platforms. Theme words get a slightly thicker stroke +
- * heavier weight so the chapter spine reads at a glance.
+ * Styles for lexicon-covered words.
+ *
+ * On iOS we get an actual dotted line via `textDecorationStyle: 'dotted'`,
+ * matching the web's `.lex-word` treatment exactly. On Android, RN's
+ * `textDecorationStyle` quietly falls back to `solid` — and `borderStyle:
+ * 'dotted'` doesn't render on inline `<Text>` either. So Android shows a
+ * solid gold underline for now; a custom SVG-based dotted underline is
+ * a follow-up.
+ *
+ * Theme words get a slightly heavier weight so the chapter's spine
+ * reads at a glance.
  */
 const LEX_UNDERLINE = '#B09A6D';
 const lexiconWordStyles = StyleSheet.create({
-  // Word-text style (no textDecoration — the SVG draws the line)
-  regular: {},
-  theme: { fontWeight: '500' },
-  // Outer wrapper: a positioning context for the absolutely-positioned SVG.
-  // View nested inside <Text> is inline-block in RN; it auto-sizes to its
-  // Text child after the first layout pass.
-  wrapper: { position: 'relative' as const },
-  svg: { position: 'absolute' as const, bottom: -2, left: 0 },
+  regular: {
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'dotted', // iOS: real dots; Android: falls back to solid
+    textDecorationColor: LEX_UNDERLINE,
+  },
+  theme: {
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'dotted',
+    textDecorationColor: LEX_UNDERLINE,
+    fontWeight: '500',
+  },
 });
-
-/**
- * Inline component that renders the lexicon word + an SVG dotted line
- * beneath. Measures its layout width on first paint, then re-renders the
- * SVG sized to that width. The 1-frame "no underline" flash on initial
- * mount is acceptable for a static verse renderer.
- */
-function LexiconWord({
-  text,
-  isTheme,
-  onPress,
-  accessibilityLabel,
-  selected,
-}: {
-  text: string;
-  isTheme: boolean;
-  onPress: () => void;
-  accessibilityLabel: string;
-  selected?: boolean;
-}) {
-  const [width, setWidth] = useState(0);
-
-  return (
-    <View
-      onLayout={(e) => {
-        const w = Math.round(e.nativeEvent.layout.width);
-        if (w !== width) setWidth(w);
-      }}
-      style={lexiconWordStyles.wrapper}
-    >
-      <Text
-        style={[
-          isTheme ? lexiconWordStyles.theme : lexiconWordStyles.regular,
-          selected ? selectionStyles.selected : null,
-        ]}
-        onPress={onPress}
-        suppressHighlighting={true}
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-      >
-        {text}
-      </Text>
-      {width > 0 ? (
-        <Svg
-          width={width}
-          height={3}
-          style={lexiconWordStyles.svg}
-          pointerEvents="none"
-        >
-          <Line
-            x1={0.5}
-            y1={1.5}
-            x2={width - 0.5}
-            y2={1.5}
-            stroke={LEX_UNDERLINE}
-            strokeWidth={isTheme ? 1.5 : 1}
-            strokeDasharray="1,2"
-            strokeLinecap="round"
-          />
-        </Svg>
-      ) : null}
-    </View>
-  );
-}
