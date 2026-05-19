@@ -21,6 +21,12 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
+import {
+  type AlignedToken,
+  type ChapterAlignment,
+  type LexEntry,
+  loadAlignmentFor,
+} from '@versemate/lexicon';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type NativeSyntheticEvent,
@@ -36,18 +42,11 @@ import { HighlightedText } from '@/components/bible/HighlightedText';
 import { LexiconPopover } from '@/components/bible/LexiconPopover';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
-import {
-  type AlignedToken,
-  type ChapterAlignment,
-  type LexEntry,
-  loadAlignmentFor,
-} from '@versemate/lexicon';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useToast } from '@/contexts/ToastContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import {
@@ -283,7 +282,6 @@ export function ChapterReader({
   const { fontSize: userFontSize } = useFontSize();
   const styles = createStyles(colors, explanationsOnly, userFontSize);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
-  const { showToast } = useToast();
 
   // Use Bible Interaction Context for highlights and interactions
   const {
