@@ -123,13 +123,51 @@ export function LexiconPopover({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  // PanResponder for the header — swipe down to dismiss, snap-back if
-  // released partway, no upward drag past the top edge.
+  // PanResponder for swipe-to-dismiss from anywhere on the sheet.
+  //
+  // Two gesture cooperations:
+  //   - Drag from the handle area → always captures (no scroll to fight).
+  //   - Drag from the ScrollView body → only captures when the scroll is
+  //     at the top AND the user is dragging DOWN. Otherwise the
+  //     ScrollView gets the gesture so normal scrolling works.
+  //
+  // `onStartShouldSetPanResponder` returns false so the inner ScrollView
+  // gets first chance at every touch; `onMoveShouldSetPanResponder` then
+  // steals the gesture mid-drag when the conditions match.
   const closeRef = useRef(onClose);
   useEffect(() => {
     closeRef.current = onClose;
   });
+  const scrollYRef = useRef(0);
   const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, g) => {
+        const isVerticalDown = g.dy > 5 && Math.abs(g.dy) > Math.abs(g.dx);
+        const atTop = scrollYRef.current <= 0;
+        return isVerticalDown && atTop;
+      },
+      onPanResponderMove: (_, g) => {
+        if (g.dy > 0) slideAnim.setValue(g.dy);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 70) {
+          closeRef.current();
+        } else if (g.dy > 0) {
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 90,
+          }).start();
+        }
+      },
+    }),
+  ).current;
+
+  // Dedicated pan responder for the handle area — bypasses the scroll-at-top
+  // check so the user can always drag the modal down by grabbing the handle.
+  const handlePanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
@@ -138,7 +176,6 @@ export function LexiconPopover({
       },
       onPanResponderRelease: (_, g) => {
         if (g.dy > 70) {
-          // Trigger parent's onClose; the effect above will run the close anim
           closeRef.current();
         } else if (g.dy > 0) {
           Animated.spring(slideAnim, {
@@ -172,13 +209,16 @@ export function LexiconPopover({
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
 
-        {/* Sliding sheet */}
+        {/* Sliding sheet — pan responder wraps the whole sheet so swipe-down
+            from any point dismisses (subject to scroll-at-top check). */}
         <Animated.View
           style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
           pointerEvents="auto"
+          {...panResponder.panHandlers}
         >
-          {/* Drag handle + swipe area */}
-          <View style={styles.dragArea} {...panResponder.panHandlers}>
+          {/* Drag handle — uses its own pan responder that always captures,
+              regardless of scroll position, so you can always grab the handle. */}
+          <View style={styles.dragArea} {...handlePanResponder.panHandlers}>
             <View style={styles.handle} />
           </View>
 
@@ -186,6 +226,10 @@ export function LexiconPopover({
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            onScroll={(e) => {
+              scrollYRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
           >
             {/* HEADER */}
             <View style={styles.header} testID={`${testID}-header`}>
