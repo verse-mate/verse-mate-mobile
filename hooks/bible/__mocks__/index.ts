@@ -60,6 +60,7 @@ export const useChapterState = jest.fn(() => ({
   navigateToChapter: jest.fn(),
   booksMetadata: [{ id: 1, name: 'Genesis', testament: 'OT', chapterCount: 50, genre: 1 }],
   totalChapters: 50,
+  chapterCount: 50,
 }));
 
 // Last read position hook (wraps API hook)

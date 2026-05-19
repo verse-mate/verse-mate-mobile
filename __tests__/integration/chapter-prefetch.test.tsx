@@ -159,6 +159,29 @@ describe('Chapter Prefetching', () => {
   });
 
   /**
+   * Test 5b (VER-75 regression): Skip prefetch while book metadata is loading.
+   *
+   * Previously, `useChapterState` defaulted totalChapters to 50 before metadata
+   * loaded, which made the prefetch boundary check pass for short books and
+   * request a non-existent next chapter (e.g. Galatians 7). The hook should
+   * now treat an undefined totalChapters as "not ready" and not prefetch.
+   */
+  it('does not prefetch when totalChapters is undefined (metadata still loading)', () => {
+    const prefetchSpy = jest.spyOn(queryClient, 'prefetchQuery');
+
+    // Simulate the call site at Galatians 6 before book metadata loads.
+    // Galatians is bookId=48 and has 6 chapters, but the hook does not know
+    // that yet, so it must skip the prefetch instead of falling back to 50.
+    renderHook(() => usePrefetchNextChapter(48, 6, undefined), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    expect(prefetchSpy).not.toHaveBeenCalled();
+
+    prefetchSpy.mockRestore();
+  });
+
+  /**
    * Test 6: Prefetching doesn't block main thread (synchronous execution)
    */
   it('executes prefetch synchronously without blocking', () => {
