@@ -35,8 +35,12 @@ export type {
  * - detailed: In-depth theological analysis
  * - study: Inductive Bible study (Hendricks OIA / Precept method) — bundled
  *   from the @versemate/studies package, no API fetch
+ * - visuals: Curated visual aids (BibleProject posters + overview videos,
+ *   Precept Austin charts, Insight for Living Swindoll charts, VerseMate
+ *   originals) — bundled from the @versemate/visuals package. Tab only
+ *   renders for books in BOOKS_WITH_VISUALS (most are, see registry).
  */
-export type ContentTabType = 'summary' | 'byline' | 'detailed' | 'study';
+export type ContentTabType = 'summary' | 'byline' | 'detailed' | 'study' | 'visuals';
 
 /**
  * View mode type for chapter screen
@@ -212,7 +216,11 @@ export const DEFAULT_CHAPTER = 1;
 export function isContentTabType(value: unknown): value is ContentTabType {
   return (
     typeof value === 'string' &&
-    (value === 'summary' || value === 'byline' || value === 'detailed' || value === 'study')
+    (value === 'summary' ||
+      value === 'byline' ||
+      value === 'detailed' ||
+      value === 'study' ||
+      value === 'visuals')
   );
 }
 
