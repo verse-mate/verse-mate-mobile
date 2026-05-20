@@ -25,12 +25,16 @@ describe('ChapterContentTabs', () => {
   });
 
   /**
-   * Test 1: Active tab is highlighted with gold background
+   * Test 1: Active tab is highlighted with gold background. Renders in
+   * the topics configuration (showDetailed) so all three classic tabs
+   * are present.
    */
   it('should highlight active tab with gold background', () => {
     const activeTab: ContentTabType = 'summary';
 
-    renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
+    renderWithTheme(
+      <ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} showDetailed />
+    );
 
     // Use testID to get the Pressable element directly
     const summaryTab = screen.getByTestId('tab-summary');
@@ -49,7 +53,9 @@ describe('ChapterContentTabs', () => {
   it('should show all tabs with transparent background', () => {
     const activeTab: ContentTabType = 'byline';
 
-    renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
+    renderWithTheme(
+      <ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} showDetailed />
+    );
 
     const summaryTab = screen.getByTestId('tab-summary');
     const byLineTab = screen.getByTestId('tab-byline');
@@ -79,12 +85,14 @@ describe('ChapterContentTabs', () => {
   });
 
   /**
-   * Test 4: onTabChange fires for all tabs
+   * Test 4: onTabChange fires for all tab interactions
    */
   it('should fire onTabChange for all tab interactions', () => {
     const activeTab: ContentTabType = 'summary';
 
-    renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
+    renderWithTheme(
+      <ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} showDetailed />
+    );
 
     // Tap 'By Line'
     fireEvent.press(screen.getByTestId('tab-byline'));
@@ -99,16 +107,41 @@ describe('ChapterContentTabs', () => {
   });
 
   /**
-   * Test 5: Component renders all three tabs
+   * Test 5: Topics config (showDetailed) renders Summary / By Line / Detailed.
    */
-  it('should render all three content tabs', () => {
+  it('should render the topics tab set when showDetailed is set', () => {
     const activeTab: ContentTabType = 'summary';
 
-    renderWithTheme(<ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} />);
+    renderWithTheme(
+      <ChapterContentTabs activeTab={activeTab} onTabChange={mockOnTabChange} showDetailed />
+    );
 
-    // All three tabs should be visible
     expect(screen.getByText('Summary')).toBeTruthy();
     expect(screen.getByText('By Line')).toBeTruthy();
     expect(screen.getByText('Detailed')).toBeTruthy();
+    expect(screen.queryByText('Study')).toBeNull();
+  });
+
+  /**
+   * Test 6: Bible-chapter config (showStudy + showVisuals) renders
+   * Summary / By Line / Study / Visuals — no Detailed.
+   */
+  it('should render the Bible tab set when showStudy + showVisuals are set', () => {
+    const activeTab: ContentTabType = 'summary';
+
+    renderWithTheme(
+      <ChapterContentTabs
+        activeTab={activeTab}
+        onTabChange={mockOnTabChange}
+        showStudy
+        showVisuals
+      />
+    );
+
+    expect(screen.getByText('Summary')).toBeTruthy();
+    expect(screen.getByText('By Line')).toBeTruthy();
+    expect(screen.getByText('Study')).toBeTruthy();
+    expect(screen.getByText('Visuals')).toBeTruthy();
+    expect(screen.queryByText('Detailed')).toBeNull();
   });
 });
