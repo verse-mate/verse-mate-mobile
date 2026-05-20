@@ -43,7 +43,7 @@ import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
-import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
+import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
@@ -347,7 +347,6 @@ export function ChapterPage({
   // Refs for explanation tab ScrollViews to sync scroll position
   const byLineScrollRef = useRef<ScrollView>(null);
   const summaryScrollRef = useRef<ScrollView>(null);
-  const detailedScrollRef = useRef<ScrollView>(null);
   const studyScrollRef = useRef<ScrollView>(null);
 
   // Quick-verse-jump: refs to the rendered View for each By Line verse section.
@@ -387,7 +386,6 @@ export function ChapterPage({
   // 1: Mount Explanations container (active tab renders)
   // 2: Mount Summary tab (if hidden)
   // 3: Mount Byline tab (if hidden)
-  // 4: Mount Detailed tab (if hidden)
   const [delayedRenderStage, setDelayedRenderStage] = useState(0);
 
   const { deleteNote, isDeletingNote } = useNotes();
@@ -441,12 +439,11 @@ export function ChapterPage({
       animatedScrollRef.current?.scrollTo({ y: 0, animated: false });
       // VER-100: explanation tab ScrollViews preserve their own scrollTop
       // across chapter changes (most visibly on web, where the ScrollView's
-      // DOM node persists). Reset all three so users land at verse 1 of the
-      // new chapter on By Line / Summary / Detailed — matches the split-view
-      // path in BibleExplanationsPanel.tsx.
+      // DOM node persists). Reset all of them so users land at verse 1 of the
+      // new chapter on By Line / Summary — matches the split-view path in
+      // BibleExplanationsPanel.tsx.
       summaryScrollRef.current?.scrollTo({ y: 0, animated: false });
       byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
-      detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
     }
 
     // Close tooltip and clear timers when changing book/chapter
@@ -473,13 +470,7 @@ export function ChapterPage({
     if (!dims || dims.contentHeight <= dims.viewHeight) return;
 
     const targetRef =
-      tab === 'summary'
-        ? summaryScrollRef
-        : tab === 'byline'
-          ? byLineScrollRef
-          : tab === 'detailed'
-            ? detailedScrollRef
-            : null;
+      tab === 'summary' ? summaryScrollRef : tab === 'byline' ? byLineScrollRef : null;
     if (!targetRef) return;
 
     const scrollableHeight = dims.contentHeight - dims.viewHeight;
@@ -603,18 +594,6 @@ export function ChapterPage({
     enabled:
       (!isPreloading || activeView === 'explanations') &&
       (activeTab === 'byline' || visitedTabs.has('byline')),
-    language,
-  });
-
-  const {
-    data: detailedData,
-    isLoading: isDetailedLoading,
-    error: detailedError,
-    isLocalData: detailedIsLocal,
-  } = useBibleDetailed(bookId, chapterNumber, undefined, {
-    enabled:
-      (!isPreloading || activeView === 'explanations') &&
-      (activeTab === 'detailed' || visitedTabs.has('detailed')),
     language,
   });
 
@@ -981,26 +960,6 @@ export function ChapterPage({
               testID={`chapter-page-${bookId}-${chapterNumber}-verse-jump`}
             />
           )}
-          <TabContent
-            chapter={displayChapter}
-            activeTab="detailed"
-            content={detailedData}
-            isLoading={isDetailedLoading}
-            error={detailedError}
-            isAvailableOffline={detailedIsLocal}
-            visible={activeTab === 'detailed'}
-            shouldRenderHidden={delayedRenderStage >= 4}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
-            onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-            scrollRef={detailedScrollRef}
-            onTabContentSizeChange={(_w, h) =>
-              handleTabContentSizeChange('detailed', h, viewportHeightRef.current)
-            }
-          />
           {/* Study tab — uses bundled @versemate/studies data (no API fetch).
               4th sibling of the TabContent instances above; hidden via the
               same absolute-positioning trick when activeTab !== 'study'. */}
