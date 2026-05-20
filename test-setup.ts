@@ -68,6 +68,15 @@ jest.mock('@/contexts/OfflineContext', () => ({
   OfflineProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// Mock @versemate/studies to keep tests off the dynamic-import code-split path.
+// The real package does `await import(...)` per chapter to keep bundles small,
+// but jest's CJS environment errors with "dynamic import callback was invoked
+// without --experimental-vm-modules". Tests that need real study content (e.g.
+// StudyPanel.test.tsx) override this with their own jest.mock.
+jest.mock('@versemate/studies', () => ({
+  getStudyFor: jest.fn().mockResolvedValue(null),
+}));
+
 // Mock device info to avoid AsyncStorage and Dimensions listeners in tests
 jest.mock('@/hooks/use-device-info', () => ({
   useDeviceInfo: () => ({
