@@ -21,6 +21,12 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
+import {
+  type AlignedToken,
+  type ChapterAlignment,
+  type LexEntry,
+  loadAlignmentFor,
+} from '@versemate/lexicon';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type NativeSyntheticEvent,
@@ -32,16 +38,15 @@ import {
 import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { ErrorModal } from '@/components/bible/ErrorModal';
-import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
+import { HighlightedText } from '@/components/bible/HighlightedText';
+import { LexiconPopover } from '@/components/bible/LexiconPopover';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
-import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useToast } from '@/contexts/ToastContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import {
@@ -277,7 +282,6 @@ export function ChapterReader({
   const { fontSize: userFontSize } = useFontSize();
   const styles = createStyles(colors, explanationsOnly, userFontSize);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
-  const { showToast } = useToast();
 
   // Use Bible Interaction Context for highlights and interactions
   const {
@@ -318,11 +322,28 @@ export function ChapterReader({
     return groupConsecutiveHighlights(chapterHighlights);
   }, [chapterHighlights]);
 
-  // Word definition tooltip state
-  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
-  const [wordToDefine, setWordToDefine] = useState<{
-    word: string;
-    verseNumber: number;
+  // Chapter-aligned Greek/Hebrew lexicon. `loadAlignmentFor` returns null
+  // for chapters with no alignment (e.g. before the ingest runs on a new
+  // book) — in that case no words get the dotted underline and tap falls
+  // through to the regular verse-insight handler. Long-press always goes
+  // to native text selection in this screen now.
+  const [alignment, setAlignment] = useState<ChapterAlignment | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setAlignment(null);
+    loadAlignmentFor(chapter.bookId, chapter.chapterNumber).then((a) => {
+      if (!cancelled) setAlignment(a);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [chapter.bookId, chapter.chapterNumber]);
+
+  const [lexiconActive, setLexiconActive] = useState<{
+    surface: string;
+    entry: LexEntry;
+    token: AlignedToken;
+    isTheme: boolean;
   } | null>(null);
 
   // Line layout information for paragraph groups (for accurate tap detection)
@@ -373,22 +394,6 @@ export function ChapterReader({
    */
   const handleNotesPress = () => {
     onOpenNotes?.();
-  };
-
-  /**
-   * Handle word selection from HighlightedText
-   * Directly opens dictionary definition (no intermediate selection UI)
-   */
-  const handleWordSelect = (selection: WordSelection, clearSelection: () => void) => {
-    // Directly open definition
-    setWordToDefine({
-      word: selection.word,
-      verseNumber: selection.verseNumber,
-    });
-    setWordDefinitionVisible(true);
-
-    // Clear any selection highlight
-    clearSelection();
   };
 
   /**
@@ -445,18 +450,20 @@ export function ChapterReader({
   };
 
   /**
-   * Handle close word definition tooltip
+   * Tap on a lexicon-covered word in the verse text — open the popover.
    */
-  const handleWordDefinitionClose = () => {
-    setWordDefinitionVisible(false);
-    setWordToDefine(null);
-  };
-
-  /**
-   * Handle copy from word definition tooltip
-   */
-  const handleWordDefinitionCopy = () => {
-    showToast('Copied to clipboard');
+  const handleLexiconWordPress = ({
+    surface,
+    token,
+    entry,
+    isTheme,
+  }: {
+    surface: string;
+    token: NonNullable<typeof lexiconActive>['token'];
+    entry: LexEntry;
+    isTheme: boolean;
+  }) => {
+    setLexiconActive({ surface, token, entry, isTheme });
   };
 
   /**
@@ -653,7 +660,8 @@ export function ChapterReader({
                                 onHighlightTap={handleHighlightTap}
                                 onAutoHighlightPress={handleAutoHighlightPress}
                                 onVerseTap={handleVerseTap}
-                                onWordSelect={handleWordSelect}
+                                alignment={alignment}
+                                onLexiconWordPress={handleLexiconWordPress}
                                 style={styles.verseTextInline}
                                 isVisible={isVerseVisible(group[0].verseNumber)}
                               />
@@ -684,7 +692,8 @@ export function ChapterReader({
                       onHighlightTap={handleHighlightTap}
                       onAutoHighlightPress={handleAutoHighlightPress}
                       onVerseTap={handleVerseTap}
-                      onWordSelect={handleWordSelect}
+                      alignment={alignment}
+                      onLexiconWordPress={handleLexiconWordPress}
                       style={styles.verseText}
                       isVisible={true}
                     />
@@ -792,16 +801,19 @@ export function ChapterReader({
         onClose={() => setErrorModalVisible(false)}
       />
 
-      {/* Word Definition Tooltip */}
-      {wordToDefine && (
-        <WordDefinitionTooltip
-          visible={wordDefinitionVisible}
-          word={wordToDefine.word}
-          bookName={chapter.title.split(' ').slice(0, -1).join(' ')}
-          chapterNumber={chapter.chapterNumber}
-          verseNumber={wordToDefine.verseNumber}
-          onClose={handleWordDefinitionClose}
-          onCopy={handleWordDefinitionCopy}
+      {/* Lexicon Popover — opens on tap of a dotted-underlined word.
+          Long-press is now reserved for native text selection; the legacy
+          Easton/Strong/Webster WordDefinitionTooltip is no longer wired
+          into the Bible reader (it still serves BibleExplanationsPanel
+          and topic surfaces, which keep the long-press → dictionary flow). */}
+      {lexiconActive && (
+        <LexiconPopover
+          visible={true}
+          onClose={() => setLexiconActive(null)}
+          surface={lexiconActive.surface}
+          entry={lexiconActive.entry}
+          token={lexiconActive.token}
+          isTheme={lexiconActive.isTheme}
         />
       )}
     </View>
