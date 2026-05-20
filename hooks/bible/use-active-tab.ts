@@ -93,7 +93,9 @@ export function useActiveTab(): UseActiveTabResult {
   const setActiveTab = async (tab: ContentTabType): Promise<void> => {
     try {
       if (!isContentTabType(tab)) {
-        throw new Error(`Invalid tab type: ${tab}. Must be 'summary', 'byline', or 'detailed'.`);
+        throw new Error(
+          `Invalid tab type: ${tab}. Must be 'summary', 'byline', 'detailed', or 'study'.`
+        );
       }
       setActiveTabState(tab);
       inMemoryCache = tab;
