@@ -585,6 +585,7 @@ export default function ChapterScreen() {
               <ChapterContentTabs
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
+                showStudy
                 showVisuals={bookHasVisuals(bookId)}
               />
             </View>

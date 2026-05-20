@@ -18,7 +18,7 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type getColors, getTabSpecs, spacing, type ThemeMode } from '@/theme/tokens';
@@ -32,27 +32,38 @@ interface ChapterContentTabsProps {
   /** Whether tabs should be disabled (optional) */
   disabled?: boolean;
   /**
-   * When true, append a 5th "Visuals" tab. Caller gates this on the
-   * current book being in BOOKS_WITH_VISUALS (see `bookHasVisuals` in
-   * VisualsPanel). Default false so books without curated visuals keep
-   * the legacy 4-tab layout.
+   * Topics screen opt-in: include the legacy "Detailed" tab. Bible
+   * chapters dropped this tab (parity with the web removal in
+   * verse-mate-web 44bce20) but topic explanations still ship a
+   * detailed body, so the topic route keeps it visible.
+   */
+  showDetailed?: boolean;
+  /**
+   * Bible-chapter opt-in: include the "Study" tab (inductive study
+   * via @versemate/studies). Topics have no study content, so this
+   * defaults to false.
+   */
+  showStudy?: boolean;
+  /**
+   * Bible-chapter opt-in: include the "Visuals" tab. Caller gates
+   * this on the current book being in BOOKS_WITH_VISUALS (see
+   * `bookHasVisuals` in VisualsPanel).
    */
   showVisuals?: boolean;
 }
 
 type Tab = { id: ContentTabType; label: string };
 
-/** Base tabs — order MUST match BibleExplanationsPanel.TABS.
- *  'detailed' is intentionally absent from the rendered list (parity
- *  with the web removal in verse-mate-web 44bce20) but stays in
- *  ContentTabType so the API contract and persisted preferences
- *  survive a future re-introduction. */
+/** Tabs every caller renders. Specific extras (Detailed / Study /
+ *  Visuals) are appended per-caller via the boolean props. Order
+ *  matters: append in the order they should appear left-to-right. */
 const BASE_TABS: readonly Tab[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'byline', label: 'By Line' },
-  { id: 'study', label: 'Study' },
 ] as const;
 
+const DETAILED_TAB: Tab = { id: 'detailed', label: 'Detailed' };
+const STUDY_TAB: Tab = { id: 'study', label: 'Study' };
 const VISUALS_TAB: Tab = { id: 'visuals', label: 'Visuals' };
 
 /**
@@ -65,15 +76,25 @@ export function ChapterContentTabs({
   activeTab,
   onTabChange,
   disabled = false,
+  showDetailed = false,
+  showStudy = false,
   showVisuals = false,
 }: ChapterContentTabsProps) {
   const { colors, mode } = useTheme();
   const styles = createStyles(colors, mode);
 
-  // Compose the tab list once per render. When `showVisuals` flips
-  // (between books with/without curated visuals), tab count and tab
-  // width both recompute below.
-  const tabs = showVisuals ? [...BASE_TABS, VISUALS_TAB] : BASE_TABS;
+  // Memoise the tab list so getTabIndex's deps are stable. When any
+  // of the show* flags flip, tab count and tab width both recompute
+  // below. Order is fixed: Summary → By Line → Detailed → Study → Visuals.
+  const tabs: readonly Tab[] = useMemo(
+    () => [
+      ...BASE_TABS,
+      ...(showDetailed ? [DETAILED_TAB] : []),
+      ...(showStudy ? [STUDY_TAB] : []),
+      ...(showVisuals ? [VISUALS_TAB] : []),
+    ],
+    [showDetailed, showStudy, showVisuals]
+  );
   // useCallback so the slide-animation useEffect can include this in its
   // deps without re-running on every render (Biome
   // lint/correctness/useExhaustiveDependencies).
