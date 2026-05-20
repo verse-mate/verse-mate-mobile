@@ -1,12 +1,12 @@
 /**
  * ChapterContentTabs Component
  *
- * Pill-style tab switcher for Bible reading modes (Summary, By Line, Detailed).
+ * Pill-style tab switcher for Bible reading modes (Summary, By Line, Study, Visuals).
  * Active tab is highlighted with gold background, inactive tabs have gray background.
  * Includes haptic feedback and integrates with useActiveTab hook for persistence.
  *
  * Features:
- * - Three pill-style buttons: "Summary", "By Line", "Detailed"
+ * - Pill-style buttons: "Summary", "By Line", "Study", "Visuals" (last is gated)
  * - Active tab: gold background (#b09a6d), dark text
  * - Inactive tabs: gray700 background (#4a4a4a), white text
  * - Border radius: 20px, padding: 8px vertical, 20px horizontal
@@ -42,11 +42,14 @@ interface ChapterContentTabsProps {
 
 type Tab = { id: ContentTabType; label: string };
 
-/** Base tabs — order MUST match BibleExplanationsPanel.TABS. */
+/** Base tabs — order MUST match BibleExplanationsPanel.TABS.
+ *  'detailed' is intentionally absent from the rendered list (parity
+ *  with the web removal in verse-mate-web 44bce20) but stays in
+ *  ContentTabType so the API contract and persisted preferences
+ *  survive a future re-introduction. */
 const BASE_TABS: readonly Tab[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'byline', label: 'By Line' },
-  { id: 'detailed', label: 'Detailed' },
   { id: 'study', label: 'Study' },
 ] as const;
 
@@ -221,8 +224,8 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       flex: 1,
       borderRadius: 100,
       paddingVertical: 2,
-      // Tight horizontal padding so 4 labels (Summary / By Line / Detailed /
-      // Study) fit on narrow phone widths without truncation. flex:1 already
+      // Tight horizontal padding so labels (Summary / By Line / Study /
+      // Visuals) fit on narrow phone widths without truncation. flex:1 already
       // handles equal sizing; padding here is just for press hit area + edge.
       paddingHorizontal: spacing.sm,
       justifyContent: 'center',

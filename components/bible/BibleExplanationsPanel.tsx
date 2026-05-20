@@ -6,7 +6,7 @@
  *
  * Features:
  * - Dark header bar with menu icon
- * - Tab selector for Summary/By Line/Detailed modes
+ * - Tab selector for Summary/By Line/Study/Visuals modes
  * - Scrollable explanation content area
  *
  * @see Spec: agent-os/specs/landscape-tablet-optimization/plan.md
@@ -38,7 +38,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
-import { useBibleByLine, useBibleDetailed, useBibleSummary } from '@/src/api';
+import { useBibleByLine, useBibleSummary } from '@/src/api';
 import {
   fontSizes,
   fontWeights,
@@ -66,7 +66,6 @@ type TabDef = { id: ContentTabType; label: string };
 const BASE_TABS: readonly TabDef[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'byline', label: 'By Line' },
-  { id: 'detailed', label: 'Detailed' },
   { id: 'study', label: 'Study' },
 ];
 const VISUALS_TAB: TabDef = { id: 'visuals', label: 'Visuals' };
@@ -169,7 +168,7 @@ export function BibleExplanationsPanel({
   }, [showToast]);
 
   // Custom markdown rule that wraps each text leaf with HighlightedText so
-  // long-press triggers the dictionary tooltip across Summary/By Line/Detailed.
+  // long-press triggers the dictionary tooltip across Summary/By Line/Study.
   const dictionaryMarkdownRules: RenderRules = useMemo(
     () => ({
       text: (node, _children, _parent, styles, inheritedStyles = {}) => (
@@ -212,7 +211,6 @@ export function BibleExplanationsPanel({
   // Separate scroll refs per tab to maintain independent scroll positions
   const summaryScrollRef = useRef<ScrollView>(null);
   const byLineScrollRef = useRef<ScrollView>(null);
-  const detailedScrollRef = useRef<ScrollView>(null);
   const studyScrollRef = useRef<ScrollView>(null);
   const visualsScrollRef = useRef<ScrollView>(null);
 
@@ -226,7 +224,6 @@ export function BibleExplanationsPanel({
   useEffect(() => {
     summaryScrollRef.current?.scrollTo({ y: 0, animated: false });
     byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
-    detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
     studyScrollRef.current?.scrollTo({ y: 0, animated: false });
     visualsScrollRef.current?.scrollTo({ y: 0, animated: false });
     byLineSectionRefs.current = {};
@@ -263,15 +260,6 @@ export function BibleExplanationsPanel({
     language,
   });
 
-  const {
-    data: detailedData,
-    isLoading: detailedLoading,
-    isLocalData: detailedIsLocal,
-  } = useBibleDetailed(bookId, chapterNumber, undefined, {
-    enabled: activeTab === 'detailed',
-    language,
-  });
-
   // Handle tab change with haptic feedback
   const handleTabChange = (tab: ContentTabType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -289,7 +277,6 @@ export function BibleExplanationsPanel({
 
   const summaryContent = extractContent(summaryData);
   const byLineContent = extractContent(byLineData);
-  const detailedContent = extractContent(detailedData);
 
   // Quick-verse-jump for the By Line tab (VERA-36): desktop / split-view path.
   // ChapterPage handles the phone-portrait path; this panel covers
@@ -524,16 +511,6 @@ export function BibleExplanationsPanel({
               byLineData && 'explanationId' in byLineData ? byLineData.explanationId : null,
             loading: byLineLoading,
             isLocal: byLineIsLocal,
-          },
-          {
-            key: 'detailed' as const,
-            type: 'detailed',
-            ref: detailedScrollRef,
-            data: detailedContent,
-            explanationId:
-              detailedData && 'explanationId' in detailedData ? detailedData.explanationId : null,
-            loading: detailedLoading,
-            isLocal: detailedIsLocal,
           },
         ] as const
       ).map((tab) => (

@@ -14,9 +14,9 @@
  * Mirrors the web app's VisualsPanel.tsx — same content, ported to React
  * Native primitives (View / Text / StyleSheet / expo-image) instead of
  * the DOM. Image taps open a full-screen lightbox modal; the BibleProject
- * video opens YouTube via expo-web-browser (in-app browser tab) rather
- * than embedding a WebView, to keep the mobile bundle clean and avoid an
- * EAS rebuild just to ship this feature.
+ * video card opens the YouTube watch URL via Linking, which launches the
+ * YouTube app on iOS/Android (or system browser fallback). We don't
+ * embed a WebView so the bundle stays clean and we avoid an EAS rebuild.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +30,6 @@ import {
   type VisualCard,
 } from '@versemate/visuals';
 import { Image } from 'expo-image';
-import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useMemo, useState } from 'react';
 import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -83,17 +82,13 @@ export function VisualsPanel({
   const openCard = cards.find((c) => c.id === openCardId) ?? null;
   const closeLightbox = useCallback(() => setOpenCardId(null), []);
 
-  const handleVideoPress = useCallback(async () => {
+  const handleVideoPress = useCallback(() => {
     if (!video) return;
-    // expo-web-browser opens an in-app browser tab on iOS/Android with
-    // the system's YouTube experience. Tapping "Done" returns to the
-    // app without unmounting the panel.
-    try {
-      await WebBrowser.openBrowserAsync(video.page);
-    } catch {
-      // Fall back to system browser if the in-app tab fails (rare).
-      Linking.openURL(video.page).catch(() => {});
-    }
+    // Open the YouTube watch URL directly — launches the YouTube app on
+    // iOS/Android if installed, otherwise the system browser. Avoids
+    // bibleproject.com/videos/<book>/ which is currently 404 for most
+    // books (see verse-mate-visuals registry).
+    Linking.openURL(`https://www.youtube.com/watch?v=${video.youtubeId}`).catch(() => {});
   }, [video]);
 
   if (!manifest) {
