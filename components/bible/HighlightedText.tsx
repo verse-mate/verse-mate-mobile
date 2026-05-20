@@ -813,9 +813,21 @@ export function HighlightedText({
   ) => {
     const tokens = tokenizeText(segment.text);
 
+    // Pre-compute lex-match for every token in the segment. We need it
+    // twice: once for the current token (which gets the underline +
+    // tap handler) and once to peek at the NEXT token to decide whether
+    // to include the trailing space inside the underlined Text. When
+    // both the current AND next token are lex-words, including the
+    // space makes adjacent underlines visually connect into one
+    // continuous line — Andy's "multi-word underline appears broken"
+    // feedback. When there's punctuation between them ("trials,")
+    // the underline still breaks naturally because punctuation lives
+    // outside the underlined Text either way.
+    const lexHits = tokens.map((t) => lexiconMatch(t.word));
+
     return (
       <Text key={segment.key} style={segmentStyle} suppressHighlighting={true}>
-        {tokens.map((token) => {
+        {tokens.map((token, idx) => {
           // Calculate absolute char positions in verse text
           const absoluteStartChar = segment.startChar + token.startChar;
           const absoluteEndChar = segment.startChar + token.endChar;
@@ -838,16 +850,20 @@ export function HighlightedText({
           //
           // Splitting:
           //   token.word may include trailing punctuation ("trials,", "joy.").
-          //   We underline ONLY the word characters — punctuation and the
-          //   trailing space stay in a separate, unstyled Text so the dotted
-          //   line doesn't bleed past the word itself.
-          const lexHit = lexiconMatch(token.word);
+          //   We underline ONLY the word characters — punctuation always
+          //   stays in a separate, unstyled Text so the underline doesn't
+          //   bleed past the word itself. The trailing SPACE, however, is
+          //   pulled INTO the underlined Text when the next token is also
+          //   a lex-word and the current word has no punctuation, so
+          //   adjacent lex-words have a single continuous underline.
+          const lexHit = lexHits[idx];
           if (lexHit && onLexiconWordPress) {
             const lexStyle = lexHit.isTheme ? lexiconWordStyles.theme : lexiconWordStyles.regular;
             const match = token.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
             const wordCore = match ? match[1] : token.word;
             const trailing = match ? match[2] : '';
-            const space = token.hasTrailingSpace ? ' ' : '';
+            const nextLexHit = lexHits[idx + 1];
+            const includeSpaceInLex = !!nextLexHit && !trailing && token.hasTrailingSpace;
             return (
               <Text
                 key={`word-${segment.key}-${token.startChar}`}
@@ -870,9 +886,10 @@ export function HighlightedText({
                   accessibilityLabel={`${wordCore} — ${lexHit.entry.translit}, ${lexHit.entry.basicGloss}`}
                 >
                   {wordCore}
+                  {includeSpaceInLex ? ' ' : ''}
                 </Text>
                 {trailing}
-                {space}
+                {!includeSpaceInLex && token.hasTrailingSpace ? ' ' : ''}
               </Text>
             );
           }
@@ -1069,15 +1086,19 @@ const selectionStyles = StyleSheet.create({
 /**
  * Styles for lexicon-covered words.
  *
- * On iOS we get an actual dotted line via `textDecorationStyle: 'dotted'`,
- * matching the web's `.lex-word` treatment exactly. On Android, RN's
- * `textDecorationStyle` quietly falls back to `solid` — and `borderStyle:
- * 'dotted'` doesn't render on inline `<Text>` either. So Android shows a
- * solid gold underline for now; a custom SVG-based dotted underline is
- * a follow-up.
+ * Two-tier underline matching the web's distinction:
+ *   - `theme`   — significant/spine words for the chapter. Solid gold
+ *     underline + heavier font weight. Reads as the "thick" tier.
+ *   - `regular` — every other lex-covered word. Dotted gold underline
+ *     (iOS) — reads as the "thin/light" tier. Andy's TF feedback was
+ *     that mobile rendered both tiers identically; this restores the
+ *     thick-vs-thin parity from web.
  *
- * Theme words get a slightly heavier weight so the chapter's spine
- * reads at a glance.
+ * Platform note: `textDecorationStyle: 'dotted'` is iOS-only at the RN
+ * inline-text level. On Android it silently falls back to solid, which
+ * still leaves a visible distinction (theme keeps fontWeight 500) but
+ * loses the dot pattern. A custom SVG-based dotted underline for
+ * Android remains a follow-up.
  */
 const LEX_UNDERLINE = '#B09A6D';
 const lexiconWordStyles = StyleSheet.create({
@@ -1088,8 +1109,8 @@ const lexiconWordStyles = StyleSheet.create({
   },
   theme: {
     textDecorationLine: 'underline',
-    textDecorationStyle: 'dotted',
+    textDecorationStyle: 'solid', // continuous line — the "thick" tier
     textDecorationColor: LEX_UNDERLINE,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });

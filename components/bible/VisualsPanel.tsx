@@ -13,10 +13,11 @@
  *
  * Mirrors the web app's VisualsPanel.tsx — same content, ported to React
  * Native primitives (View / Text / StyleSheet / expo-image) instead of
- * the DOM. Image taps open a full-screen lightbox modal; the BibleProject
- * video card opens the YouTube watch URL via Linking, which launches the
- * YouTube app on iOS/Android (or system browser fallback). We don't
- * embed a WebView so the bundle stays clean and we avoid an EAS rebuild.
+ * the DOM. Image taps open a full-screen lightbox modal that unlocks
+ * orientation so wide visuals can be rotated to landscape. The
+ * BibleProject video card uses an inline YouTube WebView so playback
+ * happens in-place (added 2026-05-21 from Andy's TF feedback, replacing
+ * the previous `Linking.openURL` → YouTube app handoff).
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -30,8 +31,11 @@ import {
   type VisualCard,
 } from '@versemate/visuals';
 import { Image } from 'expo-image';
-import { useCallback, useMemo, useState } from 'react';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import { getBookSlug } from '@/utils/bookSlugs';
@@ -65,7 +69,8 @@ export function VisualsPanel({
   testID = 'visuals-panel',
 }: VisualsPanelProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
   const slug = getBookSlug(bookId);
   const manifest = useMemo(() => (slug ? getVisualsForBook(slug) : null), [slug]);
@@ -82,14 +87,36 @@ export function VisualsPanel({
   const openCard = cards.find((c) => c.id === openCardId) ?? null;
   const closeLightbox = useCallback(() => setOpenCardId(null), []);
 
+  // Inline-playback state for the BibleProject video card. When false,
+  // we show the original thumbnail + play-button pressable; when true,
+  // we render a WebView with the YouTube embed URL so playback happens
+  // in-place (Andy's TF feedback was that opening the YouTube app or
+  // bibleproject.com/videos/<book>/ broke the reading flow).
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const handleVideoPress = useCallback(() => {
     if (!video) return;
-    // Open the YouTube watch URL directly — launches the YouTube app on
-    // iOS/Android if installed, otherwise the system browser. Avoids
-    // bibleproject.com/videos/<book>/ which is currently 404 for most
-    // books (see verse-mate-visuals registry).
-    Linking.openURL(`https://www.youtube.com/watch?v=${video.youtubeId}`).catch(() => {});
+    setVideoPlaying(true);
   }, [video]);
+  // Reset playback state when the user navigates to a different chapter —
+  // a new chapter may have a different (or no) video.
+  useEffect(() => {
+    setVideoPlaying(false);
+  }, [bookId, chapter]);
+
+  // Bug #8 — unlock orientation while the fullscreen lightbox is open so
+  // Andy can rotate the device to landscape for wide visuals (Genesis
+  // chart etc.). Re-lock to portrait when the lightbox closes or the
+  // component unmounts so the rest of the app behaves as before.
+  useEffect(() => {
+    if (openCard) {
+      ScreenOrientation.unlockAsync().catch(() => {});
+    } else {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    }
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    };
+  }, [openCard]);
 
   if (!manifest) {
     return (
@@ -111,42 +138,63 @@ export function VisualsPanel({
       </Text>
 
       {/* Video card — only rendered when this chapter is covered by a
-          BibleProject overview. */}
+          BibleProject overview. Default state shows a thumbnail + play
+          button; tapping swaps to an inline YouTube WebView so playback
+          happens in-app (Andy's TF feedback). */}
       {video ? (
-        <Pressable
-          onPress={handleVideoPress}
-          style={styles.videoCard}
-          accessibilityRole="button"
-          accessibilityLabel={`Play the BibleProject ${bookName} overview video`}
-          testID={`${testID}-video-card`}
-        >
-          {/* Thumbnail backdrop — use the first card's thumb (typically
-              the BibleProject poster) as a tinted backdrop. */}
-          {cards[0] ? (
-            <Image
-              source={{ uri: absolutizeVisualUrl(cards[0].thumb) }}
-              style={styles.videoBackdrop}
-              contentFit="cover"
-              transition={150}
+        videoPlaying ? (
+          <View style={styles.videoCard} testID={`${testID}-video-player`}>
+            <WebView
+              source={{
+                uri: `https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&playsinline=1&modestbranding=1&rel=0`,
+              }}
+              style={styles.videoWebView}
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              javaScriptEnabled
+              domStorageEnabled
+              allowsFullscreenVideo
             />
-          ) : null}
-          <View style={styles.videoOverlay} />
-          <View style={styles.videoOverlayContent}>
-            <View style={styles.playButton}>
-              <Ionicons name="play" size={28} color="#1B1B1B" />
+            <View style={styles.attributionBadge} pointerEvents="none">
+              <Text style={styles.attributionBadgeText}>BibleProject · CC BY-SA 4.0</Text>
             </View>
-            <Text style={styles.videoTitle} numberOfLines={2}>
-              {video.title}
-            </Text>
-            <Text style={styles.videoSubtitle}>BibleProject overview · animated explainer</Text>
-            <Text style={styles.videoRange}>
-              Covers chapters {video.chapterStart}–{video.chapterEnd}
-            </Text>
           </View>
-          <View style={styles.attributionBadge}>
-            <Text style={styles.attributionBadgeText}>BibleProject · CC BY-SA 4.0</Text>
-          </View>
-        </Pressable>
+        ) : (
+          <Pressable
+            onPress={handleVideoPress}
+            style={styles.videoCard}
+            accessibilityRole="button"
+            accessibilityLabel={`Play the BibleProject ${bookName} overview video`}
+            testID={`${testID}-video-card`}
+          >
+            {/* Thumbnail backdrop — use the first card's thumb (typically
+                the BibleProject poster) as a tinted backdrop. */}
+            {cards[0] ? (
+              <Image
+                source={{ uri: absolutizeVisualUrl(cards[0].thumb) }}
+                style={styles.videoBackdrop}
+                contentFit="cover"
+                transition={150}
+              />
+            ) : null}
+            <View style={styles.videoOverlay} />
+            <View style={styles.videoOverlayContent}>
+              <View style={styles.playButton}>
+                <Ionicons name="play" size={28} color="#1B1B1B" />
+              </View>
+              <Text style={styles.videoTitle} numberOfLines={2}>
+                {video.title}
+              </Text>
+              <Text style={styles.videoSubtitle}>BibleProject overview · animated explainer</Text>
+              <Text style={styles.videoRange}>
+                Covers chapters {video.chapterStart}–{video.chapterEnd}
+              </Text>
+            </View>
+            <View style={styles.attributionBadge}>
+              <Text style={styles.attributionBadgeText}>BibleProject · CC BY-SA 4.0</Text>
+            </View>
+          </Pressable>
+        )
       ) : null}
 
       {/* Image grid — two columns. Mobile bandwidth is precious, so the
@@ -261,7 +309,10 @@ export function VisualsPanel({
 
 // ─── Styles ──────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ReturnType<typeof getColors>) =>
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  insets: { bottom: number; top: number; left: number; right: number }
+) =>
   StyleSheet.create({
     container: {
       paddingHorizontal: spacing.lg,
@@ -305,6 +356,10 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     videoBackdrop: {
       ...StyleSheet.absoluteFillObject,
       opacity: 0.55,
+    },
+    videoWebView: {
+      flex: 1,
+      backgroundColor: '#000',
     },
     videoOverlay: {
       ...StyleSheet.absoluteFillObject,
@@ -439,8 +494,12 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       zIndex: 3,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.xl,
+      // Top padding must clear the status bar / notch on every device. The
+      // Modal is `statusBarTranslucent` so the system bar overlays our chrome
+      // unless we account for it ourselves.
+      paddingTop: Math.max(insets.top, spacing.md) + spacing.xs,
+      paddingLeft: Math.max(insets.left, spacing.md),
+      paddingRight: Math.max(insets.right, spacing.md),
       paddingBottom: spacing.sm,
       backgroundColor: 'rgba(0,0,0,0.55)',
     },

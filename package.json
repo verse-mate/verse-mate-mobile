@@ -35,8 +35,6 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "@versemate/studies": "github:verse-mate/verse-mate-studies#d9dadca",
-    "@versemate/visuals": "github:verse-mate/verse-mate-visuals#fa6d815",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-community/slider": "5.0.1",
@@ -46,6 +44,8 @@
     "@react-navigation/native": "^7.1.8",
     "@tanstack/react-query": "^5.90.2",
     "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#26012e6790ad734e203f9901efe029d729133409",
+    "@versemate/studies": "github:verse-mate/verse-mate-studies#d9dadca",
+    "@versemate/visuals": "github:verse-mate/verse-mate-visuals#fa6d815",
     "axios": "^1.12.2",
     "expo": "~54.0.27",
     "expo-apple-authentication": "~8.0.8",
@@ -64,6 +64,7 @@
     "expo-location": "~19.0.8",
     "expo-navigation-bar": "~5.0.10",
     "expo-router": "~6.0.17",
+    "expo-screen-orientation": "~9.0.9",
     "expo-secure-store": "^55.0.13",
     "expo-sensors": "~15.0.8",
     "expo-sharing": "~14.0.8",
@@ -92,6 +93,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-web": "~0.21.0",
+    "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1",
     "suncalc": "^1.9.0"
   },
@@ -140,7 +142,7 @@
   "bun": {
     "test": {
       "preload": "./test-setup.ts",
-      "timeout": 10000.0
+      "timeout": 1e4
     }
   },
   "private": true

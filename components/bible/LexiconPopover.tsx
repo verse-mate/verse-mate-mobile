@@ -126,14 +126,17 @@ export function LexiconPopover({
   // PanResponder for swipe-to-dismiss from anywhere on the sheet.
   //
   // Two gesture cooperations:
-  //   - Drag from the handle area → always captures (no scroll to fight).
+  //   - Drag from the always-on region (handle + header) → captures
+  //     immediately, no scroll-position check (no scrollable content to
+  //     fight in that strip anyway).
   //   - Drag from the ScrollView body → only captures when the scroll is
-  //     at the top AND the user is dragging DOWN. Otherwise the
-  //     ScrollView gets the gesture so normal scrolling works.
+  //     at the top AND the user is dragging DOWN, so normal scrolling
+  //     works for the rest of the time.
   //
-  // `onStartShouldSetPanResponder` returns false so the inner ScrollView
-  // gets first chance at every touch; `onMoveShouldSetPanResponder` then
-  // steals the gesture mid-drag when the conditions match.
+  // Thresholds: we capture at `dy > 3` (instead of 5) and dismiss at
+  // `dy > 50` (instead of 70). Andy reported the previous values made
+  // the sheet feel like you had to "grip the top to swipe it away" —
+  // smaller-feeling thresholds restore the expected iOS-sheet feel.
   const closeRef = useRef(onClose);
   useEffect(() => {
     closeRef.current = onClose;
@@ -147,7 +150,7 @@ export function LexiconPopover({
       // content AND drags downward, so normal scrolling is unaffected.
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponderCapture: (_, g) => {
-        const isVerticalDown = g.dy > 5 && Math.abs(g.dy) > Math.abs(g.dx);
+        const isVerticalDown = g.dy > 3 && Math.abs(g.dy) > Math.abs(g.dx);
         const atTop = scrollYRef.current <= 0;
         return isVerticalDown && atTop;
       },
@@ -155,7 +158,7 @@ export function LexiconPopover({
         if (g.dy > 0) slideAnim.setValue(g.dy);
       },
       onPanResponderRelease: (_, g) => {
-        if (g.dy > 70) {
+        if (g.dy > 50) {
           closeRef.current();
         } else if (g.dy > 0) {
           Animated.spring(slideAnim, {
@@ -170,17 +173,18 @@ export function LexiconPopover({
     })
   ).current;
 
-  // Dedicated pan responder for the handle area — bypasses the scroll-at-top
-  // check so the user can always drag the modal down by grabbing the handle.
+  // Dedicated pan responder for the always-on drag region (handle + header)
+  // — bypasses the scroll-at-top check so the user can always drag the
+  // modal down by grabbing the handle OR anywhere in the lemma/meta header.
   const handlePanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 3,
       onPanResponderMove: (_, g) => {
         if (g.dy > 0) slideAnim.setValue(g.dy);
       },
       onPanResponderRelease: (_, g) => {
-        if (g.dy > 70) {
+        if (g.dy > 50) {
           closeRef.current();
         } else if (g.dy > 0) {
           Animated.spring(slideAnim, {
@@ -191,6 +195,7 @@ export function LexiconPopover({
           }).start();
         }
       },
+      onPanResponderTerminationRequest: () => false,
     })
   ).current;
 
@@ -218,21 +223,16 @@ export function LexiconPopover({
           pointerEvents="auto"
           {...panResponder.panHandlers}
         >
-          {/* Drag handle — uses its own pan responder that always captures,
-              regardless of scroll position, so you can always grab the handle. */}
-          <View style={styles.dragArea} {...handlePanResponder.panHandlers}>
-            <View style={styles.handle} />
-          </View>
+          {/* Always-on drag region: handle + header. Anywhere in this strip
+              the user can pull down to dismiss without needing the
+              scroll-position check the body uses. Andy's TF feedback was
+              that you "had to grip the top" — expanding this region to
+              include the lemma + meta lines fixes that. */}
+          <View {...handlePanResponder.panHandlers}>
+            <View style={styles.dragArea}>
+              <View style={styles.handle} />
+            </View>
 
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            onScroll={(e) => {
-              scrollYRef.current = e.nativeEvent.contentOffset.y;
-            }}
-            scrollEventThrottle={16}
-          >
             {/* HEADER */}
             <View style={styles.header} testID={`${testID}-header`}>
               <View style={styles.headerRow}>
@@ -255,7 +255,17 @@ export function LexiconPopover({
                   : ''}
               </Text>
             </View>
+          </View>
 
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={(e) => {
+              scrollYRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+          >
             {/* IN THIS VERSE (Layer 2 — contextual gloss) */}
             {contextual ? (
               <Section
