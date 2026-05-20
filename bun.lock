@@ -16,6 +16,7 @@
         "@react-navigation/native": "^7.1.8",
         "@tanstack/react-query": "^5.90.2",
         "@versemate/studies": "github:verse-mate/verse-mate-studies#d9dadca",
+        "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#26012e6790ad734e203f9901efe029d729133409",
         "axios": "^1.12.2",
         "expo": "~54.0.27",
         "expo-apple-authentication": "~8.0.8",
@@ -821,6 +822,7 @@
     "@urql/exchange-retry": ["@urql/exchange-retry@1.3.2", "", { "dependencies": { "@urql/core": "^5.1.2", "wonka": "^6.3.2" } }, "sha512-TQMCz2pFJMfpNxmSfX1VSfTjwUIFx/mL+p1bnfM1xjjdla7Z+KnGMW/EhFbpckp3LyWAH4PgOsMwOMnIN+MBFg=="],
 
     "@versemate/studies": ["@versemate/studies@github:verse-mate/verse-mate-studies#d9dadca", {}, "verse-mate-verse-mate-studies-d9dadca", "sha512-VrF35pG6eyGD5eigG0e535s5SsOChPkW3gE5iOOwgFc9jNx1PpPsWf6gFuW0/37jjrxoNas4aWeO0x+juct9HA=="],
+    "@versemate/lexicon": ["@versemate/lexicon@github:verse-mate/verse-mate-lexicon#26012e6", {}, "verse-mate-verse-mate-lexicon-26012e6"],
 
     "@vitest/expect": ["@vitest/expect@3.2.4", "", { "dependencies": { "@types/chai": "^5.2.2", "@vitest/spy": "3.2.4", "@vitest/utils": "3.2.4", "chai": "^5.2.0", "tinyrainbow": "^2.0.0" } }, "sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig=="],
 

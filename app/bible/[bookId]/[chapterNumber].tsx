@@ -99,8 +99,15 @@ type ViewMode = 'bible' | 'explanations';
  */
 export default function ChapterScreen() {
   // V3 State Layer: Single source of truth for chapter navigation
-  const { bookId, chapterNumber, bookName, navigateToChapter, booksMetadata, totalChapters } =
-    useChapterState();
+  const {
+    bookId,
+    chapterNumber,
+    bookName,
+    navigateToChapter,
+    booksMetadata,
+    totalChapters,
+    chapterCount,
+  } = useChapterState();
 
   // Extract verse/tab params (not managed by useChapterState)
   const params = useLocalSearchParams<{
@@ -223,7 +230,9 @@ export default function ChapterScreen() {
   const { addRecentBook } = useRecentBooks();
 
   // Prefetch next/previous chapters in background (auto-fires via useEffect inside hooks)
-  usePrefetchNextChapter(bookId, chapterNumber, totalChapters);
+  // Pass the real chapterCount (not the 50 fallback) so we don't 404 on the last
+  // chapter of short books like Galatians 6 before metadata loads — VER-75.
+  usePrefetchNextChapter(bookId, chapterNumber, chapterCount);
   usePrefetchPreviousChapter(bookId, chapterNumber);
 
   // Get navigation metadata using hook

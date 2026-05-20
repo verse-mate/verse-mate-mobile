@@ -20,6 +20,7 @@
  * @see Visual: after-selected-text-popup.png (highlighted text appearance)
  */
 
+import type { AlignedToken, ChapterAlignment, LexEntry } from '@versemate/lexicon';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -135,6 +136,22 @@ export interface HighlightedTextProps extends TextProps {
   style?: TextProps['style'];
   /** Whether this text is visible in viewport - enables word tokenization for accurate long-press */
   isVisible?: boolean;
+  /**
+   * Chapter alignment for the Greek/Hebrew lexicon. When provided, words
+   * whose surface form appears in `alignment.verses[verseNumber]` render
+   * with a dotted underline and become tappable to open the lexicon
+   * popover via `onLexiconWordPress`. Other words keep their existing
+   * verse-tap behavior. Long-press handlers are NOT wired in this mode —
+   * native text selection takes over instead.
+   */
+  alignment?: ChapterAlignment | null;
+  /** Callback fired on tap of a lexicon-covered word. */
+  onLexiconWordPress?: (args: {
+    surface: string;
+    token: AlignedToken;
+    entry: LexEntry;
+    isTheme: boolean;
+  }) => void;
 }
 
 /**
@@ -273,11 +290,54 @@ export function HighlightedText({
   onVerseTap,
   onWordLongPress,
   onWordSelect,
+  alignment,
+  onLexiconWordPress,
   selectedWord: externalSelectedWord,
   style,
   isVisible = true,
   ...textProps
 }: HighlightedTextProps) {
+  // When the caller wires up the lexicon, the gesture model flips:
+  // - tap on a covered word → lexicon popover (new behavior)
+  // - tap on any other word → verse insight (existing onVerseTap)
+  // - long-press → native text selection (we omit our onLongPress handler so
+  //   the outer `selectable={true}` <Text> takes over)
+  //
+  // Without lexicon wiring we keep the legacy long-press → dictionary path
+  // intact so BibleExplanationsPanel / TopicContentPanel still work.
+  const lexiconMode = Boolean(alignment && onLexiconWordPress);
+  const longPressEnabled = !lexiconMode && Boolean(onWordSelect || onWordLongPress);
+
+  // Lookup map: normalized lowercase surface → { token, entry, isTheme }
+  // for fast match on every per-word render. Cleared when alignment or
+  // verseNumber changes.
+  const lexiconLookup = useMemo(() => {
+    if (!alignment || !alignment.verses[verseNumber]) return null;
+    const map = new Map<string, { token: AlignedToken; entry: LexEntry; isTheme: boolean }>();
+    const themeSet = new Set(alignment.themeLemmas ?? []);
+    for (const token of alignment.verses[verseNumber]) {
+      const entry = alignment.lexicon[token.lemma];
+      if (!entry) continue;
+      const normalized = token.surface.toLowerCase();
+      // First-write-wins keeps the data file's ordering authoritative when
+      // the same surface maps to multiple lemmas in a verse.
+      if (!map.has(normalized)) {
+        map.set(normalized, { token, entry, isTheme: themeSet.has(token.lemma) });
+      }
+    }
+    return map;
+  }, [alignment, verseNumber]);
+
+  // Normalize a displayed word (e.g. "Trials,") to its lookup key ("trials").
+  const lexiconMatch = (rawWord: string) => {
+    if (!lexiconLookup) return null;
+    const clean = rawWord
+      .toLowerCase()
+      .replace(/^[.,;:!?"'’()]+/, '')
+      .replace(/[.,;:!?"'’()]+$/, '');
+    if (!clean) return null;
+    return lexiconLookup.get(clean) ?? null;
+  };
   // Get current theme mode for highlight color selection
   const { mode } = useTheme();
 
@@ -316,6 +376,7 @@ export function HighlightedText({
   };
 
   // Clean up pending tap timer on unmount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cancelPendingTap is closure-stable for unmount cleanup
   useEffect(() => {
     return cancelPendingTap;
   }, []);
@@ -525,6 +586,9 @@ export function HighlightedText({
     segmentStartChar: number,
     event: GestureResponderEvent
   ) => {
+    // Bail when long-press is disabled (lexicon mode or no callback wired)
+    // so the outer selectable Text gets the gesture for native selection.
+    if (!longPressEnabled) return;
     cancelPendingTap();
     const { locationX, locationY, pageX, pageY } = event.nativeEvent;
 
@@ -736,7 +800,11 @@ export function HighlightedText({
 
   /**
    * Render a segment as tokenized words (when visible)
-   * Each word is a separate Text element for accurate long-press detection
+   * Each word is a separate Text element. When lexicon mode is active,
+   * words covered by the alignment get a dotted underline + tap-to-open
+   * lexicon popover behavior; other words fall through to the segment's
+   * regular tap (verse-insight or highlight). Long-press handlers are
+   * suppressed in lexicon mode so native text selection works.
    */
   const renderTokenizedSegment = (
     segment: TextSegment,
@@ -765,13 +833,65 @@ export function HighlightedText({
             onResponderTerminationRequest: () => true,
           };
 
+          // Lexicon-covered word? Render with dotted underline and route tap
+          // to the lexicon callback (not the segment's regular tap).
+          //
+          // Splitting:
+          //   token.word may include trailing punctuation ("trials,", "joy.").
+          //   We underline ONLY the word characters — punctuation and the
+          //   trailing space stay in a separate, unstyled Text so the dotted
+          //   line doesn't bleed past the word itself.
+          const lexHit = lexiconMatch(token.word);
+          if (lexHit && onLexiconWordPress) {
+            const lexStyle = lexHit.isTheme ? lexiconWordStyles.theme : lexiconWordStyles.regular;
+            const match = token.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
+            const wordCore = match ? match[1] : token.word;
+            const trailing = match ? match[2] : '';
+            const space = token.hasTrailingSpace ? ' ' : '';
+            return (
+              <Text
+                key={`word-${segment.key}-${token.startChar}`}
+                suppressHighlighting={true}
+                {...responderProps}
+              >
+                <Text
+                  style={[lexStyle, (isSelected || verseTapSelected) && selectionStyles.selected]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    onLexiconWordPress({
+                      surface: wordCore,
+                      token: lexHit.token,
+                      entry: lexHit.entry,
+                      isTheme: lexHit.isTheme,
+                    });
+                  }}
+                  suppressHighlighting={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${wordCore} — ${lexHit.entry.translit}, ${lexHit.entry.basicGloss}`}
+                >
+                  {wordCore}
+                </Text>
+                {trailing}
+                {space}
+              </Text>
+            );
+          }
+
           return (
             <Text
               key={`word-${segment.key}-${token.startChar}`}
               style={isSelected || verseTapSelected ? selectionStyles.selected : undefined}
               onPress={onPressHandler}
-              onLongPress={(e) =>
-                handleTokenizedWordLongPress(token.word, absoluteStartChar, absoluteEndChar, e)
+              onLongPress={
+                longPressEnabled
+                  ? (e) =>
+                      handleTokenizedWordLongPress(
+                        token.word,
+                        absoluteStartChar,
+                        absoluteEndChar,
+                        e
+                      )
+                  : undefined
               }
               suppressHighlighting={true}
               {...responderProps}
@@ -943,5 +1063,33 @@ export function HighlightedText({
 const selectionStyles = StyleSheet.create({
   selected: {
     backgroundColor: '#3390FF40', // Light blue with transparency
+  },
+});
+
+/**
+ * Styles for lexicon-covered words.
+ *
+ * On iOS we get an actual dotted line via `textDecorationStyle: 'dotted'`,
+ * matching the web's `.lex-word` treatment exactly. On Android, RN's
+ * `textDecorationStyle` quietly falls back to `solid` — and `borderStyle:
+ * 'dotted'` doesn't render on inline `<Text>` either. So Android shows a
+ * solid gold underline for now; a custom SVG-based dotted underline is
+ * a follow-up.
+ *
+ * Theme words get a slightly heavier weight so the chapter's spine
+ * reads at a glance.
+ */
+const LEX_UNDERLINE = '#B09A6D';
+const lexiconWordStyles = StyleSheet.create({
+  regular: {
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'dotted', // iOS: real dots; Android: falls back to solid
+    textDecorationColor: LEX_UNDERLINE,
+  },
+  theme: {
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'dotted',
+    textDecorationColor: LEX_UNDERLINE,
+    fontWeight: '500',
   },
 });

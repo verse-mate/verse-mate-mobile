@@ -11,7 +11,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -30,9 +30,12 @@ export interface VerseJumpButtonProps {
   onSelect: (verseNumber: number) => void;
   /**
    * Drives the fade-in/out animation. Mirrors the scroll-arrow auto-hide so
-   * the pill disappears on idle and reappears on scroll/tap (VERA-39). The
-   * pill stays mounted at opacity 0 — tapping the faded pill still opens the
-   * verse picker, matching the no-dead-zone arrow behavior.
+   * the pill disappears on idle and reappears on scroll/tap (VERA-39). Only
+   * the visual chrome (gold circle + icon + label) fades — the outer hit area
+   * stays a static View so taps on the faded pill still open the verse picker
+   * on web (VER-102). Reanimated's parent-opacity suppresses pointer events
+   * on web Pressables (VER-46), so the animated wrapper must live inside the
+   * Pressable, not around it.
    */
   visible?: boolean;
   /**
@@ -71,8 +74,8 @@ export function VerseJumpButton({
   const [open, setOpen] = useState(false);
   const styles = createStyles(mode, colors, bottomOffset);
 
-  // Mirror FloatingActionButtons fade — pill stays mounted at opacity 0 so
-  // tapping the faded pill area still opens the picker (VERA-39).
+  // Mirror FloatingActionButtons fade — only the inner chrome animates so the
+  // outer hit area remains tappable at opacity 0 (VERA-39 / VER-102).
   const opacity = useSharedValue(visible ? 1 : 0);
   useEffect(() => {
     opacity.value = withTiming(visible ? 1 : 0, {
@@ -101,21 +104,28 @@ export function VerseJumpButton({
 
   return (
     <>
-      <Animated.View style={[styles.fabContainer, animatedStyle]}>
+      {/* Static container so the hit area stays interactive at any opacity.
+          On web, Reanimated's parent-opacity suppresses pointer events on
+          child Pressables (VER-46). Only the visual chrome inside fades. */}
+      <View style={styles.fabContainer}>
         <Pressable
           onPress={handleOpen}
-          style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+          style={styles.fabHitArea}
           accessibilityLabel="Jump to verse"
           accessibilityRole="button"
           accessibilityHint="Open the list of verses to jump to one in the By Line view"
           testID={testID}
         >
-          <Ionicons name="list" size={22} color="#ffffff" />
-          <Text style={styles.fabLabel} accessibilityElementsHidden>
-            Verse
-          </Text>
+          {({ pressed }) => (
+            <Animated.View style={[styles.fab, pressed && styles.fabPressed, animatedStyle]}>
+              <Ionicons name="list" size={22} color="#ffffff" />
+              <Text style={styles.fabLabel} accessibilityElementsHidden>
+                Verse
+              </Text>
+            </Animated.View>
+          )}
         </Pressable>
-      </Animated.View>
+      </View>
       <Modal
         visible={open}
         animationType="fade"
@@ -166,9 +176,8 @@ const createStyles = (
   bottomOffset?: number
 ) =>
   StyleSheet.create({
-    // Animated wrapper drives fade-in/out (VERA-39). The Pressable inside
-    // retains its hit-target even at opacity 0, so taps on the faded pill
-    // still open the verse picker — mirrors FloatingActionButtons.
+    // Static positioning wrapper — never animated, so the hit area underneath
+    // stays interactive at opacity 0 (VER-102, mirrors FloatingActionButtons).
     fabContainer: {
       position: 'absolute',
       right: spacing.lg,
@@ -176,6 +185,11 @@ const createStyles = (
       // path through ChapterPage). Hosts without a chapter-nav row beneath the
       // ScrollView (split-view / desktop right panel) override via bottomOffset.
       bottom: bottomOffset ?? spacing.lg + 60 + 56 + spacing.md,
+      width: FAB_SIZE,
+      height: FAB_SIZE,
+    },
+    // Hit area for the Pressable — full FAB footprint, always active.
+    fabHitArea: {
       width: FAB_SIZE,
       height: FAB_SIZE,
     },
