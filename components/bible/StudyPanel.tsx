@@ -503,11 +503,17 @@ function ListsStep({
   styles: Styles;
   testIDPrefix: string;
 }) {
+  // Mobile renders each row vertically (pill above its truth line) rather
+  // than as a 2-column table. The web table layout doesn't survive narrow
+  // widths once verse-chip text gets long (e.g.
+  // "1:3, 6, 9, 11, 14, 20, 24, 26") — Andy's TF feedback was that the
+  // right-side truth column shifted x-position per row.  Column headers
+  // (list.columns) are intentionally dropped on mobile since the pill +
+  // prose pair is self-describing once the rows stack.
   return (
     <View>
       {step.lists.map((list, listIdx) => {
         const id = `step-${step.number}-list-${listIdx}`;
-        const [colLeft, colRight] = list.columns;
         return (
           <NestedCard
             key={`${list.title}-${listIdx}`}
@@ -518,10 +524,6 @@ function ListsStep({
             styles={styles}
             testID={`${testIDPrefix}-list-${listIdx}`}
           >
-            <View style={styles.listHeaderRow}>
-              <Text style={[styles.listHeaderCell, styles.listHeaderRef]}>{colLeft}</Text>
-              <Text style={[styles.listHeaderCell, styles.listHeaderTruth]}>{colRight}</Text>
-            </View>
             {list.rows.map((row, i) => (
               <View key={`${row.ref}-${i}`} style={styles.listRow}>
                 <View style={styles.listRefPill}>
@@ -1184,40 +1186,22 @@ const createStyles = (colors: Colors) =>
       lineHeight: fontSizes.bodySmall * lineHeights.body,
     },
 
-    // Lists
-    listHeaderRow: {
-      flexDirection: 'row',
-      paddingVertical: spacing.xs,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.gray100,
-      marginBottom: spacing.xs,
-    },
-    listHeaderCell: {
-      fontSize: fontSizes.caption,
-      fontWeight: fontWeights.bold,
-      color: colors.gold,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-    },
-    listHeaderRef: {
-      width: 80,
-    },
-    listHeaderTruth: {
-      flex: 1,
-    },
+    // Lists — vertical stack on mobile (one row = pill + truth stacked).
+    // The 2-column table layout was removed because long verse-chips
+    // (e.g. "1:3, 6, 9, 11, 14, 20, 24, 26") pushed the truth column
+    // out of alignment with shorter rows.
     listRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      paddingVertical: spacing.xs,
-      gap: spacing.sm,
+      paddingVertical: spacing.sm,
+      gap: spacing.xs,
     },
     listRefPill: {
       paddingHorizontal: spacing.sm,
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      minWidth: 64,
-      alignItems: 'center',
+      // Pill hugs its content — no minWidth so single short refs stay
+      // tight. alignSelf prevents it from stretching the full row width.
+      alignSelf: 'flex-start',
     },
     listRefPillText: {
       fontSize: fontSizes.caption,
@@ -1225,7 +1209,6 @@ const createStyles = (colors: Colors) =>
       color: colors.gray900,
     },
     listTruth: {
-      flex: 1,
       fontSize: fontSizes.bodySmall,
       color: colors.textPrimary,
       lineHeight: fontSizes.bodySmall * lineHeights.body,
@@ -1290,7 +1273,12 @@ const createStyles = (colors: Colors) =>
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      marginTop: 2,
+      // marginTop nudges the badge down so its visual top aligns with the
+      // body text's first-line cap-height. With bodySmall (14) and
+      // lineHeights.body (~1.5), the line-box adds ~3.5px above the cap;
+      // matching that here keeps the badge from floating above the text
+      // — Andy's "formatting of study is a bit off on alignment" feedback.
+      marginTop: 4,
     },
     bulletTagText: {
       fontSize: fontSizes.caption,
