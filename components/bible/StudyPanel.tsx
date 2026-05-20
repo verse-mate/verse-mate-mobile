@@ -88,7 +88,7 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
       if (id in overrides) return overrides[id];
       return bulkState === 'expanded';
     },
-    [bulkState, overrides],
+    [bulkState, overrides]
   );
   const toggle = useCallback((id: string) => {
     setOverrides((prev) => {
@@ -142,8 +142,16 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
   allIds.push('observation-intro');
   for (const s of study.steps) {
     allIds.push(`step-${s.number}`);
-    if (s.kind === 'qa') s.items.forEach((_, i) => allIds.push(`step-${s.number}-qa-${i}`));
-    if (s.kind === 'lists') s.lists.forEach((_, i) => allIds.push(`step-${s.number}-list-${i}`));
+    if (s.kind === 'qa') {
+      s.items.forEach((_, i) => {
+        allIds.push(`step-${s.number}-qa-${i}`);
+      });
+    }
+    if (s.kind === 'lists') {
+      s.lists.forEach((_, i) => {
+        allIds.push(`step-${s.number}-list-${i}`);
+      });
+    }
   }
   if (study.interpretation.intro) allIds.push('interpretation-intro');
   for (const m of study.interpretation.movements) allIds.push(`mv-${m.number}`);
@@ -223,8 +231,8 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
         <Text style={styles.sectionIntro}>
           Observation asks what the text says — slowing down to mark the keywords, contrasts,
           repetitions, and structural cues the author left for you. Each of the nine steps below
-          builds the evidence the interpretation that follows is built on. Don't skip ahead; the
-          meaning comes from what you observed.
+          builds the evidence the interpretation that follows is built on. Don&apos;t skip ahead;
+          the meaning comes from what you observed.
         </Text>
       </Card>
       {study.steps.map((step) => (
@@ -265,12 +273,7 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
           styles={styles}
           testID={`${testID}-movement-${movement.number}`}
         >
-          <MovementBody
-            movement={movement}
-            colors={colors}
-            styles={styles}
-            markdownStyles={markdownStyles}
-          />
+          <MovementBody movement={movement} styles={styles} markdownStyles={markdownStyles} />
         </Card>
       ))}
 
@@ -333,15 +336,7 @@ interface StepCardProps {
   testID: string;
 }
 
-function StepCard({
-  step,
-  isOpen,
-  toggle,
-  colors,
-  styles,
-  markdownStyles,
-  testID,
-}: StepCardProps) {
+function StepCard({ step, isOpen, toggle, colors, styles, markdownStyles, testID }: StepCardProps) {
   const id = `step-${step.number}`;
   const open = isOpen(id);
   return (
@@ -378,7 +373,15 @@ interface StepBodyProps {
   testIDPrefix: string;
 }
 
-function StepBody({ step, isOpen, toggle, colors, styles, markdownStyles, testIDPrefix }: StepBodyProps) {
+function StepBody({
+  step,
+  isOpen,
+  toggle,
+  colors,
+  styles,
+  markdownStyles,
+  testIDPrefix,
+}: StepBodyProps) {
   switch (step.kind) {
     case 'prose':
       return <ProseStep step={step} markdownStyles={markdownStyles} />;
@@ -418,13 +421,7 @@ function StepBody({ step, isOpen, toggle, colors, styles, markdownStyles, testID
 
 // ─── Step-kind renderers ─────────────────────────────────────────────────
 
-function ProseStep({
-  step,
-  markdownStyles,
-}: {
-  step: StepProse;
-  markdownStyles: MarkdownStyles;
-}) {
+function ProseStep({ step, markdownStyles }: { step: StepProse; markdownStyles: MarkdownStyles }) {
   return <Markdown style={markdownStyles}>{step.body}</Markdown>;
 }
 
@@ -654,12 +651,10 @@ function SegmentsStep({
 
 function MovementBody({
   movement,
-  colors,
   styles,
   markdownStyles,
 }: {
   movement: StudyMovement;
-  colors: Colors;
   styles: Styles;
   markdownStyles: MarkdownStyles;
 }) {
@@ -667,7 +662,7 @@ function MovementBody({
     <View>
       {movement.excerpt ? (
         <View style={styles.excerptBlock}>
-          <Text style={styles.excerptText}>"{movement.excerpt}"</Text>
+          <Text style={styles.excerptText}>&quot;{movement.excerpt}&quot;</Text>
         </View>
       ) : null}
       <Markdown style={markdownStyles}>{movement.body}</Markdown>
