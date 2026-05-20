@@ -34,12 +34,14 @@ interface ChapterContentTabsProps {
 }
 
 /**
- * Tab configuration
+ * Tab configuration. Order MUST match BibleExplanationsPanel.TABS — both
+ * components share the same animation index space.
  */
 const TABS = [
   { id: 'summary' as ContentTabType, label: 'Summary' },
   { id: 'byline' as ContentTabType, label: 'By Line' },
   { id: 'detailed' as ContentTabType, label: 'Detailed' },
+  { id: 'study' as ContentTabType, label: 'Study' },
 ] as const;
 
 /**
@@ -98,16 +100,18 @@ export function ChapterContentTabs({
   // Measure container width to calculate tab positions
   const handleLayout = (event: { nativeEvent: { layout: { width: number } } }) => {
     const { width } = event.nativeEvent.layout;
-    // Each tab width = (containerWidth - padding - gaps) / 3
-    // containerWidth - 8 (padding) - 8 (2 gaps of 4px) = containerWidth - 16
-    const singleTabWidth = (width - 16) / 3;
+    // Each tab width = (containerWidth - padding - gaps) / N
+    // containerWidth - 8 (padding 4 each side) - (N-1) × 4 (gaps) for N tabs.
+    // 4 tabs: 8 + 12 = 20 subtracted; width per tab = (W - 20) / 4.
+    const singleTabWidth = (width - 20) / 4;
     setTabWidth(singleTabWidth);
   };
 
-  // Calculate translateX for sliding indicator
+  // Calculate translateX for sliding indicator. inputRange/outputRange length
+  // must equal TABS.length; each step shifts by (tabWidth + 4 gap).
   const indicatorTranslateX = slideAnim.interpolate({
-    inputRange: [0, 1, 2],
-    outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2], // Add gap (4px) between tabs
+    inputRange: [0, 1, 2, 3],
+    outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2, (tabWidth + 4) * 3],
   });
 
   return (
@@ -190,7 +194,10 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       flex: 1,
       borderRadius: 100,
       paddingVertical: 2,
-      paddingHorizontal: spacing.lg,
+      // Tight horizontal padding so 4 labels (Summary / By Line / Detailed /
+      // Study) fit on narrow phone widths without truncation. flex:1 already
+      // handles equal sizing; padding here is just for press hit area + edge.
+      paddingHorizontal: spacing.sm,
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: 28,

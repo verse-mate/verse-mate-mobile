@@ -33,8 +33,10 @@ export type {
  * - summary: High-level chapter overview
  * - byline: Verse-by-verse explanation
  * - detailed: In-depth theological analysis
+ * - study: Inductive Bible study (Hendricks OIA / Precept method) — bundled
+ *   from the @versemate/studies package, no API fetch
  */
-export type ContentTabType = 'summary' | 'byline' | 'detailed';
+export type ContentTabType = 'summary' | 'byline' | 'detailed' | 'study';
 
 /**
  * View mode type for chapter screen
@@ -209,7 +211,8 @@ export const DEFAULT_CHAPTER = 1;
  */
 export function isContentTabType(value: unknown): value is ContentTabType {
   return (
-    typeof value === 'string' && (value === 'summary' || value === 'byline' || value === 'detailed')
+    typeof value === 'string' &&
+    (value === 'summary' || value === 'byline' || value === 'detailed' || value === 'study')
   );
 }
 

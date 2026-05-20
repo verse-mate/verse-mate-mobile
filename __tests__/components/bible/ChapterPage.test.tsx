@@ -99,6 +99,13 @@ jest.mock('@/components/bible/ChapterReader', () => ({
   },
 }));
 
+jest.mock('@/components/bible/StudyPanel', () => ({
+  StudyPanel: () => {
+    const { Text } = require('react-native');
+    return <Text testID="study-panel">StudyPanel</Text>;
+  },
+}));
+
 // Mock modals to avoid complex rendering in ChapterPage tests
 jest.mock('@/components/bible/NotesModal', () => ({
   NotesModal: ({ visible }: any) => {

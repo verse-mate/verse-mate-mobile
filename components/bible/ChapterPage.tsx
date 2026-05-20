@@ -52,6 +52,7 @@ import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 import { BottomLogo } from './BottomLogo';
 import { ChapterReader } from './ChapterReader';
 import { SkeletonLoader } from './SkeletonLoader';
+import { StudyPanel } from './StudyPanel';
 import { VerseJumpButton } from './VerseJumpButton';
 
 // Styles for the overall ChapterPage component
@@ -346,6 +347,7 @@ export function ChapterPage({
   const byLineScrollRef = useRef<ScrollView>(null);
   const summaryScrollRef = useRef<ScrollView>(null);
   const detailedScrollRef = useRef<ScrollView>(null);
+  const studyScrollRef = useRef<ScrollView>(null);
 
   // Quick-verse-jump: refs to the rendered View for each By Line verse section.
   // Used with measureLayout(byLineScrollRef) to compute the scroll-to Y on tap.
@@ -998,6 +1000,34 @@ export function ChapterPage({
               handleTabContentSizeChange('detailed', h, viewportHeightRef.current)
             }
           />
+          {/* Study tab — uses bundled @versemate/studies data (no API fetch).
+              4th sibling of the TabContent instances above; hidden via the
+              same absolute-positioning trick when activeTab !== 'study'. */}
+          <ScrollView
+            ref={studyScrollRef}
+            style={[
+              styles.container,
+              activeTab !== 'study' && {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                opacity: 0,
+                zIndex: -1,
+              },
+            ]}
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={activeTab === 'study'}
+            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-study`}
+            onScroll={activeTab === 'study' ? handleScroll : undefined}
+            scrollEventThrottle={16}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            pointerEvents={activeTab === 'study' ? 'auto' : 'none'}
+          >
+            <StudyPanel bookId={bookId} chapter={chapterNumber} />
+          </ScrollView>
         </View>
       )}
 
