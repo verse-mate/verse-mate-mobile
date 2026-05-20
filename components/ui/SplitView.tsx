@@ -604,12 +604,20 @@ export function SplitView({
 
   const leftTargetButtonStyle = useAnimatedStyle(() => ({ opacity: leftTargetOpacity.value }));
   const rightTargetButtonStyle = useAnimatedStyle(() => ({ opacity: rightTargetOpacity.value }));
+  // Slide-only style for the outer container — transforms are safe to animate without
+  // breaking hit-test on web. Opacity is split into its own inner-only style below
+  // (VER-103, mirrors PR #311 / VER-46 fix in FloatingActionButtons).
   const leftEdgeTabStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: leftEdgeTabSlideAnim.value }],
-    opacity: edgeTabsOpacity.value,
   }));
   const rightEdgeTabStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: rightEdgeTabSlideAnim.value }],
+  }));
+  // Opacity-only style applied to the visual chrome *inside* the Pressable. On web,
+  // Reanimated's opacity animation on a parent suppresses pointer events on children
+  // even with pointerEvents="box-none" — keep the hit area un-animated so taps on
+  // faded edge tabs still reach the Pressable.
+  const edgeTabsOpacityStyle = useAnimatedStyle(() => ({
     opacity: edgeTabsOpacity.value,
   }));
 
@@ -660,16 +668,23 @@ export function SplitView({
           <Reanimated.View
             style={[styles.edgeTab, styles.leftEdgeTab, leftEdgeTabStyle]}
             pointerEvents={viewMode === 'right-full' ? 'box-none' : 'none'}
+            testID={`${testID}-left-edge-tab`}
           >
             <Pressable
-              style={[
-                styles.edgeTabButton,
-                styles.leftEdgeTabButton,
-                { backgroundColor: colors.backgroundElevated },
-              ]}
+              style={styles.edgeTabHitArea}
               onPress={() => onViewModeChange?.('split')}
+              testID={`${testID}-left-edge-tab-button`}
             >
-              <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
+              <Reanimated.View
+                style={[
+                  styles.edgeTabButton,
+                  styles.leftEdgeTabButton,
+                  { backgroundColor: colors.backgroundElevated },
+                  edgeTabsOpacityStyle,
+                ]}
+              >
+                <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
+              </Reanimated.View>
             </Pressable>
           </Reanimated.View>
 
@@ -743,16 +758,23 @@ export function SplitView({
           <Reanimated.View
             style={[styles.edgeTab, styles.rightEdgeTab, rightEdgeTabStyle]}
             pointerEvents={viewMode === 'left-full' ? 'box-none' : 'none'}
+            testID={`${testID}-right-edge-tab`}
           >
             <Pressable
-              style={[
-                styles.edgeTabButton,
-                styles.rightEdgeTabButton,
-                { backgroundColor: colors.backgroundElevated },
-              ]}
+              style={styles.edgeTabHitArea}
               onPress={() => onViewModeChange?.('split')}
+              testID={`${testID}-right-edge-tab-button`}
             >
-              <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+              <Reanimated.View
+                style={[
+                  styles.edgeTabButton,
+                  styles.rightEdgeTabButton,
+                  { backgroundColor: colors.backgroundElevated },
+                  edgeTabsOpacityStyle,
+                ]}
+              >
+                <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+              </Reanimated.View>
             </Pressable>
           </Reanimated.View>
         </>
@@ -869,6 +891,14 @@ function createStyles(
       paddingRight: insets.right,
       alignItems: 'flex-end', // Align button to right edge
     },
+    // Hit area for each edge tab. Same dimensions and vertical offset as the visual
+    // button, but always interactive — opacity animation lives on the inner
+    // Reanimated.View so a faded edge tab still receives taps (VER-103).
+    edgeTabHitArea: {
+      width: 32,
+      height: 64,
+      transform: [{ translateY: -80 }],
+    },
     edgeTabButton: {
       width: 32,
       height: 64,
@@ -882,8 +912,6 @@ function createStyles(
       shadowOpacity: 0.15,
       shadowRadius: 4,
       elevation: 4,
-      pointerEvents: 'box-only', // Only this element captures touches
-      transform: [{ translateY: -80 }],
     },
     leftEdgeTabButton: {
       // Half-circle glued to left edge (rounded on right side only)

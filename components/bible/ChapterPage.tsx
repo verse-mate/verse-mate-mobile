@@ -31,6 +31,7 @@ import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
+import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
@@ -38,6 +39,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
+import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
@@ -134,6 +136,7 @@ function TabContent({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors, insets.bottom); // Use local createStyles for TabContent
+  const { isOffline } = useOfflineStatus();
 
   const isHidden = !visible;
   if (isHidden && !shouldRenderHidden) return null;
@@ -180,26 +183,38 @@ function TabContent({
       onContentSizeChange={onTabContentSizeChange}
     >
       {error ? (
-        <Animated.View
-          entering={FadeIn.duration(animations.tabSwitch.duration)}
-          exiting={FadeOut.duration(animations.tabSwitch.duration)}
-          style={styles.errorContainer}
-        >
-          <Text style={styles.errorText}>Failed to load {activeTab} explanation.</Text>
-        </Animated.View>
+        isOffline ? (
+          <OfflineContentUnavailable contentType="explanation" />
+        ) : (
+          <Animated.View
+            entering={FadeIn.duration(animations.tabSwitch.duration)}
+            exiting={FadeOut.duration(animations.tabSwitch.duration)}
+            style={styles.errorContainer}
+          >
+            <Text style={styles.errorText}>Failed to load {activeTab} explanation.</Text>
+          </Animated.View>
+        )
       ) : showSkeleton ? (
         // Only show skeleton on initial load when no content exists yet
         <SkeletonLoader />
       ) : !hasContent ? (
-        <Animated.View
-          entering={FadeIn.duration(animations.tabSwitch.duration)}
-          exiting={FadeOut.duration(animations.tabSwitch.duration)}
-          style={styles.errorContainer}
-        >
-          <Text style={styles.errorText}>
-            No {activeTab} explanation available for this chapter yet.
-          </Text>
-        </Animated.View>
+        // VER-39: When offline and the explanation isn't cached locally, the
+        // remote fetch fails (or never resolves) and we'd otherwise lie that
+        // the content doesn't exist. Match BibleExplanationsPanel and surface
+        // the proper "You're offline / Manage Downloads" placeholder instead.
+        isOffline ? (
+          <OfflineContentUnavailable contentType="explanation" />
+        ) : (
+          <Animated.View
+            entering={FadeIn.duration(animations.tabSwitch.duration)}
+            exiting={FadeOut.duration(animations.tabSwitch.duration)}
+            style={styles.errorContainer}
+          >
+            <Text style={styles.errorText}>
+              No {activeTab} explanation available for this chapter yet.
+            </Text>
+          </Animated.View>
+        )
       ) : (
         <View>
           {/* TASK-017: audio entry is also mounted in BibleExplanationsPanel
@@ -395,18 +410,42 @@ export function ChapterPage({
     };
   }, [isPreloading]);
 
+  // Track explanation tab content heights for scroll syncing
+  const tabContentHeightsRef = useRef<
+    Record<string, { contentHeight: number; viewHeight: number }>
+  >({});
+
+  // VER-74: Pending scroll fractions awaiting a tab's first measurement.
+  // The previous one-shot 100ms timeout raced against staggered tab mounting
+  // (byline mounts at stage 3 / 1600ms when inactive) and against in-flight
+  // explanation fetches. We now stash the fraction here on view switch and let
+  // handleTabContentSizeChange apply it as soon as dims arrive.
+  const pendingScrollFractionRef = useRef<Record<string, number>>({});
+
   // Reset scroll state when book/chapter changes (not on view change)
   // biome-ignore lint/correctness/useExhaustiveDependencies: Ref reset should react to chapter change
   useEffect(() => {
     hasScrolledRef.current = false;
     sectionPositionsRef.current = {};
     currentScrollYRef.current = 0;
+    // VER-74: clear cross-view scroll state so a fraction or pending scroll
+    // from the previous chapter can't fire on the new one's first tab switch.
+    bibleScrollFractionRef.current = 0;
+    pendingScrollFractionRef.current = {};
 
     // Reset scroll position to top when chapter changes
     // This prevents "height teleportation" from previous chapter
     // ONLY if shouldResetScroll is true (skipped during seamless pager snaps)
     if (shouldResetScroll) {
       animatedScrollRef.current?.scrollTo({ y: 0, animated: false });
+      // VER-100: explanation tab ScrollViews preserve their own scrollTop
+      // across chapter changes (most visibly on web, where the ScrollView's
+      // DOM node persists). Reset all three so users land at verse 1 of the
+      // new chapter on By Line / Summary / Detailed — matches the split-view
+      // path in BibleExplanationsPanel.tsx.
+      summaryScrollRef.current?.scrollTo({ y: 0, animated: false });
+      byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
+      detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
     }
 
     // Close tooltip and clear timers when changing book/chapter
@@ -424,16 +463,36 @@ export function ChapterPage({
     visibleYRangeRef.current = null;
   }, [bookId, chapterNumber]);
 
-  // Track explanation tab content heights for scroll syncing
-  const tabContentHeightsRef = useRef<
-    Record<string, { contentHeight: number; viewHeight: number }>
-  >({});
+  // Stable across renders: only reads refs, never state. Wrapping in useCallback
+  // with [] keeps the effect-dep list quiet without spurious re-runs.
+  const applyPendingScroll = useCallback((tab: string) => {
+    const fraction = pendingScrollFractionRef.current[tab];
+    if (fraction == null) return;
+    const dims = tabContentHeightsRef.current[tab];
+    if (!dims || dims.contentHeight <= dims.viewHeight) return;
+
+    const targetRef =
+      tab === 'summary'
+        ? summaryScrollRef
+        : tab === 'byline'
+          ? byLineScrollRef
+          : tab === 'detailed'
+            ? detailedScrollRef
+            : null;
+    if (!targetRef) return;
+
+    const scrollableHeight = dims.contentHeight - dims.viewHeight;
+    const targetY = Math.round(fraction * scrollableHeight);
+    targetRef.current?.scrollTo({ y: targetY, animated: false });
+    delete pendingScrollFractionRef.current[tab];
+  }, []);
 
   const handleTabContentSizeChange = (tab: string, contentHeight: number, viewHeight: number) => {
     tabContentHeightsRef.current[tab] = {
       contentHeight,
       viewHeight: viewHeight || viewportHeightRef.current,
     };
+    applyPendingScroll(tab);
   };
 
   // Sync scroll position when switching from Bible to explanations view
@@ -441,28 +500,17 @@ export function ChapterPage({
     if (activeView !== 'bible') {
       hasScrolledRef.current = true;
 
-      // Sync scroll position from Bible view to the active explanation tab
       const fraction = bibleScrollFractionRef.current;
       if (fraction > 0.01) {
-        const targetRef =
-          activeTab === 'summary'
-            ? summaryScrollRef
-            : activeTab === 'byline'
-              ? byLineScrollRef
-              : detailedScrollRef;
-
-        // Small delay to allow layout after view switch
-        setTimeout(() => {
-          const dims = tabContentHeightsRef.current[activeTab];
-          if (dims && dims.contentHeight > dims.viewHeight) {
-            const scrollableHeight = dims.contentHeight - dims.viewHeight;
-            const targetY = Math.round(fraction * scrollableHeight);
-            targetRef.current?.scrollTo({ y: targetY, animated: false });
-          }
-        }, 100);
+        // Record the desired fraction for the active tab. If dims are already
+        // measured we can scroll immediately; otherwise applyPendingScroll
+        // fires from handleTabContentSizeChange when the tab finishes mounting
+        // and its content lays out.
+        pendingScrollFractionRef.current[activeTab] = fraction;
+        applyPendingScroll(activeTab);
       }
     }
-  }, [activeView, activeTab]);
+  }, [activeView, activeTab, applyPendingScroll]);
 
   // Track last scroll position and timestamp for velocity calculation
   const lastScrollY = useRef(0);
