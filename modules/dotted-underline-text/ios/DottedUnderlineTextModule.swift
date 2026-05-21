@@ -11,6 +11,9 @@ struct UnderlineRangeRecord: Record {
   @Field var style: String?
   @Field var color: UIColor?
   @Field var thickness: Double?
+  @Field var backgroundColor: UIColor?
+  @Field var fontWeight: String?
+  @Field var textColor: UIColor?
 }
 
 public class DottedUnderlineTextModule: Module {
@@ -68,8 +71,11 @@ public class DottedUnderlineTextModule: Module {
           UnderlineRangeSpec(
             start: r.start,
             end: r.end,
-            style: r.style ?? "dotted",
-            color: r.color
+            style: r.style,
+            color: r.color,
+            backgroundColor: r.backgroundColor,
+            fontWeight: r.fontWeight,
+            textColor: r.textColor
           )
         }
       }

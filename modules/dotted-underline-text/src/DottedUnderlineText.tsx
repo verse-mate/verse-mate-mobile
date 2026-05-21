@@ -54,6 +54,9 @@ export function DottedUnderlineText(props: DottedUnderlineTextProps) {
       style: r.style,
       color: r.color,
       thickness: r.thickness,
+      backgroundColor: r.backgroundColor,
+      fontWeight: r.fontWeight,
+      textColor: r.textColor,
     }));
   }, [ranges]);
 
@@ -68,17 +71,26 @@ export function DottedUnderlineText(props: DottedUnderlineTextProps) {
         if (r.start > cursor) {
           nodes.push(<Text key={`p-${cursor}`}>{resolvedText.slice(cursor, r.start)}</Text>);
         }
-        const styleForRange: TextStyle =
-          (r.style ?? underlineStyle) === 'solid' || Platform.OS !== 'ios'
-            ? {
-                textDecorationLine: 'underline',
-                textDecorationColor: r.color ?? underlineColor,
-              }
-            : {
-                textDecorationLine: 'underline',
-                textDecorationStyle: 'dotted',
-                textDecorationColor: r.color ?? underlineColor,
-              };
+        // Build the per-range fallback style. `style` may be omitted now
+        // (background-only range). On iOS we can still get the dotted
+        // pattern; Android always renders solid (RN limitation).
+        const styleForRange: TextStyle = {};
+        if (r.style) {
+          styleForRange.textDecorationLine = 'underline';
+          styleForRange.textDecorationColor = r.color ?? underlineColor;
+          if (r.style === 'dotted' && Platform.OS === 'ios') {
+            styleForRange.textDecorationStyle = 'dotted';
+          }
+        }
+        if (r.backgroundColor) {
+          styleForRange.backgroundColor = r.backgroundColor;
+        }
+        if (r.fontWeight) {
+          styleForRange.fontWeight = r.fontWeight as TextStyle['fontWeight'];
+        }
+        if (r.textColor) {
+          styleForRange.color = r.textColor;
+        }
         nodes.push(
           <Text
             key={`r-${i}-${r.start}`}

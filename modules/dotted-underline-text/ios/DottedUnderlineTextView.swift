@@ -9,8 +9,12 @@ import UIKit
 public struct UnderlineRangeSpec {
   public var start: Int
   public var end: Int
-  public var style: String
+  /// `nil` = no underline. `"dotted"` or `"solid"` when underline is desired.
+  public var style: String?
   public var color: UIColor?
+  public var backgroundColor: UIColor?
+  public var fontWeight: String?
+  public var textColor: UIColor?
 }
 
 /**
@@ -167,22 +171,23 @@ public final class DottedUnderlineTextView: ExpoView {
 
   // MARK: - Attributed string build
 
-  private func resolvedFont() -> UIFont {
-    let weight: UIFont.Weight = {
-      switch fontWeight {
-      case "100": return .ultraLight
-      case "200": return .thin
-      case "300": return .light
-      case "400", "normal", nil: return .regular
-      case "500": return .medium
-      case "600": return .semibold
-      case "700", "bold": return .bold
-      case "800": return .heavy
-      case "900": return .black
-      default: return .regular
-      }
-    }()
+  private func weightFromString(_ value: String?) -> UIFont.Weight {
+    switch value {
+    case "100": return .ultraLight
+    case "200": return .thin
+    case "300": return .light
+    case "400", "normal", nil: return .regular
+    case "500": return .medium
+    case "600": return .semibold
+    case "700", "bold": return .bold
+    case "800": return .heavy
+    case "900": return .black
+    default: return .regular
+    }
+  }
 
+  private func font(forWeight weightString: String?) -> UIFont {
+    let weight = weightFromString(weightString)
     if let family = fontFamily, !family.isEmpty,
        let descriptor = UIFont(name: family, size: fontSize)?.fontDescriptor {
       let traits: [UIFontDescriptor.TraitKey: Any] = [.weight: weight]
@@ -190,6 +195,10 @@ public final class DottedUnderlineTextView: ExpoView {
       return UIFont(descriptor: merged, size: fontSize)
     }
     return UIFont.systemFont(ofSize: fontSize, weight: weight)
+  }
+
+  private func resolvedFont() -> UIFont {
+    return font(forWeight: fontWeight)
   }
 
   private func updateAttributedText() {
@@ -220,27 +229,50 @@ public final class DottedUnderlineTextView: ExpoView {
     let mutable = NSMutableAttributedString(string: text, attributes: baseAttrs)
 
     if let rs = ranges, !rs.isEmpty {
-      // Per-range mode — add underline attributes only on the specified
-      // sub-strings. No whole-text underline in this mode.
+      // Per-range mode — apply underline + background + per-range font/color
+      // only on the specified sub-strings. No whole-text underline in this
+      // mode. A range with no `style` (nil) but a `backgroundColor` is a
+      // pure highlight; a range with both gets an underline AND a highlight.
       let nsstring = text as NSString
       for r in rs {
         let safeStart = max(0, min(r.start, nsstring.length))
         let safeEnd = max(safeStart, min(r.end, nsstring.length))
         if safeEnd <= safeStart { continue }
         let nsRange = NSRange(location: safeStart, length: safeEnd - safeStart)
-        let baseStyle = NSUnderlineStyle.single
-        let raw: Int = r.style == "dotted"
-          ? baseStyle.union(.patternDot).rawValue
-          : baseStyle.rawValue
-        var rangeAttrs: [NSAttributedString.Key: Any] = [
-          .underlineStyle: raw,
-        ]
-        if let c = r.color {
-          rangeAttrs[.underlineColor] = c
-        } else if let c = underlineColor {
-          rangeAttrs[.underlineColor] = c
+        var rangeAttrs: [NSAttributedString.Key: Any] = [:]
+
+        // Underline (optional)
+        if let style = r.style {
+          let baseStyle = NSUnderlineStyle.single
+          let raw: Int = style == "dotted"
+            ? baseStyle.union(.patternDot).rawValue
+            : baseStyle.rawValue
+          rangeAttrs[.underlineStyle] = raw
+          if let c = r.color {
+            rangeAttrs[.underlineColor] = c
+          } else if let c = underlineColor {
+            rangeAttrs[.underlineColor] = c
+          }
         }
-        mutable.addAttributes(rangeAttrs, range: nsRange)
+
+        // Background fill (highlight)
+        if let bg = r.backgroundColor {
+          rangeAttrs[.backgroundColor] = bg
+        }
+
+        // Per-range text color (e.g. theme tier brightening)
+        if let fg = r.textColor {
+          rangeAttrs[.foregroundColor] = fg
+        }
+
+        // Per-range font weight (e.g. theme tier semibold)
+        if let weight = r.fontWeight {
+          rangeAttrs[.font] = font(forWeight: weight)
+        }
+
+        if !rangeAttrs.isEmpty {
+          mutable.addAttributes(rangeAttrs, range: nsRange)
+        }
       }
     } else {
       // Whole-text mode — add a single underline attribute across the string.

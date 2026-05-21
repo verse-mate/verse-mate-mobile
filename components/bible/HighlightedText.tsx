@@ -20,6 +20,7 @@
  * @see Visual: after-selected-text-popup.png (highlighted text appearance)
  */
 
+import { DottedUnderlineText, type UnderlineRange } from '@versemate/dotted-underline-text';
 import type { AlignedToken, ChapterAlignment, LexEntry } from '@versemate/lexicon';
 import * as Haptics from 'expo-haptics';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
@@ -1098,6 +1099,223 @@ export function HighlightedText({
       </Text>
     );
   };
+
+  // ─── NATIVE RENDER PATH (option 3) ───────────────────────────────────
+  // When alignment is provided AND a lexicon tap handler is wired, render the
+  // whole verse via the @versemate/dotted-underline-text native module:
+  // one UILabel (iOS) / TextView (Android) holds the entire verse, with per-
+  // character ranges carrying lex underlines + highlight backgrounds. Gives
+  // us:
+  //   - Real CSS-style dotted underlines on BOTH iOS and Android (the RN
+  //     `textDecorationStyle: 'dotted'` was iOS-only / Android-solid).
+  //   - Native text selection (UILabel + UIMenu / TextView.setTextIsSelectable).
+  //   - Highlight backgrounds via per-range `backgroundColor`.
+  //   - Theme-tier brightening via per-range `fontWeight` + `textColor`.
+  //
+  // The legacy tokenized path below is kept verbatim as the fallback when
+  // `alignment` is null (e.g. BibleExplanationsPanel inline lex via markdown).
+  if (lexiconMode && lexiconLookups) {
+    // Build ranges + side-table for tap dispatch. Each native range entry has
+    // a parallel `rangeDispatch[]` entry that tells onRangeTap which handler
+    // to fire when that range is tapped.
+    type RangeAction =
+      | { kind: 'lex'; token: AlignedToken; entry: LexEntry; isTheme: boolean; surface: string }
+      | { kind: 'highlight'; id: number }
+      | { kind: 'autoHighlight'; data: AutoHighlight };
+    const nativeRanges: UnderlineRange[] = [];
+    const rangeDispatch: RangeAction[] = [];
+
+    // ---- 1. Lex word ranges (single + multi-word matches) --------------
+    const LEX_COLOR = '#B09A6D';
+    const LEX_THEME_COLOR = '#C7B074';
+    const THEME_WEIGHT = Platform.OS === 'ios' ? '600' : '700';
+    const verseTokens = tokenizeText(text);
+    const verseLexHits = verseTokens.map((t) => lexiconMatch(t.word));
+
+    // Try a multi-word match starting at tokens[startIdx]; greedy longest.
+    // Mirrors the logic in renderSegmentTokenized but operates on the full
+    // verse text instead of per-segment.
+    const findMultiAt = (startIdx: number) => {
+      const head = stripPunct(verseTokens[startIdx]?.word ?? '');
+      if (!head) return null;
+      const candidates = lexiconLookups.multi.get(head);
+      if (!candidates) return null;
+      // Greedy longest among candidates whose parts match starting here.
+      let bestEndIdx = -1;
+      let best: (typeof candidates)[number] | null = null;
+      for (const cand of candidates) {
+        let ok = true;
+        for (let k = 0; k < cand.parts.length; k++) {
+          const tok = verseTokens[startIdx + k];
+          if (!tok) {
+            ok = false;
+            break;
+          }
+          const tokKey = stripPunct(tok.word);
+          if (tokKey !== cand.parts[k]) {
+            ok = false;
+            break;
+          }
+          // Disallow blocking punctuation mid-phrase: trailing comma/period
+          // on a non-last token would break the visual underline.
+          if (k < cand.parts.length - 1 && /[.,;:!?]$/.test(tok.word)) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok && startIdx + cand.parts.length - 1 > bestEndIdx) {
+          bestEndIdx = startIdx + cand.parts.length - 1;
+          best = cand;
+        }
+      }
+      return best;
+    };
+
+    let i = 0;
+    while (i < verseTokens.length) {
+      const multi = findMultiAt(i);
+      if (multi) {
+        const endIdx = i + multi.parts.length - 1;
+        const startChar = verseTokens[i].startChar;
+        const endChar = verseTokens[endIdx].endChar;
+        nativeRanges.push({
+          start: startChar,
+          end: endChar,
+          style: 'dotted',
+          color: multi.isTheme ? LEX_THEME_COLOR : LEX_COLOR,
+          fontWeight: multi.isTheme ? THEME_WEIGHT : undefined,
+          textColor: multi.isTheme ? LEX_THEME_COLOR : undefined,
+        });
+        rangeDispatch.push({
+          kind: 'lex',
+          token: multi.token,
+          entry: multi.entry,
+          isTheme: multi.isTheme,
+          surface: text.slice(startChar, endChar),
+        });
+        i = endIdx + 1;
+        continue;
+      }
+      const hit = verseLexHits[i];
+      if (hit) {
+        const startChar = verseTokens[i].startChar;
+        // Strip trailing punctuation from the underline's end-char so the
+        // dotted line doesn't extend under a comma/period.
+        const tokenText = verseTokens[i].word;
+        const trailingMatch = tokenText.match(/[.,;:!?]+$/);
+        const trailingLen = trailingMatch ? trailingMatch[0].length : 0;
+        const endChar = verseTokens[i].endChar - trailingLen;
+        if (endChar > startChar) {
+          nativeRanges.push({
+            start: startChar,
+            end: endChar,
+            style: 'dotted',
+            color: hit.isTheme ? LEX_THEME_COLOR : LEX_COLOR,
+            fontWeight: hit.isTheme ? THEME_WEIGHT : undefined,
+            textColor: hit.isTheme ? LEX_THEME_COLOR : undefined,
+          });
+          rangeDispatch.push({
+            kind: 'lex',
+            token: hit.token,
+            entry: hit.entry,
+            isTheme: hit.isTheme,
+            surface: text.slice(startChar, endChar),
+          });
+        }
+      }
+      i++;
+    }
+
+    // ---- 2. Highlight ranges (user highlights + auto highlights) -------
+    // Per-verse: clamp the multi-verse highlight start/end to this verse's
+    // text bounds.
+    const verseHighlights = highlights.filter(
+      (h) => h.start_verse <= verseNumber && h.end_verse >= verseNumber
+    );
+    for (const h of verseHighlights) {
+      // Highlight type carries char-level offsets only when start_verse ===
+      // verseNumber (resp. end_verse for the end). When the highlight spans
+      // a different verse boundary on either side, use the full verse text.
+      // start_char / end_char are typed as `number | unknown` because the
+      // server returns `null` for older highlights — guard with `typeof`.
+      const rawStart =
+        h.start_verse === verseNumber && typeof h.start_char === 'number' ? h.start_char : 0;
+      const rawEnd =
+        h.end_verse === verseNumber && typeof h.end_char === 'number' ? h.end_char : text.length;
+      const clampedStart = Math.max(0, Math.min(rawStart, text.length));
+      const clampedEnd = Math.max(clampedStart, Math.min(rawEnd, text.length));
+      if (clampedEnd <= clampedStart) continue;
+      const hex = getHighlightColor(h.color, mode);
+      // Append the 35%-opacity alpha so the highlight is semi-transparent.
+      const alphaHex = Math.round(HIGHLIGHT_OPACITY * 255)
+        .toString(16)
+        .padStart(2, '0');
+      nativeRanges.push({
+        start: clampedStart,
+        end: clampedEnd,
+        backgroundColor: hex + alphaHex,
+      });
+      rangeDispatch.push({ kind: 'highlight', id: h.highlight_id });
+    }
+
+    // Auto-highlights are whole-verse only (no char-level offsets in the
+    // type), so each one spans the entire verse text.
+    const verseAutoHighlights = autoHighlights.filter(
+      (h) => h.start_verse <= verseNumber && h.end_verse >= verseNumber
+    );
+    for (const ah of verseAutoHighlights) {
+      if (text.length === 0) continue;
+      const hex = getHighlightColor(ah.theme_color, mode);
+      const alphaHex = Math.round(AUTO_HIGHLIGHT_OPACITY * 255)
+        .toString(16)
+        .padStart(2, '0');
+      nativeRanges.push({
+        start: 0,
+        end: text.length,
+        backgroundColor: hex + alphaHex,
+      });
+      rangeDispatch.push({ kind: 'autoHighlight', data: ah });
+    }
+
+    const handleNativeRangeTap = (index: number) => {
+      const action = rangeDispatch[index];
+      if (!action) return;
+      if (action.kind === 'lex') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onLexiconWordPress?.({
+          surface: action.surface,
+          token: action.token,
+          entry: action.entry,
+          isTheme: action.isTheme,
+        });
+      } else if (action.kind === 'highlight') {
+        onHighlightTap?.(action.id);
+      } else if (action.kind === 'autoHighlight') {
+        onAutoHighlightPress?.(action.data);
+      }
+    };
+
+    const handleNativePress = () => {
+      // Taps OUTSIDE any range → verse insight (matches the existing
+      // verse-tap behaviour for plain words). Native side fires this only
+      // when the tap landed off all ranges.
+      onVerseTap?.(verseNumber);
+    };
+
+    return (
+      <DottedUnderlineText
+        text={text}
+        style={style}
+        ranges={nativeRanges}
+        selectable={true}
+        onRangeTap={handleNativeRangeTap}
+        onPress={handleNativePress}
+        accessibilityLabel={text}
+        testID={`verse-text-${verseNumber}`}
+      />
+    );
+  }
+  // ─── END NATIVE RENDER PATH ──────────────────────────────────────────
 
   return (
     <Text

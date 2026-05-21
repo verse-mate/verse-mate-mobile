@@ -16,6 +16,11 @@ export type UnderlineStyle = 'dotted' | 'solid';
 export interface UnderlineRange {
   start: number;
   end: number;
+  /**
+   * Underline pattern for this range. When omitted, the range has no
+   * underline (useful when only `backgroundColor` / per-range font is set —
+   * e.g. for highlight backgrounds without decoration).
+   */
   style?: UnderlineStyle;
   color?: string;
   /** Android only — iOS ignores this (see note above). */
@@ -27,6 +32,23 @@ export interface UnderlineRange {
    * map.
    */
   isTheme?: boolean;
+  /**
+   * Per-range background fill (e.g. user highlight color). Drawn behind
+   * the text, behind the underline. Color string is parsed by the native
+   * side (hex `#RRGGBB`, `#RRGGBBAA`, or rgba()).
+   */
+  backgroundColor?: string;
+  /**
+   * Per-range font weight. Override the view-wide `fontWeight` prop on
+   * this range only — useful for `theme` tier lex words that should
+   * appear in semibold/bold within an otherwise-regular verse.
+   */
+  fontWeight?: string;
+  /**
+   * Per-range text color. Lets a single range render with a brighter /
+   * different color from the rest of the verse (e.g. theme tier).
+   */
+  textColor?: string;
 }
 
 export interface DottedUnderlineTextProps {

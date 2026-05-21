@@ -11,6 +11,9 @@ export type NativeUnderlineRange = {
   style?: 'dotted' | 'solid';
   color?: string;
   thickness?: number;
+  backgroundColor?: string;
+  fontWeight?: string;
+  textColor?: string;
 };
 
 export type NativeDottedUnderlineTextProps = {
