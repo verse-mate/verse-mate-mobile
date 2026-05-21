@@ -12,15 +12,17 @@
 
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import { useEffect, useMemo, useRef } from 'react';
-import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import {
+  Animated,
+  Dimensions,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
@@ -59,147 +61,147 @@ export function LexiconPopover({
   const screenHeight = Dimensions.get('window').height;
   const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
-  // Reanimated SharedValues — single sheet-position SV so the open/close
-  // animations AND the pan gesture all drive the same translateY. The pan
-  // gesture sets translateY directly during drag; on release it either
-  // springs back to 0 or animates out to screenHeight and fires onClose.
-  const sheetTranslateY = useSharedValue(screenHeight);
-  const backdropOpacity = useSharedValue(0);
-
-  // scrollY mirrored as a SharedValue so the worklet-based pan gesture can
-  // read the latest scroll offset without crossing the JS<->UI boundary.
-  // Updated from the ScrollView's onScroll via the UI thread (cheap).
-  const scrollY = useSharedValue(0);
+  // Animated values — same shape as VerseMateTooltip.
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(screenHeight)).current;
 
   // Internal visibility flag so we can play the close animation before the
   // Modal actually unmounts. Toggled by the visible-prop watcher below.
   const internalVisibleRef = useRef(false);
 
-  // closeRef so gesture callbacks always see the latest onClose prop without
-  // re-binding the gesture (Gesture.Pan is rebuilt each render, but a ref is
-  // still safer for the runOnJS call site).
-  const closeRef = useRef(onClose);
-  useEffect(() => {
-    closeRef.current = onClose;
-  });
-
-  const triggerClose = () => {
-    closeRef.current();
-  };
-
   const animateOpen = () => {
     internalVisibleRef.current = true;
-    backdropOpacity.value = withTiming(1, { duration: 200 });
-    sheetTranslateY.value = withSpring(0, { damping: 20, stiffness: 90 });
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      // Plain timing on open — Andy reported the previous spring made the
+      // modal feel jittery / bounce-on-open. Straight slide-up matches the
+      // verse-insight modal.
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
-  const animateClose = () => {
-    backdropOpacity.value = withTiming(0, { duration: 250 });
-    sheetTranslateY.value = withSpring(screenHeight, {
-      damping: 20,
-      stiffness: 90,
-      overshootClamping: true,
-    });
+  const animateClose = (cb?: () => void) => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: screenHeight,
+        useNativeDriver: true,
+        damping: 20,
+        stiffness: 90,
+        overshootClamping: true,
+        restDisplacementThreshold: 40,
+        restSpeedThreshold: 40,
+      }),
+    ]).start();
     setTimeout(() => {
       internalVisibleRef.current = false;
+      cb?.();
     }, 150);
   };
 
   // Drive animations off the `visible` prop. Open on mount, close on
   // visible → false. The close path calls onClose synchronously so the
   // parent (ChapterReader) can clear its activeLexicon state.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: animateOpen/animateClose/sheetTranslateY/backdropOpacity/screenHeight are stable refs and closure-captured constants
+  // biome-ignore lint/correctness/useExhaustiveDependencies: animateOpen/animateClose/slideAnim/backdropOpacity/screenHeight are stable refs and closure-captured constants
   useEffect(() => {
     if (visible) {
-      sheetTranslateY.value = screenHeight;
-      backdropOpacity.value = 0;
+      slideAnim.setValue(screenHeight);
+      backdropOpacity.setValue(0);
       animateOpen();
     } else if (internalVisibleRef.current) {
       animateClose();
     }
   }, [visible]);
 
-  // ─── Gesture composition ─────────────────────────────────────────────
+  // PanResponder for swipe-to-dismiss from anywhere on the sheet.
   //
-  // Problem we're solving: when the user swipes down inside the ScrollView
-  // body, the ScrollView's native gesture grabs the touch first and the
-  // outer PanResponder never fires. RNGH v2 fixes this with
-  // `Gesture.Native()` (the ScrollView's native pan, represented as an RNGH
-  // gesture) composed with our Pan via `simultaneousWithExternalGesture`.
-  // Both gestures activate together; our Pan only translates the sheet
-  // when scroll is at the top + drag direction is downward, so normal
-  // scrolling still works.
+  // Two gesture cooperations:
+  //   - Drag from the always-on region (handle + header) → captures
+  //     immediately, no scroll-position check (no scrollable content to
+  //     fight in that strip anyway).
+  //   - Drag from the ScrollView body → only captures when the scroll is
+  //     at the top AND the user is dragging DOWN, so normal scrolling
+  //     works for the rest of the time.
   //
-  // Activation thresholds (worklet-side):
-  //   dy > 5 AND |dy| > |dx| * 1.2 AND scrollY <= 0 → drag the sheet
-  // Release thresholds:
-  //   dy > 100 OR velocityY > 600 → dismiss
-  //   otherwise → spring back to 0
-  //
-  // The handle (4×40 grey pill at the very top) gets its OWN Pan gesture
-  // without the scrollY check so the user can always grab it to dismiss.
-
-  const scrollNativeGesture = Gesture.Native();
-
-  const bodyPanGesture = Gesture.Pan()
-    .activeOffsetY(5)
-    .failOffsetX([-15, 15])
-    .onUpdate((e) => {
-      'worklet';
-      if (e.translationY > 0 && scrollY.value <= 0) {
-        sheetTranslateY.value = e.translationY;
-      }
+  // Thresholds: we capture at `dy > 3` (instead of 5) and dismiss at
+  // `dy > 50` (instead of 70). Andy reported the previous values made
+  // the sheet feel like you had to "grip the top to swipe it away" —
+  // smaller-feeling thresholds restore the expected iOS-sheet feel.
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
+  const scrollYRef = useRef(0);
+  const panResponder = useRef(
+    PanResponder.create({
+      // Capture phase — fires BEFORE children (the ScrollView) receive
+      // touch events. We only return true (and steal the gesture from
+      // the ScrollView) when the user is at the top of scrollable
+      // content AND drags downward, so normal scrolling is unaffected.
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponderCapture: (_, g) => {
+        const isVerticalDown = g.dy > 3 && Math.abs(g.dy) > Math.abs(g.dx);
+        const atTop = scrollYRef.current <= 0;
+        return isVerticalDown && atTop;
+      },
+      onPanResponderMove: (_, g) => {
+        if (g.dy > 0) slideAnim.setValue(g.dy);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 50) {
+          closeRef.current();
+        } else if (g.dy > 0) {
+          // Snap-back uses plain timing (not spring) to match the
+          // bounce-less open animation Andy asked for.
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 150,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+      onPanResponderTerminationRequest: () => false,
     })
-    .onEnd((e) => {
-      'worklet';
-      if (e.translationY > 100 || e.velocityY > 600) {
-        sheetTranslateY.value = withSpring(screenHeight, {
-          damping: 20,
-          stiffness: 90,
-          overshootClamping: true,
-        });
-        backdropOpacity.value = withTiming(0, { duration: 200 });
-        runOnJS(triggerClose)();
-      } else {
-        sheetTranslateY.value = withSpring(0, { damping: 20, stiffness: 90 });
-      }
+  ).current;
+
+  // Dedicated pan responder for the always-on drag region (handle + header)
+  // — bypasses the scroll-at-top check so the user can always drag the
+  // modal down by grabbing the handle OR anywhere in the lemma/meta header.
+  const handlePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 3,
+      onPanResponderMove: (_, g) => {
+        if (g.dy > 0) slideAnim.setValue(g.dy);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > 50) {
+          closeRef.current();
+        } else if (g.dy > 0) {
+          // Snap-back uses plain timing (not spring) to match the
+          // bounce-less open animation Andy asked for.
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 150,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+      onPanResponderTerminationRequest: () => false,
     })
-    .simultaneousWithExternalGesture(scrollNativeGesture);
-
-  // Handle + header drag region: always-on, no scrollY check. Same
-  // dismiss/snap behavior as bodyPanGesture but it never has to fight a
-  // ScrollView, so no simultaneous composition needed.
-  const headerPanGesture = Gesture.Pan()
-    .activeOffsetY(5)
-    .failOffsetX([-15, 15])
-    .onUpdate((e) => {
-      'worklet';
-      if (e.translationY > 0) {
-        sheetTranslateY.value = e.translationY;
-      }
-    })
-    .onEnd((e) => {
-      'worklet';
-      if (e.translationY > 100 || e.velocityY > 600) {
-        sheetTranslateY.value = withSpring(screenHeight, {
-          damping: 20,
-          stiffness: 90,
-          overshootClamping: true,
-        });
-        backdropOpacity.value = withTiming(0, { duration: 200 });
-        runOnJS(triggerClose)();
-      } else {
-        sheetTranslateY.value = withSpring(0, { damping: 20, stiffness: 90 });
-      }
-    });
-
-  const sheetAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: sheetTranslateY.value }],
-  }));
-
-  const backdropAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: backdropOpacity.value,
-  }));
+  ).current;
 
   const contextual = token.contextual;
   const lemmaIsHebrew = isHebrew(entry.lemma);
@@ -214,131 +216,130 @@ export function LexiconPopover({
     >
       <View style={styles.overlay} pointerEvents="box-none" testID={testID}>
         {/* Backdrop with fade */}
-        <Animated.View style={[styles.backdrop, backdropAnimatedStyle]} pointerEvents="auto">
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} pointerEvents="auto">
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
 
-        {/* Sliding sheet — the inner ScrollView is wrapped in a composed
-            Gesture.Simultaneous(bodyPan, scrollNative) so swipe-down at the
-            top of scroll dismisses the sheet, but normal scrolling works
-            everywhere else. The handle + header use their own headerPan
-            gesture (no scroll-at-top check). */}
-        <Animated.View style={[styles.sheet, sheetAnimatedStyle]} pointerEvents="auto">
+        {/* Sliding sheet — pan responder wraps the whole sheet so swipe-down
+            from any point dismisses (subject to scroll-at-top check). */}
+        <Animated.View
+          style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
+          pointerEvents="auto"
+          {...panResponder.panHandlers}
+        >
           {/* Always-on drag region: handle + header. Anywhere in this strip
               the user can pull down to dismiss without needing the
-              scroll-position check the body uses. */}
-          <GestureDetector gesture={headerPanGesture}>
-            <View>
-              <View style={styles.dragArea}>
-                <View style={styles.handle} />
-              </View>
+              scroll-position check the body uses. Andy's TF feedback was
+              that you "had to grip the top" — expanding this region to
+              include the lemma + meta lines fixes that. */}
+          <View {...handlePanResponder.panHandlers}>
+            <View style={styles.dragArea}>
+              <View style={styles.handle} />
+            </View>
 
-              {/* HEADER */}
-              <View style={styles.header} testID={`${testID}-header`}>
-                <View style={styles.headerRow}>
-                  <Text
-                    style={[styles.lemma, lemmaIsHebrew && styles.lemmaRtl]}
-                    accessibilityRole="header"
-                  >
-                    {entry.lemma}
-                  </Text>
-                  <Text style={styles.translit}>{entry.translit}</Text>
+            {/* HEADER */}
+            <View style={styles.header} testID={`${testID}-header`}>
+              <View style={styles.headerRow}>
+                <Text
+                  style={[styles.lemma, lemmaIsHebrew && styles.lemmaRtl]}
+                  accessibilityRole="header"
+                >
+                  {entry.lemma}
+                </Text>
+                <Text style={styles.translit}>{entry.translit}</Text>
+              </View>
+              <Text style={styles.metaLine}>
+                {entry.pos} • {entry.strongs}
+                {entry.pronunciation ? ` • ${entry.pronunciation}` : ''}
+                {typeof entry.otFrequency === 'number' && entry.otFrequency > 0
+                  ? ` • ${entry.otFrequency}× in OT`
+                  : ''}
+                {typeof entry.ntFrequency === 'number' && entry.ntFrequency > 0
+                  ? ` • ${entry.ntFrequency}× in NT`
+                  : ''}
+              </Text>
+            </View>
+          </View>
+
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={(e) => {
+              scrollYRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
+          >
+            {/* IN THIS VERSE (Layer 2 — contextual gloss) */}
+            {contextual ? (
+              <Section
+                label="In this verse"
+                highlight
+                styles={styles}
+                testID={`${testID}-contextual`}
+              >
+                <Text style={styles.bodyText}>{contextual}</Text>
+              </Section>
+            ) : null}
+
+            {/* BASIC SENSE */}
+            <Section label="Basic sense" styles={styles} testID={`${testID}-basic`}>
+              <Text style={styles.bodyText}>{entry.basicGloss}</Text>
+            </Section>
+
+            {/* SEMANTIC RANGE */}
+            {entry.semanticRange && entry.semanticRange.length > 0 ? (
+              <Section label="Semantic range" styles={styles} testID={`${testID}-range`}>
+                <View style={styles.listWrap}>
+                  {entry.semanticRange.map((s) => (
+                    <View key={s} style={styles.listRow}>
+                      <Text style={styles.listBullet}>•</Text>
+                      <Text style={styles.listText}>{s}</Text>
+                    </View>
+                  ))}
                 </View>
-                <Text style={styles.metaLine}>
-                  {entry.pos} • {entry.strongs}
-                  {entry.pronunciation ? ` • ${entry.pronunciation}` : ''}
-                  {typeof entry.otFrequency === 'number' && entry.otFrequency > 0
-                    ? ` • ${entry.otFrequency}× in OT`
-                    : ''}
-                  {typeof entry.ntFrequency === 'number' && entry.ntFrequency > 0
-                    ? ` • ${entry.ntFrequency}× in NT`
-                    : ''}
+              </Section>
+            ) : null}
+
+            {/* RELATED WORDS */}
+            {entry.related && entry.related.length > 0 ? (
+              <Section label="Related" styles={styles} testID={`${testID}-related`}>
+                <View style={styles.relatedWrap}>
+                  {entry.related.map((r, i) => {
+                    const rIsHebrew = isHebrew(r.lemma);
+                    return (
+                      <View key={`${r.lemma}-${i}`} style={styles.relatedItem}>
+                        <View style={styles.relatedHeadRow}>
+                          <Text style={[styles.relatedLemma, rIsHebrew && styles.lemmaRtl]}>
+                            {r.lemma}
+                          </Text>
+                          <Text style={styles.relatedTranslit}>{r.translit}</Text>
+                        </View>
+                        <Text style={styles.relatedNote}>{r.note}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </Section>
+            ) : null}
+
+            {/* LEXICAL NOTE */}
+            {entry.notes ? (
+              <Section label="Lexical note" styles={styles} testID={`${testID}-notes`}>
+                <Text style={styles.notesText}>{entry.notes}</Text>
+              </Section>
+            ) : null}
+
+            {/* LOADED CAVEAT — no border, last row */}
+            {entry.loaded ? (
+              <View style={styles.caveatBlock} testID={`${testID}-loaded`}>
+                <Text style={styles.caveatText}>
+                  Context-sensitive: this word carries multiple senses across the NT. Meaning is
+                  governed by usage, not a single gloss.
                 </Text>
               </View>
-            </View>
-          </GestureDetector>
-
-          <GestureDetector gesture={Gesture.Simultaneous(bodyPanGesture, scrollNativeGesture)}>
-            <ScrollView
-              style={styles.scroll}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              onScroll={(e) => {
-                scrollY.value = e.nativeEvent.contentOffset.y;
-              }}
-              scrollEventThrottle={16}
-            >
-              {/* IN THIS VERSE (Layer 2 — contextual gloss) */}
-              {contextual ? (
-                <Section
-                  label="In this verse"
-                  highlight
-                  styles={styles}
-                  testID={`${testID}-contextual`}
-                >
-                  <Text style={styles.bodyText}>{contextual}</Text>
-                </Section>
-              ) : null}
-
-              {/* BASIC SENSE */}
-              <Section label="Basic sense" styles={styles} testID={`${testID}-basic`}>
-                <Text style={styles.bodyText}>{entry.basicGloss}</Text>
-              </Section>
-
-              {/* SEMANTIC RANGE */}
-              {entry.semanticRange && entry.semanticRange.length > 0 ? (
-                <Section label="Semantic range" styles={styles} testID={`${testID}-range`}>
-                  <View style={styles.listWrap}>
-                    {entry.semanticRange.map((s) => (
-                      <View key={s} style={styles.listRow}>
-                        <Text style={styles.listBullet}>•</Text>
-                        <Text style={styles.listText}>{s}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </Section>
-              ) : null}
-
-              {/* RELATED WORDS */}
-              {entry.related && entry.related.length > 0 ? (
-                <Section label="Related" styles={styles} testID={`${testID}-related`}>
-                  <View style={styles.relatedWrap}>
-                    {entry.related.map((r, i) => {
-                      const rIsHebrew = isHebrew(r.lemma);
-                      return (
-                        <View key={`${r.lemma}-${i}`} style={styles.relatedItem}>
-                          <View style={styles.relatedHeadRow}>
-                            <Text style={[styles.relatedLemma, rIsHebrew && styles.lemmaRtl]}>
-                              {r.lemma}
-                            </Text>
-                            <Text style={styles.relatedTranslit}>{r.translit}</Text>
-                          </View>
-                          <Text style={styles.relatedNote}>{r.note}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </Section>
-              ) : null}
-
-              {/* LEXICAL NOTE */}
-              {entry.notes ? (
-                <Section label="Lexical note" styles={styles} testID={`${testID}-notes`}>
-                  <Text style={styles.notesText}>{entry.notes}</Text>
-                </Section>
-              ) : null}
-
-              {/* LOADED CAVEAT — no border, last row */}
-              {entry.loaded ? (
-                <View style={styles.caveatBlock} testID={`${testID}-loaded`}>
-                  <Text style={styles.caveatText}>
-                    Context-sensitive: this word carries multiple senses across the NT. Meaning is
-                    governed by usage, not a single gloss.
-                  </Text>
-                </View>
-              ) : null}
-            </ScrollView>
-          </GestureDetector>
+            ) : null}
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>
