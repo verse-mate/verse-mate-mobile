@@ -166,5 +166,25 @@
     "error": "Something went wrong",
     "error_title": "Error",
     "unknown_error": "Unknown error"
+  },
+
+  "names_of_god": {
+    "title": "Names of God",
+    "testament_ot": "Old Testament",
+    "testament_nt": "New Testament",
+    "testament_both": "Both Testaments",
+    "verses_count": "{{count}} verses",
+    "page_label": "Page {{current}} of {{total}}",
+    "previous_page": "Previous page",
+    "next_page": "Next page",
+    "loading_verses": "Loading verses…",
+    "verse_error": "Couldn't load verse text",
+    "error_name_not_found": "Name not found",
+    "error_name_not_found_detail": "This name could not be found in the dataset.",
+    "go_back": "Go back",
+    "language_hebrew": "Hebrew",
+    "language_greek": "Greek",
+    "language_aramaic": "Aramaic",
+    "language_english": "English"
   }
 }
