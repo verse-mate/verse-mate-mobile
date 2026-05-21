@@ -1,0 +1,85 @@
+appId: org.versemate.app
+tags:
+  - regression
+  - swipe-debug
+env:
+  TARGET_BOOK: Genesis
+  TARGET_CHAPTER: '1'
+---
+# swipe-debug-flow.yaml
+#
+# Reproduces the three swipe bugs Andy reported (chapter skipping,
+# scroll-teleport, brief wrong-chapter flash) while capturing the
+# instrumented [SWIPE-DBG] logs from `adb logcat`.
+#
+# Companion: run `adb logcat -c && adb logcat -s ReactNativeJS:V > /tmp/swipe.log &`
+# BEFORE this flow, then `pkill adb logcat` after, then read the log to see the
+# event sequence per phase.
+
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- takeScreenshot: 01-app-launched
+
+# Navigate to Genesis 1 if we're not already there. The chapter screen
+# is reached via the home → Bible → Genesis → chapter 1 path.
+- runFlow:
+    when:
+      visible: 'Get Started'
+    commands:
+      - tapOn: 'Get Started'
+
+# Open the chapter selector and ensure we're on Genesis 1
+- runFlow:
+    when:
+      visible:
+        id: 'chapter-header-dropdown'
+    commands:
+      - tapOn:
+          id: 'chapter-header-dropdown'
+      - tapOn: 'Genesis'
+      - tapOn: '1'
+
+- waitForAnimationToEnd: 2000
+- takeScreenshot: 02-genesis-1-loaded
+
+# ─── Bug A: rapid double swipe → expect chapter 3, not skip to 4 ──────
+- evalScript: 'output.phase = "A_rapid_double_swipe_start"'
+- swipe:
+    start: 80%, 50%
+    end: 20%, 50%
+    duration: 200
+- swipe:
+    start: 80%, 50%
+    end: 20%, 50%
+    duration: 200
+- waitForAnimationToEnd: 3000
+- takeScreenshot: 03-after-rapid-double-swipe
+- evalScript: 'output.phase = "A_rapid_double_swipe_end"'
+
+# ─── Bug B: swipe → immediate vertical scroll → check for teleport ────
+- evalScript: 'output.phase = "B_swipe_then_scroll_start"'
+- swipe:
+    start: 80%, 50%
+    end: 20%, 50%
+    duration: 250
+- swipe:
+    start: 50%, 75%
+    end: 50%, 25%
+    duration: 250
+- waitForAnimationToEnd: 2000
+- takeScreenshot: 04-after-swipe-then-scroll
+- evalScript: 'output.phase = "B_swipe_then_scroll_end"'
+
+# ─── Bug C: swipe back, watch the dropdown for ghost flash ────────────
+- evalScript: 'output.phase = "C_swipe_back_start"'
+- swipe:
+    start: 20%, 50%
+    end: 80%, 50%
+    duration: 300
+- waitForAnimationToEnd: 1500
+- takeScreenshot: 05-after-swipe-back
+- evalScript: 'output.phase = "C_swipe_back_end"'
+
+# Final state — confirm the dropdown shows the expected chapter
+- takeScreenshot: 06-final-state

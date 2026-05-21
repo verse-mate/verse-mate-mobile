@@ -19,7 +19,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -110,6 +110,14 @@ export default function ChapterScreen() {
     totalChapters,
     chapterCount,
   } = useChapterState();
+
+  // Defer the chapter passed to the pager so its expensive remount + ChapterPage layout
+  // runs at lower React priority. The header reads the urgent value and updates within
+  // one fast commit; the pager catches up in a background render. The user doesn't see
+  // the pager lag because the native swipe animation already moved it to the next
+  // chapter's content before navFire ever fired.
+  const deferredBookId = useDeferredValue(bookId);
+  const deferredChapterNumber = useDeferredValue(chapterNumber);
 
   // Extract verse/tab params (not managed by useChapterState)
   const params = useLocalSearchParams<{
@@ -590,10 +598,12 @@ export default function ChapterScreen() {
               />
             </View>
 
-            {/* SimpleChapterPager - V3 3-page window with linear navigation */}
+            {/* SimpleChapterPager - V3 3-page window with linear navigation.
+                Uses deferred chapter so the heavy pager re-render (pages-array swap +
+                ChapterPage commits) doesn't block the urgent header update commit. */}
             <SimpleChapterPager
-              bookId={bookId}
-              chapterNumber={chapterNumber}
+              bookId={deferredBookId}
+              chapterNumber={deferredChapterNumber}
               bookName={bookName}
               booksMetadata={booksMetadata}
               onChapterChange={handlePageChange}
