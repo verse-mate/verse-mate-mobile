@@ -27,6 +27,7 @@ import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
+  Platform,
   StyleSheet,
   Text,
   type TextLayoutEventData,
@@ -1086,31 +1087,68 @@ const selectionStyles = StyleSheet.create({
 /**
  * Styles for lexicon-covered words.
  *
- * Two-tier underline matching the web's distinction:
- *   - `theme`   — significant/spine words for the chapter. Solid gold
- *     underline + heavier font weight. Reads as the "thick" tier.
- *   - `regular` — every other lex-covered word. Dotted gold underline
- *     (iOS) — reads as the "thin/light" tier. Andy's TF feedback was
- *     that mobile rendered both tiers identically; this restores the
- *     thick-vs-thin parity from web.
+ * Two-tier visual distinction matching the web:
+ *   - `regular` — most lex-covered words. Hairline dotted gold underline.
+ *     Reads as "more info here if you want it" without competing.
+ *   - `theme`   — chapter spine words (2-3 per chapter). Web uses the
+ *     same dotted style, just thicker + brighter color. Mobile can't
+ *     change underline thickness, so we lean on fontWeight + a brighter
+ *     color to carry that distinction.
  *
- * Platform note: `textDecorationStyle: 'dotted'` is iOS-only at the RN
- * inline-text level. On Android it silently falls back to solid, which
- * still leaves a visible distinction (theme keeps fontWeight 500) but
- * loses the dot pattern. A custom SVG-based dotted underline for
- * Android remains a follow-up.
+ * Cross-platform reality (verified against RN 0.81.5 sources at
+ * ReactAndroid/.../TextAttributeProps.java line 206): on Android the
+ * `textDecorationStyle` and `textDecorationColor` cases in the prop
+ * dispatch are no-ops. Android renders ALL `textDecorationLine:
+ * 'underline'` text as the default solid, system-colored underline,
+ * regardless of what we pass. iOS honors both props correctly.
+ *
+ * Consequence: on Android we lose the "dotted" dot pattern AND the
+ * gold tint. Both tiers appear as plain underlined text. The only
+ * cross-platform signal we have is `fontWeight`, so theme bumps to
+ * 700 on Android (vs 600 on iOS) to keep the tier readable.
+ *
+ * True dotted parity on Android requires either custom inline SVG
+ * underlines per-word (breaks line wrapping, needs onLayout per token)
+ * or a full-SVG text renderer (loses native selection + a11y). Both
+ * are out of scope for this pass — captured as TODO below.
  */
 const LEX_UNDERLINE = '#B09A6D';
+const LEX_UNDERLINE_THEME = '#C7B074';
 const lexiconWordStyles = StyleSheet.create({
   regular: {
     textDecorationLine: 'underline',
-    textDecorationStyle: 'dotted', // iOS: real dots; Android: falls back to solid
-    textDecorationColor: LEX_UNDERLINE,
+    // iOS-only props — Android no-ops these, so they don't hurt cross-platform.
+    ...Platform.select({
+      ios: {
+        textDecorationStyle: 'dotted' as const,
+        textDecorationColor: LEX_UNDERLINE,
+      },
+      default: {},
+    }),
   },
   theme: {
     textDecorationLine: 'underline',
-    textDecorationStyle: 'solid', // continuous line — the "thick" tier
-    textDecorationColor: LEX_UNDERLINE,
-    fontWeight: '600',
+    fontWeight: Platform.OS === 'ios' ? '600' : '700',
+    ...Platform.select({
+      ios: {
+        // Web uses dotted for BOTH tiers — match that on iOS where we can.
+        // Brighter color + heavier weight carry the "thick tier" feel.
+        textDecorationStyle: 'dotted' as const,
+        textDecorationColor: LEX_UNDERLINE_THEME,
+      },
+      default: {},
+    }),
   },
 });
+// TODO(VER-mobile-lex-dotted-android): real dotted underlines on Android
+// require inline SVG per word with onLayout measurement, or a Skia/SVG
+// text renderer (losing native text selection + a11y). Track separately.
+// TODO(VER-mobile-lex-coverage-gap): mobile's `lexiconMatch` is single-word
+// only (it tokenizes on whitespace and looks up the cleaned word in a
+// Map). The web (`verse-mate-web/src/components/TokenizedVerse.tsx`) does
+// a greedy longest-match scan over `alignment.verses[verseNumber]`, so
+// multi-word surfaces like "double-minded" or any multi-token entry get
+// underlined on web but not on mobile. Aligning mobile with the web's
+// scan-based tokenizer is non-trivial because the current per-word
+// tokens are also load-bearing for char-position-based highlights and
+// long-press word selection. Track separately.
