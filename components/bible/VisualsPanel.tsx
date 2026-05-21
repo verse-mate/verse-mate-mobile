@@ -13,11 +13,13 @@
  *
  * Mirrors the web app's VisualsPanel.tsx — same content, ported to React
  * Native primitives (View / Text / StyleSheet / expo-image) instead of
- * the DOM. Image taps open a full-screen lightbox modal that unlocks
- * orientation so wide visuals can be rotated to landscape. The
- * BibleProject video card uses an inline YouTube WebView so playback
- * happens in-place (added 2026-05-21 from Andy's TF feedback, replacing
- * the previous `Linking.openURL` → YouTube app handoff).
+ * the DOM. Image taps open a full-screen lightbox modal whose chrome
+ * respects safe-area insets, supports pinch/double-tap zoom + pan via
+ * react-native-gesture-handler, and auto-hides the top/bottom bars after
+ * 3s of inactivity. The BibleProject video card swaps its thumbnail for
+ * an inline react-native-webview embed of the YouTube IFrame Player so
+ * playback stays inside verse-mate rather than handing off to the
+ * YouTube app — addressing Andy's TF feedback.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -32,13 +34,37 @@ import {
 } from '@versemate/visuals';
 import { Image } from 'expo-image';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Linking,
+  Modal,
+  Pressable,
+  Image as RNImage,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import { getBookSlug } from '@/utils/bookSlugs';
+
+// expo-image's `Image` is fine for static use, but it does not always
+// compose cleanly with reanimated's `useAnimatedStyle` (the prop merge
+// path differs between SDKs). Use RN's `Animated.Image` wrapped with
+// reanimated's createAnimatedComponent against the RN `Image`, which is
+// well-supported. The visual result is identical for our PNG/JPEG
+// visuals — expo-image's blurhash/disk cache wins don't apply once the
+// image is in the lightbox.
+const AnimatedImage = Reanimated.createAnimatedComponent(RNImage);
+
+// How long the lightbox chrome (top bar + attribution) stays visible
+// after the user interacts before fading away.
+const CHROME_AUTO_HIDE_MS = 3000;
 
 export interface VisualsPanelProps {
   /** Book ID (1-66). */
@@ -87,26 +113,25 @@ export function VisualsPanel({
   const openCard = cards.find((c) => c.id === openCardId) ?? null;
   const closeLightbox = useCallback(() => setOpenCardId(null), []);
 
-  // Inline-playback state for the BibleProject video card. When false,
-  // we show the original thumbnail + play-button pressable; when true,
-  // we render a WebView with the YouTube embed URL so playback happens
-  // in-place (Andy's TF feedback was that opening the YouTube app or
-  // bibleproject.com/videos/<book>/ broke the reading flow).
+  // Inline-playback state for the BibleProject video card. Andy's TF
+  // feedback was "can it play in place vs open the YouTube app?" — the
+  // answer is yes, via react-native-webview embedding the YouTube
+  // IFrame Player.
   const [videoPlaying, setVideoPlaying] = useState(false);
   const handleVideoPress = useCallback(() => {
     if (!video) return;
     setVideoPlaying(true);
   }, [video]);
-  // Reset playback state when the user navigates to a different chapter —
-  // a new chapter may have a different (or no) video.
+  // Reset playback state on chapter change — a new chapter may have a
+  // different (or no) video.
   useEffect(() => {
     setVideoPlaying(false);
   }, [bookId, chapter]);
 
   // Bug #8 — unlock orientation while the fullscreen lightbox is open so
-  // Andy can rotate the device to landscape for wide visuals (Genesis
-  // chart etc.). Re-lock to portrait when the lightbox closes or the
-  // component unmounts so the rest of the app behaves as before.
+  // wide visuals can be rotated to landscape. Re-lock to portrait when
+  // the lightbox closes or the component unmounts so the rest of the app
+  // behaves as before.
   useEffect(() => {
     if (openCard) {
       ScreenOrientation.unlockAsync().catch(() => {});
@@ -117,6 +142,193 @@ export function VisualsPanel({
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     };
   }, [openCard]);
+
+  // ─── Bug #8 — pinch/zoom + pan SharedValues for the lightbox image ───
+  // Held at module-scope-equivalent (component scope) so the same animated
+  // style is reused across re-renders without re-creating the gesture.
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  // ─── Bug #8 part 2 — chrome auto-hide ────────────────────────────────
+  // RN Animated.Value for opacity so we can drive both bars from one
+  // value. Could be a SharedValue too, but RN Animated.timing is
+  // sufficient and avoids mixing animation libraries on the same node.
+  const chromeOpacity = useRef(new Animated.Value(1)).current;
+  const chromeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showChrome = useCallback(() => {
+    Animated.timing(chromeOpacity, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+    if (chromeTimeoutRef.current) {
+      clearTimeout(chromeTimeoutRef.current);
+    }
+    chromeTimeoutRef.current = setTimeout(() => {
+      Animated.timing(chromeOpacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }, CHROME_AUTO_HIDE_MS);
+  }, [chromeOpacity]);
+
+  // Reset zoom + chrome whenever the lightbox opens (or switches cards).
+  // Closing the lightbox also clears any pending hide-timer.
+  useEffect(() => {
+    if (openCard) {
+      scale.value = 1;
+      savedScale.value = 1;
+      translateX.value = 0;
+      translateY.value = 0;
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+      showChrome();
+    } else {
+      if (chromeTimeoutRef.current) {
+        clearTimeout(chromeTimeoutRef.current);
+        chromeTimeoutRef.current = null;
+      }
+      // Snap chrome back to visible so the next open starts fresh; the
+      // open-effect above will kick off another auto-hide cycle.
+      chromeOpacity.setValue(1);
+    }
+    return () => {
+      if (chromeTimeoutRef.current) {
+        clearTimeout(chromeTimeoutRef.current);
+        chromeTimeoutRef.current = null;
+      }
+    };
+  }, [
+    openCard,
+    showChrome,
+    chromeOpacity,
+    scale,
+    savedScale,
+    translateX,
+    translateY,
+    savedTranslateX,
+    savedTranslateY,
+  ]);
+
+  // ─── Gestures ────────────────────────────────────────────────────────
+  // Min/max zoom — 1 = fit, 6 = "I want to read this tiny label" deep
+  // zoom. Reanimated worklets run on the UI thread, so the clamp must be
+  // expressed inline (no JS-side Math.min closure).
+  const MIN_SCALE = 1;
+  const MAX_SCALE = 6;
+
+  const pinch = Gesture.Pinch()
+    .onStart(() => {
+      savedScale.value = scale.value;
+    })
+    .onUpdate((e) => {
+      const next = savedScale.value * e.scale;
+      scale.value = Math.min(Math.max(next, MIN_SCALE), MAX_SCALE);
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      // If the user pinched back to ~1, snap translations to 0 too so the
+      // next double-tap re-zooms from center.
+      if (scale.value <= MIN_SCALE + 0.01) {
+        translateX.value = withTiming(0, { duration: 180 });
+        translateY.value = withTiming(0, { duration: 180 });
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      }
+    });
+
+  // Pan only meaningfully applies once zoomed in — at scale 1 a
+  // vertical swipe should still feel "calm" and not move the image.
+  // Gesture.Enabled toggling would require imperative work; instead we
+  // gate the update inside onUpdate so the gesture is always recognized
+  // but is a no-op at scale 1. Translation is clamped so the image edge
+  // can't be dragged fully off-screen.
+  const pan = Gesture.Pan()
+    .minPointers(1)
+    .maxPointers(1)
+    .onStart(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      if (scale.value <= MIN_SCALE) return;
+      // Allow movement up to (scale - 1) * half-viewport in each axis.
+      // We don't know the exact image dimensions on the worklet thread,
+      // so we use a generous viewport-derived bound — the user can still
+      // see edges, just not fling the image into the void.
+      const maxOffset = (scale.value - 1) * 400; // ~half a 800px-tall viewport
+      const nextX = savedTranslateX.value + e.translationX;
+      const nextY = savedTranslateY.value + e.translationY;
+      translateX.value = Math.min(Math.max(nextX, -maxOffset), maxOffset);
+      translateY.value = Math.min(Math.max(nextY, -maxOffset), maxOffset);
+    });
+
+  // Double-tap: toggle between fit (1) and a meaningful zoom (2.5).
+  // We use withTiming for the snap so the user perceives the zoom rather
+  // than seeing an instant jump.
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > MIN_SCALE + 0.01) {
+        scale.value = withTiming(1, { duration: 220 });
+        savedScale.value = 1;
+        translateX.value = withTiming(0, { duration: 220 });
+        translateY.value = withTiming(0, { duration: 220 });
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      } else {
+        scale.value = withTiming(2.5, { duration: 220 });
+        savedScale.value = 2.5;
+      }
+    });
+
+  // Single tap: toggle chrome. Must be made Exclusive with the double-tap
+  // so the single doesn't fire while RNGH is still deciding if a second
+  // tap is incoming.
+  const singleTap = Gesture.Tap()
+    .numberOfTaps(1)
+    .onEnd(() => {
+      // Bridge from the UI thread back to JS for the Animated.Value
+      // timing. `runOnJS` would be cleaner but `showChrome` is already a
+      // plain JS callback — RNGH's tap handlers run on JS by default
+      // when no .runOnJS(true) is set, so this is safe to invoke
+      // directly. (Confirm in review: RNGH v2 gesture callbacks default
+      // to the JS thread unless `.runOnUI()` is configured.)
+      showChrome();
+    });
+
+  const composedGesture = Gesture.Simultaneous(pinch, pan, Gesture.Exclusive(doubleTap, singleTap));
+
+  const animatedImageStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  // YouTube embed URL.
+  //
+  // 1. **youtube-nocookie.com** — strict "Privacy-enhanced mode" surface.
+  //    Some YouTube channels (incl. BibleProject) restrict third-party
+  //    embed playback on the standard `youtube.com/embed/...` domain
+  //    and return Error 153. The `-nocookie` mirror typically isn't
+  //    subject to the same restriction.
+  // 2. **origin=https://app.versemate.org** — tells YouTube the embed
+  //    is coming from a known web property. Even though the WebView
+  //    isn't actually loading from that origin, the parameter is what
+  //    YouTube's embed-allowlist checks against.
+  // 3. **enablejsapi=1** — required when `origin` is set so the IFrame
+  //    Player API negotiates correctly with the parent page.
+  const videoEmbedUrl = video
+    ? `https://www.youtube-nocookie.com/embed/${video.youtubeId}?autoplay=1&playsinline=1&modestbranding=1&rel=0&enablejsapi=1&origin=${encodeURIComponent('https://app.versemate.org')}`
+    : null;
 
   if (!manifest) {
     return (
@@ -138,63 +350,72 @@ export function VisualsPanel({
       </Text>
 
       {/* Video card — only rendered when this chapter is covered by a
-          BibleProject overview. Default state shows a thumbnail + play
-          button; tapping swaps to an inline YouTube WebView so playback
-          happens in-app (Andy's TF feedback). */}
+          BibleProject overview. Tapping the thumbnail swaps it for an
+          inline WebView loading the YouTube IFrame embed, so playback
+          stays inside verse-mate rather than handing off to the YouTube
+          app. A small "×" overlay returns to the thumbnail. */}
       {video ? (
-        videoPlaying ? (
-          <View style={styles.videoCard} testID={`${testID}-video-player`}>
-            <WebView
-              source={{
-                uri: `https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&playsinline=1&modestbranding=1&rel=0`,
-              }}
-              style={styles.videoWebView}
-              allowsInlineMediaPlayback
-              mediaPlaybackRequiresUserAction={false}
-              javaScriptEnabled
-              domStorageEnabled
-              allowsFullscreenVideo
-            />
-            <View style={styles.attributionBadge} pointerEvents="none">
-              <Text style={styles.attributionBadgeText}>BibleProject · CC BY-SA 4.0</Text>
-            </View>
-          </View>
-        ) : (
-          <Pressable
-            onPress={handleVideoPress}
-            style={styles.videoCard}
-            accessibilityRole="button"
-            accessibilityLabel={`Play the BibleProject ${bookName} overview video`}
-            testID={`${testID}-video-card`}
-          >
-            {/* Thumbnail backdrop — use the first card's thumb (typically
-                the BibleProject poster) as a tinted backdrop. */}
-            {cards[0] ? (
-              <Image
-                source={{ uri: absolutizeVisualUrl(cards[0].thumb) }}
-                style={styles.videoBackdrop}
-                contentFit="cover"
-                transition={150}
+        <View style={styles.videoCard} testID={`${testID}-video-card`}>
+          {videoPlaying && videoEmbedUrl ? (
+            <>
+              <WebView
+                source={{ uri: videoEmbedUrl }}
+                style={styles.videoWebView}
+                allowsInlineMediaPlayback
+                mediaPlaybackRequiresUserAction={false}
+                javaScriptEnabled
+                domStorageEnabled
+                allowsFullscreenVideo
+                originWhitelist={['*']}
+                testID={`${testID}-video-webview`}
               />
-            ) : null}
-            <View style={styles.videoOverlay} />
-            <View style={styles.videoOverlayContent}>
-              <View style={styles.playButton}>
-                <Ionicons name="play" size={28} color="#1B1B1B" />
+              <Pressable
+                onPress={() => setVideoPlaying(false)}
+                style={styles.videoCloseButton}
+                accessibilityRole="button"
+                accessibilityLabel="Close video and return to thumbnail"
+                testID={`${testID}-video-close`}
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={20} color="#FAF6EA" />
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              onPress={handleVideoPress}
+              style={StyleSheet.absoluteFill}
+              accessibilityRole="button"
+              accessibilityLabel={`Play the BibleProject ${bookName} overview video`}
+            >
+              {/* Thumbnail backdrop — use the first card's thumb (typically
+                  the BibleProject poster) as a tinted backdrop. */}
+              {cards[0] ? (
+                <Image
+                  source={{ uri: absolutizeVisualUrl(cards[0].thumb) }}
+                  style={styles.videoBackdrop}
+                  contentFit="cover"
+                  transition={150}
+                />
+              ) : null}
+              <View style={styles.videoOverlay} />
+              <View style={styles.videoOverlayContent}>
+                <View style={styles.playButton}>
+                  <Ionicons name="play" size={28} color="#1B1B1B" />
+                </View>
+                <Text style={styles.videoTitle} numberOfLines={2}>
+                  {video.title}
+                </Text>
+                <Text style={styles.videoSubtitle}>BibleProject overview · animated explainer</Text>
+                <Text style={styles.videoRange}>
+                  Covers chapters {video.chapterStart}–{video.chapterEnd}
+                </Text>
               </View>
-              <Text style={styles.videoTitle} numberOfLines={2}>
-                {video.title}
-              </Text>
-              <Text style={styles.videoSubtitle}>BibleProject overview · animated explainer</Text>
-              <Text style={styles.videoRange}>
-                Covers chapters {video.chapterStart}–{video.chapterEnd}
-              </Text>
-            </View>
-            <View style={styles.attributionBadge}>
-              <Text style={styles.attributionBadgeText}>BibleProject · CC BY-SA 4.0</Text>
-            </View>
-          </Pressable>
-        )
+              <View style={styles.attributionBadge}>
+                <Text style={styles.attributionBadgeText}>BibleProject · CC BY-SA 4.0</Text>
+              </View>
+            </Pressable>
+          )}
+        </View>
       ) : null}
 
       {/* Image grid — two columns. Mobile bandwidth is precious, so the
@@ -253,7 +474,14 @@ export function VisualsPanel({
               // taps the image itself.
               onStartShouldSetResponder={() => true}
             >
-              <View style={styles.lightboxTopBar}>
+              <Animated.View
+                style={[styles.lightboxTopBar, { opacity: chromeOpacity }]}
+                // When the bars are faded out we don't want to swallow
+                // touches — let them pass through to the image so the
+                // user can keep panning/zooming. `pointerEvents` is
+                // driven off the same Animated.Value via interpolate.
+                pointerEvents="box-none"
+              >
                 <Text style={styles.lightboxTitle} numberOfLines={2}>
                   {openCard.title}
                 </Text>
@@ -286,19 +514,26 @@ export function VisualsPanel({
                 >
                   <Ionicons name="close" size={22} color="#FAF6EA" />
                 </Pressable>
-              </View>
-              <Image
-                source={{ uri: absolutizeVisualUrl(openCard.full) }}
-                style={styles.lightboxImage}
-                contentFit="contain"
-                transition={150}
-                accessibilityLabel={openCard.title}
-              />
-              <View style={styles.lightboxAttribution}>
+              </Animated.View>
+              <GestureDetector gesture={composedGesture}>
+                <AnimatedImage
+                  source={{ uri: absolutizeVisualUrl(openCard.full) }}
+                  // resizeMode="contain" matches expo-image's
+                  // contentFit="contain". `style` carries the transform
+                  // from useAnimatedStyle.
+                  resizeMode="contain"
+                  style={[styles.lightboxImage, animatedImageStyle]}
+                  accessibilityLabel={openCard.title}
+                />
+              </GestureDetector>
+              <Animated.View
+                style={[styles.lightboxAttribution, { opacity: chromeOpacity }]}
+                pointerEvents="box-none"
+              >
                 <Text style={styles.lightboxAttributionText} numberOfLines={1}>
                   {openCard.attribution.label}
                 </Text>
-              </View>
+              </Animated.View>
             </View>
           ) : null}
         </Pressable>
@@ -357,10 +592,6 @@ const createStyles = (
       ...StyleSheet.absoluteFillObject,
       opacity: 0.55,
     },
-    videoWebView: {
-      flex: 1,
-      backgroundColor: '#000',
-    },
     videoOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0,0,0,0.45)',
@@ -408,6 +639,22 @@ const createStyles = (
       paddingHorizontal: 8,
       paddingVertical: 2,
       borderRadius: 4,
+    },
+    videoWebView: {
+      flex: 1,
+      backgroundColor: '#000',
+    },
+    videoCloseButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      zIndex: 2,
     },
     attributionBadgeText: {
       fontSize: 10,

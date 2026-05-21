@@ -735,15 +735,20 @@ function Card({
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderContent}>
+            {/* Verse-range pill (Movement cards) renders on its own row
+                above the heading — mobile-first stacked layout per Andy's
+                feedback. The step-number circle (observation steps) stays
+                inline with the heading because it reads as an avatar/badge
+                tied to the title, not a standalone label. */}
+            {subPill ? (
+              <View style={styles.rangePill}>
+                <Text style={styles.rangePillText}>{subPill}</Text>
+              </View>
+            ) : null}
             <View style={styles.cardHeadingRow}>
               {typeof stepNumber === 'number' ? (
                 <View style={styles.stepNumberCircle}>
                   <Text style={styles.stepNumberText}>{stepNumber}</Text>
-                </View>
-              ) : null}
-              {subPill ? (
-                <View style={styles.rangePill}>
-                  <Text style={styles.rangePillText}>{subPill}</Text>
                 </View>
               ) : null}
               <Text style={styles.cardHeading} accessibilityRole="header">
@@ -796,6 +801,11 @@ function NestedCard({
         testID={`${testID}-toggle`}
       >
         <View style={styles.nestedHeader}>
+          {/* nestedHeaderContent stacks the tag pill (when present) above
+              the heading text. Heading + chevron stay side-by-side on the
+              outer nestedHeader row so the chevron sits to the right of
+              the heading visual block, not floating to the right of just
+              the pill. */}
           <View style={styles.nestedHeaderContent}>
             {tag ? (
               <View style={styles.nestedTag}>
@@ -1032,6 +1042,7 @@ const createStyles = (colors: Colors) =>
     cardHeaderContent: {
       flex: 1,
       minWidth: 0,
+      gap: spacing.xs,
     },
     cardHeadingRow: {
       flexDirection: 'row',
@@ -1079,8 +1090,7 @@ const createStyles = (colors: Colors) =>
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      minWidth: 56,
-      alignItems: 'center',
+      alignSelf: 'flex-start',
     },
     rangePillText: {
       fontSize: fontSizes.caption,
@@ -1104,13 +1114,14 @@ const createStyles = (colors: Colors) =>
     },
     nestedHeaderContent: {
       flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      flexWrap: 'wrap',
+      // Tag pill (when present) stacks above the heading text — Andy's
+      // preference for mobile (gold labels go on their own row, content
+      // underneath, rather than inline beside the heading).
+      gap: spacing.xs,
     },
     nestedHeading: {
-      flex: 1,
+      // No flex: 1 — the parent stacks vertically now and we want this
+      // text to size to its content, not fill remaining height.
       flexShrink: 1,
       fontSize: fontSizes.bodySmall,
       fontWeight: fontWeights.semibold,
@@ -1122,6 +1133,7 @@ const createStyles = (colors: Colors) =>
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
+      alignSelf: 'flex-start',
     },
     nestedTagText: {
       fontSize: fontSizes.caption,
@@ -1259,12 +1271,13 @@ const createStyles = (colors: Colors) =>
       lineHeight: fontSizes.bodySmall * lineHeights.body,
     },
 
-    // Bullets
+    // Bullets — pill on its own row above the body text. Andy preferred
+    // this over side-by-side label/text alignment after the first pass:
+    // mobile feels cleaner with the gold label stacked above its content
+    // even though that diverges from the web's two-column layout.
     bulletItem: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
       paddingVertical: spacing.sm,
-      gap: spacing.sm,
+      gap: spacing.xs,
       borderBottomWidth: 1,
       borderBottomColor: colors.gray100,
     },
@@ -1273,12 +1286,7 @@ const createStyles = (colors: Colors) =>
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      // marginTop nudges the badge down so its visual top aligns with the
-      // body text's first-line cap-height. With bodySmall (14) and
-      // lineHeights.body (~1.5), the line-box adds ~3.5px above the cap;
-      // matching that here keeps the badge from floating above the text
-      // — Andy's "formatting of study is a bit off on alignment" feedback.
-      marginTop: 4,
+      alignSelf: 'flex-start',
     },
     bulletTagText: {
       fontSize: fontSizes.caption,
@@ -1350,21 +1358,18 @@ const createStyles = (colors: Colors) =>
       lineHeight: fontSizes.bodySmall * lineHeights.body,
     },
 
-    // Application
+    // Application — verse-range pill on its own row above the question
+    // (mobile-first stack instead of inline gutter alignment).
     appRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
       paddingVertical: spacing.sm,
+      gap: spacing.xs,
     },
     appRangePill: {
       paddingHorizontal: spacing.sm,
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      minWidth: 56,
-      alignItems: 'center',
-      marginTop: 2,
+      alignSelf: 'flex-start',
     },
     appRangePillText: {
       fontSize: fontSizes.caption,
@@ -1372,7 +1377,6 @@ const createStyles = (colors: Colors) =>
       color: colors.gray900,
     },
     appQuestion: {
-      flex: 1,
       fontSize: fontSizes.bodySmall,
       color: colors.textPrimary,
       lineHeight: fontSizes.bodySmall * lineHeights.body,
