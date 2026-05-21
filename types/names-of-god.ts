@@ -11,4 +11,4 @@ export interface NameOfGod {
 }
 
 /** Language filter for the list screen — 'All' returns every entry */
-export type LanguageFilter = 'Hebrew' | 'Greek' | 'English' | 'All';
+export type LanguageFilter = 'Hebrew' | 'Greek' | 'Aramaic' | 'English' | 'All';

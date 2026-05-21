@@ -32,7 +32,7 @@ const mockDataset = [
   {
     id: 'kyrios',
     nameEn: 'Kyrios',
-    nameOriginal: 'Κύριος',
+    nameOriginal: 'κύριος',
     transliteration: 'Kyrios',
     language: 'Greek',
     category: 'divine-name',
@@ -62,6 +62,17 @@ const mockDataset = [
     testament: 'OT',
     verseRefs: ['Psalm 2:4', 'Isaiah 6:1'],
   },
+  {
+    id: 'bar-enash',
+    nameEn: 'Bar Enash',
+    nameOriginal: 'בַּר אֱנָשׁ',
+    transliteration: 'Bar Enash',
+    language: 'Aramaic',
+    category: 'messianic-title',
+    meaning: 'Son of Man; Aramaic title used in Daniel for the heavenly figure',
+    testament: 'OT',
+    verseRefs: ['Daniel 7:13'],
+  },
 ];
 
 jest.mock('@/assets/names-of-god.json', () => mockDataset, { virtual: true });
@@ -73,7 +84,7 @@ describe('names-of-god-use-case', () => {
 
   describe('getAllNames', () => {
     it('returns all entries', () => {
-      expect(getAllNames()).toHaveLength(5);
+      expect(getAllNames()).toHaveLength(6);
     });
 
     it('returns entries with verseRefs arrays', () => {
@@ -85,11 +96,11 @@ describe('names-of-god-use-case', () => {
 
   describe('searchNames', () => {
     it('returns all entries for empty query', () => {
-      expect(searchNames('')).toHaveLength(5);
+      expect(searchNames('')).toHaveLength(6);
     });
 
     it('returns all entries for whitespace-only query', () => {
-      expect(searchNames('   ')).toHaveLength(5);
+      expect(searchNames('   ')).toHaveLength(6);
     });
 
     it('matches by English name (case-insensitive)', () => {
@@ -140,7 +151,7 @@ describe('names-of-god-use-case', () => {
 
   describe('filterByCategory', () => {
     it("returns all entries for 'All'", () => {
-      expect(filterByCategory('All')).toHaveLength(5);
+      expect(filterByCategory('All')).toHaveLength(6);
     });
 
     it("returns only Hebrew entries for 'Hebrew'", () => {
@@ -163,11 +174,20 @@ describe('names-of-god-use-case', () => {
       expect(filterByCategory('English')).toHaveLength(0);
     });
 
-    it('Hebrew + Greek counts add up to total', () => {
+    it("returns only Aramaic entries for 'Aramaic'", () => {
+      const results = filterByCategory('Aramaic');
+      expect(results.length).toBeGreaterThan(0);
+      for (const entry of results) {
+        expect(entry.language).toBe('Aramaic');
+      }
+    });
+
+    it('Hebrew + Greek + Aramaic counts add up to total', () => {
       const hebrew = filterByCategory('Hebrew');
       const greek = filterByCategory('Greek');
+      const aramaic = filterByCategory('Aramaic');
       const all = filterByCategory('All');
-      expect(hebrew.length + greek.length).toBe(all.length);
+      expect(hebrew.length + greek.length + aramaic.length).toBe(all.length);
     });
 
     it('Hebrew filter includes yahweh, elohim, adonai', () => {
@@ -212,7 +232,7 @@ describe('names-of-god-use-case', () => {
       expect(entry).toMatchObject({
         id: 'kyrios',
         nameEn: 'Kyrios',
-        nameOriginal: 'Κύριος',
+        nameOriginal: 'κύριος',
         transliteration: 'Kyrios',
         language: 'Greek',
         category: 'divine-name',
