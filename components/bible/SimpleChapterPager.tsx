@@ -46,7 +46,14 @@
  * @see Spec: agent-os/specs/2026-02-01-chapter-header-slide-sync-v3/spec.md
  */
 
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { StyleSheet, View } from 'react-native';
 import PagerView from '@/components/common/PagerView';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
@@ -117,9 +124,34 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     // Pending navigation target — set by onPageSelected, processed when pager reaches idle
     const pendingNavRef = useRef<{ bookId: number; chapterNumber: number } | null>(null);
 
-    // When props change (parent navigated), reset pager to the current page index
-    // without remounting the entire component
-    useEffect(() => {
+    // Fallback timer for cases where onPageScrollStateChanged never fires `idle` after a
+    // pageSelected (observed after setPageWithoutAnimation repositions — the native event queue
+    // swallows the trailing idle). Without this, pendingNavRef stays stale and gets consumed by
+    // the next swipe's idle event, producing the chapter-skip bug.
+    const pendingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clearPendingTimer = () => {
+      if (pendingTimerRef.current !== null) {
+        clearTimeout(pendingTimerRef.current);
+        pendingTimerRef.current = null;
+      }
+    };
+
+    // Stable refs for the latest props so the fallback timer (created inside handlePageSelected)
+    // doesn't capture stale `bookId`/`chapterNumber`/`onChapterChange` closures.
+    const onChapterChangeRef = useRef(onChapterChange);
+    onChapterChangeRef.current = onChapterChange;
+    const currentKeyRef = useRef(`${bookId}-${chapterNumber}`);
+    currentKeyRef.current = `${bookId}-${chapterNumber}`;
+
+    useEffect(() => clearPendingTimer, []);
+
+    // Reset pager position to center after props change (parent navigated). Runs in
+    // useLayoutEffect so the setPageWithoutAnimation lands in the same paint frame as
+    // the children-array swap. With useDeferredValue on the parent, the heavy commit
+    // happens in the background priority — by the time this effect fires here, the
+    // commit is done and the next paint reflects the new children at the recentered
+    // index, so the user never sees the overshoot.
+    useLayoutEffect(() => {
       const currentKey = `${bookId}-${chapterNumber}`;
       if (prevChapterKey.current === currentKey) return;
       prevChapterKey.current = currentKey;
@@ -186,6 +218,19 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
           };
         }
       }
+
+      // Arm fallback: if `idle` never fires within 500ms, force-fire navigation from pending and
+      // clear it so the next swipe starts clean. The natural idle path cancels this timer.
+      clearPendingTimer();
+      if (pendingNavRef.current) {
+        pendingTimerRef.current = setTimeout(() => {
+          pendingTimerRef.current = null;
+          if (!pendingNavRef.current) return;
+          const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
+          pendingNavRef.current = null;
+          onChapterChangeRef.current(navBookId, navChapter);
+        }, 500);
+      }
     };
 
     /**
@@ -194,7 +239,9 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * we trigger the state update and reposition.
      */
     const handlePageScrollStateChanged = (event: { nativeEvent: { pageScrollState: string } }) => {
-      if (event.nativeEvent.pageScrollState === 'idle' && pendingNavRef.current) {
+      const state = event.nativeEvent.pageScrollState;
+      if (state === 'idle' && pendingNavRef.current) {
+        clearPendingTimer();
         const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
         pendingNavRef.current = null;
         onChapterChange(navBookId, navChapter);
@@ -210,26 +257,37 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     const pages = useMemo(() => {
       const result: React.ReactNode[] = [];
 
-      // Add previous page if available
+      // Keys are chapter-based, NOT slot-based ("page-prev/current/next").
+      // Why: after a swipe, React's pages-array shifts so the chapter the user just
+      // swiped to ends up in a different slot (was at the right edge, now in the
+      // center). Slot-based keys would have React reuse the right-edge instance and
+      // mutate it to a different chapter, then setPageWithoutAnimation moves the pager
+      // to a different instance with scroll=0 — that's the "teleport back to top" bug.
+      // Chapter-based keys make React migrate the user's actual chapter instance
+      // between slots, preserving its ScrollView position.
       if (canGoPrevious && prevChapter) {
         result.push(
-          <View key="page-prev" style={styles.page}>
+          <View
+            key={`chapter-${prevChapter.bookId}-${prevChapter.chapterNumber}`}
+            style={styles.page}
+          >
             {renderChapterPage(prevChapter.bookId, prevChapter.chapterNumber)}
           </View>
         );
       }
 
-      // Always add current page
       result.push(
-        <View key="page-current" style={styles.page}>
+        <View key={`chapter-${bookId}-${chapterNumber}`} style={styles.page}>
           {renderChapterPage(bookId, chapterNumber)}
         </View>
       );
 
-      // Add next page if available
       if (canGoNext && nextChapter) {
         result.push(
-          <View key="page-next" style={styles.page}>
+          <View
+            key={`chapter-${nextChapter.bookId}-${nextChapter.chapterNumber}`}
+            style={styles.page}
+          >
             {renderChapterPage(nextChapter.bookId, nextChapter.chapterNumber)}
           </View>
         );

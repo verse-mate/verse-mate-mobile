@@ -1,0 +1,92 @@
+appId: org.versemate.app
+tags:
+  - regression
+  - visuals-polish
+---
+# Visuals-polish tour — walks through every screen touched by the
+# polish pass (#1 / #1b / #2 / #4 / #5 / #6 / #7 / #8) and screenshots
+# each one for visual review. Companion to PR #328.
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- takeScreenshot: 01-home
+
+# --- Bible reader: covers #6 (multi-word lex underlines) + #7 (two-tier underline) ---
+- tapOn:
+    id: tab-bible
+    optional: true
+- tapOn:
+    text: 'Genesis'
+    optional: true
+- tapOn:
+    text: '1'
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 02-bible-genesis-1
+
+# --- Study tab: covers #2 (POSTURE/EYES/WILL badge alignment) + #4 (verse chips) ---
+- tapOn:
+    id: tab-study
+    optional: true
+- waitForAnimationToEnd
+# Expand-all so Posture/Eyes/Will + lists step are visible
+- tapOn:
+    id: study-panel-toggle-all
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 03-study-expanded
+
+# Scroll into list step to capture #4
+- scrollUntilVisible:
+    element:
+      text: 'Make lists'
+    direction: DOWN
+    timeout: 8000
+- takeScreenshot: 04-study-make-lists
+
+# --- Visuals tab: covers #1 (safe-area) + #1b (inline YouTube) + #8 (landscape) ---
+- tapOn:
+    id: tab-visuals
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 05-visuals-default
+
+# Tap the video card to swap to inline WebView (#1b)
+- tapOn:
+    id: visuals-panel-video-card
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 06-visuals-video-playing
+
+# Tap one of the image cards to open the lightbox (#1 safe-area)
+- tapOn:
+    id: visuals-panel-card-precept-genesis-chart
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 07-visuals-lightbox
+
+# Rotate the device to landscape — should NOT be blocked (#8)
+- setOrientation: LANDSCAPE_LEFT
+- waitForAnimationToEnd
+- takeScreenshot: 08-visuals-lightbox-landscape
+- setOrientation: PORTRAIT
+
+# Close lightbox
+- tapOn:
+    id: visuals-panel-lightbox-close
+    optional: true
+- waitForAnimationToEnd
+
+# --- Lexicon popover (#5: swipe-down-from-anywhere) ---
+- tapOn:
+    id: tab-bible
+    optional: true
+- waitForAnimationToEnd
+# Tap a known-dotted word in Gen 1 to open the popover
+- tapOn:
+    text: 'created'
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 09-lexicon-popover
+# Don't actually dismiss in the flow — leaving the popover open is the
+# visual; manual verification of swipe-down behavior follows.

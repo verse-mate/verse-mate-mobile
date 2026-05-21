@@ -13,10 +13,21 @@
  *
  * Mirrors the web app's VisualsPanel.tsx — same content, ported to React
  * Native primitives (View / Text / StyleSheet / expo-image) instead of
- * the DOM. Image taps open a full-screen lightbox modal; the BibleProject
- * video card opens the YouTube watch URL via Linking, which launches the
- * YouTube app on iOS/Android (or system browser fallback). We don't
- * embed a WebView so the bundle stays clean and we avoid an EAS rebuild.
+ * the DOM. Image taps open a full-screen lightbox modal whose chrome
+ * respects safe-area insets, supports pinch/double-tap zoom + pan via
+ * react-native-gesture-handler, and auto-hides the top/bottom bars after
+ * 3s of inactivity. The BibleProject video card swaps its thumbnail for
+ * an inline `react-native-youtube-iframe` player so playback stays inside
+ * verse-mate rather than handing off to the YouTube app. The raw
+ * `youtube.com/embed` and `youtube-nocookie.com/embed` URLs both return
+ * Error 153 for the BibleProject channel; the IFrame Player API
+ * (negotiated via the iframe-player host page that lonelycpp's library
+ * wraps) is the only embed surface that survives the channel-level
+ * embed restriction. When YouTube still refuses (e.g. age-gated content
+ * in the future) `onError` falls back to opening the watch URL.
+ *
+ * The whole Visuals tab unlocks ScreenOrientation on mount so users can
+ * rotate to landscape for wide diagrams — not just inside the lightbox.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -29,12 +40,51 @@ import {
   type VideoEntry,
   type VisualCard,
 } from '@versemate/visuals';
+// `expo-file-system/legacy` exposes the classic file API (`downloadAsync`,
+// `cacheDirectory`). The non-legacy module's top-level `downloadAsync` is
+// flagged `@deprecated` and throws at runtime, so importing from `/legacy`
+// is the supported path for this workflow until the project migrates to
+// the new `File.downloadFileAsync` API end-to-end.
+import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
-import { useCallback, useMemo, useState } from 'react';
-import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import * as Sharing from 'expo-sharing';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Linking,
+  Modal,
+  Pressable,
+  Image as RNImage,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Reanimated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import YoutubePlayer from 'react-native-youtube-iframe';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import { getBookSlug } from '@/utils/bookSlugs';
+
+// expo-image's `Image` is fine for static use, but it does not always
+// compose cleanly with reanimated's `useAnimatedStyle` (the prop merge
+// path differs between SDKs). Use RN's `Animated.Image` wrapped with
+// reanimated's createAnimatedComponent against the RN `Image`, which is
+// well-supported. The visual result is identical for our PNG/JPEG
+// visuals — expo-image's blurhash/disk cache wins don't apply once the
+// image is in the lightbox.
+const AnimatedImage = Reanimated.createAnimatedComponent(RNImage);
+
+// How long the lightbox chrome (top bar + attribution) stays visible
+// after the user interacts before fading away.
+const CHROME_AUTO_HIDE_MS = 3000;
 
 export interface VisualsPanelProps {
   /** Book ID (1-66). */
@@ -65,7 +115,8 @@ export function VisualsPanel({
   testID = 'visuals-panel',
 }: VisualsPanelProps) {
   const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
 
   const slug = getBookSlug(bookId);
   const manifest = useMemo(() => (slug ? getVisualsForBook(slug) : null), [slug]);
@@ -82,14 +133,276 @@ export function VisualsPanel({
   const openCard = cards.find((c) => c.id === openCardId) ?? null;
   const closeLightbox = useCallback(() => setOpenCardId(null), []);
 
+  // ─── Bug #3 — actually download the PDF instead of handing the URL to
+  // the system browser. The previous `Linking.openURL` flow opened the
+  // PDF in-browser, which on iOS would route through Safari and on
+  // Android through Chrome — neither saves the file locally, and on
+  // return-to-app it can leave the Modal in a stale state that bug #2
+  // reproduces from. We download to the cache directory and hand the
+  // local file URI to expo-sharing so the user gets the proper
+  // "Save to Files / Save to Drive / Print" sheet.
+  //
+  // The lightbox is closed BEFORE invoking the share sheet because
+  // presenting a system UIActivityViewController/ChooserActivity from
+  // inside an open RN `Modal` is the exact stack-up that bug #2's crash
+  // reproduces from. Closing first → small delay → share is the
+  // documented safe pattern for expo-sharing on iOS.
+  const handlePdfDownload = useCallback(async () => {
+    if (!openCard?.download) return;
+    const url = absolutizeVisualUrl(openCard.download.href);
+    // The visual card download object only carries { label, href }, so
+    // derive a filename from the URL path. Fall back to a generic name
+    // if the URL has no useful trailing segment (shouldn't happen for
+    // any of today's PDFs but keeps the type narrow).
+    const filename = url.split('/').pop()?.split('?')[0] || 'visual.pdf';
+    const dest = `${FileSystem.cacheDirectory}${filename}`;
+    try {
+      const { uri } = await FileSystem.downloadAsync(url, dest);
+      // Close the lightbox before presenting the share sheet — see
+      // comment above for the bug #2 interaction.
+      closeLightbox();
+      setTimeout(async () => {
+        try {
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
+          } else {
+            // Last-resort fallback: hand the local file URI to the OS.
+            Linking.openURL(uri).catch(() => {});
+          }
+        } catch (shareErr) {
+          console.warn('[VisualsPanel] PDF share failed', shareErr);
+        }
+      }, 250);
+    } catch (e) {
+      console.warn('[VisualsPanel] PDF download failed', e);
+    }
+  }, [openCard, closeLightbox]);
+
+  // Inline-playback state for the BibleProject video card. Andy's TF
+  // feedback was "can it play in place vs open the YouTube app?" — the
+  // answer is yes, via react-native-youtube-iframe wrapping the YouTube
+  // IFrame Player API. When YouTube hard-refuses the embed (channel-level
+  // block, age gate, etc.) `onError` flips `videoError = true` so we can
+  // surface a "open in YouTube" fallback.
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const handleVideoPress = useCallback(() => {
     if (!video) return;
-    // Open the YouTube watch URL directly — launches the YouTube app on
-    // iOS/Android if installed, otherwise the system browser. Avoids
-    // bibleproject.com/videos/<book>/ which is currently 404 for most
-    // books (see verse-mate-visuals registry).
-    Linking.openURL(`https://www.youtube.com/watch?v=${video.youtubeId}`).catch(() => {});
+    setVideoError(false);
+    setVideoPlaying(true);
   }, [video]);
+  // Reset playback state on chapter change — a new chapter may have a
+  // different (or no) video.
+  useEffect(() => {
+    setVideoPlaying(false);
+    setVideoError(false);
+  }, [bookId, chapter]);
+
+  // ─── Bug #4 (round 3) — whole Visuals tab is landscape-capable ───────
+  // Previously orientation was only unlocked while the lightbox modal
+  // was open. Andy reported that rotating the tab itself (e.g. to look
+  // at wide diagrams in-grid) did nothing. Unlock at mount and re-lock
+  // to portrait at unmount so other tabs/screens behave as before. The
+  // single mount/unmount effect (versus a per-`openCard` effect)
+  // collapses the rapid lock/unlock churn that the bug #2 crash
+  // reproduction was hitting on background → resume of the PDF flow.
+  useEffect(() => {
+    ScreenOrientation.unlockAsync().catch(() => {});
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    };
+  }, []);
+
+  // ─── Bug #8 — pinch/zoom + pan SharedValues for the lightbox image ───
+  // Held at module-scope-equivalent (component scope) so the same animated
+  // style is reused across re-renders without re-creating the gesture.
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  // ─── Bug #8 part 2 — chrome auto-hide ────────────────────────────────
+  // RN Animated.Value for opacity so we can drive both bars from one
+  // value. Could be a SharedValue too, but RN Animated.timing is
+  // sufficient and avoids mixing animation libraries on the same node.
+  const chromeOpacity = useRef(new Animated.Value(1)).current;
+  const chromeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showChrome = useCallback(() => {
+    Animated.timing(chromeOpacity, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+    if (chromeTimeoutRef.current) {
+      clearTimeout(chromeTimeoutRef.current);
+    }
+    chromeTimeoutRef.current = setTimeout(() => {
+      Animated.timing(chromeOpacity, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    }, CHROME_AUTO_HIDE_MS);
+  }, [chromeOpacity]);
+
+  // Reset zoom + chrome whenever the lightbox opens (or switches cards).
+  // Closing the lightbox also clears any pending hide-timer.
+  useEffect(() => {
+    if (openCard) {
+      scale.value = 1;
+      savedScale.value = 1;
+      translateX.value = 0;
+      translateY.value = 0;
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+      showChrome();
+    } else {
+      if (chromeTimeoutRef.current) {
+        clearTimeout(chromeTimeoutRef.current);
+        chromeTimeoutRef.current = null;
+      }
+      // Snap chrome back to visible so the next open starts fresh; the
+      // open-effect above will kick off another auto-hide cycle.
+      chromeOpacity.setValue(1);
+    }
+    return () => {
+      if (chromeTimeoutRef.current) {
+        clearTimeout(chromeTimeoutRef.current);
+        chromeTimeoutRef.current = null;
+      }
+    };
+  }, [
+    openCard,
+    showChrome,
+    chromeOpacity,
+    scale,
+    savedScale,
+    translateX,
+    translateY,
+    savedTranslateX,
+    savedTranslateY,
+  ]);
+
+  // ─── Gestures ────────────────────────────────────────────────────────
+  // Min/max zoom — 1 = fit, 6 = "I want to read this tiny label" deep
+  // zoom. Reanimated worklets run on the UI thread, so the clamp must be
+  // expressed inline (no JS-side Math.min closure).
+  const MIN_SCALE = 1;
+  const MAX_SCALE = 6;
+
+  const pinch = Gesture.Pinch()
+    .onStart(() => {
+      savedScale.value = scale.value;
+    })
+    .onUpdate((e) => {
+      const next = savedScale.value * e.scale;
+      scale.value = Math.min(Math.max(next, MIN_SCALE), MAX_SCALE);
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      // If the user pinched back to ~1, snap translations to 0 too so the
+      // next double-tap re-zooms from center.
+      if (scale.value <= MIN_SCALE + 0.01) {
+        translateX.value = withTiming(0, { duration: 180 });
+        translateY.value = withTiming(0, { duration: 180 });
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      }
+    });
+
+  // Pan only meaningfully applies once zoomed in — at scale 1 a
+  // vertical swipe should still feel "calm" and not move the image.
+  // Gesture.Enabled toggling would require imperative work; instead we
+  // gate the update inside onUpdate so the gesture is always recognized
+  // but is a no-op at scale 1. Translation is clamped so the image edge
+  // can't be dragged fully off-screen.
+  const pan = Gesture.Pan()
+    .minPointers(1)
+    .maxPointers(1)
+    .onStart(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      if (scale.value <= MIN_SCALE) return;
+      // Allow movement up to (scale - 1) * half-viewport in each axis.
+      // We don't know the exact image dimensions on the worklet thread,
+      // so we use a generous viewport-derived bound — the user can still
+      // see edges, just not fling the image into the void.
+      const maxOffset = (scale.value - 1) * 400; // ~half a 800px-tall viewport
+      const nextX = savedTranslateX.value + e.translationX;
+      const nextY = savedTranslateY.value + e.translationY;
+      translateX.value = Math.min(Math.max(nextX, -maxOffset), maxOffset);
+      translateY.value = Math.min(Math.max(nextY, -maxOffset), maxOffset);
+    });
+
+  // Double-tap: toggle between fit (1) and a meaningful zoom (2.5).
+  // We use withTiming for the snap so the user perceives the zoom rather
+  // than seeing an instant jump.
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > MIN_SCALE + 0.01) {
+        scale.value = withTiming(1, { duration: 220 });
+        savedScale.value = 1;
+        translateX.value = withTiming(0, { duration: 220 });
+        translateY.value = withTiming(0, { duration: 220 });
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      } else {
+        scale.value = withTiming(2.5, { duration: 220 });
+        savedScale.value = 2.5;
+      }
+    });
+
+  // Single tap: toggle chrome. Must be made Exclusive with the double-tap
+  // so the single doesn't fire while RNGH is still deciding if a second
+  // tap is incoming.
+  //
+  // **runOnJS is mandatory here.** RNGH v2 gesture callbacks run on the
+  // UI worklet thread whenever `react-native-reanimated` is present in
+  // the project (which it is — useAnimatedStyle/useSharedValue above
+  // pull it in). Calling `showChrome` directly here triggered SIGABRT
+  // in Hermes for Andy on iOS 26 / iPhone 17 (TF crash logs 2026-05-20
+  // 21:21 -0500, all 3 reproduced) because `Animated.timing` is a JS
+  // function that can't run on the worklet thread. `runOnJS` bridges
+  // back to the JS thread safely.
+  const singleTap = Gesture.Tap()
+    .numberOfTaps(1)
+    .onEnd(() => {
+      runOnJS(showChrome)();
+    });
+
+  const composedGesture = Gesture.Simultaneous(pinch, pan, Gesture.Exclusive(doubleTap, singleTap));
+
+  const animatedImageStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  // YouTube playback uses `react-native-youtube-iframe` (see Task 1) —
+  // no manual embed URL needed here. The library negotiates the IFrame
+  // Player API behind the scenes and exposes `onChangeState` / `onError`
+  // for status. When the channel hard-blocks the embed, `onError` flips
+  // `videoError` and we render an "Open in YouTube" fallback.
+  const youtubeWatchUrl = video ? `https://www.youtube.com/watch?v=${video.youtubeId}` : null;
+  const handleVideoFallback = useCallback(() => {
+    if (!youtubeWatchUrl) return;
+    Linking.openURL(youtubeWatchUrl).catch(() => {});
+  }, [youtubeWatchUrl]);
+
+  // The youtube-iframe player needs an explicit `height`. The video card
+  // itself is `aspectRatio: 16/9`, but RN measures children by absolute
+  // height — pull it from screen width. A fixed 220 is a safe minimum
+  // (matches a ~390pt iPhone width); the WebView inside will fit-to-
+  // container with `width: '100%'` automatically.
+  const videoPlayerHeight = 220;
 
   if (!manifest) {
     return (
@@ -111,42 +424,125 @@ export function VisualsPanel({
       </Text>
 
       {/* Video card — only rendered when this chapter is covered by a
-          BibleProject overview. */}
+          BibleProject overview. Tapping the thumbnail swaps it for an
+          inline `react-native-youtube-iframe` player, so playback stays
+          inside verse-mate rather than handing off to the YouTube app.
+          If YouTube refuses the embed (channel block / age gate /
+          country restriction) the `onError` handler trips and we render
+          an "Open in YouTube" fallback button. The "×" overlay returns
+          to the thumbnail in either case. */}
       {video ? (
-        <Pressable
-          onPress={handleVideoPress}
-          style={styles.videoCard}
-          accessibilityRole="button"
-          accessibilityLabel={`Play the BibleProject ${bookName} overview video`}
-          testID={`${testID}-video-card`}
-        >
-          {/* Thumbnail backdrop — use the first card's thumb (typically
-              the BibleProject poster) as a tinted backdrop. */}
-          {cards[0] ? (
-            <Image
-              source={{ uri: absolutizeVisualUrl(cards[0].thumb) }}
-              style={styles.videoBackdrop}
-              contentFit="cover"
-              transition={150}
-            />
-          ) : null}
-          <View style={styles.videoOverlay} />
-          <View style={styles.videoOverlayContent}>
-            <View style={styles.playButton}>
-              <Ionicons name="play" size={28} color="#1B1B1B" />
-            </View>
-            <Text style={styles.videoTitle} numberOfLines={2}>
-              {video.title}
-            </Text>
-            <Text style={styles.videoSubtitle}>BibleProject overview · animated explainer</Text>
-            <Text style={styles.videoRange}>
-              Covers chapters {video.chapterStart}–{video.chapterEnd}
-            </Text>
-          </View>
-          <View style={styles.attributionBadge}>
-            <Text style={styles.attributionBadgeText}>BibleProject · CC BY-SA 4.0</Text>
-          </View>
-        </Pressable>
+        <View style={styles.videoCard} testID={`${testID}-video-card`}>
+          {videoPlaying && videoError ? (
+            <>
+              <View style={styles.videoErrorOverlay}>
+                <Ionicons name="alert-circle-outline" size={32} color="#FAF6EA" />
+                <Text style={styles.videoErrorTitle}>Video can&apos;t play in-app</Text>
+                <Pressable
+                  onPress={handleVideoFallback}
+                  style={styles.videoErrorButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open video in YouTube"
+                  testID={`${testID}-video-open-external`}
+                >
+                  <Text style={styles.videoErrorButtonText}>Open in YouTube</Text>
+                </Pressable>
+              </View>
+              <Pressable
+                onPress={() => {
+                  setVideoPlaying(false);
+                  setVideoError(false);
+                }}
+                style={styles.videoCloseButton}
+                accessibilityRole="button"
+                accessibilityLabel="Close video and return to thumbnail"
+                testID={`${testID}-video-close`}
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={20} color="#FAF6EA" />
+              </Pressable>
+            </>
+          ) : videoPlaying ? (
+            <>
+              <YoutubePlayer
+                videoId={video.youtubeId}
+                height={videoPlayerHeight}
+                play={videoPlaying}
+                webViewStyle={styles.videoWebView}
+                // The parent `videoCard` is `aspectRatio: 16/9`, so the
+                // fixed `height={220}` would otherwise letterbox on
+                // tablets / landscape. Stretch the inner container to
+                // the card so playback fills the available 16:9 box.
+                viewContainerStyle={StyleSheet.absoluteFillObject}
+                onChangeState={(state: string) => {
+                  // States: 'unstarted' | 'ended' | 'playing' | 'paused'
+                  // | 'buffering' | 'video cued'. No-op for now —
+                  // logged for future analytics hooks.
+                  if (__DEV__) {
+                    console.debug('[VisualsPanel] yt state:', state);
+                  }
+                }}
+                onError={(err: string) => {
+                  // Error codes (per IFrame Player API): 2, 5, 100,
+                  // 101, 150 — the latter three are channel/embed
+                  // restrictions like the BibleProject "153" Andy
+                  // hit. Flip to the fallback UI in all cases.
+                  console.warn('[VisualsPanel] yt embed error:', err);
+                  setVideoError(true);
+                }}
+                webViewProps={{
+                  allowsInlineMediaPlayback: true,
+                  mediaPlaybackRequiresUserAction: false,
+                  androidLayerType: 'hardware',
+                }}
+              />
+              <Pressable
+                onPress={() => setVideoPlaying(false)}
+                style={styles.videoCloseButton}
+                accessibilityRole="button"
+                accessibilityLabel="Close video and return to thumbnail"
+                testID={`${testID}-video-close`}
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={20} color="#FAF6EA" />
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              onPress={handleVideoPress}
+              style={StyleSheet.absoluteFill}
+              accessibilityRole="button"
+              accessibilityLabel={`Play the BibleProject ${bookName} overview video`}
+            >
+              {/* Thumbnail backdrop — use the first card's thumb (typically
+                  the BibleProject poster) as a tinted backdrop. */}
+              {cards[0] ? (
+                <Image
+                  source={{ uri: absolutizeVisualUrl(cards[0].thumb) }}
+                  style={styles.videoBackdrop}
+                  contentFit="cover"
+                  transition={150}
+                />
+              ) : null}
+              <View style={styles.videoOverlay} />
+              <View style={styles.videoOverlayContent}>
+                <View style={styles.playButton}>
+                  <Ionicons name="play" size={28} color="#1B1B1B" />
+                </View>
+                <Text style={styles.videoTitle} numberOfLines={2}>
+                  {video.title}
+                </Text>
+                <Text style={styles.videoSubtitle}>BibleProject overview · animated explainer</Text>
+                <Text style={styles.videoRange}>
+                  Covers chapters {video.chapterStart}–{video.chapterEnd}
+                </Text>
+              </View>
+              <View style={styles.attributionBadge}>
+                <Text style={styles.attributionBadgeText}>BibleProject · CC BY-SA 4.0</Text>
+              </View>
+            </Pressable>
+          )}
+        </View>
       ) : null}
 
       {/* Image grid — two columns. Mobile bandwidth is precious, so the
@@ -205,22 +601,21 @@ export function VisualsPanel({
               // taps the image itself.
               onStartShouldSetResponder={() => true}
             >
-              <View style={styles.lightboxTopBar}>
+              <Animated.View
+                style={[styles.lightboxTopBar, { opacity: chromeOpacity }]}
+                // When the bars are faded out we don't want to swallow
+                // touches — let them pass through to the image so the
+                // user can keep panning/zooming. `pointerEvents` is
+                // driven off the same Animated.Value via interpolate.
+                pointerEvents="box-none"
+              >
                 <Text style={styles.lightboxTitle} numberOfLines={2}>
                   {openCard.title}
                 </Text>
                 {openCard.download ? (
                   <Pressable
                     style={styles.lightboxDownload}
-                    onPress={() => {
-                      // Downloads point at PDFs or source URLs — open
-                      // them in the system browser so the user can save.
-                      if (openCard.download) {
-                        Linking.openURL(absolutizeVisualUrl(openCard.download.href)).catch(
-                          () => {}
-                        );
-                      }
-                    }}
+                    onPress={handlePdfDownload}
                     accessibilityRole="button"
                     accessibilityLabel="Download original"
                     testID={`${testID}-lightbox-download`}
@@ -238,19 +633,26 @@ export function VisualsPanel({
                 >
                   <Ionicons name="close" size={22} color="#FAF6EA" />
                 </Pressable>
-              </View>
-              <Image
-                source={{ uri: absolutizeVisualUrl(openCard.full) }}
-                style={styles.lightboxImage}
-                contentFit="contain"
-                transition={150}
-                accessibilityLabel={openCard.title}
-              />
-              <View style={styles.lightboxAttribution}>
+              </Animated.View>
+              <GestureDetector gesture={composedGesture}>
+                <AnimatedImage
+                  source={{ uri: absolutizeVisualUrl(openCard.full) }}
+                  // resizeMode="contain" matches expo-image's
+                  // contentFit="contain". `style` carries the transform
+                  // from useAnimatedStyle.
+                  resizeMode="contain"
+                  style={[styles.lightboxImage, animatedImageStyle]}
+                  accessibilityLabel={openCard.title}
+                />
+              </GestureDetector>
+              <Animated.View
+                style={[styles.lightboxAttribution, { opacity: chromeOpacity }]}
+                pointerEvents="box-none"
+              >
                 <Text style={styles.lightboxAttributionText} numberOfLines={1}>
                   {openCard.attribution.label}
                 </Text>
-              </View>
+              </Animated.View>
             </View>
           ) : null}
         </Pressable>
@@ -261,7 +663,10 @@ export function VisualsPanel({
 
 // ─── Styles ──────────────────────────────────────────────────────────────
 
-const createStyles = (colors: ReturnType<typeof getColors>) =>
+const createStyles = (
+  colors: ReturnType<typeof getColors>,
+  insets: { bottom: number; top: number; left: number; right: number }
+) =>
   StyleSheet.create({
     container: {
       paddingHorizontal: spacing.lg,
@@ -354,6 +759,48 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       paddingVertical: 2,
       borderRadius: 4,
     },
+    videoWebView: {
+      flex: 1,
+      backgroundColor: '#000',
+    },
+    videoCloseButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      zIndex: 2,
+    },
+    videoErrorOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#1B1B1B',
+      padding: spacing.md,
+    },
+    videoErrorTitle: {
+      marginTop: spacing.sm,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: '#FAF6EA',
+      textAlign: 'center',
+      marginBottom: spacing.md,
+    },
+    videoErrorButton: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 6,
+      backgroundColor: colors.gold,
+    },
+    videoErrorButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: '#1B1B1B',
+    },
     attributionBadgeText: {
       fontSize: 10,
       color: 'rgba(250,246,234,0.9)',
@@ -439,8 +886,12 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       zIndex: 3,
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.xl,
+      // Top padding must clear the status bar / notch on every device. The
+      // Modal is `statusBarTranslucent` so the system bar overlays our chrome
+      // unless we account for it ourselves.
+      paddingTop: Math.max(insets.top, spacing.md) + spacing.xs,
+      paddingLeft: Math.max(insets.left, spacing.md),
+      paddingRight: Math.max(insets.right, spacing.md),
       paddingBottom: spacing.sm,
       backgroundColor: 'rgba(0,0,0,0.55)',
     },

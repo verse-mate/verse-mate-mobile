@@ -390,9 +390,19 @@ export function ChapterPage({
 
   const { deleteNote, isDeletingNote } = useNotes();
 
-  // Trigger staggered delayed render — only for the active page, not buffer pages
+  // Trigger staggered delayed render — only for the active page, not buffer pages,
+  // and only while the user is actually in Explanations view.
+  //
+  // Why gated on activeView: each TabContent (Summary, Byline) takes 500-700ms of
+  // JS-thread time to mount (full chapter ScrollView with verses). Pre-warming them
+  // while the user is on Bible view caused visible scroll hiccups exactly at the
+  // stage-3 / stage-4 timer firings (T+1.6s and T+2.1s after a chapter swipe). With
+  // this gate, the staged mounts only happen once the user actually switches to
+  // Insight — when they're not scrolling Bible content. The active Insight tab still
+  // mounts immediately on the switch; the staggered stages pre-warm the OTHER tabs
+  // so switching between Summary and Byline within Insight is instant.
   useEffect(() => {
-    if (isPreloading) {
+    if (isPreloading || activeView !== 'explanations') {
       setDelayedRenderStage(0);
       return;
     }
@@ -400,14 +410,13 @@ export function ChapterPage({
     const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
     const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
     const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
-
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [isPreloading]);
+  }, [isPreloading, activeView]);
 
   // Track explanation tab content heights for scroll syncing
   const tabContentHeightsRef = useRef<
@@ -1039,7 +1048,7 @@ export function ChapterPage({
       >
         <TextVisibilityContext.Provider value={textVisibilityContextValue}>
           <View style={styles.readerContainer} collapsable={false}>
-            {displayChapter ? (
+            {displayChapter && !isPreloading ? (
               <ChapterReader
                 chapter={displayChapter}
                 activeTab={activeTab}
@@ -1051,7 +1060,11 @@ export function ChapterPage({
                 filteredAutoHighlights={autoHighlights}
               />
             ) : (
-              <SkeletonLoader />
+              // Distinct testID from the chapter-screen-level skeleton so integration
+              // tests that wait for testID="skeleton-loader" to disappear don't trip on
+              // these buffer-page placeholders (3-page pager always renders 2 buffer
+              // pages with isPreloading=true → 2 of these visible at any time).
+              <SkeletonLoader testID="chapter-page-skeleton-buffer" />
             )}
           </View>
         </TextVisibilityContext.Provider>
