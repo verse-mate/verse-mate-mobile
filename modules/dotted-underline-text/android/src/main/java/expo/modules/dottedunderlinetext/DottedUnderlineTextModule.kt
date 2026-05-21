@@ -49,8 +49,11 @@ class DottedUnderlineTextModule : Module() {
       Prop("fontSize") { view: DottedUnderlineTextView, value: Double? ->
         if (value != null) view.setFontSize(value.toFloat())
       }
-      Prop("color") { view: DottedUnderlineTextView, value: Int? ->
-        if (value != null) view.setTextColor(value)
+      Prop("color") { view: DottedUnderlineTextView, value: String? ->
+        // JS forwards `style.color` as a hex/rgba string. Expo's Android
+        // bridge doesn't auto-coerce strings to Int for color props
+        // (unlike iOS UIColor decoding), so we parse manually here.
+        view.setTextColor(parseColorOr(value, Color.BLACK))
       }
       Prop("fontFamily") { view: DottedUnderlineTextView, value: String? ->
         view.setFontFamily(value)
@@ -67,8 +70,8 @@ class DottedUnderlineTextModule : Module() {
       Prop("textAlign") { view: DottedUnderlineTextView, value: String? ->
         view.setTextAlign(value)
       }
-      Prop("underlineColor") { view: DottedUnderlineTextView, value: Int? ->
-        if (value != null) view.setUnderlineColor(value)
+      Prop("underlineColor") { view: DottedUnderlineTextView, value: String? ->
+        view.setUnderlineColor(parseColorOr(value, Color.BLACK))
       }
       Prop("underlineStyle") { view: DottedUnderlineTextView, value: String? ->
         view.setUnderlineStyle(value ?: "dotted")
