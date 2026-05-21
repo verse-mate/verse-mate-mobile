@@ -89,6 +89,28 @@ class DottedUnderlineTextView(context: Context, appContext: AppContext) :
     )
   }
 
+  /**
+   * Yoga sometimes gives the ExpoView a width of 0/1 (UNSPECIFIED first pass)
+   * which causes the TextView to wrap each character into its own line. We
+   * still need to call super (LinearLayout) first so its internal mMaxAscent
+   * / mMaxDescent arrays are populated for onLayout — skipping it causes an
+   * NPE in `LinearLayout.layoutHorizontal`. If super's measure gave us a
+   * collapsed size but the incoming width spec is actually known, re-measure
+   * the inner TextView at that real width and override the dimension.
+   */
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    val incomingWidth = MeasureSpec.getSize(widthMeasureSpec)
+    val incomingMode = MeasureSpec.getMode(widthMeasureSpec)
+    val tooSmall = measuredWidth < 8
+    if (tooSmall && incomingMode != MeasureSpec.UNSPECIFIED && incomingWidth >= 8) {
+      val childWidthSpec = MeasureSpec.makeMeasureSpec(incomingWidth, MeasureSpec.EXACTLY)
+      val childHeightSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+      textView.measure(childWidthSpec, childHeightSpec)
+      setMeasuredDimension(incomingWidth, textView.measuredHeight)
+    }
+  }
+
   // ---- Props (called by the Module's Prop bindings) ---------------------
 
   fun setText(value: String) {

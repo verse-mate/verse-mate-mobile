@@ -166,10 +166,35 @@ export function DottedUnderlineText(props: DottedUnderlineTextProps) {
     testID,
     onPress,
     onRangeTap: handleRangeTap,
-    // Forward the rest of the style for layout (margin, padding, width, etc.).
-    // The native view extends ExpoView/UIView so layout props are applied by RN.
-    style,
+    // Forward layout-related style only. We strip attributes that are also
+    // forwarded as explicit props (color, fontSize, fontFamily, fontWeight,
+    // lineHeight, letterSpacing, textAlign, backgroundColor) because RN's
+    // ViewManager bridge converts them to native processed values (e.g. hex
+    // string → Int color on Android) and tries to set them on our ExpoView
+    // via the same prop name — colliding with our string-typed `Prop("color")`
+    // binding and failing with `Cannot cast Double to String`.
+    style: stripTextStyleAttrs(flat),
   };
 
   return <NativeDottedUnderlineTextView {...nativeProps} />;
+}
+
+/**
+ * Strip ONLY the color attributes from a flattened style. RN's Android view-
+ * bridge converts hex strings to processed Int colors before forwarding, then
+ * tries to set them as our `Prop("color")` / `Prop("backgroundColor")` binding
+ * with the Int value — colliding with the explicit string-typed color we
+ * already pass as a top-level prop. Stripping these from the style avoids the
+ * double-forward + cast failure.
+ *
+ * Other text attributes (fontSize, lineHeight, fontFamily, textAlign, etc.)
+ * are KEPT in the forwarded style so Yoga can size the ExpoView correctly —
+ * stripping them collapses the view to 0 height. They're also still forwarded
+ * as explicit native props, but numeric props don't have the string→Int cast
+ * collision that color props do.
+ */
+function stripTextStyleAttrs(flat: TextStyle | undefined): TextStyle | undefined {
+  if (!flat) return flat;
+  const { color: _color, backgroundColor: _bg, ...rest } = flat;
+  return rest;
 }
