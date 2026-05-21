@@ -1060,7 +1060,11 @@ export function ChapterPage({
                 filteredAutoHighlights={autoHighlights}
               />
             ) : (
-              <SkeletonLoader />
+              // Distinct testID from the chapter-screen-level skeleton so integration
+              // tests that wait for testID="skeleton-loader" to disappear don't trip on
+              // these buffer-page placeholders (3-page pager always renders 2 buffer
+              // pages with isPreloading=true → 2 of these visible at any time).
+              <SkeletonLoader testID="chapter-page-skeleton-buffer" />
             )}
           </View>
         </TextVisibilityContext.Provider>
