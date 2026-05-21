@@ -466,10 +466,13 @@ function QAStep({
 }
 
 function KeywordsStep({ step, styles }: { step: StepKeywords; styles: Styles }) {
+  // Each keyword is wrapped in its own card (darker background, padding, rounded)
+  // to match the web layout. The word + Greek + count badge sit on the top row,
+  // the verses listing comes next, and the definition reads underneath.
   return (
-    <View>
+    <View style={styles.keywordsContainer}>
       {step.inventory.map((kw, i) => (
-        <View key={`${kw.word}-${i}`} style={styles.keywordRow}>
+        <View key={`${kw.word}-${i}`} style={styles.keywordCard}>
           <View style={styles.keywordHeader}>
             <Text style={styles.keywordWord}>{kw.word}</Text>
             {kw.greek ? <Text style={styles.keywordGreek}>{kw.greek}</Text> : null}
@@ -503,17 +506,17 @@ function ListsStep({
   styles: Styles;
   testIDPrefix: string;
 }) {
-  // Mobile renders each row vertically (pill above its truth line) rather
-  // than as a 2-column table. The web table layout doesn't survive narrow
-  // widths once verse-chip text gets long (e.g.
-  // "1:3, 6, 9, 11, 14, 20, 24, 26") — Andy's TF feedback was that the
-  // right-side truth column shifted x-position per row.  Column headers
-  // (list.columns) are intentionally dropped on mobile since the pill +
-  // prose pair is self-describing once the rows stack.
+  // Two-column VERSE | TRUTH table layout matching the web. The verse pill
+  // column is fixed-width (90px) so the truth column always starts at the
+  // same x even when long verse refs like "1:3, 6, 9, 11, 14, 20, 24, 26"
+  // wrap inside the pill. This was Andy's TF feedback — give the table
+  // back, just don't let long refs reflow the right column.
   return (
     <View>
       {step.lists.map((list, listIdx) => {
         const id = `step-${step.number}-list-${listIdx}`;
+        const verseCol = list.columns[0] ?? 'VERSE';
+        const truthCol = list.columns[1] ?? 'TRUTH';
         return (
           <NestedCard
             key={`${list.title}-${listIdx}`}
@@ -524,6 +527,14 @@ function ListsStep({
             styles={styles}
             testID={`${testIDPrefix}-list-${listIdx}`}
           >
+            <View style={styles.listHeaderRow}>
+              <Text style={[styles.listHeaderCell, styles.listHeaderRef]}>
+                {String(verseCol).toUpperCase()}
+              </Text>
+              <Text style={[styles.listHeaderCell, styles.listHeaderTruth]}>
+                {String(truthCol).toUpperCase()}
+              </Text>
+            </View>
             {list.rows.map((row, i) => (
               <View key={`${row.ref}-${i}`} style={styles.listRow}>
                 <View style={styles.listRefPill}>
@@ -600,6 +611,10 @@ function BulletsStep({
   styles: Styles;
   markdownStyles: MarkdownStyles;
 }) {
+  // POSTURE / EYES / WILL pattern: gold pill in a fixed-width left margin
+  // column, body text wraps to the right of it. Matches web's two-column
+  // bullet layout — Andy's feedback was that stacked pill-above-text wasted
+  // vertical space and broke parity with the web.
   return (
     <View>
       {step.intro ? <Markdown style={markdownStyles}>{step.intro}</Markdown> : null}
@@ -684,6 +699,9 @@ function ApplicationRow({
   styles: Styles;
   testID: string;
 }) {
+  // Verse-range pill in fixed-width left margin column, question wraps
+  // to the right of it (web parity). The flex on appQuestion ensures the
+  // question text fills the remaining column width.
   return (
     <View style={styles.appRow} testID={testID}>
       <View style={styles.appRangePill}>
@@ -735,17 +753,17 @@ function Card({
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderContent}>
-            {/* Verse-range pill (Movement cards) renders on its own row
-                above the heading — mobile-first stacked layout per Andy's
-                feedback. The step-number circle (observation steps) stays
-                inline with the heading because it reads as an avatar/badge
-                tied to the title, not a standalone label. */}
-            {subPill ? (
-              <View style={styles.rangePill}>
-                <Text style={styles.rangePillText}>{subPill}</Text>
-              </View>
-            ) : null}
+            {/* Movement cards show the verse-range pill inline with the
+                heading (web parity). Observation step cards show the gold
+                step-number circle inline. Both are anchored to the first
+                line via alignItems:flex-start so wrapped headings don't
+                push the pill/circle down. */}
             <View style={styles.cardHeadingRow}>
+              {subPill ? (
+                <View style={styles.rangePill}>
+                  <Text style={styles.rangePillText}>{subPill}</Text>
+                </View>
+              ) : null}
               {typeof stepNumber === 'number' ? (
                 <View style={styles.stepNumberCircle}>
                   <Text style={styles.stepNumberText}>{stepNumber}</Text>
@@ -801,11 +819,10 @@ function NestedCard({
         testID={`${testID}-toggle`}
       >
         <View style={styles.nestedHeader}>
-          {/* nestedHeaderContent stacks the tag pill (when present) above
-              the heading text. Heading + chevron stay side-by-side on the
-              outer nestedHeader row so the chevron sits to the right of
-              the heading visual block, not floating to the right of just
-              the pill. */}
+          {/* WHO / TO WHOM / etc tag sits in a fixed-width left margin
+              column with the heading text wrapping in the remaining
+              column to its right (web parity). When there's no tag the
+              heading takes the full row. */}
           <View style={styles.nestedHeaderContent}>
             {tag ? (
               <View style={styles.nestedTag}>
@@ -1046,7 +1063,7 @@ const createStyles = (colors: Colors) =>
     },
     cardHeadingRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       gap: spacing.sm,
       flexWrap: 'wrap',
     },
@@ -1084,7 +1101,8 @@ const createStyles = (colors: Colors) =>
       color: colors.gray900,
     },
 
-    // Range pill (used on interpretation movements + lists rows)
+    // Range pill (interpretation movement cards) — sits inline with the
+    // movement heading on the first line via cardHeadingRow's flex layout.
     rangePill: {
       paddingHorizontal: spacing.sm,
       paddingVertical: 2,
@@ -1108,48 +1126,56 @@ const createStyles = (colors: Colors) =>
     },
     nestedHeader: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
       gap: spacing.sm,
     },
     nestedHeaderContent: {
       flex: 1,
-      // Tag pill (when present) stacks above the heading text — Andy's
-      // preference for mobile (gold labels go on their own row, content
-      // underneath, rather than inline beside the heading).
-      gap: spacing.xs,
+      // Tag pill sits in a fixed-width left margin column, heading wraps
+      // in the remaining column to its right (web's two-column pattern).
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
     },
     nestedHeading: {
-      // No flex: 1 — the parent stacks vertically now and we want this
-      // text to size to its content, not fill remaining height.
-      flexShrink: 1,
+      // flex: 1 to fill the column to the right of the fixed-width tag.
+      flex: 1,
       fontSize: fontSizes.bodySmall,
       fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
       lineHeight: fontSizes.bodySmall * lineHeights.heading,
     },
     nestedTag: {
+      width: 88,
       paddingHorizontal: spacing.sm,
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      alignSelf: 'flex-start',
     },
     nestedTagText: {
       fontSize: fontSizes.caption,
       fontWeight: fontWeights.bold,
       color: colors.gray900,
       letterSpacing: 0.5,
+      textAlign: 'center',
     },
     nestedBody: {
       paddingBottom: spacing.sm,
     },
 
-    // Keywords
-    keywordRow: {
-      paddingVertical: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.gray100,
+    // Keywords — each row is wrapped in its own elevated card with rounded
+    // corners (web parity: darker background, padding, borderRadius).
+    keywordsContainer: {
+      gap: spacing.sm,
+      paddingTop: spacing.xs,
+    },
+    keywordCard: {
+      padding: spacing.md,
+      borderRadius: 12,
+      backgroundColor: colors.backgroundElevated,
+      borderWidth: 1,
+      borderColor: colors.gray100,
     },
     keywordHeader: {
       flexDirection: 'row',
@@ -1198,29 +1224,55 @@ const createStyles = (colors: Colors) =>
       lineHeight: fontSizes.bodySmall * lineHeights.body,
     },
 
-    // Lists — vertical stack on mobile (one row = pill + truth stacked).
-    // The 2-column table layout was removed because long verse-chips
-    // (e.g. "1:3, 6, 9, 11, 14, 20, 24, 26") pushed the truth column
-    // out of alignment with shorter rows.
+    // Lists — 2-column VERSE | TRUTH table. Fixed-width pill column (90px)
+    // keeps the truth column's x-position consistent across rows even when
+    // a verse ref like "1:3, 6, 9, 11, 14, 20, 24, 26" wraps inside its
+    // pill. Without the fixed width, long refs pushed every other row's
+    // truth column right (Andy's original TF concern).
+    listHeaderRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      paddingBottom: spacing.xs,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.gray100,
+      marginBottom: spacing.xs,
+    },
+    listHeaderCell: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.bold,
+      color: colors.gold,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+    },
+    listHeaderRef: {
+      width: 90,
+    },
+    listHeaderTruth: {
+      flex: 1,
+    },
     listRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
       paddingVertical: spacing.sm,
-      gap: spacing.xs,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.gray100,
     },
     listRefPill: {
+      width: 90,
       paddingHorizontal: spacing.sm,
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      // Pill hugs its content — no minWidth so single short refs stay
-      // tight. alignSelf prevents it from stretching the full row width.
-      alignSelf: 'flex-start',
     },
     listRefPillText: {
       fontSize: fontSizes.caption,
       fontWeight: fontWeights.bold,
       color: colors.gray900,
+      textAlign: 'center',
     },
     listTruth: {
+      flex: 1,
       fontSize: fontSizes.bodySmall,
       color: colors.textPrimary,
       lineHeight: fontSizes.bodySmall * lineHeights.body,
@@ -1271,28 +1323,29 @@ const createStyles = (colors: Colors) =>
       lineHeight: fontSizes.bodySmall * lineHeights.body,
     },
 
-    // Bullets — pill on its own row above the body text. Andy preferred
-    // this over side-by-side label/text alignment after the first pass:
-    // mobile feels cleaner with the gold label stacked above its content
-    // even though that diverges from the web's two-column layout.
+    // Bullets — POSTURE / EYES / WILL pattern: gold pill in a fixed-width
+    // left margin column, body text wraps to the right (web parity).
     bulletItem: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
       paddingVertical: spacing.sm,
-      gap: spacing.xs,
       borderBottomWidth: 1,
       borderBottomColor: colors.gray100,
     },
     bulletTag: {
+      width: 88,
       paddingHorizontal: spacing.sm,
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      alignSelf: 'flex-start',
     },
     bulletTagText: {
       fontSize: fontSizes.caption,
       fontWeight: fontWeights.bold,
       color: colors.gray900,
       letterSpacing: 0.5,
+      textAlign: 'center',
     },
     bulletBody: {
       flex: 1,
@@ -1358,25 +1411,29 @@ const createStyles = (colors: Colors) =>
       lineHeight: fontSizes.bodySmall * lineHeights.body,
     },
 
-    // Application — verse-range pill on its own row above the question
-    // (mobile-first stack instead of inline gutter alignment).
+    // Application — verse-range pill in fixed-width left margin column,
+    // question wraps to the right (web parity).
     appRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
       paddingVertical: spacing.sm,
-      gap: spacing.xs,
     },
     appRangePill: {
+      width: 88,
       paddingHorizontal: spacing.sm,
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      alignSelf: 'flex-start',
     },
     appRangePillText: {
       fontSize: fontSizes.caption,
       fontWeight: fontWeights.bold,
       color: colors.gray900,
+      textAlign: 'center',
     },
     appQuestion: {
+      flex: 1,
       fontSize: fontSizes.bodySmall,
       color: colors.textPrimary,
       lineHeight: fontSizes.bodySmall * lineHeights.body,

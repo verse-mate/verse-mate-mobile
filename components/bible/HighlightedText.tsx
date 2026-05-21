@@ -22,7 +22,7 @@
 
 import type { AlignedToken, ChapterAlignment, LexEntry } from '@versemate/lexicon';
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
@@ -309,35 +309,73 @@ export function HighlightedText({
   const lexiconMode = Boolean(alignment && onLexiconWordPress);
   const longPressEnabled = !lexiconMode && Boolean(onWordSelect || onWordLongPress);
 
-  // Lookup map: normalized lowercase surface → { token, entry, isTheme }
-  // for fast match on every per-word render. Cleared when alignment or
-  // verseNumber changes.
-  const lexiconLookup = useMemo(() => {
+  // Lookup maps for lex highlighting:
+  //   singleWordMap — normalized lowercase surface → hit, for single-word entries
+  //   multiWordMap  — keyed by FIRST normalized word; value is an array of
+  //                   candidate phrases (multi-word surface split into parts).
+  //
+  // We split a multi-word surface on whitespace AND hyphens so a lexicon
+  // surface like "double-minded" can match a verse rendered "double minded"
+  // and vice versa (the surface parts are joined for comparison after
+  // tokens are stripped of punctuation). See VER-mobile-lex-coverage-gap.
+  const lexiconLookups = useMemo(() => {
     if (!alignment || !alignment.verses[verseNumber]) return null;
-    const map = new Map<string, { token: AlignedToken; entry: LexEntry; isTheme: boolean }>();
+    const single = new Map<string, { token: AlignedToken; entry: LexEntry; isTheme: boolean }>();
+    const multi = new Map<
+      string,
+      {
+        parts: string[]; // normalized lowercase parts, length >= 2
+        surface: string; // original surface as found in lexicon
+        token: AlignedToken;
+        entry: LexEntry;
+        isTheme: boolean;
+      }[]
+    >();
     const themeSet = new Set(alignment.themeLemmas ?? []);
     for (const token of alignment.verses[verseNumber]) {
       const entry = alignment.lexicon[token.lemma];
       if (!entry) continue;
-      const normalized = token.surface.toLowerCase();
-      // First-write-wins keeps the data file's ordering authoritative when
-      // the same surface maps to multiple lemmas in a verse.
-      if (!map.has(normalized)) {
-        map.set(normalized, { token, entry, isTheme: themeSet.has(token.lemma) });
+      const rawSurface = token.surface;
+      // Split on whitespace and hyphens for multi-word detection.
+      const parts = rawSurface
+        .toLowerCase()
+        .split(/[\s-]+/)
+        .filter(Boolean);
+      if (parts.length <= 1) {
+        const normalized = rawSurface.toLowerCase();
+        // First-write-wins keeps the data file's ordering authoritative when
+        // the same surface maps to multiple lemmas in a verse.
+        if (!single.has(normalized)) {
+          single.set(normalized, { token, entry, isTheme: themeSet.has(token.lemma) });
+        }
+      } else {
+        const head = parts[0];
+        const list = multi.get(head) ?? [];
+        list.push({
+          parts,
+          surface: rawSurface,
+          token,
+          entry,
+          isTheme: themeSet.has(token.lemma),
+        });
+        multi.set(head, list);
       }
     }
-    return map;
+    return { single, multi };
   }, [alignment, verseNumber]);
 
   // Normalize a displayed word (e.g. "Trials,") to its lookup key ("trials").
-  const lexiconMatch = (rawWord: string) => {
-    if (!lexiconLookup) return null;
-    const clean = rawWord
+  const stripPunct = (rawWord: string) =>
+    rawWord
       .toLowerCase()
       .replace(/^[.,;:!?"'’()]+/, '')
       .replace(/[.,;:!?"'’()]+$/, '');
+
+  const lexiconMatch = (rawWord: string) => {
+    if (!lexiconLookups) return null;
+    const clean = stripPunct(rawWord);
     if (!clean) return null;
-    return lexiconLookup.get(clean) ?? null;
+    return lexiconLookups.single.get(clean) ?? null;
   };
   // Get current theme mode for highlight color selection
   const { mode } = useTheme();
@@ -814,8 +852,8 @@ export function HighlightedText({
   ) => {
     const tokens = tokenizeText(segment.text);
 
-    // Pre-compute lex-match for every token in the segment. We need it
-    // twice: once for the current token (which gets the underline +
+    // Pre-compute single-word lex-match for every token in the segment.
+    // We need it twice: once for the current token (which gets the underline +
     // tap handler) and once to peek at the NEXT token to decide whether
     // to include the trailing space inside the underlined Text. When
     // both the current AND next token are lex-words, including the
@@ -826,99 +864,237 @@ export function HighlightedText({
     // outside the underlined Text either way.
     const lexHits = tokens.map((t) => lexiconMatch(t.word));
 
-    return (
-      <Text key={segment.key} style={segmentStyle} suppressHighlighting={true}>
-        {tokens.map((token, idx) => {
-          // Calculate absolute char positions in verse text
-          const absoluteStartChar = segment.startChar + token.startChar;
-          const absoluteEndChar = segment.startChar + token.endChar;
+    // Responder props exist at runtime but not in Text's TS types.
+    // They allow ScrollView to take over the gesture when scrolling.
+    const responderProps: Record<string, () => boolean> = {
+      onStartShouldSetResponder: () => true,
+      onResponderTerminationRequest: () => true,
+    };
 
-          // Check if this word is selected
-          const isSelected =
-            selectedWordState &&
-            selectedWordState.startChar === absoluteStartChar &&
-            selectedWordState.endChar === absoluteEndChar;
+    // Has trailing punctuation that breaks a multi-word match (e.g. "double,"
+    // followed by "minded" should NOT match "double-minded"). We allow
+    // hyphens through because lexicon parts are split on hyphens too.
+    const hasBlockingTrailingPunct = (word: string) => {
+      const stripped = word.replace(/^[.,;:!?"'’()]+/, '');
+      // Anything non-word after the head letters except hyphen counts as
+      // a phrase-breaker.
+      return /[^\p{L}\p{M}\p{N}'’-]/u.test(stripped);
+    };
 
-          // Responder props exist at runtime but not in Text's TS types
-          // They allow ScrollView to take over the gesture when scrolling
-          const responderProps: Record<string, () => boolean> = {
-            onStartShouldSetResponder: () => true,
-            onResponderTerminationRequest: () => true,
-          };
+    // Try to match a multi-word lex phrase starting at tokens[startIdx].
+    // Returns the longest matching candidate, or null.
+    const findMultiWordMatch = (startIdx: number) => {
+      if (!lexiconLookups) return null;
+      const head = stripPunct(tokens[startIdx].word);
+      if (!head) return null;
+      const candidates = lexiconLookups.multi.get(head);
+      if (!candidates || candidates.length === 0) return null;
 
-          // Lexicon-covered word? Render with dotted underline and route tap
-          // to the lexicon callback (not the segment's regular tap).
-          //
-          // Splitting:
-          //   token.word may include trailing punctuation ("trials,", "joy.").
-          //   We underline ONLY the word characters — punctuation always
-          //   stays in a separate, unstyled Text so the underline doesn't
-          //   bleed past the word itself. The trailing SPACE, however, is
-          //   pulled INTO the underlined Text when the next token is also
-          //   a lex-word and the current word has no punctuation, so
-          //   adjacent lex-words have a single continuous underline.
-          const lexHit = lexHits[idx];
-          if (lexHit && onLexiconWordPress) {
-            const lexStyle = lexHit.isTheme ? lexiconWordStyles.theme : lexiconWordStyles.regular;
-            const match = token.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
-            const wordCore = match ? match[1] : token.word;
-            const trailing = match ? match[2] : '';
-            const nextLexHit = lexHits[idx + 1];
-            const includeSpaceInLex = !!nextLexHit && !trailing && token.hasTrailingSpace;
-            return (
-              <Text
-                key={`word-${segment.key}-${token.startChar}`}
-                suppressHighlighting={true}
-                {...responderProps}
-              >
-                <Text
-                  style={[lexStyle, (isSelected || verseTapSelected) && selectionStyles.selected]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    onLexiconWordPress({
-                      surface: wordCore,
-                      token: lexHit.token,
-                      entry: lexHit.entry,
-                      isTheme: lexHit.isTheme,
-                    });
-                  }}
-                  suppressHighlighting={true}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${wordCore} — ${lexHit.entry.translit}, ${lexHit.entry.basicGloss}`}
-                >
-                  {wordCore}
-                  {includeSpaceInLex ? ' ' : ''}
-                </Text>
-                {trailing}
-                {!includeSpaceInLex && token.hasTrailingSpace ? ' ' : ''}
-              </Text>
-            );
+      let best: (typeof candidates)[number] | null = null;
+      for (const cand of candidates) {
+        const need = cand.parts.length;
+        if (startIdx + need > tokens.length) continue;
+
+        // Compare each part to the corresponding verse-token's stripped word.
+        // Disallow phrase-breaking punctuation between parts.
+        let ok = true;
+        for (let k = 0; k < need; k++) {
+          const verseToken = tokens[startIdx + k];
+          const verseWord = stripPunct(verseToken.word);
+          if (verseWord !== cand.parts[k]) {
+            ok = false;
+            break;
+          }
+          // For all but the LAST token, trailing punctuation (commas,
+          // periods) breaks the phrase. The last token may end the
+          // sentence — its trailing punctuation is fine.
+          if (k < need - 1 && hasBlockingTrailingPunct(verseToken.word)) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) continue;
+
+        if (!best || cand.parts.length > best.parts.length) {
+          best = cand;
+        }
+      }
+      return best;
+    };
+
+    const elements: ReactNode[] = [];
+    let idx = 0;
+    while (idx < tokens.length) {
+      const token = tokens[idx];
+      const absoluteStartChar = segment.startChar + token.startChar;
+      const absoluteEndChar = segment.startChar + token.endChar;
+
+      // Check if this word is selected (single-word selection only)
+      const isSelected =
+        selectedWordState &&
+        selectedWordState.startChar === absoluteStartChar &&
+        selectedWordState.endChar === absoluteEndChar;
+
+      // --- 1. Multi-word lex match (greedy longest) -----------------------
+      if (onLexiconWordPress && lexiconLookups) {
+        const multi = findMultiWordMatch(idx);
+        if (multi) {
+          const endIdx = idx + multi.parts.length - 1;
+          const lastToken = tokens[endIdx];
+          const lexStyle = multi.isTheme ? lexiconWordStyles.theme : lexiconWordStyles.regular;
+
+          // Build the inner phrase: include all internal spaces (joined as
+          // one continuous underline) and, if the LAST word has trailing
+          // punctuation, peel that out so the underline doesn't bleed into
+          // it. The trailing space after the last word follows the same
+          // rule as single-word: include in the underlined Text if the
+          // next token (post-phrase) is also a lex word and there's no
+          // punctuation in between.
+          const lastMatch = lastToken.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
+          const lastCore = lastMatch ? lastMatch[1] : lastToken.word;
+          const lastTrailing = lastMatch ? lastMatch[2] : '';
+
+          // Inner spans: parts[0..n-2] each followed by a space; then last core.
+          const innerPieces: string[] = [];
+          for (let k = 0; k < multi.parts.length - 1; k++) {
+            const t = tokens[idx + k];
+            const m = t.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
+            const core = m ? m[1] : t.word;
+            // We already disallowed blocking punctuation for non-last parts,
+            // so any non-letter trailing here would be a hyphen — keep it.
+            const trail = m ? m[2] : '';
+            innerPieces.push(core + trail);
+            // Use the verse's actual whitespace if it had any, otherwise
+            // a single space to keep the phrase visually connected.
+            innerPieces.push(t.hasTrailingSpace ? ' ' : ' ');
+          }
+          innerPieces.push(lastCore);
+
+          const joinedSurface = innerPieces.join('');
+          const nextAfterPhraseIdx = endIdx + 1;
+          const nextAfterPhraseHit =
+            nextAfterPhraseIdx < tokens.length ? lexHits[nextAfterPhraseIdx] : null;
+          const includeSpaceInLex =
+            !!nextAfterPhraseHit && !lastTrailing && lastToken.hasTrailingSpace;
+
+          // Phrase-level selection check: if any token inside the phrase
+          // matches the current single-word selection, dim the whole phrase
+          // (rare edge case — keeps existing selection visual coherent).
+          let phraseSelected = !!verseTapSelected;
+          if (!phraseSelected && selectedWordState) {
+            for (let k = 0; k < multi.parts.length; k++) {
+              const t = tokens[idx + k];
+              const aStart = segment.startChar + t.startChar;
+              const aEnd = segment.startChar + t.endChar;
+              if (selectedWordState.startChar === aStart && selectedWordState.endChar === aEnd) {
+                phraseSelected = true;
+                break;
+              }
+            }
           }
 
-          return (
+          const lexEntry = multi.entry;
+          const lexToken = multi.token;
+          const isTheme = multi.isTheme;
+          elements.push(
             <Text
-              key={`word-${segment.key}-${token.startChar}`}
-              style={isSelected || verseTapSelected ? selectionStyles.selected : undefined}
-              onPress={onPressHandler}
-              onLongPress={
-                longPressEnabled
-                  ? (e) =>
-                      handleTokenizedWordLongPress(
-                        token.word,
-                        absoluteStartChar,
-                        absoluteEndChar,
-                        e
-                      )
-                  : undefined
-              }
+              key={`word-${segment.key}-${token.startChar}-phrase`}
               suppressHighlighting={true}
               {...responderProps}
             >
-              {token.word}
-              {token.hasTrailingSpace ? ' ' : ''}
+              <Text
+                style={[lexStyle, phraseSelected && selectionStyles.selected]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onLexiconWordPress({
+                    surface: joinedSurface,
+                    token: lexToken,
+                    entry: lexEntry,
+                    isTheme,
+                  });
+                }}
+                suppressHighlighting={true}
+                accessibilityRole="button"
+                accessibilityLabel={`${joinedSurface} — ${lexEntry.translit}, ${lexEntry.basicGloss}`}
+              >
+                {joinedSurface}
+                {includeSpaceInLex ? ' ' : ''}
+              </Text>
+              {lastTrailing}
+              {!includeSpaceInLex && lastToken.hasTrailingSpace ? ' ' : ''}
             </Text>
           );
-        })}
+          idx = endIdx + 1;
+          continue;
+        }
+      }
+
+      // --- 2. Single-word lex match (preserves exact prior behavior) -----
+      const lexHit = lexHits[idx];
+      if (lexHit && onLexiconWordPress) {
+        const lexStyle = lexHit.isTheme ? lexiconWordStyles.theme : lexiconWordStyles.regular;
+        const match = token.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
+        const wordCore = match ? match[1] : token.word;
+        const trailing = match ? match[2] : '';
+        const nextLexHit = lexHits[idx + 1];
+        const includeSpaceInLex = !!nextLexHit && !trailing && token.hasTrailingSpace;
+        elements.push(
+          <Text
+            key={`word-${segment.key}-${token.startChar}`}
+            suppressHighlighting={true}
+            {...responderProps}
+          >
+            <Text
+              style={[lexStyle, (isSelected || verseTapSelected) && selectionStyles.selected]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onLexiconWordPress({
+                  surface: wordCore,
+                  token: lexHit.token,
+                  entry: lexHit.entry,
+                  isTheme: lexHit.isTheme,
+                });
+              }}
+              suppressHighlighting={true}
+              accessibilityRole="button"
+              accessibilityLabel={`${wordCore} — ${lexHit.entry.translit}, ${lexHit.entry.basicGloss}`}
+            >
+              {wordCore}
+              {includeSpaceInLex ? ' ' : ''}
+            </Text>
+            {trailing}
+            {!includeSpaceInLex && token.hasTrailingSpace ? ' ' : ''}
+          </Text>
+        );
+        idx++;
+        continue;
+      }
+
+      // --- 3. Plain token -----------------------------------------------
+      elements.push(
+        <Text
+          key={`word-${segment.key}-${token.startChar}`}
+          style={isSelected || verseTapSelected ? selectionStyles.selected : undefined}
+          onPress={onPressHandler}
+          onLongPress={
+            longPressEnabled
+              ? (e) =>
+                  handleTokenizedWordLongPress(token.word, absoluteStartChar, absoluteEndChar, e)
+              : undefined
+          }
+          suppressHighlighting={true}
+          {...responderProps}
+        >
+          {token.word}
+          {token.hasTrailingSpace ? ' ' : ''}
+        </Text>
+      );
+      idx++;
+    }
+
+    return (
+      <Text key={segment.key} style={segmentStyle} suppressHighlighting={true}>
+        {elements}
       </Text>
     );
   };
@@ -1143,12 +1319,18 @@ const lexiconWordStyles = StyleSheet.create({
 // TODO(VER-mobile-lex-dotted-android): real dotted underlines on Android
 // require inline SVG per word with onLayout measurement, or a Skia/SVG
 // text renderer (losing native text selection + a11y). Track separately.
-// TODO(VER-mobile-lex-coverage-gap): mobile's `lexiconMatch` is single-word
-// only (it tokenizes on whitespace and looks up the cleaned word in a
-// Map). The web (`verse-mate-web/src/components/TokenizedVerse.tsx`) does
-// a greedy longest-match scan over `alignment.verses[verseNumber]`, so
-// multi-word surfaces like "double-minded" or any multi-token entry get
-// underlined on web but not on mobile. Aligning mobile with the web's
-// scan-based tokenizer is non-trivial because the current per-word
-// tokens are also load-bearing for char-position-based highlights and
-// long-press word selection. Track separately.
+// VER-mobile-lex-coverage-gap (2026-05-21): mobile now matches multi-word
+// lexicon surfaces at RENDER time by checking each token against the
+// `multiWordMap` (keyed by first normalized word) before falling back to
+// the single-word lookup. The tokenizer is untouched (still whitespace-
+// based, still load-bearing for highlight char positions + long-press
+// selection). Surfaces are split on whitespace AND hyphens so the
+// lexicon's "double-minded" matches a verse rendered "double minded".
+//
+// REMAINING EDGE CASE (low priority): a single verse-token that contains
+// an internal hyphen ("double-minded" as one whitespace-tokenized word)
+// won't currently match a multi-word lex entry — the tokenizer treats
+// it as one token, so the multi-word path never fires. Fixing this
+// would require pre-splitting hyphenated verse-tokens for matching
+// while keeping the original token for rendering. Punted as out-of-scope
+// for the coverage gap pass.
