@@ -61,7 +61,12 @@ import {
   View,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Reanimated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -356,16 +361,19 @@ export function VisualsPanel({
   // Single tap: toggle chrome. Must be made Exclusive with the double-tap
   // so the single doesn't fire while RNGH is still deciding if a second
   // tap is incoming.
+  //
+  // **runOnJS is mandatory here.** RNGH v2 gesture callbacks run on the
+  // UI worklet thread whenever `react-native-reanimated` is present in
+  // the project (which it is — useAnimatedStyle/useSharedValue above
+  // pull it in). Calling `showChrome` directly here triggered SIGABRT
+  // in Hermes for Andy on iOS 26 / iPhone 17 (TF crash logs 2026-05-20
+  // 21:21 -0500, all 3 reproduced) because `Animated.timing` is a JS
+  // function that can't run on the worklet thread. `runOnJS` bridges
+  // back to the JS thread safely.
   const singleTap = Gesture.Tap()
     .numberOfTaps(1)
     .onEnd(() => {
-      // Bridge from the UI thread back to JS for the Animated.Value
-      // timing. `runOnJS` would be cleaner but `showChrome` is already a
-      // plain JS callback — RNGH's tap handlers run on JS by default
-      // when no .runOnJS(true) is set, so this is safe to invoke
-      // directly. (Confirm in review: RNGH v2 gesture callbacks default
-      // to the JS thread unless `.runOnUI()` is configured.)
-      showChrome();
+      runOnJS(showChrome)();
     });
 
   const composedGesture = Gesture.Simultaneous(pinch, pan, Gesture.Exclusive(doubleTap, singleTap));
