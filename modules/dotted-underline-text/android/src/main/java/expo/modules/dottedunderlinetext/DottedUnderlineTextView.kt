@@ -7,7 +7,12 @@ import android.graphics.Color
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.Spanned
 import android.text.method.LinkMovementMethod
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.ViewGroup
@@ -28,7 +33,13 @@ data class UnderlineDescriptor(
   val end: Int,
   val color: Int,
   val thicknessDp: Float,
-  val isDotted: Boolean
+  /** When false the range gets no underline drawn — useful for ranges that
+   *  only carry a background or per-range font/color (e.g. highlights). */
+  val hasUnderline: Boolean,
+  val isDotted: Boolean,
+  val backgroundColor: Int? = null,
+  val fontWeight: String? = null,
+  val textColor: Int? = null,
 )
 
 /**
@@ -81,7 +92,7 @@ class DottedUnderlineTextView(context: Context, appContext: AppContext) :
   // ---- Props (called by the Module's Prop bindings) ---------------------
 
   fun setText(value: String) {
-    textView.text = value
+    textView.setRawText(value)
     textView.requestLayout()
     textView.invalidate()
   }
@@ -143,7 +154,7 @@ class DottedUnderlineTextView(context: Context, appContext: AppContext) :
   }
 
   fun setRanges(ranges: List<UnderlineDescriptor>?) {
-    textView.ranges = ranges
+    textView.setRangesInternal(ranges)
     textView.invalidate()
   }
 
@@ -168,6 +179,69 @@ class DottedUnderlineTextView(context: Context, appContext: AppContext) :
     var underlineStyle: String = "dotted"
     var underlineThicknessDp: Float = 1f
     var ranges: List<UnderlineDescriptor>? = null
+      private set
+
+    /** Raw plain-text content from the JS `text` prop. We cache it because
+     *  the displayed `.text` may be a SpannableString built from this + the
+     *  current ranges, and we need to rebuild whenever EITHER changes. */
+    private var rawText: String = ""
+
+    /** Public setter routed through `rebuildContent()` so backgroundColor /
+     *  per-range font weight / per-range textColor get re-applied on text
+     *  updates. */
+    fun setRawText(value: String) {
+      rawText = value
+      rebuildContent()
+    }
+
+    fun setRangesInternal(value: List<UnderlineDescriptor>?) {
+      ranges = value
+      rebuildContent()
+    }
+
+    /** Rebuild the displayed text. If any range carries a backgroundColor,
+     *  textColor, or bold fontWeight we wrap the text in a SpannableString
+     *  with matching spans. Otherwise we use the plain string (cheaper).
+     *  Underlines are drawn separately in `onDraw` (per-range, manual) for
+     *  pixel control. */
+    private fun rebuildContent() {
+      val rs = ranges
+      val needsSpannable = rs != null && rs.any {
+        it.backgroundColor != null || it.textColor != null || isBoldWeight(it.fontWeight)
+      }
+      if (!needsSpannable || rawText.isEmpty()) {
+        this.text = rawText
+        return
+      }
+      val spannable = SpannableString(rawText)
+      for (r in rs ?: emptyList()) {
+        val safeStart = r.start.coerceIn(0, rawText.length)
+        val safeEnd = r.end.coerceIn(safeStart, rawText.length)
+        if (safeEnd <= safeStart) continue
+        val flag = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        r.backgroundColor?.let {
+          spannable.setSpan(BackgroundColorSpan(it), safeStart, safeEnd, flag)
+        }
+        r.textColor?.let {
+          spannable.setSpan(ForegroundColorSpan(it), safeStart, safeEnd, flag)
+        }
+        if (isBoldWeight(r.fontWeight)) {
+          spannable.setSpan(StyleSpan(Typeface.BOLD), safeStart, safeEnd, flag)
+        }
+      }
+      this.text = spannable
+    }
+
+    /** Map a CSS-style weight string ("400" / "600" / "bold" / etc.) to
+     *  whether it should render bold on Android. Android's StyleSpan only
+     *  supports BOLD / NORMAL / ITALIC / BOLD_ITALIC, so anything ≥ 600
+     *  rounds to bold. */
+    private fun isBoldWeight(value: String?): Boolean {
+      if (value == null) return false
+      if (value == "bold") return true
+      val n = value.toIntOrNull() ?: return false
+      return n >= 600
+    }
 
     private val underlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
       style = Paint.Style.STROKE
@@ -231,6 +305,10 @@ class DottedUnderlineTextView(context: Context, appContext: AppContext) :
       density: Float,
       r: UnderlineDescriptor
     ) {
+      // Skip ranges that opted out of an underline (background/font-weight
+      // only — e.g. highlight backgrounds without decoration).
+      if (!r.hasUnderline) return
+
       val textLen = (text?.length ?: 0)
       if (textLen == 0) return
       val safeStart = r.start.coerceIn(0, textLen)

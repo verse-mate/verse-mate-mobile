@@ -11,12 +11,29 @@ import expo.modules.kotlin.records.Record
  * machinery deserializes plain JS objects into this type automatically when
  * referenced as a Prop value type.
  */
+/** Parse a color string the JS side might send. Returns `fallback` on
+ *  failure (logs no error — we don't want a typo'd hex to crash render). */
+private fun parseColorOr(value: String?, fallback: Int): Int {
+  if (value.isNullOrEmpty()) return fallback
+  return try { Color.parseColor(value) } catch (_: IllegalArgumentException) { fallback }
+}
+
+/** Returns null instead of a fallback color so callers can branch on
+ *  "this range has no per-range background/textColor at all". */
+private fun parseColorOrNull(value: String?): Int? {
+  if (value.isNullOrEmpty()) return null
+  return try { Color.parseColor(value) } catch (_: IllegalArgumentException) { null }
+}
+
 class RangeRecord : Record {
   @Field var start: Int = 0
   @Field var end: Int = 0
   @Field var style: String? = null
   @Field var color: String? = null
   @Field var thickness: Double? = null
+  @Field var backgroundColor: String? = null
+  @Field var fontWeight: String? = null
+  @Field var textColor: String? = null
 }
 
 class DottedUnderlineTextModule : Module() {
@@ -64,17 +81,17 @@ class DottedUnderlineTextModule : Module() {
           view.setRanges(null)
         } else {
           val descriptors = value.map { r ->
-            val parsedColor = try {
-              if (!r.color.isNullOrEmpty()) Color.parseColor(r.color) else Color.BLACK
-            } catch (_: IllegalArgumentException) {
-              Color.BLACK
-            }
+            val parsedUnderlineColor = parseColorOr(r.color, Color.BLACK)
             UnderlineDescriptor(
               start = r.start,
               end = r.end,
-              color = parsedColor,
+              color = parsedUnderlineColor,
               thicknessDp = (r.thickness ?: 1.0).toFloat(),
-              isDotted = (r.style ?: "dotted") == "dotted"
+              hasUnderline = !r.style.isNullOrEmpty(),
+              isDotted = (r.style ?: "dotted") == "dotted",
+              backgroundColor = parseColorOrNull(r.backgroundColor),
+              fontWeight = r.fontWeight,
+              textColor = parseColorOrNull(r.textColor)
             )
           }
           view.setRanges(descriptors)
