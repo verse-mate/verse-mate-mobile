@@ -1,0 +1,10 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["DottedUnderlineTextModule"],
+    "podspecPath": "./ios/DottedUnderlineText.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.dottedunderlinetext.DottedUnderlineTextModule"]
+  }
+}
