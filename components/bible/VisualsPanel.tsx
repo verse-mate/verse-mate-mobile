@@ -17,9 +17,17 @@
  * respects safe-area insets, supports pinch/double-tap zoom + pan via
  * react-native-gesture-handler, and auto-hides the top/bottom bars after
  * 3s of inactivity. The BibleProject video card swaps its thumbnail for
- * an inline react-native-webview embed of the YouTube IFrame Player so
- * playback stays inside verse-mate rather than handing off to the
- * YouTube app — addressing Andy's TF feedback.
+ * an inline `react-native-youtube-iframe` player so playback stays inside
+ * verse-mate rather than handing off to the YouTube app. The raw
+ * `youtube.com/embed` and `youtube-nocookie.com/embed` URLs both return
+ * Error 153 for the BibleProject channel; the IFrame Player API
+ * (negotiated via the iframe-player host page that lonelycpp's library
+ * wraps) is the only embed surface that survives the channel-level
+ * embed restriction. When YouTube still refuses (e.g. age-gated content
+ * in the future) `onError` falls back to opening the watch URL.
+ *
+ * The whole Visuals tab unlocks ScreenOrientation on mount so users can
+ * rotate to landscape for wide diagrams — not just inside the lightbox.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -32,8 +40,15 @@ import {
   type VideoEntry,
   type VisualCard,
 } from '@versemate/visuals';
+// `expo-file-system/legacy` exposes the classic file API (`downloadAsync`,
+// `cacheDirectory`). The non-legacy module's top-level `downloadAsync` is
+// flagged `@deprecated` and throws at runtime, so importing from `/legacy`
+// is the supported path for this workflow until the project migrates to
+// the new `File.downloadFileAsync` API end-to-end.
+import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -48,7 +63,7 @@ import {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
+import YoutubePlayer from 'react-native-youtube-iframe';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import { getBookSlug } from '@/utils/bookSlugs';
@@ -113,35 +128,85 @@ export function VisualsPanel({
   const openCard = cards.find((c) => c.id === openCardId) ?? null;
   const closeLightbox = useCallback(() => setOpenCardId(null), []);
 
+  // ─── Bug #3 — actually download the PDF instead of handing the URL to
+  // the system browser. The previous `Linking.openURL` flow opened the
+  // PDF in-browser, which on iOS would route through Safari and on
+  // Android through Chrome — neither saves the file locally, and on
+  // return-to-app it can leave the Modal in a stale state that bug #2
+  // reproduces from. We download to the cache directory and hand the
+  // local file URI to expo-sharing so the user gets the proper
+  // "Save to Files / Save to Drive / Print" sheet.
+  //
+  // The lightbox is closed BEFORE invoking the share sheet because
+  // presenting a system UIActivityViewController/ChooserActivity from
+  // inside an open RN `Modal` is the exact stack-up that bug #2's crash
+  // reproduces from. Closing first → small delay → share is the
+  // documented safe pattern for expo-sharing on iOS.
+  const handlePdfDownload = useCallback(async () => {
+    if (!openCard?.download) return;
+    const url = absolutizeVisualUrl(openCard.download.href);
+    // The visual card download object only carries { label, href }, so
+    // derive a filename from the URL path. Fall back to a generic name
+    // if the URL has no useful trailing segment (shouldn't happen for
+    // any of today's PDFs but keeps the type narrow).
+    const filename = url.split('/').pop()?.split('?')[0] || 'visual.pdf';
+    const dest = `${FileSystem.cacheDirectory}${filename}`;
+    try {
+      const { uri } = await FileSystem.downloadAsync(url, dest);
+      // Close the lightbox before presenting the share sheet — see
+      // comment above for the bug #2 interaction.
+      closeLightbox();
+      setTimeout(async () => {
+        try {
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
+          } else {
+            // Last-resort fallback: hand the local file URI to the OS.
+            Linking.openURL(uri).catch(() => {});
+          }
+        } catch (shareErr) {
+          console.warn('[VisualsPanel] PDF share failed', shareErr);
+        }
+      }, 250);
+    } catch (e) {
+      console.warn('[VisualsPanel] PDF download failed', e);
+    }
+  }, [openCard, closeLightbox]);
+
   // Inline-playback state for the BibleProject video card. Andy's TF
   // feedback was "can it play in place vs open the YouTube app?" — the
-  // answer is yes, via react-native-webview embedding the YouTube
-  // IFrame Player.
+  // answer is yes, via react-native-youtube-iframe wrapping the YouTube
+  // IFrame Player API. When YouTube hard-refuses the embed (channel-level
+  // block, age gate, etc.) `onError` flips `videoError = true` so we can
+  // surface a "open in YouTube" fallback.
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const handleVideoPress = useCallback(() => {
     if (!video) return;
+    setVideoError(false);
     setVideoPlaying(true);
   }, [video]);
   // Reset playback state on chapter change — a new chapter may have a
   // different (or no) video.
   useEffect(() => {
     setVideoPlaying(false);
+    setVideoError(false);
   }, [bookId, chapter]);
 
-  // Bug #8 — unlock orientation while the fullscreen lightbox is open so
-  // wide visuals can be rotated to landscape. Re-lock to portrait when
-  // the lightbox closes or the component unmounts so the rest of the app
-  // behaves as before.
+  // ─── Bug #4 (round 3) — whole Visuals tab is landscape-capable ───────
+  // Previously orientation was only unlocked while the lightbox modal
+  // was open. Andy reported that rotating the tab itself (e.g. to look
+  // at wide diagrams in-grid) did nothing. Unlock at mount and re-lock
+  // to portrait at unmount so other tabs/screens behave as before. The
+  // single mount/unmount effect (versus a per-`openCard` effect)
+  // collapses the rapid lock/unlock churn that the bug #2 crash
+  // reproduction was hitting on background → resume of the PDF flow.
   useEffect(() => {
-    if (openCard) {
-      ScreenOrientation.unlockAsync().catch(() => {});
-    } else {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-    }
+    ScreenOrientation.unlockAsync().catch(() => {});
     return () => {
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     };
-  }, [openCard]);
+  }, []);
 
   // ─── Bug #8 — pinch/zoom + pan SharedValues for the lightbox image ───
   // Held at module-scope-equivalent (component scope) so the same animated
@@ -313,22 +378,23 @@ export function VisualsPanel({
     ],
   }));
 
-  // YouTube embed URL.
-  //
-  // 1. **youtube-nocookie.com** — strict "Privacy-enhanced mode" surface.
-  //    Some YouTube channels (incl. BibleProject) restrict third-party
-  //    embed playback on the standard `youtube.com/embed/...` domain
-  //    and return Error 153. The `-nocookie` mirror typically isn't
-  //    subject to the same restriction.
-  // 2. **origin=https://app.versemate.org** — tells YouTube the embed
-  //    is coming from a known web property. Even though the WebView
-  //    isn't actually loading from that origin, the parameter is what
-  //    YouTube's embed-allowlist checks against.
-  // 3. **enablejsapi=1** — required when `origin` is set so the IFrame
-  //    Player API negotiates correctly with the parent page.
-  const videoEmbedUrl = video
-    ? `https://www.youtube-nocookie.com/embed/${video.youtubeId}?autoplay=1&playsinline=1&modestbranding=1&rel=0&enablejsapi=1&origin=${encodeURIComponent('https://app.versemate.org')}`
-    : null;
+  // YouTube playback uses `react-native-youtube-iframe` (see Task 1) —
+  // no manual embed URL needed here. The library negotiates the IFrame
+  // Player API behind the scenes and exposes `onChangeState` / `onError`
+  // for status. When the channel hard-blocks the embed, `onError` flips
+  // `videoError` and we render an "Open in YouTube" fallback.
+  const youtubeWatchUrl = video ? `https://www.youtube.com/watch?v=${video.youtubeId}` : null;
+  const handleVideoFallback = useCallback(() => {
+    if (!youtubeWatchUrl) return;
+    Linking.openURL(youtubeWatchUrl).catch(() => {});
+  }, [youtubeWatchUrl]);
+
+  // The youtube-iframe player needs an explicit `height`. The video card
+  // itself is `aspectRatio: 16/9`, but RN measures children by absolute
+  // height — pull it from screen width. A fixed 220 is a safe minimum
+  // (matches a ~390pt iPhone width); the WebView inside will fit-to-
+  // container with `width: '100%'` automatically.
+  const videoPlayerHeight = 220;
 
   if (!manifest) {
     return (
@@ -351,23 +417,76 @@ export function VisualsPanel({
 
       {/* Video card — only rendered when this chapter is covered by a
           BibleProject overview. Tapping the thumbnail swaps it for an
-          inline WebView loading the YouTube IFrame embed, so playback
-          stays inside verse-mate rather than handing off to the YouTube
-          app. A small "×" overlay returns to the thumbnail. */}
+          inline `react-native-youtube-iframe` player, so playback stays
+          inside verse-mate rather than handing off to the YouTube app.
+          If YouTube refuses the embed (channel block / age gate /
+          country restriction) the `onError` handler trips and we render
+          an "Open in YouTube" fallback button. The "×" overlay returns
+          to the thumbnail in either case. */}
       {video ? (
         <View style={styles.videoCard} testID={`${testID}-video-card`}>
-          {videoPlaying && videoEmbedUrl ? (
+          {videoPlaying && videoError ? (
             <>
-              <WebView
-                source={{ uri: videoEmbedUrl }}
-                style={styles.videoWebView}
-                allowsInlineMediaPlayback
-                mediaPlaybackRequiresUserAction={false}
-                javaScriptEnabled
-                domStorageEnabled
-                allowsFullscreenVideo
-                originWhitelist={['*']}
-                testID={`${testID}-video-webview`}
+              <View style={styles.videoErrorOverlay}>
+                <Ionicons name="alert-circle-outline" size={32} color="#FAF6EA" />
+                <Text style={styles.videoErrorTitle}>Video can&apos;t play in-app</Text>
+                <Pressable
+                  onPress={handleVideoFallback}
+                  style={styles.videoErrorButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open video in YouTube"
+                  testID={`${testID}-video-open-external`}
+                >
+                  <Text style={styles.videoErrorButtonText}>Open in YouTube</Text>
+                </Pressable>
+              </View>
+              <Pressable
+                onPress={() => {
+                  setVideoPlaying(false);
+                  setVideoError(false);
+                }}
+                style={styles.videoCloseButton}
+                accessibilityRole="button"
+                accessibilityLabel="Close video and return to thumbnail"
+                testID={`${testID}-video-close`}
+                hitSlop={12}
+              >
+                <Ionicons name="close" size={20} color="#FAF6EA" />
+              </Pressable>
+            </>
+          ) : videoPlaying ? (
+            <>
+              <YoutubePlayer
+                videoId={video.youtubeId}
+                height={videoPlayerHeight}
+                play={videoPlaying}
+                webViewStyle={styles.videoWebView}
+                // The parent `videoCard` is `aspectRatio: 16/9`, so the
+                // fixed `height={220}` would otherwise letterbox on
+                // tablets / landscape. Stretch the inner container to
+                // the card so playback fills the available 16:9 box.
+                viewContainerStyle={StyleSheet.absoluteFillObject}
+                onChangeState={(state: string) => {
+                  // States: 'unstarted' | 'ended' | 'playing' | 'paused'
+                  // | 'buffering' | 'video cued'. No-op for now —
+                  // logged for future analytics hooks.
+                  if (__DEV__) {
+                    console.debug('[VisualsPanel] yt state:', state);
+                  }
+                }}
+                onError={(err: string) => {
+                  // Error codes (per IFrame Player API): 2, 5, 100,
+                  // 101, 150 — the latter three are channel/embed
+                  // restrictions like the BibleProject "153" Andy
+                  // hit. Flip to the fallback UI in all cases.
+                  console.warn('[VisualsPanel] yt embed error:', err);
+                  setVideoError(true);
+                }}
+                webViewProps={{
+                  allowsInlineMediaPlayback: true,
+                  mediaPlaybackRequiresUserAction: false,
+                  androidLayerType: 'hardware',
+                }}
               />
               <Pressable
                 onPress={() => setVideoPlaying(false)}
@@ -488,15 +607,7 @@ export function VisualsPanel({
                 {openCard.download ? (
                   <Pressable
                     style={styles.lightboxDownload}
-                    onPress={() => {
-                      // Downloads point at PDFs or source URLs — open
-                      // them in the system browser so the user can save.
-                      if (openCard.download) {
-                        Linking.openURL(absolutizeVisualUrl(openCard.download.href)).catch(
-                          () => {}
-                        );
-                      }
-                    }}
+                    onPress={handlePdfDownload}
                     accessibilityRole="button"
                     accessibilityLabel="Download original"
                     testID={`${testID}-lightbox-download`}
@@ -655,6 +766,32 @@ const createStyles = (
       justifyContent: 'center',
       backgroundColor: 'rgba(0,0,0,0.65)',
       zIndex: 2,
+    },
+    videoErrorOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#1B1B1B',
+      padding: spacing.md,
+    },
+    videoErrorTitle: {
+      marginTop: spacing.sm,
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: '#FAF6EA',
+      textAlign: 'center',
+      marginBottom: spacing.md,
+    },
+    videoErrorButton: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 6,
+      backgroundColor: colors.gold,
+    },
+    videoErrorButtonText: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: '#1B1B1B',
     },
     attributionBadgeText: {
       fontSize: 10,
