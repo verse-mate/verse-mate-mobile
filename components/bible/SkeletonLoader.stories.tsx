@@ -29,13 +29,14 @@ type Story = StoryObj<typeof meta>;
  * Default skeleton state
  * Shows the standard loading skeleton with shimmer animation
  */
-export const Default: Story = {};
+export const Default: Story = { args: {} };
 
 /**
  * Mobile viewport (375px width)
  * Shows how the skeleton adapts to mobile screen sizes
  */
 export const MobileView: Story = {
+  args: {},
   decorators: [
     (Story: StoryFn, context) => (
       <View style={styles.mobileDecorator}>{Story(context.args, context)}</View>
@@ -48,6 +49,7 @@ export const MobileView: Story = {
  * Shows how the skeleton adapts to tablet screen sizes
  */
 export const TabletView: Story = {
+  args: {},
   decorators: [
     (Story: StoryFn, context) => (
       <View style={styles.tabletDecorator}>{Story(context.args, context)}</View>
@@ -60,6 +62,7 @@ export const TabletView: Story = {
  * Demonstrates how multiple skeletons can be used together
  */
 export const MultipleSkeletons: Story = {
+  args: {},
   decorators: [
     (Story: StoryFn, context) => (
       <View style={styles.decorator}>
