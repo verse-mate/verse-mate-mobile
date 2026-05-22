@@ -80,6 +80,18 @@ const config = {
         ],
         category: ['BROWSABLE', 'DEFAULT'],
       },
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
+          {
+            scheme: 'https',
+            host: 'app.versemate.org',
+            pathPrefix: '/names-of-god',
+          },
+        ],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
     ],
   },
   web: {
