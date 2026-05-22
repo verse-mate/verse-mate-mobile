@@ -369,16 +369,21 @@ const createStyles = (
       paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.md,
     },
 
-    // Drag area + handle
+    // Drag area + handle — the visual notch is the obvious affordance, so
+    // we keep the touch target generous (lg/md padding) and bump the notch
+    // to 48×5 so it reads as "grab here" from arm's length. The whole
+    // sheet is draggable too via the RNGH pan, but Andy 2026-05-22
+    // signalled most users still aim for the notch — so make THAT a
+    // forgiving target.
     dragArea: {
       alignItems: 'center',
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.xs,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.md,
     },
     handle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
+      width: 48,
+      height: 5,
+      borderRadius: 3,
       backgroundColor: colors.gray100,
     },
 

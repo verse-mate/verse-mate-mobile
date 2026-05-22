@@ -27,7 +27,6 @@ import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
-  Platform,
   StyleSheet,
   Text,
   type TextLayoutEventData,
@@ -1301,10 +1300,10 @@ const lexiconWordStyles = StyleSheet.create({
   },
   theme: {
     textDecorationLine: 'underline',
-    // Heavier weight + brighter color give the "thick tier" feel that the
-    // solid line alone can't communicate. iOS treats '600' as semi-bold;
-    // Android only renders the bold step at '700' for most font families.
-    fontWeight: Platform.OS === 'ios' ? '600' : '700',
+    // Theme tier differentiates from regular ONLY via the brighter
+    // underline color — no font-weight change. Andy 2026-05-22 explicitly
+    // didn't want emphasis bolding (the underline is supposed to carry
+    // the visual weight, not the glyphs themselves).
     textDecorationColor: LEX_UNDERLINE_THEME,
   },
 });
