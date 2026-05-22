@@ -29,7 +29,9 @@ import { NoteEditModal } from '@/components/bible/NoteEditModal';
 import { NoteOptionsModal } from '@/components/bible/NoteOptionsModal';
 import { NotesModal } from '@/components/bible/NotesModal';
 import { NoteViewModal } from '@/components/bible/NoteViewModal';
+import { StudyPanel } from '@/components/bible/StudyPanel';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
+import { bookHasVisuals, VisualsPanel } from '@/components/bible/VisualsPanel';
 import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,7 +43,7 @@ import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
-import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
+import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import type { ChapterContent, ContentTabType, ExplanationContent } from '@/types/bible';
@@ -345,7 +347,7 @@ export function ChapterPage({
   // Refs for explanation tab ScrollViews to sync scroll position
   const byLineScrollRef = useRef<ScrollView>(null);
   const summaryScrollRef = useRef<ScrollView>(null);
-  const detailedScrollRef = useRef<ScrollView>(null);
+  const studyScrollRef = useRef<ScrollView>(null);
 
   // Quick-verse-jump: refs to the rendered View for each By Line verse section.
   // Used with measureLayout(byLineScrollRef) to compute the scroll-to Y on tap.
@@ -384,14 +386,23 @@ export function ChapterPage({
   // 1: Mount Explanations container (active tab renders)
   // 2: Mount Summary tab (if hidden)
   // 3: Mount Byline tab (if hidden)
-  // 4: Mount Detailed tab (if hidden)
   const [delayedRenderStage, setDelayedRenderStage] = useState(0);
 
   const { deleteNote, isDeletingNote } = useNotes();
 
-  // Trigger staggered delayed render — only for the active page, not buffer pages
+  // Trigger staggered delayed render — only for the active page, not buffer pages,
+  // and only while the user is actually in Explanations view.
+  //
+  // Why gated on activeView: each TabContent (Summary, Byline) takes 500-700ms of
+  // JS-thread time to mount (full chapter ScrollView with verses). Pre-warming them
+  // while the user is on Bible view caused visible scroll hiccups exactly at the
+  // stage-3 / stage-4 timer firings (T+1.6s and T+2.1s after a chapter swipe). With
+  // this gate, the staged mounts only happen once the user actually switches to
+  // Insight — when they're not scrolling Bible content. The active Insight tab still
+  // mounts immediately on the switch; the staggered stages pre-warm the OTHER tabs
+  // so switching between Summary and Byline within Insight is instant.
   useEffect(() => {
-    if (isPreloading) {
+    if (isPreloading || activeView !== 'explanations') {
       setDelayedRenderStage(0);
       return;
     }
@@ -399,14 +410,13 @@ export function ChapterPage({
     const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
     const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
     const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
-
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [isPreloading]);
+  }, [isPreloading, activeView]);
 
   // Track explanation tab content heights for scroll syncing
   const tabContentHeightsRef = useRef<
@@ -438,12 +448,11 @@ export function ChapterPage({
       animatedScrollRef.current?.scrollTo({ y: 0, animated: false });
       // VER-100: explanation tab ScrollViews preserve their own scrollTop
       // across chapter changes (most visibly on web, where the ScrollView's
-      // DOM node persists). Reset all three so users land at verse 1 of the
-      // new chapter on By Line / Summary / Detailed — matches the split-view
-      // path in BibleExplanationsPanel.tsx.
+      // DOM node persists). Reset all of them so users land at verse 1 of the
+      // new chapter on By Line / Summary — matches the split-view path in
+      // BibleExplanationsPanel.tsx.
       summaryScrollRef.current?.scrollTo({ y: 0, animated: false });
       byLineScrollRef.current?.scrollTo({ y: 0, animated: false });
-      detailedScrollRef.current?.scrollTo({ y: 0, animated: false });
     }
 
     // Close tooltip and clear timers when changing book/chapter
@@ -470,13 +479,7 @@ export function ChapterPage({
     if (!dims || dims.contentHeight <= dims.viewHeight) return;
 
     const targetRef =
-      tab === 'summary'
-        ? summaryScrollRef
-        : tab === 'byline'
-          ? byLineScrollRef
-          : tab === 'detailed'
-            ? detailedScrollRef
-            : null;
+      tab === 'summary' ? summaryScrollRef : tab === 'byline' ? byLineScrollRef : null;
     if (!targetRef) return;
 
     const scrollableHeight = dims.contentHeight - dims.viewHeight;
@@ -600,18 +603,6 @@ export function ChapterPage({
     enabled:
       (!isPreloading || activeView === 'explanations') &&
       (activeTab === 'byline' || visitedTabs.has('byline')),
-    language,
-  });
-
-  const {
-    data: detailedData,
-    isLoading: isDetailedLoading,
-    error: detailedError,
-    isLocalData: detailedIsLocal,
-  } = useBibleDetailed(bookId, chapterNumber, undefined, {
-    enabled:
-      (!isPreloading || activeView === 'explanations') &&
-      (activeTab === 'detailed' || visitedTabs.has('detailed')),
     language,
   });
 
@@ -863,7 +854,7 @@ export function ChapterPage({
     // react-native-web ships `View.measureLayout` as a stub that never invokes
     // either callback, so the native path silently no-ops on web. On web, read
     // positions from the DOM via getBoundingClientRect + the ScrollView's
-    // current scrollTop. See verse-mate-mobile #77 / VERA-35 QA round 2.
+    // current scrollTop.
     if (Platform.OS === 'web') {
       const scrollNode = (
         scrollView as unknown as { getScrollableNode?: () => HTMLElement | null }
@@ -978,26 +969,56 @@ export function ChapterPage({
               testID={`chapter-page-${bookId}-${chapterNumber}-verse-jump`}
             />
           )}
-          <TabContent
-            chapter={displayChapter}
-            activeTab="detailed"
-            content={detailedData}
-            isLoading={isDetailedLoading}
-            error={detailedError}
-            isAvailableOffline={detailedIsLocal}
-            visible={activeTab === 'detailed'}
-            shouldRenderHidden={delayedRenderStage >= 4}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-detailed`}
-            onScroll={handleScroll}
+          {/* Study tab — uses bundled @versemate/studies data (no API fetch).
+              4th sibling of the TabContent instances above; hidden via the
+              same absolute-positioning trick when activeTab !== 'study'. */}
+          <ScrollView
+            ref={studyScrollRef}
+            style={[
+              styles.container,
+              activeTab !== 'study' && {
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                opacity: 0,
+                zIndex: -1,
+              },
+            ]}
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={activeTab === 'study'}
+            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-study`}
+            onScroll={activeTab === 'study' ? handleScroll : undefined}
+            scrollEventThrottle={16}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-            scrollRef={detailedScrollRef}
-            onTabContentSizeChange={(_w, h) =>
-              handleTabContentSizeChange('detailed', h, viewportHeightRef.current)
-            }
-          />
+            pointerEvents={activeTab === 'study' ? 'auto' : 'none'}
+          >
+            <StudyPanel bookId={bookId} chapter={chapterNumber} />
+          </ScrollView>
+
+          {/* Visuals tab — bundled content from @versemate/visuals. Only
+              rendered for books in BOOKS_WITH_VISUALS. Same hidden-not-
+              unmounted pattern as Study. */}
+          {displayChapter && bookHasVisuals(displayChapter.bookId) ? (
+            <ScrollView
+              style={[styles.container, activeTab !== 'visuals' && { display: 'none' }]}
+              showsVerticalScrollIndicator={true}
+              testID={`chapter-page-scroll-${bookId}-${chapterNumber}-visuals`}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
+              <VisualsPanel
+                bookId={displayChapter.bookId}
+                chapter={displayChapter.chapterNumber}
+                bookName={displayChapter.bookName}
+                testID={`visuals-panel-${bookId}-${chapterNumber}`}
+              />
+            </ScrollView>
+          ) : null}
         </View>
       )}
 
@@ -1027,7 +1048,7 @@ export function ChapterPage({
       >
         <TextVisibilityContext.Provider value={textVisibilityContextValue}>
           <View style={styles.readerContainer} collapsable={false}>
-            {displayChapter ? (
+            {displayChapter && !isPreloading ? (
               <ChapterReader
                 chapter={displayChapter}
                 activeTab={activeTab}
@@ -1039,7 +1060,11 @@ export function ChapterPage({
                 filteredAutoHighlights={autoHighlights}
               />
             ) : (
-              <SkeletonLoader />
+              // Distinct testID from the chapter-screen-level skeleton so integration
+              // tests that wait for testID="skeleton-loader" to disappear don't trip on
+              // these buffer-page placeholders (3-page pager always renders 2 buffer
+              // pages with isPreloading=true → 2 of these visible at any time).
+              <SkeletonLoader testID="chapter-page-skeleton-buffer" />
             )}
           </View>
         </TextVisibilityContext.Provider>

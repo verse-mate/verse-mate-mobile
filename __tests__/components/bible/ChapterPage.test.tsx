@@ -20,7 +20,7 @@ import { ChapterPage } from '@/components/bible/ChapterPage';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useNotes } from '@/hooks/bible/use-notes';
-import { useBibleByLine, useBibleChapter, useBibleDetailed, useBibleSummary } from '@/src/api';
+import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import type { ContentTabType } from '@/types/bible';
 
 // Mock the Bible hooks
@@ -28,7 +28,6 @@ jest.mock('@/src/api/hooks', () => ({
   useBibleChapter: jest.fn(),
   useBibleSummary: jest.fn(),
   useBibleByLine: jest.fn(),
-  useBibleDetailed: jest.fn(),
 }));
 
 // Mock useNotes hook
@@ -99,6 +98,13 @@ jest.mock('@/components/bible/ChapterReader', () => ({
   },
 }));
 
+jest.mock('@/components/bible/StudyPanel', () => ({
+  StudyPanel: () => {
+    const { Text } = require('react-native');
+    return <Text testID="study-panel">StudyPanel</Text>;
+  },
+}));
+
 // Mock modals to avoid complex rendering in ChapterPage tests
 jest.mock('@/components/bible/NotesModal', () => ({
   NotesModal: ({ visible }: any) => {
@@ -128,7 +134,6 @@ jest.mock('@/components/bible/DeleteConfirmationModal', () => ({
 const mockUseBibleChapter = useBibleChapter as jest.MockedFunction<typeof useBibleChapter>;
 const mockUseBibleSummary = useBibleSummary as jest.MockedFunction<typeof useBibleSummary>;
 const mockUseBibleByLine = useBibleByLine as jest.MockedFunction<typeof useBibleByLine>;
-const mockUseBibleDetailed = useBibleDetailed as jest.MockedFunction<typeof useBibleDetailed>;
 
 describe('ChapterPage', () => {
   let queryClient: QueryClient;
@@ -150,13 +155,6 @@ describe('ChapterPage', () => {
     } as any);
 
     mockUseBibleByLine.mockReturnValue({
-      data: null,
-      isLoading: false,
-      error: null,
-      isError: false,
-    } as any);
-
-    mockUseBibleDetailed.mockReturnValue({
       data: null,
       isLoading: false,
       error: null,
@@ -300,25 +298,7 @@ describe('ChapterPage', () => {
       isSuccess: true,
     } as any);
 
-    // Provide mock data for detailed tab to prevent skeleton from showing
-    const mockDetailedExplanation = {
-      bookId: 1,
-      chapterNumber: 1,
-      type: 'detailed',
-      content: 'Detailed explanation content',
-      languageCode: 'en-US',
-    };
-
-    mockUseBibleDetailed.mockReturnValue({
-      data: mockDetailedExplanation,
-      isLoading: false,
-      isFetching: false,
-      error: null,
-      isError: false,
-      isSuccess: true,
-    } as any);
-
-    renderChapterPage(1, 1, 'detailed', 'explanations');
+    renderChapterPage(1, 1, 'summary', 'explanations');
 
     await waitFor(() => {
       // With dual-view rendering, both Bible and Explanations views might render a ChapterReader
@@ -335,9 +315,8 @@ describe('ChapterPage', () => {
    * Lazy explanation queries (TDD)
    *
    * Protects Change H2: Lazy-enable explanation queries.
-   * Currently all three explanation types (summary, byline, detailed) are
-   * fetched in parallel regardless of activeTab. After H2, only the active
-   * tab's query will be enabled.
+   * Both explanation types (summary, byline) are fetched only when their
+   * tab is active — not in parallel.
    */
   describe('lazy explanation queries (TDD)', () => {
     beforeEach(() => {
@@ -380,40 +359,6 @@ describe('ChapterPage', () => {
       expect(byLineCall[3]).toEqual(expect.objectContaining({ enabled: false }));
     });
 
-    it('[TDD] enables useBibleDetailed after switching activeTab to "detailed"', () => {
-      // First render with summary tab
-      const { rerender } = renderChapterPage(1, 1, 'summary', 'explanations');
-
-      // useBibleDetailed should be called with enabled=false initially
-      const firstDetailedCall = mockUseBibleDetailed.mock.calls[0];
-      expect(firstDetailedCall[3]).toEqual(expect.objectContaining({ enabled: false }));
-
-      mockUseBibleDetailed.mockClear();
-
-      // Switch to detailed tab
-      rerender(
-        <SafeAreaProvider>
-          <QueryClientProvider client={queryClient}>
-            <ThemeProvider>
-              <ToastProvider>
-                <ChapterPage
-                  bookId={1}
-                  chapterNumber={1}
-                  activeTab="detailed"
-                  activeView="explanations"
-                />
-              </ToastProvider>
-            </ThemeProvider>
-          </QueryClientProvider>
-        </SafeAreaProvider>
-      );
-
-      // After switching: useBibleDetailed should be called with enabled=true
-      // Will FAIL until lazy-enable is implemented
-      const secondDetailedCall = mockUseBibleDetailed.mock.calls[0];
-      expect(secondDetailedCall[3]).toEqual(expect.objectContaining({ enabled: true }));
-    });
-
     it('[TDD] disables explanation queries when isPreloading=true in bible view', () => {
       renderChapterPage(1, 1, 'summary', 'bible', true);
 
@@ -423,9 +368,6 @@ describe('ChapterPage', () => {
 
       const byLineCall = mockUseBibleByLine.mock.calls[0];
       expect(byLineCall[3]).toEqual(expect.objectContaining({ enabled: false }));
-
-      const detailedCall = mockUseBibleDetailed.mock.calls[0];
-      expect(detailedCall[3]).toEqual(expect.objectContaining({ enabled: false }));
     });
 
     it('[TDD] enables explanation queries when isPreloading=true but activeView is explanations', () => {
@@ -471,27 +413,10 @@ describe('ChapterPage', () => {
     });
 
     it('[REGRESSION] ChapterReader renders after tab switch', async () => {
-      const mockDetailedExplanation = {
-        bookId: 1,
-        chapterNumber: 1,
-        type: 'detailed',
-        content: 'Detailed explanation content',
-        languageCode: 'en-US',
-      };
-
-      mockUseBibleDetailed.mockReturnValue({
-        data: mockDetailedExplanation,
-        isLoading: false,
-        isFetching: false,
-        error: null,
-        isError: false,
-        isSuccess: true,
-      } as any);
-
       // Render with summary view
       const { rerender } = renderChapterPage(1, 1, 'summary', 'explanations');
 
-      // Switch to detailed view
+      // Switch to byline view
       rerender(
         <SafeAreaProvider>
           <QueryClientProvider client={queryClient}>
@@ -500,7 +425,7 @@ describe('ChapterPage', () => {
                 <ChapterPage
                   bookId={1}
                   chapterNumber={1}
-                  activeTab="detailed"
+                  activeTab="byline"
                   activeView="explanations"
                 />
               </ToastProvider>

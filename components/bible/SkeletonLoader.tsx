@@ -25,7 +25,14 @@ import { getSkeletonSpecs } from '@/theme/tokens';
  *
  * @see Spec lines 698-776 (SkeletonLoader implementation)
  */
-export function SkeletonLoader() {
+export interface SkeletonLoaderProps {
+  /** testID for the root View. Default is `'skeleton-loader'`. Buffer-page
+   *  ChapterPage instances pass `'chapter-page-skeleton-buffer'` so integration
+   *  tests waiting for the chapter-screen-level skeleton aren't tripped by them. */
+  testID?: string;
+}
+
+export function SkeletonLoader({ testID = 'skeleton-loader' }: SkeletonLoaderProps) {
   const { mode } = useTheme();
   const skeletonSpecs = getSkeletonSpecs(mode);
   const styles = createStyles(skeletonSpecs);
@@ -47,7 +54,7 @@ export function SkeletonLoader() {
   }));
 
   return (
-    <View style={styles.container} testID="skeleton-loader">
+    <View style={styles.container} testID={testID}>
       {/* Title skeleton: 60% width, 32px height */}
       <Animated.View style={[styles.title, animatedStyle]} testID="skeleton-title" />
 

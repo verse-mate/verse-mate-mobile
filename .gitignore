@@ -84,3 +84,4 @@ modules/dictionary/android/build/*
 crash_logs
 
 .agent-os/**/*
+modules/*/android/build/
