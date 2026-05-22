@@ -15,6 +15,7 @@
       "__tests__/**/*.{js,jsx,ts,tsx}",
       "e2e/**/*.{js,jsx,ts,tsx}",
       "agent-os/references/**/*.{js,jsx,ts,tsx}",
+      "modules/**/*.{js,jsx,ts,tsx}",
       "*.{js,jsx,ts,tsx}"
     ],
     "ignoreUnknown": false

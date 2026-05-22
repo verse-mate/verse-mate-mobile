@@ -1339,6 +1339,14 @@ const createStyles = (colors: Colors) =>
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
+      // Nudges the pill down so its visual top aligns with the body
+      // text's first-line cap-height. With bodySmall (14) + lineHeights.body
+      // (~1.5) the line-box has ~3.5px above the cap; matching that here
+      // keeps the pill from "floating" above the text. This was originally
+      // added in round 2 (a925ee4), accidentally dropped when round 3
+      // restored the side-by-side layout (a05a4c8). Andy round 4 #1 surfaced
+      // the regression.
+      marginTop: 4,
     },
     bulletTagText: {
       fontSize: fontSizes.caption,

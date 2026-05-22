@@ -1,0 +1,9 @@
+{
+  "name": "@versemate/dotted-underline-text",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "types": "index.ts",
+  "description": "Native Text view with CSS-style dotted underlines that render identically on iOS and Android",
+  "license": "MIT",
+  "author": "VerseMate"
+}

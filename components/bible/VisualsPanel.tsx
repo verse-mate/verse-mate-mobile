@@ -184,17 +184,13 @@ export function VisualsPanel({
   // IFrame Player API. When YouTube hard-refuses the embed (channel-level
   // block, age gate, etc.) `onError` flips `videoError = true` so we can
   // surface a "open in YouTube" fallback.
-  const [videoPlaying, setVideoPlaying] = useState(false);
+  // Round 4: drop the in-app thumbnail + play overlay (Andy: "we have to click
+  // twice on video to watch"). YoutubePlayer now mounts directly, with its own
+  // play button as the first interaction — single tap to start.
   const [videoError, setVideoError] = useState(false);
-  const handleVideoPress = useCallback(() => {
-    if (!video) return;
-    setVideoError(false);
-    setVideoPlaying(true);
-  }, [video]);
   // Reset playback state on chapter change — a new chapter may have a
   // different (or no) video.
   useEffect(() => {
-    setVideoPlaying(false);
     setVideoError(false);
   }, [bookId, chapter]);
 
@@ -433,114 +429,47 @@ export function VisualsPanel({
           to the thumbnail in either case. */}
       {video ? (
         <View style={styles.videoCard} testID={`${testID}-video-card`}>
-          {videoPlaying && videoError ? (
-            <>
-              <View style={styles.videoErrorOverlay}>
-                <Ionicons name="alert-circle-outline" size={32} color="#FAF6EA" />
-                <Text style={styles.videoErrorTitle}>Video can&apos;t play in-app</Text>
-                <Pressable
-                  onPress={handleVideoFallback}
-                  style={styles.videoErrorButton}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open video in YouTube"
-                  testID={`${testID}-video-open-external`}
-                >
-                  <Text style={styles.videoErrorButtonText}>Open in YouTube</Text>
-                </Pressable>
-              </View>
+          {videoError ? (
+            <View style={styles.videoErrorOverlay}>
+              <Ionicons name="alert-circle-outline" size={32} color="#FAF6EA" />
+              <Text style={styles.videoErrorTitle}>Video can&apos;t play in-app</Text>
               <Pressable
-                onPress={() => {
-                  setVideoPlaying(false);
-                  setVideoError(false);
-                }}
-                style={styles.videoCloseButton}
+                onPress={handleVideoFallback}
+                style={styles.videoErrorButton}
                 accessibilityRole="button"
-                accessibilityLabel="Close video and return to thumbnail"
-                testID={`${testID}-video-close`}
-                hitSlop={12}
+                accessibilityLabel="Open video in YouTube"
+                testID={`${testID}-video-open-external`}
               >
-                <Ionicons name="close" size={20} color="#FAF6EA" />
+                <Text style={styles.videoErrorButtonText}>Open in YouTube</Text>
               </Pressable>
-            </>
-          ) : videoPlaying ? (
-            <>
-              <YoutubePlayer
-                videoId={video.youtubeId}
-                height={videoPlayerHeight}
-                play={videoPlaying}
-                webViewStyle={styles.videoWebView}
-                // The parent `videoCard` is `aspectRatio: 16/9`, so the
-                // fixed `height={220}` would otherwise letterbox on
-                // tablets / landscape. Stretch the inner container to
-                // the card so playback fills the available 16:9 box.
-                viewContainerStyle={StyleSheet.absoluteFillObject}
-                onChangeState={(state: string) => {
-                  // States: 'unstarted' | 'ended' | 'playing' | 'paused'
-                  // | 'buffering' | 'video cued'. No-op for now —
-                  // logged for future analytics hooks.
-                  if (__DEV__) {
-                    console.debug('[VisualsPanel] yt state:', state);
-                  }
-                }}
-                onError={(err: string) => {
-                  // Error codes (per IFrame Player API): 2, 5, 100,
-                  // 101, 150 — the latter three are channel/embed
-                  // restrictions like the BibleProject "153" Andy
-                  // hit. Flip to the fallback UI in all cases.
-                  console.warn('[VisualsPanel] yt embed error:', err);
-                  setVideoError(true);
-                }}
-                webViewProps={{
-                  allowsInlineMediaPlayback: true,
-                  mediaPlaybackRequiresUserAction: false,
-                  androidLayerType: 'hardware',
-                }}
-              />
-              <Pressable
-                onPress={() => setVideoPlaying(false)}
-                style={styles.videoCloseButton}
-                accessibilityRole="button"
-                accessibilityLabel="Close video and return to thumbnail"
-                testID={`${testID}-video-close`}
-                hitSlop={12}
-              >
-                <Ionicons name="close" size={20} color="#FAF6EA" />
-              </Pressable>
-            </>
+            </View>
           ) : (
-            <Pressable
-              onPress={handleVideoPress}
-              style={StyleSheet.absoluteFill}
-              accessibilityRole="button"
-              accessibilityLabel={`Play the BibleProject ${bookName} overview video`}
-            >
-              {/* Thumbnail backdrop — use the first card's thumb (typically
-                  the BibleProject poster) as a tinted backdrop. */}
-              {cards[0] ? (
-                <Image
-                  source={{ uri: absolutizeVisualUrl(cards[0].thumb) }}
-                  style={styles.videoBackdrop}
-                  contentFit="cover"
-                  transition={150}
-                />
-              ) : null}
-              <View style={styles.videoOverlay} />
-              <View style={styles.videoOverlayContent}>
-                <View style={styles.playButton}>
-                  <Ionicons name="play" size={28} color="#1B1B1B" />
-                </View>
-                <Text style={styles.videoTitle} numberOfLines={2}>
-                  {video.title}
-                </Text>
-                <Text style={styles.videoSubtitle}>BibleProject overview · animated explainer</Text>
-                <Text style={styles.videoRange}>
-                  Covers chapters {video.chapterStart}–{video.chapterEnd}
-                </Text>
-              </View>
-              <View style={styles.attributionBadge}>
-                <Text style={styles.attributionBadgeText}>BibleProject · CC BY-SA 4.0</Text>
-              </View>
-            </Pressable>
+            // Single-tap start: YoutubePlayer mounts directly with its own
+            // YouTube-branded play button. Removed our thumbnail-with-play
+            // overlay (Andy: "we have to click twice on video to watch").
+            // `play={false}` initially — first tap on YouTube's own play
+            // button starts playback.
+            <YoutubePlayer
+              videoId={video.youtubeId}
+              height={videoPlayerHeight}
+              play={false}
+              webViewStyle={styles.videoWebView}
+              viewContainerStyle={StyleSheet.absoluteFillObject}
+              onChangeState={(state: string) => {
+                if (__DEV__) {
+                  console.debug('[VisualsPanel] yt state:', state);
+                }
+              }}
+              onError={(err: string) => {
+                console.warn('[VisualsPanel] yt embed error:', err);
+                setVideoError(true);
+              }}
+              webViewProps={{
+                allowsInlineMediaPlayback: true,
+                mediaPlaybackRequiresUserAction: false,
+                androidLayerType: 'hardware',
+              }}
+            />
           )}
         </View>
       ) : null}
