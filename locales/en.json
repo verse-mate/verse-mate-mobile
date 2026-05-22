@@ -185,6 +185,10 @@
     "language_hebrew": "Hebrew",
     "language_greek": "Greek",
     "language_aramaic": "Aramaic",
-    "language_english": "English"
+    "language_english": "English",
+    "search_placeholder": "Search names…",
+    "filter_all": "All",
+    "names_count": "{{count}} names",
+    "no_results": "No names match your search."
   }
 }
