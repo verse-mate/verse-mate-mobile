@@ -71,6 +71,15 @@ export function LexiconPopover({
   // scrolled to top", same pattern @gorhom/bottom-sheet uses internally.
   const scrollOffset = useSharedValue(0);
 
+  // Captured at gesture START (onBegin) — frozen for the duration of one
+  // touch so the gate doesn't flip mid-gesture. If the user starts a drag
+  // while scrolled away from the top, this stays false even when their
+  // scroll-back-up gesture reaches scrollOffset === 0 — so the modal
+  // doesn't suddenly snap down on the way past zero. They have to lift
+  // and start a NEW gesture at the top to dismiss. (User reported the
+  // snap-and-dismiss bug 2026-05-22.)
+  const startedAtTop = useSharedValue(true);
+
   // Internal visibility flag so we can play the close animation before the
   // Modal actually unmounts. Toggled by the visible-prop watcher below.
   const internalVisibleRef = useRef(false);
@@ -151,22 +160,31 @@ export function LexiconPopover({
     },
   });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollOffset/translateY are stable Reanimated SharedValue refs (their identity never changes across renders); closeRef.current is read inside the worklet via the local `close` closure; the empty-dep array is intentional so the gesture instance stays stable across renders.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollOffset/translateY/startedAtTop are stable Reanimated SharedValue refs (their identity never changes across renders); closeRef.current is read inside the worklet via the local `close` closure; the empty-dep array is intentional so the gesture instance stays stable across renders.
   const { panGesture, scrollNativeGesture } = useMemo(() => {
     const close = () => closeRef.current();
     const scrollNative = Gesture.Native();
     const pan = Gesture.Pan()
       .activeOffsetY([3, Infinity])
       .simultaneousWithExternalGesture(scrollNative)
+      .onBegin(() => {
+        'worklet';
+        // Freeze the "was at top?" check for this whole gesture. The
+        // pan's `activeOffsetY([3, Infinity])` threshold means there may
+        // be a few pixels of scroll between touch-down and the first
+        // onUpdate, but that's negligible; what matters is we don't let
+        // the gate flip when the user scrolls past zero mid-gesture.
+        startedAtTop.value = scrollOffset.value <= 0;
+      })
       .onUpdate((e) => {
         'worklet';
-        if (scrollOffset.value <= 0 && e.translationY > 0) {
+        if (startedAtTop.value && e.translationY > 0) {
           translateY.value = e.translationY;
         }
       })
       .onEnd((e) => {
         'worklet';
-        if (scrollOffset.value <= 0 && (e.translationY > 50 || e.velocityY > 800)) {
+        if (startedAtTop.value && (e.translationY > 50 || e.velocityY > 800)) {
           runOnJS(close)();
         } else {
           translateY.value = withSpring(0, SPRING_CONFIG);
@@ -247,6 +265,13 @@ export function LexiconPopover({
                   showsVerticalScrollIndicator={false}
                   onScroll={scrollHandler}
                   scrollEventThrottle={16}
+                  // iOS-only: kill the overscroll rubber-band so dragging
+                  // the modal down from scrollOffset=0 isn't accompanied
+                  // by the ScrollView dropping its content down too.
+                  // The pan IS the bounce in our UX.
+                  bounces={false}
+                  // Android parity — no overscroll glow on pull-down.
+                  overScrollMode="never"
                 >
                   {/* IN THIS VERSE (Layer 2 — contextual gloss) */}
                   {contextual ? (
