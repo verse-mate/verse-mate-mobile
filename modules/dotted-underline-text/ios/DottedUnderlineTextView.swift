@@ -202,11 +202,15 @@ public final class DottedUnderlineTextView: ExpoView {
   }
 
   private func updateAttributedText() {
-    let font = resolvedFont()
+    // NOTE: avoid naming this `font` — that would shadow the
+    // `font(forWeight:)` method in this scope and Swift 6 / Xcode 26
+    // refuses to resolve the method call further down (cannot call
+    // value of non-function type 'UIFont').
+    let baseFont = resolvedFont()
 
     // Base attributes — applied to the entire string.
     var baseAttrs: [NSAttributedString.Key: Any] = [
-      .font: font,
+      .font: baseFont,
       .foregroundColor: textColor,
     ]
 
