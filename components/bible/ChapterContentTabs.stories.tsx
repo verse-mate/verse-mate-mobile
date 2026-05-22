@@ -21,7 +21,7 @@ const meta = {
   argTypes: {
     activeTab: {
       control: 'select',
-      options: ['summary', 'byline', 'detailed'],
+      options: ['summary', 'byline', 'study', 'visuals'],
       description: 'Currently active reading mode tab',
     },
     disabled: {
@@ -61,11 +61,11 @@ export const ByLineActive: Story = {
 };
 
 /**
- * Detailed tab active
+ * Study tab active
  */
-export const DetailedActive: Story = {
+export const StudyActive: Story = {
   args: {
-    activeTab: 'detailed',
+    activeTab: 'study',
     disabled: false,
     onTabChange: () => {},
   },

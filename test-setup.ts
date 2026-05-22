@@ -68,6 +68,33 @@ jest.mock('@/contexts/OfflineContext', () => ({
   OfflineProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// Mock react-native-webview — its native module (RNCWebViewModule) isn't
+// registered in the Jest test binary, so importing the real package throws
+// at module-load time. Rendering as a plain View keeps trees intact for any
+// test that touches the BibleProject inline-video card.
+jest.mock('react-native-webview', () => {
+  const { View } = require('react-native');
+  return { WebView: View };
+});
+
+// Mock expo-screen-orientation — these are no-op promises in tests since
+// orientation changes don't happen in jsdom. The methods are called from
+// VisualsPanel when the lightbox opens/closes.
+jest.mock('expo-screen-orientation', () => ({
+  OrientationLock: { PORTRAIT_UP: 1, ALL: 0 },
+  lockAsync: jest.fn(() => Promise.resolve()),
+  unlockAsync: jest.fn(() => Promise.resolve()),
+}));
+
+// Mock @versemate/studies to keep tests off the dynamic-import code-split path.
+// The real package does `await import(...)` per chapter to keep bundles small,
+// but jest's CJS environment errors with "dynamic import callback was invoked
+// without --experimental-vm-modules". Tests that need real study content (e.g.
+// StudyPanel.test.tsx) override this with their own jest.mock.
+jest.mock('@versemate/studies', () => ({
+  getStudyFor: jest.fn().mockResolvedValue(null),
+}));
+
 // Mock device info to avoid AsyncStorage and Dimensions listeners in tests
 jest.mock('@/hooks/use-device-info', () => ({
   useDeviceInfo: () => ({

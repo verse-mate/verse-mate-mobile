@@ -122,8 +122,28 @@ jest.mock('react-native-gesture-handler', () => {
           onFinalize: jest.fn().mockReturnThis(),
           minDistance: jest.fn().mockReturnThis(),
           activeOffsetY: jest.fn().mockReturnThis(),
+          activeOffsetX: jest.fn().mockReturnThis(),
+          failOffsetY: jest.fn().mockReturnThis(),
+          failOffsetX: jest.fn().mockReturnThis(),
+          enabled: jest.fn().mockReturnThis(),
+          maxPointers: jest.fn().mockReturnThis(),
+          minPointers: jest.fn().mockReturnThis(),
+          simultaneousWithExternalGesture: jest.fn().mockReturnThis(),
+          requireExternalGestureToFail: jest.fn().mockReturnThis(),
+          manualActivation: jest.fn().mockReturnThis(),
         };
         return pan;
+      },
+      Pinch: () => {
+        const pinch = {
+          onEnd: jest.fn().mockReturnThis(),
+          onUpdate: jest.fn().mockReturnThis(),
+          onStart: jest.fn().mockReturnThis(),
+          onFinalize: jest.fn().mockReturnThis(),
+          enabled: jest.fn().mockReturnThis(),
+          simultaneousWithExternalGesture: jest.fn().mockReturnThis(),
+        };
+        return pinch;
       },
       Native: () => {
         const native = {
@@ -141,6 +161,9 @@ jest.mock('react-native-gesture-handler', () => {
           onStart: jest.fn().mockReturnThis(),
           onFinalize: jest.fn().mockReturnThis(),
           numberOfTaps: jest.fn().mockReturnThis(),
+          maxDuration: jest.fn().mockReturnThis(),
+          maxDelay: jest.fn().mockReturnThis(),
+          enabled: jest.fn().mockReturnThis(),
         };
         return tap;
       },
@@ -148,6 +171,9 @@ jest.mock('react-native-gesture-handler', () => {
         return { gestures };
       },
       Simultaneous: (...gestures) => {
+        return { gestures };
+      },
+      Race: (...gestures) => {
         return { gestures };
       },
     },

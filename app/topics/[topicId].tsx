@@ -473,7 +473,7 @@ export default function TopicDetailScreen() {
 
           {/* Content Tabs - Only visible in Explanations view */}
           {activeView === 'explanations' && (
-            <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} />
+            <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} showDetailed />
           )}
 
           {/* SimpleTopicPager - V3 3-page window with global circular navigation */}

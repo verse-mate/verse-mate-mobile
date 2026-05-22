@@ -1,12 +1,12 @@
 /**
  * ChapterContentTabs Component
  *
- * Pill-style tab switcher for Bible reading modes (Summary, By Line, Detailed).
+ * Pill-style tab switcher for Bible reading modes (Summary, By Line, Study, Visuals).
  * Active tab is highlighted with gold background, inactive tabs have gray background.
  * Includes haptic feedback and integrates with useActiveTab hook for persistence.
  *
  * Features:
- * - Three pill-style buttons: "Summary", "By Line", "Detailed"
+ * - Pill-style buttons: "Summary", "By Line", "Study", "Visuals" (last is gated)
  * - Active tab: gold background (#b09a6d), dark text
  * - Inactive tabs: gray700 background (#4a4a4a), white text
  * - Border radius: 20px, padding: 8px vertical, 20px horizontal
@@ -18,7 +18,7 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type getColors, getTabSpecs, spacing, type ThemeMode } from '@/theme/tokens';
@@ -31,23 +31,40 @@ interface ChapterContentTabsProps {
   onTabChange: (tab: ContentTabType) => void;
   /** Whether tabs should be disabled (optional) */
   disabled?: boolean;
+  /**
+   * Topics screen opt-in: include the legacy "Detailed" tab. Bible
+   * chapters dropped this tab (parity with the web removal in
+   * verse-mate-web 44bce20) but topic explanations still ship a
+   * detailed body, so the topic route keeps it visible.
+   */
+  showDetailed?: boolean;
+  /**
+   * Bible-chapter opt-in: include the "Study" tab (inductive study
+   * via @versemate/studies). Topics have no study content, so this
+   * defaults to false.
+   */
+  showStudy?: boolean;
+  /**
+   * Bible-chapter opt-in: include the "Visuals" tab. Caller gates
+   * this on the current book being in BOOKS_WITH_VISUALS (see
+   * `bookHasVisuals` in VisualsPanel).
+   */
+  showVisuals?: boolean;
 }
 
-/**
- * Tab configuration
- */
-const TABS = [
-  { id: 'summary' as ContentTabType, label: 'Summary' },
-  { id: 'byline' as ContentTabType, label: 'By Line' },
-  { id: 'detailed' as ContentTabType, label: 'Detailed' },
+type Tab = { id: ContentTabType; label: string };
+
+/** Tabs every caller renders. Specific extras (Detailed / Study /
+ *  Visuals) are appended per-caller via the boolean props. Order
+ *  matters: append in the order they should appear left-to-right. */
+const BASE_TABS: readonly Tab[] = [
+  { id: 'summary', label: 'Summary' },
+  { id: 'byline', label: 'By Line' },
 ] as const;
 
-/**
- * Get tab index for animation positioning
- */
-const getTabIndex = (tab: ContentTabType) => {
-  return TABS.findIndex((t) => t.id === tab);
-};
+const DETAILED_TAB: Tab = { id: 'detailed', label: 'Detailed' };
+const STUDY_TAB: Tab = { id: 'study', label: 'Study' };
+const VISUALS_TAB: Tab = { id: 'visuals', label: 'Visuals' };
 
 /**
  * ChapterContentTabs Component
@@ -59,9 +76,32 @@ export function ChapterContentTabs({
   activeTab,
   onTabChange,
   disabled = false,
+  showDetailed = false,
+  showStudy = false,
+  showVisuals = false,
 }: ChapterContentTabsProps) {
   const { colors, mode } = useTheme();
   const styles = createStyles(colors, mode);
+
+  // Memoise the tab list so getTabIndex's deps are stable. When any
+  // of the show* flags flip, tab count and tab width both recompute
+  // below. Order is fixed: Summary → By Line → Detailed → Study → Visuals.
+  const tabs: readonly Tab[] = useMemo(
+    () => [
+      ...BASE_TABS,
+      ...(showDetailed ? [DETAILED_TAB] : []),
+      ...(showStudy ? [STUDY_TAB] : []),
+      ...(showVisuals ? [VISUALS_TAB] : []),
+    ],
+    [showDetailed, showStudy, showVisuals]
+  );
+  // useCallback so the slide-animation useEffect can include this in its
+  // deps without re-running on every render (Biome
+  // lint/correctness/useExhaustiveDependencies).
+  const getTabIndex = useCallback(
+    (tab: ContentTabType) => tabs.findIndex((t) => t.id === tab),
+    [tabs]
+  );
 
   // Animation value for sliding indicator
   const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
@@ -70,13 +110,15 @@ export function ChapterContentTabs({
   // Animate indicator when active tab changes
   useEffect(() => {
     const targetIndex = getTabIndex(activeTab);
+    // Negative index (e.g. activeTab='visuals' while showVisuals just
+    // toggled off) shouldn't animate — clamp to 0 instead of NaN.
     Animated.spring(slideAnim, {
-      toValue: targetIndex,
+      toValue: targetIndex < 0 ? 0 : targetIndex,
       useNativeDriver: true,
       friction: 8,
       tension: 50,
     }).start();
-  }, [activeTab, slideAnim]);
+  }, [activeTab, slideAnim, getTabIndex]);
 
   /**
    * Handle tab press
@@ -95,19 +137,32 @@ export function ChapterContentTabs({
     onTabChange(tab);
   };
 
-  // Measure container width to calculate tab positions
+  // Measure container width to calculate tab positions. Math is
+  // derived from tabs.length so adding the Visuals tab doesn't break
+  // layout: container has 4px padding on each side and a 4px gap
+  // between tabs, so usable width = W - 8 - (N-1)*4 and per-tab
+  // width = usable / N.
   const handleLayout = (event: { nativeEvent: { layout: { width: number } } }) => {
     const { width } = event.nativeEvent.layout;
-    // Each tab width = (containerWidth - padding - gaps) / 3
-    // containerWidth - 8 (padding) - 8 (2 gaps of 4px) = containerWidth - 16
-    const singleTabWidth = (width - 16) / 3;
-    setTabWidth(singleTabWidth);
+    const n = tabs.length;
+    const usableWidth = width - 8 - (n - 1) * 4;
+    setTabWidth(usableWidth / n);
   };
 
-  // Calculate translateX for sliding indicator
+  // Calculate translateX for sliding indicator. Animated.interpolate
+  // requires inputRange.length === outputRange.length and a
+  // monotonically increasing inputRange — both built from tabs.length.
+  const indicatorInputRange = tabs.map((_, i) => i);
+  const indicatorOutputRange = tabs.map((_, i) => i * (tabWidth + 4));
+  // interpolate() rejects single-element ranges (e.g. if tabs.length
+  // somehow became 1) — pad to two entries so animation never throws.
+  if (indicatorInputRange.length < 2) {
+    indicatorInputRange.push(1);
+    indicatorOutputRange.push(tabWidth + 4);
+  }
   const indicatorTranslateX = slideAnim.interpolate({
-    inputRange: [0, 1, 2],
-    outputRange: [0, tabWidth + 4, (tabWidth + 4) * 2], // Add gap (4px) between tabs
+    inputRange: indicatorInputRange,
+    outputRange: indicatorOutputRange,
   });
 
   return (
@@ -124,7 +179,7 @@ export function ChapterContentTabs({
           ]}
         />
 
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
 
           return (
@@ -190,7 +245,10 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       flex: 1,
       borderRadius: 100,
       paddingVertical: 2,
-      paddingHorizontal: spacing.lg,
+      // Tight horizontal padding so labels (Summary / By Line / Study /
+      // Visuals) fit on narrow phone widths without truncation. flex:1 already
+      // handles equal sizing; padding here is just for press hit area + edge.
+      paddingHorizontal: spacing.sm,
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: 28,
