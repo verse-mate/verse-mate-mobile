@@ -1251,7 +1251,14 @@ const createStyles = (colors: Colors) =>
     },
     listRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      // Baseline alignment so the pill TEXT's baseline lines up with the
+      // body text's first-line baseline — same as the web's
+      // `vertical-align: baseline`. With `flex-start` the pill's BOX
+      // top-aligns with the body text's line-box, which leaves the pill
+      // visually higher because the pill is shorter than the body's
+      // line-height. Baseline mode delegates positioning to font metrics
+      // and visually centers correctly without magic numbers.
+      alignItems: 'baseline',
       gap: spacing.sm,
       paddingVertical: spacing.sm,
       borderBottomWidth: 1,
@@ -1326,7 +1333,8 @@ const createStyles = (colors: Colors) =>
     // left margin column, body text wraps to the right (web parity).
     bulletItem: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      // See `listRow` for the rationale behind baseline alignment.
+      alignItems: 'baseline',
       gap: spacing.sm,
       paddingVertical: spacing.sm,
       borderBottomWidth: 1,
@@ -1338,11 +1346,6 @@ const createStyles = (colors: Colors) =>
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      // Nudge the pill down so its visual top aligns with the body
-      // text's first-line cap-height. With bodySmall (14) + lineHeights.body
-      // (~1.5), the line-box has ~3.5px above the cap; matching that here
-      // keeps the pill from "floating" above the text.
-      marginTop: 4,
     },
     bulletTagText: {
       fontSize: fontSizes.caption,
@@ -1419,7 +1422,8 @@ const createStyles = (colors: Colors) =>
     // question wraps to the right (web parity).
     appRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
+      // See `listRow` for the rationale behind baseline alignment.
+      alignItems: 'baseline',
       gap: spacing.sm,
       paddingVertical: spacing.sm,
     },
