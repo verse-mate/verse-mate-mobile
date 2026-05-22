@@ -1290,30 +1290,28 @@ const selectionStyles = StyleSheet.create({
  */
 const LEX_UNDERLINE = '#B09A6D';
 const LEX_UNDERLINE_THEME = '#C7B074';
+// Andy round 4 #2 + native-module retreat: dropped the dotted style on
+// iOS. RN's `textDecorationStyle: 'dotted'` is iOS-only AND draws per-word
+// with visibly large gaps that Andy flagged as looking like accidental
+// whitespace. Android has never rendered dotted (RN ignores the style).
+// The `@versemate/dotted-underline-text` native module IS shipped on this
+// branch — it draws real dots — but it's a native View and can't nest
+// inside paragraph-mode <Text> verses (RN gives Views inside Text 0×0).
+// Result: thin solid underline on both platforms now. Cross-platform
+// consistent, no gaps, cleanest read. Native module is dormant until a
+// future custom-shadow-node experiment can render real dots inline.
 const lexiconWordStyles = StyleSheet.create({
   regular: {
     textDecorationLine: 'underline',
-    // iOS-only props — Android no-ops these, so they don't hurt cross-platform.
-    ...Platform.select({
-      ios: {
-        textDecorationStyle: 'dotted' as const,
-        textDecorationColor: LEX_UNDERLINE,
-      },
-      default: {},
-    }),
+    textDecorationColor: LEX_UNDERLINE,
   },
   theme: {
     textDecorationLine: 'underline',
+    // Heavier weight + brighter color give the "thick tier" feel that the
+    // solid line alone can't communicate. iOS treats '600' as semi-bold;
+    // Android only renders the bold step at '700' for most font families.
     fontWeight: Platform.OS === 'ios' ? '600' : '700',
-    ...Platform.select({
-      ios: {
-        // Web uses dotted for BOTH tiers — match that on iOS where we can.
-        // Brighter color + heavier weight carry the "thick tier" feel.
-        textDecorationStyle: 'dotted' as const,
-        textDecorationColor: LEX_UNDERLINE_THEME,
-      },
-      default: {},
-    }),
+    textDecorationColor: LEX_UNDERLINE_THEME,
   },
 });
 // TODO(VER-mobile-lex-dotted-android): real dotted underlines on Android
