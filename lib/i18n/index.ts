@@ -8,15 +8,18 @@
  *   3. Device locale via `expo-localization`
  *   4. Fallback: 'en'
  *
- * Currently English-only. Other locale catalogs ship as `locales/<code>.json`
- * via the translation pipeline (out of scope for the initial setup).
+ * Supported locales: en, es, fr, de, pt. All catalogs bundled statically.
  */
 
 import * as Localization from 'expo-localization';
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
+import de from '../../locales/de.json';
 import en from '../../locales/en.json';
+import es from '../../locales/es.json';
+import fr from '../../locales/fr.json';
+import pt from '../../locales/pt.json';
 
 export const FALLBACK_LANGUAGE = 'en';
 
@@ -39,7 +42,10 @@ export async function initI18n(initialLanguage?: string): Promise<typeof i18next
   await i18next.use(initReactI18next).init({
     resources: {
       en: { translation: en },
-      // Other locales loaded lazily as they ship.
+      es: { translation: es },
+      fr: { translation: fr },
+      de: { translation: de },
+      pt: { translation: pt },
     },
     lng: initialLanguage ?? detectInitialLanguage(),
     fallbackLng: FALLBACK_LANGUAGE,
