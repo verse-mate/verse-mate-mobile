@@ -21,14 +21,14 @@ const config = {
       // backgrounded so explanations don't cut off when the screen
       // locks or the user switches apps.
       UIBackgroundModes: ['audio'],
-      // Andy round 4 — iOS visuals rotation: by default Expo's
-      // `orientation: 'default'` ships UISupportedInterfaceOrientations as
-      // portrait-only on iPhone. expo-screen-orientation's
-      // `unlockAsync()` can't override the Info.plist superset at runtime,
-      // so the Visuals tab couldn't rotate to landscape even though
-      // VisualsPanel called unlockAsync on mount. Declaring all four
-      // orientations here lets the runtime calls take effect; non-Visuals
-      // screens stay portrait because nothing else calls unlockAsync.
+      // iOS visuals rotation: by default Expo's `orientation: 'default'`
+      // ships UISupportedInterfaceOrientations as portrait-only on iPhone.
+      // expo-screen-orientation's `unlockAsync()` can't override the
+      // Info.plist superset at runtime, so the Visuals tab couldn't
+      // rotate to landscape even though VisualsPanel called unlockAsync
+      // on mount. Declaring all four orientations here lets the runtime
+      // calls take effect; non-Visuals screens stay portrait because
+      // nothing else calls unlockAsync.
       UISupportedInterfaceOrientations: [
         'UIInterfaceOrientationPortrait',
         'UIInterfaceOrientationPortraitUpsideDown',

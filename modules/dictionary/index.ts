@@ -1,4 +1,4 @@
-import { requireNativeModule, Platform } from 'expo-modules-core';
+import { Platform, requireNativeModule } from 'expo-modules-core';
 
 interface DictionaryModuleInterface {
   hasDefinition(word: string): Promise<boolean>;
@@ -11,10 +11,12 @@ let DictionaryModule: DictionaryModuleInterface | null = null;
 if (Platform.OS !== 'web') {
   try {
     DictionaryModule = requireNativeModule('Dictionary');
-  } catch (error) {
+  } catch {
     // Native module not available (e.g., running in Expo Go)
     // This is expected and the module will gracefully degrade
-    console.log('Dictionary native module not available - running in Expo Go or development build without native modules');
+    console.log(
+      'Dictionary native module not available - running in Expo Go or development build without native modules'
+    );
   }
 }
 
