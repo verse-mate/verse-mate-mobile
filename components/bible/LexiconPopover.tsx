@@ -190,12 +190,19 @@ export function LexiconPopover({
         'worklet';
         // Dismiss if EITHER:
         //   • the user dragged a meaningful distance (translationY > 50), OR
-        //   • the user flicked downward fast (velocityY > 500), even
-        //     with small translation. A quick 10px flick at 1500 px/s
-        //     reads as "clearly wanted to dismiss" — matching iOS
-        //     bottom-sheet conventions.
+        //   • the user clearly flicked downward — requires BOTH a real
+        //     translation (> 10px) AND high velocity (> 800 px/s).
+        // The earlier thresholds (translationY > 0, velocityY > 500)
+        // misfired on real-iPhone fingertip taps inside the modal:
+        // touch contact-patch jitter produces ~1-3px of downward
+        // translation, and natural lift-off velocity is often
+        // 300-700 px/s, which previously read as "flick to dismiss"
+        // and closed the modal under the user's finger. Andy reported
+        // this as "drag stopped working altogether" 2026-05-22; the
+        // iOS simulator doesn't reproduce because mouse-cursor input
+        // has zero contact jitter.
         const draggedFar = e.translationY > 50;
-        const flicked = e.translationY > 0 && e.velocityY > 500;
+        const flicked = e.translationY > 10 && e.velocityY > 800;
         if (startedAtTop.value && (draggedFar || flicked)) {
           runOnJS(close)();
         } else {
