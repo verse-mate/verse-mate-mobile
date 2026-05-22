@@ -509,8 +509,8 @@ function ListsStep({
   // Two-column VERSE | TRUTH table layout matching the web. The verse pill
   // column is fixed-width (90px) so the truth column always starts at the
   // same x even when long verse refs like "1:3, 6, 9, 11, 14, 20, 24, 26"
-  // wrap inside the pill. This was Andy's TF feedback — give the table
-  // back, just don't let long refs reflow the right column.
+  // wrap inside the pill, instead of pushing the truth column out of
+  // alignment.
   return (
     <View>
       {step.lists.map((list, listIdx) => {
@@ -613,8 +613,7 @@ function BulletsStep({
 }) {
   // POSTURE / EYES / WILL pattern: gold pill in a fixed-width left margin
   // column, body text wraps to the right of it. Matches web's two-column
-  // bullet layout — Andy's feedback was that stacked pill-above-text wasted
-  // vertical space and broke parity with the web.
+  // bullet layout (stacking the pill above the text wastes vertical space).
   return (
     <View>
       {step.intro ? <Markdown style={markdownStyles}>{step.intro}</Markdown> : null}
@@ -1227,8 +1226,8 @@ const createStyles = (colors: Colors) =>
     // Lists — 2-column VERSE | TRUTH table. Fixed-width pill column (90px)
     // keeps the truth column's x-position consistent across rows even when
     // a verse ref like "1:3, 6, 9, 11, 14, 20, 24, 26" wraps inside its
-    // pill. Without the fixed width, long refs pushed every other row's
-    // truth column right (Andy's original TF concern).
+    // pill. Without the fixed width, long refs would push every other
+    // row's truth column further right and break the table alignment.
     listHeaderRow: {
       flexDirection: 'row',
       gap: spacing.sm,
@@ -1339,13 +1338,10 @@ const createStyles = (colors: Colors) =>
       paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
-      // Nudges the pill down so its visual top aligns with the body
+      // Nudge the pill down so its visual top aligns with the body
       // text's first-line cap-height. With bodySmall (14) + lineHeights.body
-      // (~1.5) the line-box has ~3.5px above the cap; matching that here
-      // keeps the pill from "floating" above the text. This was originally
-      // added in round 2 (a925ee4), accidentally dropped when round 3
-      // restored the side-by-side layout (a05a4c8). Andy round 4 #1 surfaced
-      // the regression.
+      // (~1.5), the line-box has ~3.5px above the cap; matching that here
+      // keeps the pill from "floating" above the text.
       marginTop: 4,
     },
     bulletTagText: {

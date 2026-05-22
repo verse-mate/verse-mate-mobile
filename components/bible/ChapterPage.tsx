@@ -854,7 +854,7 @@ export function ChapterPage({
     // react-native-web ships `View.measureLayout` as a stub that never invokes
     // either callback, so the native path silently no-ops on web. On web, read
     // positions from the DOM via getBoundingClientRect + the ScrollView's
-    // current scrollTop. See verse-mate-mobile #77 / VERA-35 QA round 2.
+    // current scrollTop.
     if (Platform.OS === 'web') {
       const scrollNode = (
         scrollView as unknown as { getScrollableNode?: () => HTMLElement | null }

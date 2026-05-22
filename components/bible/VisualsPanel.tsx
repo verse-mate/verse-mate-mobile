@@ -178,15 +178,15 @@ export function VisualsPanel({
     }
   }, [openCard, closeLightbox]);
 
-  // Inline-playback state for the BibleProject video card. Andy's TF
-  // feedback was "can it play in place vs open the YouTube app?" — the
-  // answer is yes, via react-native-youtube-iframe wrapping the YouTube
-  // IFrame Player API. When YouTube hard-refuses the embed (channel-level
-  // block, age gate, etc.) `onError` flips `videoError = true` so we can
-  // surface a "open in YouTube" fallback.
-  // Round 4: drop the in-app thumbnail + play overlay (Andy: "we have to click
-  // twice on video to watch"). YoutubePlayer now mounts directly, with its own
-  // play button as the first interaction — single tap to start.
+  // Inline-playback state for the BibleProject video card. Playback stays
+  // in-app via `react-native-youtube-iframe` (YouTube IFrame Player API)
+  // instead of handing off to the YouTube app. When YouTube hard-refuses
+  // the embed (channel-level block, age gate, etc.) `onError` flips
+  // `videoError = true` and we surface an "Open in YouTube" fallback.
+  //
+  // No in-app play overlay: `YoutubePlayer` mounts directly with its own
+  // play button as the first interaction so playback starts on a single
+  // tap of YouTube's button.
   const [videoError, setVideoError] = useState(false);
   // Reset playback state on chapter change — a new chapter may have a
   // different (or no) video.
@@ -194,14 +194,12 @@ export function VisualsPanel({
     setVideoError(false);
   }, [bookId, chapter]);
 
-  // ─── Bug #4 (round 3) — whole Visuals tab is landscape-capable ───────
-  // Previously orientation was only unlocked while the lightbox modal
-  // was open. Andy reported that rotating the tab itself (e.g. to look
-  // at wide diagrams in-grid) did nothing. Unlock at mount and re-lock
-  // to portrait at unmount so other tabs/screens behave as before. The
-  // single mount/unmount effect (versus a per-`openCard` effect)
-  // collapses the rapid lock/unlock churn that the bug #2 crash
-  // reproduction was hitting on background → resume of the PDF flow.
+  // The whole Visuals tab is landscape-capable, not just the lightbox
+  // modal — wide diagrams (Genesis poster) are easier to read rotated.
+  // Unlock at mount and re-lock to portrait at unmount so other tabs /
+  // screens stay portrait. One mount/unmount effect (vs per-`openCard`)
+  // avoids rapid lock/unlock churn that previously crashed on background
+  // → resume of the PDF flow.
   useEffect(() => {
     ScreenOrientation.unlockAsync().catch(() => {});
     return () => {
@@ -361,11 +359,9 @@ export function VisualsPanel({
   // **runOnJS is mandatory here.** RNGH v2 gesture callbacks run on the
   // UI worklet thread whenever `react-native-reanimated` is present in
   // the project (which it is — useAnimatedStyle/useSharedValue above
-  // pull it in). Calling `showChrome` directly here triggered SIGABRT
-  // in Hermes for Andy on iOS 26 / iPhone 17 (TF crash logs 2026-05-20
-  // 21:21 -0500, all 3 reproduced) because `Animated.timing` is a JS
-  // function that can't run on the worklet thread. `runOnJS` bridges
-  // back to the JS thread safely.
+  // pull it in). Calling `showChrome` directly from the worklet triggers
+  // SIGABRT in Hermes because `Animated.timing` is a JS function that
+  // can't run on the worklet thread. `runOnJS` bridges back safely.
   const singleTap = Gesture.Tap()
     .numberOfTaps(1)
     .onEnd(() => {
@@ -444,11 +440,10 @@ export function VisualsPanel({
               </Pressable>
             </View>
           ) : (
-            // Single-tap start: YoutubePlayer mounts directly with its own
-            // YouTube-branded play button. Removed our thumbnail-with-play
-            // overlay (Andy: "we have to click twice on video to watch").
-            // `play={false}` initially — first tap on YouTube's own play
-            // button starts playback.
+            // YoutubePlayer mounts directly with `play={false}` so the
+            // first tap on YouTube's own iframe play button starts
+            // playback. We don't render our own thumbnail+play overlay
+            // because that would require a second tap to start.
             <YoutubePlayer
               videoId={video.youtubeId}
               height={videoPlayerHeight}

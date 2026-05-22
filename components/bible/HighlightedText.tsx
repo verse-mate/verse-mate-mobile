@@ -858,8 +858,7 @@ export function HighlightedText({
     // to include the trailing space inside the underlined Text. When
     // both the current AND next token are lex-words, including the
     // space makes adjacent underlines visually connect into one
-    // continuous line — Andy's "multi-word underline appears broken"
-    // feedback. When there's punctuation between them ("trials,")
+    // continuous line. When there's punctuation between them ("trials,")
     // the underline still breaks naturally because punctuation lives
     // outside the underlined Text either way.
     const lexHits = tokens.map((t) => lexiconMatch(t.word));
@@ -946,10 +945,9 @@ export function HighlightedText({
           // Build the inner phrase: include all internal spaces (joined as
           // one continuous underline) and, if the LAST word has trailing
           // punctuation, peel that out so the underline doesn't bleed into
-          // it. The trailing space after the last word follows the same
-          // rule as single-word: include in the underlined Text if the
-          // next token (post-phrase) is also a lex word and there's no
-          // punctuation in between.
+          // it. The trailing space after the last word is ALWAYS rendered
+          // outside the underlined Text so adjacent phrases/words render
+          // as visually separate underlines (mirrors web's per-word spans).
           const lastMatch = lastToken.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
           const lastCore = lastMatch ? lastMatch[1] : lastToken.word;
           const lastTrailing = lastMatch ? lastMatch[2] : '';
@@ -971,11 +969,6 @@ export function HighlightedText({
           innerPieces.push(lastCore);
 
           const joinedSurface = innerPieces.join('');
-          const nextAfterPhraseIdx = endIdx + 1;
-          const nextAfterPhraseHit =
-            nextAfterPhraseIdx < tokens.length ? lexHits[nextAfterPhraseIdx] : null;
-          const includeSpaceInLex =
-            !!nextAfterPhraseHit && !lastTrailing && lastToken.hasTrailingSpace;
 
           // Phrase-level selection check: if any token inside the phrase
           // matches the current single-word selection, dim the whole phrase
@@ -1018,10 +1011,9 @@ export function HighlightedText({
                 accessibilityLabel={`${joinedSurface} — ${lexEntry.translit}, ${lexEntry.basicGloss}`}
               >
                 {joinedSurface}
-                {includeSpaceInLex ? ' ' : ''}
               </Text>
               {lastTrailing}
-              {!includeSpaceInLex && lastToken.hasTrailingSpace ? ' ' : ''}
+              {lastToken.hasTrailingSpace ? ' ' : ''}
             </Text>
           );
           idx = endIdx + 1;
@@ -1036,8 +1028,10 @@ export function HighlightedText({
         const match = token.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
         const wordCore = match ? match[1] : token.word;
         const trailing = match ? match[2] : '';
-        const nextLexHit = lexHits[idx + 1];
-        const includeSpaceInLex = !!nextLexHit && !trailing && token.hasTrailingSpace;
+        // The trailing space is always rendered OUTSIDE the underlined Text
+        // so adjacent lex words appear as visually separate underlines —
+        // matching the web's `<span class="lex">word</span> <span class="lex">…</span>`
+        // pattern.
         elements.push(
           <Text
             key={`word-${segment.key}-${token.startChar}`}
@@ -1060,10 +1054,9 @@ export function HighlightedText({
               accessibilityLabel={`${wordCore} — ${lexHit.entry.translit}, ${lexHit.entry.basicGloss}`}
             >
               {wordCore}
-              {includeSpaceInLex ? ' ' : ''}
             </Text>
             {trailing}
-            {!includeSpaceInLex && token.hasTrailingSpace ? ' ' : ''}
+            {token.hasTrailingSpace ? ' ' : ''}
           </Text>
         );
         idx++;
@@ -1290,16 +1283,17 @@ const selectionStyles = StyleSheet.create({
  */
 const LEX_UNDERLINE = '#B09A6D';
 const LEX_UNDERLINE_THEME = '#C7B074';
-// Andy round 4 #2 + native-module retreat: dropped the dotted style on
-// iOS. RN's `textDecorationStyle: 'dotted'` is iOS-only AND draws per-word
-// with visibly large gaps that Andy flagged as looking like accidental
-// whitespace. Android has never rendered dotted (RN ignores the style).
-// The `@versemate/dotted-underline-text` native module IS shipped on this
-// branch — it draws real dots — but it's a native View and can't nest
-// inside paragraph-mode <Text> verses (RN gives Views inside Text 0×0).
-// Result: thin solid underline on both platforms now. Cross-platform
-// consistent, no gaps, cleanest read. Native module is dormant until a
-// future custom-shadow-node experiment can render real dots inline.
+// Thin solid underline on both iOS and Android.
+//
+// We don't use `textDecorationStyle: 'dotted'` because it's iOS-only (RN
+// silently renders solid on Android) AND the iOS dotted pattern draws
+// per-word with visibly large gaps between letters that read as broken
+// whitespace rather than decoration.
+//
+// `modules/dotted-underline-text/` (Kotlin/Swift) renders true dots, but
+// it's a native View and can't nest inside paragraph-mode `<Text>` verses
+// (RN gives Views-inside-Text 0×0). It's kept dormant for a future custom
+// shadow-node experiment.
 const lexiconWordStyles = StyleSheet.create({
   regular: {
     textDecorationLine: 'underline',

@@ -77,9 +77,8 @@ export function LexiconPopover({
         duration: 200,
         useNativeDriver: true,
       }),
-      // Plain timing on open — Andy reported the previous spring made the
-      // modal feel jittery / bounce-on-open. Straight slide-up matches the
-      // verse-insight modal.
+      // Plain timing (no spring) so the sheet slides up without a bounce
+      // — matches the verse-insight modal's open animation.
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 220,
@@ -125,36 +124,26 @@ export function LexiconPopover({
     }
   }, [visible]);
 
-  // PanResponder for swipe-to-dismiss from anywhere on the sheet.
+  // Single swipe-to-dismiss PanResponder applied to the whole sheet.
   //
-  // Two gesture cooperations:
-  //   - Drag from the always-on region (handle + header) → captures
-  //     immediately, no scroll-position check (no scrollable content to
-  //     fight in that strip anyway).
-  //   - Drag from the ScrollView body → only captures when the scroll is
-  //     at the top AND the user is dragging DOWN, so normal scrolling
-  //     works for the rest of the time.
+  // Capture-phase return-true on ANY downward gesture so the inner
+  // ScrollView never steals the touch when the user drags the sheet down.
+  // Upward gestures (`g.dy < 0`) bubble through to the ScrollView so
+  // long lex entries can still be scrolled to reveal content below the
+  // fold. Reading lex entries top-to-bottom is the normal flow; reading
+  // back upward is rare, so trading scroll-up-after-scroll-down for
+  // reliable drag-anywhere-dismiss is the right call.
   //
-  // Thresholds: we capture at `dy > 3` (instead of 5) and dismiss at
-  // `dy > 50` (instead of 70). Andy reported the previous values made
-  // the sheet feel like you had to "grip the top to swipe it away" —
-  // smaller-feeling thresholds restore the expected iOS-sheet feel.
+  // Capture at `dy > 3` (snappy) and dismiss at `dy > 50` (low effort).
   const closeRef = useRef(onClose);
   useEffect(() => {
     closeRef.current = onClose;
   });
-  const scrollYRef = useRef(0);
   const panResponder = useRef(
     PanResponder.create({
-      // Capture phase — fires BEFORE children (the ScrollView) receive
-      // touch events. We only return true (and steal the gesture from
-      // the ScrollView) when the user is at the top of scrollable
-      // content AND drags downward, so normal scrolling is unaffected.
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponderCapture: (_, g) => {
-        const isVerticalDown = g.dy > 3 && Math.abs(g.dy) > Math.abs(g.dx);
-        const atTop = scrollYRef.current <= 0;
-        return isVerticalDown && atTop;
+        return g.dy > 3 && Math.abs(g.dy) > Math.abs(g.dx);
       },
       onPanResponderMove: (_, g) => {
         if (g.dy > 0) slideAnim.setValue(g.dy);
@@ -164,34 +153,7 @@ export function LexiconPopover({
           closeRef.current();
         } else if (g.dy > 0) {
           // Snap-back uses plain timing (not spring) to match the
-          // bounce-less open animation Andy asked for.
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 150,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-      onPanResponderTerminationRequest: () => false,
-    })
-  ).current;
-
-  // Dedicated pan responder for the always-on drag region (handle + header)
-  // — bypasses the scroll-at-top check so the user can always drag the
-  // modal down by grabbing the handle OR anywhere in the lemma/meta header.
-  const handlePanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 3,
-      onPanResponderMove: (_, g) => {
-        if (g.dy > 0) slideAnim.setValue(g.dy);
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > 50) {
-          closeRef.current();
-        } else if (g.dy > 0) {
-          // Snap-back uses plain timing (not spring) to match the
-          // bounce-less open animation Andy asked for.
+          // bounce-less open animation.
           Animated.timing(slideAnim, {
             toValue: 0,
             duration: 150,
@@ -220,19 +182,16 @@ export function LexiconPopover({
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         </Animated.View>
 
-        {/* Sliding sheet — pan responder wraps the whole sheet so swipe-down
-            from any point dismisses (subject to scroll-at-top check). */}
+        {/* Sliding sheet — panResponder wraps the entire sheet so a
+            downward drag from any point (handle, header, OR body)
+            dismisses, while upward scrolling within the body still works
+            because the responder only captures `dy > 3` downward motion. */}
         <Animated.View
           style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}
           pointerEvents="auto"
           {...panResponder.panHandlers}
         >
-          {/* Always-on drag region: handle + header. Anywhere in this strip
-              the user can pull down to dismiss without needing the
-              scroll-position check the body uses. Andy's TF feedback was
-              that you "had to grip the top" — expanding this region to
-              include the lemma + meta lines fixes that. */}
-          <View {...handlePanResponder.panHandlers}>
+          <View>
             <View style={styles.dragArea}>
               <View style={styles.handle} />
             </View>
@@ -265,10 +224,6 @@ export function LexiconPopover({
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            onScroll={(e) => {
-              scrollYRef.current = e.nativeEvent.contentOffset.y;
-            }}
-            scrollEventThrottle={16}
           >
             {/* IN THIS VERSE (Layer 2 — contextual gloss) */}
             {contextual ? (
