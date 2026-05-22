@@ -165,15 +165,19 @@ export function LexiconPopover({
     const close = () => closeRef.current();
     const scrollNative = Gesture.Native();
     const pan = Gesture.Pan()
-      .activeOffsetY([3, Infinity])
+      // 1px threshold makes the Pan trivially activate even on quick
+      // fingertip flicks — Andy reported (2026-05-22) that real-iPhone
+      // fast swipes intermittently failed to dismiss because the
+      // previous 3px threshold races the iOS ScrollView's own pan
+      // recognizer and sometimes loses (the touch lifts before the
+      // 3px threshold is crossed). 1px is small enough that any
+      // intentional downward gesture clears it.
+      .activeOffsetY([1, Infinity])
       .simultaneousWithExternalGesture(scrollNative)
       .onBegin(() => {
         'worklet';
-        // Freeze the "was at top?" check for this whole gesture. The
-        // pan's `activeOffsetY([3, Infinity])` threshold means there may
-        // be a few pixels of scroll between touch-down and the first
-        // onUpdate, but that's negligible; what matters is we don't let
-        // the gate flip when the user scrolls past zero mid-gesture.
+        // Freeze the "was at top?" check for this whole gesture so the
+        // gate doesn't flip when the user scrolls past zero mid-gesture.
         startedAtTop.value = scrollOffset.value <= 0;
       })
       .onUpdate((e) => {
@@ -184,7 +188,15 @@ export function LexiconPopover({
       })
       .onEnd((e) => {
         'worklet';
-        if (startedAtTop.value && (e.translationY > 50 || e.velocityY > 800)) {
+        // Dismiss if EITHER:
+        //   • the user dragged a meaningful distance (translationY > 50), OR
+        //   • the user flicked downward fast (velocityY > 500), even
+        //     with small translation. A quick 10px flick at 1500 px/s
+        //     reads as "clearly wanted to dismiss" — matching iOS
+        //     bottom-sheet conventions.
+        const draggedFar = e.translationY > 50;
+        const flicked = e.translationY > 0 && e.velocityY > 500;
+        if (startedAtTop.value && (draggedFar || flicked)) {
           runOnJS(close)();
         } else {
           translateY.value = withSpring(0, SPRING_CONFIG);
