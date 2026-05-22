@@ -11,9 +11,9 @@
  *
  * br-audio-005: tap explicitly loads + plays. Never auto-plays.
  *
- * 2026-05-02 redesign (Andy BUG-006 + BUG-007): YouVersion-style circular
- * play button + adjacent label, plus a speed cycler chip that's visible
- * once audio is loaded. Cycles through SPEED_OPTIONS on tap.
+ * YouVersion-style circular play button + adjacent label, plus a speed
+ * cycler chip that becomes visible once audio is loaded. The chip
+ * cycles through SPEED_OPTIONS on tap.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';

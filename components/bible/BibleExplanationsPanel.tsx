@@ -214,9 +214,9 @@ export function BibleExplanationsPanel({
   const studyScrollRef = useRef<ScrollView>(null);
   const visualsScrollRef = useRef<ScrollView>(null);
 
-  // Quick-verse-jump (VERA-35 / VERA-36): refs to each rendered By Line
-  // verse-section View. Populated when byline content is split into per-verse
-  // sections below. Reset on chapter swap so stale nodes can't be reached.
+  // Quick-verse-jump: refs to each rendered By Line verse-section View.
+  // Populated when byline content is split into per-verse sections below.
+  // Reset on chapter swap so stale nodes can't be reached.
   const byLineSectionRefs = useRef<Record<number, View | null>>({});
 
   // Reset all scroll positions only when chapter changes (not on tab switch)
@@ -299,8 +299,8 @@ export function BibleExplanationsPanel({
 
     // react-native-web's `View.measureLayout` is a no-op stub, so the native
     // path silently fails on web. On web, read positions from the DOM via
-    // getBoundingClientRect + the ScrollView's scrollTop. Mirrors the logic in
-    // ChapterPage.tsx (VERA-35 QA round 2 / verse-mate-mobile #77).
+    // getBoundingClientRect + the ScrollView's scrollTop. Mirrors the logic
+    // in ChapterPage.tsx.
     if (Platform.OS === 'web') {
       const scrollNode = (
         scrollView as unknown as { getScrollableNode?: () => HTMLElement | null }
