@@ -60,7 +60,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Reanimated, {
   runOnJS,
   useAnimatedStyle,
@@ -517,69 +517,77 @@ export function VisualsPanel({
         onRequestClose={closeLightbox}
         statusBarTranslucent
       >
-        <Pressable style={styles.lightboxBackdrop} onPress={closeLightbox}>
-          {openCard ? (
-            <View
-              style={styles.lightboxFrame}
-              // Stop the backdrop press from triggering when the user
-              // taps the image itself.
-              onStartShouldSetResponder={() => true}
-            >
-              <Animated.View
-                style={[styles.lightboxTopBar, { opacity: chromeOpacity }]}
-                // When the bars are faded out we don't want to swallow
-                // touches — let them pass through to the image so the
-                // user can keep panning/zooming. `pointerEvents` is
-                // driven off the same Animated.Value via interpolate.
-                pointerEvents="box-none"
+        {/* GestureHandlerRootView is REQUIRED inside RN's <Modal> for any
+            react-native-gesture-handler gestures to fire — Modal creates
+            a separate native window the app-level root doesn't reach
+            into. Without this, pinch/double-tap/single-tap all silently
+            fail and a multi-touch pinch falls through to the backdrop
+            Pressable, closing the lightbox. */}
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Pressable style={styles.lightboxBackdrop} onPress={closeLightbox}>
+            {openCard ? (
+              <View
+                style={styles.lightboxFrame}
+                // Stop the backdrop press from triggering when the user
+                // taps the image itself.
+                onStartShouldSetResponder={() => true}
               >
-                <Text style={styles.lightboxTitle} numberOfLines={2}>
-                  {openCard.title}
-                </Text>
-                {openCard.download ? (
-                  <Pressable
-                    style={styles.lightboxDownload}
-                    onPress={handlePdfDownload}
-                    accessibilityRole="button"
-                    accessibilityLabel="Download original"
-                    testID={`${testID}-lightbox-download`}
-                  >
-                    <Text style={styles.lightboxDownloadText}>PDF ↓</Text>
-                  </Pressable>
-                ) : null}
-                <Pressable
-                  style={styles.lightboxClose}
-                  onPress={closeLightbox}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close"
-                  testID={`${testID}-lightbox-close`}
-                  hitSlop={12}
+                <Animated.View
+                  style={[styles.lightboxTopBar, { opacity: chromeOpacity }]}
+                  // When the bars are faded out we don't want to swallow
+                  // touches — let them pass through to the image so the
+                  // user can keep panning/zooming. `pointerEvents` is
+                  // driven off the same Animated.Value via interpolate.
+                  pointerEvents="box-none"
                 >
-                  <Ionicons name="close" size={22} color="#FAF6EA" />
-                </Pressable>
-              </Animated.View>
-              <GestureDetector gesture={composedGesture}>
-                <AnimatedImage
-                  source={{ uri: absolutizeVisualUrl(openCard.full) }}
-                  // resizeMode="contain" matches expo-image's
-                  // contentFit="contain". `style` carries the transform
-                  // from useAnimatedStyle.
-                  resizeMode="contain"
-                  style={[styles.lightboxImage, animatedImageStyle]}
-                  accessibilityLabel={openCard.title}
-                />
-              </GestureDetector>
-              <Animated.View
-                style={[styles.lightboxAttribution, { opacity: chromeOpacity }]}
-                pointerEvents="box-none"
-              >
-                <Text style={styles.lightboxAttributionText} numberOfLines={1}>
-                  {openCard.attribution.label}
-                </Text>
-              </Animated.View>
-            </View>
-          ) : null}
-        </Pressable>
+                  <Text style={styles.lightboxTitle} numberOfLines={2}>
+                    {openCard.title}
+                  </Text>
+                  {openCard.download ? (
+                    <Pressable
+                      style={styles.lightboxDownload}
+                      onPress={handlePdfDownload}
+                      accessibilityRole="button"
+                      accessibilityLabel="Download original"
+                      testID={`${testID}-lightbox-download`}
+                    >
+                      <Text style={styles.lightboxDownloadText}>PDF ↓</Text>
+                    </Pressable>
+                  ) : null}
+                  <Pressable
+                    style={styles.lightboxClose}
+                    onPress={closeLightbox}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close"
+                    testID={`${testID}-lightbox-close`}
+                    hitSlop={12}
+                  >
+                    <Ionicons name="close" size={22} color="#FAF6EA" />
+                  </Pressable>
+                </Animated.View>
+                <GestureDetector gesture={composedGesture}>
+                  <AnimatedImage
+                    source={{ uri: absolutizeVisualUrl(openCard.full) }}
+                    // resizeMode="contain" matches expo-image's
+                    // contentFit="contain". `style` carries the transform
+                    // from useAnimatedStyle.
+                    resizeMode="contain"
+                    style={[styles.lightboxImage, animatedImageStyle]}
+                    accessibilityLabel={openCard.title}
+                  />
+                </GestureDetector>
+                <Animated.View
+                  style={[styles.lightboxAttribution, { opacity: chromeOpacity }]}
+                  pointerEvents="box-none"
+                >
+                  <Text style={styles.lightboxAttributionText} numberOfLines={1}>
+                    {openCard.attribution.label}
+                  </Text>
+                </Animated.View>
+              </View>
+            ) : null}
+          </Pressable>
+        </GestureHandlerRootView>
       </Modal>
     </View>
   );
