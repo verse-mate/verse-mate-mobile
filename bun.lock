@@ -5,6 +5,7 @@
       "name": "verse-mate-mobile",
       "dependencies": {
         "@expo/vector-icons": "^15.0.3",
+        "@gorhom/bottom-sheet": "^5.2.14",
         "@react-native-async-storage/async-storage": "^2.2.0",
         "@react-native-community/datetimepicker": "8.4.4",
         "@react-native-community/netinfo": "^11.4.1",
@@ -15,7 +16,7 @@
         "@react-navigation/native": "^7.1.8",
         "@tanstack/react-query": "^5.90.2",
         "@versemate/dotted-underline-text": "file:./modules/dotted-underline-text",
-        "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#26012e6790ad734e203f9901efe029d729133409",
+        "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#d16f2e0",
         "@versemate/studies": "github:verse-mate/verse-mate-studies#d9dadca",
         "@versemate/visuals": "github:verse-mate/verse-mate-visuals#fa6d815",
         "axios": "^1.12.2",
@@ -457,7 +458,7 @@
 
     "@expo/xcpretty": ["@expo/xcpretty@4.3.2", "", { "dependencies": { "@babel/code-frame": "7.10.4", "chalk": "^4.1.0", "find-up": "^5.0.0", "js-yaml": "^4.1.0" }, "bin": { "excpretty": "build/cli.js" } }, "sha512-ReZxZ8pdnoI3tP/dNnJdnmAk7uLT4FjsKDGW7YeDdvdOMz2XCQSmSCM9IWlrXuWtMF9zeSB6WJtEhCQ41gQOfw=="],
 
-    "@gorhom/bottom-sheet": ["@gorhom/bottom-sheet@5.2.6", "", { "dependencies": { "@gorhom/portal": "1.0.14", "invariant": "^2.2.4" }, "peerDependencies": { "@types/react": "*", "@types/react-native": "*", "react": "*", "react-native": "*", "react-native-gesture-handler": ">=2.16.1", "react-native-reanimated": ">=3.16.0 || >=4.0.0-" }, "optionalPeers": ["@types/react", "@types/react-native"] }, "sha512-vmruJxdiUGDg+ZYcDmS30XDhq/h/+QkINOI5LY/uGjx8cPGwgJW0H6AB902gNTKtccbiKe/rr94EwdmIEz+LAQ=="],
+    "@gorhom/bottom-sheet": ["@gorhom/bottom-sheet@5.2.14", "", { "dependencies": { "@gorhom/portal": "1.0.14", "invariant": "^2.2.4" }, "peerDependencies": { "@types/react": "*", "@types/react-native": "*", "react": "*", "react-native": "*", "react-native-gesture-handler": ">=2.16.1", "react-native-reanimated": ">=3.16.0 || >=4.0.0-" }, "optionalPeers": ["@types/react", "@types/react-native"] }, "sha512-uLQFlDjp9z+jrOFcMSEldPqL5JdaXL3vXOh+juhwoNvXgTsEorJLjHTugXu+YccAG/0KJnShzKCrb71MHBsvJg=="],
 
     "@gorhom/portal": ["@gorhom/portal@1.0.14", "", { "dependencies": { "nanoid": "^3.3.1" }, "peerDependencies": { "react": "*", "react-native": "*" } }, "sha512-MXyL4xvCjmgaORr/rtryDNFy3kU4qUbKlwtQqqsygd0xX3mhKjOLn6mQK8wfu0RkoE0pBE0nAasRoHua+/QZ7A=="],
 
@@ -827,7 +828,7 @@
 
     "@versemate/dotted-underline-text": ["@versemate/dotted-underline-text@file:modules/dotted-underline-text", {}],
 
-    "@versemate/lexicon": ["@versemate/lexicon@github:verse-mate/verse-mate-lexicon#26012e6", {}, "verse-mate-verse-mate-lexicon-26012e6"],
+    "@versemate/lexicon": ["@versemate/lexicon@github:verse-mate/verse-mate-lexicon#d16f2e0", {}, "verse-mate-verse-mate-lexicon-d16f2e0"],
 
     "@versemate/studies": ["@versemate/studies@github:verse-mate/verse-mate-studies#d9dadca", {}, "verse-mate-verse-mate-studies-d9dadca"],
 

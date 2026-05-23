@@ -516,6 +516,13 @@ export function VisualsPanel({
         animationType="fade"
         onRequestClose={closeLightbox}
         statusBarTranslucent
+        // iOS-only: without this, the Modal defaults its
+        // UISupportedInterfaceOrientations to portrait, which overrides the
+        // app-level Info.plist declaration and snaps the device back to
+        // portrait when the lightbox opens — even when the Visuals tab
+        // was already rotated to landscape. Allowing both lets the user
+        // keep landscape on tap-to-open (Andy iOS-only repro 2026-05-22).
+        supportedOrientations={['portrait', 'landscape']}
       >
         {/* GestureHandlerRootView is REQUIRED inside RN's <Modal> for any
             react-native-gesture-handler gestures to fire — Modal creates

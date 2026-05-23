@@ -2,7 +2,7 @@ const config = {
   name: 'VerseMate',
   slug: 'verse-mate-mobile',
   owner: 'versemate',
-  version: '1.2.1',
+  version: '1.3.0',
   orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'versemate',
@@ -90,6 +90,18 @@ const config = {
             scheme: 'https',
             host: 'app.versemate.org',
             pathPrefix: '/topic',
+          },
+        ],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
+          {
+            scheme: 'https',
+            host: 'app.versemate.org',
+            pathPrefix: '/names-of-god',
           },
         ],
         category: ['BROWSABLE', 'DEFAULT'],

@@ -406,7 +406,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       // Re-throw error for component to handle (especially overlap errors)
       throw error;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       try {
         // Track analytics: HIGHLIGHT_CREATED event
         if (variables.body) {
@@ -454,13 +454,36 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           }
         }
       } finally {
-        // Only invalidate offline fallback caches — chapter/all caches are already up to date
-        if (!isOnline) {
-          queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
-          queryClient.invalidateQueries({
-            queryKey: ['local-chapter-highlights-offline-fallback'],
-          });
+        // When online + isUserDataSynced=true (the default once initial
+        // sync is done), the UI reads from localChapterHighlights, not
+        // from the remote query cache the optimistic update wrote to.
+        // We MUST persist the server-confirmed highlight into local
+        // SQLite and invalidate the local-fallback query so the reader
+        // sees the new row. Without this the modal closes, the API
+        // call succeeds, and the user observes nothing — regression
+        // introduced by PR #268 (read local data when synced).
+        const serverHighlightForLocal = (data as { highlight?: Highlight })?.highlight;
+        if (isOnline && serverHighlightForLocal) {
+          try {
+            await addLocalHighlight({
+              highlight_id: serverHighlightForLocal.highlight_id,
+              book_id: serverHighlightForLocal.book_id,
+              chapter_number: serverHighlightForLocal.chapter_number,
+              start_verse: serverHighlightForLocal.start_verse,
+              end_verse: serverHighlightForLocal.end_verse,
+              color: serverHighlightForLocal.color,
+              start_char: (serverHighlightForLocal.start_char as number | null) ?? null,
+              end_char: (serverHighlightForLocal.end_char as number | null) ?? null,
+              updated_at: serverHighlightForLocal.created_at ?? new Date().toISOString(),
+            });
+          } catch (e) {
+            console.warn('[highlights] local mirror after add failed:', e);
+          }
         }
+        queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+        queryClient.invalidateQueries({
+          queryKey: ['local-chapter-highlights-offline-fallback'],
+        });
       }
     },
   });
@@ -562,7 +585,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       console.error('Failed to update highlight color:', error);
       showToast('Failed to update highlight. Please try again.');
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: async (_data, variables) => {
       try {
         // Track analytics: HIGHLIGHT_EDITED event
         if (variables.body && variables.path) {
@@ -572,13 +595,23 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           });
         }
       } finally {
-        // Invalidate in finally to ensure cache consistency even if analytics throws
-        if (!isOnline) {
-          queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
-          queryClient.invalidateQueries({
-            queryKey: ['local-chapter-highlights-offline-fallback'],
-          });
+        // See addMutation's onSuccess — online + locally-synced UI
+        // reads from local SQLite, so mirror the color change there
+        // and invalidate the local-fallback query.
+        if (isOnline && variables.path && variables.body) {
+          try {
+            await updateLocalHighlightColor(
+              variables.path.highlight_id,
+              variables.body.color || 'yellow'
+            );
+          } catch (e) {
+            console.warn('[highlights] local mirror after color update failed:', e);
+          }
         }
+        queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+        queryClient.invalidateQueries({
+          queryKey: ['local-chapter-highlights-offline-fallback'],
+        });
       }
     },
   });
@@ -655,7 +688,7 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
       console.error('Failed to delete highlight:', error);
       showToast('Failed to remove highlight. Please try again.');
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: async (_data, variables) => {
       try {
         // Track analytics: HIGHLIGHT_DELETED event
         if (variables.path) {
@@ -664,13 +697,20 @@ export function useHighlights(options?: UseHighlightsOptions): UseHighlightsResu
           });
         }
       } finally {
-        // Invalidate in finally to ensure cache consistency even if analytics throws
-        if (!isOnline) {
-          queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
-          queryClient.invalidateQueries({
-            queryKey: ['local-chapter-highlights-offline-fallback'],
-          });
+        // See addMutation's onSuccess for the rationale — the online
+        // path must also remove from local SQLite + invalidate the
+        // local-fallback query when isUserDataSynced reads from local.
+        if (isOnline && variables.path) {
+          try {
+            await deleteLocalHighlight(variables.path.highlight_id);
+          } catch (e) {
+            console.warn('[highlights] local mirror after delete failed:', e);
+          }
         }
+        queryClient.invalidateQueries({ queryKey: ['local-all-highlights-offline-fallback'] });
+        queryClient.invalidateQueries({
+          queryKey: ['local-chapter-highlights-offline-fallback'],
+        });
       }
     },
   });
