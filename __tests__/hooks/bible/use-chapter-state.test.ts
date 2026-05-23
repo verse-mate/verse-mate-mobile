@@ -161,6 +161,9 @@ describe('useChapterState', () => {
 
   /**
    * Test: Debounced URL sync occurs after delay
+   *
+   * URL writer emits the canonical slug form (matches generate-chapter-share-url)
+   * so deep-link / share URLs round-trip through the screen unchanged.
    */
   it('syncs URL with debounce after navigateToChapter', async () => {
     const { result } = renderHook(() => useChapterState());
@@ -177,10 +180,10 @@ describe('useChapterState', () => {
       jest.advanceTimersByTime(1100);
     });
 
-    // URL should now be updated (with verse params cleared)
+    // URL should now be updated (slug form, verse params cleared)
     await waitFor(() => {
       expect(mockSetParams).toHaveBeenCalledWith({
-        bookId: '5',
+        bookId: 'deuteronomy',
         chapterNumber: '10',
         verse: undefined,
         endVerse: undefined,
@@ -210,10 +213,10 @@ describe('useChapterState', () => {
       jest.advanceTimersByTime(1100);
     });
 
-    // URL sync should only happen once with final values (with verse params cleared)
+    // URL sync should only happen once with final values (slug form, verse params cleared)
     expect(mockSetParams).toHaveBeenCalledTimes(1);
     expect(mockSetParams).toHaveBeenCalledWith({
-      bookId: '1',
+      bookId: 'genesis',
       chapterNumber: '5',
       verse: undefined,
       endVerse: undefined,
@@ -265,6 +268,96 @@ describe('useChapterState', () => {
     // Genesis has 50 chapters, so 999 should be clamped to 1
     expect(result.current.chapterNumber).toBe(1);
     expect(result.current.bookId).toBe(1);
+  });
+
+  /**
+   * Regression: slug URL params resolve to the correct book (VER-117).
+   *
+   * Before the fix, `Number(params.bookId)` returned NaN for non-numeric slugs
+   * and fell back to Genesis, so /bible/galatians/6 served Genesis 6 content.
+   */
+  describe('slug URL params (VER-117 regression)', () => {
+    it('resolves "galatians" slug to bookId 48', () => {
+      mockUseLocalSearchParams.mockReturnValue({
+        bookId: 'galatians',
+        chapterNumber: '6',
+      });
+
+      const { result } = renderHook(() => useChapterState());
+
+      expect(result.current.bookId).toBe(48);
+      expect(result.current.chapterNumber).toBe(6);
+      expect(result.current.bookName).toBe('Galatians');
+    });
+
+    it('resolves "john" slug to bookId 43', () => {
+      mockUseLocalSearchParams.mockReturnValue({
+        bookId: 'john',
+        chapterNumber: '3',
+      });
+
+      const { result } = renderHook(() => useChapterState());
+
+      expect(result.current.bookId).toBe(43);
+      expect(result.current.chapterNumber).toBe(3);
+      expect(result.current.bookName).toBe('John');
+    });
+
+    it('resolves multi-word slugs like "1-corinthians" to bookId 46', () => {
+      mockUseLocalSearchParams.mockReturnValue({
+        bookId: '1-corinthians',
+        chapterNumber: '13',
+      });
+
+      const { result } = renderHook(() => useChapterState());
+
+      expect(result.current.bookId).toBe(46);
+      expect(result.current.chapterNumber).toBe(13);
+      expect(result.current.bookName).toBe('1 Corinthians');
+    });
+
+    it('still accepts numeric bookId for backward compatibility', () => {
+      mockUseLocalSearchParams.mockReturnValue({
+        bookId: '48',
+        chapterNumber: '6',
+      });
+
+      const { result } = renderHook(() => useChapterState());
+
+      expect(result.current.bookId).toBe(48);
+      expect(result.current.chapterNumber).toBe(6);
+      expect(result.current.bookName).toBe('Galatians');
+    });
+
+    it('falls back to Genesis 1 when the slug is unknown', () => {
+      mockUseLocalSearchParams.mockReturnValue({
+        bookId: 'not-a-book',
+        chapterNumber: '5',
+      });
+
+      const { result } = renderHook(() => useChapterState());
+
+      expect(result.current.bookId).toBe(1);
+      // Chapter is preserved (still a valid number) — only the book defaulted
+      expect(result.current.chapterNumber).toBe(5);
+    });
+
+    it('does not rewrite the URL when params already match state in slug form', () => {
+      mockUseLocalSearchParams.mockReturnValue({
+        bookId: 'galatians',
+        chapterNumber: '6',
+      });
+
+      renderHook(() => useChapterState());
+
+      // Fast-forward past the debounce window — URL must NOT churn from
+      // 'galatians' to '48' just because the writer formatted bookId differently.
+      act(() => {
+        jest.advanceTimersByTime(1100);
+      });
+
+      expect(mockSetParams).not.toHaveBeenCalled();
+    });
   });
 
   /**

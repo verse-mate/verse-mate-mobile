@@ -40,6 +40,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { TestamentBook } from '@/src/api';
 import { useBibleTestaments } from '@/src/api';
+import { getBookSlug, parseBookParam } from '@/utils/bookSlugs';
 
 /**
  * State shape for chapter navigation
@@ -121,8 +122,12 @@ export function useChapterState(): ChapterStateResult {
     chapterNumber: string;
   }>();
 
-  // Parse initial values from params
-  const initialBookId = Number(params.bookId) || 1;
+  // Parse initial values from params.
+  // bookId may arrive as a slug ("galatians") or numeric id ("48") — share URLs
+  // are slug-based per generate-chapter-share-url.ts. Without parseBookParam,
+  // any non-numeric slug becomes NaN and falls back to Genesis, silently
+  // serving wrong chapter content for every non-Genesis deep link.
+  const initialBookId = parseBookParam(params.bookId ?? '') ?? 1;
   const initialChapter = Number(params.chapterNumber) || 1;
 
   // Use reducer for state management
@@ -168,10 +173,10 @@ export function useChapterState(): ChapterStateResult {
    * while the screen is already mounted.
    */
   useEffect(() => {
-    const paramBookId = Number(params.bookId);
+    const paramBookId = parseBookParam(params.bookId ?? '');
     const paramChapter = Number(params.chapterNumber);
 
-    if (Number.isNaN(paramBookId) || Number.isNaN(paramChapter)) {
+    if (paramBookId === null || Number.isNaN(paramChapter)) {
       return;
     }
 
@@ -245,13 +250,16 @@ export function useChapterState(): ChapterStateResult {
 
     // Set new timer
     urlSyncTimerRef.current = setTimeout(() => {
-      // Only update if URL differs from current state
-      const currentParamBookId = Number(params.bookId);
+      // Only update if URL differs from current state.
+      // Compare via parseBookParam so a valid slug URL ("galatians") does not
+      // get rewritten to its numeric form on every navigation; write the slug
+      // form back so the URL stays in the canonical share-link shape.
+      const currentParamBookId = parseBookParam(params.bookId ?? '');
       const currentParamChapter = Number(params.chapterNumber);
 
       if (currentParamBookId !== state.bookId || currentParamChapter !== state.chapterNumber) {
         router.setParams({
-          bookId: state.bookId.toString(),
+          bookId: getBookSlug(state.bookId) ?? state.bookId.toString(),
           chapterNumber: state.chapterNumber.toString(),
           // Clear verse params when chapter changes to prevent "sticky" highlighting
           verse: undefined,
