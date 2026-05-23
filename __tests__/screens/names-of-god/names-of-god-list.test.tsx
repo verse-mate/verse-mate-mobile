@@ -90,9 +90,12 @@ describe('NamesOfGodListScreen', () => {
 
     it('renders all names from the dataset', () => {
       renderScreen();
-      expect(screen.getByText('Yahweh')).toBeTruthy();
-      expect(screen.getByText('Theos')).toBeTruthy();
-      expect(screen.getByText('Elohim')).toBeTruthy();
+      // Use the row testID rather than getByText: the name string also
+      // appears in the row's accessibilityLabel, so getByText would
+      // match multiple elements.
+      expect(screen.getByTestId('name-row-yahweh')).toBeTruthy();
+      expect(screen.getByTestId('name-row-theos')).toBeTruthy();
+      expect(screen.getByTestId('name-row-elohim')).toBeTruthy();
     });
 
     it('shows the name count label', () => {
@@ -120,8 +123,8 @@ describe('NamesOfGodListScreen', () => {
       fireEvent.changeText(input, 'yahweh');
 
       await waitFor(() => {
-        expect(screen.getByText('Yahweh')).toBeTruthy();
-        expect(screen.queryByText('Theos')).toBeNull();
+        expect(screen.getByTestId('name-row-yahweh')).toBeTruthy();
+        expect(screen.queryByTestId('name-row-theos')).toBeNull();
       });
     });
 
@@ -144,8 +147,8 @@ describe('NamesOfGodListScreen', () => {
       fireEvent.press(screen.getByTestId('names-search-clear'));
 
       await waitFor(() => {
-        expect(screen.getByText('Yahweh')).toBeTruthy();
-        expect(screen.getByText('Theos')).toBeTruthy();
+        expect(screen.getByTestId('name-row-yahweh')).toBeTruthy();
+        expect(screen.getByTestId('name-row-theos')).toBeTruthy();
       });
     });
   });
@@ -156,9 +159,9 @@ describe('NamesOfGodListScreen', () => {
       fireEvent.press(screen.getByTestId('filter-chip-Hebrew'));
 
       await waitFor(() => {
-        expect(screen.getByText('Yahweh')).toBeTruthy();
-        expect(screen.getByText('Elohim')).toBeTruthy();
-        expect(screen.queryByText('Theos')).toBeNull();
+        expect(screen.getByTestId('name-row-yahweh')).toBeTruthy();
+        expect(screen.getByTestId('name-row-elohim')).toBeTruthy();
+        expect(screen.queryByTestId('name-row-theos')).toBeNull();
       });
     });
 
@@ -167,8 +170,8 @@ describe('NamesOfGodListScreen', () => {
       fireEvent.press(screen.getByTestId('filter-chip-Greek'));
 
       await waitFor(() => {
-        expect(screen.getByText('Theos')).toBeTruthy();
-        expect(screen.queryByText('Yahweh')).toBeNull();
+        expect(screen.getByTestId('name-row-theos')).toBeTruthy();
+        expect(screen.queryByTestId('name-row-yahweh')).toBeNull();
       });
     });
 
@@ -178,9 +181,9 @@ describe('NamesOfGodListScreen', () => {
       fireEvent.press(screen.getByTestId('filter-chip-All'));
 
       await waitFor(() => {
-        expect(screen.getByText('Yahweh')).toBeTruthy();
-        expect(screen.getByText('Theos')).toBeTruthy();
-        expect(screen.getByText('Elohim')).toBeTruthy();
+        expect(screen.getByTestId('name-row-yahweh')).toBeTruthy();
+        expect(screen.getByTestId('name-row-theos')).toBeTruthy();
+        expect(screen.getByTestId('name-row-elohim')).toBeTruthy();
       });
     });
   });

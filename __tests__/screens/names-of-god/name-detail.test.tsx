@@ -68,8 +68,9 @@ describe('NameDetailScreen', () => {
   describe('Given name is found', () => {
     it('renders the English name', () => {
       renderScreen();
-      expect(screen.getByTestId('name-detail-english')).toBeTruthy();
-      expect(screen.getByText('Yahweh')).toBeTruthy();
+      const el = screen.getByTestId('name-detail-english');
+      expect(el).toBeTruthy();
+      expect(el.props.children).toBe('Yahweh');
     });
 
     it('renders the original script', () => {
