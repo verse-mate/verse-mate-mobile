@@ -682,13 +682,14 @@ describe('WordDefinitionTooltip', () => {
   });
 
   describe('Dictionary Service Integration', () => {
-    it('should call lookupWord with the word', async () => {
+    it('should call lookupWord with the word and testament derived from bookName', async () => {
+      // defaultProps.bookName is 'John' (NT), so testament should be 'NT'
       render(<WordDefinitionTooltip {...defaultProps} word="God" />);
 
       jest.runAllTimers();
 
       await waitFor(() => {
-        expect(mockLookupWord).toHaveBeenCalledWith('God');
+        expect(mockLookupWord).toHaveBeenCalledWith('God', 'NT');
       });
     });
 
@@ -698,7 +699,7 @@ describe('WordDefinitionTooltip', () => {
       jest.runAllTimers();
 
       await waitFor(() => {
-        expect(mockLookupWord).toHaveBeenCalledWith('God');
+        expect(mockLookupWord).toHaveBeenCalledWith('God', 'NT');
       });
 
       mockLookupWord.mockClear();
@@ -708,7 +709,7 @@ describe('WordDefinitionTooltip', () => {
       jest.runAllTimers();
 
       await waitFor(() => {
-        expect(mockLookupWord).toHaveBeenCalledWith('darkness');
+        expect(mockLookupWord).toHaveBeenCalledWith('darkness', 'NT');
       });
     });
 
