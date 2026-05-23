@@ -10,6 +10,7 @@
  * @see Task Group 4 - Deep Link Handling
  */
 
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import NetInfo from '@react-native-community/netinfo';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import {
@@ -473,56 +474,58 @@ function RootLayoutInner() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <I18nProvider>
-        <AppPostHogProvider>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <CustomThemeProvider>
-                <DeviceInfoProvider>
-                  <OfflineProvider>
-                    <ToastProvider>
-                      <AudioPlayerProvider
-                        engine={audioEngine}
-                        onPlaybackStarted={(track, args) =>
-                          trackAudioPlaybackStarted({
-                            explanationId: track.explanation_id,
-                            explanationType: track.explanation_type,
-                            bookId: track.book_id,
-                            chapterNumber: track.chapter_number,
-                            voice: track.voice,
-                            languageCode: track.language_code,
-                            isResume: args.isResume,
-                            resumePositionSeconds: args.resumePositionSeconds,
-                            ttsProvider: track.tts_provider,
-                          })
-                        }
-                        onPlaybackPaused={(track, positionSeconds, reason) =>
-                          trackAudioPlaybackPaused({
-                            explanationId: track.explanation_id,
-                            positionSeconds,
-                            durationSeconds: track.duration_seconds,
-                            reason,
-                          })
-                        }
-                        onPlaybackCompleted={(track) =>
-                          trackAudioPlaybackCompleted({
-                            explanationId: track.explanation_id,
-                            durationSeconds: track.duration_seconds,
-                            completedBy: 'natural',
-                          })
-                        }
-                      >
-                        <RootLayoutInner />
-                        <MobileAudioPlayerRoot />
-                      </AudioPlayerProvider>
-                    </ToastProvider>
-                  </OfflineProvider>
-                </DeviceInfoProvider>
-              </CustomThemeProvider>
-            </AuthProvider>
-          </QueryClientProvider>
-        </AppPostHogProvider>
-      </I18nProvider>
+      <BottomSheetModalProvider>
+        <I18nProvider>
+          <AppPostHogProvider>
+            <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                <CustomThemeProvider>
+                  <DeviceInfoProvider>
+                    <OfflineProvider>
+                      <ToastProvider>
+                        <AudioPlayerProvider
+                          engine={audioEngine}
+                          onPlaybackStarted={(track, args) =>
+                            trackAudioPlaybackStarted({
+                              explanationId: track.explanation_id,
+                              explanationType: track.explanation_type,
+                              bookId: track.book_id,
+                              chapterNumber: track.chapter_number,
+                              voice: track.voice,
+                              languageCode: track.language_code,
+                              isResume: args.isResume,
+                              resumePositionSeconds: args.resumePositionSeconds,
+                              ttsProvider: track.tts_provider,
+                            })
+                          }
+                          onPlaybackPaused={(track, positionSeconds, reason) =>
+                            trackAudioPlaybackPaused({
+                              explanationId: track.explanation_id,
+                              positionSeconds,
+                              durationSeconds: track.duration_seconds,
+                              reason,
+                            })
+                          }
+                          onPlaybackCompleted={(track) =>
+                            trackAudioPlaybackCompleted({
+                              explanationId: track.explanation_id,
+                              durationSeconds: track.duration_seconds,
+                              completedBy: 'natural',
+                            })
+                          }
+                        >
+                          <RootLayoutInner />
+                          <MobileAudioPlayerRoot />
+                        </AudioPlayerProvider>
+                      </ToastProvider>
+                    </OfflineProvider>
+                  </DeviceInfoProvider>
+                </CustomThemeProvider>
+              </AuthProvider>
+            </QueryClientProvider>
+          </AppPostHogProvider>
+        </I18nProvider>
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }
