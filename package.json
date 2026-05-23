@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@gorhom/bottom-sheet": "^5.2.14",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@react-native-community/netinfo": "^11.4.1",
@@ -144,7 +145,7 @@
   "bun": {
     "test": {
       "preload": "./test-setup.ts",
-      "timeout": 10000
+      "timeout": 1e4
     }
   },
   "private": true

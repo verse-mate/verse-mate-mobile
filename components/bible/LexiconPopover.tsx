@@ -3,25 +3,32 @@
  *
  * Bottom-sheet modal showing the chapter-aligned Greek/Hebrew lexical
  * card for a verse word. Mirrors verse-mate-web/src/components/LexiconPopover.tsx
- * structure (six sections + loaded caveat strip) and matches the UX of
- * verse-mate-mobile/components/bible/VerseMateTooltip.tsx — same slide-up
- * spring, backdrop fade, drag-handle, swipe-down-to-dismiss.
+ * structure (six sections + loaded caveat strip).
  *
  * Triggered by tap on a dotted-underlined word in the Bible reader.
+ *
+ * Built on `@gorhom/bottom-sheet`. The earlier custom implementation
+ * (RN <Modal> + RNGH Gesture.Pan + Reanimated translateY) could not
+ * reliably co-exist with the inner ScrollView's native pan recognizer
+ * on real iOS — fast finger flicks would lose the race and never
+ * dismiss (Andy 2026-05-22/2026-05-23: "swipe down doesn't work, but
+ * hold-and-press-then-drag does"). gorhom's library patches its inner
+ * BottomSheetScrollView so the scroll handler reports up to the sheet
+ * and the pan/scroll handoff is done in worklets, not at the RN-bridge
+ * level. This is the same problem @gorhom/bottom-sheet was built to
+ * solve — adopting it removes ~100 lines of bespoke gesture code we
+ * were never going to make race-free in our own implementation.
  */
 
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetScrollView,
+} from '@gorhom/bottom-sheet';
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
-import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import Reanimated, {
-  runOnJS,
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 
@@ -55,319 +62,163 @@ export function LexiconPopover({
   testID = 'lexicon-popover',
 }: LexiconPopoverProps) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const screenHeight = Dimensions.get('window').height;
-  const styles = useMemo(() => createStyles(colors, insets), [colors, insets]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
-  // Backdrop fade stays on the old Animated API (no gesture coupling).
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  // gorhom uses an imperative ref API for show/dismiss. Bridge it to our
+  // declarative `visible` prop so the call sites in ChapterReader don't
+  // have to change.
+  const sheetRef = useRef<BottomSheetModal>(null);
 
-  // Sheet position lives in a Reanimated SharedValue so the pan gesture
-  // (which runs on the UI thread via react-native-gesture-handler) can
-  // drive it without round-tripping to JS every frame.
-  const translateY = useSharedValue(screenHeight);
+  // Single snap point at 85% of the available area. The sheet collapses
+  // to that height regardless of content size, matching the previous
+  // custom modal's `maxHeight: 85%`.
+  const snapPoints = useMemo(() => ['85%'], []);
 
-  // ScrollView offset — used to gate the dismiss-pan to "only when
-  // scrolled to top", same pattern @gorhom/bottom-sheet uses internally.
-  const scrollOffset = useSharedValue(0);
-
-  // Captured at gesture START (onBegin) — frozen for the duration of one
-  // touch so the gate doesn't flip mid-gesture. If the user starts a drag
-  // while scrolled away from the top, this stays false even when their
-  // scroll-back-up gesture reaches scrollOffset === 0 — so the modal
-  // doesn't suddenly snap down on the way past zero. They have to lift
-  // and start a NEW gesture at the top to dismiss. (User reported the
-  // snap-and-dismiss bug 2026-05-22.)
-  const startedAtTop = useSharedValue(true);
-
-  // Internal visibility flag so we can play the close animation before the
-  // Modal actually unmounts. Toggled by the visible-prop watcher below.
-  const internalVisibleRef = useRef(false);
-
-  const closeRef = useRef(onClose);
-  useEffect(() => {
-    closeRef.current = onClose;
-  });
-
-  // Spring config that matches AutoHighlightTooltip (the verse-insight
-  // modal) for a consistent feel across both bottom sheets.
-  const SPRING_CONFIG = {
-    damping: 20,
-    stiffness: 90,
-    overshootClamping: true,
-    restDisplacementThreshold: 0.5,
-    restSpeedThreshold: 0.5,
-  };
-
-  const animateOpen = () => {
-    internalVisibleRef.current = true;
-    Animated.timing(backdropOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    translateY.value = withSpring(0, SPRING_CONFIG);
-  };
-
-  const animateClose = () => {
-    Animated.timing(backdropOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    translateY.value = withSpring(screenHeight, SPRING_CONFIG);
-    setTimeout(() => {
-      internalVisibleRef.current = false;
-    }, 250);
-  };
-
-  // Drive animations off the `visible` prop. Open on mount, close on
-  // visible → false. The close path calls onClose synchronously so the
-  // parent (ChapterReader) can clear its activeLexicon state.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: animateOpen/animateClose/translateY/backdropOpacity/screenHeight are stable refs and closure-captured constants
   useEffect(() => {
     if (visible) {
-      translateY.value = screenHeight;
-      backdropOpacity.setValue(0);
-      animateOpen();
-    } else if (internalVisibleRef.current) {
-      animateClose();
+      sheetRef.current?.present();
+    } else {
+      sheetRef.current?.dismiss();
     }
   }, [visible]);
 
-  // ── Drag-to-dismiss ────────────────────────────────────────────────
-  // The standard "bottom sheet over a ScrollView" recipe from
-  // react-native-gesture-handler:
-  //
-  //   • `scrollNativeGesture` represents the ScrollView's own native
-  //     scroll handler — we acknowledge it explicitly so the pan can
-  //     coexist with vertical scrolling.
-  //   • `panGesture.activeOffsetY([3, Infinity])` activates the pan as
-  //     soon as the finger moves DOWN 3px. Below that the ScrollView
-  //     keeps its touches; above it the pan takes over with minimal
-  //     visible jump.
-  //   • Inside `onUpdate`, drag-translate is gated on `scrollOffset <= 0`
-  //     so dragging down while mid-scroll just scrolls (the modal
-  //     stays put). Once you're back at the top, drag-down dismisses
-  //     from anywhere on the sheet.
-  //
-  // Gestures + animated styles are memoized so they're stable across
-  // renders — recreating them every render causes RNGH to re-initialize
-  // each frame, which on a 120Hz Android display reads as choppy drag.
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollOffset.value = event.contentOffset.y;
-    },
-  });
+  // Fired when the modal is dismissed (backdrop tap or downward pan
+  // past close threshold). Forward to the consumer's `onClose` so the
+  // parent (ChapterReader) can clear its `activeLexicon` state.
+  const handleDismiss = useCallback(() => {
+    onClose();
+  }, [onClose]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: scrollOffset/translateY/startedAtTop are stable Reanimated SharedValue refs (their identity never changes across renders); closeRef.current is read inside the worklet via the local `close` closure; the empty-dep array is intentional so the gesture instance stays stable across renders.
-  const { panGesture, scrollNativeGesture } = useMemo(() => {
-    const close = () => closeRef.current();
-    const scrollNative = Gesture.Native();
-    const pan = Gesture.Pan()
-      // 1px threshold makes the Pan trivially activate even on quick
-      // fingertip flicks — Andy reported (2026-05-22) that real-iPhone
-      // fast swipes intermittently failed to dismiss because the
-      // previous 3px threshold races the iOS ScrollView's own pan
-      // recognizer and sometimes loses (the touch lifts before the
-      // 3px threshold is crossed). 1px is small enough that any
-      // intentional downward gesture clears it.
-      .activeOffsetY([1, Infinity])
-      .simultaneousWithExternalGesture(scrollNative)
-      .onBegin(() => {
-        'worklet';
-        // Freeze the "was at top?" check for this whole gesture so the
-        // gate doesn't flip when the user scrolls past zero mid-gesture.
-        startedAtTop.value = scrollOffset.value <= 0;
-      })
-      .onUpdate((e) => {
-        'worklet';
-        if (startedAtTop.value && e.translationY > 0) {
-          translateY.value = e.translationY;
-        }
-      })
-      .onEnd((e) => {
-        'worklet';
-        // Dismiss if EITHER:
-        //   • the user dragged a meaningful distance (translationY > 50), OR
-        //   • the user clearly flicked downward — requires BOTH a real
-        //     translation (> 10px) AND high velocity (> 800 px/s).
-        // The earlier thresholds (translationY > 0, velocityY > 500)
-        // misfired on real-iPhone fingertip taps inside the modal:
-        // touch contact-patch jitter produces ~1-3px of downward
-        // translation, and natural lift-off velocity is often
-        // 300-700 px/s, which previously read as "flick to dismiss"
-        // and closed the modal under the user's finger. Andy reported
-        // this as "drag stopped working altogether" 2026-05-22; the
-        // iOS simulator doesn't reproduce because mouse-cursor input
-        // has zero contact jitter.
-        const draggedFar = e.translationY > 50;
-        const flicked = e.translationY > 10 && e.velocityY > 800;
-        if (startedAtTop.value && (draggedFar || flicked)) {
-          runOnJS(close)();
-        } else {
-          translateY.value = withSpring(0, SPRING_CONFIG);
-        }
-      });
-    return { panGesture: pan, scrollNativeGesture: scrollNative };
-  }, []);
-
-  const sheetAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        opacity={0.55}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
 
   const contextual = token.contextual;
   const lemmaIsHebrew = isHebrew(entry.lemma);
 
   return (
-    <Modal
-      visible={visible || internalVisibleRef.current}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      statusBarTranslucent
+    <BottomSheetModal
+      ref={sheetRef}
+      snapPoints={snapPoints}
+      onDismiss={handleDismiss}
+      enablePanDownToClose
+      enableDynamicSizing={false}
+      backdropComponent={renderBackdrop}
+      backgroundStyle={styles.background}
+      handleIndicatorStyle={styles.handleIndicator}
+      handleStyle={styles.handle}
+      // gorhom's native gesture handlers handle drag-to-dismiss from
+      // anywhere on the sheet — including over the ScrollView body —
+      // because it patches the inner scroll handler to coordinate with
+      // the pan worklet on the UI thread.
+      accessibilityLabel="Lexicon entry"
     >
-      {/* GestureHandlerRootView is REQUIRED inside RN's <Modal> for any
-          react-native-gesture-handler gestures to fire — Modal creates a
-          separate native window that the outer GestureHandlerRootView
-          (in _layout.tsx) doesn't reach into. Same pattern is used by
-          BibleNavigationModal. */}
-      <GestureHandlerRootView style={styles.overlay}>
-        <View style={styles.overlay} pointerEvents="box-none" testID={testID}>
-          {/* Backdrop with fade */}
-          <Animated.View
-            style={[styles.backdrop, { opacity: backdropOpacity }]}
-            pointerEvents="auto"
-          >
-            <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-          </Animated.View>
-
-          {/* Sliding sheet — the outer GestureDetector applies the
-              drag-to-dismiss pan to the ENTIRE sheet (handle, header,
-              AND the ScrollView body). The pan only activates after
-              10px of downward motion (so taps and short scrolls pass
-              through to the ScrollView), and drag-translate is gated
-              on `scrollOffset <= 0` so it doesn't interfere mid-scroll. */}
-          <GestureDetector gesture={panGesture}>
-            <Reanimated.View style={[styles.sheet, sheetAnimatedStyle]} pointerEvents="auto">
-              <View style={styles.dragArea}>
-                <View style={styles.handle} />
-              </View>
-
-              {/* HEADER */}
-              <View style={styles.header} testID={`${testID}-header`}>
-                <View style={styles.headerRow}>
-                  <Text
-                    style={[styles.lemma, lemmaIsHebrew && styles.lemmaRtl]}
-                    accessibilityRole="header"
-                  >
-                    {entry.lemma}
-                  </Text>
-                  <Text style={styles.translit}>{entry.translit}</Text>
-                </View>
-                <Text style={styles.metaLine}>
-                  {entry.pos} • {entry.strongs}
-                  {entry.pronunciation ? ` • ${entry.pronunciation}` : ''}
-                  {typeof entry.otFrequency === 'number' && entry.otFrequency > 0
-                    ? ` • ${entry.otFrequency}× in OT`
-                    : ''}
-                  {typeof entry.ntFrequency === 'number' && entry.ntFrequency > 0
-                    ? ` • ${entry.ntFrequency}× in NT`
-                    : ''}
-                </Text>
-              </View>
-
-              <GestureDetector gesture={scrollNativeGesture}>
-                <Reanimated.ScrollView
-                  style={styles.scroll}
-                  contentContainerStyle={styles.scrollContent}
-                  showsVerticalScrollIndicator={false}
-                  onScroll={scrollHandler}
-                  scrollEventThrottle={16}
-                  // iOS-only: kill the overscroll rubber-band so dragging
-                  // the modal down from scrollOffset=0 isn't accompanied
-                  // by the ScrollView dropping its content down too.
-                  // The pan IS the bounce in our UX.
-                  bounces={false}
-                  // Android parity — no overscroll glow on pull-down.
-                  overScrollMode="never"
-                >
-                  {/* IN THIS VERSE (Layer 2 — contextual gloss) */}
-                  {contextual ? (
-                    <Section
-                      label="In this verse"
-                      highlight
-                      styles={styles}
-                      testID={`${testID}-contextual`}
-                    >
-                      <Text style={styles.bodyText}>{contextual}</Text>
-                    </Section>
-                  ) : null}
-
-                  {/* BASIC SENSE */}
-                  <Section label="Basic sense" styles={styles} testID={`${testID}-basic`}>
-                    <Text style={styles.bodyText}>{entry.basicGloss}</Text>
-                  </Section>
-
-                  {/* SEMANTIC RANGE */}
-                  {entry.semanticRange && entry.semanticRange.length > 0 ? (
-                    <Section label="Semantic range" styles={styles} testID={`${testID}-range`}>
-                      <View style={styles.listWrap}>
-                        {entry.semanticRange.map((s) => (
-                          <View key={s} style={styles.listRow}>
-                            <Text style={styles.listBullet}>•</Text>
-                            <Text style={styles.listText}>{s}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </Section>
-                  ) : null}
-
-                  {/* RELATED WORDS */}
-                  {entry.related && entry.related.length > 0 ? (
-                    <Section label="Related" styles={styles} testID={`${testID}-related`}>
-                      <View style={styles.relatedWrap}>
-                        {entry.related.map((r, i) => {
-                          const rIsHebrew = isHebrew(r.lemma);
-                          return (
-                            <View key={`${r.lemma}-${i}`} style={styles.relatedItem}>
-                              <View style={styles.relatedHeadRow}>
-                                <Text style={[styles.relatedLemma, rIsHebrew && styles.lemmaRtl]}>
-                                  {r.lemma}
-                                </Text>
-                                <Text style={styles.relatedTranslit}>{r.translit}</Text>
-                              </View>
-                              <Text style={styles.relatedNote}>{r.note}</Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </Section>
-                  ) : null}
-
-                  {/* LEXICAL NOTE */}
-                  {entry.notes ? (
-                    <Section label="Lexical note" styles={styles} testID={`${testID}-notes`}>
-                      <Text style={styles.notesText}>{entry.notes}</Text>
-                    </Section>
-                  ) : null}
-
-                  {/* LOADED CAVEAT — no border, last row */}
-                  {entry.loaded ? (
-                    <View style={styles.caveatBlock} testID={`${testID}-loaded`}>
-                      <Text style={styles.caveatText}>
-                        Context-sensitive: this word carries multiple senses across the NT. Meaning
-                        is governed by usage, not a single gloss.
-                      </Text>
-                    </View>
-                  ) : null}
-                </Reanimated.ScrollView>
-              </GestureDetector>
-            </Reanimated.View>
-          </GestureDetector>
+      {/* Header lives INSIDE the BottomSheetScrollView as its first
+          child, with stickyHeaderIndices={[0]} to keep it pinned while
+          the body scrolls. Earlier attempt with a flex wrapper around
+          BottomSheetView + BottomSheetScrollView broke gorhom's
+          internal scroll/pan worklet coordination — the ScrollView
+          stopped scrolling. Direct-child placement is what the library
+          expects. */}
+      <BottomSheetScrollView contentContainerStyle={styles.scrollContent} stickyHeaderIndices={[0]}>
+        {/* HEADER — pinned via stickyHeaderIndices */}
+        <View style={styles.header} testID={`${testID}-header`}>
+          <View style={styles.headerRow}>
+            <Text
+              style={[styles.lemma, lemmaIsHebrew && styles.lemmaRtl]}
+              accessibilityRole="header"
+            >
+              {entry.lemma}
+            </Text>
+            <Text style={styles.translit}>{entry.translit}</Text>
+          </View>
+          <Text style={styles.metaLine}>
+            {entry.pos} • {entry.strongs}
+            {entry.pronunciation ? ` • ${entry.pronunciation}` : ''}
+            {typeof entry.otFrequency === 'number' && entry.otFrequency > 0
+              ? ` • ${entry.otFrequency}× in OT`
+              : ''}
+            {typeof entry.ntFrequency === 'number' && entry.ntFrequency > 0
+              ? ` • ${entry.ntFrequency}× in NT`
+              : ''}
+          </Text>
         </View>
-      </GestureHandlerRootView>
-    </Modal>
+
+        {/* IN THIS VERSE (Layer 2 — contextual gloss) */}
+        {contextual ? (
+          <Section label="In this verse" highlight styles={styles} testID={`${testID}-contextual`}>
+            <Text style={styles.bodyText}>{contextual}</Text>
+          </Section>
+        ) : null}
+
+        {/* BASIC SENSE */}
+        <Section label="Basic sense" styles={styles} testID={`${testID}-basic`}>
+          <Text style={styles.bodyText}>{entry.basicGloss}</Text>
+        </Section>
+
+        {/* SEMANTIC RANGE */}
+        {entry.semanticRange && entry.semanticRange.length > 0 ? (
+          <Section label="Semantic range" styles={styles} testID={`${testID}-range`}>
+            <View style={styles.listWrap}>
+              {entry.semanticRange.map((s) => (
+                <View key={s} style={styles.listRow}>
+                  <Text style={styles.listBullet}>•</Text>
+                  <Text style={styles.listText}>{s}</Text>
+                </View>
+              ))}
+            </View>
+          </Section>
+        ) : null}
+
+        {/* RELATED WORDS */}
+        {entry.related && entry.related.length > 0 ? (
+          <Section label="Related" styles={styles} testID={`${testID}-related`}>
+            <View style={styles.relatedWrap}>
+              {entry.related.map((r, i) => {
+                const rIsHebrew = isHebrew(r.lemma);
+                return (
+                  <View key={`${r.lemma}-${i}`} style={styles.relatedItem}>
+                    <View style={styles.relatedHeadRow}>
+                      <Text style={[styles.relatedLemma, rIsHebrew && styles.lemmaRtl]}>
+                        {r.lemma}
+                      </Text>
+                      <Text style={styles.relatedTranslit}>{r.translit}</Text>
+                    </View>
+                    <Text style={styles.relatedNote}>{r.note}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </Section>
+        ) : null}
+
+        {/* LEXICAL NOTE */}
+        {entry.notes ? (
+          <Section label="Lexical note" styles={styles} testID={`${testID}-notes`}>
+            <Text style={styles.notesText}>{entry.notes}</Text>
+          </Section>
+        ) : null}
+
+        {/* LOADED CAVEAT — no border, last row */}
+        {entry.loaded ? (
+          <View style={styles.caveatBlock} testID={`${testID}-loaded`}>
+            <Text style={styles.caveatText}>
+              Context-sensitive: this word carries multiple senses across the NT. Meaning is
+              governed by usage, not a single gloss.
+            </Text>
+          </View>
+        ) : null}
+      </BottomSheetScrollView>
+    </BottomSheetModal>
   );
 }
 
@@ -392,54 +243,40 @@ function Section({ label, highlight, styles, testID, children }: SectionProps) {
 
 // ─── Styles ─────────────────────────────────────────────────────────────
 
-const createStyles = (
-  colors: ReturnType<typeof getColors>,
-  insets: { bottom: number; top: number; left: number; right: number }
-) =>
+const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
-    overlay: {
-      flex: 1,
-      justifyContent: 'flex-end',
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.55)',
-    },
-    sheet: {
+    // BottomSheet background — replaces our old `sheet` style. Color +
+    // top corner radius mirror the previous custom modal.
+    background: {
       backgroundColor: colors.backgroundElevated,
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
-      maxHeight: '85%',
-      paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.md,
     },
-
-    // Drag area + handle — the visual notch is the obvious affordance, so
-    // we keep the touch target generous (lg/md padding) and bump the notch
-    // to 48×5 so it reads as "grab here" from arm's length. The whole
-    // sheet is draggable too via the RNGH pan, but Andy 2026-05-22
-    // signalled most users still aim for the notch — so make THAT a
-    // forgiving target.
-    dragArea: {
-      alignItems: 'center',
-      paddingTop: spacing.lg,
-      paddingBottom: spacing.md,
-    },
-    handle: {
+    // Drag indicator (the notch). 48×5 matches Andy's "make the top
+    // bigger to grab" feedback — same as the previous custom handle.
+    handleIndicator: {
       width: 48,
       height: 5,
       borderRadius: 3,
       backgroundColor: colors.gray100,
     },
-
-    scroll: {
-      flexGrow: 0,
+    // The handle container that gorhom renders above the body. Extra
+    // padding here makes the touch target larger (the whole top strip
+    // is draggable).
+    handle: {
+      paddingTop: spacing.md,
+      paddingBottom: spacing.sm,
     },
+
     scrollContent: {
-      paddingBottom: spacing.md,
+      paddingBottom: spacing.lg,
     },
 
-    // Header
+    // Header — `stickyHeaderIndices={[0]}` on the ScrollView pins this
+    // at the top while body content scrolls beneath. backgroundColor is
+    // required so the scrolling sections don't show through.
     header: {
+      backgroundColor: colors.backgroundElevated,
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
       paddingBottom: spacing.sm,
