@@ -25,6 +25,7 @@ import {
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetScrollView,
+  useBottomSheetSpringConfigs,
 } from '@gorhom/bottom-sheet';
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -74,6 +75,19 @@ export function LexiconPopover({
   // custom modal's `maxHeight: 85%`.
   const snapPoints = useMemo(() => ['85%'], []);
 
+  // Open + close spring physics that match AutoHighlightTooltip (the
+  // verse-insight modal). User explicitly asked for parity on both
+  // directions; AutoHighlightTooltip's snap-back/close uses
+  // damping=20, stiffness=90 — same numbers here, with overshoot
+  // clamping so the sheet doesn't bounce past its rest position on
+  // open.
+  const animationConfigs = useBottomSheetSpringConfigs({
+    damping: 20,
+    stiffness: 90,
+    mass: 1,
+    overshootClamping: true,
+  });
+
   useEffect(() => {
     if (visible) {
       sheetRef.current?.present();
@@ -112,6 +126,7 @@ export function LexiconPopover({
       onDismiss={handleDismiss}
       enablePanDownToClose
       enableDynamicSizing={false}
+      animationConfigs={animationConfigs}
       backdropComponent={renderBackdrop}
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handleIndicator}
