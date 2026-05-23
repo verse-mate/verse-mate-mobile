@@ -60,6 +60,8 @@ export interface DictionaryModalProps {
   word: string;
   /** Strong's number (if known from verse mapping) */
   strongsNumber?: string;
+  /** Testament context — ensures words like "repent" map to the correct language */
+  testament?: 'OT' | 'NT';
   /** Callback when modal is closed */
   onClose: () => void;
 }
@@ -77,7 +79,13 @@ interface DictionaryState {
  *
  * Bottom sheet modal for word definitions with native dictionary integration.
  */
-export function DictionaryModal({ visible, word, strongsNumber, onClose }: DictionaryModalProps) {
+export function DictionaryModal({
+  visible,
+  word,
+  strongsNumber,
+  testament,
+  onClose,
+}: DictionaryModalProps) {
   const { colors, mode } = useTheme();
   const styles = createStyles(colors, mode);
   const { showDefinition, hasDefinition, isAvailable: nativeAvailable } = useNativeDictionary();
@@ -104,8 +112,8 @@ export function DictionaryModal({ visible, word, strongsNumber, onClose }: Dicti
         let strongsNum = strongsNumber || null;
 
         // If no Strong's number provided, check word mapping
-        if (!strongsNum && hasStrongsNumber(word)) {
-          strongsNum = getStrongsNumber(word);
+        if (!strongsNum && hasStrongsNumber(word, testament)) {
+          strongsNum = getStrongsNumber(word, testament);
         }
 
         // If word looks like a Strong's number itself (e.g., "G26", "H430")

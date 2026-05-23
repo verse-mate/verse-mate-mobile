@@ -13,9 +13,11 @@ import type { DictionaryResult } from '@/types/dictionary';
  * 3. Direct Strong's number lookup (if word is e.g. "G26")
  *
  * @param word - The word to look up
+ * @param testament - Optional: 'OT' or 'NT' — determines which Strong's mapping is used
+ *   for words that exist in both languages (e.g. "repent" → H5162 in OT, G3340 in NT)
  * @returns DictionaryResult with the best available definition
  */
-export async function lookupWord(word: string): Promise<DictionaryResult> {
+export async function lookupWord(word: string, testament?: 'OT' | 'NT'): Promise<DictionaryResult> {
   if (!word) {
     return { word, source: 'none' };
   }
@@ -31,8 +33,8 @@ export async function lookupWord(word: string): Promise<DictionaryResult> {
   }
 
   // 2. Try Strong's via word mapping
-  if (hasStrongsNumber(word)) {
-    const strongsNumber = getStrongsNumber(word);
+  if (hasStrongsNumber(word, testament)) {
+    const strongsNumber = getStrongsNumber(word, testament);
     if (!strongsNumber) return { word, source: 'none' };
     const result = await lookup(strongsNumber);
     if (result.found && result.entry) {

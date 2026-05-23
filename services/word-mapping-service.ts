@@ -95,6 +95,7 @@ const hebrewWordMappings: Record<string, string> = {
   lord: 'H3068',
   man: 'H120',
   people: 'H5971',
+  repent: 'H5162',
   righteousness: 'H6666',
   salvation: 'H3444',
   servant: 'H5650',
@@ -110,6 +111,10 @@ const wordToStrongs: Record<string, string> = {
   ...hebrewWordMappings,
   ...greekWordMappings,
 };
+
+// Testament-specific lookup tables — used when the caller knows the book context
+const wordToStrongsOT: Record<string, string> = { ...hebrewWordMappings };
+const wordToStrongsNT: Record<string, string> = { ...greekWordMappings };
 
 // Latin ligatures used in KJV typography (e.g., "Zacchæus", "Cæsar", "Phœnicia").
 // Unicode treats these as independent letters, so NFKD does not decompose them — we map explicitly.
@@ -134,28 +139,37 @@ export function normalizeWord(word: string): string {
 }
 
 /**
- * Gets the Strong's number for a given word, if mapped
+ * Gets the Strong's number for a given word, if mapped.
+ *
+ * Pass `testament` when the book context is known so that words like "repent"
+ * resolve to the correct language (H5162 in OT, G3340 in NT) instead of
+ * always defaulting to the Greek entry.
  *
  * @param word - The word to look up
+ * @param testament - Optional: 'OT' or 'NT' to prefer the correct language
  * @returns Strong's number (e.g., "G26") or null if not found
  *
  * @example
  * ```ts
+ * getStrongsNumber("repent", "OT"); // "H5162"
+ * getStrongsNumber("repent", "NT"); // "G3340"
  * getStrongsNumber("love"); // "G26"
  * getStrongsNumber("elohim"); // "H430"
  * getStrongsNumber("unknown"); // null
  * ```
  */
-export function getStrongsNumber(word: string): string | null {
+export function getStrongsNumber(word: string, testament?: 'OT' | 'NT'): string | null {
   const normalized = normalizeWord(word);
+  if (testament === 'OT') return wordToStrongsOT[normalized] || null;
+  if (testament === 'NT') return wordToStrongsNT[normalized] || null;
   return wordToStrongs[normalized] || null;
 }
 
 /**
  * Checks if a word has a Strong's number mapping
  */
-export function hasStrongsNumber(word: string): boolean {
-  return getStrongsNumber(word) !== null;
+export function hasStrongsNumber(word: string, testament?: 'OT' | 'NT'): boolean {
+  return getStrongsNumber(word, testament) !== null;
 }
 
 /**
