@@ -83,6 +83,8 @@ const mockUserPreferences = mockThemes.map((theme) => ({
   is_enabled: true,
   custom_color: null,
   relevance_threshold: 3,
+  default_relevance_threshold: 3,
+  admin_override: false,
 }));
 
 /**

@@ -147,11 +147,13 @@ export function useAutoHighlights({
         }
 
         // Build per-theme relevance map
-        // Use custom relevance only if admin_override is true, otherwise use theme default
+        // Use custom relevance only if admin_override is true, otherwise use theme default.
+        // Fall back to relevance_threshold if default_relevance_threshold is absent from
+        // the API response (defensive against backend omitting the field).
         for (const pref of enabledPreferences) {
           themeRelevanceMap[pref.theme_id] = pref.admin_override
             ? pref.relevance_threshold
-            : pref.default_relevance_threshold;
+            : (pref.default_relevance_threshold ?? pref.relevance_threshold);
         }
       } else if (!user?.id && themesData && Array.isArray(themesData)) {
         // Logged-out user: use theme defaults
