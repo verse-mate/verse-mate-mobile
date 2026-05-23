@@ -231,4 +231,49 @@ describe('AudioPlayerProvider — stale-closure regression', () => {
     });
     expect(result.current.playbackState).toBe('playing');
   });
+
+  test('stall recovery stays at playing when engine emits only time (VER-118 engine fix)', async () => {
+    // Regression for VER-118: with the old engine code, expo-audio reporting
+    // playing:true + isBuffering:true during streaming caused the engine to emit
+    // both "time" and "buffering" in the same synchronous call. The TIME reducer
+    // recovered to "playing" but BUFFERING immediately pushed back to "loading",
+    // creating a permanent stuck-loading state across chapter navigation.
+    //
+    // The engine fix (expoAudioEngine.ts) removes isBuffering from the stall
+    // condition, so the engine only emits "buffering" when playing:false. After
+    // that fix the engine never sends buffering and time together when playing,
+    // so only a time advance arrives and the VER-77 recovery correctly lands
+    // in "playing" and stays there.
+    const { engine, emit } = createStubEngine();
+
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(AudioPlayerProvider, { engine, children });
+    const { result } = renderHook(() => useAudioPlayer(), { wrapper });
+
+    await act(async () => {
+      await result.current.load(sample);
+      await result.current.play();
+    });
+    // Stall detected: engine emits time + buffering (playing: false mid-play).
+    await act(async () => {
+      emit({ type: 'time', currentTime: 10 });
+      emit({ type: 'buffering' });
+    });
+    expect(result.current.playbackState).toBe('loading');
+
+    // Audio resumes. Engine fix: only time is emitted (no buffering when playing:true).
+    // VER-77 recovery fires and state returns to "playing".
+    await act(async () => {
+      emit({ type: 'time', currentTime: 10.25 });
+    });
+    expect(result.current.playbackState).toBe('playing');
+
+    // Continued streaming with buffering ahead — engine emits only time (no buffering).
+    // State must remain "playing", not flip back to "loading".
+    await act(async () => {
+      emit({ type: 'time', currentTime: 10.5 });
+      emit({ type: 'time', currentTime: 10.75 });
+    });
+    expect(result.current.playbackState).toBe('playing');
+  });
 });
