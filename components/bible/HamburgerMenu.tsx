@@ -89,6 +89,7 @@ interface MenuItem {
     | 'bookmarks'
     | 'notes'
     | 'highlights'
+    | 'names-of-god'
     | 'settings'
     | 'share'
     | 'about'
@@ -100,6 +101,7 @@ const regularMenuItems: MenuItem[] = [
   { id: 'bookmarks', label: 'Bookmarks', icon: IconBookmarkFilled, action: 'bookmarks' },
   { id: 'notes', label: 'Notes', icon: IconDocument, action: 'notes' },
   { id: 'highlights', label: 'Highlights', icon: IconHighlight, action: 'highlights' },
+  { id: 'names-of-god', label: 'Names of God', icon: IconInfo, action: 'names-of-god' },
   { id: 'settings', label: 'Settings', icon: IconSettings, action: 'settings' },
   { id: 'share', label: 'Share VerseMate', icon: IconShare, action: 'share' },
   { id: 'about', label: 'About', icon: IconInfo, action: 'about' },
@@ -201,6 +203,9 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
       onClose();
       // biome-ignore lint/suspicious/noExplicitAny: Typed routes might be stale
       router.push('/highlights' as any);
+    } else if (item.action === 'names-of-god') {
+      onClose();
+      router.push('/names-of-god' as any);
     } else if (item.action === 'settings') {
       onClose();
       router.push('/settings' as never);

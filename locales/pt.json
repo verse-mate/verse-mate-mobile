@@ -1,0 +1,194 @@
+{
+  "_meta": {
+    "language": "Portuguese",
+    "code": "pt",
+    "version": "1.0.0",
+    "note": "Translated from en.json. Per spec feat-mobile-ui-i18n (D-016)."
+  },
+
+  "auth": {
+    "login": {
+      "title": "Entrar",
+      "welcome_back": "Bem-vindo de volta",
+      "subtitle": "Entre na sua conta",
+      "email_label": "E-mail",
+      "email_placeholder": "voce@exemplo.com",
+      "password_label": "Senha",
+      "submit": "Entrar",
+      "forgot_password": "Esqueceu a senha?",
+      "no_account": "Não tem conta?",
+      "create_account": "Criar nova conta",
+      "continue_without": "Continuar sem conta",
+      "or_continue_with": "ou continuar com"
+    },
+    "signup": {
+      "title": "Criar conta",
+      "subtitle": "Por favor, forneça as seguintes informações para configurar sua conta.",
+      "first_name_label": "Nome",
+      "last_name_label": "Sobrenome",
+      "email_label": "E-mail",
+      "password_label": "Senha",
+      "submit": "Criar conta",
+      "have_account": "Já tem uma conta?",
+      "sign_in": "Entrar"
+    },
+    "errors": {
+      "invalid_credentials": "E-mail ou senha inválidos",
+      "rate_limited": "Muitas tentativas. Tente novamente em um minuto.",
+      "network_error": "Erro de rede. Verifique sua conexão."
+    }
+  },
+
+  "onboarding": {
+    "skip": "Pular",
+    "next": "Próximo",
+    "get_started": "Começar",
+    "login": "Entrar"
+  },
+
+  "settings": {
+    "title": "Configurações",
+    "account": "Conta",
+    "preferences": "Preferências",
+    "storage": "Armazenamento",
+    "help": "Ajuda",
+    "logout": "Sair",
+    "logout_confirm_title": "Sair",
+    "logout_confirm_message": "Tem certeza de que deseja sair?",
+    "delete_account": "Excluir conta",
+    "delete_account_a11y": "Excluir conta permanentemente",
+    "delete_account_hint": "Esta ação não pode ser desfeita",
+    "language": "Idioma",
+    "language_preferences": "Preferências de idioma",
+    "select_language": "Selecionar idioma",
+    "theme": "Tema",
+    "theme_auto": "Automático",
+    "theme_light": "Claro",
+    "theme_dark": "Escuro",
+    "font_size": "Tamanho da fonte",
+    "bible_version": "Versão da Bíblia",
+    "select_version": "Selecionar versão",
+    "auto_highlights": "Destaques automáticos",
+    "manage_downloads": "Gerenciar downloads",
+    "manage_downloads_a11y": "Gerenciar downloads offline",
+    "manage_downloads_subtitle": "Baixe conteúdo para uso offline",
+    "downloads_offline": "Downloads e offline",
+    "profile_information": "Informações do perfil",
+    "profile_details": "Detalhes do perfil",
+    "profile_subtext": "Atualize suas informações pessoais",
+    "first_name": "Nome",
+    "last_name": "Sobrenome",
+    "email": "E-mail",
+    "first_name_placeholder": "Digite seu nome",
+    "last_name_placeholder": "Digite seu sobrenome",
+    "email_placeholder": "Digite seu e-mail",
+    "go_back": "Voltar",
+    "sign_in_message": "Entre para acessar os destaques automáticos e as configurações de perfil.",
+    "errors": {
+      "save_bible_version": "Falha ao salvar a versão da Bíblia",
+      "save_language": "Falha ao salvar a preferência de idioma"
+    }
+  },
+
+  "chapter_reader": {
+    "loading": "Carregando capítulo…",
+    "error": "Não foi possível carregar este capítulo. Toque para tentar novamente.",
+    "view_bible": "Bíblia",
+    "view_insight": "Reflexão",
+    "tab_summary": "Resumo",
+    "tab_byline": "Por versículo",
+    "tab_detailed": "Detalhado",
+    "no_translation_available": "Exibindo em inglês (tradução não disponível)",
+    "offline_indicator": "Offline — exibindo conteúdo em cache"
+  },
+
+  "bookmarks": {
+    "title": "Favoritos",
+    "empty": "Ainda sem favoritos. Toque no ícone de favorito durante a leitura.",
+    "empty_title": "Ainda sem capítulos favoritados",
+    "empty_subtitle": "Toque no ícone de favorito durante a leitura para salvar capítulos para mais tarde.",
+    "login_required": "Por favor, entre para ver seus favoritos",
+    "login_subtitle": "Entre para salvar e acessar seus capítulos bíblicos favoritos",
+    "remove_confirm": "Remover este favorito?"
+  },
+
+  "highlights": {
+    "title": "Destaques",
+    "empty": "Ainda sem destaques. Pressione um versículo e escolha uma cor.",
+    "empty_title": "Ainda sem destaques",
+    "empty_subtitle": "Comece a destacar versículos para vê-los aqui.",
+    "auto_highlights": "Destaques automáticos",
+    "my_highlights": "Meus destaques",
+    "remove_confirm": "Remover este destaque?"
+  },
+
+  "notes": {
+    "title": "Notas",
+    "empty": "Ainda sem notas. Toque em um versículo para adicionar uma.",
+    "empty_title": "Ainda sem notas",
+    "empty_subtitle": "Comece a fazer anotações durante a leitura para vê-las aqui.",
+    "login_required": "Por favor, entre para ver suas notas",
+    "login_subtitle": "Entre para criar e acessar suas notas de estudo bíblico",
+    "edit": "Editar nota",
+    "delete": "Excluir nota",
+    "delete_confirm": "Excluir esta nota?",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "placeholder": "Escreva sua nota…"
+  },
+
+  "sharing": {
+    "chapter": {
+      "title": "{{book}} {{chapter}}",
+      "body": "Estou lendo {{book}} {{chapter}} — acho que você também vai gostar. {{url}}"
+    },
+    "topic": {
+      "title": "{{topic}}",
+      "body": "Encontrei isso sobre {{topic}} e pensei em você. {{url}}"
+    },
+    "note": {
+      "title": "Nota sobre {{book}} {{chapter}}",
+      "body": "Uma nota que fiz sobre {{book}} {{chapter}}:\n\n\"{{content}}\"\n\n{{url}}"
+    }
+  },
+
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "delete": "Excluir",
+    "confirm": "Confirmar",
+    "retry": "Tentar novamente",
+    "back": "Voltar",
+    "go_back": "Voltar",
+    "close": "Fechar",
+    "loading": "Carregando…",
+    "error": "Algo deu errado",
+    "error_title": "Erro",
+    "unknown_error": "Erro desconhecido"
+  },
+
+  "names_of_god": {
+    "title": "Nomes de Deus",
+    "testament_ot": "Antigo Testamento",
+    "testament_nt": "Novo Testamento",
+    "testament_both": "Ambos os Testamentos",
+    "verses_count": "{{count}} versículos",
+    "page_label": "Página {{current}} de {{total}}",
+    "previous_page": "Página anterior",
+    "next_page": "Próxima página",
+    "loading_verses": "Carregando versículos…",
+    "verse_error": "Não foi possível carregar o texto do versículo",
+    "error_name_not_found": "Nome não encontrado",
+    "error_name_not_found_detail": "Este nome não pôde ser encontrado no conjunto de dados.",
+    "go_back": "Voltar",
+    "language_hebrew": "Hebraico",
+    "language_greek": "Grego",
+    "language_aramaic": "Aramaico",
+    "language_english": "Inglês",
+    "search_placeholder": "Pesquisar nomes…",
+    "filter_all": "Todos",
+    "names_count": "{{count}} nomes",
+    "no_results": "Nenhum nome corresponde à sua pesquisa."
+  }
+}

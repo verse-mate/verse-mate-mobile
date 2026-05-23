@@ -1,0 +1,194 @@
+{
+  "_meta": {
+    "language": "German",
+    "code": "de",
+    "version": "1.0.0",
+    "note": "Translated from en.json. Per spec feat-mobile-ui-i18n (D-016)."
+  },
+
+  "auth": {
+    "login": {
+      "title": "Anmelden",
+      "welcome_back": "Willkommen zurück",
+      "subtitle": "Melde dich in deinem Konto an",
+      "email_label": "E-Mail-Adresse",
+      "email_placeholder": "du@beispiel.com",
+      "password_label": "Passwort",
+      "submit": "Anmelden",
+      "forgot_password": "Passwort vergessen?",
+      "no_account": "Kein Konto?",
+      "create_account": "Neues Konto erstellen",
+      "continue_without": "Ohne Konto fortfahren",
+      "or_continue_with": "oder fortfahren mit"
+    },
+    "signup": {
+      "title": "Konto erstellen",
+      "subtitle": "Bitte gib die folgenden Informationen an, um dein Konto einzurichten.",
+      "first_name_label": "Vorname",
+      "last_name_label": "Nachname",
+      "email_label": "E-Mail-Adresse",
+      "password_label": "Passwort",
+      "submit": "Konto erstellen",
+      "have_account": "Hast du bereits ein Konto?",
+      "sign_in": "Anmelden"
+    },
+    "errors": {
+      "invalid_credentials": "Ungültige E-Mail-Adresse oder ungültiges Passwort",
+      "rate_limited": "Zu viele Versuche. Versuche es in einer Minute erneut.",
+      "network_error": "Netzwerkfehler. Überprüfe deine Verbindung."
+    }
+  },
+
+  "onboarding": {
+    "skip": "Überspringen",
+    "next": "Weiter",
+    "get_started": "Loslegen",
+    "login": "Anmelden"
+  },
+
+  "settings": {
+    "title": "Einstellungen",
+    "account": "Konto",
+    "preferences": "Einstellungen",
+    "storage": "Speicher",
+    "help": "Hilfe",
+    "logout": "Abmelden",
+    "logout_confirm_title": "Abmelden",
+    "logout_confirm_message": "Bist du sicher, dass du dich abmelden möchtest?",
+    "delete_account": "Konto löschen",
+    "delete_account_a11y": "Konto dauerhaft löschen",
+    "delete_account_hint": "Diese Aktion kann nicht rückgängig gemacht werden",
+    "language": "Sprache",
+    "language_preferences": "Spracheinstellungen",
+    "select_language": "Sprache auswählen",
+    "theme": "Design",
+    "theme_auto": "Automatisch",
+    "theme_light": "Hell",
+    "theme_dark": "Dunkel",
+    "font_size": "Schriftgröße",
+    "bible_version": "Bibelversion",
+    "select_version": "Version auswählen",
+    "auto_highlights": "Automatische Markierungen",
+    "manage_downloads": "Downloads verwalten",
+    "manage_downloads_a11y": "Offline-Downloads verwalten",
+    "manage_downloads_subtitle": "Inhalte für die Offline-Nutzung herunterladen",
+    "downloads_offline": "Downloads und Offline",
+    "profile_information": "Profilinformationen",
+    "profile_details": "Profildetails",
+    "profile_subtext": "Persönliche Informationen aktualisieren",
+    "first_name": "Vorname",
+    "last_name": "Nachname",
+    "email": "E-Mail-Adresse",
+    "first_name_placeholder": "Vorname eingeben",
+    "last_name_placeholder": "Nachname eingeben",
+    "email_placeholder": "E-Mail-Adresse eingeben",
+    "go_back": "Zurück",
+    "sign_in_message": "Melde dich an, um automatische Markierungen und Profileinstellungen zu nutzen.",
+    "errors": {
+      "save_bible_version": "Bibelversion konnte nicht gespeichert werden",
+      "save_language": "Spracheinstellung konnte nicht gespeichert werden"
+    }
+  },
+
+  "chapter_reader": {
+    "loading": "Kapitel wird geladen…",
+    "error": "Dieses Kapitel konnte nicht geladen werden. Tippe zum Wiederholen.",
+    "view_bible": "Bibel",
+    "view_insight": "Einblick",
+    "tab_summary": "Zusammenfassung",
+    "tab_byline": "Versweise",
+    "tab_detailed": "Detailliert",
+    "no_translation_available": "Englisch wird angezeigt (keine Übersetzung verfügbar)",
+    "offline_indicator": "Offline — zwischengespeicherte Inhalte werden angezeigt"
+  },
+
+  "bookmarks": {
+    "title": "Lesezeichen",
+    "empty": "Noch keine Lesezeichen. Tippe beim Lesen auf das Lesezeichen-Symbol.",
+    "empty_title": "Noch keine mit Lesezeichen versehenen Kapitel",
+    "empty_subtitle": "Tippe beim Lesen auf das Lesezeichen-Symbol, um Kapitel für später zu speichern.",
+    "login_required": "Bitte melde dich an, um deine Lesezeichen anzuzeigen",
+    "login_subtitle": "Melde dich an, um deine Lieblings-Bibelkapitel zu speichern und abzurufen",
+    "remove_confirm": "Dieses Lesezeichen entfernen?"
+  },
+
+  "highlights": {
+    "title": "Markierungen",
+    "empty": "Noch keine Markierungen. Halte einen Vers gedrückt und wähle eine Farbe.",
+    "empty_title": "Noch keine Markierungen",
+    "empty_subtitle": "Beginne damit, Verse zu markieren, um sie hier anzuzeigen.",
+    "auto_highlights": "Automatische Markierungen",
+    "my_highlights": "Meine Markierungen",
+    "remove_confirm": "Diese Markierung entfernen?"
+  },
+
+  "notes": {
+    "title": "Notizen",
+    "empty": "Noch keine Notizen. Tippe auf einen Vers, um eine hinzuzufügen.",
+    "empty_title": "Noch keine Notizen",
+    "empty_subtitle": "Beginne damit, Notizen beim Lesen zu machen, um sie hier anzuzeigen.",
+    "login_required": "Bitte melde dich an, um deine Notizen anzuzeigen",
+    "login_subtitle": "Melde dich an, um Bibelstudium-Notizen zu erstellen und abzurufen",
+    "edit": "Notiz bearbeiten",
+    "delete": "Notiz löschen",
+    "delete_confirm": "Diese Notiz löschen?",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "placeholder": "Notiz schreiben…"
+  },
+
+  "sharing": {
+    "chapter": {
+      "title": "{{book}} {{chapter}}",
+      "body": "Ich lese {{book}} {{chapter}} — vielleicht gefällt es dir auch. {{url}}"
+    },
+    "topic": {
+      "title": "{{topic}}",
+      "body": "Ich habe das über {{topic}} gefunden und musste an dich denken. {{url}}"
+    },
+    "note": {
+      "title": "Notiz zu {{book}} {{chapter}}",
+      "body": "Eine Notiz, die ich zu {{book}} {{chapter}} gemacht habe:\n\n\"{{content}}\"\n\n{{url}}"
+    }
+  },
+
+  "common": {
+    "ok": "OK",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "confirm": "Bestätigen",
+    "retry": "Erneut versuchen",
+    "back": "Zurück",
+    "go_back": "Zurück",
+    "close": "Schließen",
+    "loading": "Wird geladen…",
+    "error": "Etwas ist schiefgelaufen",
+    "error_title": "Fehler",
+    "unknown_error": "Unbekannter Fehler"
+  },
+
+  "names_of_god": {
+    "title": "Namen Gottes",
+    "testament_ot": "Altes Testament",
+    "testament_nt": "Neues Testament",
+    "testament_both": "Beide Testamente",
+    "verses_count": "{{count}} Verse",
+    "page_label": "Seite {{current}} von {{total}}",
+    "previous_page": "Vorherige Seite",
+    "next_page": "Nächste Seite",
+    "loading_verses": "Verse werden geladen…",
+    "verse_error": "Verstext konnte nicht geladen werden",
+    "error_name_not_found": "Name nicht gefunden",
+    "error_name_not_found_detail": "Dieser Name konnte im Datensatz nicht gefunden werden.",
+    "go_back": "Zurück",
+    "language_hebrew": "Hebräisch",
+    "language_greek": "Griechisch",
+    "language_aramaic": "Aramäisch",
+    "language_english": "Englisch",
+    "search_placeholder": "Namen suchen…",
+    "filter_all": "Alle",
+    "names_count": "{{count}} Namen",
+    "no_results": "Kein Name entspricht deiner Suche."
+  }
+}
