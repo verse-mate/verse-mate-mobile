@@ -45,7 +45,7 @@
     "@react-navigation/native": "^7.1.8",
     "@tanstack/react-query": "^5.90.2",
     "@versemate/dotted-underline-text": "file:./modules/dotted-underline-text",
-    "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#26012e6790ad734e203f9901efe029d729133409",
+    "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#d16f2e0",
     "@versemate/studies": "github:verse-mate/verse-mate-studies#d9dadca",
     "@versemate/visuals": "github:verse-mate/verse-mate-visuals#fa6d815",
     "axios": "^1.12.2",

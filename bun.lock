@@ -16,7 +16,7 @@
         "@react-navigation/native": "^7.1.8",
         "@tanstack/react-query": "^5.90.2",
         "@versemate/dotted-underline-text": "file:./modules/dotted-underline-text",
-        "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#26012e6790ad734e203f9901efe029d729133409",
+        "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#8b8546786f1729a3bfed228707fb8d8084e28c75",
         "@versemate/studies": "github:verse-mate/verse-mate-studies#d9dadca",
         "@versemate/visuals": "github:verse-mate/verse-mate-visuals#fa6d815",
         "axios": "^1.12.2",
@@ -828,7 +828,7 @@
 
     "@versemate/dotted-underline-text": ["@versemate/dotted-underline-text@file:modules/dotted-underline-text", {}],
 
-    "@versemate/lexicon": ["@versemate/lexicon@github:verse-mate/verse-mate-lexicon#26012e6", {}, "verse-mate-verse-mate-lexicon-26012e6"],
+    "@versemate/lexicon": ["@versemate/lexicon@github:verse-mate/verse-mate-lexicon#8b85467", {}, "verse-mate-verse-mate-lexicon-8b85467"],
 
     "@versemate/studies": ["@versemate/studies@github:verse-mate/verse-mate-studies#d9dadca", {}, "verse-mate-verse-mate-studies-d9dadca"],
 
