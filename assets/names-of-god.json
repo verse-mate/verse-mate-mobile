@@ -1,0 +1,2212 @@
+[
+  {
+    "id": "yahweh",
+    "nameEn": "Yahweh",
+    "nameOriginal": "יְהוָה",
+    "transliteration": "Yahweh",
+    "language": "Hebrew",
+    "category": "covenant-name",
+    "meaning": "I AM WHO I AM; the eternal, self-existent, covenant name of God revealed to Moses",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 3:14",
+      "Exodus 6:2",
+      "Psalm 83:18",
+      "Isaiah 42:8",
+      "Genesis 2:4"
+    ]
+  },
+  {
+    "id": "elohim",
+    "nameEn": "Elohim",
+    "nameOriginal": "אֱלֹהִים",
+    "transliteration": "Elohim",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "God; the Creator; plural of majesty emphasizing the fullness and power of God",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 1:1",
+      "Genesis 1:26",
+      "Deuteronomy 6:4",
+      "Psalm 19:1",
+      "Genesis 17:7"
+    ]
+  },
+  {
+    "id": "adonai",
+    "nameEn": "Adonai",
+    "nameOriginal": "אֲדֹנָי",
+    "transliteration": "Adonai",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "My Lord; emphasizes God's absolute sovereignty and ownership over all creation",
+    "testament": "OT",
+    "verseRefs": [
+      "Psalm 110:1",
+      "Isaiah 6:1",
+      "Isaiah 6:8",
+      "Genesis 15:2",
+      "Ezekiel 2:4"
+    ]
+  },
+  {
+    "id": "yah",
+    "nameEn": "Yah",
+    "nameOriginal": "יָהּ",
+    "transliteration": "Yah",
+    "language": "Hebrew",
+    "category": "covenant-name",
+    "meaning": "Shortened form of Yahweh; used in praise expressions (Hallelu-Yah = Praise the LORD)",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 15:2",
+      "Psalm 68:4",
+      "Psalm 118:14",
+      "Isaiah 12:2",
+      "Psalm 150:6"
+    ]
+  },
+  {
+    "id": "el",
+    "nameEn": "El",
+    "nameOriginal": "אֵל",
+    "transliteration": "El",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "God; the Mighty One; the strong and powerful deity",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 33:20",
+      "Numbers 23:19",
+      "Deuteronomy 32:4",
+      "Psalm 22:10",
+      "Isaiah 9:6"
+    ]
+  },
+  {
+    "id": "eloah",
+    "nameEn": "Eloah",
+    "nameOriginal": "אֱלוֹהַּ",
+    "transliteration": "Eloah",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "God; singular poetic form emphasizing the uniqueness and majesty of God",
+    "testament": "OT",
+    "verseRefs": [
+      "Deuteronomy 32:15",
+      "Job 3:4",
+      "Job 6:4",
+      "Psalm 50:22",
+      "Habakkuk 3:3"
+    ]
+  },
+  {
+    "id": "el-shaddai",
+    "nameEn": "El Shaddai",
+    "nameOriginal": "אֵל שַׁדַּי",
+    "transliteration": "El Shaddai",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "God Almighty; the all-sufficient, all-powerful God who is more than enough",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 17:1",
+      "Genesis 28:3",
+      "Genesis 35:11",
+      "Exodus 6:3",
+      "Psalm 91:1"
+    ]
+  },
+  {
+    "id": "el-elyon",
+    "nameEn": "El Elyon",
+    "nameOriginal": "אֵל עֶלְיוֹן",
+    "transliteration": "El Elyon",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "God Most High; the supreme deity exalted above all other powers and beings",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 14:18",
+      "Genesis 14:19",
+      "Psalm 78:35",
+      "Psalm 91:1",
+      "Daniel 7:18"
+    ]
+  },
+  {
+    "id": "el-roi",
+    "nameEn": "El Roi",
+    "nameOriginal": "אֵל רֳאִי",
+    "transliteration": "El Roi",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The God Who Sees Me; given by Hagar when God saw her in her distress",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 16:13",
+      "Genesis 16:14",
+      "Psalm 139:1",
+      "Psalm 139:7",
+      "Proverbs 15:3"
+    ]
+  },
+  {
+    "id": "el-olam",
+    "nameEn": "El Olam",
+    "nameOriginal": "אֵל עוֹלָם",
+    "transliteration": "El Olam",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The Eternal God; the God of eternity whose purposes and nature never change",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 21:33",
+      "Isaiah 40:28",
+      "Psalm 90:2",
+      "Psalm 93:2",
+      "Isaiah 26:4"
+    ]
+  },
+  {
+    "id": "el-gibbor",
+    "nameEn": "El Gibbor",
+    "nameOriginal": "אֵל גִּבּוֹר",
+    "transliteration": "El Gibbor",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "Mighty God; the powerful, warrior God; a title of the Messiah in Isaiah's prophecy",
+    "testament": "OT",
+    "verseRefs": [
+      "Isaiah 9:6",
+      "Jeremiah 32:18",
+      "Deuteronomy 10:17",
+      "Psalm 24:8",
+      "Isaiah 10:21"
+    ]
+  },
+  {
+    "id": "el-elohe-israel",
+    "nameEn": "El Elohe Israel",
+    "nameOriginal": "אֵל אֱלֹהֵי יִשְׂרָאֵל",
+    "transliteration": "El Elohe Israel",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "God, the God of Israel; emphasizing the covenant relationship between God and His people",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 33:20",
+      "Psalm 68:8",
+      "Ezra 5:1",
+      "Psalm 41:13",
+      "1 Chronicles 4:10"
+    ]
+  },
+  {
+    "id": "el-emeth",
+    "nameEn": "El Emeth",
+    "nameOriginal": "אֵל אֱמֶת",
+    "transliteration": "El Emeth",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "God of Truth; the faithful God whose word is completely trustworthy and reliable",
+    "testament": "OT",
+    "verseRefs": [
+      "Psalm 31:5",
+      "Deuteronomy 32:4",
+      "Isaiah 65:16",
+      "John 14:6",
+      "Titus 1:2"
+    ]
+  },
+  {
+    "id": "el-chanun",
+    "nameEn": "El Chanun",
+    "nameOriginal": "אֵל חַנּוּן",
+    "transliteration": "El Chanun",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "Gracious God; the merciful deity who shows undeserved favor",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 34:6",
+      "Nehemiah 9:17",
+      "Jonah 4:2",
+      "Psalm 86:15",
+      "Joel 2:13"
+    ]
+  },
+  {
+    "id": "yahweh-yireh",
+    "nameEn": "Yahweh Yireh",
+    "nameOriginal": "יְהוָה יִרְאֶה",
+    "transliteration": "Yahweh Yireh",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD Will Provide; named by Abraham when God provided a ram at the place of sacrifice",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 22:14",
+      "Philippians 4:19",
+      "Matthew 6:31",
+      "Psalm 23:1",
+      "Luke 12:24"
+    ]
+  },
+  {
+    "id": "yahweh-nissi",
+    "nameEn": "Yahweh Nissi",
+    "nameOriginal": "יְהוָה נִסִּי",
+    "transliteration": "Yahweh Nissi",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD is My Banner; named by Moses after victory over Amalek, God is our rallying point",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 17:15",
+      "Psalm 60:4",
+      "Song of Solomon 2:4",
+      "Isaiah 11:10",
+      "Psalm 20:5"
+    ]
+  },
+  {
+    "id": "yahweh-shalom",
+    "nameEn": "Yahweh Shalom",
+    "nameOriginal": "יְהוָה שָׁלוֹם",
+    "transliteration": "Yahweh Shalom",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD is Peace; named by Gideon after God granted peace in a time of fear",
+    "testament": "OT",
+    "verseRefs": [
+      "Judges 6:24",
+      "Isaiah 9:6",
+      "Romans 15:33",
+      "Philippians 4:7",
+      "2 Thessalonians 3:16"
+    ]
+  },
+  {
+    "id": "yahweh-rapha",
+    "nameEn": "Yahweh Rapha",
+    "nameOriginal": "יְהוָה רָפָא",
+    "transliteration": "Yahweh Rapha",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD Who Heals; God's declaration that He is the divine physician for body and soul",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 15:26",
+      "Psalm 103:3",
+      "Isaiah 53:5",
+      "Jeremiah 17:14",
+      "1 Peter 2:24"
+    ]
+  },
+  {
+    "id": "yahweh-tsidkenu",
+    "nameEn": "Yahweh Tsidkenu",
+    "nameOriginal": "יְהוָה צִדְקֵנוּ",
+    "transliteration": "Yahweh Tsidkenu",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD Our Righteousness; the Messianic name declaring God provides the righteousness we need",
+    "testament": "OT",
+    "verseRefs": [
+      "Jeremiah 23:6",
+      "Jeremiah 33:16",
+      "Romans 3:22",
+      "1 Corinthians 1:30",
+      "2 Corinthians 5:21"
+    ]
+  },
+  {
+    "id": "yahweh-shammah",
+    "nameEn": "Yahweh Shammah",
+    "nameOriginal": "יְהוָה שָׁמָּה",
+    "transliteration": "Yahweh Shammah",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD is There; the name for the restored city of Jerusalem, God's abiding presence",
+    "testament": "OT",
+    "verseRefs": [
+      "Ezekiel 48:35",
+      "Revelation 21:3",
+      "Psalm 46:5",
+      "Matthew 28:20",
+      "John 14:17"
+    ]
+  },
+  {
+    "id": "yahweh-sabaoth",
+    "nameEn": "Yahweh Sabaoth",
+    "nameOriginal": "יְהוָה צְבָאוֹת",
+    "transliteration": "Yahweh Sabaoth",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD of Hosts / LORD Almighty; commander of the heavenly armies and all creation",
+    "testament": "OT",
+    "verseRefs": [
+      "1 Samuel 1:3",
+      "Isaiah 6:3",
+      "Psalm 46:7",
+      "Romans 9:29",
+      "James 5:4"
+    ]
+  },
+  {
+    "id": "yahweh-mekoddishkem",
+    "nameEn": "Yahweh Mekoddishkem",
+    "nameOriginal": "יְהוָה מְקַדִּשְׁכֶם",
+    "transliteration": "Yahweh Mekoddishkem",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD Who Sanctifies You; God sets apart and consecrates His people for Himself",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 31:13",
+      "Leviticus 20:8",
+      "Leviticus 21:8",
+      "1 Thessalonians 5:23",
+      "Hebrews 13:12"
+    ]
+  },
+  {
+    "id": "yahweh-rohi",
+    "nameEn": "Yahweh Rohi",
+    "nameOriginal": "יְהוָה רֹעִי",
+    "transliteration": "Yahweh Rohi",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD is My Shepherd; God leads, feeds, protects, and guides His flock",
+    "testament": "OT",
+    "verseRefs": [
+      "Psalm 23:1",
+      "John 10:11",
+      "Hebrews 13:20",
+      "1 Peter 5:4",
+      "Ezekiel 34:15"
+    ]
+  },
+  {
+    "id": "yahweh-ori",
+    "nameEn": "Yahweh Ori",
+    "nameOriginal": "יְהוָה אוֹרִי",
+    "transliteration": "Yahweh Ori",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD is My Light; God dispels darkness and illuminates our path",
+    "testament": "OT",
+    "verseRefs": [
+      "Psalm 27:1",
+      "Micah 7:8",
+      "Isaiah 60:19",
+      "John 8:12",
+      "Revelation 21:23"
+    ]
+  },
+  {
+    "id": "yahweh-ozi",
+    "nameEn": "Yahweh Ozi",
+    "nameOriginal": "יְהוָה עֻזִּי",
+    "transliteration": "Yahweh Ozi",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "The LORD is My Strength; God empowers those who trust in Him",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 15:2",
+      "Psalm 28:7",
+      "Psalm 118:14",
+      "Isaiah 12:2",
+      "Habakkuk 3:19"
+    ]
+  },
+  {
+    "id": "shaddai",
+    "nameEn": "Shaddai",
+    "nameOriginal": "שַׁדַּי",
+    "transliteration": "Shaddai",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "The Almighty; the all-sufficient God who is more than enough for every need",
+    "testament": "OT",
+    "verseRefs": [
+      "Job 5:17",
+      "Psalm 91:1",
+      "Ruth 1:20",
+      "Job 6:4",
+      "Numbers 24:16"
+    ]
+  },
+  {
+    "id": "elyon",
+    "nameEn": "Elyon",
+    "nameOriginal": "עֶלְיוֹן",
+    "transliteration": "Elyon",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "Most High; the God who is exalted above all other gods and beings",
+    "testament": "OT",
+    "verseRefs": [
+      "Psalm 7:17",
+      "Psalm 9:2",
+      "Psalm 47:2",
+      "Daniel 7:25",
+      "Numbers 24:16"
+    ]
+  },
+  {
+    "id": "adon",
+    "nameEn": "Adon",
+    "nameOriginal": "אָדוֹן",
+    "transliteration": "Adon",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "Lord, Master; the sovereign ruler to whom everything belongs",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 23:17",
+      "Joshua 3:13",
+      "Psalm 97:5",
+      "Malachi 3:1",
+      "Psalm 8:1"
+    ]
+  },
+  {
+    "id": "qanna",
+    "nameEn": "El Qanna",
+    "nameOriginal": "אֵל קַנָּא",
+    "transliteration": "El Qanna",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "Jealous God; God's passionate commitment to exclusive relationship with His people",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 20:5",
+      "Exodus 34:14",
+      "Deuteronomy 4:24",
+      "Deuteronomy 6:15",
+      "Joshua 24:19"
+    ]
+  },
+  {
+    "id": "tsur",
+    "nameEn": "Tsur",
+    "nameOriginal": "צוּר",
+    "transliteration": "Tsur",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "The Rock; God's unchanging, stable, and reliable nature as our foundation",
+    "testament": "OT",
+    "verseRefs": [
+      "Deuteronomy 32:4",
+      "2 Samuel 22:32",
+      "Psalm 18:2",
+      "Psalm 62:2",
+      "Isaiah 26:4"
+    ]
+  },
+  {
+    "id": "kadosh-israel",
+    "nameEn": "Kadosh Yisrael",
+    "nameOriginal": "קְדוֹשׁ יִשְׂרָאֵל",
+    "transliteration": "Kadosh Yisrael",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "Holy One of Israel; God's absolute moral perfection and otherness from creation",
+    "testament": "OT",
+    "verseRefs": [
+      "Isaiah 1:4",
+      "Isaiah 5:19",
+      "Isaiah 12:6",
+      "Isaiah 41:14",
+      "Psalm 71:22"
+    ]
+  },
+  {
+    "id": "goel",
+    "nameEn": "Go'el",
+    "nameOriginal": "גֹּאֵל",
+    "transliteration": "Go'el",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "Redeemer; the kinsman-redeemer who buys back what was lost and restores covenant relationship",
+    "testament": "OT",
+    "verseRefs": [
+      "Isaiah 41:14",
+      "Isaiah 44:6",
+      "Isaiah 47:4",
+      "Isaiah 54:5",
+      "Job 19:25"
+    ]
+  },
+  {
+    "id": "shaphat",
+    "nameEn": "Shaphat",
+    "nameOriginal": "שֹׁפֵט",
+    "transliteration": "Shaphat",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "Judge; God's righteous and impartial administration of justice for all people",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 18:25",
+      "Psalm 94:2",
+      "Isaiah 33:22",
+      "Psalm 75:7",
+      "Hebrews 12:23"
+    ]
+  },
+  {
+    "id": "melech",
+    "nameEn": "Melech",
+    "nameOriginal": "מֶלֶךְ",
+    "transliteration": "Melech",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "King; God's sovereign reign over all creation, nations, and history",
+    "testament": "OT",
+    "verseRefs": [
+      "Psalm 47:7",
+      "Psalm 98:6",
+      "Isaiah 6:5",
+      "Isaiah 43:15",
+      "Zephaniah 3:15"
+    ]
+  },
+  {
+    "id": "avinu",
+    "nameEn": "Avinu",
+    "nameOriginal": "אָבִינוּ",
+    "transliteration": "Avinu",
+    "language": "Hebrew",
+    "category": "relational-title",
+    "meaning": "Our Father; God's tender, parental relationship with His covenant people",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 63:16",
+      "Isaiah 64:8",
+      "Matthew 6:9",
+      "John 20:17",
+      "Romans 8:15"
+    ]
+  },
+  {
+    "id": "elohim-chayyim",
+    "nameEn": "Elohim Chayyim",
+    "nameOriginal": "אֱלֹהִים חַיִּים",
+    "transliteration": "Elohim Chayyim",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "The Living God; God who is alive, active, and the source of all life",
+    "testament": "Both",
+    "verseRefs": [
+      "Joshua 3:10",
+      "1 Samuel 17:26",
+      "Matthew 16:16",
+      "Hebrews 10:31",
+      "2 Corinthians 6:16"
+    ]
+  },
+  {
+    "id": "magen",
+    "nameEn": "Magen",
+    "nameOriginal": "מָגֵן",
+    "transliteration": "Magen",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "Shield; God's protective covering over those who take refuge in Him",
+    "testament": "OT",
+    "verseRefs": [
+      "Genesis 15:1",
+      "Psalm 3:3",
+      "Psalm 18:2",
+      "Proverbs 30:5",
+      "Psalm 28:7"
+    ]
+  },
+  {
+    "id": "misgab",
+    "nameEn": "Misgab",
+    "nameOriginal": "מִשְׂגָּב",
+    "transliteration": "Misgab",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "High Fortress / Stronghold; God as a high, inaccessible place of safety and refuge",
+    "testament": "OT",
+    "verseRefs": [
+      "Psalm 9:9",
+      "Psalm 18:2",
+      "Psalm 46:7",
+      "Psalm 59:9",
+      "Psalm 62:2"
+    ]
+  },
+  {
+    "id": "tsur-yisrael",
+    "nameEn": "Tsur Yisrael",
+    "nameOriginal": "צוּר יִשְׂרָאֵל",
+    "transliteration": "Tsur Yisrael",
+    "language": "Hebrew",
+    "category": "compound-name",
+    "meaning": "Rock of Israel; God as the immovable foundation and protector of the nation Israel",
+    "testament": "OT",
+    "verseRefs": [
+      "2 Samuel 23:3",
+      "Isaiah 30:29",
+      "Genesis 49:24",
+      "Isaiah 17:10",
+      "1 Samuel 2:2"
+    ]
+  },
+  {
+    "id": "kyrios",
+    "nameEn": "Kyrios",
+    "nameOriginal": "κύριος",
+    "transliteration": "Kyrios",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "Lord; the Greek equivalent of Yahweh/Adonai; supreme authority and ownership",
+    "testament": "NT",
+    "verseRefs": [
+      "Matthew 3:3",
+      "Luke 1:46",
+      "Acts 2:36",
+      "Philippians 2:11",
+      "Romans 10:9"
+    ]
+  },
+  {
+    "id": "theos",
+    "nameEn": "Theos",
+    "nameOriginal": "θεός",
+    "transliteration": "Theos",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "God; the supreme divine being; used for the Father, and remarkably for Jesus (John 1:1)",
+    "testament": "NT",
+    "verseRefs": [
+      "John 1:1",
+      "John 20:28",
+      "Acts 17:29",
+      "Romans 1:1",
+      "Hebrews 1:8"
+    ]
+  },
+  {
+    "id": "pantokrator",
+    "nameEn": "Pantokrator",
+    "nameOriginal": "παντοκράτωρ",
+    "transliteration": "Pantokrator",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "Almighty / All-Ruling; the God who holds all power and rules over everything",
+    "testament": "NT",
+    "verseRefs": [
+      "2 Corinthians 6:18",
+      "Revelation 1:8",
+      "Revelation 4:8",
+      "Revelation 11:17",
+      "Revelation 19:6"
+    ]
+  },
+  {
+    "id": "soter",
+    "nameEn": "Soter",
+    "nameOriginal": "σωτήρ",
+    "transliteration": "Soter",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Savior; the one who delivers from sin, death, and judgment",
+    "testament": "NT",
+    "verseRefs": [
+      "Luke 2:11",
+      "John 4:42",
+      "Titus 2:13",
+      "1 Timothy 4:10",
+      "Philippians 3:20"
+    ]
+  },
+  {
+    "id": "christos",
+    "nameEn": "Christos",
+    "nameOriginal": "Χριστός",
+    "transliteration": "Christos",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Christ / Anointed One; the Greek equivalent of Messiah; the one anointed by God for redemption",
+    "testament": "NT",
+    "verseRefs": [
+      "Matthew 1:1",
+      "John 1:41",
+      "Acts 2:36",
+      "Romans 5:8",
+      "Philippians 2:11"
+    ]
+  },
+  {
+    "id": "logos",
+    "nameEn": "Logos",
+    "nameOriginal": "Λόγος",
+    "transliteration": "Logos",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The Word; the eternal divine reason and expression of God incarnated in Jesus Christ",
+    "testament": "NT",
+    "verseRefs": [
+      "John 1:1",
+      "John 1:14",
+      "1 John 1:1",
+      "Revelation 19:13",
+      "John 1:18"
+    ]
+  },
+  {
+    "id": "emanouel",
+    "nameEn": "Emmanuel",
+    "nameOriginal": "Ἐμμανουήλ",
+    "transliteration": "Emanouel",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "God with Us; the Messianic name fulfilled in the incarnation of Jesus Christ",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 7:14",
+      "Matthew 1:23",
+      "John 1:14",
+      "Matthew 28:20",
+      "Revelation 21:3"
+    ]
+  },
+  {
+    "id": "poimen-kalos",
+    "nameEn": "Poimen Kalos",
+    "nameOriginal": "ποιμὴν καλός",
+    "transliteration": "Poimen Kalos",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Good Shepherd; the one who lays down His life for the sheep",
+    "testament": "NT",
+    "verseRefs": [
+      "John 10:11",
+      "John 10:14",
+      "Hebrews 13:20",
+      "1 Peter 5:4",
+      "Psalm 23:1"
+    ]
+  },
+  {
+    "id": "arnion",
+    "nameEn": "Arnion",
+    "nameOriginal": "ἀρνίον",
+    "transliteration": "Arnion",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Lamb; the sacrificial lamb of God who takes away the sin of the world",
+    "testament": "NT",
+    "verseRefs": [
+      "John 1:29",
+      "John 1:36",
+      "Revelation 5:6",
+      "Revelation 7:17",
+      "Revelation 21:22"
+    ]
+  },
+  {
+    "id": "archiereus",
+    "nameEn": "Archiereus",
+    "nameOriginal": "ἀρχιερεύς",
+    "transliteration": "Archiereus",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "High Priest; the perfect and eternal high priest who intercedes on behalf of humanity",
+    "testament": "NT",
+    "verseRefs": [
+      "Hebrews 4:14",
+      "Hebrews 4:15",
+      "Hebrews 9:11",
+      "Hebrews 7:26",
+      "Hebrews 2:17"
+    ]
+  },
+  {
+    "id": "parakletos",
+    "nameEn": "Parakletos",
+    "nameOriginal": "Παράκλητος",
+    "transliteration": "Parakletos",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "Advocate / Comforter / Helper; title of the Holy Spirit and of Jesus as our intercessor",
+    "testament": "NT",
+    "verseRefs": [
+      "John 14:16",
+      "John 14:26",
+      "John 15:26",
+      "1 John 2:1",
+      "John 16:7"
+    ]
+  },
+  {
+    "id": "pneuma-hagion",
+    "nameEn": "Pneuma Hagion",
+    "nameOriginal": "Πνεῦμα Ἅγιον",
+    "transliteration": "Pneuma Hagion",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "Holy Spirit; the third person of the Trinity, the Spirit of God who indwells believers",
+    "testament": "NT",
+    "verseRefs": [
+      "Matthew 3:16",
+      "John 14:26",
+      "Acts 1:8",
+      "Acts 2:4",
+      "Romans 8:9"
+    ]
+  },
+  {
+    "id": "hagios",
+    "nameEn": "Ho Hagios",
+    "nameOriginal": "ὁ Ἅγιος",
+    "transliteration": "Ho Hagios",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "The Holy One; perfectly set apart from sin; used of Jesus as the one consecrated by God",
+    "testament": "NT",
+    "verseRefs": [
+      "Mark 1:24",
+      "Acts 3:14",
+      "1 John 2:20",
+      "Revelation 3:7",
+      "Luke 4:34"
+    ]
+  },
+  {
+    "id": "despotes",
+    "nameEn": "Despotes",
+    "nameOriginal": "Δεσπότης",
+    "transliteration": "Despotes",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "Sovereign Lord / Master; the absolute owner and ruler who has authority over life and death",
+    "testament": "NT",
+    "verseRefs": [
+      "Luke 2:29",
+      "Acts 4:24",
+      "2 Peter 2:1",
+      "Jude 1:4",
+      "Revelation 6:10"
+    ]
+  },
+  {
+    "id": "iesous",
+    "nameEn": "Iesous",
+    "nameOriginal": "Ἰησοῦς",
+    "transliteration": "Iesous",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Jesus; from Hebrew Yeshua, meaning 'Yahweh saves'; the personal name of the incarnate Son of God",
+    "testament": "NT",
+    "verseRefs": [
+      "Matthew 1:21",
+      "Luke 2:21",
+      "Acts 4:12",
+      "Philippians 2:10",
+      "Revelation 1:9"
+    ]
+  },
+  {
+    "id": "basileus",
+    "nameEn": "Basileus",
+    "nameOriginal": "βασιλεύς",
+    "transliteration": "Basileus",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "King; Jesus as the divinely appointed ruler over all kingdoms and peoples",
+    "testament": "NT",
+    "verseRefs": [
+      "Matthew 21:5",
+      "Matthew 27:37",
+      "1 Timothy 1:17",
+      "Revelation 15:3",
+      "Revelation 19:16"
+    ]
+  },
+  {
+    "id": "arche",
+    "nameEn": "He Arche",
+    "nameOriginal": "ἡ ἀρχή",
+    "transliteration": "He Arche",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "The Beginning; the source and origin of all creation; the first cause of everything",
+    "testament": "NT",
+    "verseRefs": [
+      "Colossians 1:18",
+      "Revelation 1:8",
+      "Revelation 3:14",
+      "Revelation 21:6",
+      "John 1:1"
+    ]
+  },
+  {
+    "id": "huios-theou",
+    "nameEn": "Huios Theou",
+    "nameOriginal": "Υἱὸς Θεοῦ",
+    "transliteration": "Huios Theou",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Son of God; the eternal, divine Son in unique relationship with the Father",
+    "testament": "NT",
+    "verseRefs": [
+      "Matthew 3:17",
+      "John 1:34",
+      "John 3:16",
+      "Romans 8:3",
+      "Galatians 4:4"
+    ]
+  },
+  {
+    "id": "huios-anthropou",
+    "nameEn": "Huios tou Anthropou",
+    "nameOriginal": "Υἱὸς τοῦ ἀνθρώπου",
+    "transliteration": "Huios tou Anthropou",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Son of Man; Jesus's most common self-designation, linking His humanity with the Danielic heavenly figure",
+    "testament": "NT",
+    "verseRefs": [
+      "Daniel 7:13",
+      "Matthew 8:20",
+      "Matthew 16:13",
+      "John 1:51",
+      "Revelation 1:13"
+    ]
+  },
+  {
+    "id": "ego-eimi",
+    "nameEn": "Ego Eimi",
+    "nameOriginal": "Ἐγώ εἰμι",
+    "transliteration": "Ego Eimi",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "I AM; Jesus's claim to the divine name of Exodus 3:14, asserting His eternal deity",
+    "testament": "NT",
+    "verseRefs": [
+      "John 8:58",
+      "John 6:35",
+      "John 8:12",
+      "John 10:9",
+      "John 11:25"
+    ]
+  },
+  {
+    "id": "anastasis",
+    "nameEn": "He Anastasis",
+    "nameOriginal": "ἡ ἀνάστασις",
+    "transliteration": "He Anastasis",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The Resurrection; Jesus as the source and guarantee of resurrection life over death",
+    "testament": "NT",
+    "verseRefs": [
+      "John 11:25",
+      "John 11:26",
+      "Acts 4:33",
+      "Philippians 3:10",
+      "1 Corinthians 15:20"
+    ]
+  },
+  {
+    "id": "ho-poimen-ho-megas",
+    "nameEn": "Ho Poimen Ho Megas",
+    "nameOriginal": "ὁ ποιμὴν ὁ μέγας",
+    "transliteration": "Ho Poimen Ho Megas",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The Great Shepherd; Jesus brought back from the dead as the shepherd who tends His flock eternally",
+    "testament": "NT",
+    "verseRefs": [
+      "Hebrews 13:20",
+      "1 Peter 5:4",
+      "John 10:11",
+      "Ezekiel 34:15",
+      "Psalm 23:1"
+    ]
+  },
+  {
+    "id": "mashiach",
+    "nameEn": "Mashiach",
+    "nameOriginal": "מָשִׁיחַ",
+    "transliteration": "Mashiach",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Messiah / Anointed One; the promised deliverer who would be anointed with the Spirit of God",
+    "testament": "Both",
+    "verseRefs": [
+      "Daniel 9:25",
+      "Daniel 9:26",
+      "John 1:41",
+      "John 4:25",
+      "Acts 2:36"
+    ]
+  },
+  {
+    "id": "tsemach",
+    "nameEn": "Tsemach",
+    "nameOriginal": "צֶמַח",
+    "transliteration": "Tsemach",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "The Branch; the Messianic title for the righteous shoot of David who will reign as king",
+    "testament": "OT",
+    "verseRefs": [
+      "Jeremiah 23:5",
+      "Jeremiah 33:15",
+      "Zechariah 3:8",
+      "Zechariah 6:12",
+      "Isaiah 11:1"
+    ]
+  },
+  {
+    "id": "shoresh-yishai",
+    "nameEn": "Shoresh Yishai",
+    "nameOriginal": "שֹׁרֶשׁ יִשַׁי",
+    "transliteration": "Shoresh Yishai",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Root of Jesse; the Messiah who springs from David's lineage as a banner for all nations",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 11:1",
+      "Isaiah 11:10",
+      "Romans 15:12",
+      "Revelation 5:5",
+      "Revelation 22:16"
+    ]
+  },
+  {
+    "id": "ben-david",
+    "nameEn": "Ben David",
+    "nameOriginal": "בֶּן דָּוִד",
+    "transliteration": "Ben David",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Son of David; the Messianic heir to David's eternal throne and covenant",
+    "testament": "Both",
+    "verseRefs": [
+      "Matthew 1:1",
+      "Matthew 9:27",
+      "Matthew 15:22",
+      "Matthew 21:9",
+      "Romans 1:3"
+    ]
+  },
+  {
+    "id": "sar-shalom",
+    "nameEn": "Sar Shalom",
+    "nameOriginal": "שַׂר שָׁלוֹם",
+    "transliteration": "Sar Shalom",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Prince of Peace; the Messianic name for the one who establishes everlasting peace",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 9:6",
+      "Micah 5:5",
+      "Romans 5:1",
+      "Ephesians 2:14",
+      "John 14:27"
+    ]
+  },
+  {
+    "id": "pele-yoets",
+    "nameEn": "Pele Yoets",
+    "nameOriginal": "פֶּלֶא יוֹעֵץ",
+    "transliteration": "Pele Yoets",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Wonderful Counselor; the Messianic ruler whose counsel is supernatural and beyond human wisdom",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 9:6",
+      "1 Corinthians 1:30",
+      "Isaiah 28:29",
+      "Proverbs 8:14",
+      "Colossians 2:3"
+    ]
+  },
+  {
+    "id": "avi-ad",
+    "nameEn": "Avi Ad",
+    "nameOriginal": "אֲבִי עַד",
+    "transliteration": "Avi Ad",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Everlasting Father; the Messianic title expressing His eternal care and fatherly provision",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 9:6",
+      "John 10:30",
+      "John 14:9",
+      "Hebrews 7:3",
+      "Micah 5:2"
+    ]
+  },
+  {
+    "id": "eved-yahweh",
+    "nameEn": "Eved Yahweh",
+    "nameOriginal": "עֶבֶד יְהוָה",
+    "transliteration": "Eved Yahweh",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Servant of the LORD; the suffering servant who bears the sin of many",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 42:1",
+      "Isaiah 49:5",
+      "Isaiah 52:13",
+      "Isaiah 53:11",
+      "Matthew 12:18"
+    ]
+  },
+  {
+    "id": "ariel-yehudah",
+    "nameEn": "Ariel Yehudah",
+    "nameOriginal": "אֲרִי יְהוּדָה",
+    "transliteration": "Ariel Yehudah",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Lion of Judah; the triumphant Messiah who overcomes through sacrifice",
+    "testament": "Both",
+    "verseRefs": [
+      "Genesis 49:9",
+      "Revelation 5:5",
+      "Hosea 11:10",
+      "Numbers 23:24",
+      "Micah 5:8"
+    ]
+  },
+  {
+    "id": "kohen-gadol",
+    "nameEn": "Kohen Gadol",
+    "nameOriginal": "כֹּהֵן גָּדוֹל",
+    "transliteration": "Kohen Gadol",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "High Priest; the Messianic mediator who makes atonement and intercedes for the people",
+    "testament": "Both",
+    "verseRefs": [
+      "Psalm 110:4",
+      "Hebrews 2:17",
+      "Hebrews 4:14",
+      "Hebrews 9:11",
+      "Zechariah 6:13"
+    ]
+  },
+  {
+    "id": "bar-enash",
+    "nameEn": "Bar Enash",
+    "nameOriginal": "בַּר אֱנָשׁ",
+    "transliteration": "Bar Enash",
+    "language": "Aramaic",
+    "category": "messianic-title",
+    "meaning": "Son of Man (Aramaic); the heavenly figure in Daniel given dominion over all peoples and nations",
+    "testament": "Both",
+    "verseRefs": [
+      "Daniel 7:13",
+      "Daniel 7:14",
+      "Matthew 24:30",
+      "Mark 14:62",
+      "Revelation 1:13"
+    ]
+  },
+  {
+    "id": "shoresh-david",
+    "nameEn": "Shoresh David",
+    "nameOriginal": "שֹׁרֶשׁ דָּוִד",
+    "transliteration": "Shoresh David",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Root and Offspring of David; the Messiah who is both ancestor and descendant of David",
+    "testament": "Both",
+    "verseRefs": [
+      "Revelation 5:5",
+      "Revelation 22:16",
+      "Isaiah 11:1",
+      "Romans 1:3",
+      "Matthew 1:1"
+    ]
+  },
+  {
+    "id": "kochav-boker",
+    "nameEn": "Kochav HaBokher",
+    "nameOriginal": "כּוֹכַב הַבֹּקֶר",
+    "transliteration": "Kochav HaBokher",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Bright Morning Star; the Messiah as the harbinger of a new dawn who outshines all darkness",
+    "testament": "Both",
+    "verseRefs": [
+      "Numbers 24:17",
+      "Revelation 22:16",
+      "2 Peter 1:19",
+      "Isaiah 14:12",
+      "Revelation 2:28"
+    ]
+  },
+  {
+    "id": "nasi",
+    "nameEn": "Nasi",
+    "nameOriginal": "נָשִׂיא",
+    "transliteration": "Nasi",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "Prince / Ruler; the divinely appointed leader and ruler over Israel",
+    "testament": "Both",
+    "verseRefs": [
+      "Ezekiel 34:24",
+      "Ezekiel 37:25",
+      "Daniel 9:25",
+      "Isaiah 9:6",
+      "Matthew 2:6"
+    ]
+  },
+  {
+    "id": "creator",
+    "nameEn": "Creator",
+    "nameOriginal": "בּוֹרֵא",
+    "transliteration": "Bore",
+    "language": "Hebrew",
+    "category": "descriptive-title",
+    "meaning": "The Creator of all things; the one who brought the universe into existence ex nihilo",
+    "testament": "Both",
+    "verseRefs": [
+      "Genesis 1:1",
+      "Isaiah 40:28",
+      "Isaiah 43:15",
+      "Colossians 1:16",
+      "Romans 1:25"
+    ]
+  },
+  {
+    "id": "ancient-of-days",
+    "nameEn": "Ancient of Days",
+    "nameOriginal": "עַתִּיק יוֹמַיָּא",
+    "transliteration": "Attiq Yomayya",
+    "language": "Aramaic",
+    "category": "descriptive-title",
+    "meaning": "The Eternal Judge; the divine figure of immeasurable age and glory who renders ultimate judgment",
+    "testament": "OT",
+    "verseRefs": [
+      "Daniel 7:9",
+      "Daniel 7:13",
+      "Daniel 7:22",
+      "Revelation 1:14",
+      "Psalm 90:2"
+    ]
+  },
+  {
+    "id": "judge-of-all-earth",
+    "nameEn": "Judge of All the Earth",
+    "nameOriginal": "שֹׁפֵט כָּל הָאָרֶץ",
+    "transliteration": "Shophet Kol HaAretz",
+    "language": "Hebrew",
+    "category": "descriptive-title",
+    "meaning": "The righteous judge who will render perfect justice to all peoples everywhere",
+    "testament": "Both",
+    "verseRefs": [
+      "Genesis 18:25",
+      "Psalm 94:2",
+      "Acts 17:31",
+      "Hebrews 12:23",
+      "Romans 3:6"
+    ]
+  },
+  {
+    "id": "god-of-abraham",
+    "nameEn": "God of Abraham, Isaac and Jacob",
+    "nameOriginal": "אֱלֹהֵי אַבְרָהָם יִצְחָק וְיַעֲקֹב",
+    "transliteration": "Elohe Avraham Yitschak veYaakov",
+    "language": "Hebrew",
+    "category": "relational-title",
+    "meaning": "The covenant-keeping God who identifies Himself by relationship with the patriarchs",
+    "testament": "Both",
+    "verseRefs": [
+      "Exodus 3:6",
+      "Matthew 22:32",
+      "Acts 3:13",
+      "Acts 7:32",
+      "Mark 12:26"
+    ]
+  },
+  {
+    "id": "holy-spirit",
+    "nameEn": "Holy Spirit",
+    "nameOriginal": "רוּחַ הַקֹּדֶשׁ",
+    "transliteration": "Ruach HaKodesh",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "The Holy Spirit; the third person of the Trinity who sanctifies, comforts, and empowers",
+    "testament": "Both",
+    "verseRefs": [
+      "Psalm 51:11",
+      "Isaiah 63:10",
+      "Matthew 3:16",
+      "John 14:26",
+      "Acts 1:8"
+    ]
+  },
+  {
+    "id": "deliverer",
+    "nameEn": "Deliverer",
+    "nameOriginal": "מְפַלֵּט",
+    "transliteration": "Mephalat",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "The one who rescues and delivers from enemies, danger, and bondage",
+    "testament": "Both",
+    "verseRefs": [
+      "2 Samuel 22:2",
+      "Psalm 18:2",
+      "Psalm 40:17",
+      "Romans 11:26",
+      "Isaiah 49:26"
+    ]
+  },
+  {
+    "id": "refuge",
+    "nameEn": "Refuge",
+    "nameOriginal": "מַחֲסֶה",
+    "transliteration": "Machaseh",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "A safe haven and shelter; God as the one to whom we flee in times of trouble",
+    "testament": "Both",
+    "verseRefs": [
+      "Psalm 46:1",
+      "Psalm 62:8",
+      "Psalm 91:2",
+      "Deuteronomy 33:27",
+      "Nahum 1:7"
+    ]
+  },
+  {
+    "id": "strong-tower",
+    "nameEn": "Strong Tower",
+    "nameOriginal": "מִגְדַּל עֹז",
+    "transliteration": "Migdal Oz",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "An impenetrable place of safety; the name of the LORD as protection for the righteous",
+    "testament": "OT",
+    "verseRefs": [
+      "Proverbs 18:10",
+      "Psalm 61:3",
+      "2 Samuel 22:3",
+      "Psalm 144:2",
+      "Psalm 18:2"
+    ]
+  },
+  {
+    "id": "fortress",
+    "nameEn": "Fortress",
+    "nameOriginal": "מְצוּדָה",
+    "transliteration": "Metsudah",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "An impregnable stronghold; God as the one who cannot be breached by any enemy",
+    "testament": "OT",
+    "verseRefs": [
+      "2 Samuel 22:2",
+      "Psalm 18:2",
+      "Psalm 31:3",
+      "Psalm 71:3",
+      "Psalm 91:2"
+    ]
+  },
+  {
+    "id": "rock",
+    "nameEn": "The Rock",
+    "nameOriginal": "סֶלַע",
+    "transliteration": "Sela",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "Unchanging foundation; God as the immovable rock on whom faith can be safely built",
+    "testament": "Both",
+    "verseRefs": [
+      "Deuteronomy 32:4",
+      "1 Samuel 2:2",
+      "Psalm 18:2",
+      "Matthew 16:18",
+      "1 Corinthians 10:4"
+    ]
+  },
+  {
+    "id": "shield",
+    "nameEn": "Shield",
+    "nameOriginal": "מָגֵן",
+    "transliteration": "Magen",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "Divine protection; God who deflects attack and guards those who trust in Him",
+    "testament": "Both",
+    "verseRefs": [
+      "Genesis 15:1",
+      "Psalm 3:3",
+      "Psalm 18:2",
+      "Proverbs 30:5",
+      "Ephesians 6:16"
+    ]
+  },
+  {
+    "id": "good-shepherd",
+    "nameEn": "Good Shepherd",
+    "nameOriginal": "ποιμὴν καλός",
+    "transliteration": "Poimen Kalos",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The compassionate shepherd who knows each sheep by name, leads, feeds, and lays down His life",
+    "testament": "Both",
+    "verseRefs": [
+      "Psalm 23:1",
+      "Ezekiel 34:15",
+      "John 10:11",
+      "John 10:14",
+      "1 Peter 5:4"
+    ]
+  },
+  {
+    "id": "bread-of-life",
+    "nameEn": "Bread of Life",
+    "nameOriginal": "ἄρτος τῆς ζωῆς",
+    "transliteration": "Artos tes Zoes",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The spiritual sustenance given by Christ; whoever comes to Him will never hunger",
+    "testament": "NT",
+    "verseRefs": [
+      "John 6:35",
+      "John 6:48",
+      "John 6:51",
+      "Exodus 16:15",
+      "Deuteronomy 8:3"
+    ]
+  },
+  {
+    "id": "living-water",
+    "nameEn": "Living Water",
+    "nameOriginal": "מַיִם חַיִּים",
+    "transliteration": "Mayim Chayyim",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "The life-giving presence of God; whoever drinks will never thirst again",
+    "testament": "Both",
+    "verseRefs": [
+      "Jeremiah 2:13",
+      "John 4:10",
+      "John 7:38",
+      "Revelation 21:6",
+      "Revelation 22:1"
+    ]
+  },
+  {
+    "id": "true-vine",
+    "nameEn": "True Vine",
+    "nameOriginal": "ἡ ἄμπελος ἡ ἀληθινή",
+    "transliteration": "He Ampelos He Alethine",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The source of all spiritual fruitfulness; abiding in Him produces life and bearing of fruit",
+    "testament": "NT",
+    "verseRefs": [
+      "John 15:1",
+      "John 15:5",
+      "Isaiah 5:7",
+      "Psalm 80:8",
+      "Matthew 21:33"
+    ]
+  },
+  {
+    "id": "the-door",
+    "nameEn": "The Door",
+    "nameOriginal": "ἡ θύρα",
+    "transliteration": "He Thyra",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The Gate; the only way of access to salvation and to the Father",
+    "testament": "NT",
+    "verseRefs": [
+      "John 10:7",
+      "John 10:9",
+      "Matthew 7:13",
+      "Revelation 3:20",
+      "John 14:6"
+    ]
+  },
+  {
+    "id": "light-of-the-world",
+    "nameEn": "Light of the World",
+    "nameOriginal": "τὸ φῶς τοῦ κόσμου",
+    "transliteration": "To Phos tou Kosmou",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The divine light who illuminates all darkness; those who follow Him do not walk in darkness",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 9:2",
+      "John 8:12",
+      "John 9:5",
+      "John 12:46",
+      "Revelation 21:23"
+    ]
+  },
+  {
+    "id": "way-truth-life",
+    "nameEn": "The Way, the Truth, and the Life",
+    "nameOriginal": "ἡ ὁδὸς καὶ ἡ ἀλήθεια καὶ ἡ ζωή",
+    "transliteration": "He Hodos kai he Aletheia kai he Zoe",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Jesus as the path to God, the truth about God, and the source of eternal life",
+    "testament": "NT",
+    "verseRefs": [
+      "John 14:6",
+      "Psalm 16:11",
+      "John 17:3",
+      "Acts 9:2",
+      "John 11:25"
+    ]
+  },
+  {
+    "id": "king-of-kings",
+    "nameEn": "King of Kings",
+    "nameOriginal": "βασιλεὺς βασιλέων",
+    "transliteration": "Basileus Basileon",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "The supreme ruler over all earthly kings; no authority exists apart from His rule",
+    "testament": "Both",
+    "verseRefs": [
+      "1 Timothy 6:15",
+      "Revelation 17:14",
+      "Revelation 19:16",
+      "Ezra 7:12",
+      "Daniel 2:47"
+    ]
+  },
+  {
+    "id": "lord-of-lords",
+    "nameEn": "Lord of Lords",
+    "nameOriginal": "κύριος κυρίων",
+    "transliteration": "Kyrios Kyrion",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "Supreme authority over all masters; the one before whom every knee will bow",
+    "testament": "Both",
+    "verseRefs": [
+      "1 Timothy 6:15",
+      "Revelation 17:14",
+      "Revelation 19:16",
+      "Deuteronomy 10:17",
+      "Psalm 136:3"
+    ]
+  },
+  {
+    "id": "morning-star",
+    "nameEn": "Bright Morning Star",
+    "nameOriginal": "ὁ ἀστὴρ ὁ λαμπρὸς ὁ πρωϊνός",
+    "transliteration": "Ho Aster Ho Lampros Ho Proinos",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The herald of a new eternal day; the radiant star who signals the coming dawn of God's kingdom",
+    "testament": "Both",
+    "verseRefs": [
+      "Numbers 24:17",
+      "Revelation 22:16",
+      "2 Peter 1:19",
+      "Isaiah 14:12",
+      "Luke 1:78"
+    ]
+  },
+  {
+    "id": "alpha-omega",
+    "nameEn": "Alpha and Omega",
+    "nameOriginal": "τὸ Ἄλφα καὶ τὸ Ὦ",
+    "transliteration": "To Alpha kai to O",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "The first and last letters of the Greek alphabet; God encompasses all of existence from beginning to end",
+    "testament": "NT",
+    "verseRefs": [
+      "Revelation 1:8",
+      "Revelation 21:6",
+      "Revelation 22:13",
+      "Isaiah 44:6",
+      "Isaiah 48:12"
+    ]
+  },
+  {
+    "id": "first-and-last",
+    "nameEn": "The First and the Last",
+    "nameOriginal": "הָרִאשׁוֹן וְהָאַחֲרוֹן",
+    "transliteration": "HaRishon veHaAcharon",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "The eternal God who precedes and outlasts all of creation; there is none before or after Him",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 44:6",
+      "Isaiah 48:12",
+      "Revelation 1:17",
+      "Revelation 22:13",
+      "Isaiah 41:4"
+    ]
+  },
+  {
+    "id": "lion-of-judah",
+    "nameEn": "Lion of Judah",
+    "nameOriginal": "אֲרִי יְהוּדָה",
+    "transliteration": "Ari Yehudah",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "The triumphant, conquering Messiah from the tribe of Judah; worthy to open the sealed scroll",
+    "testament": "Both",
+    "verseRefs": [
+      "Genesis 49:9",
+      "Revelation 5:5",
+      "Hosea 11:10",
+      "2 Chronicles 20:21",
+      "Amos 3:8"
+    ]
+  },
+  {
+    "id": "lamb-of-god",
+    "nameEn": "Lamb of God",
+    "nameOriginal": "ὁ ἀμνὸς τοῦ θεοῦ",
+    "transliteration": "Ho Amnos tou Theou",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The perfect sacrificial lamb who takes away the sin of the world",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 53:7",
+      "John 1:29",
+      "John 1:36",
+      "Revelation 5:12",
+      "1 Peter 1:19"
+    ]
+  },
+  {
+    "id": "son-of-god-en",
+    "nameEn": "Son of God",
+    "nameOriginal": "υἱὸς τοῦ θεοῦ",
+    "transliteration": "Huios tou Theou",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "The unique eternal Son who shares the divine nature of the Father",
+    "testament": "NT",
+    "verseRefs": [
+      "Matthew 3:17",
+      "John 1:34",
+      "John 3:16",
+      "Matthew 16:16",
+      "Romans 1:4"
+    ]
+  },
+  {
+    "id": "immanuel-en",
+    "nameEn": "Immanuel",
+    "nameOriginal": "עִמָּנוּ אֵל",
+    "transliteration": "Immanu El",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "God with Us; the Messianic promise of God's intimate presence with His people",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 7:14",
+      "Isaiah 8:8",
+      "Matthew 1:23",
+      "John 1:14",
+      "Matthew 28:20"
+    ]
+  },
+  {
+    "id": "prince-of-peace-en",
+    "nameEn": "Prince of Peace",
+    "nameOriginal": "שַׂר שָׁלוֹם",
+    "transliteration": "Sar Shalom",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "The one who establishes and rules in perfect shalom — wholeness, harmony, and reconciliation",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 9:6",
+      "John 14:27",
+      "Romans 5:1",
+      "Ephesians 2:14",
+      "Colossians 3:15"
+    ]
+  },
+  {
+    "id": "wonderful-counselor-en",
+    "nameEn": "Wonderful Counselor",
+    "nameOriginal": "פֶּלֶא יוֹעֵץ",
+    "transliteration": "Pele Yoets",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "The one whose counsel is miraculous and divine wisdom in all things",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 9:6",
+      "1 Corinthians 1:24",
+      "Colossians 2:3",
+      "Proverbs 8:14",
+      "Isaiah 28:29"
+    ]
+  },
+  {
+    "id": "everlasting-father-en",
+    "nameEn": "Everlasting Father",
+    "nameOriginal": "אֲבִי עַד",
+    "transliteration": "Avi Ad",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "The eternal one who embodies fatherly love and care toward His people forever",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 9:6",
+      "John 10:30",
+      "John 14:9",
+      "Micah 5:2",
+      "Hebrews 7:3"
+    ]
+  },
+  {
+    "id": "i-am-en",
+    "nameEn": "I AM",
+    "nameOriginal": "אֶהְיֶה אֲשֶׁר אֶהְיֶה",
+    "transliteration": "Ehyeh Asher Ehyeh",
+    "language": "Hebrew",
+    "category": "covenant-name",
+    "meaning": "The self-existent, self-defining God; eternal being who owes His existence to none other",
+    "testament": "Both",
+    "verseRefs": [
+      "Exodus 3:14",
+      "John 8:58",
+      "John 6:35",
+      "John 10:9",
+      "John 11:25"
+    ]
+  },
+  {
+    "id": "comforter-en",
+    "nameEn": "Comforter",
+    "nameOriginal": "παράκλητος",
+    "transliteration": "Parakletos",
+    "language": "Greek",
+    "category": "divine-name",
+    "meaning": "The one called alongside to help; the Holy Spirit who comforts, guides, and advocates",
+    "testament": "NT",
+    "verseRefs": [
+      "John 14:16",
+      "John 14:26",
+      "John 15:26",
+      "John 16:7",
+      "2 Corinthians 1:3"
+    ]
+  },
+  {
+    "id": "god-of-all-comfort",
+    "nameEn": "God of All Comfort",
+    "nameOriginal": "ὁ θεὸς πάσης παρακλήσεως",
+    "transliteration": "Ho Theos Pases Parakleseos",
+    "language": "Greek",
+    "category": "descriptive-title",
+    "meaning": "The Father who consoles in every affliction and equips believers to comfort others",
+    "testament": "NT",
+    "verseRefs": [
+      "2 Corinthians 1:3",
+      "2 Corinthians 1:4",
+      "Isaiah 51:12",
+      "Psalm 119:50",
+      "Romans 15:5"
+    ]
+  },
+  {
+    "id": "god-of-peace",
+    "nameEn": "God of Peace",
+    "nameOriginal": "ὁ θεὸς τῆς εἰρήνης",
+    "transliteration": "Ho Theos tes Eirenes",
+    "language": "Greek",
+    "category": "descriptive-title",
+    "meaning": "The God whose very nature is peace and who bestows peace that surpasses understanding",
+    "testament": "NT",
+    "verseRefs": [
+      "Romans 15:33",
+      "Romans 16:20",
+      "Philippians 4:9",
+      "1 Thessalonians 5:23",
+      "Hebrews 13:20"
+    ]
+  },
+  {
+    "id": "god-of-hope",
+    "nameEn": "God of Hope",
+    "nameOriginal": "ὁ θεὸς τῆς ἐλπίδος",
+    "transliteration": "Ho Theos tes Elpidos",
+    "language": "Greek",
+    "category": "descriptive-title",
+    "meaning": "The source of all hope; the God who fills believers with joy and peace through trusting in Him",
+    "testament": "NT",
+    "verseRefs": [
+      "Romans 15:13",
+      "Psalm 71:5",
+      "Lamentations 3:24",
+      "1 Timothy 1:1",
+      "Titus 2:13"
+    ]
+  },
+  {
+    "id": "god-of-love",
+    "nameEn": "God of Love",
+    "nameOriginal": "ὁ θεὸς τῆς ἀγάπης",
+    "transliteration": "Ho Theos tes Agapes",
+    "language": "Greek",
+    "category": "descriptive-title",
+    "meaning": "The God whose essential nature is agape love, expressed supremely in giving His Son",
+    "testament": "Both",
+    "verseRefs": [
+      "1 John 4:8",
+      "1 John 4:16",
+      "2 Corinthians 13:11",
+      "John 3:16",
+      "Romans 8:39"
+    ]
+  },
+  {
+    "id": "god-of-grace",
+    "nameEn": "God of Grace",
+    "nameOriginal": "θεὸς πάσης χάριτος",
+    "transliteration": "Theos Pases Charitos",
+    "language": "Greek",
+    "category": "descriptive-title",
+    "meaning": "The God of all grace who calls believers to eternal glory through Christ",
+    "testament": "NT",
+    "verseRefs": [
+      "1 Peter 5:10",
+      "Ephesians 2:8",
+      "Romans 5:15",
+      "John 1:16",
+      "2 Corinthians 9:14"
+    ]
+  },
+  {
+    "id": "god-of-glory",
+    "nameEn": "God of Glory",
+    "nameOriginal": "ὁ θεὸς τῆς δόξης",
+    "transliteration": "Ho Theos tes Doxes",
+    "language": "Greek",
+    "category": "descriptive-title",
+    "meaning": "The majestic God whose glory fills all creation and is the ultimate end of all things",
+    "testament": "Both",
+    "verseRefs": [
+      "Psalm 29:3",
+      "Acts 7:2",
+      "Ephesians 1:17",
+      "Revelation 21:23",
+      "Isaiah 6:3"
+    ]
+  },
+  {
+    "id": "holy-one-israel-en",
+    "nameEn": "Holy One of Israel",
+    "nameOriginal": "קְדוֹשׁ יִשְׂרָאֵל",
+    "transliteration": "Kadosh Yisrael",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "The perfectly holy God in covenant with Israel; His holiness both judges and saves",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 1:4",
+      "Isaiah 12:6",
+      "Isaiah 43:3",
+      "Isaiah 47:4",
+      "Mark 1:24"
+    ]
+  },
+  {
+    "id": "redeemer-en",
+    "nameEn": "Redeemer",
+    "nameOriginal": "גֹּאֵל",
+    "transliteration": "Go'el",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "The one who pays the redemption price to restore what was lost through sin",
+    "testament": "Both",
+    "verseRefs": [
+      "Job 19:25",
+      "Isaiah 41:14",
+      "Isaiah 43:14",
+      "Isaiah 44:6",
+      "Luke 1:68"
+    ]
+  },
+  {
+    "id": "heavenly-father",
+    "nameEn": "Heavenly Father",
+    "nameOriginal": "Πατὴρ ὁ ἐν τοῖς οὐρανοῖς",
+    "transliteration": "Pater Ho en tois Ouranois",
+    "language": "Greek",
+    "category": "relational-title",
+    "meaning": "The Father who is in heaven; the personal, relational God who provides and cares for His children",
+    "testament": "NT",
+    "verseRefs": [
+      "Matthew 6:9",
+      "Matthew 6:32",
+      "Matthew 7:11",
+      "John 17:11",
+      "Ephesians 3:14"
+    ]
+  },
+  {
+    "id": "savior-en",
+    "nameEn": "Savior",
+    "nameOriginal": "מוֹשִׁיעַ",
+    "transliteration": "Moshia",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "The divine rescuer who saves from sin, judgment, and eternal death",
+    "testament": "Both",
+    "verseRefs": [
+      "Isaiah 43:3",
+      "Isaiah 45:21",
+      "Luke 2:11",
+      "Titus 2:13",
+      "1 John 4:14"
+    ]
+  },
+  {
+    "id": "advocate-en",
+    "nameEn": "Advocate",
+    "nameOriginal": "παράκλητος",
+    "transliteration": "Parakletos",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Jesus Christ as our legal advocate before the Father; the one who pleads our case",
+    "testament": "NT",
+    "verseRefs": [
+      "1 John 2:1",
+      "Romans 8:34",
+      "Hebrews 7:25",
+      "John 14:16",
+      "Isaiah 53:12"
+    ]
+  },
+  {
+    "id": "resurrection-life",
+    "nameEn": "The Resurrection and the Life",
+    "nameOriginal": "ἡ ἀνάστασις καὶ ἡ ζωή",
+    "transliteration": "He Anastasis kai he Zoe",
+    "language": "Greek",
+    "category": "messianic-title",
+    "meaning": "Jesus who holds authority over death; belief in Him guarantees eternal life",
+    "testament": "NT",
+    "verseRefs": [
+      "John 11:25",
+      "John 11:26",
+      "John 5:25",
+      "1 Corinthians 15:20",
+      "Romans 6:9"
+    ]
+  },
+  {
+    "id": "sovereign-lord-en",
+    "nameEn": "Sovereign Lord",
+    "nameOriginal": "אֲדֹנָי יְהוִה",
+    "transliteration": "Adonai Yahweh",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "The supreme ruler who holds all authority; used especially in the prophets to emphasize divine power",
+    "testament": "Both",
+    "verseRefs": [
+      "Amos 3:7",
+      "Ezekiel 2:4",
+      "Genesis 15:2",
+      "Acts 4:24",
+      "Revelation 6:10"
+    ]
+  },
+  {
+    "id": "father-en",
+    "nameEn": "Father",
+    "nameOriginal": "אָב",
+    "transliteration": "Av",
+    "language": "Hebrew",
+    "category": "relational-title",
+    "meaning": "God as Father; the most intimate relational title revealing His parental love and care",
+    "testament": "Both",
+    "verseRefs": [
+      "Deuteronomy 32:6",
+      "Isaiah 63:16",
+      "Matthew 6:9",
+      "John 14:6",
+      "Romans 8:15"
+    ]
+  },
+  {
+    "id": "ruach-elohim",
+    "nameEn": "Ruach Elohim",
+    "nameOriginal": "רוּחַ אֱלֹהִים",
+    "transliteration": "Ruach Elohim",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "Spirit of God; the divine breath and presence of God moving over creation and inspiring His people",
+    "testament": "Both",
+    "verseRefs": [
+      "Genesis 1:2",
+      "Isaiah 63:10",
+      "Ezekiel 37:14",
+      "Romans 8:14",
+      "1 Corinthians 3:16"
+    ]
+  },
+  {
+    "id": "horn-of-salvation",
+    "nameEn": "Horn of Salvation",
+    "nameOriginal": "קֶרֶן יְשׁוּעָה",
+    "transliteration": "Keren Yeshuah",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "A mighty, powerful savior; the horn symbolizing strength in the animal world applied to God's saving power",
+    "testament": "Both",
+    "verseRefs": [
+      "Psalm 18:2",
+      "Luke 1:69",
+      "2 Samuel 22:3",
+      "Psalm 148:14",
+      "Ezekiel 29:21"
+    ]
+  },
+  {
+    "id": "sun-of-righteousness",
+    "nameEn": "Sun of Righteousness",
+    "nameOriginal": "שֶׁמֶשׁ צְדָקָה",
+    "transliteration": "Shemesh Tsedaqah",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "The Messianic figure who rises with healing in His wings for those who fear God",
+    "testament": "Both",
+    "verseRefs": [
+      "Malachi 4:2",
+      "Luke 1:78",
+      "John 8:12",
+      "2 Peter 1:19",
+      "Isaiah 60:1"
+    ]
+  },
+  {
+    "id": "word-of-god-en",
+    "nameEn": "Word of God",
+    "nameOriginal": "דְּבַר יְהוָה",
+    "transliteration": "Devar Yahweh",
+    "language": "Hebrew",
+    "category": "messianic-title",
+    "meaning": "The divine communication and revelation of God; in Christ, God's ultimate self-expression",
+    "testament": "Both",
+    "verseRefs": [
+      "Psalm 33:6",
+      "John 1:1",
+      "John 1:14",
+      "Hebrews 4:12",
+      "Revelation 19:13"
+    ]
+  },
+  {
+    "id": "melek-haolam",
+    "nameEn": "Melech HaOlam",
+    "nameOriginal": "מֶלֶךְ הָעוֹלָם",
+    "transliteration": "Melech HaOlam",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "King of the Universe/Eternity; used in Jewish blessings to acknowledge God's cosmic sovereignty",
+    "testament": "Both",
+    "verseRefs": [
+      "Psalm 10:16",
+      "Psalm 29:10",
+      "Psalm 145:13",
+      "Revelation 15:3",
+      "1 Timothy 1:17"
+    ]
+  },
+  {
+    "id": "rishon-acharon",
+    "nameEn": "Rishon veAcharon",
+    "nameOriginal": "רִאשׁוֹן וְאַחֲרוֹן",
+    "transliteration": "Rishon veAcharon",
+    "language": "Hebrew",
+    "category": "divine-name",
+    "meaning": "The First and the Last; the eternal God who precedes and outlasts all of history",
+    "testament": "OT",
+    "verseRefs": [
+      "Isaiah 44:6",
+      "Isaiah 48:12",
+      "Isaiah 41:4",
+      "Revelation 1:17",
+      "Revelation 22:13"
+    ]
+  },
+  {
+    "id": "el-nasa",
+    "nameEn": "El Nose",
+    "nameOriginal": "אֵל נֹשֵׂא",
+    "transliteration": "El Nose",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "God Who Forgives; the God who lifts and carries away transgression, iniquity, and sin",
+    "testament": "OT",
+    "verseRefs": [
+      "Exodus 34:7",
+      "Micah 7:18",
+      "Psalm 103:12",
+      "Numbers 14:18",
+      "Isaiah 43:25"
+    ]
+  },
+  {
+    "id": "shepherd-israel",
+    "nameEn": "Shepherd of Israel",
+    "nameOriginal": "רֹעֵה יִשְׂרָאֵל",
+    "transliteration": "Roeh Yisrael",
+    "language": "Hebrew",
+    "category": "relational-title",
+    "meaning": "God who shepherds His people Israel; leads, protects, and gathers the flock",
+    "testament": "OT",
+    "verseRefs": [
+      "Psalm 80:1",
+      "Psalm 23:1",
+      "Isaiah 40:11",
+      "Ezekiel 34:15",
+      "Genesis 48:15"
+    ]
+  },
+  {
+    "id": "consuming-fire",
+    "nameEn": "Consuming Fire",
+    "nameOriginal": "אֵשׁ אֹכְלָה",
+    "transliteration": "Esh Okhelah",
+    "language": "Hebrew",
+    "category": "attribute",
+    "meaning": "God's holy presence as an all-consuming fire that devours evil and purifies His people",
+    "testament": "Both",
+    "verseRefs": [
+      "Deuteronomy 4:24",
+      "Deuteronomy 9:3",
+      "Hebrews 12:29",
+      "Exodus 24:17",
+      "Isaiah 33:14"
+    ]
+  }
+]

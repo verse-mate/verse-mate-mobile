@@ -61,9 +61,19 @@ jest.mock('react-native-pager-view', () => {
       mockOnPageScrollStateChanged = onPageScrollStateChanged;
       mockInitialPage = initialPage;
 
+      // setPageWithoutAnimation on the real native ViewPager fires
+      // onPageSelected(target) once the seek completes. The production
+      // code uses that "landed" event to clear its programmaticTargetRef
+      // guard (which suppresses spurious intermediate pageSelected
+      // events during the seek). Without simulating it here, the guard
+      // stays armed forever and swallows subsequent real user swipes.
       React.useImperativeHandle(ref, () => ({
-        setPage: jest.fn(),
-        setPageWithoutAnimation: jest.fn(),
+        setPage: jest.fn((target: number) => {
+          onPageSelected?.({ nativeEvent: { position: target } });
+        }),
+        setPageWithoutAnimation: jest.fn((target: number) => {
+          onPageSelected?.({ nativeEvent: { position: target } });
+        }),
       }));
 
       return (
