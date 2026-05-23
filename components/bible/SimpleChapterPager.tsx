@@ -145,6 +145,14 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
 
     useEffect(() => clearPendingTimer, []);
 
+    // While a programmatic setPageWithoutAnimation is settling, the native
+    // ViewPager fires `onPageSelected` for intermediate positions. Without
+    // this guard, the very first reposition lands on position=0 (the prev
+    // slot) and gets mistaken for a swipe — kicks navigateToChapter back
+    // to the previous chapter (e.g. dropdown → James 1 silently rewinds
+    // to Hebrews 13). See bug repro 2026-05-24.
+    const programmaticTargetRef = useRef<number | null>(null);
+
     // Reset pager position to center after props change (parent navigated). Runs in
     // useLayoutEffect so the setPageWithoutAnimation lands in the same paint frame as
     // the children-array swap. With useDeferredValue on the parent, the heavy commit
@@ -156,6 +164,9 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       if (prevChapterKey.current === currentKey) return;
       prevChapterKey.current = currentKey;
       const targetIndex = canGoPrevious ? PAGE_CURRENT_MIDDLE : 0;
+      // Suppress pageSelected handling until the pager actually lands on
+      // the target index — see programmaticTargetRef.
+      programmaticTargetRef.current = targetIndex;
       pagerRef.current?.setPageWithoutAnimation(targetIndex);
     }, [bookId, chapterNumber, canGoPrevious]);
 
@@ -187,6 +198,18 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      */
     const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
       const newPosition = event.nativeEvent.position;
+
+      // If a programmatic reposition is in flight, swallow page-selected
+      // events until we land on the target index. Without this, the
+      // intermediate position emitted during setPageWithoutAnimation
+      // (often position=0) gets treated as a user swipe and triggers
+      // a phantom navigateToChapter to the prev/next chapter.
+      if (programmaticTargetRef.current !== null) {
+        if (newPosition === programmaticTargetRef.current) {
+          programmaticTargetRef.current = null;
+        }
+        return;
+      }
 
       if (canGoPrevious && canGoNext) {
         // 3 pages: [prev, current, next]
