@@ -135,9 +135,9 @@ export function BibleInteractionProvider({
     if (verseTooltipState.verseNumber) {
       // Close tooltip and open color picker
       setVerseTooltipState(prev => ({ ...prev, visible: false }));
-      
-      setColorPickerState({ 
-          visible: true, 
+
+      setColorPickerState({
+          visible: true,
           verseNumber: verseTooltipState.verseNumber,
           text: verseTooltipState.verseText
       });
@@ -165,7 +165,7 @@ export function BibleInteractionProvider({
 
   const handleColorPickerSave = async (color: HighlightColor) => {
     if (!colorPickerState.verseNumber) return;
-    
+
     const verseNum = colorPickerState.verseNumber;
     setColorPickerState(prev => ({ ...prev, visible: false }));
 
@@ -176,7 +176,7 @@ export function BibleInteractionProvider({
         startVerse: verseNum,
         endVerse: verseNum,
         color,
-        selectedText: colorPickerState.text || `Verse ${verseNum}`, 
+        selectedText: colorPickerState.text || `Verse ${verseNum}`,
       });
       showToast('Highlight saved!');
     } catch (error) {
