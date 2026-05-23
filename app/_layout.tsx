@@ -157,6 +157,16 @@ function RootLayoutInner() {
       if (!url) return;
 
       try {
+        // Handle names-of-god deep links: versemate://names-of-god/:nameId
+        const namesOfGodMatch = url.match(
+          /(?:versemate:\/\/|https?:\/\/[^/]+)\/names-of-god\/([^/?#]+)/
+        );
+        if (namesOfGodMatch) {
+          const nameId = namesOfGodMatch[1];
+          router.replace(`/names-of-god/${nameId}`);
+          return;
+        }
+
         // Try parsing as topic URL first
         const topicParsed = parseTopicShareUrl(url);
 
@@ -425,6 +435,12 @@ function RootLayoutInner() {
           />
           <Stack.Screen
             name="manage-downloads"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="names-of-god"
             options={{
               headerShown: false,
             }}

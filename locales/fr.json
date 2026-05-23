@@ -1,0 +1,194 @@
+{
+  "_meta": {
+    "language": "French",
+    "code": "fr",
+    "version": "1.0.0",
+    "note": "Translated from en.json. Per spec feat-mobile-ui-i18n (D-016)."
+  },
+
+  "auth": {
+    "login": {
+      "title": "Connexion",
+      "welcome_back": "Bon retour",
+      "subtitle": "Connectez-vous à votre compte",
+      "email_label": "Adresse e-mail",
+      "email_placeholder": "vous@exemple.com",
+      "password_label": "Mot de passe",
+      "submit": "Se connecter",
+      "forgot_password": "Mot de passe oublié ?",
+      "no_account": "Pas de compte ?",
+      "create_account": "Créer un nouveau compte",
+      "continue_without": "Continuer sans compte",
+      "or_continue_with": "ou continuer avec"
+    },
+    "signup": {
+      "title": "Créer un compte",
+      "subtitle": "Veuillez fournir les informations suivantes pour configurer votre compte.",
+      "first_name_label": "Prénom",
+      "last_name_label": "Nom de famille",
+      "email_label": "Adresse e-mail",
+      "password_label": "Mot de passe",
+      "submit": "Créer un compte",
+      "have_account": "Vous avez déjà un compte ?",
+      "sign_in": "Se connecter"
+    },
+    "errors": {
+      "invalid_credentials": "Adresse e-mail ou mot de passe incorrect",
+      "rate_limited": "Trop de tentatives. Réessayez dans une minute.",
+      "network_error": "Erreur réseau. Vérifiez votre connexion."
+    }
+  },
+
+  "onboarding": {
+    "skip": "Passer",
+    "next": "Suivant",
+    "get_started": "Commencer",
+    "login": "Se connecter"
+  },
+
+  "settings": {
+    "title": "Paramètres",
+    "account": "Compte",
+    "preferences": "Préférences",
+    "storage": "Stockage",
+    "help": "Aide",
+    "logout": "Se déconnecter",
+    "logout_confirm_title": "Déconnexion",
+    "logout_confirm_message": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "delete_account": "Supprimer le compte",
+    "delete_account_a11y": "Supprimer définitivement le compte",
+    "delete_account_hint": "Cette action est irréversible",
+    "language": "Langue",
+    "language_preferences": "Préférences de langue",
+    "select_language": "Sélectionner une langue",
+    "theme": "Thème",
+    "theme_auto": "Automatique",
+    "theme_light": "Clair",
+    "theme_dark": "Sombre",
+    "font_size": "Taille de police",
+    "bible_version": "Version de la Bible",
+    "select_version": "Sélectionner une version",
+    "auto_highlights": "Surlignage automatique",
+    "manage_downloads": "Gérer les téléchargements",
+    "manage_downloads_a11y": "Gérer les téléchargements hors ligne",
+    "manage_downloads_subtitle": "Téléchargez du contenu pour une utilisation hors ligne",
+    "downloads_offline": "Téléchargements et hors ligne",
+    "profile_information": "Informations du profil",
+    "profile_details": "Détails du profil",
+    "profile_subtext": "Mettez à jour vos informations personnelles",
+    "first_name": "Prénom",
+    "last_name": "Nom de famille",
+    "email": "Adresse e-mail",
+    "first_name_placeholder": "Entrez votre prénom",
+    "last_name_placeholder": "Entrez votre nom de famille",
+    "email_placeholder": "Entrez votre adresse e-mail",
+    "go_back": "Retour",
+    "sign_in_message": "Connectez-vous pour accéder au surlignage automatique et aux paramètres du profil.",
+    "errors": {
+      "save_bible_version": "Échec de l'enregistrement de la version de la Bible",
+      "save_language": "Échec de l'enregistrement de la préférence de langue"
+    }
+  },
+
+  "chapter_reader": {
+    "loading": "Chargement du chapitre…",
+    "error": "Impossible de charger ce chapitre. Appuyez pour réessayer.",
+    "view_bible": "Bible",
+    "view_insight": "Réflexion",
+    "tab_summary": "Résumé",
+    "tab_byline": "Par verset",
+    "tab_detailed": "Détaillé",
+    "no_translation_available": "Affichage en anglais (aucune traduction disponible)",
+    "offline_indicator": "Hors ligne — affichage du contenu mis en cache"
+  },
+
+  "bookmarks": {
+    "title": "Signets",
+    "empty": "Aucun signet pour l'instant. Appuyez sur l'icône de signet pendant la lecture.",
+    "empty_title": "Aucun chapitre mis en signet",
+    "empty_subtitle": "Appuyez sur l'icône de signet pendant la lecture pour sauvegarder des chapitres.",
+    "login_required": "Veuillez vous connecter pour voir vos signets",
+    "login_subtitle": "Connectez-vous pour sauvegarder et accéder à vos chapitres bibliques favoris",
+    "remove_confirm": "Supprimer ce signet ?"
+  },
+
+  "highlights": {
+    "title": "Surlignages",
+    "empty": "Aucun surlignage pour l'instant. Appuyez longuement sur un verset et choisissez une couleur.",
+    "empty_title": "Aucun surlignage pour l'instant",
+    "empty_subtitle": "Commencez à surligner des versets pour les voir ici.",
+    "auto_highlights": "Surlignages automatiques",
+    "my_highlights": "Mes surlignages",
+    "remove_confirm": "Supprimer ce surlignage ?"
+  },
+
+  "notes": {
+    "title": "Notes",
+    "empty": "Aucune note pour l'instant. Appuyez sur un verset pour en ajouter une.",
+    "empty_title": "Aucune note pour l'instant",
+    "empty_subtitle": "Commencez à prendre des notes pendant la lecture pour les voir ici.",
+    "login_required": "Veuillez vous connecter pour voir vos notes",
+    "login_subtitle": "Connectez-vous pour créer et accéder à vos notes d'étude biblique",
+    "edit": "Modifier la note",
+    "delete": "Supprimer la note",
+    "delete_confirm": "Supprimer cette note ?",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "placeholder": "Rédigez votre note…"
+  },
+
+  "sharing": {
+    "chapter": {
+      "title": "{{book}} {{chapter}}",
+      "body": "Je lis {{book}} {{chapter}} — je pense que ça pourrait vous plaire aussi. {{url}}"
+    },
+    "topic": {
+      "title": "{{topic}}",
+      "body": "J'ai trouvé ceci sur {{topic}} et j'ai pensé à vous. {{url}}"
+    },
+    "note": {
+      "title": "Note sur {{book}} {{chapter}}",
+      "body": "Une note que j'ai faite sur {{book}} {{chapter}} :\n\n\"{{content}}\"\n\n{{url}}"
+    }
+  },
+
+  "common": {
+    "ok": "OK",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "confirm": "Confirmer",
+    "retry": "Réessayer",
+    "back": "Retour",
+    "go_back": "Retour",
+    "close": "Fermer",
+    "loading": "Chargement…",
+    "error": "Une erreur s'est produite",
+    "error_title": "Erreur",
+    "unknown_error": "Erreur inconnue"
+  },
+
+  "names_of_god": {
+    "title": "Noms de Dieu",
+    "testament_ot": "Ancien Testament",
+    "testament_nt": "Nouveau Testament",
+    "testament_both": "Les deux Testaments",
+    "verses_count": "{{count}} versets",
+    "page_label": "Page {{current}} sur {{total}}",
+    "previous_page": "Page précédente",
+    "next_page": "Page suivante",
+    "loading_verses": "Chargement des versets…",
+    "verse_error": "Impossible de charger le texte du verset",
+    "error_name_not_found": "Nom introuvable",
+    "error_name_not_found_detail": "Ce nom n'a pas pu être trouvé dans l'ensemble de données.",
+    "go_back": "Retour",
+    "language_hebrew": "Hébreu",
+    "language_greek": "Grec",
+    "language_aramaic": "Araméen",
+    "language_english": "Anglais",
+    "search_placeholder": "Rechercher des noms…",
+    "filter_all": "Tous",
+    "names_count": "{{count}} noms",
+    "no_results": "Aucun nom ne correspond à votre recherche."
+  }
+}
