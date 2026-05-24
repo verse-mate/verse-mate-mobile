@@ -20,7 +20,15 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { findNodeHandle, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  findNodeHandle,
+  InteractionManager,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioInlineEntry } from '@/components/bible/AudioInlineEntry';
@@ -388,19 +396,48 @@ export function ChapterPage({
   // 3: Mount Byline tab (if hidden)
   const [delayedRenderStage, setDelayedRenderStage] = useState(0);
 
+  // Pre-warmed flag: once the chapter has settled on Bible view, mount
+  // the Insight subtree in the background so the Bible → Insight toggle
+  // becomes a style flip (instant) instead of a 500-700ms first-mount
+  // hit. The mount is scheduled via InteractionManager.runAfterInteractions
+  // so it doesn't run during the chapter-swipe animation. Sticky once true
+  // for the lifetime of this ChapterPage — there's no benefit to
+  // unmounting after a toggle back to Bible.
+  const [insightPrewarmed, setInsightPrewarmed] = useState(false);
+
   const { deleteNote, isDeletingNote } = useNotes();
+
+  // Schedule the Insight subtree mount in idle time after the chapter
+  // becomes available. Runs only for the active page (not buffer pages)
+  // and only once per ChapterPage lifetime.
+  useEffect(() => {
+    if (isPreloading || insightPrewarmed) return;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      // Small extra delay so the chapter-swipe settle animation
+      // (~300ms) is fully past before we add Insight to the render.
+      const t = setTimeout(() => setInsightPrewarmed(true), 300);
+      // The InteractionManager.Handle API only exposes `cancel`; we
+      // can't return a setTimeout cleanup from here, so stash on the
+      // closure's outer scope via a sibling effect-return.
+      timeoutHandleRef.current = t;
+    });
+    return () => {
+      handle.cancel();
+      if (timeoutHandleRef.current) {
+        clearTimeout(timeoutHandleRef.current);
+        timeoutHandleRef.current = null;
+      }
+    };
+  }, [isPreloading, insightPrewarmed]);
 
   // Trigger staggered delayed render — only for the active page, not buffer pages,
   // and only while the user is actually in Explanations view.
   //
-  // Why gated on activeView: each TabContent (Summary, Byline) takes 500-700ms of
-  // JS-thread time to mount (full chapter ScrollView with verses). Pre-warming them
-  // while the user is on Bible view caused visible scroll hiccups exactly at the
-  // stage-3 / stage-4 timer firings (T+1.6s and T+2.1s after a chapter swipe). With
-  // this gate, the staged mounts only happen once the user actually switches to
-  // Insight — when they're not scrolling Bible content. The active Insight tab still
-  // mounts immediately on the switch; the staggered stages pre-warm the OTHER tabs
-  // so switching between Summary and Byline within Insight is instant.
+  // This still runs after a real activeView -> 'explanations' switch so
+  // the OTHER tab (byline if summary is active, or vice versa) gets
+  // pre-warmed in the background. The Insight container itself is now
+  // mounted via insightPrewarmed before the user ever switches, so the
+  // initial switch isn't blocked.
   useEffect(() => {
     if (isPreloading || activeView !== 'explanations') {
       setDelayedRenderStage(0);
@@ -419,6 +456,10 @@ export function ChapterPage({
   }, [isPreloading, activeView]);
 
   // Track explanation tab content heights for scroll syncing
+  // Stash for the Insight pre-warm setTimeout so the useEffect cleanup
+  // can clear it on unmount or when prewarm completes.
+  const timeoutHandleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const tabContentHeightsRef = useRef<
     Record<string, { contentHeight: number; viewHeight: number }>
   >({});
@@ -898,9 +939,15 @@ export function ChapterPage({
 
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Explanations View - Always render when user is in explanations view (even on buffer pages
-           during idle-deferred navigation). In bible view, only pre-render on active page after stagger delay. */}
-      {(activeView === 'explanations' || (!isPreloading && delayedRenderStage >= 1)) && (
+      {/* Explanations View — mount when:
+           1. User is on Insight view (always), OR
+           2. We've pre-warmed it after chapter settle (insightPrewarmed),
+              so the Bible -> Insight toggle is an instant style flip
+              with no JS-thread first-mount blocking, OR
+           3. Legacy staggered pre-render path for buffer pages. */}
+      {(activeView === 'explanations' ||
+        insightPrewarmed ||
+        (!isPreloading && delayedRenderStage >= 1)) && (
         <View
           style={[
             styles.container,
