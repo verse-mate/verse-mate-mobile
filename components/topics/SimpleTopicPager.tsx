@@ -96,12 +96,22 @@ export function SimpleTopicPager({
   // Pending navigation target — set by onPageSelected, processed when pager reaches idle
   const pendingNavRef = useRef<string | null>(null);
 
+  // While a programmatic setPageWithoutAnimation is settling, the native
+  // ViewPager fires onPageSelected for intermediate positions. Without
+  // this guard, the first intermediate position (often PAGE_PREV=0) is
+  // mistaken for a user swipe and triggers onTopicChange back to the
+  // previous topic. Same bug + fix as SimpleChapterPager (a3d6df3).
+  const programmaticTargetRef = useRef<number | null>(null);
+
   // When props change (parent navigated), reset pager to the current page index
   // without remounting the entire component
   useEffect(() => {
     if (prevTopicIdRef.current === topicId) return;
     prevTopicIdRef.current = topicId;
     const targetIndex = !sortedTopics || sortedTopics.length <= 1 ? 0 : PAGE_CURRENT;
+    // Suppress pageSelected handling until the pager actually lands on
+    // the target index — see programmaticTargetRef.
+    programmaticTargetRef.current = targetIndex;
     pagerRef.current?.setPageWithoutAnimation(targetIndex);
   }, [topicId, sortedTopics]);
 
@@ -142,6 +152,18 @@ export function SimpleTopicPager({
    */
   const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
     const newPosition = event.nativeEvent.position;
+
+    // If a programmatic reposition is in flight, swallow page-selected
+    // events until we land on the target index. Without this, the
+    // intermediate position emitted during setPageWithoutAnimation
+    // (often position=PAGE_PREV) gets treated as a user swipe and
+    // triggers a phantom onTopicChange to the prev/next topic.
+    if (programmaticTargetRef.current !== null) {
+      if (newPosition === programmaticTargetRef.current) {
+        programmaticTargetRef.current = null;
+      }
+      return;
+    }
 
     if (newPosition === PAGE_PREV && prevTopicId) {
       pendingNavRef.current = prevTopicId;
