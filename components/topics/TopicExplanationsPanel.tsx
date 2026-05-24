@@ -16,7 +16,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { t } from 'i18next';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
@@ -207,34 +207,63 @@ export function TopicExplanationsPanel({
     }
   };
 
-  // Get explanation content for active tab
-  const getExplanationContent = () => {
+  // Tab indicator + tab pills use the URGENT `activeTab` so they snap
+  // instantly. Markdown body derivation below uses `deferredTab` — a
+  // copy that lags one render tick behind. React schedules the heavy
+  // Markdown re-mount at low priority, so the tab pill animation
+  // completes without being JS-thread-blocked. While the deferred
+  // body catches up, the user sees the previous tab's content — feels
+  // instant instead of staring at a frozen UI.
+  const deferredTab = useDeferredValue(activeTab);
+
+  // Get explanation content for the deferred tab (memoized so the
+  // Markdown body only re-renders when the underlying string actually
+  // changes — protects against parent re-renders that don't touch
+  // topic data).
+  const explanationContent = useMemo(() => {
     if (!topicData?.explanation) return null;
-
-    switch (activeTab) {
+    let raw: string | null = null;
+    switch (deferredTab) {
       case 'summary':
-        return topicData.explanation.summary;
+        raw = topicData.explanation.summary ?? null;
+        break;
       case 'byline':
-        return topicData.explanation.byline;
+        raw = topicData.explanation.byline ?? null;
+        break;
       case 'detailed':
-        return topicData.explanation.detailed;
-      default:
-        return null;
+        raw = topicData.explanation.detailed ?? null;
+        break;
     }
-  };
+    if (typeof raw !== 'string') return raw;
+    // Clean up byline content to remove redundant verse references,
+    // then strip the duplicate leading `# {topicName}` heading the
+    // header bar already shows.
+    const cleaned = deferredTab === 'byline' ? cleanupBylineReferences(raw) : raw;
+    return stripLeadingHeading(cleaned);
+  }, [topicData, deferredTab]);
 
-  const rawExplanationContent = getExplanationContent();
-  // Clean up byline content to remove redundant verse references, then strip
-  // the duplicate leading `# {topicName}` heading the header bar already shows.
-  const cleanedExplanationContent =
-    activeTab === 'byline' && rawExplanationContent
-      ? cleanupBylineReferences(rawExplanationContent)
-      : rawExplanationContent;
-  const explanationContent =
-    typeof cleanedExplanationContent === 'string'
-      ? stripLeadingHeading(cleanedExplanationContent)
-      : cleanedExplanationContent;
   const hasContent = explanationContent && typeof explanationContent === 'string';
+
+  // Memoize the rendered Markdown subtree so unrelated parent re-renders
+  // (scroll handlers, FAB visibility, header toggles) don't redo the
+  // expensive Markdown parse + layout. Only re-runs when content or
+  // styles actually change.
+  const renderedMarkdown = useMemo(() => {
+    if (!hasContent || typeof explanationContent !== 'string') return null;
+    return (
+      <View style={styles.explanationContainer}>
+        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+          {explanationContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+        </Markdown>
+      </View>
+    );
+  }, [
+    hasContent,
+    explanationContent,
+    markdownStyles,
+    dictionaryMarkdownRules,
+    styles.explanationContainer,
+  ]);
 
   // Custom share handler for topics
   const handleShare = async () => {
@@ -371,11 +400,7 @@ export function TopicExplanationsPanel({
       >
         {/* Explanation Content */}
         {hasContent ? (
-          <View style={styles.explanationContainer}>
-            <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
-              {explanationContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
-            </Markdown>
-          </View>
+          renderedMarkdown
         ) : (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
