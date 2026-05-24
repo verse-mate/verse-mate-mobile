@@ -387,28 +387,30 @@ describe('TopicDetailScreen - SimpleTopicPager Integration (V3)', () => {
      * Test 9: View mode switching works
      */
     it('switches between Bible and Explanations view modes', async () => {
-      const { getByTestId, queryByTestId } = renderWithProviders(<TopicDetailScreen />);
+      const { getByTestId } = renderWithProviders(<TopicDetailScreen />);
 
-      // Initially in Bible view, tabs should NOT be visible
-      expect(queryByTestId('chapter-content-tabs')).toBeNull();
+      // The tabs row is always mounted now (so the open/close animation
+      // can run on the UI thread without React reconciliation). Its
+      // wrapper toggles pointerEvents to express interactability —
+      // 'none' on Bible view, 'auto' on Insight view.
+
+      // Initially in Bible view: tabs wrapper exists, but not
+      // interactive.
+      expect(getByTestId('content-tabs-wrapper').props.pointerEvents).toBe('none');
 
       const insightToggle = getByTestId('insight-view-toggle');
       const bibleToggle = getByTestId('bible-view-toggle');
 
-      // Switch to explanations view
+      // Switch to explanations view → wrapper becomes interactive.
       fireEvent.press(insightToggle);
-
-      // Tabs should appear
       await waitFor(() => {
-        expect(getByTestId('chapter-content-tabs')).toBeTruthy();
+        expect(getByTestId('content-tabs-wrapper').props.pointerEvents).toBe('auto');
       });
 
-      // Switch back to Bible view
+      // Switch back to Bible view → wrapper goes back to non-interactive.
       fireEvent.press(bibleToggle);
-
-      // Tabs should not be visible
       await waitFor(() => {
-        expect(queryByTestId('chapter-content-tabs')).toBeNull();
+        expect(getByTestId('content-tabs-wrapper').props.pointerEvents).toBe('none');
       });
     });
   });

@@ -318,7 +318,11 @@ describe('TopicDetailScreen', () => {
     });
 
     it('should hide content tabs in Bible view', async () => {
-      // Bible view hides tabs
+      // Bible view hides tabs. The tabs row is always mounted (so the
+      // open/close animation can run on the UI thread without React
+      // reconciliation), but its wrapper has pointerEvents='none' and
+      // its maxHeight animates to 0 + opacity to 0 — the tabs are not
+      // interactive on Bible view.
       (useActiveView as jest.Mock).mockReturnValue({
         activeView: 'bible',
         setActiveView: jest.fn(),
@@ -326,10 +330,11 @@ describe('TopicDetailScreen', () => {
         error: null,
       });
 
-      const { queryByTestId } = renderWithProviders(<TopicDetailScreen />);
+      const { getByTestId } = renderWithProviders(<TopicDetailScreen />);
 
       await waitFor(() => {
-        expect(queryByTestId('chapter-content-tabs')).toBeNull();
+        const wrapper = getByTestId('content-tabs-wrapper');
+        expect(wrapper.props.pointerEvents).toBe('none');
       });
     });
   });
