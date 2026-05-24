@@ -702,6 +702,7 @@ export default function ChapterScreen() {
                 on the UI thread so the row appears/disappears the same
                 frame as the Bible/Insight tap — no waiting for React. */}
             <Animated.View
+              testID="content-tabs-wrapper"
               style={[styles.tabsWrapper, tabsWrapperStyle]}
               pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
             >

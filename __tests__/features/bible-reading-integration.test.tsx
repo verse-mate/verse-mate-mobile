@@ -92,6 +92,18 @@ jest.mock('@/hooks/bible/use-notes', () => ({
   })),
 }));
 
+// AudioInlineEntry pulls in useAudioPlayer which requires an
+// AudioPlayerProvider in the tree. The integration test only renders
+// ChapterScreen (no provider), so we stub the component out. Prior to
+// the visit-based lazy-mount work this happened to be masked because
+// the summary tab mounted ~1.1s after chapter settle via a stagger
+// timer, and the test finished before that timer fired. Now summary
+// mounts immediately when visitedTabs.has('summary'), so the entry
+// renders synchronously and the missing provider throws.
+jest.mock('@/components/bible/AudioInlineEntry', () => ({
+  AudioInlineEntry: () => null,
+}));
+
 // Mock data
 const mockGenesisChapter1 = {
   bookId: 1,
