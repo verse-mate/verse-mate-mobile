@@ -86,6 +86,14 @@ export interface BibleExplanationsPanelProps {
   /** Callback when tab changes */
   onTabChange: (tab: ContentTabType) => void;
 
+  /**
+   * True while a tab switch transition is pending in the parent. Drives a
+   * skeleton overlay so the user sees immediate visual feedback that the
+   * content is changing, even though React keeps the old tab visible while
+   * the new tree reconciles in the background.
+   */
+  isTabPending?: boolean;
+
   /** Callback when menu button is pressed */
   onMenuPress?: () => void;
 
@@ -124,6 +132,7 @@ export function BibleExplanationsPanel({
   bookName,
   activeTab,
   onTabChange,
+  isTabPending = false,
   onMenuPress,
   onScroll,
   onTap,
@@ -227,17 +236,14 @@ export function BibleExplanationsPanel({
     language,
   });
 
-  // Handle tab change with haptic feedback
+  // Handle tab change with haptic feedback. The parent's onTabChange is
+  // expected to wrap setActiveTab in a useTransition so React doesn't block
+  // on the heavy markdown reconciliation; `isTabPending` then drives the
+  // skeleton overlay below.
   const handleTabChange = (tab: ContentTabType) => {
     if (tab === activeTab) return;
-    const t0 = performance.now();
-    console.log(`[TAB-PERF] bible tap ${activeTab}->${tab} @0ms`);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onTabChange(tab);
-    console.log(`[TAB-PERF] bible onTabChange returned +${(performance.now() - t0).toFixed(1)}ms`);
-    setTimeout(() => {
-      console.log(`[TAB-PERF] bible next-tick +${(performance.now() - t0).toFixed(1)}ms`);
-    }, 0);
   };
 
   // Per-tab content extraction
@@ -463,144 +469,162 @@ export function BibleExplanationsPanel({
         </View>
       </View>
 
-      {/* Content Area — one ScrollView per tab for independent scroll positions */}
-      {(
-        [
-          {
-            key: 'summary' as const,
-            type: 'summary',
-            ref: summaryScrollRef,
-            data: summaryContent,
-            explanationId:
-              summaryData && 'explanationId' in summaryData ? summaryData.explanationId : null,
-            // OR with isPending so the skeleton covers the one-frame
-            // window where the query has just been enabled but the
-            // fetch hasn't kicked off yet. See destructure comment.
-            loading: summaryLoading || (activeTab === 'summary' && summaryPending),
-            isLocal: summaryIsLocal,
-          },
-          {
-            key: 'byline' as const,
-            type: 'byline',
-            ref: byLineScrollRef,
-            data: byLineContent,
-            explanationId:
-              byLineData && 'explanationId' in byLineData ? byLineData.explanationId : null,
-            loading: byLineLoading || (activeTab === 'byline' && byLinePending),
-            isLocal: byLineIsLocal,
-          },
-        ] as const
-      ).map((tab) => (
-        <ScrollView
-          key={tab.key}
-          ref={tab.ref}
-          style={[styles.scrollView, activeTab !== tab.key && { display: 'none' }]}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={true}
-          onScroll={activeTab === tab.key ? handleInternalScroll : undefined}
-          scrollEventThrottle={16}
-          testID={`${testID}-scroll-${tab.key}`}
-        >
-          {tab.loading ? (
-            <SkeletonLoader />
-          ) : tab.data ? (
-            <>
-              {tab.explanationId !== null ? (
-                <AudioInlineEntry
-                  explanationId={tab.explanationId}
-                  explanationType={tab.type}
-                  bookId={bookId}
-                  chapterNumber={chapterNumber}
-                  language={language}
-                  sourceHref={`/bible/${bookId}/${chapterNumber}`}
-                />
-              ) : null}
-              {tab.isLocal && <AvailableOfflineBadge />}
-              {tab.key === 'byline' && byLineSections.length > 0 ? (
-                byLineSections.map((section, index) => (
-                  <View
-                    // biome-ignore lint/suspicious/noArrayIndexKey: stable within a single parsed render
-                    key={`byline-section-${section.verseNumber}-${index}`}
-                    ref={(node) => {
-                      if (node === null) {
-                        delete byLineSectionRefs.current[section.verseNumber];
-                      } else {
-                        byLineSectionRefs.current[section.verseNumber] = node;
-                      }
-                    }}
-                    testID={`byline-verse-section-${section.verseNumber}`}
-                    collapsable={false}
-                  >
-                    <Markdown style={markdownStyles}>{section.markdown}</Markdown>
-                  </View>
-                ))
-              ) : (
-                <Markdown style={markdownStyles}>{tab.data}</Markdown>
-              )}
-            </>
-          ) : isOffline ? (
-            <OfflineContentUnavailable contentType="explanation" />
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No explanations available for this chapter.</Text>
-            </View>
-          )}
-        </ScrollView>
-      ))}
+      {/* Content Area — one ScrollView per tab for independent scroll
+          positions. Wrapped in a relative-positioned flex-1 View so the
+          transition skeleton at the bottom can be absolutely positioned
+          over the tab content only (not the header/tabs above). */}
+      <View style={styles.contentArea}>
+        {(
+          [
+            {
+              key: 'summary' as const,
+              type: 'summary',
+              ref: summaryScrollRef,
+              data: summaryContent,
+              explanationId:
+                summaryData && 'explanationId' in summaryData ? summaryData.explanationId : null,
+              // OR with isPending so the skeleton covers the one-frame
+              // window where the query has just been enabled but the
+              // fetch hasn't kicked off yet. See destructure comment.
+              loading: summaryLoading || (activeTab === 'summary' && summaryPending),
+              isLocal: summaryIsLocal,
+            },
+            {
+              key: 'byline' as const,
+              type: 'byline',
+              ref: byLineScrollRef,
+              data: byLineContent,
+              explanationId:
+                byLineData && 'explanationId' in byLineData ? byLineData.explanationId : null,
+              loading: byLineLoading || (activeTab === 'byline' && byLinePending),
+              isLocal: byLineIsLocal,
+            },
+          ] as const
+        ).map((tab) => (
+          <ScrollView
+            key={tab.key}
+            ref={tab.ref}
+            style={[styles.scrollView, activeTab !== tab.key && { display: 'none' }]}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            onScroll={activeTab === tab.key ? handleInternalScroll : undefined}
+            scrollEventThrottle={16}
+            testID={`${testID}-scroll-${tab.key}`}
+          >
+            {tab.loading ? (
+              <SkeletonLoader />
+            ) : tab.data ? (
+              <>
+                {tab.explanationId !== null ? (
+                  <AudioInlineEntry
+                    explanationId={tab.explanationId}
+                    explanationType={tab.type}
+                    bookId={bookId}
+                    chapterNumber={chapterNumber}
+                    language={language}
+                    sourceHref={`/bible/${bookId}/${chapterNumber}`}
+                  />
+                ) : null}
+                {tab.isLocal && <AvailableOfflineBadge />}
+                {tab.key === 'byline' && byLineSections.length > 0 ? (
+                  byLineSections.map((section, index) => (
+                    <View
+                      // biome-ignore lint/suspicious/noArrayIndexKey: stable within a single parsed render
+                      key={`byline-section-${section.verseNumber}-${index}`}
+                      ref={(node) => {
+                        if (node === null) {
+                          delete byLineSectionRefs.current[section.verseNumber];
+                        } else {
+                          byLineSectionRefs.current[section.verseNumber] = node;
+                        }
+                      }}
+                      testID={`byline-verse-section-${section.verseNumber}`}
+                      collapsable={false}
+                    >
+                      <Markdown style={markdownStyles}>{section.markdown}</Markdown>
+                    </View>
+                  ))
+                ) : (
+                  <Markdown style={markdownStyles}>{tab.data}</Markdown>
+                )}
+              </>
+            ) : isOffline ? (
+              <OfflineContentUnavailable contentType="explanation" />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No explanations available for this chapter.</Text>
+              </View>
+            )}
+          </ScrollView>
+        ))}
 
-      {/* Study tab — bundled content from @versemate/studies (no API fetch,
+        {/* Study tab — bundled content from @versemate/studies (no API fetch,
           no loading state, no offline concerns). Always mounted, hidden
           when not active so its scroll position persists across tab
           switches like the other 3 tabs. */}
-      <ScrollView
-        ref={studyScrollRef}
-        style={[styles.scrollView, activeTab !== 'study' && { display: 'none' }]}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-        onScroll={activeTab === 'study' ? handleInternalScroll : undefined}
-        scrollEventThrottle={16}
-        testID={`${testID}-scroll-study`}
-      >
-        <StudyPanel bookId={bookId} chapter={chapterNumber} testID={`${testID}-study`} />
-      </ScrollView>
+        <ScrollView
+          ref={studyScrollRef}
+          style={[styles.scrollView, activeTab !== 'study' && { display: 'none' }]}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          onScroll={activeTab === 'study' ? handleInternalScroll : undefined}
+          scrollEventThrottle={16}
+          testID={`${testID}-scroll-study`}
+        >
+          <StudyPanel bookId={bookId} chapter={chapterNumber} testID={`${testID}-study`} />
+        </ScrollView>
 
-      {/* Visuals tab — bundled content from @versemate/visuals. Only
+        {/* Visuals tab — bundled content from @versemate/visuals. Only
           mounted for books in BOOKS_WITH_VISUALS (most are), gated by
           `hasVisuals`. Same hidden-not-unmounted pattern as Study so the
           lightbox state and scroll position survive tab switches. */}
-      {hasVisuals ? (
-        <ScrollView
-          ref={visualsScrollRef}
-          style={[styles.scrollView, activeTab !== 'visuals' && { display: 'none' }]}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={true}
-          onScroll={activeTab === 'visuals' ? handleInternalScroll : undefined}
-          scrollEventThrottle={16}
-          testID={`${testID}-scroll-visuals`}
-        >
-          <VisualsPanel
-            bookId={bookId}
-            chapter={chapterNumber}
-            bookName={bookName}
-            testID={`${testID}-visuals`}
-          />
-        </ScrollView>
-      ) : null}
+        {hasVisuals ? (
+          <ScrollView
+            ref={visualsScrollRef}
+            style={[styles.scrollView, activeTab !== 'visuals' && { display: 'none' }]}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            onScroll={activeTab === 'visuals' ? handleInternalScroll : undefined}
+            scrollEventThrottle={16}
+            testID={`${testID}-scroll-visuals`}
+          >
+            <VisualsPanel
+              bookId={bookId}
+              chapter={chapterNumber}
+              bookName={bookName}
+              testID={`${testID}-visuals`}
+            />
+          </ScrollView>
+        ) : null}
 
-      {/* Quick-verse-jump FAB (VERA-36): byline-only. No chapter-nav row
+        {/* Quick-verse-jump FAB (VERA-36): byline-only. No chapter-nav row
           beneath this ScrollView in split / desktop right panel, so use a
           tighter bottom offset than the phone-portrait default.
           Fades with the scroll-arrow auto-hide (VERA-39 / VERA-36 parity). */}
-      {activeTab === 'byline' && (
-        <VerseJumpButton
-          verses={byLineVerses}
-          onSelect={handleByLineVerseJump}
-          visible={fabVisible}
-          onInteraction={onFABInteraction}
-          bottomOffset={spacing.lg}
-          testID={`${testID}-verse-jump`}
-        />
-      )}
+        {activeTab === 'byline' && (
+          <VerseJumpButton
+            verses={byLineVerses}
+            onSelect={handleByLineVerseJump}
+            visible={fabVisible}
+            onInteraction={onFABInteraction}
+            bottomOffset={spacing.lg}
+            testID={`${testID}-verse-jump`}
+          />
+        )}
+
+        {/* Transition skeleton overlay — shown while the parent's tab-switch
+          transition is reconciling. Covers the tab content area only; the
+          tabs row above stays interactive. */}
+        {isTabPending && (
+          <View
+            style={styles.transitionSkeleton}
+            pointerEvents="none"
+            testID={`${testID}-tab-transition-skeleton`}
+          >
+            <SkeletonLoader />
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -694,6 +718,18 @@ function createStyles(
     },
     scrollView: {
       flex: 1,
+    },
+    contentArea: {
+      flex: 1,
+      position: 'relative',
+    },
+    transitionSkeleton: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.background,
     },
     scrollContent: {
       flexGrow: 1,

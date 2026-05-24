@@ -23,6 +23,7 @@ import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
+import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -104,6 +105,14 @@ export interface TopicExplanationsPanelProps {
   /** Callback when tab is changed */
   onTabChange: (tab: ContentTabType) => void;
 
+  /**
+   * True while a tab-switch transition is pending in the parent. Drives a
+   * skeleton overlay over the content area so the user sees immediate
+   * feedback even though React keeps the old tab visible while the new
+   * tree reconciles in the background.
+   */
+  isTabPending?: boolean;
+
   /** Callback when menu button is pressed */
   onMenuPress?: () => void;
 
@@ -121,6 +130,7 @@ export function TopicExplanationsPanel({
   topicName,
   activeTab,
   onTabChange,
+  isTabPending = false,
   onMenuPress,
   testID = 'topic-explanations-panel',
 }: TopicExplanationsPanelProps) {
@@ -198,24 +208,19 @@ export function TopicExplanationsPanel({
   // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure
   const topicData = rawTopicData as any;
 
-  // Handle tab press with haptic feedback
+  // Handle tab press with haptic feedback. The parent's onTabChange is
+  // expected to wrap setActiveTab in a useTransition so the heavy
+  // markdown re-render doesn't block the tap; isTabPending then drives
+  // the skeleton overlay below.
   const handleTabPress = (tab: ContentTabType) => {
     if (tab !== activeTab) {
-      const t0 = performance.now();
-      console.log(`[TAB-PERF] topics tap ${activeTab}->${tab} @0ms`);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onTabChange(tab);
-      console.log(
-        `[TAB-PERF] topics onTabChange returned +${(performance.now() - t0).toFixed(1)}ms`
-      );
       // Defer the scroll so it doesn't compete with the tab switch
       // for the current frame's JS budget.
       requestAnimationFrame(() => {
         scrollViewRef.current?.scrollTo({ y: 0, animated: false });
       });
-      setTimeout(() => {
-        console.log(`[TAB-PERF] topics next-tick +${(performance.now() - t0).toFixed(1)}ms`);
-      }, 0);
     }
   };
 
@@ -415,37 +420,53 @@ export function TopicExplanationsPanel({
 
       {/* Content Area — pre-mount all three tabs and flip display:none
           between them on tab switch (Bible-panel pattern). Switching
-          is a CSS toggle, no Markdown re-parse. */}
-      {(
-        [
-          { id: 'summary' as const, content: summaryContent, markdown: summaryMarkdown },
-          { id: 'byline' as const, content: bylineContent, markdown: bylineMarkdown },
-          { id: 'detailed' as const, content: detailedContent, markdown: detailedMarkdown },
-        ] satisfies readonly {
-          id: ContentTabType;
-          content: string | null;
-          markdown: React.ReactNode;
-        }[]
-      ).map((tab) => (
-        <ScrollView
-          key={tab.id}
-          ref={tab.id === activeTab ? scrollViewRef : null}
-          style={[styles.scrollView, activeTab !== tab.id && { display: 'none' }]}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={true}
-          testID={`${testID}-scroll-${tab.id}`}
-        >
-          {tab.content ? (
-            <View style={styles.explanationContainer}>{tab.markdown}</View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                No {tab.id} explanation available for this topic yet.
-              </Text>
-            </View>
-          )}
-        </ScrollView>
-      ))}
+          is a CSS toggle, no Markdown re-parse. Wrapped in a relative-
+          positioned View so the transition skeleton can absolute-cover
+          the tabs only (header + tab row stay visible). */}
+      <View style={styles.contentArea}>
+        {(
+          [
+            { id: 'summary' as const, content: summaryContent, markdown: summaryMarkdown },
+            { id: 'byline' as const, content: bylineContent, markdown: bylineMarkdown },
+            { id: 'detailed' as const, content: detailedContent, markdown: detailedMarkdown },
+          ] satisfies readonly {
+            id: ContentTabType;
+            content: string | null;
+            markdown: React.ReactNode;
+          }[]
+        ).map((tab) => (
+          <ScrollView
+            key={tab.id}
+            ref={tab.id === activeTab ? scrollViewRef : null}
+            style={[styles.scrollView, activeTab !== tab.id && { display: 'none' }]}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            testID={`${testID}-scroll-${tab.id}`}
+          >
+            {tab.content ? (
+              <View style={styles.explanationContainer}>{tab.markdown}</View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  No {tab.id} explanation available for this topic yet.
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        ))}
+
+        {/* Transition skeleton overlay — shown while the parent's tab-switch
+            transition is reconciling. Covers the tab content area only. */}
+        {isTabPending && (
+          <View
+            style={styles.transitionSkeleton}
+            pointerEvents="none"
+            testID={`${testID}-tab-transition-skeleton`}
+          >
+            <SkeletonLoader />
+          </View>
+        )}
+      </View>
 
       {/* Word Definition Tooltip — dictionary lookup on long-press */}
       {wordToDefine && (
@@ -544,6 +565,18 @@ function createStyles(
     },
     scrollView: {
       flex: 1,
+    },
+    contentArea: {
+      flex: 1,
+      position: 'relative',
+    },
+    transitionSkeleton: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.background,
     },
     scrollContent: {
       flexGrow: 1,

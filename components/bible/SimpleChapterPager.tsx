@@ -149,9 +149,39 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     // ViewPager fires `onPageSelected` for intermediate positions. Without
     // this guard, the very first reposition lands on position=0 (the prev
     // slot) and gets mistaken for a swipe — kicks navigateToChapter back
-    // to the previous chapter (e.g. dropdown → James 1 silently rewinds
-    // to Hebrews 13). See bug repro 2026-05-24.
+    // to the previous chapter.
+    //
+    // 2026-05-24 follow-up: clearing the guard on the FIRST event that
+    // matches the target index isn't enough. The native ViewPager keeps
+    // firing trailing `onPageSelected` events for ~50-200ms AFTER it
+    // settles on the target (often emitting position=0 or back-and-forth
+    // between adjacent positions). Those late events arrive with the
+    // guard already cleared and are treated as real swipes — the bug
+    // reproes as "every other dropdown navigation silently rewinds by
+    // one chapter". Fix: hold the guard open via a timer instead of
+    // clearing on first match.
     const programmaticTargetRef = useRef<number | null>(null);
+    const programmaticTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const armProgrammaticGuard = (targetIndex: number) => {
+      programmaticTargetRef.current = targetIndex;
+      if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
+      // 400ms covers the worst-case trailing-event window observed in
+      // logs (~5 spurious events over ~250ms). Errs generous because
+      // a too-short window reproduces the rewind bug, while a too-long
+      // window only delays the user's next intentional swipe (no
+      // correctness impact — the dropdown navigation is already in
+      // flight by then).
+      programmaticTimerRef.current = setTimeout(() => {
+        programmaticTargetRef.current = null;
+        programmaticTimerRef.current = null;
+      }, 400);
+    };
+    useEffect(
+      () => () => {
+        if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
+      },
+      []
+    );
 
     // Reset pager position to center after props change (parent navigated). Runs in
     // useLayoutEffect so the setPageWithoutAnimation lands in the same paint frame as
@@ -164,9 +194,11 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       if (prevChapterKey.current === currentKey) return;
       prevChapterKey.current = currentKey;
       const targetIndex = canGoPrevious ? PAGE_CURRENT_MIDDLE : 0;
-      // Suppress pageSelected handling until the pager actually lands on
-      // the target index — see programmaticTargetRef.
-      programmaticTargetRef.current = targetIndex;
+      // Suppress pageSelected handling for the full reposition window —
+      // see armProgrammaticGuard. The guard auto-clears on a timer so
+      // the trailing onPageSelected events ViewPager emits after the
+      // seek finishes don't get treated as user swipes.
+      armProgrammaticGuard(targetIndex);
       pagerRef.current?.setPageWithoutAnimation(targetIndex);
     }, [bookId, chapterNumber, canGoPrevious]);
 
@@ -199,15 +231,13 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
       const newPosition = event.nativeEvent.position;
 
-      // If a programmatic reposition is in flight, swallow page-selected
-      // events until we land on the target index. Without this, the
-      // intermediate position emitted during setPageWithoutAnimation
-      // (often position=0) gets treated as a user swipe and triggers
-      // a phantom navigateToChapter to the prev/next chapter.
+      // Swallow ALL page-selected events while a programmatic reposition
+      // is in flight (guard cleared by timer in armProgrammaticGuard).
+      // ViewPager fires both intermediate AND trailing events during
+      // the seek; clearing on first-match wasn't enough (caused phantom
+      // rewind to prev chapter). The user-swipe path doesn't arm the
+      // guard, so its events flow through normally.
       if (programmaticTargetRef.current !== null) {
-        if (newPosition === programmaticTargetRef.current) {
-          programmaticTargetRef.current = null;
-        }
         return;
       }
 

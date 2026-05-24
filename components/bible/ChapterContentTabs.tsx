@@ -7,19 +7,28 @@
  *
  * Features:
  * - Pill-style buttons: "Summary", "By Line", "Study", "Visuals" (last is gated)
- * - Active tab: gold background (#b09a6d), dark text
- * - Inactive tabs: gray700 background (#4a4a4a), white text
- * - Border radius: 20px, padding: 8px vertical, 20px horizontal
- * - Horizontal layout with 8px gap
- * - Haptic feedback on tap (light)
+ * - Active tab: gold background, dark text
+ * - Inactive tabs: gray background, white text
+ * - Sliding indicator animates on the UI thread via Reanimated, driven by a
+ *   shared sharedValue (`activeTabProgress`) the parent updates synchronously
+ *   on tap — so the indicator + text colors flip the same frame as the press,
+ *   not when React reconciliation catches up.
  *
  * @see Spec lines 254-267, 405-425 (Tab specifications)
- * @see Task Group 5.2 - Implement ChapterContentTabs component
  */
 
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  interpolateColor,
+  type SharedValue,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type getColors, getTabSpecs, spacing, type ThemeMode } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
@@ -29,6 +38,14 @@ interface ChapterContentTabsProps {
   activeTab: ContentTabType;
   /** Callback when tab is changed */
   onTabChange: (tab: ContentTabType) => void;
+  /**
+   * Shared visual key for the active tab. When provided, the indicator
+   * translateX and text colors animate on the UI thread the same frame
+   * the parent updates this sharedValue (typically synchronously inside
+   * the tap handler before `onTabChange`). Falls back to a local
+   * sharedValue mirroring `activeTab` when omitted.
+   */
+  activeTabProgress?: SharedValue<ContentTabType>;
   /** Whether tabs should be disabled (optional) */
   disabled?: boolean;
   /**
@@ -75,12 +92,14 @@ const VISUALS_TAB: Tab = { id: 'visuals', label: 'Visuals' };
 export function ChapterContentTabs({
   activeTab,
   onTabChange,
+  activeTabProgress,
   disabled = false,
   showDetailed = false,
   showStudy = false,
   showVisuals = false,
 }: ChapterContentTabsProps) {
   const { colors, mode } = useTheme();
+  const specs = getTabSpecs(mode);
   const styles = createStyles(colors, mode);
 
   // Memoise the tab list so getTabIndex's deps are stable. When any
@@ -95,45 +114,60 @@ export function ChapterContentTabs({
     ],
     [showDetailed, showStudy, showVisuals]
   );
-  // useCallback so the slide-animation useEffect can include this in its
-  // deps without re-running on every render (Biome
-  // lint/correctness/useExhaustiveDependencies).
   const getTabIndex = useCallback(
     (tab: ContentTabType) => tabs.findIndex((t) => t.id === tab),
     [tabs]
   );
 
-  // Animation value for sliding indicator
-  const slideAnim = useRef(new Animated.Value(getTabIndex(activeTab))).current;
-  const [tabWidth, setTabWidth] = useState(0);
-
-  // Animate indicator when active tab changes
+  // Local fallback sharedValue for callers that don't pass one in
+  // (storybook, isolated tests). Mirrors activeTab via a useEffect.
+  const localActiveTabProgress = useSharedValue<ContentTabType>(activeTab);
   useEffect(() => {
-    const targetIndex = getTabIndex(activeTab);
-    // Negative index (e.g. activeTab='visuals' while showVisuals just
-    // toggled off) shouldn't animate — clamp to 0 instead of NaN.
-    Animated.spring(slideAnim, {
-      toValue: targetIndex < 0 ? 0 : targetIndex,
-      useNativeDriver: true,
-      friction: 8,
-      tension: 50,
-    }).start();
-  }, [activeTab, slideAnim, getTabIndex]);
+    if (activeTabProgress) return;
+    localActiveTabProgress.value = activeTab;
+  }, [activeTab, localActiveTabProgress, activeTabProgress]);
+  const effectiveTabProgress = activeTabProgress ?? localActiveTabProgress;
+
+  // Numeric index of the active tab. animatedIndex is the sharedValue
+  // the indicator + text color worklets actually read; it's driven by a
+  // useAnimatedReaction that fires withTiming whenever the parent's
+  // activeTabProgress changes. This pattern is more reliable than
+  // `useDerivedValue(() => withTiming(...))` — the derived form
+  // occasionally lost frames or snapped instead of sliding because the
+  // animation state isn't preserved between derived-value re-runs.
+  const initialIndex = useMemo(() => {
+    const idx = tabs.findIndex((t) => t.id === activeTab);
+    return idx < 0 ? 0 : idx;
+  }, [tabs, activeTab]);
+  const animatedIndex = useSharedValue(initialIndex);
+  useAnimatedReaction(
+    () => effectiveTabProgress.value,
+    (current) => {
+      'worklet';
+      const idx = tabs.findIndex((t) => t.id === current);
+      if (idx < 0) return;
+      animatedIndex.value = withTiming(idx, {
+        duration: 250,
+        easing: Easing.out(Easing.cubic),
+      });
+    },
+    [tabs]
+  );
+
+  const [tabWidth, setTabWidth] = useState(0);
 
   /**
    * Handle tab press
    * - Trigger haptic feedback
-   * - Call onTabChange callback
+   * - Call onTabChange callback (parent updates activeTabProgress
+   *   synchronously inside this callback so the indicator + colors
+   *   start animating the same frame as the tap)
    */
   const handleTabPress = (tab: ContentTabType) => {
     if (disabled || tab === activeTab) {
-      return; // Don't trigger if already active or disabled
+      return;
     }
-
-    // Light haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // Notify parent of tab change
     onTabChange(tab);
   };
 
@@ -149,65 +183,99 @@ export function ChapterContentTabs({
     setTabWidth(usableWidth / n);
   };
 
-  // Calculate translateX for sliding indicator. Animated.interpolate
-  // requires inputRange.length === outputRange.length and a
-  // monotonically increasing inputRange — both built from tabs.length.
-  const indicatorInputRange = tabs.map((_, i) => i);
-  const indicatorOutputRange = tabs.map((_, i) => i * (tabWidth + 4));
-  // interpolate() rejects single-element ranges (e.g. if tabs.length
-  // somehow became 1) — pad to two entries so animation never throws.
-  if (indicatorInputRange.length < 2) {
-    indicatorInputRange.push(1);
-    indicatorOutputRange.push(tabWidth + 4);
-  }
-  const indicatorTranslateX = slideAnim.interpolate({
-    inputRange: indicatorInputRange,
-    outputRange: indicatorOutputRange,
-  });
+  // Indicator translateX animation runs on the UI thread driven by
+  // animatedIndex (smoothed targetIndex). Translates to index * (tabWidth + 4).
+  const indicatorAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      transform: [{ translateX: animatedIndex.value * (tabWidth + 4) }],
+    };
+  }, [tabWidth]);
+
+  // Per-tab text color animation — cross-fade between active and inactive
+  // colors based on how close animatedIndex is to this tab's index.
+  // Distance 0 = active (fully active color); distance >= 1 = inactive.
+  const activeColor = specs.active.textColor;
+  const inactiveColor = specs.inactive.textColor;
 
   return (
     <View style={styles.container} testID="chapter-content-tabs">
       <View style={styles.tabsRow} onLayout={handleLayout}>
         {/* Sliding active indicator */}
         <Animated.View
-          style={[
-            styles.slidingIndicator,
-            {
-              width: tabWidth,
-              transform: [{ translateX: indicatorTranslateX }],
-            },
-          ]}
+          style={[styles.slidingIndicator, { width: tabWidth }, indicatorAnimatedStyle]}
         />
 
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-
-          return (
-            <Pressable
-              key={tab.id}
-              onPress={() => handleTabPress(tab.id)}
-              style={({ pressed }) => [
-                styles.tab,
-                pressed && styles.tabPressed,
-                disabled && styles.tabDisabled,
-              ]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isActive, disabled }}
-              accessibilityLabel={`${tab.label} tab`}
-              accessibilityHint={`Switch to ${tab.label} reading mode`}
-              testID={`tab-${tab.id}`}
-              disabled={disabled}
-            >
-              <Text
-                style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}
-              >
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+        {tabs.map((tab, index) => (
+          <TabButton
+            key={tab.id}
+            tab={tab}
+            index={index}
+            animatedIndex={animatedIndex}
+            activeColor={activeColor}
+            inactiveColor={inactiveColor}
+            onPress={handleTabPress}
+            disabled={disabled}
+            activeTab={activeTab}
+            styles={styles}
+          />
+        ))}
       </View>
     </View>
+  );
+}
+
+/**
+ * Single tab button. Pulled out so its useAnimatedStyle hook is called
+ * exactly once per tab (hook rules require stable hook ordering — we
+ * can't loop useAnimatedStyle inside the parent component).
+ */
+function TabButton({
+  tab,
+  index,
+  animatedIndex,
+  activeColor,
+  inactiveColor,
+  onPress,
+  disabled,
+  activeTab,
+  styles,
+}: {
+  tab: Tab;
+  index: number;
+  animatedIndex: SharedValue<number>;
+  activeColor: string;
+  inactiveColor: string;
+  onPress: (id: ContentTabType) => void;
+  disabled: boolean;
+  activeTab: ContentTabType;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const textAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    const distance = Math.min(1, Math.abs(animatedIndex.value - index));
+    return {
+      color: interpolateColor(distance, [0, 1], [activeColor, inactiveColor]),
+    };
+  }, [index, activeColor, inactiveColor]);
+
+  return (
+    <Pressable
+      onPress={() => onPress(tab.id)}
+      style={({ pressed }) => [
+        styles.tab,
+        pressed && styles.tabPressed,
+        disabled && styles.tabDisabled,
+      ]}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: activeTab === tab.id, disabled }}
+      accessibilityLabel={`${tab.label} tab`}
+      accessibilityHint={`Switch to ${tab.label} reading mode`}
+      testID={`tab-${tab.id}`}
+      disabled={disabled}
+    >
+      <Animated.Text style={[styles.tabText, textAnimatedStyle]}>{tab.label}</Animated.Text>
+    </Pressable>
   );
 }
 
@@ -245,9 +313,6 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       flex: 1,
       borderRadius: 100,
       paddingVertical: 2,
-      // Tight horizontal padding so labels (Summary / By Line / Study /
-      // Visuals) fit on narrow phone widths without truncation. flex:1 already
-      // handles equal sizing; padding here is just for press hit area + edge.
       paddingHorizontal: spacing.sm,
       justifyContent: 'center',
       alignItems: 'center',
