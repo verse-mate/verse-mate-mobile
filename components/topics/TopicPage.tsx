@@ -19,9 +19,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, InteractionManager, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
+import Animated, {
+  Easing,
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
 import { ShareButton } from '@/components/bible/ShareButton';
@@ -83,6 +90,51 @@ function cleanupBylineReferences(content: string): string {
 }
 
 /**
+ * Splits markdown into FlatList-friendly chunks. Prefers `## ` heading
+ * boundaries (semantically meaningful); if the content has no `## `
+ * headings, falls back to paragraph boundaries (`\n\n`). Returns a
+ * single chunk for content with neither, so callers can still feed it
+ * to a FlatList safely (it just renders one item with no virtualization
+ * benefit, which is the right behavior for short prose).
+ *
+ * Used to feed FlatList for the topic Insight tabs. Topics span many
+ * verses on byline (= many `##` sections), and detailed often has
+ * subsection headings — both benefit hugely from virtualization.
+ * Summary is usually short prose, so it falls back to paragraphs.
+ */
+function splitMarkdownForVirtualization(markdown: string): { key: string; body: string }[] {
+  if (!markdown) return [];
+  const normalized = markdown.replace(/\r\n/g, '\n');
+  const hasHeadings = /^## /m.test(normalized);
+  let parts: string[];
+  if (hasHeadings) {
+    // Split at `## ` boundaries, keeping the heading with its body.
+    const lines = normalized.split('\n');
+    const buf: string[] = [];
+    parts = [];
+    const flush = () => {
+      const body = buf.join('\n').trim();
+      if (body.length > 0) parts.push(body);
+      buf.length = 0;
+    };
+    for (const line of lines) {
+      if (line.startsWith('## ') && buf.length > 0) flush();
+      buf.push(line);
+    }
+    flush();
+  } else {
+    // No headings — split at blank lines (paragraph boundaries). Safe
+    // because paragraphs are independent markdown blocks. Lists,
+    // blockquotes, and code blocks stay within a single paragraph.
+    parts = normalized
+      .split(/\n{2,}/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+  }
+  return parts.map((body, idx) => ({ key: `section-${idx}`, body }));
+}
+
+/**
  * Preprocess Bible references text to format verse numbers as Unicode superscripts
  */
 function formatVerseNumbers(text: string): string {
@@ -115,6 +167,19 @@ export interface TopicPageProps {
   activeTab: ContentTabType;
   /** Current view mode (bible or explanations) */
   activeView: 'bible' | 'explanations';
+  /**
+   * Shared visual progress (0 = Bible, 1 = Insight) driven by parent.
+   * Optional so isolated callers can omit; falls back to a local
+   * sharedValue mirroring activeView. Matches the Bible ChapterPage
+   * pattern.
+   */
+  toggleProgress?: SharedValue<number>;
+  /**
+   * Shared visual key (active tab) for inner tab switching. Drives each
+   * tab's wrapper maxHeight + opacity on the UI thread so the swap is
+   * instant. Optional with activeTab-mirroring fallback.
+   */
+  activeTabProgress?: SharedValue<ContentTabType>;
   /** Whether to reset scroll to top on topic change (default: true) */
   shouldResetScroll?: boolean;
   /** Whether this page is being preloaded (skips heavy AI content) */
@@ -155,6 +220,8 @@ export function TopicPage({
   topicId,
   activeTab,
   activeView,
+  toggleProgress,
+  activeTabProgress,
   shouldResetScroll = true,
   isPreloading = false,
   onScroll,
@@ -163,7 +230,11 @@ export function TopicPage({
   onVersePress,
 }: TopicPageProps) {
   const { colors } = useTheme();
-  const { styles, markdownStyles } = createStyles(colors);
+  // Memoise the StyleSheet objects so they're stable across renders. The
+  // raw `createStyles(colors)` call returns fresh objects every time,
+  // which breaks any Markdown component's prop-equality check downstream
+  // and forces it to re-parse the entire markdown string on every render.
+  const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
   const { showToast } = useToast();
 
   // TODO: Implement Bible version selection in Settings page
@@ -219,36 +290,72 @@ export function TopicPage({
   const touchStartTime = useRef(0);
   const touchStartY = useRef(0);
 
-  // Staggered rendering state to prevent UI freeze (waterfall loading)
-  // 0: Initial (only active view)
-  // 1: Mount Explanations container
-  // 2: Mount Summary tab (if hidden)
-  // 3: Mount Byline tab (if hidden)
-  // 4: Mount Detailed tab (if hidden)
-  const [delayedRenderStage, setDelayedRenderStage] = useState(0);
+  // Pre-warmed flag mirrors Bible's ChapterPage pattern: fires as soon
+  // as the initial interaction settles (~16ms after mount) so the
+  // Insight subtree mounts before the user first taps Bible/Insight.
+  // Sticky once true; resets when topicId shifts so each new active
+  // topic gets its own prewarm.
+  const [insightPrewarmed, setInsightPrewarmed] = useState(false);
 
-  // Trigger staggered delayed render — only for the active page, not buffer pages
+  // Visit-based lazy mount for the inner tabs (summary/byline/detailed).
+  // Only the currently-active tab mounts on initial topic render; other
+  // tabs mount when the user actually taps them. Once a tab is visited
+  // it stays mounted — subsequent switches are instant via sharedValue
+  // opacity flip. Resets on topicId change.
+  //
+  // Replaces the previous staggered-timer mount that auto-mounted every
+  // tab within 2.1s of topic settle. That timer blocked the JS thread
+  // parsing markdown for tabs the user wasn't even looking at, which
+  // was the cause of the 3-5s "load" lag after swiping to a new topic
+  // while on the byline tab (even though byline itself is now
+  // virtualized).
+  const [visitedTabs, setVisitedTabs] = useState<Set<ContentTabType>>(() => new Set([activeTab]));
+
+  // Reset visitedTabs on topicId change so each new topic starts with
+  // only the currently-active tab mounted (others stay lazy). DON'T
+  // reset insightPrewarmed — once true, keep it sticky. The data inside
+  // (markdown memos) refreshes via useTopicById + bylineSections deps,
+  // so unmount/remount is unnecessary and causes a flicker on every
+  // topic swipe ("byline loads, flickers, loads again").
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on topicId change
   useEffect(() => {
-    if (isPreloading) {
-      setDelayedRenderStage(0);
-      return;
-    }
-    const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
-    const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
-    const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
-    const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
+    setVisitedTabs(new Set([activeTab]));
+  }, [topicId]);
 
+  // Add the active tab to the visited set whenever it changes.
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
+  // Prewarm fires for buffer pages too — not gated on isPreloading.
+  // Each instance mounts its Insight subtree (with only the active
+  // tab's content per visitedTabs) so the next swipe lands on a page
+  // that already has content rendered, no blank-frame gap. Cost is
+  // small because each buffer only parses one tab's markdown (and
+  // byline is virtualized to ~3 sections).
+  useEffect(() => {
+    if (insightPrewarmed) return;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setInsightPrewarmed(true);
+    });
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
+      handle.cancel();
     };
-  }, [isPreloading]);
+  }, [insightPrewarmed]);
 
-  // Reset scroll state when topic changes
+  // Reset scroll state when topic changes. Separate refs per inner tab
+  // matches Bible's pattern and keeps each tab's scroll position
+  // independent across switches.
   const bibleScrollRef = useRef<ScrollView>(null);
-  const explanationsScrollRef = useRef<ScrollView>(null);
+  // All three Insight tabs are FlatLists now — use scrollToOffset.
+  const summaryScrollRef = useRef<FlatList<{ key: string; body: string }>>(null);
+  const bylineScrollRef = useRef<FlatList<{ key: string; body: string }>>(null);
+  const detailedScrollRef = useRef<FlatList<{ key: string; body: string }>>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: topicId and shouldResetScroll are required to trigger scroll reset
   useEffect(() => {
@@ -257,7 +364,9 @@ export function TopicPage({
     // ONLY if shouldResetScroll is true (skipped during seamless pager snaps)
     if (shouldResetScroll) {
       bibleScrollRef.current?.scrollTo({ y: 0, animated: false });
-      explanationsScrollRef.current?.scrollTo({ y: 0, animated: false });
+      summaryScrollRef.current?.scrollToOffset({ offset: 0, animated: false });
+      bylineScrollRef.current?.scrollToOffset({ offset: 0, animated: false });
+      detailedScrollRef.current?.scrollToOffset({ offset: 0, animated: false });
     }
 
     // Reset internal scroll tracking
@@ -352,6 +461,105 @@ export function TopicPage({
       ? topic.description
       : null;
 
+  // UI-thread driven opacities — flip the visible content the same frame
+  // as the tap, without waiting for the activeView prop reconciliation.
+  // Falls back to a local sharedValue mirroring activeView when no parent
+  // sharedValue is provided (tests, isolated callers).
+  const localToggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
+  useEffect(() => {
+    if (toggleProgress) return;
+    localToggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [activeView, localToggleProgress, toggleProgress]);
+  const effectiveProgress = toggleProgress ?? localToggleProgress;
+  const insightContainerStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      opacity: effectiveProgress.value,
+      zIndex: effectiveProgress.value > 0.5 ? 1 : 0,
+    };
+  });
+  const bibleContainerStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      opacity: 1 - effectiveProgress.value,
+      zIndex: effectiveProgress.value > 0.5 ? 0 : 1,
+    };
+  });
+
+  // Pre-process + memoise each tab's rendered markdown JSX. Without this,
+  // every tab tap triggers TopicPage to re-render with the same content,
+  // and react-native-markdown-display re-parses ALL three trees from
+  // scratch (the inline `.replace()` calls produce fresh string refs each
+  // render, and the markdown component can't tell it's the same input).
+  // Logs showed 3-5s of JS-thread blocking per tap before this memo.
+  // All three Insight tabs feed FlatLists so virtualization can keep
+  // the first-tap parse small. Splitter prefers `## ` headings;
+  // falls back to paragraph boundaries when there are none (typical
+  // for summary).
+  const summarySections = useMemo<{ key: string; body: string }[]>(() => {
+    const raw = displayTopicData?.explanation?.summary;
+    if (typeof raw !== 'string' || !raw) return [];
+    const processed = raw.replace(/#{1,6}\s*Summary\s*\n/gi, '\n');
+    return splitMarkdownForVirtualization(processed);
+  }, [displayTopicData?.explanation?.summary]);
+
+  const bylineSections = useMemo<{ key: string; body: string }[]>(() => {
+    const raw = displayTopicData?.explanation?.byline;
+    if (typeof raw !== 'string' || !raw) return [];
+    const processed = cleanupBylineReferences(raw).replace(/#{1,6}\s*Summary\s*\n/gi, '\n');
+    return splitMarkdownForVirtualization(processed);
+  }, [displayTopicData?.explanation?.byline]);
+
+  const detailedSections = useMemo<{ key: string; body: string }[]>(() => {
+    const raw = displayTopicData?.explanation?.detailed;
+    if (typeof raw !== 'string' || !raw) return [];
+    const processed = raw.replace(/#{1,6}\s*Summary\s*\n/gi, '\n');
+    return splitMarkdownForVirtualization(processed);
+  }, [displayTopicData?.explanation?.detailed]);
+
+  // One render function shared across all three tabs — same Markdown
+  // component, same rules, same styles per section.
+  const renderMarkdownSection = useCallback(
+    ({ item }: { item: { key: string; body: string } }) => (
+      <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+        {item.body}
+      </Markdown>
+    ),
+    [markdownStyles, dictionaryMarkdownRules]
+  );
+  const sectionKeyExtractor = useCallback((item: { key: string; body: string }) => item.key, []);
+
+  // Inner-tab visibility — driven by activeTabProgress. Each tab is now
+  // its own absolute-positioned ScrollView (Bible pattern); only opacity
+  // and zIndex flip on the UI thread, no layout reflow. The previous
+  // maxHeight-collapse approach inside a shared ScrollView forced Yoga
+  // to re-measure the entire markdown subtree on every tab switch and
+  // was the root cause of the sloppy/teleport animations.
+  const localActiveTabProgress = useSharedValue<ContentTabType>(activeTab);
+  useEffect(() => {
+    if (activeTabProgress) return;
+    localActiveTabProgress.value = activeTab;
+  }, [activeTab, localActiveTabProgress, activeTabProgress]);
+  const effectiveTabProgress = activeTabProgress ?? localActiveTabProgress;
+  const summaryTabAnimStyle = useAnimatedStyle(() => {
+    'worklet';
+    const match = effectiveTabProgress.value === 'summary';
+    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+  });
+  const bylineTabAnimStyle = useAnimatedStyle(() => {
+    'worklet';
+    const match = effectiveTabProgress.value === 'byline';
+    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+  });
+  const detailedTabAnimStyle = useAnimatedStyle(() => {
+    'worklet';
+    const match = effectiveTabProgress.value === 'detailed';
+    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+  });
+
   // Loading state - show skeleton ONLY on initial mount when no data exists
   if (isTopicLoading && !displayTopicData) {
     return (
@@ -386,21 +594,12 @@ export function TopicPage({
 
   return (
     <View style={styles.container} testID={`topic-page-${topicId}`}>
-      {/* Bible References View */}
-      <ScrollView
-        ref={bibleScrollRef}
-        style={[
-          styles.container,
-          activeView !== 'bible' && {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            opacity: 0,
-            zIndex: -1,
-          },
-        ]}
+      {/* Bible References View — opacity flipped by toggleProgress on
+          the UI thread. Always absolute-fill so it overlaps the Insight
+          container at the same bounds; opacity decides which is visible. */}
+      <Animated.ScrollView
+        ref={bibleScrollRef as React.Ref<Animated.ScrollView>}
+        style={[styles.container, styles.absoluteFill, bibleContainerStyle]}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={true}
         testID={`topic-page-scroll-${topicId}-bible`}
@@ -481,56 +680,52 @@ export function TopicPage({
           </>
         )}
         <BottomLogo />
-      </ScrollView>
+      </Animated.ScrollView>
 
-      {/* Explanations View - Always render when user is in explanations view (even on buffer pages
-           during idle-deferred navigation). In bible view, only pre-render on active page after stagger delay. */}
-      {(activeView === 'explanations' || (!isPreloading && delayedRenderStage >= 1)) && (
-        <ScrollView
-          ref={explanationsScrollRef}
-          style={[
-            styles.container,
-            activeView !== 'explanations' && {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              opacity: 0,
-              zIndex: -1,
-            },
-          ]}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={true}
-          testID={`topic-page-scroll-${topicId}-explanations`}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
+      {/* Explanations View — opacity flipped by toggleProgress on the UI
+          thread. Always absolute-fill, overlapping Bible at the same
+          bounds. Mount gated on insightPrewarmed OR the legacy stage
+          tick — both only fire on the ACTIVE page (isPreloading=false),
+          so buffer pages skip the heavy markdown parse entirely.
+          Previously the `activeView === 'explanations'` condition
+          forced buffer pages to render the Insight subtree on every
+          swipe, producing 3+ second render blocks. */}
+      {/* Insight view — matches Bible ChapterPage's absolute-overlap
+          pattern. Each inner tab gets its own ScrollView, absolute-
+          positioned and overlapping at the same bounds. Switching tabs
+          is pure opacity flip on the UI thread via activeTabProgress —
+          no layout reflow (which was the source of the sloppy/teleport
+          animations under the previous maxHeight-collapse design). */}
+      {insightPrewarmed && (
+        <Animated.View
+          style={[styles.container, styles.absoluteFill, insightContainerStyle]}
           pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
         >
-          {/* Topic Title */}
-          <Text style={styles.topicTitle} accessibilityRole="header">
-            {topic?.name}
-          </Text>
-
-          {/* Topic Description */}
-          {topicDescription ? (
-            <Text style={styles.topicDescription}>{topicDescription}</Text>
-          ) : null}
-
-          {/* Render active explanation type */}
-          {/* Summary explanation */}
-          {(activeTab === 'summary' || delayedRenderStage >= 2) && (
-            <View
-              style={[styles.explanationContainer, activeTab !== 'summary' && { display: 'none' }]}
+          {visitedTabs.has('summary') && (
+            <Animated.View
+              style={[styles.absoluteFill, summaryTabAnimStyle]}
               testID="topic-explanation-summary"
+              pointerEvents={activeTab === 'summary' ? 'auto' : 'none'}
             >
-              {displayTopicData?.explanation?.summary &&
-              typeof displayTopicData.explanation.summary === 'string' ? (
-                <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
-                  {displayTopicData.explanation.summary.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
-                </Markdown>
+              {summarySections.length > 0 ? (
+                <FlatList
+                  ref={summaryScrollRef}
+                  style={styles.container}
+                  contentContainerStyle={styles.contentContainer}
+                  data={summarySections}
+                  keyExtractor={sectionKeyExtractor}
+                  renderItem={renderMarkdownSection}
+                  showsVerticalScrollIndicator={true}
+                  testID={`topic-page-scroll-${topicId}-summary`}
+                  onScroll={activeTab === 'summary' ? handleScroll : undefined}
+                  scrollEventThrottle={16}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                  initialNumToRender={3}
+                  maxToRenderPerBatch={2}
+                  windowSize={5}
+                  removeClippedSubviews
+                />
               ) : (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>
@@ -538,23 +733,39 @@ export function TopicPage({
                   </Text>
                 </View>
               )}
-            </View>
+            </Animated.View>
           )}
 
-          {/* Byline explanation */}
-          {(activeTab === 'byline' || delayedRenderStage >= 3) && (
-            <View
-              style={[styles.explanationContainer, activeTab !== 'byline' && { display: 'none' }]}
+          {visitedTabs.has('byline') && (
+            <Animated.View
+              style={[styles.absoluteFill, bylineTabAnimStyle]}
               testID="topic-explanation-byline"
+              pointerEvents={activeTab === 'byline' ? 'auto' : 'none'}
             >
-              {displayTopicData?.explanation?.byline &&
-              typeof displayTopicData.explanation.byline === 'string' ? (
-                <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
-                  {cleanupBylineReferences(displayTopicData.explanation.byline).replace(
-                    /#{1,6}\s*Summary\s*\n/gi,
-                    '\n'
-                  )}
-                </Markdown>
+              {bylineSections.length > 0 ? (
+                <FlatList
+                  ref={bylineScrollRef}
+                  style={styles.container}
+                  contentContainerStyle={styles.contentContainer}
+                  data={bylineSections}
+                  keyExtractor={sectionKeyExtractor}
+                  renderItem={renderMarkdownSection}
+                  showsVerticalScrollIndicator={true}
+                  testID={`topic-page-scroll-${topicId}-byline`}
+                  onScroll={activeTab === 'byline' ? handleScroll : undefined}
+                  scrollEventThrottle={16}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                  // Render only enough sections to fill the screen on first
+                  // mount; load more as the user scrolls. Topics with 30+
+                  // verses used to block ~3-5s on first byline tap; now it
+                  // renders the first ~3 sections instantly and streams
+                  // the rest in during scroll.
+                  initialNumToRender={3}
+                  maxToRenderPerBatch={2}
+                  windowSize={5}
+                  removeClippedSubviews
+                />
               ) : (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>
@@ -562,20 +773,34 @@ export function TopicPage({
                   </Text>
                 </View>
               )}
-            </View>
+            </Animated.View>
           )}
 
-          {/* Detailed explanation */}
-          {(activeTab === 'detailed' || delayedRenderStage >= 4) && (
-            <View
-              style={[styles.explanationContainer, activeTab !== 'detailed' && { display: 'none' }]}
+          {visitedTabs.has('detailed') && (
+            <Animated.View
+              style={[styles.absoluteFill, detailedTabAnimStyle]}
               testID="topic-explanation-detailed"
+              pointerEvents={activeTab === 'detailed' ? 'auto' : 'none'}
             >
-              {displayTopicData?.explanation?.detailed &&
-              typeof displayTopicData.explanation.detailed === 'string' ? (
-                <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
-                  {displayTopicData.explanation.detailed.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
-                </Markdown>
+              {detailedSections.length > 0 ? (
+                <FlatList
+                  ref={detailedScrollRef}
+                  style={styles.container}
+                  contentContainerStyle={styles.contentContainer}
+                  data={detailedSections}
+                  keyExtractor={sectionKeyExtractor}
+                  renderItem={renderMarkdownSection}
+                  showsVerticalScrollIndicator={true}
+                  testID={`topic-page-scroll-${topicId}-detailed`}
+                  onScroll={activeTab === 'detailed' ? handleScroll : undefined}
+                  scrollEventThrottle={16}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                  initialNumToRender={3}
+                  maxToRenderPerBatch={2}
+                  windowSize={5}
+                  removeClippedSubviews
+                />
               ) : (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>
@@ -583,9 +808,9 @@ export function TopicPage({
                   </Text>
                 </View>
               )}
-            </View>
+            </Animated.View>
           )}
-        </ScrollView>
+        </Animated.View>
       )}
 
       {/* Word Definition Tooltip — dictionary lookup on long-press */}
@@ -613,6 +838,13 @@ const createStyles = (colors: ReturnType<typeof getColors>) => {
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    absoluteFill: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
     },
     contentContainer: {
       flexGrow: 1,

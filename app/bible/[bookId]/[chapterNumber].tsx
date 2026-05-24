@@ -19,11 +19,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
+  interpolate,
+  interpolateColor,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -164,6 +175,54 @@ export default function ChapterScreen() {
   // Get active view from persistence
   const { activeView, setActiveView } = useActiveView();
 
+  // Transitions for view + tab switches. The actual state updates take
+  // ~300-500ms of JS-thread reconciliation because the chapter tree is
+  // heavy (markdown, highlight ranges, prewarmed insight subtree, etc).
+  // Marking them as transitions lets React keep the old content visible
+  // while the new tree reconciles in the background.
+  const [isViewPending, startViewTransition] = useTransition();
+  const [isTabPending, startTabTransition] = useTransition();
+
+  // Visual progress of the Bible → Insight swap, driven on the UI thread
+  // via Reanimated. 0 = Bible visible, 1 = Insight visible. Both the
+  // toggle pill (in ChapterHeader) AND the content container opacities
+  // (in ChapterPage) read this sharedValue via useAnimatedStyle, so a tap
+  // flips the entire UI on the UI thread without waiting for React
+  // reconciliation. The activeView React state still updates via
+  // startViewTransition so non-visual logic (pointerEvents, scroll
+  // handlers, deep-link sync) stays consistent — but the user-visible
+  // swap doesn't wait for it.
+  const toggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
+
+  // Shared visual progress for the inner Summary / By Line / Study /
+  // Visuals tab switch. Holds the active tab key (string) and is read
+  // by ChapterPage's per-tab Animated.View wrappers via useAnimatedStyle.
+  // Updated synchronously in handleTabChange so the swap is visible the
+  // same frame as the tap (no React reconciliation in the critical path).
+  const activeTabProgress = useSharedValue<typeof activeTab>(activeTab);
+
+  // Sync activeTabProgress to activeTab for non-tap paths (deep links,
+  // analytics-driven updates). Idempotent with the tap path.
+  useEffect(() => {
+    activeTabProgress.value = activeTab;
+  }, [activeTab, activeTabProgress]);
+
+  // Animated style for the ChapterContentTabs wrapper. The row collapses
+  // to height 0 on the Bible side and expands to its natural height on
+  // the Insight side, with the wrapper using overflow:hidden to clip the
+  // tabs during the transition. Reads toggleProgress on the UI thread so
+  // the row appears/disappears the same frame as the tap, matching the
+  // content opacity swap.
+  const tabsWrapperStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      // Cap is generous (tabs row is ~50-60dp); the inner content sets the
+      // actual rendered height, the cap just gates the collapse animation.
+      maxHeight: interpolate(toggleProgress.value, [0, 1], [0, 120]),
+      opacity: toggleProgress.value,
+    };
+  });
+
   // Track chapter reading duration (Time-Based Analytics)
   // Hook fires CHAPTER_READING_DURATION event on unmount with AppState awareness
   useChapterReadingDuration(bookId, chapterNumber, bibleVersion);
@@ -203,6 +262,17 @@ export default function ChapterScreen() {
       }
     }
   }, [params.tab, setActiveTab, activeView, setActiveView]);
+
+  // Sync toggleProgress to activeView for non-tap paths (deep links,
+  // modal-close-resets-to-bible, etc). The tap path drives toggleProgress
+  // synchronously in handleViewChange and is idempotent here — withTiming
+  // to the same target is a no-op.
+  useEffect(() => {
+    toggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
+      duration: 250,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [activeView, toggleProgress]);
 
   // Navigation modal state
   const [isNavigationModalOpen, setIsNavigationModalOpen] = useState(false);
@@ -304,20 +374,51 @@ export default function ChapterScreen() {
   // when bookId/chapterNumber change — no manual trigger needed.
 
   /**
-   * Handle view mode change with haptic feedback
+   * Handle view mode change with haptic feedback.
+   *
+   * Drives the visual swap on the UI thread via `toggleProgress` — both
+   * the toggle pill (in ChapterHeader) and the content container
+   * opacities (in ChapterPage) read this sharedValue, so the UI flips
+   * the same frame as the tap. React state catches up via transition.
    */
   const handleViewChange = useCallback(
     (view: ViewMode) => {
-      // Skip if already on this view
       if (view === activeView) return;
-
-      // Trigger haptic feedback (non-blocking)
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      // Update view immediately
-      setActiveView(view);
+      // UI-thread visual flip — happens this frame, no React work involved.
+      toggleProgress.value = withTiming(view === 'bible' ? 0 : 1, {
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+      });
+      // Bridge to React for non-visual state (pointerEvents, scroll
+      // handlers, deep-link sync). Wrapped in a transition so the heavy
+      // reconciliation doesn't block the tap.
+      startViewTransition(() => {
+        setActiveView(view);
+      });
     },
-    [activeView, setActiveView]
+    [activeView, setActiveView, toggleProgress]
+  );
+
+  /**
+   * Handle inner-tab change (Summary / By Line / Study / Visuals).
+   *
+   * Same pattern as handleViewChange: wrap the state update in a
+   * transition so the heavy markdown/render reconciliation doesn't block
+   * the tap, and use `isTabPending` to overlay a skeleton.
+   */
+  const handleTabChange = useCallback(
+    (tab: typeof activeTab) => {
+      if (tab === activeTab) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // UI-thread snap — the per-tab Animated.View wrappers in ChapterPage
+      // read this sharedValue and flip opacity the same frame as the tap.
+      activeTabProgress.value = tab;
+      startTabTransition(() => {
+        setActiveTab(tab);
+      });
+    },
+    [activeTab, setActiveTab, activeTabProgress]
   );
 
   /**
@@ -409,6 +510,8 @@ export default function ChapterScreen() {
           chapterNumber={pageChapterNumber}
           activeTab={activeTab}
           activeView={activeView}
+          toggleProgress={toggleProgress}
+          activeTabProgress={activeTabProgress}
           onScroll={handleScroll}
           onTap={handleTap}
           isPreloading={!isCurrent}
@@ -422,6 +525,8 @@ export default function ChapterScreen() {
     [
       activeTab,
       activeView,
+      toggleProgress,
+      activeTabProgress,
       handleScroll,
       handleTap,
       bookId,
@@ -443,6 +548,7 @@ export default function ChapterScreen() {
           bookName={bookName}
           chapterNumber={chapterNumber}
           activeView={activeView}
+          toggleProgress={toggleProgress}
           onNavigationPress={() => setIsNavigationModalOpen(true)}
           navigationModalVisible={isNavigationModalOpen}
           onViewChange={handleViewChange}
@@ -478,6 +584,7 @@ export default function ChapterScreen() {
           bookName={bookName}
           chapterNumber={chapterNumber}
           activeView={activeView}
+          toggleProgress={toggleProgress}
           onNavigationPress={() => setIsNavigationModalOpen(true)}
           navigationModalVisible={isNavigationModalOpen}
           onViewChange={handleViewChange}
@@ -556,7 +663,8 @@ export default function ChapterScreen() {
                   chapterNumber={chapterNumber}
                   bookName={chapter.bookName}
                   activeTab={activeTab}
-                  onTabChange={setActiveTab}
+                  onTabChange={handleTabChange}
+                  isTabPending={isTabPending}
                   onMenuPress={() => setIsMenuOpen(true)}
                   onScroll={handleScroll}
                   onTap={handleTap}
@@ -576,6 +684,7 @@ export default function ChapterScreen() {
               bookName={bookName}
               chapterNumber={chapterNumber}
               activeView={activeView}
+              toggleProgress={toggleProgress}
               onNavigationPress={() => {
                 setIsNavigationModalOpen(true);
               }}
@@ -588,27 +697,43 @@ export default function ChapterScreen() {
 
             {/* Content Tabs - Only visible in Explanations view. The
                 Visuals tab is gated on the book having curated visuals
-                (most books do — see @versemate/visuals registry). */}
-            <View style={activeView !== 'explanations' && { height: 0, overflow: 'hidden' }}>
+                (most books do — see @versemate/visuals registry). The
+                wrapper's height + opacity are driven by toggleProgress
+                on the UI thread so the row appears/disappears the same
+                frame as the Bible/Insight tap — no waiting for React. */}
+            <Animated.View
+              style={[styles.tabsWrapper, tabsWrapperStyle]}
+              pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
+            >
               <ChapterContentTabs
                 activeTab={activeTab}
-                onTabChange={setActiveTab}
+                activeTabProgress={activeTabProgress}
+                onTabChange={handleTabChange}
                 showStudy
                 showVisuals={bookHasVisuals(bookId)}
               />
-            </View>
+            </Animated.View>
 
             {/* SimpleChapterPager - V3 3-page window with linear navigation.
                 Uses deferred chapter so the heavy pager re-render (pages-array swap +
-                ChapterPage commits) doesn't block the urgent header update commit. */}
-            <SimpleChapterPager
-              bookId={deferredBookId}
-              chapterNumber={deferredChapterNumber}
-              bookName={bookName}
-              booksMetadata={booksMetadata}
-              onChapterChange={handlePageChange}
-              renderChapterPage={renderChapterPage}
-            />
+                ChapterPage commits) doesn't block the urgent header update commit.
+                The wrapper exists so the transition skeleton overlay below can be
+                absolutely positioned against the content area only — the toggle
+                header + content tabs above stay visible and interactive. */}
+            <View style={styles.pagerWrapper}>
+              <SimpleChapterPager
+                bookId={deferredBookId}
+                chapterNumber={deferredChapterNumber}
+                bookName={bookName}
+                booksMetadata={booksMetadata}
+                onChapterChange={handlePageChange}
+                renderChapterPage={renderChapterPage}
+              />
+              {/* Both view and inner-tab switches are now driven by
+                  sharedValues on the UI thread (toggleProgress +
+                  activeTabProgress in ChapterPage), so no skeleton
+                  overlay is needed during transitions. */}
+            </View>
 
             {/* Floating Action Buttons - V3: Disabled at boundaries */}
             <FloatingActionButtons
@@ -672,6 +797,12 @@ interface ChapterHeaderProps {
   bookName: string;
   chapterNumber: number;
   activeView: ViewMode;
+  /**
+   * Shared visual progress (0 = Bible, 1 = Insight). Owned by ChapterScreen
+   * and shared with ChapterPage so the toggle pill and content opacity flip
+   * on the UI thread in the same frame as the tap.
+   */
+  toggleProgress: SharedValue<number>;
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
@@ -682,6 +813,7 @@ function ChapterHeader({
   bookName,
   chapterNumber,
   activeView,
+  toggleProgress,
   onNavigationPress,
   onViewChange,
   onMenuPress,
@@ -693,18 +825,26 @@ function ChapterHeader({
   const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
 
-  // Animation for sliding toggle indicator (using Reanimated for native thread performance)
-  const toggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
   const [bibleButtonWidth, setBibleButtonWidth] = useState(0);
   const [insightButtonWidth, setInsightButtonWidth] = useState(0);
 
-  // Animate toggle indicator when activeView changes
-  useEffect(() => {
-    toggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
-      duration: 200,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [activeView, toggleProgress]);
+  // Animated text colors — driven by toggleProgress, independent of
+  // activeView prop reconciliation. Each button text interpolates
+  // between inactive and active color based on the indicator position.
+  const inactiveColor = headerSpecs.titleColor;
+  const activeColor = colors.black;
+  const bibleTextStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      color: interpolateColor(toggleProgress.value, [0, 1], [activeColor, inactiveColor]),
+    };
+  });
+  const insightTextStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      color: interpolateColor(toggleProgress.value, [0, 1], [inactiveColor, activeColor]),
+    };
+  });
 
   // Measure individual button widths
   const handleBibleLayout = (event: LayoutChangeEvent) => {
@@ -772,9 +912,7 @@ function ChapterHeader({
             accessibilityState={{ selected: activeView === 'bible' }}
             testID="bible-view-toggle"
           >
-            <Text style={[styles.toggleText, activeView === 'bible' && styles.toggleTextActive]}>
-              Bible
-            </Text>
+            <Animated.Text style={[styles.toggleText, bibleTextStyle]}>Bible</Animated.Text>
           </Pressable>
           <Pressable
             onPress={() => onViewChange('explanations')}
@@ -785,11 +923,7 @@ function ChapterHeader({
             accessibilityState={{ selected: activeView === 'explanations' }}
             testID="commentary-view-toggle"
           >
-            <Text
-              style={[styles.toggleText, activeView === 'explanations' && styles.toggleTextActive]}
-            >
-              Insight
-            </Text>
+            <Animated.Text style={[styles.toggleText, insightTextStyle]}>Insight</Animated.Text>
           </Pressable>
         </View>
 
@@ -905,6 +1039,26 @@ const createStyles = (
     container: {
       flex: 1,
       backgroundColor: colors.background, // Match content background to prevent flash during route updates
+    },
+    pagerWrapper: {
+      flex: 1,
+      position: 'relative',
+    },
+    // overflow:hidden so the maxHeight animation clips the tabs row
+    // when collapsing/expanding.
+    tabsWrapper: {
+      overflow: 'hidden',
+    },
+    // Opaque skeleton overlay used during view/tab transitions. Covers the
+    // pager only (chrome stays visible). Background matches the screen so
+    // the previous content is fully masked while reconciliation runs.
+    transitionSkeleton: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.background,
     },
     errorContainer: {
       flex: 1,

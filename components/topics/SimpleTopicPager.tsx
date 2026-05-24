@@ -6,7 +6,9 @@
  *
  * Architecture:
  * - 3-page window: [previous, current, next]
- * - Stable positional keys: ["page-prev", "page-current", "page-next"]
+ * - Topic-based keys: `topic-<uuid>` so the user's ScrollView instance
+ *   migrates between slots on swipe and keeps its scroll position
+ *   (the slot-based pattern teleports back to top — see `pages` memo below)
  * - Initial page is always index 1 (center/current)
  * - Props-driven repositioning via useEffect (no key-based remount)
  * - Matches SimpleChapterPager V3 pattern for consistent architecture
@@ -191,10 +193,20 @@ export function SimpleTopicPager({
    * No boundary pages needed for topics.
    */
   const pages = useMemo(() => {
-    // Handle case when topics not loaded or current topic not found
+    // Keys are topic-based, NOT slot-based ("page-prev/current/next").
+    // Why: after a swipe, React's pages-array shifts so the topic the
+    // user just swiped to ends up in a different slot (was at the right
+    // edge, now in the center). Slot-based keys would have React reuse
+    // the right-edge instance and mutate it to a different topic, then
+    // setPageWithoutAnimation moves the pager to a different instance
+    // with scroll=0 — that's the "teleport back to top" bug after
+    // swiping to a new topic and scrolling. Topic-based keys make React
+    // migrate the user's actual topic instance between slots, preserving
+    // its ScrollView/FlatList scroll position. Mirror of the fix on
+    // SimpleChapterPager.
     if (!sortedTopics || sortedTopics.length === 0 || currentIndex === -1) {
       return [
-        <View key="page-current" style={styles.page}>
+        <View key={`topic-${topicId}`} style={styles.page}>
           {renderTopicPage(topicId)}
         </View>,
       ];
@@ -203,7 +215,7 @@ export function SimpleTopicPager({
     // For a single topic, only render the current page
     if (sortedTopics.length === 1) {
       return [
-        <View key="page-current" style={styles.page}>
+        <View key={`topic-${topicId}`} style={styles.page}>
           {renderTopicPage(topicId)}
         </View>,
       ];
@@ -214,7 +226,7 @@ export function SimpleTopicPager({
     // Previous page (circular: always exists when >1 topics)
     if (prevTopicId) {
       result.push(
-        <View key="page-prev" style={styles.page}>
+        <View key={`topic-${prevTopicId}`} style={styles.page}>
           {renderTopicPage(prevTopicId)}
         </View>
       );
@@ -222,7 +234,7 @@ export function SimpleTopicPager({
 
     // Current page (always exists)
     result.push(
-      <View key="page-current" style={styles.page}>
+      <View key={`topic-${topicId}`} style={styles.page}>
         {renderTopicPage(topicId)}
       </View>
     );
@@ -230,7 +242,7 @@ export function SimpleTopicPager({
     // Next page (circular: always exists when >1 topics)
     if (nextTopicId) {
       result.push(
-        <View key="page-next" style={styles.page}>
+        <View key={`topic-${nextTopicId}`} style={styles.page}>
           {renderTopicPage(nextTopicId)}
         </View>
       );
