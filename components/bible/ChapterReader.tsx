@@ -182,6 +182,23 @@ interface ChapterReaderProps {
   filteredHighlights?: Highlight[];
   /** Optional filtered auto-highlights (overrides context auto-highlights) */
   filteredAutoHighlights?: AutoHighlight[];
+  /**
+   * Progressive-load limit for byline verse sections. When set, only the
+   * first N parsed verse sections render. Parent can ramp this up over
+   * time (e.g. via setInterval) so the first paint is fast for long
+   * chapters (Psalm 119 = 176 verses) and the rest of the sections
+   * mount in the background. Undefined = render all sections (default
+   * behavior).
+   */
+  maxBylineSections?: number;
+  /**
+   * Same idea but for the Bible-view section list (chapter.sections).
+   * Long chapters like Psalm 119 have ~22 sections of 8 verses each;
+   * paragraph-mode rendering of all of them at once is heavy on first
+   * paint. Parent ramps this up after initial mount so the first
+   * couple sections render immediately and the rest stream in.
+   */
+  maxBibleSections?: number;
 }
 
 /**
@@ -276,6 +293,8 @@ export function ChapterReader({
   onOpenNotes,
   filteredHighlights,
   filteredAutoHighlights,
+  maxBylineSections,
+  maxBibleSections,
 }: ChapterReaderProps) {
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
@@ -514,9 +533,15 @@ export function ChapterReader({
         </View>
       )}
 
-      {/* Render Bible verses (only in Bible view) */}
+      {/* Render Bible verses (only in Bible view). Sliced by
+          maxBibleSections so the parent can progressively reveal
+          sections — long chapters render the first couple immediately
+          and the rest mount in the background instead of all at once. */}
       {!explanationsOnly &&
-        chapter.sections.map((section) => (
+        (typeof maxBibleSections === 'number' && maxBibleSections < chapter.sections.length
+          ? chapter.sections.slice(0, Math.max(1, maxBibleSections))
+          : chapter.sections
+        ).map((section) => (
           <Fragment key={`section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`}>
             {/* Section Subtitle */}
             {section.subtitle ? (
@@ -769,7 +794,15 @@ export function ChapterReader({
                   if (sections.length === 0) {
                     return <Markdown style={markdownStyles}>{contentWithoutTitle}</Markdown>;
                   }
-                  return sections.map((section, index) => (
+                  // Progressive reveal: parent caps via maxBylineSections so
+                  // long chapters (e.g. Psalm 119 with 176 verses) don't
+                  // parse every Markdown subtree on first paint. Sections
+                  // beyond the cap mount as the parent ramps the prop up.
+                  const visible =
+                    typeof maxBylineSections === 'number' && maxBylineSections < sections.length
+                      ? sections.slice(0, Math.max(1, maxBylineSections))
+                      : sections;
+                  return visible.map((section, index) => (
                     <View
                       key={`byline-section-${section.verseNumber}-${index}`}
                       ref={(node) => onByLineSectionRegister(section.verseNumber, node)}
