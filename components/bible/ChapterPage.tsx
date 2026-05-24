@@ -1225,7 +1225,7 @@ export function ChapterPage({
       >
         <TextVisibilityContext.Provider value={textVisibilityContextValue}>
           <View style={styles.readerContainer} collapsable={false}>
-            {displayChapter ? (
+            {displayChapter && !isPreloading ? (
               <ChapterReader
                 chapter={displayChapter}
                 activeTab={activeTab}
@@ -1238,14 +1238,13 @@ export function ChapterPage({
                 maxBibleSections={bibleSectionsMax}
               />
             ) : (
-              // Skeleton only shows when chapter data isn't loaded yet
-              // (rare — prev/next chapters are prefetched). The previous
-              // `!isPreloading` gate forced ALL buffer pages through this
-              // path so the user saw a skeleton flash during every swipe;
-              // dropping the gate lets buffer pages render real content,
-              // which is cheap because maxBibleSections=3 keeps them at
-              // the initial 3 sections (the ramp only fires on the
-              // active page via the isPreloading guard on its useEffect).
+              // Buffer pages render this skeleton; the active page shows
+              // it briefly while chapter data loads. Removing the
+              // `!isPreloading` gate (tried in 2415153) caused regressions
+              // — putting it back. Distinct testID from chapter-screen-
+              // level skeleton so integration tests waiting for testID=
+              // "skeleton-loader" to disappear don't trip on the 2 buffer
+              // placeholders that are always visible in the 3-page pager.
               <SkeletonLoader testID="chapter-page-skeleton-buffer" />
             )}
           </View>
