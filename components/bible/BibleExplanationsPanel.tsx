@@ -241,10 +241,21 @@ export function BibleExplanationsPanel({
     // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of getTabIndex
   }, [activeTab, slideAnim, getTabIndex]);
 
-  // Fetch explanations based on active tab
+  // Fetch explanations based on active tab.
+  //
+  // Note: we destructure BOTH `isLoading` and `isPending`. `isLoading` is
+  // `isPending && isFetching` — it stays false during the synchronous
+  // render that flips `enabled` from false→true (the fetch is scheduled
+  // in an effect that runs AFTER render). That leaves a one-frame window
+  // where `data` is undefined AND `isLoading` is false, which used to
+  // render nothing → user sees a blank Insight tab on first switch from
+  // Bible (Andy 2026-05-24 repro: "typically on app startup"). Using
+  // `isPending` for the skeleton gate covers the gap — it's true the
+  // moment the query exists without data, regardless of fetch state.
   const {
     data: summaryData,
     isLoading: summaryLoading,
+    isPending: summaryPending,
     isLocalData: summaryIsLocal,
   } = useBibleSummary(bookId, chapterNumber, undefined, {
     enabled: activeTab === 'summary',
@@ -254,6 +265,7 @@ export function BibleExplanationsPanel({
   const {
     data: byLineData,
     isLoading: byLineLoading,
+    isPending: byLinePending,
     isLocalData: byLineIsLocal,
   } = useBibleByLine(bookId, chapterNumber, undefined, {
     enabled: activeTab === 'byline',
@@ -499,7 +511,10 @@ export function BibleExplanationsPanel({
             data: summaryContent,
             explanationId:
               summaryData && 'explanationId' in summaryData ? summaryData.explanationId : null,
-            loading: summaryLoading,
+            // OR with isPending so the skeleton covers the one-frame
+            // window where the query has just been enabled but the
+            // fetch hasn't kicked off yet. See destructure comment.
+            loading: summaryLoading || (activeTab === 'summary' && summaryPending),
             isLocal: summaryIsLocal,
           },
           {
@@ -509,7 +524,7 @@ export function BibleExplanationsPanel({
             data: byLineContent,
             explanationId:
               byLineData && 'explanationId' in byLineData ? byLineData.explanationId : null,
-            loading: byLineLoading,
+            loading: byLineLoading || (activeTab === 'byline' && byLinePending),
             isLocal: byLineIsLocal,
           },
         ] as const
