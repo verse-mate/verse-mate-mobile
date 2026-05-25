@@ -44,18 +44,18 @@ describe('Onboarding previews', () => {
     expect(render(<TopicsPreview />).getByText('Prophecies')).toBeTruthy();
   });
 
-  it('LexiconPreview renders the Greek definition card', () => {
+  it('LexiconPreview renders the Hebrew definition card', () => {
     const { getByText } = render(<LexiconPreview />);
-    expect(getByText('G2316')).toBeTruthy();
-    expect(getByText('θεός')).toBeTruthy();
+    expect(getByText('yom')).toBeTruthy();
+    expect(getByText('day')).toBeTruthy();
   });
 
-  it('InductivePreview renders the 9-step list', () => {
-    expect(render(<InductivePreview />).getByText('9 inductive steps')).toBeTruthy();
+  it('InductivePreview renders the observation steps', () => {
+    expect(render(<InductivePreview />).getByText('Begin with prayer')).toBeTruthy();
   });
 
-  it('VisualsPreview renders the video card', () => {
-    expect(render(<VisualsPreview />).getByText('Book Overview')).toBeTruthy();
+  it('VisualsPreview renders the visuals tab', () => {
+    expect(render(<VisualsPreview />).getByText('Visuals for Genesis 1')).toBeTruthy();
   });
 
   it('LanguagesPreview renders language chips', () => {
