@@ -21,6 +21,7 @@ import { recentlyViewedBooksHandlers } from './recently-viewed-books.handlers';
 import { topicsHandlers } from './topics.handlers';
 import { userPreferencesHandlers } from './user-preferences';
 import { verseHandlers } from './verses';
+import { versionPolicyHandlers } from './version-policy.handlers';
 
 // Combine all handlers
 // IMPORTANT: Bookmark, highlights, and notes handlers must come BEFORE bible handlers to prevent
@@ -38,6 +39,7 @@ export const handlers = [
   ...languagesHandlers, // Languages API handlers
   ...userPreferencesHandlers, // User preferences handlers
   ...topicsHandlers, // Topics API handlers
+  ...versionPolicyHandlers, // Version policy handlers
   ...bibleHandlers,
 ];
 
@@ -56,4 +58,5 @@ export {
   recentlyViewedBooksHandlers,
   topicsHandlers,
   userPreferencesHandlers,
+  versionPolicyHandlers,
 };
