@@ -43,7 +43,8 @@
     "skip": "Passer",
     "next": "Suivant",
     "get_started": "Commencer",
-    "login": "Se connecter"
+    "login": "Se connecter",
+    "start_reading": "Commencer la lecture"
   },
 
   "settings": {
