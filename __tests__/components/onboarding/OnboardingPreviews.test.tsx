@@ -12,11 +12,9 @@ import {
   LanguagesPreview,
   LevelsPreview,
   LexiconPreview,
-  SharePreview,
   TopicsPreview,
   VerseInsightPreview,
   VisualsPreview,
-  WelcomePreview,
 } from '@/components/onboarding/OnboardingPreviews';
 import { OnboardingSlide } from '@/components/onboarding/OnboardingSlide';
 
@@ -34,10 +32,6 @@ describe('OnboardingSlide', () => {
 });
 
 describe('Onboarding previews', () => {
-  it('WelcomePreview renders the reader mock', () => {
-    expect(render(<WelcomePreview />).getByText('Genesis 1')).toBeTruthy();
-  });
-
   it('VerseInsightPreview renders the insight card', () => {
     expect(render(<VerseInsightPreview />).getByText('Verse Insight')).toBeTruthy();
   });
@@ -48,10 +42,6 @@ describe('Onboarding previews', () => {
 
   it('TopicsPreview renders topic rows', () => {
     expect(render(<TopicsPreview />).getByText('Prophecies')).toBeTruthy();
-  });
-
-  it('SharePreview renders share actions', () => {
-    expect(render(<SharePreview />).getByText('Share')).toBeTruthy();
   });
 
   it('LexiconPreview renders the Greek definition card', () => {

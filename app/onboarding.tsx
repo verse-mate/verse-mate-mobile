@@ -19,11 +19,9 @@ import {
   LanguagesPreview,
   LevelsPreview,
   LexiconPreview,
-  SharePreview,
   TopicsPreview,
   VerseInsightPreview,
   VisualsPreview,
-  WelcomePreview,
 } from '@/components/onboarding/OnboardingPreviews';
 import { OnboardingSlide } from '@/components/onboarding/OnboardingSlide';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -49,13 +47,6 @@ type Slide = {
 // the very end.
 const slides: Slide[] = [
   {
-    key: 'welcome',
-    eyebrow: 'WELCOME TO VERSEMATE',
-    title: 'The Bible was meant to be understood',
-    body: 'Not just read. VerseMate opens Scripture with clear, faithful explanations — right alongside the text.',
-    Preview: WelcomePreview,
-  },
-  {
     key: 'verse-insight',
     eyebrow: 'ANY BOOK, ANY VERSE',
     title: 'Tap any verse for deeper insight',
@@ -75,13 +66,6 @@ const slides: Slide[] = [
     title: 'Explore the bigger story',
     body: 'Follow themes, prophecies, and events across the whole of Scripture by topic.',
     Preview: TopicsPreview,
-  },
-  {
-    key: 'share',
-    eyebrow: 'MAKE IT PERSONAL',
-    title: 'Make it personal, share it forward',
-    body: 'Save highlights and share Scripture and insights with the people you love.',
-    Preview: SharePreview,
   },
   {
     key: 'lexicon',

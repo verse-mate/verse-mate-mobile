@@ -13,7 +13,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps, ReactNode } from 'react';
-import { StyleSheet, Text, type TextStyle, View, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { useTheme } from '@/contexts/ThemeContext';
 import { SERIF_FONT } from './OnboardingSlide';
@@ -162,71 +162,7 @@ function SketchPlaceholder({ height }: { height: number }) {
 }
 
 // ============================================================================
-// 1 — Welcome (highlighted verses)
-// ============================================================================
-
-function VerseLine({
-  text,
-  highlight,
-  muted,
-}: {
-  text: string;
-  highlight?: string;
-  muted?: boolean;
-}) {
-  const { colors } = useTheme();
-  const base: TextStyle = {
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 6,
-    color: muted ? colors.textTertiary : colors.textPrimary,
-  };
-  return (
-    <Text style={highlight ? [base, { backgroundColor: highlight, borderRadius: 4 }] : base}>
-      {text}
-    </Text>
-  );
-}
-
-export function WelcomePreview() {
-  const { colors } = useTheme();
-  return (
-    <PreviewCard>
-      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textPrimary }}>Genesis 1</Text>
-      <Text
-        style={{
-          fontSize: 10,
-          color: colors.textTertiary,
-          textTransform: 'uppercase',
-          letterSpacing: 1,
-          marginTop: 2,
-          marginBottom: 12,
-        }}
-      >
-        The Creation
-      </Text>
-      <VerseLine
-        text="In the beginning God created the heavens and the earth."
-        highlight="rgba(176,80,70,0.28)"
-      />
-      <VerseLine
-        text="The earth was formless and void, and darkness was over the surface of the deep."
-        muted
-      />
-      <VerseLine
-        text="Then God said, “Let there be light”; and there was light."
-        highlight="rgba(58,120,180,0.30)"
-      />
-      <VerseLine
-        text="God called the light day, and the darkness He called night."
-        highlight={withAlpha(colors.gold, 0.32)}
-      />
-    </PreviewCard>
-  );
-}
-
-// ============================================================================
-// 2 — Verse Insight
+// 1 — Verse Insight
 // ============================================================================
 
 export function VerseInsightPreview() {
@@ -283,7 +219,7 @@ export function VerseInsightPreview() {
 }
 
 // ============================================================================
-// 3 — Levels (Summary / By Line / Detailed)
+// 2 — Levels (Summary / By Line / Detailed)
 // ============================================================================
 
 export function LevelsPreview() {
@@ -316,7 +252,7 @@ export function LevelsPreview() {
 }
 
 // ============================================================================
-// 4 — Topics
+// 3 — Topics
 // ============================================================================
 
 function TopicRow({ title, sub }: { title: string; sub: string }) {
@@ -351,38 +287,7 @@ export function TopicsPreview() {
 }
 
 // ============================================================================
-// 5 — Share
-// ============================================================================
-
-export function SharePreview() {
-  const { colors } = useTheme();
-  return (
-    <PreviewCard>
-      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
-        Genesis 1:1
-      </Text>
-      <Text
-        style={{
-          fontSize: 13,
-          fontStyle: 'italic',
-          color: colors.textSecondary,
-          marginTop: 4,
-          marginBottom: 14,
-        }}
-      >
-        “In the beginning God created the heavens and the earth.”
-      </Text>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <MiniActionButton icon="copy-outline" label="Copy" />
-        <MiniActionButton icon="share-social-outline" label="Share" />
-        <MiniActionButton icon="bookmark-outline" label="Save" />
-      </View>
-    </PreviewCard>
-  );
-}
-
-// ============================================================================
-// 6 — Greek & Hebrew lexicon definition (NEW)
+// 4 — Greek & Hebrew lexicon definition (NEW)
 // ============================================================================
 
 export function LexiconPreview() {
@@ -460,7 +365,7 @@ export function LexiconPreview() {
 }
 
 // ============================================================================
-// 7 — Inductive study method (NEW)
+// 5 — Inductive study method (NEW)
 // ============================================================================
 
 function InductiveStep({ n, label, open = false }: { n: number; label: string; open?: boolean }) {
@@ -538,7 +443,7 @@ export function InductivePreview() {
 }
 
 // ============================================================================
-// 8 — Visuals (NEW)
+// 6 — Visuals (NEW)
 // ============================================================================
 
 export function VisualsPreview() {
@@ -631,7 +536,7 @@ export function VisualsPreview() {
 }
 
 // ============================================================================
-// 9 — Multiple languages (relocated to the end)
+// 7 — Multiple languages (last screen)
 // ============================================================================
 
 export function LanguagesPreview() {
