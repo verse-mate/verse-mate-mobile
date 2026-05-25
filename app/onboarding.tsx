@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { type ComponentType, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +33,13 @@ import { colors as palette } from '@/theme/tokens';
 export const ONBOARDING_KEY = 'HAS_SEEN_ONBOARDING';
 /** Web-parity flag (mirrors verse-mate-web's `versemate-onboarding-seen`). */
 export const FEATURE_ONBOARDING_KEY = 'versemate-onboarding-seen';
+/** Tracks the latest "What's New" feature set an existing user has seen. */
+export const WHATS_NEW_KEY = 'versemate-whatsnew-seen';
+/** Bump this id whenever new feature cards are added, so existing users see them once. */
+export const WHATS_NEW_VERSION = 'greek-hebrew-inductive-visuals';
+
+/** Slide keys surfaced in "What's New" mode (the new features for existing users). */
+const WHATS_NEW_KEYS = ['lexicon', 'inductive', 'visuals'];
 
 type Slide = {
   key: string;
@@ -134,8 +141,14 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { isTablet } = useDeviceInfo();
 
+  // `?mode=whatsnew` (existing users after an app update) shows only the new
+  // feature cards; the default flow shows everything (new users / first run).
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const isWhatsNew = params.mode === 'whatsnew';
+  const activeSlides = isWhatsNew ? slides.filter((s) => WHATS_NEW_KEYS.includes(s.key)) : slides;
+
   const scrollOffset = useSharedValue(0);
-  const isLastPage = currentPage === slides.length - 1;
+  const isLastPage = currentPage === activeSlides.length - 1;
   const backgroundColor = mode === 'dark' ? colors.background : palette.light.bookBackground;
 
   useEffect(() => {
@@ -151,7 +164,7 @@ export default function OnboardingScreen() {
   };
 
   const handleNext = async () => {
-    if (currentPage < slides.length - 1) {
+    if (currentPage < activeSlides.length - 1) {
       pagerRef.current?.setPage(currentPage + 1);
     } else {
       await completeOnboarding('completed');
@@ -171,6 +184,7 @@ export default function OnboardingScreen() {
       await AsyncStorage.multiSet([
         [ONBOARDING_KEY, 'true'],
         [FEATURE_ONBOARDING_KEY, 'true'],
+        [WHATS_NEW_KEY, WHATS_NEW_VERSION],
       ]);
 
       // biome-ignore lint/suspicious/noExplicitAny: router.replace accepts specific strings but we pass a generic string
@@ -189,6 +203,13 @@ export default function OnboardingScreen() {
   return (
     <View style={[styles.container, { backgroundColor }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      {isWhatsNew && (
+        <View style={[styles.whatsNewHeader, { paddingTop: insets.top + 10 }]} pointerEvents="none">
+          <Text style={[styles.whatsNewText, { color: colors.gold }]}>
+            {t('onboarding.whats_new')}
+          </Text>
+        </View>
+      )}
       <PagerView
         style={styles.pagerView}
         initialPage={0}
@@ -196,7 +217,7 @@ export default function OnboardingScreen() {
         onPageSelected={(e) => setCurrentPage(e.nativeEvent.position)}
         onPageScroll={onPageScroll}
       >
-        {slides.map((slide) => (
+        {activeSlides.map((slide) => (
           <View
             key={slide.key}
             style={[styles.page, { paddingTop: insets.top + 16, paddingBottom: 188 }]}
@@ -215,7 +236,7 @@ export default function OnboardingScreen() {
 
       <View style={[styles.controls, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.pagination}>
-          {slides.map((slide, index) => (
+          {activeSlides.map((slide, index) => (
             <PaginationDot
               key={slide.key}
               index={index}
@@ -234,11 +255,13 @@ export default function OnboardingScreen() {
             >
               <Text style={styles.primaryButtonText}>{t('onboarding.start_reading')}</Text>
             </Pressable>
-            <Pressable onPress={handleLogin} style={styles.loginButton} testID="onboarding-login">
-              <Text style={[styles.loginText, { color: colors.textSecondary }]}>
-                {t('onboarding.login')}
-              </Text>
-            </Pressable>
+            {!isWhatsNew && (
+              <Pressable onPress={handleLogin} style={styles.loginButton} testID="onboarding-login">
+                <Text style={[styles.loginText, { color: colors.textSecondary }]}>
+                  {t('onboarding.login')}
+                </Text>
+              </Pressable>
+            )}
           </View>
         ) : (
           <View style={styles.navRow}>
@@ -269,6 +292,20 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  whatsNewHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  whatsNewText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
   pagerView: {
     flex: 1,
