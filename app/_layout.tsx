@@ -25,7 +25,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { InteractionManager, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
@@ -52,6 +52,8 @@ import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { ExpoAudioEngine } from '@/lib/audio/expoAudioEngine';
 import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
+import { UpgradePromptScreen } from '@/src/screens/UpgradePromptScreen';
+import { checkVersionPolicy } from '@/src/services/versionPolicy';
 import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
 import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
 import { ONBOARDING_KEY } from './onboarding';
@@ -110,6 +112,31 @@ function RootLayoutInner() {
   const router = useRouter();
   const segments = useSegments();
   const hasInitialized = useRef(false);
+  const [upgradeState, setUpgradeState] = useState<{
+    mustUpgrade: boolean;
+    appVersion: string;
+    minVersion: string;
+    dismissed: boolean;
+  }>({ mustUpgrade: false, appVersion: '', minVersion: '', dismissed: false });
+
+  // Check version policy on app startup (T8)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  useEffect(() => {
+    async function runVersionCheck() {
+      if (Platform.OS === 'web') return;
+      const appVersion = (await import('expo-constants')).default.expoConfig?.version ?? '0.0.0';
+      const result = await checkVersionPolicy(appVersion);
+      if (result.mustUpgrade) {
+        setUpgradeState({
+          mustUpgrade: true,
+          appVersion,
+          minVersion: result.minVersion,
+          dismissed: false,
+        });
+      }
+    }
+    runVersionCheck();
+  }, []);
 
   // Check onboarding status
   // biome-ignore lint/correctness/useExhaustiveDependencies: router.replace is stable but not typed as such
@@ -438,6 +465,13 @@ function RootLayoutInner() {
           />
         </Stack>
         <StatusBar style="auto" />
+        {upgradeState.mustUpgrade && !upgradeState.dismissed && (
+          <UpgradePromptScreen
+            appVersion={upgradeState.appVersion}
+            minVersion={upgradeState.minVersion}
+            onDismiss={() => setUpgradeState((prev) => ({ ...prev, dismissed: true }))}
+          />
+        )}
       </ThemeProvider>
     </AppErrorBoundary>
   );
