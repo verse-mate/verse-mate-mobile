@@ -115,22 +115,23 @@ function RootLayoutInner() {
   const hasInitialized = useRef(false);
   const [upgradeState, setUpgradeState] = useState<{
     mustUpgrade: boolean;
-    appVersion: string;
+    currentVersion: string;
     minVersion: string;
     dismissed: boolean;
-  }>({ mustUpgrade: false, appVersion: '', minVersion: '', dismissed: false });
+  }>({ mustUpgrade: false, currentVersion: '', minVersion: '', dismissed: false });
 
   // Check version policy on app startup (T8)
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
     async function runVersionCheck() {
       if (Platform.OS === 'web') return;
-      const appVersion = (await import('expo-constants')).default.expoConfig?.version ?? '0.0.0';
-      const result = await checkVersionPolicy(appVersion);
+      const currentVersion =
+        (await import('expo-constants')).default.expoConfig?.version ?? '0.0.0';
+      const result = await checkVersionPolicy(currentVersion);
       if (result.mustUpgrade) {
         setUpgradeState({
           mustUpgrade: true,
-          appVersion,
+          currentVersion,
           minVersion: result.minVersion,
           dismissed: false,
         });
@@ -484,7 +485,7 @@ function RootLayoutInner() {
         <StatusBar style="auto" />
         {upgradeState.mustUpgrade && !upgradeState.dismissed && (
           <UpgradePromptScreen
-            appVersion={upgradeState.appVersion}
+            currentVersion={upgradeState.currentVersion}
             minVersion={upgradeState.minVersion}
             onDismiss={() => setUpgradeState((prev) => ({ ...prev, dismissed: true }))}
           />
