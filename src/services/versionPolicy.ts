@@ -1,4 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { lt as semverLt } from 'semver';
+
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 
 const CACHE_KEY = 'VERSION_POLICY_CACHE';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -20,16 +23,6 @@ export interface VersionPolicyResult {
   minVersion: string;
   version: string;
   releaseNotes: string;
-}
-
-/** Compare two semver strings X.Y.Z. Returns true if a < b. */
-function semverLessThan(a: string, b: string): boolean {
-  const parsePart = (s: string) => s.split('.').map((n) => parseInt(n, 10) || 0);
-  const [aMajor, aMinor, aPatch] = parsePart(a);
-  const [bMajor, bMinor, bPatch] = parsePart(b);
-  if (aMajor !== bMajor) return aMajor < bMajor;
-  if (aMinor !== bMinor) return aMinor < bMinor;
-  return aPatch < bPatch;
 }
 
 async function fetchVersionPolicy(baseUrl: string): Promise<VersionPolicyResponse> {
@@ -69,11 +62,16 @@ async function setCachedPolicy(data: VersionPolicyResponse): Promise<void> {
 
 /**
  * Check the version policy against the running app version.
- * Returns mustUpgrade: true if appVersion < minVersion.
+ * Returns mustUpgrade: true if appVersion < minVersion (uses semver.lt).
  * Fails open (mustUpgrade: false) on any network or parse error.
+ * Fires version_policy_fetched analytics event with result: success|error.
  */
-export async function checkVersionPolicy(appVersion: string): Promise<VersionPolicyResult> {
+export async function checkVersionPolicy(currentVersion: string): Promise<VersionPolicyResult> {
   const baseUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
+  if (__DEV__ && !baseUrl) {
+    console.warn('[versionPolicy] EXPO_PUBLIC_API_URL is not set — version check will fail open');
+  }
+
   const failOpen: VersionPolicyResult = {
     mustUpgrade: false,
     minVersion: '0.0.0',
@@ -87,9 +85,19 @@ export async function checkVersionPolicy(appVersion: string): Promise<VersionPol
       policy = await fetchVersionPolicy(baseUrl);
       await setCachedPolicy(policy);
     }
-    const mustUpgrade = semverLessThan(appVersion, policy.minVersion);
+    const mustUpgrade = semverLt(currentVersion, policy.minVersion) ?? false;
+    analytics.track(AnalyticsEvent.VERSION_POLICY_FETCHED, {
+      result: 'success',
+      currentVersion,
+      minVersion: policy.minVersion,
+    });
     return { mustUpgrade, ...policy };
   } catch {
+    analytics.track(AnalyticsEvent.VERSION_POLICY_FETCHED, {
+      result: 'error',
+      currentVersion,
+      minVersion: '0.0.0',
+    });
     return failOpen;
   }
 }

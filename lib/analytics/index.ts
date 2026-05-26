@@ -50,6 +50,7 @@ export {
   type UpgradePromptCtaTappedProperties,
   type UpgradePromptDismissedProperties,
   type UpgradePromptShownProperties,
+  type VersionPolicyFetchedProperties,
   type VersemateTooltipOpenedProperties,
   type ViewModeSwitchedProperties,
 } from './types';

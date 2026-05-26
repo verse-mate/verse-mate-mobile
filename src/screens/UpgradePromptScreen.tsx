@@ -10,16 +10,20 @@ import { AnalyticsEvent, analytics } from '@/lib/analytics';
 const APPLE_STORE_ID = 'REPLACE_ME';
 
 const ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=org.versemate.app';
-const IOS_STORE_URL = `https://apps.apple.com/app/id${APPLE_STORE_ID}`;
+// Falls back to App Store search if the store ID placeholder hasn't been replaced yet
+const IOS_STORE_URL =
+  APPLE_STORE_ID === 'REPLACE_ME'
+    ? 'https://apps.apple.com/search?term=VerseMate'
+    : `https://apps.apple.com/app/id${APPLE_STORE_ID}`;
 
 interface UpgradePromptScreenProps {
-  appVersion: string;
+  currentVersion: string;
   minVersion: string;
   onDismiss: () => void;
 }
 
 export function UpgradePromptScreen({
-  appVersion,
+  currentVersion,
   minVersion,
   onDismiss,
 }: UpgradePromptScreenProps) {
@@ -27,16 +31,14 @@ export function UpgradePromptScreen({
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    analytics.track(AnalyticsEvent.UPGRADE_PROMPT_SHOWN, { appVersion, minVersion });
+    analytics.track(AnalyticsEvent.UPGRADE_PROMPT_SHOWN, { currentVersion, minVersion });
     AccessibilityInfo.announceForAccessibility(
       'An update is available for Verse Mate. Tap Update Now to upgrade or Maybe Later to continue.'
     );
-  }, [appVersion, minVersion]);
+  }, [currentVersion, minVersion]);
 
   const handleUpdateNow = () => {
     analytics.track(AnalyticsEvent.UPGRADE_PROMPT_CTA_TAPPED, {
-      appVersion,
-      minVersion,
       platform: Platform.OS === 'ios' ? 'ios' : 'android',
     });
     const url = Platform.OS === 'ios' ? IOS_STORE_URL : ANDROID_STORE_URL;
@@ -44,7 +46,7 @@ export function UpgradePromptScreen({
   };
 
   const handleMaybeLater = () => {
-    analytics.track(AnalyticsEvent.UPGRADE_PROMPT_DISMISSED, { appVersion, minVersion });
+    analytics.track(AnalyticsEvent.UPGRADE_PROMPT_DISMISSED, { currentVersion, minVersion });
     onDismiss();
   };
 

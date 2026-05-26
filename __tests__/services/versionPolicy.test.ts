@@ -3,6 +3,16 @@ import { checkVersionPolicy } from '@/src/services/versionPolicy';
 
 process.env.EXPO_PUBLIC_API_URL = 'http://localhost:4000';
 
+jest.mock('@/lib/analytics', () => ({
+  analytics: { track: jest.fn() },
+  AnalyticsEvent: {
+    VERSION_POLICY_FETCHED: 'version_policy_fetched',
+    UPGRADE_PROMPT_SHOWN: 'upgrade_prompt_shown',
+    UPGRADE_PROMPT_CTA_TAPPED: 'upgrade_prompt_cta_tapped',
+    UPGRADE_PROMPT_DISMISSED: 'upgrade_prompt_dismissed',
+  },
+}));
+
 function makeResponse(body: object, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -15,7 +25,6 @@ let fetchSpy: jest.SpyInstance;
 
 beforeEach(async () => {
   await AsyncStorage.clear();
-  // Spy after MSW has wrapped global.fetch so we intercept at the right layer
   fetchSpy = jest.spyOn(global, 'fetch');
 });
 
@@ -25,7 +34,7 @@ afterEach(() => {
 
 describe('checkVersionPolicy', () => {
   describe('mustUpgrade determination', () => {
-    it('returns mustUpgrade: true when appVersion < minVersion', async () => {
+    it('returns mustUpgrade: true when currentVersion < minVersion', async () => {
       fetchSpy.mockResolvedValueOnce(
         makeResponse({ minVersion: '2.0.0', version: '2.0.0', releaseNotes: 'Breaking changes' })
       );
@@ -36,7 +45,7 @@ describe('checkVersionPolicy', () => {
       expect(result.minVersion).toBe('2.0.0');
     });
 
-    it('returns mustUpgrade: false when appVersion equals minVersion', async () => {
+    it('returns mustUpgrade: false when currentVersion equals minVersion', async () => {
       fetchSpy.mockResolvedValueOnce(
         makeResponse({ minVersion: '1.5.0', version: '1.5.0', releaseNotes: '' })
       );
@@ -46,7 +55,7 @@ describe('checkVersionPolicy', () => {
       expect(result.mustUpgrade).toBe(false);
     });
 
-    it('returns mustUpgrade: false when appVersion > minVersion', async () => {
+    it('returns mustUpgrade: false when currentVersion > minVersion', async () => {
       fetchSpy.mockResolvedValueOnce(
         makeResponse({ minVersion: '1.0.0', version: '2.0.0', releaseNotes: '' })
       );
@@ -54,6 +63,26 @@ describe('checkVersionPolicy', () => {
       const result = await checkVersionPolicy('2.1.0');
 
       expect(result.mustUpgrade).toBe(false);
+    });
+
+    it('handles prerelease correctly: 3.6.1-rc.1 < 3.6.1', async () => {
+      fetchSpy.mockResolvedValueOnce(
+        makeResponse({ minVersion: '3.6.1', version: '3.6.1', releaseNotes: '' })
+      );
+
+      const result = await checkVersionPolicy('3.6.1-rc.1');
+
+      expect(result.mustUpgrade).toBe(true);
+    });
+
+    it('handles double-digit minor: 3.9.0 < 3.10.0', async () => {
+      fetchSpy.mockResolvedValueOnce(
+        makeResponse({ minVersion: '3.10.0', version: '3.10.0', releaseNotes: '' })
+      );
+
+      const result = await checkVersionPolicy('3.9.0');
+
+      expect(result.mustUpgrade).toBe(true);
     });
   });
 
