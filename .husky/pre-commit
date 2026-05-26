@@ -1,2 +1,2 @@
 bun lint-staged
-node --max-old-space-size=4096 ./node_modules/.bin/tsc --noEmit --skipLibCheck --incremental --tsBuildInfoFile .tsbuildinfo
+bun tsc --noEmit --skipLibCheck

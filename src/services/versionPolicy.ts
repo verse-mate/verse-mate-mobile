@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { lt as semverLt } from 'semver';
 
+import { client } from '@/src/api/generated/client.gen';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 
 const CACHE_KEY = 'VERSION_POLICY_CACHE';
@@ -25,15 +26,16 @@ export interface VersionPolicyResult {
   releaseNotes: string;
 }
 
-async function fetchVersionPolicy(baseUrl: string): Promise<VersionPolicyResponse> {
+async function fetchVersionPolicy(): Promise<VersionPolicyResponse> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(`${baseUrl}/api/version-policy`, {
+    const { data, error } = await client.get<{ 200: VersionPolicyResponse }, unknown, false>({
+      url: '/api/version-policy',
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return (await response.json()) as VersionPolicyResponse;
+    if (error || !data) throw new Error('Version policy fetch failed');
+    return data;
   } finally {
     clearTimeout(timeoutId);
   }
@@ -67,11 +69,6 @@ async function setCachedPolicy(data: VersionPolicyResponse): Promise<void> {
  * Fires version_policy_fetched analytics event with result: success|error.
  */
 export async function checkVersionPolicy(currentVersion: string): Promise<VersionPolicyResult> {
-  const baseUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
-  if (__DEV__ && !baseUrl) {
-    console.warn('[versionPolicy] EXPO_PUBLIC_API_URL is not set — version check will fail open');
-  }
-
   const failOpen: VersionPolicyResult = {
     mustUpgrade: false,
     minVersion: '0.0.0',
@@ -82,7 +79,7 @@ export async function checkVersionPolicy(currentVersion: string): Promise<Versio
   try {
     let policy = await getCachedPolicy();
     if (!policy) {
-      policy = await fetchVersionPolicy(baseUrl);
+      policy = await fetchVersionPolicy();
       await setCachedPolicy(policy);
     }
     const mustUpgrade = semverLt(currentVersion, policy.minVersion) ?? false;
