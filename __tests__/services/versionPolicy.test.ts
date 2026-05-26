@@ -14,10 +14,18 @@ jest.mock('@/lib/analytics', () => ({
 }));
 
 function makeResponse(body: object, status = 200): Response {
+  const bodyStr = JSON.stringify(body);
   return {
     ok: status >= 200 && status < 300,
     status,
     json: () => Promise.resolve(body),
+    text: () => Promise.resolve(bodyStr),
+    headers: {
+      get: (name: string) => {
+        if (name.toLowerCase() === 'content-type') return 'application/json';
+        return null;
+      },
+    },
   } as unknown as Response;
 }
 

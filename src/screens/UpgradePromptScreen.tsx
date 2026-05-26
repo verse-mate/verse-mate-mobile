@@ -6,15 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 
-// TODO: replace APPLE_STORE_ID constant with real App Store Connect ID
-const APPLE_STORE_ID = 'REPLACE_ME';
+const APPLE_STORE_ID = '6756897180';
 
 const ANDROID_STORE_URL = 'https://play.google.com/store/apps/details?id=org.versemate.app';
-// Falls back to App Store search if the store ID placeholder hasn't been replaced yet
-const IOS_STORE_URL =
-  APPLE_STORE_ID === 'REPLACE_ME'
-    ? 'https://apps.apple.com/search?term=VerseMate'
-    : `https://apps.apple.com/app/id${APPLE_STORE_ID}`;
+const IOS_STORE_URL = `https://apps.apple.com/app/id${APPLE_STORE_ID}`;
 
 interface UpgradePromptScreenProps {
   currentVersion: string;
