@@ -57,6 +57,12 @@ export enum AnalyticsEvent {
   AUDIO_PLAYBACK_COMPLETED = 'AUDIO_PLAYBACK_COMPLETED',
   AUDIO_PLAYBACK_SEEK = 'AUDIO_PLAYBACK_SEEK',
   AUDIO_SPEED_CHANGED = 'AUDIO_SPEED_CHANGED',
+
+  // Force Upgrade Events (VER-177)
+  VERSION_POLICY_FETCHED = 'version_policy_fetched',
+  UPGRADE_PROMPT_SHOWN = 'upgrade_prompt_shown',
+  UPGRADE_PROMPT_CTA_TAPPED = 'upgrade_prompt_cta_tapped',
+  UPGRADE_PROMPT_DISMISSED = 'upgrade_prompt_dismissed',
 }
 
 // ============================================================================
@@ -307,6 +313,30 @@ export interface AudioSpeedChangedProperties {
 }
 
 // ============================================================================
+// Force Upgrade Event Properties (VER-177)
+// ============================================================================
+
+export interface VersionPolicyFetchedProperties {
+  result: 'success' | 'error';
+  currentVersion: string;
+  minVersion: string;
+}
+
+export interface UpgradePromptShownProperties {
+  currentVersion: string;
+  minVersion: string;
+}
+
+export interface UpgradePromptCtaTappedProperties {
+  platform: 'ios' | 'android';
+}
+
+export interface UpgradePromptDismissedProperties {
+  currentVersion: string;
+  minVersion: string;
+}
+
+// ============================================================================
 // Event Properties Type Map
 // ============================================================================
 
@@ -348,6 +378,11 @@ export interface EventProperties {
   [AnalyticsEvent.AUDIO_PLAYBACK_COMPLETED]: AudioPlaybackCompletedProperties;
   [AnalyticsEvent.AUDIO_PLAYBACK_SEEK]: AudioPlaybackSeekProperties;
   [AnalyticsEvent.AUDIO_SPEED_CHANGED]: AudioSpeedChangedProperties;
+  // Force Upgrade Events (VER-177)
+  [AnalyticsEvent.VERSION_POLICY_FETCHED]: VersionPolicyFetchedProperties;
+  [AnalyticsEvent.UPGRADE_PROMPT_SHOWN]: UpgradePromptShownProperties;
+  [AnalyticsEvent.UPGRADE_PROMPT_CTA_TAPPED]: UpgradePromptCtaTappedProperties;
+  [AnalyticsEvent.UPGRADE_PROMPT_DISMISSED]: UpgradePromptDismissedProperties;
 }
 
 // ============================================================================

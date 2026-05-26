@@ -47,6 +47,10 @@ export {
   type SignupCompletedProperties,
   type TopicSharedProperties,
   type UserProperties,
+  type UpgradePromptCtaTappedProperties,
+  type UpgradePromptDismissedProperties,
+  type UpgradePromptShownProperties,
+  type VersionPolicyFetchedProperties,
   type VersemateTooltipOpenedProperties,
   type ViewModeSwitchedProperties,
 } from './types';
