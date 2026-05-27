@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { lt as semverLt } from 'semver';
-
-import { client } from '@/src/api/generated/client.gen';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { client } from '@/src/api/generated/client.gen';
 
 const CACHE_KEY = 'VERSION_POLICY_CACHE';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes

@@ -331,6 +331,11 @@ export const useBibleChapterExplanation = (
   // Query serves from memory without re-running queryFn, so the flag would go
   // stale after auto-cache writes.
   const [hasLocalExplanation, setHasLocalExplanation] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `query.data` is an
+  // intentional re-fire trigger per BUG-008 (Andy 2026-05-02). The effect
+  // doesn't read `query.data` directly but must re-run the SQLite probe each
+  // time the remote response settles so the "Available offline" badge reflects
+  // rows that the queryFn auto-cached after fetch.
   useEffect(() => {
     if (!explanationType || bookId <= 0 || chapterNumber <= 0) {
       setHasLocalExplanation(false);
