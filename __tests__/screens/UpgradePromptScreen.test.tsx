@@ -46,8 +46,19 @@ jest.mock('@/src/services/versionPolicy');
 
 const mockCheckVersionPolicy = checkVersionPolicy as jest.MockedFunction<typeof checkVersionPolicy>;
 
+// `Platform.OS` gets re-defined in each platform-specific test. Snapshot the
+// original value once so we can restore it between tests.
+const ORIGINAL_PLATFORM_OS = Platform.OS;
+
 beforeEach(() => {
   jest.clearAllMocks();
+});
+
+afterEach(() => {
+  Object.defineProperty(Platform, 'OS', {
+    value: ORIGINAL_PLATFORM_OS,
+    configurable: true,
+  });
 });
 
 // ─── T7: UpgradePromptScreen component ───────────────────────────────────────
@@ -63,7 +74,11 @@ describe('UpgradePromptScreen', () => {
   });
 
   it('"Update Now" opens Play Store URL on Android', () => {
-    jest.spyOn(Platform, 'OS', 'get').mockReturnValue('android');
+    // `Platform.OS` is a plain value (not a getter) under jest-expo, so
+    // `jest.spyOn(Platform, 'OS', 'get')` errors with "Property `OS` does
+    // not have access type get". Re-define it directly; afterEach restores
+    // the original snapshot.
+    Object.defineProperty(Platform, 'OS', { value: 'android', configurable: true });
 
     render(<UpgradePromptScreen currentVersion="1.5.0" minVersion="2.0.0" onDismiss={jest.fn()} />);
 
@@ -75,7 +90,7 @@ describe('UpgradePromptScreen', () => {
   });
 
   it('"Update Now" opens App Store URL on iOS', () => {
-    jest.spyOn(Platform, 'OS', 'get').mockReturnValue('ios');
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
 
     render(<UpgradePromptScreen currentVersion="1.5.0" minVersion="2.0.0" onDismiss={jest.fn()} />);
 
