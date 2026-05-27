@@ -21,12 +21,7 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
-import {
-  type AlignedToken,
-  type ChapterAlignment,
-  type LexEntry,
-  loadAlignmentFor,
-} from '@versemate/lexicon';
+import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type NativeSyntheticEvent,
@@ -49,6 +44,7 @@ import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityCo
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import {
   fontSizes,
   fontWeights,
@@ -199,6 +195,21 @@ interface ChapterReaderProps {
    * couple sections render immediately and the rest stream in.
    */
   maxBibleSections?: number;
+  /**
+   * Bible version the chapter was fetched for. Drives the lexicon source:
+   * English versions (NASB1995/KJV) use the bundled `@versemate/lexicon`
+   * package; non-English versions fetch Strong's tokens from the chapter
+   * endpoint (`?tagged=1`) and resolve lemma cards via `/lemma` on tap.
+   * Optional — falls back to English when omitted (backward-compatible).
+   */
+  bibleVersion?: string;
+  /**
+   * Per-version language code (e.g. `es`, `de`) for the `/lemma?lang=`
+   * fetch on tap. Matches `bible_versions.language_code`; the picker on
+   * mobile stores this in `constants/bible-versions.ts`. Ignored for
+   * English (the bundled lexicon supplies the popover content).
+   */
+  bibleLanguage?: string;
 }
 
 /**
@@ -295,6 +306,8 @@ export function ChapterReader({
   filteredAutoHighlights,
   maxBylineSections,
   maxBibleSections,
+  bibleVersion,
+  bibleLanguage,
 }: ChapterReaderProps) {
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
@@ -341,22 +354,22 @@ export function ChapterReader({
     return groupConsecutiveHighlights(chapterHighlights);
   }, [chapterHighlights]);
 
-  // Chapter-aligned Greek/Hebrew lexicon. `loadAlignmentFor` returns null
-  // for chapters with no alignment (e.g. before the ingest runs on a new
-  // book) — in that case no words get the dotted underline and tap falls
-  // through to the regular verse-insight handler. Long-press always goes
-  // to native text selection in this screen now.
-  const [alignment, setAlignment] = useState<ChapterAlignment | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    setAlignment(null);
-    loadAlignmentFor(chapter.bookId, chapter.chapterNumber).then((a) => {
-      if (!cancelled) setAlignment(a);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [chapter.bookId, chapter.chapterNumber]);
+  // Chapter alignment: English (NASB1995/KJV) uses the bundled
+  // `@versemate/lexicon` package's `loadAlignmentFor`; non-English versions
+  // fetch the chapter with `?tagged=1` and adapt API tokens to the same
+  // `ChapterAlignment` shape. Both paths return null when no alignment is
+  // available (English: no curated alignment for that chapter; non-English:
+  // offline or fetch failed), and the rest of this component already
+  // handles the null case — no dotted underlines, tap falls through to
+  // the regular verse-insight handler. Long-press still goes to native
+  // text selection in this screen.
+  const alignment = useChapterAlignment(chapter.bookId, chapter.chapterNumber, bibleVersion);
+
+  // True when the popover should fetch the real lemma card from `/lemma`
+  // instead of relying on the bundled `LexEntry`. Computed once per render
+  // — same for every tap in this chapter — so the popover doesn't recompute
+  // on every keystroke.
+  const lemmaApiLang = !isEnglishVersion(bibleVersion) && bibleLanguage ? bibleLanguage : undefined;
 
   const [lexiconActive, setLexiconActive] = useState<{
     surface: string;
@@ -847,6 +860,7 @@ export function ChapterReader({
           entry={lexiconActive.entry}
           token={lexiconActive.token}
           isTheme={lexiconActive.isTheme}
+          apiLang={lemmaApiLang}
         />
       )}
     </View>
