@@ -51,6 +51,7 @@ import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { bookHasVisuals, VisualsPanel } from '@/components/bible/VisualsPanel';
 import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
+import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
@@ -59,6 +60,7 @@ import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
@@ -139,6 +141,8 @@ function TabContent({
   onTabContentSizeChange,
   isAvailableOffline,
   onByLineSectionRegister,
+  bibleVersion,
+  bibleLanguage,
 }: {
   chapter: ChapterContent | null | undefined;
   activeTab: ContentTabType;
@@ -157,6 +161,9 @@ function TabContent({
   onTabContentSizeChange?: (contentWidth: number, contentHeight: number) => void;
   isAvailableOffline?: boolean;
   onByLineSectionRegister?: (verseNumber: number, node: View | null) => void;
+  /** Threaded through to ChapterReader — see ChapterReaderProps. */
+  bibleVersion?: string;
+  bibleLanguage?: string;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -289,6 +296,8 @@ function TabContent({
               filteredAutoHighlights={filteredAutoHighlights}
               onByLineSectionRegister={activeTab === 'byline' ? onByLineSectionRegister : undefined}
               maxBylineSections={activeTab === 'byline' ? bylineMax : undefined}
+              bibleVersion={bibleVersion}
+              bibleLanguage={bibleLanguage}
             />
           )}
         </View>
@@ -438,6 +447,17 @@ export function ChapterPage({
   // Get current language from user preferences, with offline support
   // usePreferredLanguage reads from AsyncStorage when the user changes language offline
   const language = usePreferredLanguage();
+
+  // Bible version drives the lexicon source for `ChapterReader`: English
+  // versions (NASB1995/KJV) use the bundled `@versemate/lexicon`; non-English
+  // fetch Strong's tokens via `?tagged=1` and resolve lemma cards via
+  // `/lemma`. The bare ISO language code (es, de, …) is what `/lemma?lang=`
+  // expects; pulled off the same picker constant the Settings UI consumes.
+  const { bibleVersion } = useBibleVersion();
+  const bibleLanguage = useMemo(
+    () => bibleVersions.find((v) => v.key === bibleVersion)?.language,
+    [bibleVersion]
+  );
   // Text visibility tracking for hybrid tokenization
   // Use state with debouncing to avoid re-renders on every scroll frame
   const [visibleYRange, setVisibleYRange] = useState<VisibleYRange | null>(null);
@@ -1113,6 +1133,8 @@ export function ChapterPage({
                 onTabContentSizeChange={(_w, h) =>
                   handleTabContentSizeChange('summary', h, viewportHeightRef.current)
                 }
+                bibleVersion={bibleVersion}
+                bibleLanguage={bibleLanguage}
               />
             </Animated.View>
           )}
@@ -1142,6 +1164,8 @@ export function ChapterPage({
                   handleTabContentSizeChange('byline', h, viewportHeightRef.current)
                 }
                 onByLineSectionRegister={handleByLineSectionRegister}
+                bibleVersion={bibleVersion}
+                bibleLanguage={bibleLanguage}
               />
             </Animated.View>
           )}
@@ -1236,6 +1260,8 @@ export function ChapterPage({
                 filteredHighlights={chapterHighlights}
                 filteredAutoHighlights={autoHighlights}
                 maxBibleSections={bibleSectionsMax}
+                bibleVersion={bibleVersion}
+                bibleLanguage={bibleLanguage}
               />
             ) : (
               // Buffer pages render this skeleton; the active page shows

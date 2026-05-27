@@ -833,11 +833,11 @@
 
     "@versemate/dotted-underline-text": ["@versemate/dotted-underline-text@file:modules/dotted-underline-text", {}],
 
-    "@versemate/lexicon": ["@versemate/lexicon@github:verse-mate/verse-mate-lexicon#d16f2e0", {}, "verse-mate-verse-mate-lexicon-d16f2e0", "sha512-bZsFJJTpTGa5BkWWCKT846cVfr7mVHj8Z0WDLGySJYLWfp3AcOpCKj9qr9O1SkR/UGgxYJ2mdaQ5T8ugIlcDrA=="],
+    "@versemate/lexicon": ["@versemate/lexicon@github:verse-mate/verse-mate-lexicon#d16f2e0", {}, "verse-mate-verse-mate-lexicon-d16f2e0"],
 
     "@versemate/studies": ["@versemate/studies@github:verse-mate/verse-mate-studies#d9dadca", {}, "verse-mate-verse-mate-studies-d9dadca"],
 
-    "@versemate/visuals": ["@versemate/visuals@github:verse-mate/verse-mate-visuals#fa6d815", {}, "verse-mate-verse-mate-visuals-fa6d815", "sha512-ufV5BXIwQnfLfk5SvcU/zzVuKMguXkW3E23VkyFsiU2uZHxaIj4meqO9t015vYF2802KPrLvy795dg0VrZcG1A=="],
+    "@versemate/visuals": ["@versemate/visuals@github:verse-mate/verse-mate-visuals#fa6d815", {}, "verse-mate-verse-mate-visuals-fa6d815"],
 
     "@vitest/expect": ["@vitest/expect@3.2.4", "", { "dependencies": { "@types/chai": "^5.2.2", "@vitest/spy": "3.2.4", "@vitest/utils": "3.2.4", "chai": "^5.2.0", "tinyrainbow": "^2.0.0" } }, "sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig=="],
 

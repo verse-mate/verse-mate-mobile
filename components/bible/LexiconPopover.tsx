@@ -27,10 +27,11 @@ import {
   BottomSheetScrollView,
   useBottomSheetSpringConfigs,
 } from '@gorhom/bottom-sheet';
-import type { AlignedToken, LexEntry } from '@versemate/lexicon';
+import type { AlignedToken, LexEntry, RelatedWord } from '@versemate/lexicon';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { type LemmaCard, useLemma } from '@/hooks/use-lemma';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 
 // Hebrew + Aramaic Unicode block — RTL render for `<Text>` containing
@@ -50,20 +51,84 @@ export interface LexiconPopoverProps {
   token: AlignedToken;
   /** Whether this lemma is in the chapter's themeLemmas list. */
   isTheme?: boolean;
+  /**
+   * When set, the popover treats `entry` as a stub (synthesized from the
+   * chapter endpoint's `?tagged=1` tokens) and resolves the real card via
+   * `useLemma()` against the backend `/lemma` endpoint in this language.
+   * Used for non-English Bibles, where the bundled `@versemate/lexicon`
+   * has no entries.
+   */
+  apiLang?: string;
   testID?: string;
+}
+
+/**
+ * Adapt the backend's snake_case `LemmaCard` shape to the bundled
+ * `@versemate/lexicon` `LexEntry` shape the popover renders. Field
+ * mapping mirrors the typebox schema in
+ * `packages/backend-base/src/lemmas/lemma.plugin.ts`.
+ *
+ * `LexEntry.related` requires a `lemma` field that the API doesn't
+ * carry (the API only ships `translit` + `note`). Reuse `translit` as
+ * the displayed lemma so the existing renderer (which surfaces
+ * `lemma` as the main related-word heading) shows the translit form —
+ * still readable, just no original-script form for non-English cards.
+ */
+function lemmaCardToLexEntry(card: LemmaCard): LexEntry {
+  const related: RelatedWord[] = (card.related ?? []).map((r) => ({
+    lemma: r.translit,
+    translit: r.translit,
+    note: r.note,
+  }));
+  return {
+    lemma: card.lemma,
+    translit: card.translit ?? '',
+    pronunciation: card.pronunciation ?? undefined,
+    strongs: card.strongs,
+    pos: card.pos ?? '',
+    basicGloss: card.basic_gloss ?? '',
+    semanticRange: card.semantic_range ?? undefined,
+    ntFrequency: card.nt_frequency ?? undefined,
+    otFrequency: card.ot_frequency ?? undefined,
+    loaded: card.loaded,
+    related: related.length > 0 ? related : undefined,
+    notes: card.notes ?? undefined,
+  };
 }
 
 export function LexiconPopover({
   visible,
   onClose,
   surface: _surface,
-  entry,
+  entry: stubEntry,
   token,
   isTheme: _isTheme,
+  apiLang,
   testID = 'lexicon-popover',
 }: LexiconPopoverProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  // Non-English: resolve the real card from the API on tap. The hook is
+  // disabled when apiLang isn't set (English path uses the bundled entry
+  // directly) and when the popover isn't visible (avoids fetches on
+  // every render). React Query caches by (strongs, lang) so repeat taps
+  // of the same word, or the same word in another chapter, hit cache.
+  const enableApi = Boolean(apiLang) && visible && Boolean(stubEntry.strongs);
+  const { data: card, isLoading: isApiLoading } = useLemma(
+    enableApi ? stubEntry.strongs : null,
+    apiLang,
+    { enabled: enableApi }
+  );
+
+  // Resolve the entry the body renders: prefer API card when present,
+  // fall back to the stub (which has at least strongs + lemma slug for
+  // English, or the same for non-English while the request is pending).
+  const entry: LexEntry = useMemo(
+    () => (card ? lemmaCardToLexEntry(card) : stubEntry),
+    [card, stubEntry]
+  );
+  const isApiFetching = enableApi && !card && isApiLoading;
 
   // gorhom uses an imperative ref API for show/dismiss. Bridge it to our
   // declarative `visible` prop so the call sites in ChapterReader don't
@@ -175,9 +240,15 @@ export function LexiconPopover({
           </Section>
         ) : null}
 
-        {/* BASIC SENSE */}
+        {/* BASIC SENSE — show spinner while API card is still loading for
+            the non-English path. Pre-API stub has an empty basicGloss, so
+            without this we'd briefly render an empty section. */}
         <Section label="Basic sense" styles={styles} testID={`${testID}-basic`}>
-          <Text style={styles.bodyText}>{entry.basicGloss}</Text>
+          {isApiFetching && !entry.basicGloss ? (
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+          ) : (
+            <Text style={styles.bodyText}>{entry.basicGloss}</Text>
+          )}
         </Section>
 
         {/* SEMANTIC RANGE */}
