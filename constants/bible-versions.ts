@@ -42,3 +42,60 @@ export const bibleVersions: BibleVersion[] = [
   // Ukrainian: full Bible (NT + OT, 1903 Kulish/Puluj/Nechuy-Levytskyi).
   { key: 'UKRKL', value: 'Переклад Куліша (UKRKL)', language: 'uk' },
 ];
+
+// English-language labels for the version-picker's group headers. Matches
+// `verse-mate-web/src/constants/bible-versions.ts` — mobile mirrors web's
+// language-grouped picker exactly so the two surfaces stay in sync. Falls
+// back to Intl.DisplayNames (then the raw code) for any code not listed.
+const LANGUAGE_LABELS: Record<string, string> = {
+  en: 'English',
+  de: 'German',
+  fr: 'French',
+  tl: 'Tagalog',
+  hi: 'Hindi',
+  pt: 'Portuguese',
+  it: 'Italian',
+  ru: 'Russian',
+  es: 'Spanish',
+  ro: 'Romanian',
+  uk: 'Ukrainian',
+};
+
+export function languageLabel(code: string): string {
+  if (LANGUAGE_LABELS[code]) return LANGUAGE_LABELS[code];
+  try {
+    const dn = new Intl.DisplayNames(['en'], { type: 'language' });
+    return dn.of(code) || code.toUpperCase();
+  } catch {
+    return code.toUpperCase();
+  }
+}
+
+/**
+ * Group versions by language with stable ordering — English first (matches
+ * the user's likely default), then alphabetical by English language name.
+ * Same posture as web.
+ */
+export function bibleVersionGroups(): {
+  code: string;
+  label: string;
+  versions: BibleVersion[];
+}[] {
+  const byLang = new Map<string, BibleVersion[]>();
+  for (const v of bibleVersions) {
+    const list = byLang.get(v.language) ?? [];
+    list.push(v);
+    byLang.set(v.language, list);
+  }
+  return [...byLang.entries()]
+    .sort(([a], [b]) => {
+      if (a === 'en') return -1;
+      if (b === 'en') return 1;
+      return languageLabel(a).localeCompare(languageLabel(b));
+    })
+    .map(([code, versions]) => ({
+      code,
+      label: languageLabel(code),
+      versions,
+    }));
+}
