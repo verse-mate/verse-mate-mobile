@@ -298,7 +298,11 @@ export default function ChapterScreen() {
   // `onlineManager` to NetInfo, and this query opts into
   // `refetchOnReconnect: 'always'` so the UI auto-recovers when the device
   // is back online.
-  const { data: rawChapter, isLoading, isFetching } = useBibleChapter(bookId, chapterNumber);
+  const {
+    data: rawChapter,
+    isLoading,
+    isFetching,
+  } = useBibleChapter(bookId, chapterNumber, bibleVersion);
   // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure has varying properties not captured by generated types
   const chapter = rawChapter as any;
 

@@ -734,28 +734,34 @@ export default function SettingsScreen() {
 
           {showVersionPicker && (
             <View style={styles.pickerContainer}>
-              {bibleVersions.map((version) => (
-                <Pressable
-                  key={version.key}
-                  style={[
-                    styles.pickerItem,
-                    version.key === bibleVersion && styles.pickerItemSelected,
-                  ]}
-                  onPress={() => handleBibleVersionChange(version)}
-                >
-                  <Text
+              {/* nestedScrollEnabled lets Android route the vertical drag to
+                  this inner ScrollView instead of the outer settings page,
+                  so users can actually reach versions beyond the 300px cap.
+                  Without it the outer scroll steals the gesture. */}
+              <ScrollView style={styles.pickerScrollView} nestedScrollEnabled>
+                {bibleVersions.map((version) => (
+                  <Pressable
+                    key={version.key}
                     style={[
-                      styles.pickerItemText,
-                      version.key === bibleVersion && styles.pickerItemTextSelected,
+                      styles.pickerItem,
+                      version.key === bibleVersion && styles.pickerItemSelected,
                     ]}
+                    onPress={() => handleBibleVersionChange(version)}
                   >
-                    {version.value}
-                  </Text>
-                  {version.key === bibleVersion && (
-                    <Ionicons name="checkmark" size={20} color={colors.gold} />
-                  )}
-                </Pressable>
-              ))}
+                    <Text
+                      style={[
+                        styles.pickerItemText,
+                        version.key === bibleVersion && styles.pickerItemTextSelected,
+                      ]}
+                    >
+                      {version.value}
+                    </Text>
+                    {version.key === bibleVersion && (
+                      <Ionicons name="checkmark" size={20} color={colors.gold} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -786,7 +792,7 @@ export default function SettingsScreen() {
 
           {showLanguagePicker && (
             <View style={styles.pickerContainer}>
-              <ScrollView style={styles.pickerScrollView}>
+              <ScrollView style={styles.pickerScrollView} nestedScrollEnabled>
                 {availableLanguages.map((language) => (
                   <Pressable
                     key={language.code}
