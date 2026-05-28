@@ -133,6 +133,13 @@ export const useBibleChapter = (
     path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
     query: version ? { versionKey: version } : undefined,
   });
+  console.log(
+    '[useBibleChapter] book=%d ch=%d version=%s isLocal=%s',
+    bookId,
+    chapterNumber,
+    version ?? '(undefined→NASB1995)',
+    isLocal
+  );
 
   const query = useQuery({
     // isLocal is appended to the key so that the SQLite path and the network
