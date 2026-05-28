@@ -242,12 +242,21 @@ export function LexiconPopover({
 
         {/* BASIC SENSE — show spinner while API card is still loading for
             the non-English path. Pre-API stub has an empty basicGloss, so
-            without this we'd briefly render an empty section. */}
+            without this we'd briefly render an empty section.
+            When the API returns a bare card (`loaded=false` AND no
+            basicGloss), surface that explicitly instead of an empty
+            section — the underline is still present because the Strong's
+            token tagged this word, but our lexicon doesn't yet have rich
+            data for this lemma (~16k bare entries in the seed). */}
         <Section label="Basic sense" styles={styles} testID={`${testID}-basic`}>
           {isApiFetching && !entry.basicGloss ? (
             <ActivityIndicator size="small" color={colors.textSecondary} />
-          ) : (
+          ) : entry.basicGloss ? (
             <Text style={styles.bodyText}>{entry.basicGloss}</Text>
+          ) : (
+            <Text style={[styles.bodyText, { fontStyle: 'italic', opacity: 0.6 }]}>
+              No detailed lexicon entry yet for this word.
+            </Text>
           )}
         </Section>
 

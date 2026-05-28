@@ -239,12 +239,16 @@ export const useBibleChapterExplanation = (
   );
   const localLanguage = matchedLocalLanguage || effectiveLanguage;
 
-  // Use the generated query key so prefetch cache hits work
+  // Use the generated query key so prefetch cache hits work.
+  // Thread the picker's bible_version through so the backend renders any
+  // verse references inside the commentary using the user's selected
+  // translation rather than silently defaulting to NASB1995.
   const generatedExplOpts = getBibleBookExplanationByBookIdByChapterNumberOptions({
     path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
     query: {
       ...(explanationType && { explanationType }),
       ...(language && { lang: language }),
+      ...(version && { bible_version: version }),
       // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
     } as any,
   });
@@ -552,7 +556,7 @@ export { useBibleExplanation };
 export const useBibleSummary = (
   bookId: number,
   chapterNumber: number,
-  _queryKey?: unknown,
+  version?: string,
   options?: { enabled?: boolean; language?: string }
 ) => {
   return useBibleChapterExplanation(
@@ -560,7 +564,7 @@ export const useBibleSummary = (
     chapterNumber,
     'summary',
     options?.language,
-    undefined,
+    version,
     options?.enabled
   );
 };
@@ -568,7 +572,7 @@ export const useBibleSummary = (
 export const useBibleByLine = (
   bookId: number,
   chapterNumber: number,
-  _queryKey?: unknown,
+  version?: string,
   options?: { enabled?: boolean; language?: string }
 ) => {
   return useBibleChapterExplanation(
@@ -576,7 +580,7 @@ export const useBibleByLine = (
     chapterNumber,
     'byline',
     options?.language,
-    undefined,
+    version,
     options?.enabled
   );
 };

@@ -718,7 +718,7 @@ export function ChapterPage({
     isLoading: isSummaryLoading,
     error: summaryError,
     isLocalData: summaryIsLocal,
-  } = useBibleSummary(bookId, chapterNumber, undefined, {
+  } = useBibleSummary(bookId, chapterNumber, bibleVersion, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
       (activeTab === 'summary' || visitedTabs.has('summary')),
@@ -730,7 +730,7 @@ export function ChapterPage({
     isLoading: isByLineLoading,
     error: byLineError,
     isLocalData: byLineIsLocal,
-  } = useBibleByLine(bookId, chapterNumber, undefined, {
+  } = useBibleByLine(bookId, chapterNumber, bibleVersion, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
       (activeTab === 'byline' || visitedTabs.has('byline')),

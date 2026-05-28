@@ -39,6 +39,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useBibleByLine } from '@/src/api';
@@ -133,11 +134,15 @@ export function AutoHighlightTooltip({
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
   const expansionAnim = useSharedValue(1); // 0: collapsed, 1: expanded (Reanimated)
 
+  // Thread the user's selected bible version so verse references inside
+  // the commentary render in the chosen translation rather than NASB1995.
+  const { bibleVersion } = useBibleVersion();
+
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
     autoHighlight?.book_id || 0,
     autoHighlight?.chapter_number || 0,
-    undefined,
+    bibleVersion,
     { enabled: !!autoHighlight && visible }
   );
 
