@@ -659,7 +659,7 @@ export function ChapterPage({
 
   // Fetch chapter content
 
-  const { data: rawChapter } = useBibleChapter(bookId, chapterNumber, undefined);
+  const { data: rawChapter } = useBibleChapter(bookId, chapterNumber, bibleVersion);
   // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure has varying properties not captured by generated types
   const chapter = rawChapter as any;
 
