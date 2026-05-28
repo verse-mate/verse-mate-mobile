@@ -261,7 +261,17 @@ export const useBibleChapterExplanation = (
       // is "downloaded" — a single explanation may have been auto-cached on a
       // previous view (see `upsertSingleCommentary` below). This also powers the
       // per-item "Available offline" badge downstream.
-      if (explanationType) {
+      //
+      // Caveat: the commentary text contains `{verse:BookName ch:vs}`
+      // placeholders that need to be replaced with the actual verse text from
+      // the user's selected Bible version. We can only do that locally for
+      // versions whose verses we've downloaded; for everything else we MUST
+      // fall through to the remote fetch (which has the full verse table and
+      // does the substitution server-side). Returning the cached commentary
+      // here without resolving placeholders surfaces raw `{verse:Genesis 1:1}`
+      // strings to the user, which is exactly the bug Andy hit when switching
+      // to VDC/RIV/etc. on a device that only had NASB1995 downloaded.
+      if (explanationType && downloadedBibleVersions.includes(effectiveVersion)) {
         const candidates = Array.from(
           new Set([localLanguage, effectiveLanguage, shortCode].filter(Boolean))
         ) as string[];
@@ -274,12 +284,13 @@ export const useBibleChapterExplanation = (
               explanationType
             );
             if (explanation) {
-              let content = explanation.explanation;
-              if (downloadedBibleVersions.includes(effectiveVersion)) {
-                content = await parseAndInjectVerses(content, effectiveVersion, {
+              const content = await parseAndInjectVerses(
+                explanation.explanation,
+                effectiveVersion,
+                {
                   includeVerseNumbers: false,
-                });
-              }
+                }
+              );
               return {
                 bookId: explanation.book_id,
                 chapterNumber: explanation.chapter_number,
