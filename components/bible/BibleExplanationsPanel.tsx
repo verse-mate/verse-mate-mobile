@@ -35,6 +35,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useBibleByLine, useBibleSummary } from '@/src/api';
 import {
   fontSizes,
@@ -205,6 +206,12 @@ export function BibleExplanationsPanel({
     // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of getTabIndex
   }, [activeTab, slideAnim, getTabIndex]);
 
+  // Active Bible version drives the verse-injection inside the AI
+  // explanations — without it the backend defaults to NASB1995, so a
+  // Romanian/German/etc. user would see English verse quotes inside
+  // their otherwise-localized commentary.
+  const { bibleVersion } = useBibleVersion();
+
   // Fetch explanations based on active tab.
   //
   // Note: we destructure BOTH `isLoading` and `isPending`. `isLoading` is
@@ -221,7 +228,7 @@ export function BibleExplanationsPanel({
     isLoading: summaryLoading,
     isPending: summaryPending,
     isLocalData: summaryIsLocal,
-  } = useBibleSummary(bookId, chapterNumber, undefined, {
+  } = useBibleSummary(bookId, chapterNumber, bibleVersion, {
     enabled: activeTab === 'summary',
     language,
   });
@@ -231,7 +238,7 @@ export function BibleExplanationsPanel({
     isLoading: byLineLoading,
     isPending: byLinePending,
     isLocalData: byLineIsLocal,
-  } = useBibleByLine(bookId, chapterNumber, undefined, {
+  } = useBibleByLine(bookId, chapterNumber, bibleVersion, {
     enabled: activeTab === 'byline',
     language,
   });

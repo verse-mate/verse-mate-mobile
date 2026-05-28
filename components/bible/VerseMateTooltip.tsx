@@ -188,11 +188,13 @@ export function VerseMateTooltip({
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
   const expansionAnim = useSharedValue(1); // Always start expanded (Reanimated)
 
-  // Fetch by-line explanation for the chapter
+  // Fetch by-line explanation for the chapter. Threading bibleVersion
+  // here so the verse references inside the commentary render in the
+  // user's selected translation (VDC, RIV, etc.) rather than NASB1995.
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
     bookId,
     chapterNumber,
-    undefined,
+    bibleVersion,
     { enabled: !!targetVerseNumber && visible }
   );
 
