@@ -22,7 +22,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react-native';
+import { act, render, screen } from '@testing-library/react-native';
 import { createRef, type ReactNode } from 'react';
 // Import component after mocks
 import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
@@ -417,46 +417,64 @@ describe('SimpleChapterPager', () => {
     });
 
     it('[TDD] onChapterChange fires correctly across multiple sequential navigations', () => {
-      const mockOnChapterChange = jest.fn();
+      // Fake timers so we can advance past the 400ms programmatic-guard
+      // window. After the first navigation the useLayoutEffect arms the
+      // guard via setPageWithoutAnimation; without advancing time the
+      // guard would swallow the next user swipe (it holds for 400ms to
+      // protect against trailing onPageSelected events from the native
+      // ViewPager — see armProgrammaticGuard in SimpleChapterPager).
+      jest.useFakeTimers();
+      try {
+        const mockOnChapterChange = jest.fn();
 
-      const { rerender } = render(
-        <TestWrapper>
-          <SimpleChapterPager
-            bookId={1}
-            chapterNumber={3}
-            bookName="Genesis"
-            booksMetadata={mockTestamentBooks}
-            onChapterChange={mockOnChapterChange}
-            renderChapterPage={mockRenderChapterPage}
-          />
-        </TestWrapper>
-      );
+        const { rerender } = render(
+          <TestWrapper>
+            <SimpleChapterPager
+              bookId={1}
+              chapterNumber={3}
+              bookName="Genesis"
+              booksMetadata={mockTestamentBooks}
+              onChapterChange={mockOnChapterChange}
+              renderChapterPage={mockRenderChapterPage}
+            />
+          </TestWrapper>
+        );
 
-      // Simulate swipe to next (position 2 = next chapter) + idle
-      simulateSwipe(2);
-      expect(mockOnChapterChange).toHaveBeenCalledWith(1, 4);
+        // Simulate swipe to next (position 2 = next chapter) + idle
+        simulateSwipe(2);
+        expect(mockOnChapterChange).toHaveBeenCalledWith(1, 4);
 
-      // Rerender with updated chapter (simulating parent state update)
-      rerender(
-        <TestWrapper>
-          <SimpleChapterPager
-            bookId={1}
-            chapterNumber={4}
-            bookName="Genesis"
-            booksMetadata={mockTestamentBooks}
-            onChapterChange={mockOnChapterChange}
-            renderChapterPage={mockRenderChapterPage}
-          />
-        </TestWrapper>
-      );
+        // Rerender with updated chapter (simulating parent state update).
+        // useLayoutEffect arms the guard here.
+        rerender(
+          <TestWrapper>
+            <SimpleChapterPager
+              bookId={1}
+              chapterNumber={4}
+              bookName="Genesis"
+              booksMetadata={mockTestamentBooks}
+              onChapterChange={mockOnChapterChange}
+              renderChapterPage={mockRenderChapterPage}
+            />
+          </TestWrapper>
+        );
 
-      // Simulate another swipe to next + idle
-      simulateSwipe(2);
+        // Advance past the 400ms guard window so the next swipe is
+        // treated as a user gesture, not a trailing programmatic event.
+        act(() => {
+          jest.advanceTimersByTime(500);
+        });
 
-      // Should fire with chapter 5 — verifies the callback references
-      // the updated pages array after prop change (not stale closure)
-      expect(mockOnChapterChange).toHaveBeenCalledTimes(2);
-      expect(mockOnChapterChange).toHaveBeenLastCalledWith(1, 5);
+        // Simulate another swipe to next + idle
+        simulateSwipe(2);
+
+        // Should fire with chapter 5 — verifies the callback references
+        // the updated pages array after prop change (not stale closure)
+        expect(mockOnChapterChange).toHaveBeenCalledTimes(2);
+        expect(mockOnChapterChange).toHaveBeenLastCalledWith(1, 5);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('[REGRESSION] 3-page window renders at boundary after rerender', () => {

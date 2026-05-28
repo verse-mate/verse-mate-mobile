@@ -264,13 +264,34 @@ export function useBookmarks(): UseBookmarksResult {
       console.error('Failed to add bookmark:', error);
       showToast('Failed to add bookmark. Please try again.');
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: async (data, variables) => {
       // Track analytics: BOOKMARK_ADDED event
       if (variables.body) {
         analytics.track(AnalyticsEvent.BOOKMARK_ADDED, {
           bookId: variables.body.book_id,
           chapterNumber: variables.body.chapter_number,
         });
+      }
+
+      // Same fix shape as notes (5cae71d) / highlights (b9fd76b) — when
+      // online + isUserDataSynced the UI reads from local SQLite, not
+      // from bookmarksQueryKey. The online path above only hits the
+      // server; without mirroring the new bookmark into local SQLite,
+      // invalidating local-bookmarks-offline-fallback re-reads the
+      // unchanged local DB and the add appears as a no-op.
+      const serverFav = (data as { favorite?: Bookmark })?.favorite;
+      if (isOnline && serverFav && variables.body) {
+        try {
+          await addLocalBookmark({
+            favorite_id: serverFav.favorite_id,
+            book_id: serverFav.book_id,
+            chapter_number: serverFav.chapter_number,
+            created_at: new Date().toISOString(),
+            insight_type: serverFav.insight_type || undefined,
+          });
+        } catch (e) {
+          console.warn('[bookmarks] local mirror after add failed:', e);
+        }
       }
 
       // Refetch to get accurate server data (with correct favorite_id and book_name)
@@ -345,13 +366,28 @@ export function useBookmarks(): UseBookmarksResult {
       console.error('Failed to remove bookmark:', error);
       showToast('Failed to remove bookmark. Please try again.');
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: async (_data, variables) => {
       // Track analytics: BOOKMARK_REMOVED event
       if (variables.query) {
         analytics.track(AnalyticsEvent.BOOKMARK_REMOVED, {
           bookId: Number(variables.query.book_id),
           chapterNumber: Number(variables.query.chapter_number),
         });
+      }
+
+      // Mirror the deletion into local SQLite — see addMutation's
+      // onSuccess for the rationale (online + synced UI reads from
+      // local DB; online path otherwise leaves stale rows).
+      if (isOnline && variables.query) {
+        try {
+          await deleteLocalBookmarkByChapter(
+            Number(variables.query.book_id),
+            Number(variables.query.chapter_number),
+            variables.query.insight_type || undefined
+          );
+        } catch (e) {
+          console.warn('[bookmarks] local mirror after delete failed:', e);
+        }
       }
 
       // Refetch to sync with server

@@ -361,12 +361,28 @@ export function useNotes(): UseNotesResult {
       console.error('Failed to update note:', error);
       showToast('Failed to update note. Please try again.');
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: async (_data, variables) => {
       // Track analytics: NOTE_EDITED event (never track note content)
       if (variables.body) {
         analytics.track(AnalyticsEvent.NOTE_EDITED, {
           noteId: variables.body.note_id,
         });
+      }
+
+      // When isUserDataSynced=true the UI reads from local SQLite, not
+      // from the remote notesQueryKey cache the optimistic update wrote
+      // to. The online mutation path above only hits the server — the
+      // local DB never received the new content. Invalidating the
+      // local-fallback query re-runs getLocalAllNotes() which returns
+      // STALE data, so the edit appears to be silently discarded.
+      // Mirror the server-confirmed update into local SQLite first,
+      // then invalidate. Same shape as the highlight fix (b9fd76b).
+      if (isOnline && variables.body) {
+        try {
+          await updateLocalNote(variables.body.note_id, variables.body.content);
+        } catch (e) {
+          console.warn('[notes] local mirror after edit failed:', e);
+        }
       }
 
       // Refetch to sync with server
@@ -420,12 +436,23 @@ export function useNotes(): UseNotesResult {
       console.error('Failed to delete note:', error);
       showToast('Failed to delete note. Please try again.');
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: async (_data, variables) => {
       // Track analytics: NOTE_DELETED event
       if (variables.query) {
         analytics.track(AnalyticsEvent.NOTE_DELETED, {
           noteId: variables.query.note_id,
         });
+      }
+
+      // Mirror the deletion into local SQLite — see updateMutation's
+      // onSuccess for the rationale (isUserDataSynced UI reads from
+      // local DB; online path otherwise leaves stale rows).
+      if (isOnline && variables.query) {
+        try {
+          await deleteLocalNote(variables.query.note_id);
+        } catch (e) {
+          console.warn('[notes] local mirror after delete failed:', e);
+        }
       }
 
       // Refetch to sync with server

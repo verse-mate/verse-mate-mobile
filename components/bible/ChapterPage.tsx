@@ -20,8 +20,25 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { findNodeHandle, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, useAnimatedRef } from 'react-native-reanimated';
+import {
+  findNodeHandle,
+  InteractionManager,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  type SharedValue,
+  useAnimatedRef,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioInlineEntry } from '@/components/bible/AudioInlineEntry';
 import { DeleteConfirmationModal } from '@/components/bible/DeleteConfirmationModal';
@@ -62,6 +79,13 @@ const createStyles = (colors: ReturnType<typeof getColors>, bottomInset: number)
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    absoluteFill: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
     },
     contentContainer: {
       flexGrow: 1,
@@ -139,6 +163,24 @@ function TabContent({
   const styles = createStyles(colors, insets.bottom); // Use local createStyles for TabContent
   const { isOffline } = useOfflineStatus();
 
+  // Progressive reveal for byline verse sections. Two discrete bumps
+  // instead of a continuous setInterval so the ramp finishes in ~500ms
+  // and then stops generating re-renders — a perpetual setInterval was
+  // making the Bible/Insight toggle feel hitchy because the setState
+  // every 200ms was competing with the toggle's React work. Long
+  // chapters still parse progressively (5 sections → 30 sections →
+  // everything) so first paint is fast.
+  const [bylineMax, setBylineMax] = useState(5);
+  useEffect(() => {
+    if (activeTab !== 'byline') return;
+    const t1 = setTimeout(() => setBylineMax(30), 200);
+    const t2 = setTimeout(() => setBylineMax(Number.POSITIVE_INFINITY), 500);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [activeTab]);
+
   const isHidden = !visible;
   if (isHidden && !shouldRenderHidden) return null;
 
@@ -152,9 +194,14 @@ function TabContent({
   const hasContent =
     typeof explanationContent?.content === 'string' && explanationContent.content.trim().length > 0;
 
-  // Only show skeleton on initial load, not when transitioning between chapters
-  // This prevents flicker when swiping between chapters
-  const showSkeleton = isLoading && !chapter && !explanationContent;
+  // Show skeleton whenever we're loading and have no content yet — covers
+  // both the initial chapter load (no chapter, no content) AND the case
+  // where the chapter is already loaded but this specific tab's
+  // explanation fetch just started (e.g. first tap on a tab whose fetch
+  // was lazily enabled). The previous `!chapter` guard caused tabs that
+  // were fetched on-demand to render "No X explanation available yet"
+  // during the fetch instead of a skeleton.
+  const showSkeleton = isLoading && !explanationContent;
 
   // Keep all tabs mounted for pre-rendering (eliminates freeze on switch)
   // Use absolute positioning + pointerEvents to hide inactive tabs
@@ -241,6 +288,7 @@ function TabContent({
               filteredHighlights={filteredHighlights}
               filteredAutoHighlights={filteredAutoHighlights}
               onByLineSectionRegister={activeTab === 'byline' ? onByLineSectionRegister : undefined}
+              maxBylineSections={activeTab === 'byline' ? bylineMax : undefined}
             />
           )}
         </View>
@@ -264,6 +312,23 @@ export interface ChapterPageProps {
   activeTab: ContentTabType;
   /** Current view mode (bible or explanations) */
   activeView: 'bible' | 'explanations';
+  /**
+   * Shared visual progress (0 = Bible, 1 = Insight) driven by ChapterScreen.
+   * Used via useAnimatedStyle to flip container opacity on the UI thread
+   * so the swap is visible the same frame as the tap — independent of the
+   * activeView prop reconciliation (which can take ~300ms). Optional so
+   * isolated callers (tests, the split-view BibleContentPanel which only
+   * renders the Bible side) can omit it; visibility then falls back to
+   * `activeView` via a local sharedValue.
+   */
+  toggleProgress?: SharedValue<number>;
+  /**
+   * Shared visual key (active tab name) for the inner Summary / By Line /
+   * Study / Visuals tab switch. Drives per-tab Animated.View opacity on
+   * the UI thread so the inner-tab swap is also instant. Optional with
+   * activeTab-mirroring fallback for isolated callers.
+   */
+  activeTabProgress?: SharedValue<ContentTabType>;
   /** Whether to reset scroll to top on chapter change (default: true) */
   shouldResetScroll?: boolean;
   /** Whether this page is being preloaded (skips heavy AI content) */
@@ -319,6 +384,8 @@ export function ChapterPage({
   chapterNumber,
   activeTab,
   activeView,
+  toggleProgress,
+  activeTabProgress,
   shouldResetScroll = true,
   isPreloading = false,
   targetVerse,
@@ -381,42 +448,65 @@ export function ChapterPage({
   // Get highlights from the provider (single source of truth — avoids duplicate queries)
   const { chapterHighlights, autoHighlights } = useBibleInteraction();
 
-  // Staggered rendering state to prevent UI freeze (waterfall loading)
-  // 0: Initial (only active view)
-  // 1: Mount Explanations container (active tab renders)
-  // 2: Mount Summary tab (if hidden)
-  // 3: Mount Byline tab (if hidden)
-  const [delayedRenderStage, setDelayedRenderStage] = useState(0);
+  // Pre-warmed flag: once the chapter has settled on Bible view, mount
+  // the Insight subtree in the background so the Bible → Insight toggle
+  // becomes a style flip (instant) instead of a 500-700ms first-mount
+  // hit. The mount is scheduled via InteractionManager.runAfterInteractions
+  // so it doesn't run during the chapter-swipe animation. Sticky once true
+  // for the lifetime of this ChapterPage — there's no benefit to
+  // unmounting after a toggle back to Bible.
+  const [insightPrewarmed, setInsightPrewarmed] = useState(false);
 
   const { deleteNote, isDeletingNote } = useNotes();
 
-  // Trigger staggered delayed render — only for the active page, not buffer pages,
-  // and only while the user is actually in Explanations view.
-  //
-  // Why gated on activeView: each TabContent (Summary, Byline) takes 500-700ms of
-  // JS-thread time to mount (full chapter ScrollView with verses). Pre-warming them
-  // while the user is on Bible view caused visible scroll hiccups exactly at the
-  // stage-3 / stage-4 timer firings (T+1.6s and T+2.1s after a chapter swipe). With
-  // this gate, the staged mounts only happen once the user actually switches to
-  // Insight — when they're not scrolling Bible content. The active Insight tab still
-  // mounts immediately on the switch; the staggered stages pre-warm the OTHER tabs
-  // so switching between Summary and Byline within Insight is instant.
+  // Schedule the Insight subtree mount in idle time after the chapter
+  // becomes available. Runs only for the active page (not buffer pages)
+  // and only once per ChapterPage lifetime.
   useEffect(() => {
-    if (isPreloading || activeView !== 'explanations') {
-      setDelayedRenderStage(0);
-      return;
-    }
-    const t1 = setTimeout(() => setDelayedRenderStage(1), 600);
-    const t2 = setTimeout(() => setDelayedRenderStage(2), 1100);
-    const t3 = setTimeout(() => setDelayedRenderStage(3), 1600);
-    const t4 = setTimeout(() => setDelayedRenderStage(4), 2100);
+    if (isPreloading || insightPrewarmed) return;
+    // Fire as soon as the chapter-swipe interaction finishes — no extra
+    // delay. The toggleProgress-driven visibility flip below only works
+    // when the Insight subtree is mounted, so we want this to flip as
+    // early as possible.
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setInsightPrewarmed(true);
+    });
+    return () => {
+      handle.cancel();
+    };
+  }, [isPreloading, insightPrewarmed, bookId, chapterNumber]);
+
+  // NOTE: the staged-timer mount of inner Insight tabs (summary 1.1s,
+  // byline 1.6s, study/visuals 2.1s) was removed in favour of
+  // visit-based gating below (visitedTabs Set). The timers were
+  // auto-parsing markdown for tabs the user wasn't looking at,
+  // blocking the JS thread for 500-700ms post-swipe — the same
+  // regression the May 21 swipe-bugs commit (84e8942) had originally
+  // fixed by gating the stage on activeView. The visit-based pattern
+  // here matches the topics-side fix that resolved the same class of
+  // hiccup on Topics.
+
+  // Progressive Bible-section reveal. Long chapters (Psalm 119 has
+  // ~22 sections) used to render every section's paragraph view on
+  // first mount, blocking the JS thread for several hundred ms after
+  // each chapter swipe. Two discrete bumps instead of a continuous
+  // setInterval — the perpetual interval was causing a regression
+  // where the Bible/Insight toggle felt hitchy (setState every 200ms
+  // competed with the toggle's React work). Resets on chapter change.
+  const [bibleSectionsMax, setBibleSectionsMax] = useState(3);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on chapter change
+  useEffect(() => {
+    setBibleSectionsMax(3);
+  }, [bookId, chapterNumber]);
+  useEffect(() => {
+    if (isPreloading) return;
+    const t1 = setTimeout(() => setBibleSectionsMax(20), 200);
+    const t2 = setTimeout(() => setBibleSectionsMax(Number.POSITIVE_INFINITY), 500);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
     };
-  }, [isPreloading, activeView]);
+  }, [isPreloading, bookId, chapterNumber]);
 
   // Track explanation tab content heights for scroll syncing
   const tabContentHeightsRef = useRef<
@@ -580,6 +670,27 @@ export function ChapterPage({
       return next;
     });
   }, [activeTab]);
+
+  // Eagerly pre-fetch the byline explanation a moment after the chapter
+  // settles so the first tap on the By Line tab finds the data already
+  // cached (no fetch lag, no skeleton). Summary is fetched on mount
+  // because activeTab starts as 'summary'; Study + Visuals are bundled
+  // (no fetch). The 1500ms delay lets the chapter render / scroll into
+  // place before we add another API call to the queue. Skipped for
+  // buffer pages to avoid prefetching for chapters the user may never
+  // actually open.
+  useEffect(() => {
+    if (isPreloading) return;
+    const t = setTimeout(() => {
+      setVisitedTabs((prev) => {
+        if (prev.has('byline')) return prev;
+        const next = new Set(prev);
+        next.add('byline');
+        return next;
+      });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [isPreloading, bookId, chapterNumber]);
 
   // Fetch explanations lazily — only enable for the active tab or previously visited tabs
   const {
@@ -896,68 +1007,145 @@ export function ChapterPage({
     );
   }, []);
 
+  // UI-thread driven opacities — flip the visible content the same frame
+  // as the tap, without waiting for the activeView prop reconciliation
+  // (which can take ~300ms while React walks the chapter tree). Both
+  // containers stay position:absolute so neither holds layout space,
+  // overlapping at the same bounds. Opacity decides which is visible.
+  // Falls back to a local sharedValue mirroring activeView when no parent
+  // sharedValue is provided (tests, BibleContentPanel split-view path).
+  const localToggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
+  useEffect(() => {
+    if (toggleProgress) return;
+    localToggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [activeView, localToggleProgress, toggleProgress]);
+  const effectiveProgress = toggleProgress ?? localToggleProgress;
+  const insightContainerStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      opacity: effectiveProgress.value,
+      zIndex: effectiveProgress.value > 0.5 ? 1 : 0,
+    };
+  });
+  const bibleContainerStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      opacity: 1 - effectiveProgress.value,
+      zIndex: effectiveProgress.value > 0.5 ? 0 : 1,
+    };
+  });
+
+  // Inner-tab visibility — driven by activeTabProgress (string sharedValue
+  // holding the active tab key). Snap, not fade: each tab is fully visible
+  // when the value matches its key, fully hidden otherwise. Falls back to
+  // a local sharedValue mirroring activeTab when no parent value is
+  // provided.
+  const localActiveTabProgress = useSharedValue<ContentTabType>(activeTab);
+  useEffect(() => {
+    if (activeTabProgress) return;
+    localActiveTabProgress.value = activeTab;
+  }, [activeTab, localActiveTabProgress, activeTabProgress]);
+  const effectiveTabProgress = activeTabProgress ?? localActiveTabProgress;
+  const summaryTabStyle = useAnimatedStyle(() => {
+    'worklet';
+    const match = effectiveTabProgress.value === 'summary';
+    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+  });
+  const bylineTabStyle = useAnimatedStyle(() => {
+    'worklet';
+    const match = effectiveTabProgress.value === 'byline';
+    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+  });
+  const studyTabStyle = useAnimatedStyle(() => {
+    'worklet';
+    const match = effectiveTabProgress.value === 'study';
+    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+  });
+  const visualsTabStyle = useAnimatedStyle(() => {
+    'worklet';
+    const match = effectiveTabProgress.value === 'visuals';
+    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+  });
+
   return (
     <View style={styles.container} collapsable={false}>
-      {/* Explanations View - Always render when user is in explanations view (even on buffer pages
-           during idle-deferred navigation). In bible view, only pre-render on active page after stagger delay. */}
-      {(activeView === 'explanations' || (!isPreloading && delayedRenderStage >= 1)) && (
-        <View
-          style={[
-            styles.container,
-            activeView !== 'explanations' && {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              opacity: 0,
-              zIndex: -1,
-            },
-          ]}
+      {/* Explanations View — mount when:
+           1. User is on Insight view (handles deep links + buffer
+              pages so swipes-while-on-Insight have content ready), OR
+           2. We've pre-warmed it after chapter settle (insightPrewarmed),
+              so the Bible -> Insight toggle is an instant style flip. */}
+      {(activeView === 'explanations' || insightPrewarmed) && (
+        <Animated.View
+          style={[styles.container, styles.absoluteFill, insightContainerStyle]}
           collapsable={false}
           pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
         >
-          <TabContent
-            chapter={displayChapter}
-            activeTab="summary"
-            content={summaryData}
-            isLoading={isSummaryLoading}
-            error={summaryError}
-            isAvailableOffline={summaryIsLocal}
-            visible={activeTab === 'summary'}
-            shouldRenderHidden={delayedRenderStage >= 2}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
-            onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-            scrollRef={summaryScrollRef}
-            onTabContentSizeChange={(_w, h) =>
-              handleTabContentSizeChange('summary', h, viewportHeightRef.current)
-            }
-          />
-          <TabContent
-            chapter={displayChapter}
-            activeTab="byline"
-            content={byLineData}
-            isLoading={isByLineLoading}
-            error={byLineError}
-            isAvailableOffline={byLineIsLocal}
-            visible={activeTab === 'byline'}
-            shouldRenderHidden={delayedRenderStage >= 3}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
-            onScroll={handleScroll}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            filteredHighlights={chapterHighlights}
-            filteredAutoHighlights={autoHighlights}
-            scrollRef={byLineScrollRef}
-            onTabContentSizeChange={(_w, h) =>
-              handleTabContentSizeChange('byline', h, viewportHeightRef.current)
-            }
-            onByLineSectionRegister={handleByLineSectionRegister}
-          />
+          {/* Inner tabs use visit-based lazy mount: only mount tabs the
+              user has actually visited. Initial visited = active tab.
+              First tap to another tab triggers its mount. Sticky-once-
+              visited; resets per chapter. Pairs with the eager-prefetch
+              of byline below so the most common second-tab visit
+              already has its data cached. */}
+          {visitedTabs.has('summary') && (
+            <Animated.View
+              style={[styles.absoluteFill, summaryTabStyle]}
+              pointerEvents={activeTab === 'summary' ? 'auto' : 'none'}
+            >
+              <TabContent
+                chapter={displayChapter}
+                activeTab="summary"
+                content={summaryData}
+                isLoading={isSummaryLoading}
+                error={summaryError}
+                isAvailableOffline={summaryIsLocal}
+                visible={true}
+                shouldRenderHidden={true}
+                testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
+                onScroll={handleScroll}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                filteredHighlights={chapterHighlights}
+                filteredAutoHighlights={autoHighlights}
+                scrollRef={summaryScrollRef}
+                onTabContentSizeChange={(_w, h) =>
+                  handleTabContentSizeChange('summary', h, viewportHeightRef.current)
+                }
+              />
+            </Animated.View>
+          )}
+
+          {visitedTabs.has('byline') && (
+            <Animated.View
+              style={[styles.absoluteFill, bylineTabStyle]}
+              pointerEvents={activeTab === 'byline' ? 'auto' : 'none'}
+            >
+              <TabContent
+                chapter={displayChapter}
+                activeTab="byline"
+                content={byLineData}
+                isLoading={isByLineLoading}
+                error={byLineError}
+                isAvailableOffline={byLineIsLocal}
+                visible={true}
+                shouldRenderHidden={true}
+                testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
+                onScroll={handleScroll}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                filteredHighlights={chapterHighlights}
+                filteredAutoHighlights={autoHighlights}
+                scrollRef={byLineScrollRef}
+                onTabContentSizeChange={(_w, h) =>
+                  handleTabContentSizeChange('byline', h, viewportHeightRef.current)
+                }
+                onByLineSectionRegister={handleByLineSectionRegister}
+              />
+            </Animated.View>
+          )}
+
           {/* Quick-verse-jump overlay - byline tab only (issue verse-mate-mobile#77).
               Mount on the byline tab; fade with the scroll-arrow auto-hide (VERA-39). */}
           {activeView === 'explanations' && activeTab === 'byline' && (
@@ -969,74 +1157,63 @@ export function ChapterPage({
               testID={`chapter-page-${bookId}-${chapterNumber}-verse-jump`}
             />
           )}
-          {/* Study tab — uses bundled @versemate/studies data (no API fetch).
-              4th sibling of the TabContent instances above; hidden via the
-              same absolute-positioning trick when activeTab !== 'study'. */}
-          <ScrollView
-            ref={studyScrollRef}
-            style={[
-              styles.container,
-              activeTab !== 'study' && {
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                opacity: 0,
-                zIndex: -1,
-              },
-            ]}
-            contentContainerStyle={styles.contentContainer}
-            showsVerticalScrollIndicator={activeTab === 'study'}
-            testID={`chapter-page-scroll-${bookId}-${chapterNumber}-study`}
-            onScroll={activeTab === 'study' ? handleScroll : undefined}
-            scrollEventThrottle={16}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            pointerEvents={activeTab === 'study' ? 'auto' : 'none'}
-          >
-            <StudyPanel bookId={bookId} chapter={chapterNumber} />
-          </ScrollView>
 
-          {/* Visuals tab — bundled content from @versemate/visuals. Only
-              rendered for books in BOOKS_WITH_VISUALS. Same hidden-not-
-              unmounted pattern as Study. */}
-          {displayChapter && bookHasVisuals(displayChapter.bookId) ? (
-            <ScrollView
-              style={[styles.container, activeTab !== 'visuals' && { display: 'none' }]}
-              showsVerticalScrollIndicator={true}
-              testID={`chapter-page-scroll-${bookId}-${chapterNumber}-visuals`}
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
+          {/* Study tab — bundled content, no API fetch. */}
+          {visitedTabs.has('study') && (
+            <Animated.View
+              style={[styles.absoluteFill, studyTabStyle]}
+              pointerEvents={activeTab === 'study' ? 'auto' : 'none'}
             >
-              <VisualsPanel
-                bookId={displayChapter.bookId}
-                chapter={displayChapter.chapterNumber}
-                bookName={displayChapter.bookName}
-                testID={`visuals-panel-${bookId}-${chapterNumber}`}
-              />
-            </ScrollView>
+              <ScrollView
+                ref={studyScrollRef}
+                style={styles.container}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={activeTab === 'study'}
+                testID={`chapter-page-scroll-${bookId}-${chapterNumber}-study`}
+                onScroll={activeTab === 'study' ? handleScroll : undefined}
+                scrollEventThrottle={16}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+              >
+                <StudyPanel bookId={bookId} chapter={chapterNumber} />
+              </ScrollView>
+            </Animated.View>
+          )}
+
+          {/* Visuals tab — bundled @versemate/visuals. Only rendered for
+              books in BOOKS_WITH_VISUALS AND visited by the user. */}
+          {visitedTabs.has('visuals') && displayChapter && bookHasVisuals(displayChapter.bookId) ? (
+            <Animated.View
+              style={[styles.absoluteFill, visualsTabStyle]}
+              pointerEvents={activeTab === 'visuals' ? 'auto' : 'none'}
+            >
+              <ScrollView
+                style={styles.container}
+                showsVerticalScrollIndicator={true}
+                testID={`chapter-page-scroll-${bookId}-${chapterNumber}-visuals`}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+              >
+                <VisualsPanel
+                  bookId={displayChapter.bookId}
+                  chapter={displayChapter.chapterNumber}
+                  bookName={displayChapter.bookName}
+                  testID={`visuals-panel-${bookId}-${chapterNumber}`}
+                />
+              </ScrollView>
+            </Animated.View>
           ) : null}
-        </View>
+        </Animated.View>
       )}
 
-      {/* Bible reading view (no explanations) - Always rendered but hidden if inactive */}
+      {/* Bible reading view (no explanations) — always rendered, opacity
+          flipped by toggleProgress on the UI thread. Always absolute-fill
+          so it overlaps the Insight container at the same bounds. */}
       <Animated.ScrollView
         ref={animatedScrollRef}
-        style={[
-          styles.container,
-          activeView !== 'bible' && {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            opacity: 0,
-            zIndex: -1,
-          },
-        ]}
+        style={[styles.container, styles.absoluteFill, bibleContainerStyle]}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={true}
         testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
@@ -1058,12 +1235,16 @@ export function ChapterPage({
                 onOpenNotes={handleOpenNotes}
                 filteredHighlights={chapterHighlights}
                 filteredAutoHighlights={autoHighlights}
+                maxBibleSections={bibleSectionsMax}
               />
             ) : (
-              // Distinct testID from the chapter-screen-level skeleton so integration
-              // tests that wait for testID="skeleton-loader" to disappear don't trip on
-              // these buffer-page placeholders (3-page pager always renders 2 buffer
-              // pages with isPreloading=true → 2 of these visible at any time).
+              // Buffer pages render this skeleton; the active page shows
+              // it briefly while chapter data loads. Removing the
+              // `!isPreloading` gate (tried in 2415153) caused regressions
+              // — putting it back. Distinct testID from chapter-screen-
+              // level skeleton so integration tests waiting for testID=
+              // "skeleton-loader" to disappear don't trip on the 2 buffer
+              // placeholders that are always visible in the 3-page pager.
               <SkeletonLoader testID="chapter-page-skeleton-buffer" />
             )}
           </View>
