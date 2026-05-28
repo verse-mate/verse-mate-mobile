@@ -29,6 +29,15 @@ function notifyBibleVersionChanged(): void {
   for (const fn of listeners) fn();
 }
 
+/**
+ * Reset the module-level cache. Test-only — Jest's AsyncStorage.clear()
+ * doesn't touch this module's state, so without an explicit reset the
+ * cached value from one test bleeds into the next.
+ */
+export function resetCachedVersion(): void {
+  cachedVersion = null;
+}
+
 export function useBibleVersion() {
   const [bibleVersion, setBibleVersionState] = useState<string>(cachedVersion ?? DEFAULT_VERSION);
   const [isLoading, setIsLoading] = useState(true);
