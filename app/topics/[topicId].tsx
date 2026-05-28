@@ -27,9 +27,26 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { t } from 'i18next';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import type { LayoutChangeEvent } from 'react-native';
-import { Alert, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  interpolate,
+  interpolateColor,
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
@@ -95,6 +112,14 @@ export default function TopicDetailScreen() {
   // Local state for immediate UI updates
   const [activeTopicId, setActiveTopicId] = useState(topicId);
 
+  // Deferred topic id — fed to SimpleTopicPager so the heavy
+  // 3-TopicPage reconciliation on swipe (markdown parse for the new
+  // topic's content, ~1-3s) happens at deferred priority instead of
+  // urgent. Header, FAB nav, and other lightweight surfaces keep
+  // reading `activeTopicId` and update immediately. Mirror of the
+  // Bible chapter screen's deferredBookId/deferredChapterNumber.
+  const deferredActiveTopicId = useDeferredValue(activeTopicId);
+
   // Fetch ALL topics globally for circular navigation across all categories
   // Uses cached topics (seed DB fallback) so pager works even without API
   const { data: allTopics } = useAllCachedTopics();
@@ -143,6 +168,49 @@ export default function TopicDetailScreen() {
 
   // Get active view from persistence (Bible references vs Explanations view)
   const { activeView, setActiveView } = useActiveView();
+
+  // Transitions for view/tab switches so the heavy topic-content
+  // reconciliation (~300-500ms) doesn't block the tap.
+  const [isViewPending, startViewTransition] = useTransition();
+  const [isTabPending, startTabTransition] = useTransition();
+
+  // Shared visual progress for the Bible/Insight toggle. Drives the
+  // toggle pill (TopicHeader) and the content container opacities
+  // (TopicPage) on the UI thread so the swap is visible the same frame
+  // as the tap. Mirror of the Bible chapter screen setup.
+  const toggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
+
+  // Shared visual progress for the inner Summary / By Line / Detailed
+  // tab switch. Each tab's container reads this via useAnimatedStyle to
+  // flip opacity on the UI thread (snap, no fade). Updated synchronously
+  // in handleTabChange so the swap is visible the same frame as the tap.
+  const activeTabProgress = useSharedValue<ContentTabType>(activeTab);
+
+  // Sync activeTabProgress to activeTab for non-tap paths.
+  useEffect(() => {
+    activeTabProgress.value = activeTab;
+  }, [activeTab, activeTabProgress]);
+
+  // Animated style for the ChapterContentTabs wrapper — collapses to 0
+  // height on Bible view, expands to natural height on Insight, driven
+  // entirely on the UI thread.
+  const tabsWrapperStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      maxHeight: interpolate(toggleProgress.value, [0, 1], [0, 120]),
+      opacity: toggleProgress.value,
+    };
+  });
+
+  // Sync toggleProgress to activeView for non-tap paths (deep links,
+  // modal-close resets, FAB navigation that sets bible). The tap path
+  // drives toggleProgress synchronously and is idempotent here.
+  useEffect(() => {
+    toggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
+      duration: 250,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [activeView, toggleProgress]);
 
   // Handle deep-linked insight tab parameter
   // When user opens a shared topic insight URL, navigate to that specific tab
@@ -235,16 +303,32 @@ export default function TopicDetailScreen() {
     // URL will catch up via debounce
   };
 
-  // Handle tab change
+  // Handle tab change. The state update is wrapped in a transition so the
+  // heavy markdown re-render doesn't block the tap; the actual visible
+  // swap happens on the UI thread via activeTabProgress.
   const handleTabChange = (tab: ContentTabType) => {
-    setActiveTab(tab);
+    if (tab === activeTab) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    activeTabProgress.value = tab;
+    startTabTransition(() => {
+      setActiveTab(tab);
+    });
   };
 
-  // Handle view mode change (Bible references vs Explanations)
+  // Handle view mode change (Bible references vs Explanations).
+  // Drives the visual swap (toggle pill + content containers + tabs row)
+  // on the UI thread via toggleProgress, then defers the React state
+  // catch-up via a transition. Mirror of the Bible chapter screen.
   const handleViewChange = (view: ViewMode) => {
+    if (view === activeView) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setActiveView(view);
+    toggleProgress.value = withTiming(view === 'bible' ? 0 : 1, {
+      duration: 250,
+      easing: Easing.out(Easing.cubic),
+    });
+    startViewTransition(() => {
+      setActiveView(view);
+    });
   };
 
   /**
@@ -354,6 +438,14 @@ export default function TopicDetailScreen() {
    * This is passed to SimpleTopicPager.renderTopicPage prop.
    * Similar to the Bible screen's renderChapterPage callback.
    */
+  // Mirror of Bible's renderChapterPage: activeTab/activeView are real
+  // deps so the 3 TopicPage instances see fresh values on each tap and
+  // their pointerEvents stay in sync. The earlier stability fix (refs +
+  // stripped deps) was needed when the maxHeight-collapse layout
+  // caused 700ms+ re-renders per tap; with the absolute-overlap refactor
+  // and memoised markdown JSX, the re-render is cheap enough to take
+  // the hit. Without this, pointerEvents stays stale and the byline
+  // FlatList isn't scrollable after a tab switch.
   const renderTopicPage = useCallback(
     (pageTopicId: string) => {
       return (
@@ -361,15 +453,27 @@ export default function TopicDetailScreen() {
           topicId={pageTopicId}
           activeTab={activeTab}
           activeView={activeView}
+          toggleProgress={toggleProgress}
+          activeTabProgress={activeTabProgress}
           onScroll={handleScroll}
           onTap={handleTap}
           onShare={handleShare}
           onVersePress={handleVersePress}
-          isPreloading={pageTopicId !== activeTopicId}
+          isPreloading={pageTopicId !== deferredActiveTopicId}
         />
       );
     },
-    [activeTab, activeView, handleScroll, handleTap, handleShare, handleVersePress, activeTopicId]
+    [
+      activeTab,
+      activeView,
+      toggleProgress,
+      activeTabProgress,
+      handleScroll,
+      handleTap,
+      handleShare,
+      handleVersePress,
+      deferredActiveTopicId,
+    ]
   );
 
   // Type guard for topic
@@ -391,6 +495,7 @@ export default function TopicDetailScreen() {
         <TopicHeader
           topicName="Loading..."
           activeView={activeView}
+          toggleProgress={toggleProgress}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
           onMenuPress={() => {}}
@@ -407,6 +512,7 @@ export default function TopicDetailScreen() {
         <TopicHeader
           topicName="Error"
           activeView={activeView}
+          toggleProgress={toggleProgress}
           onNavigationPress={() => {}}
           onViewChange={handleViewChange}
           onMenuPress={() => {}}
@@ -454,6 +560,7 @@ export default function TopicDetailScreen() {
               topicName={currentTopicName || topic?.name || ''}
               activeTab={activeTab}
               onTabChange={handleTabChange}
+              isTabPending={isTabPending}
               onMenuPress={() => setIsMenuOpen(true)}
             />
           }
@@ -465,20 +572,36 @@ export default function TopicDetailScreen() {
           <TopicHeader
             topicName={currentTopicName || topic?.name || ''}
             activeView={activeView}
+            toggleProgress={toggleProgress}
             onNavigationPress={() => setIsNavigationModalOpen(true)}
             navigationModalVisible={isNavigationModalOpen}
             onViewChange={handleViewChange}
             onMenuPress={() => setIsMenuOpen(true)}
           />
 
-          {/* Content Tabs - Only visible in Explanations view */}
-          {activeView === 'explanations' && (
-            <ChapterContentTabs activeTab={activeTab} onTabChange={handleTabChange} showDetailed />
-          )}
+          {/* Content Tabs — wrapper's height + opacity driven by
+              toggleProgress on the UI thread so the row appears /
+              disappears the same frame as the Bible/Insight tap. */}
+          <Animated.View
+            testID="content-tabs-wrapper"
+            style={[styles.tabsWrapper, tabsWrapperStyle]}
+            pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
+          >
+            <ChapterContentTabs
+              activeTab={activeTab}
+              activeTabProgress={activeTabProgress}
+              onTabChange={handleTabChange}
+              showDetailed
+            />
+          </Animated.View>
 
-          {/* SimpleTopicPager - V3 3-page window with global circular navigation */}
+          {/* SimpleTopicPager — V3 3-page window with global circular
+              navigation. View swaps + inner-tab swaps are both driven by
+              sharedValues on the UI thread (toggleProgress +
+              activeTabProgress in TopicPage), so no skeleton overlay is
+              needed during transitions. */}
           <SimpleTopicPager
-            topicId={activeTopicId}
+            topicId={deferredActiveTopicId}
             sortedTopics={allTopics}
             onTopicChange={handleTopicChange}
             renderTopicPage={renderTopicPage}
@@ -546,6 +669,12 @@ export default function TopicDetailScreen() {
 interface TopicHeaderProps {
   topicName: string;
   activeView: ViewMode;
+  /**
+   * Shared visual progress (0 = Bible, 1 = Insight). Owned by the screen
+   * and shared with TopicPage so the toggle pill and content opacity
+   * flip on the UI thread in the same frame as the tap.
+   */
+  toggleProgress: SharedValue<number>;
   onNavigationPress: () => void;
   onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
@@ -555,6 +684,7 @@ interface TopicHeaderProps {
 function TopicHeader({
   topicName,
   activeView,
+  toggleProgress,
   onNavigationPress,
   onViewChange,
   onMenuPress,
@@ -566,20 +696,8 @@ function TopicHeader({
   const styles = useMemo(() => createHeaderStyles(headerSpecs, colors), [headerSpecs, colors]);
   const insets = useSafeAreaInsets();
 
-  // Animation for sliding toggle indicator
-  const toggleSlideAnim = useRef(new Animated.Value(activeView === 'bible' ? 0 : 1)).current;
   const [bibleButtonWidth, setBibleButtonWidth] = useState(0);
   const [insightButtonWidth, setInsightButtonWidth] = useState(0);
-
-  // Animate toggle indicator when activeView changes
-  useEffect(() => {
-    Animated.spring(toggleSlideAnim, {
-      toValue: activeView === 'bible' ? 0 : 1,
-      useNativeDriver: false, // Changed to false to allow width animation
-      friction: 8,
-      tension: 50,
-    }).start();
-  }, [activeView, toggleSlideAnim]);
 
   // Measure individual button widths
   const handleBibleLayout = (event: LayoutChangeEvent) => {
@@ -592,24 +710,34 @@ function TopicHeader({
     setInsightButtonWidth(width);
   };
 
-  // Memoize interpolations to prevent recreating on every render
-  const indicatorTranslateX = useMemo(
-    () =>
-      toggleSlideAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, Math.max(0, bibleButtonWidth + 4)], // Move to insight position (Bible width + gap)
-      }),
-    [toggleSlideAnim, bibleButtonWidth]
-  );
+  // Indicator pill animation — runs entirely on the UI thread via the
+  // shared toggleProgress. The screen-level handler updates the value
+  // synchronously on tap, so the pill slides in the same frame.
+  const indicatorAnimatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    const translateX = toggleProgress.value * Math.max(0, bibleButtonWidth + 4);
+    const width = bibleButtonWidth + toggleProgress.value * (insightButtonWidth - bibleButtonWidth);
+    return {
+      transform: [{ translateX }],
+      width: Math.max(0, width),
+    };
+  }, [bibleButtonWidth, insightButtonWidth]);
 
-  const indicatorWidth = useMemo(
-    () =>
-      toggleSlideAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [Math.max(0, bibleButtonWidth), Math.max(0, insightButtonWidth)],
-      }),
-    [toggleSlideAnim, bibleButtonWidth, insightButtonWidth]
-  );
+  // Animated text colors — flip on the UI thread alongside the pill.
+  const inactiveColor = headerSpecs.titleColor;
+  const activeColor = colors.black;
+  const bibleTextStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      color: interpolateColor(toggleProgress.value, [0, 1], [activeColor, inactiveColor]),
+    };
+  });
+  const insightTextStyle = useAnimatedStyle(() => {
+    'worklet';
+    return {
+      color: interpolateColor(toggleProgress.value, [0, 1], [inactiveColor, activeColor]),
+    };
+  });
 
   /**
    * Safe navigation press handler to prevent double-triggering
@@ -641,22 +769,12 @@ function TopicHeader({
 
       {/* Action Icons */}
       <View style={styles.headerActions}>
-        {/* Bible/Insight Toggle (pill-style matching Bible page) */}
+        {/* Bible/Insight Toggle (pill-style matching Bible page). The
+            pill + text colors are driven by toggleProgress on the UI
+            thread; the screen-level handleViewChange updates the value
+            synchronously on tap so the animation runs the same frame. */}
         <View style={styles.toggleContainer}>
-          {/* Sliding indicator background */}
-          <Animated.View
-            style={[
-              styles.toggleIndicator,
-              {
-                width: indicatorWidth,
-                transform: [
-                  {
-                    translateX: indicatorTranslateX,
-                  },
-                ],
-              },
-            ]}
-          />
+          <Animated.View style={[styles.toggleIndicator, indicatorAnimatedStyle]} />
           <Pressable
             onPress={() => onViewChange('bible')}
             style={styles.toggleButton}
@@ -666,9 +784,7 @@ function TopicHeader({
             accessibilityState={{ selected: activeView === 'bible' }}
             testID="bible-view-toggle"
           >
-            <Text style={[styles.toggleText, activeView === 'bible' && styles.toggleTextActive]}>
-              Bible
-            </Text>
+            <Animated.Text style={[styles.toggleText, bibleTextStyle]}>Bible</Animated.Text>
           </Pressable>
           <Pressable
             onPress={() => onViewChange('explanations')}
@@ -679,11 +795,7 @@ function TopicHeader({
             accessibilityState={{ selected: activeView === 'explanations' }}
             testID="insight-view-toggle"
           >
-            <Text
-              style={[styles.toggleText, activeView === 'explanations' && styles.toggleTextActive]}
-            >
-              Insight
-            </Text>
+            <Animated.Text style={[styles.toggleText, insightTextStyle]}>Insight</Animated.Text>
           </Pressable>
         </View>
 
@@ -794,6 +906,23 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
     container: {
       flex: 1,
+      backgroundColor: colors.background,
+    },
+    pagerWrapper: {
+      flex: 1,
+      position: 'relative',
+    },
+    // overflow:hidden so the maxHeight animation clips the tabs row
+    // when collapsing/expanding.
+    tabsWrapper: {
+      overflow: 'hidden',
+    },
+    transitionSkeleton: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       backgroundColor: colors.background,
     },
     errorContainer: {

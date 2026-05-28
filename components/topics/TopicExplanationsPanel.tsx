@@ -16,12 +16,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { t } from 'i18next';
+import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
+import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -103,6 +105,14 @@ export interface TopicExplanationsPanelProps {
   /** Callback when tab is changed */
   onTabChange: (tab: ContentTabType) => void;
 
+  /**
+   * True while a tab-switch transition is pending in the parent. Drives a
+   * skeleton overlay over the content area so the user sees immediate
+   * feedback even though React keeps the old tab visible while the new
+   * tree reconciles in the background.
+   */
+  isTabPending?: boolean;
+
   /** Callback when menu button is pressed */
   onMenuPress?: () => void;
 
@@ -120,6 +130,7 @@ export function TopicExplanationsPanel({
   topicName,
   activeTab,
   onTabChange,
+  isTabPending = false,
   onMenuPress,
   testID = 'topic-explanations-panel',
 }: TopicExplanationsPanelProps) {
@@ -197,44 +208,90 @@ export function TopicExplanationsPanel({
   // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure
   const topicData = rawTopicData as any;
 
-  // Handle tab press with haptic feedback
+  // Handle tab press with haptic feedback. The parent's onTabChange is
+  // expected to wrap setActiveTab in a useTransition so the heavy
+  // markdown re-render doesn't block the tap; isTabPending then drives
+  // the skeleton overlay below.
   const handleTabPress = (tab: ContentTabType) => {
     if (tab !== activeTab) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onTabChange(tab);
-      // Scroll to top when switching tabs
-      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      // Defer the scroll so it doesn't compete with the tab switch
+      // for the current frame's JS budget.
+      requestAnimationFrame(() => {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      });
     }
   };
 
-  // Get explanation content for active tab
-  const getExplanationContent = () => {
-    if (!topicData?.explanation) return null;
-
-    switch (activeTab) {
-      case 'summary':
-        return topicData.explanation.summary;
-      case 'byline':
-        return topicData.explanation.byline;
-      case 'detailed':
-        return topicData.explanation.detailed;
-      default:
-        return null;
-    }
+  // Pre-process all three tab contents up-front. We render ALL three
+  // Markdown trees at mount, then flip display: none between them on
+  // tab switch — same pattern Bible's BibleExplanationsPanel uses. The
+  // initial parse cost is 3x higher (one-time, on chapter open), but
+  // tab switching becomes a CSS flip with zero JS work, which is the
+  // only way to make the switch feel truly instant. useDeferredValue
+  // alone doesn't help here because the heavy Markdown parse still
+  // blocks the JS thread whenever it runs — it just runs at lower
+  // priority, not faster.
+  const cookContent = (raw: string | null | undefined, tab: ContentTabType): string | null => {
+    if (typeof raw !== 'string') return null;
+    const cleaned = tab === 'byline' ? cleanupBylineReferences(raw) : raw;
+    return stripLeadingHeading(cleaned);
   };
 
-  const rawExplanationContent = getExplanationContent();
-  // Clean up byline content to remove redundant verse references, then strip
-  // the duplicate leading `# {topicName}` heading the header bar already shows.
-  const cleanedExplanationContent =
-    activeTab === 'byline' && rawExplanationContent
-      ? cleanupBylineReferences(rawExplanationContent)
-      : rawExplanationContent;
-  const explanationContent =
-    typeof cleanedExplanationContent === 'string'
-      ? stripLeadingHeading(cleanedExplanationContent)
-      : cleanedExplanationContent;
-  const hasContent = explanationContent && typeof explanationContent === 'string';
+  const summaryContent = useMemo(
+    () => cookContent(topicData?.explanation?.summary, 'summary'),
+    [topicData?.explanation?.summary]
+  );
+  const bylineContent = useMemo(
+    () => cookContent(topicData?.explanation?.byline, 'byline'),
+    [topicData?.explanation?.byline]
+  );
+  const detailedContent = useMemo(
+    () => cookContent(topicData?.explanation?.detailed, 'detailed'),
+    [topicData?.explanation?.detailed]
+  );
+
+  // Memoize each tab's rendered Markdown JSX so a tab switch doesn't
+  // force a re-render of the others. Content prop is stable per tab.
+  const summaryMarkdown = useMemo(
+    () =>
+      typeof summaryContent === 'string' ? (
+        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+          {summaryContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+        </Markdown>
+      ) : null,
+    [summaryContent, markdownStyles, dictionaryMarkdownRules]
+  );
+  const bylineMarkdown = useMemo(
+    () =>
+      typeof bylineContent === 'string' ? (
+        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+          {bylineContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+        </Markdown>
+      ) : null,
+    [bylineContent, markdownStyles, dictionaryMarkdownRules]
+  );
+  const detailedMarkdown = useMemo(
+    () =>
+      typeof detailedContent === 'string' ? (
+        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+          {detailedContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
+        </Markdown>
+      ) : null,
+    [detailedContent, markdownStyles, dictionaryMarkdownRules]
+  );
+
+  // For the empty-state copy + the "has content for active tab" check.
+  const activeContent =
+    activeTab === 'summary'
+      ? summaryContent
+      : activeTab === 'byline'
+        ? bylineContent
+        : activeTab === 'detailed'
+          ? detailedContent
+          : null;
+  const hasContent = typeof activeContent === 'string';
 
   // Custom share handler for topics
   const handleShare = async () => {
@@ -361,29 +418,55 @@ export function TopicExplanationsPanel({
         </View>
       </View>
 
-      {/* Content Area */}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-        testID={`${testID}-scroll`}
-      >
-        {/* Explanation Content */}
-        {hasContent ? (
-          <View style={styles.explanationContainer}>
-            <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
-              {explanationContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
-            </Markdown>
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              No {activeTab} explanation available for this topic yet.
-            </Text>
+      {/* Content Area — pre-mount all three tabs and flip display:none
+          between them on tab switch (Bible-panel pattern). Switching
+          is a CSS toggle, no Markdown re-parse. Wrapped in a relative-
+          positioned View so the transition skeleton can absolute-cover
+          the tabs only (header + tab row stay visible). */}
+      <View style={styles.contentArea}>
+        {(
+          [
+            { id: 'summary' as const, content: summaryContent, markdown: summaryMarkdown },
+            { id: 'byline' as const, content: bylineContent, markdown: bylineMarkdown },
+            { id: 'detailed' as const, content: detailedContent, markdown: detailedMarkdown },
+          ] satisfies readonly {
+            id: ContentTabType;
+            content: string | null;
+            markdown: React.ReactNode;
+          }[]
+        ).map((tab) => (
+          <ScrollView
+            key={tab.id}
+            ref={tab.id === activeTab ? scrollViewRef : null}
+            style={[styles.scrollView, activeTab !== tab.id && { display: 'none' }]}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            testID={`${testID}-scroll-${tab.id}`}
+          >
+            {tab.content ? (
+              <View style={styles.explanationContainer}>{tab.markdown}</View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  No {tab.id} explanation available for this topic yet.
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        ))}
+
+        {/* Transition skeleton overlay — shown while the parent's tab-switch
+            transition is reconciling. Covers the tab content area only. */}
+        {isTabPending && (
+          <View
+            style={styles.transitionSkeleton}
+            pointerEvents="none"
+            testID={`${testID}-tab-transition-skeleton`}
+          >
+            <SkeletonLoader />
           </View>
         )}
-      </ScrollView>
+      </View>
 
       {/* Word Definition Tooltip — dictionary lookup on long-press */}
       {wordToDefine && (
@@ -482,6 +565,18 @@ function createStyles(
     },
     scrollView: {
       flex: 1,
+    },
+    contentArea: {
+      flex: 1,
+      position: 'relative',
+    },
+    transitionSkeleton: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: colors.background,
     },
     scrollContent: {
       flexGrow: 1,
