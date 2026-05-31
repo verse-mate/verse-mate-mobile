@@ -44,6 +44,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SignInModal from '@/components/bible/SignInModal';
 import SignUpModal from '@/components/bible/SignUpModal';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import { useBibleByLine } from '@/src/api';
@@ -150,11 +151,14 @@ export function TopicVerseTooltip({
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
   const expansionAnim = useSharedValue(1); // Always start expanded (Reanimated)
 
+  // Active translation drives verse injection inside the commentary.
+  const { bibleVersion } = useBibleVersion();
+
   // Fetch by-line explanation for the chapter
   const { data: byLineData, isLoading: isByLineLoading } = useBibleByLine(
     bookId,
     chapterNumber,
-    undefined,
+    bibleVersion,
     { enabled: !!verseNumber && visible }
   );
 

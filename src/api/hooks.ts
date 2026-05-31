@@ -133,6 +133,13 @@ export const useBibleChapter = (
     path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
     query: version ? { versionKey: version } : undefined,
   });
+  console.log(
+    '[useBibleChapter] book=%d ch=%d version=%s isLocal=%s',
+    bookId,
+    chapterNumber,
+    version ?? '(undefined→NASB1995)',
+    isLocal
+  );
 
   const query = useQuery({
     // isLocal is appended to the key so that the SQLite path and the network
@@ -232,12 +239,16 @@ export const useBibleChapterExplanation = (
   );
   const localLanguage = matchedLocalLanguage || effectiveLanguage;
 
-  // Use the generated query key so prefetch cache hits work
+  // Use the generated query key so prefetch cache hits work.
+  // Thread the picker's bible_version through so the backend renders any
+  // verse references inside the commentary using the user's selected
+  // translation rather than silently defaulting to NASB1995.
   const generatedExplOpts = getBibleBookExplanationByBookIdByChapterNumberOptions({
     path: { bookId: String(bookId), chapterNumber: String(chapterNumber) },
     query: {
       ...(explanationType && { explanationType }),
       ...(language && { lang: language }),
+      ...(version && { bible_version: version }),
       // biome-ignore lint/suspicious/noExplicitAny: optional query params not reflected in generated strict type
     } as any,
   });
@@ -250,7 +261,17 @@ export const useBibleChapterExplanation = (
       // is "downloaded" — a single explanation may have been auto-cached on a
       // previous view (see `upsertSingleCommentary` below). This also powers the
       // per-item "Available offline" badge downstream.
-      if (explanationType) {
+      //
+      // Caveat: the commentary text contains `{verse:BookName ch:vs}`
+      // placeholders that need to be replaced with the actual verse text from
+      // the user's selected Bible version. We can only do that locally for
+      // versions whose verses we've downloaded; for everything else we MUST
+      // fall through to the remote fetch (which has the full verse table and
+      // does the substitution server-side). Returning the cached commentary
+      // here without resolving placeholders surfaces raw `{verse:Genesis 1:1}`
+      // strings to the user, which is exactly the bug Andy hit when switching
+      // to VDC/RIV/etc. on a device that only had NASB1995 downloaded.
+      if (explanationType && downloadedBibleVersions.includes(effectiveVersion)) {
         const candidates = Array.from(
           new Set([localLanguage, effectiveLanguage, shortCode].filter(Boolean))
         ) as string[];
@@ -263,12 +284,13 @@ export const useBibleChapterExplanation = (
               explanationType
             );
             if (explanation) {
-              let content = explanation.explanation;
-              if (downloadedBibleVersions.includes(effectiveVersion)) {
-                content = await parseAndInjectVerses(content, effectiveVersion, {
+              const content = await parseAndInjectVerses(
+                explanation.explanation,
+                effectiveVersion,
+                {
                   includeVerseNumbers: false,
-                });
-              }
+                }
+              );
               return {
                 bookId: explanation.book_id,
                 chapterNumber: explanation.chapter_number,
@@ -331,6 +353,11 @@ export const useBibleChapterExplanation = (
   // Query serves from memory without re-running queryFn, so the flag would go
   // stale after auto-cache writes.
   const [hasLocalExplanation, setHasLocalExplanation] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `query.data` is an
+  // intentional re-fire trigger per BUG-008 (Andy 2026-05-02). The effect
+  // doesn't read `query.data` directly but must re-run the SQLite probe each
+  // time the remote response settles so the "Available offline" badge reflects
+  // rows that the queryFn auto-cached after fetch.
   useEffect(() => {
     if (!explanationType || bookId <= 0 || chapterNumber <= 0) {
       setHasLocalExplanation(false);
@@ -540,7 +567,7 @@ export { useBibleExplanation };
 export const useBibleSummary = (
   bookId: number,
   chapterNumber: number,
-  _queryKey?: unknown,
+  version?: string,
   options?: { enabled?: boolean; language?: string }
 ) => {
   return useBibleChapterExplanation(
@@ -548,7 +575,7 @@ export const useBibleSummary = (
     chapterNumber,
     'summary',
     options?.language,
-    undefined,
+    version,
     options?.enabled
   );
 };
@@ -556,7 +583,7 @@ export const useBibleSummary = (
 export const useBibleByLine = (
   bookId: number,
   chapterNumber: number,
-  _queryKey?: unknown,
+  version?: string,
   options?: { enabled?: boolean; language?: string }
 ) => {
   return useBibleChapterExplanation(
@@ -564,7 +591,7 @@ export const useBibleByLine = (
     chapterNumber,
     'byline',
     options?.language,
-    undefined,
+    version,
     options?.enabled
   );
 };

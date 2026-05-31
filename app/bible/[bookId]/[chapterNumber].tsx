@@ -298,7 +298,11 @@ export default function ChapterScreen() {
   // `onlineManager` to NetInfo, and this query opts into
   // `refetchOnReconnect: 'always'` so the UI auto-recovers when the device
   // is back online.
-  const { data: rawChapter, isLoading, isFetching } = useBibleChapter(bookId, chapterNumber);
+  const {
+    data: rawChapter,
+    isLoading,
+    isFetching,
+  } = useBibleChapter(bookId, chapterNumber, bibleVersion);
   // biome-ignore lint/suspicious/noExplicitAny: Hybrid online/offline data structure has varying properties not captured by generated types
   const chapter = rawChapter as any;
 
@@ -553,6 +557,7 @@ export default function ChapterScreen() {
           navigationModalVisible={isNavigationModalOpen}
           onViewChange={handleViewChange}
           onMenuPress={() => setIsMenuOpen(true)}
+          bibleVersion={bibleVersion}
         />
         <SkeletonLoader />
         <HamburgerMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
@@ -589,6 +594,7 @@ export default function ChapterScreen() {
           navigationModalVisible={isNavigationModalOpen}
           onViewChange={handleViewChange}
           onMenuPress={() => setIsMenuOpen(true)}
+          bibleVersion={bibleVersion}
         />
         {isOffline ? (
           <OfflineContentUnavailable
@@ -693,6 +699,7 @@ export default function ChapterScreen() {
               onMenuPress={() => {
                 setIsMenuOpen(true);
               }}
+              bibleVersion={bibleVersion}
             />
 
             {/* Content Tabs - Only visible in Explanations view. The
@@ -808,6 +815,12 @@ interface ChapterHeaderProps {
   onViewChange: (view: ViewMode) => void;
   onMenuPress: () => void;
   navigationModalVisible?: boolean;
+  /**
+   * Active Bible version key (e.g. "NASB1995", "VDC"). Shown as a small
+   * subtitle below the book/chapter title so the user always sees which
+   * translation they're reading without opening the settings dropdown.
+   */
+  bibleVersion?: string;
 }
 
 function ChapterHeader({
@@ -819,6 +832,7 @@ function ChapterHeader({
   onViewChange,
   onMenuPress,
   navigationModalVisible,
+  bibleVersion,
 }: ChapterHeaderProps) {
   // Get theme directly inside ChapterHeader (no props drilling)
   const { colors, mode } = useTheme();
@@ -890,11 +904,18 @@ function ChapterHeader({
         accessibilityHint="Opens chapter selection menu"
         testID="chapter-selector-button"
       >
-        <View style={styles.chapterButtonContent}>
-          <Text style={styles.headerTitle} testID="chapter-header-text">
-            {bookName} {chapterNumber}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
+        <View style={styles.chapterButtonColumn}>
+          <View style={styles.chapterButtonContent}>
+            <Text style={styles.headerTitle} testID="chapter-header-text">
+              {bookName} {chapterNumber}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
+          </View>
+          {bibleVersion ? (
+            <Text style={styles.versionSubtitle} testID="chapter-header-version">
+              {bibleVersion}
+            </Text>
+          ) : null}
         </View>
       </Pressable>
 
@@ -966,6 +987,10 @@ const createHeaderStyles = (
     chapterButton: {
       padding: spacing.xs,
     },
+    chapterButtonColumn: {
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+    },
     chapterButtonContent: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -975,6 +1000,14 @@ const createHeaderStyles = (
       fontSize: headerSpecs.titleFontSize,
       fontWeight: headerSpecs.titleFontWeight,
       color: headerSpecs.titleColor,
+    },
+    versionSubtitle: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: headerSpecs.titleColor,
+      opacity: 0.55,
+      marginTop: 1,
+      letterSpacing: 0.3,
     },
     headerActions: {
       flexDirection: 'row',

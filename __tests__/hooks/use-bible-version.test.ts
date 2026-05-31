@@ -7,16 +7,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { act } from 'react-test-renderer';
-import { useBibleVersion } from '@/hooks/use-bible-version';
+import { resetCachedVersion, useBibleVersion } from '@/hooks/use-bible-version';
 
 describe('useBibleVersion', () => {
   beforeEach(async () => {
-    // Clear AsyncStorage before each test
+    // Clear AsyncStorage AND the module-level cache the hook uses to
+    // share state between mounted consumers. Without resetting the
+    // cache, a value set by an earlier test bleeds into the next one's
+    // initial render.
     await AsyncStorage.clear();
+    resetCachedVersion();
   });
 
   afterEach(async () => {
     await AsyncStorage.clear();
+    resetCachedVersion();
   });
 
   it('should return default version (NASB1995) initially', async () => {

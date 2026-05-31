@@ -60,7 +60,28 @@ function formatSpeed(speed: number): string {
   return `${speed % 1 === 0 ? speed.toFixed(0) : speed}×`;
 }
 
+/**
+ * Audio feature kill-switch. Andy asked to ship the next release WITHOUT
+ * audio — the narration set isn't complete across all explanations, so
+ * exposing the "Listen" entry would surface half-missing content
+ * (Slack, 2026-05-30: "let's remove Audio"). This is the single entry
+ * point for audio playback (the dock + full-screen player only mount
+ * once playback starts), so gating it here hides the entire feature.
+ * Flip back to `true` to restore audio once the full narration set lands.
+ */
+const AUDIO_FEATURE_ENABLED = false;
+
+/**
+ * Public wrapper — the audio kill-switch lives here so it can early-return
+ * without any hooks before it (keeps `AudioInlineEntryImpl`'s hook order
+ * unconditional). Flip AUDIO_FEATURE_ENABLED above to re-enable.
+ */
 export function AudioInlineEntry(props: AudioInlineEntryProps) {
+  if (!AUDIO_FEATURE_ENABLED) return null;
+  return <AudioInlineEntryImpl {...props} />;
+}
+
+function AudioInlineEntryImpl(props: AudioInlineEntryProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const queryClient = useQueryClient();

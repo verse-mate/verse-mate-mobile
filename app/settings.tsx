@@ -40,7 +40,7 @@ import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { Avatar } from '@/components/ui/Avatar';
 import { TextInput } from '@/components/ui/TextInput';
 import type { BibleVersion } from '@/constants/bible-versions';
-import { bibleVersions } from '@/constants/bible-versions';
+import { bibleVersionGroups, bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -734,28 +734,44 @@ export default function SettingsScreen() {
 
           {showVersionPicker && (
             <View style={styles.pickerContainer}>
-              {bibleVersions.map((version) => (
-                <Pressable
-                  key={version.key}
-                  style={[
-                    styles.pickerItem,
-                    version.key === bibleVersion && styles.pickerItemSelected,
-                  ]}
-                  onPress={() => handleBibleVersionChange(version)}
-                >
-                  <Text
-                    style={[
-                      styles.pickerItemText,
-                      version.key === bibleVersion && styles.pickerItemTextSelected,
-                    ]}
-                  >
-                    {version.value}
-                  </Text>
-                  {version.key === bibleVersion && (
-                    <Ionicons name="checkmark" size={20} color={colors.gold} />
-                  )}
-                </Pressable>
-              ))}
+              {/* Versions are grouped by language with a small header per
+                  group — mirrors web's settings picker so the two surfaces
+                  stay aligned. English appears first (most users' default);
+                  the rest follow alphabetically by English language name.
+                  nestedScrollEnabled lets Android route the vertical drag
+                  to this inner ScrollView instead of the outer settings
+                  page so the picker is reachable past the 300px cap. */}
+              <ScrollView style={styles.pickerScrollView} nestedScrollEnabled>
+                {bibleVersionGroups().map((group) => (
+                  <View key={group.code}>
+                    <Text style={styles.pickerGroupHeader} testID={`version-group-${group.code}`}>
+                      {group.label}
+                    </Text>
+                    {group.versions.map((version) => (
+                      <Pressable
+                        key={version.key}
+                        style={[
+                          styles.pickerItem,
+                          version.key === bibleVersion && styles.pickerItemSelected,
+                        ]}
+                        onPress={() => handleBibleVersionChange(version)}
+                      >
+                        <Text
+                          style={[
+                            styles.pickerItemText,
+                            version.key === bibleVersion && styles.pickerItemTextSelected,
+                          ]}
+                        >
+                          {version.value}
+                        </Text>
+                        {version.key === bibleVersion && (
+                          <Ionicons name="checkmark" size={20} color={colors.gold} />
+                        )}
+                      </Pressable>
+                    ))}
+                  </View>
+                ))}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -786,7 +802,7 @@ export default function SettingsScreen() {
 
           {showLanguagePicker && (
             <View style={styles.pickerContainer}>
-              <ScrollView style={styles.pickerScrollView}>
+              <ScrollView style={styles.pickerScrollView} nestedScrollEnabled>
                 {availableLanguages.map((language) => (
                   <Pressable
                     key={language.code}
@@ -996,6 +1012,17 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     },
     pickerScrollView: {
       maxHeight: 300,
+    },
+    pickerGroupHeader: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 4,
+      fontSize: 11,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+      color: colors.textSecondary,
+      backgroundColor: colors.background,
     },
     pickerItem: {
       flexDirection: 'row',
