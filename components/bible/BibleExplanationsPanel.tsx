@@ -29,12 +29,12 @@ import {
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useBibleByLine, useBibleSummary } from '@/src/api';
 import {
   fontSizes,
@@ -205,6 +205,12 @@ export function BibleExplanationsPanel({
     // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of getTabIndex
   }, [activeTab, slideAnim, getTabIndex]);
 
+  // Active Bible version drives the verse-injection inside the AI
+  // explanations — without it the backend defaults to NASB1995, so a
+  // Romanian/German/etc. user would see English verse quotes inside
+  // their otherwise-localized commentary.
+  const { bibleVersion } = useBibleVersion();
+
   // Fetch explanations based on active tab.
   //
   // Note: we destructure BOTH `isLoading` and `isPending`. `isLoading` is
@@ -220,8 +226,7 @@ export function BibleExplanationsPanel({
     data: summaryData,
     isLoading: summaryLoading,
     isPending: summaryPending,
-    isLocalData: summaryIsLocal,
-  } = useBibleSummary(bookId, chapterNumber, undefined, {
+  } = useBibleSummary(bookId, chapterNumber, bibleVersion, {
     enabled: activeTab === 'summary',
     language,
   });
@@ -230,8 +235,7 @@ export function BibleExplanationsPanel({
     data: byLineData,
     isLoading: byLineLoading,
     isPending: byLinePending,
-    isLocalData: byLineIsLocal,
-  } = useBibleByLine(bookId, chapterNumber, undefined, {
+  } = useBibleByLine(bookId, chapterNumber, bibleVersion, {
     enabled: activeTab === 'byline',
     language,
   });
@@ -487,7 +491,6 @@ export function BibleExplanationsPanel({
               // window where the query has just been enabled but the
               // fetch hasn't kicked off yet. See destructure comment.
               loading: summaryLoading || (activeTab === 'summary' && summaryPending),
-              isLocal: summaryIsLocal,
             },
             {
               key: 'byline' as const,
@@ -497,7 +500,6 @@ export function BibleExplanationsPanel({
               explanationId:
                 byLineData && 'explanationId' in byLineData ? byLineData.explanationId : null,
               loading: byLineLoading || (activeTab === 'byline' && byLinePending),
-              isLocal: byLineIsLocal,
             },
           ] as const
         ).map((tab) => (
@@ -525,7 +527,6 @@ export function BibleExplanationsPanel({
                     sourceHref={`/bible/${bookId}/${chapterNumber}`}
                   />
                 ) : null}
-                {tab.isLocal && <AvailableOfflineBadge />}
                 {tab.key === 'byline' && byLineSections.length > 0 ? (
                   byLineSections.map((section, index) => (
                     <View

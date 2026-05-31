@@ -249,7 +249,11 @@ describe('ChapterPage', () => {
 
     renderChapterPage(2, 10);
 
-    expect(mockUseBibleChapter).toHaveBeenCalledWith(2, 10, undefined);
+    // ChapterPage now threads the user's selected Bible version through
+    // to the chapter fetch (was undefined before, defaulted to NASB1995
+    // silently in the hook). With no AsyncStorage seed, useBibleVersion()
+    // returns the default "NASB1995".
+    expect(mockUseBibleChapter).toHaveBeenCalledWith(2, 10, 'NASB1995');
   });
 
   it('should update when props change (window shift)', () => {
@@ -277,8 +281,9 @@ describe('ChapterPage', () => {
       </SafeAreaProvider>
     );
 
-    // Should have been called with new chapter number
-    expect(mockUseBibleChapter).toHaveBeenLastCalledWith(1, 2, undefined);
+    // Should have been called with new chapter number, version threaded
+    // through from useBibleVersion() (default NASB1995 in this test env).
+    expect(mockUseBibleChapter).toHaveBeenLastCalledWith(1, 2, 'NASB1995');
   });
 
   it('should pass activeTab and activeView to ChapterReader', async () => {
