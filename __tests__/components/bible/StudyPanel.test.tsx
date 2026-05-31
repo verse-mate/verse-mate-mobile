@@ -8,11 +8,14 @@
  *   - per-card toggling
  *   - Copy button invokes the clipboard with the serialized payload
  *
- * The `@versemate/studies` package is mocked so tests stay deterministic and
- * don't depend on shipped chapter content evolving over time.
+ * Data now flows through the `useStudy` hook (DB-backed study endpoint with a
+ * bundled offline fallback), so the hook is mocked to return deterministic
+ * study payloads. `getStudyLabels` (fixed Precept-method chrome) resolves from
+ * the real `@versemate/studies` package — it's a pure lookup.
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import * as Clipboard from 'expo-clipboard';
 import type React from 'react';
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -30,12 +33,21 @@ jest.mock('react-native-markdown-display', () => {
   };
 });
 
-const mockGetStudyFor = jest.fn();
-jest.mock('@versemate/studies', () => ({
-  getStudyFor: (...args: unknown[]) => mockGetStudyFor(...args),
+// Study data source — the DB-backed hook. Driven per-test.
+const mockUseStudy = jest.fn();
+jest.mock('@/src/api', () => ({
+  useStudy: (...args: unknown[]) => mockUseStudy(...args),
 }));
 
-import * as Clipboard from 'expo-clipboard';
+// Pin the content language so the test doesn't depend on AsyncStorage / auth.
+jest.mock('@/hooks/use-preferred-language', () => ({
+  usePreferredLanguage: () => 'en-US',
+}));
+
+// Keep the real (pure) label lookup for the fixed UI chrome.
+jest.mock('@versemate/studies', () => ({
+  getStudyLabels: jest.requireActual('@versemate/studies').getStudyLabels,
+}));
 
 const renderWithTheme = (component: React.ReactElement) =>
   render(<ThemeProvider>{component}</ThemeProvider>);
@@ -87,8 +99,7 @@ describe('StudyPanel', () => {
   });
 
   it('shows loading state before the chapter resolves', () => {
-    // Never resolve so loading state stays visible
-    mockGetStudyFor.mockReturnValue(new Promise(() => {}));
+    mockUseStudy.mockReturnValue({ data: undefined, isLoading: true });
 
     renderWithTheme(<StudyPanel bookId={59} chapter={1} />);
 
@@ -96,7 +107,7 @@ describe('StudyPanel', () => {
   });
 
   it('shows empty state when no study is available', async () => {
-    mockGetStudyFor.mockResolvedValue(null);
+    mockUseStudy.mockReturnValue({ data: null, isLoading: false });
 
     renderWithTheme(<StudyPanel bookId={59} chapter={99} />);
 
@@ -104,7 +115,7 @@ describe('StudyPanel', () => {
   });
 
   it('renders title + theme line and starts collapsed', async () => {
-    mockGetStudyFor.mockResolvedValue(minimalStudy);
+    mockUseStudy.mockReturnValue({ data: minimalStudy, isLoading: false });
 
     renderWithTheme(<StudyPanel bookId={59} chapter={1} />);
 
@@ -118,7 +129,7 @@ describe('StudyPanel', () => {
   });
 
   it('Expand All reveals all card bodies; Collapse All hides them again', async () => {
-    mockGetStudyFor.mockResolvedValue(minimalStudy);
+    mockUseStudy.mockReturnValue({ data: minimalStudy, isLoading: false });
 
     renderWithTheme(<StudyPanel bookId={59} chapter={1} />);
 
@@ -136,7 +147,7 @@ describe('StudyPanel', () => {
   });
 
   it('toggling an individual step card overrides bulk state', async () => {
-    mockGetStudyFor.mockResolvedValue(minimalStudy);
+    mockUseStudy.mockReturnValue({ data: minimalStudy, isLoading: false });
 
     renderWithTheme(<StudyPanel bookId={59} chapter={1} />);
 
@@ -148,7 +159,7 @@ describe('StudyPanel', () => {
   });
 
   it('Copy button writes the serialized payload to the clipboard', async () => {
-    mockGetStudyFor.mockResolvedValue(minimalStudy);
+    mockUseStudy.mockReturnValue({ data: minimalStudy, isLoading: false });
 
     renderWithTheme(<StudyPanel bookId={59} chapter={1} />);
 
