@@ -273,21 +273,32 @@ export function useBookmarks(): UseBookmarksResult {
         });
       }
 
-      // Same fix shape as notes (5cae71d) / highlights (b9fd76b) — when
-      // online + isUserDataSynced the UI reads from local SQLite, not
-      // from bookmarksQueryKey. The online path above only hits the
-      // server; without mirroring the new bookmark into local SQLite,
-      // invalidating local-bookmarks-offline-fallback re-reads the
-      // unchanged local DB and the add appears as a no-op.
+      // Mirror the new bookmark into local SQLite — when online +
+      // isUserDataSynced the UI reads from local SQLite, not from
+      // bookmarksQueryKey, so without this the add appears as a no-op
+      // (most visibly: re-adding a chapter right after un-bookmarking it
+      // does nothing, while the remove worked — its mirror uses
+      // variables.query and needs no server data).
+      //
+      // The add endpoint returns only `{ success: true }` — it does NOT
+      // echo back the created favorite — so we CANNOT rely on
+      // `data.favorite` here (that was the bug: the mirror was silently
+      // skipped). Build the local row from the request body instead, with
+      // a synthetic favorite_id (same approach as the offline-add path);
+      // the real id reconciles on the next user-data sync. Delete any
+      // existing row for this chapter first so the mirror is idempotent
+      // and re-adds don't leave duplicate/stale rows.
       const serverFav = (data as { favorite?: Bookmark })?.favorite;
-      if (isOnline && serverFav && variables.body) {
+      if (isOnline && variables.body) {
+        const { book_id, chapter_number, insight_type } = variables.body;
         try {
+          await deleteLocalBookmarkByChapter(book_id, chapter_number, insight_type || undefined);
           await addLocalBookmark({
-            favorite_id: serverFav.favorite_id,
-            book_id: serverFav.book_id,
-            chapter_number: serverFav.chapter_number,
+            favorite_id: serverFav?.favorite_id ?? Date.now(),
+            book_id,
+            chapter_number,
             created_at: new Date().toISOString(),
-            insight_type: serverFav.insight_type || undefined,
+            insight_type: insight_type || undefined,
           });
         } catch (e) {
           console.warn('[bookmarks] local mirror after add failed:', e);
