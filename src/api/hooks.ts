@@ -1,6 +1,7 @@
 // Custom React Query hooks wrapping the generated options
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getStudyFor, type InductiveStudy } from '@versemate/studies';
 import { useEffect, useMemo, useState } from 'react';
 // Offline mode imports
 import { BIBLE_BOOKS, getBookById } from '@/constants/bible-books';
@@ -1068,6 +1069,51 @@ export const useTopicExplanation = (
     data: query.data && 'explanation' in query.data ? query.data.explanation : null,
   };
 };
+
+// ============================================================================
+// Study Hook
+// ============================================================================
+
+/**
+ * Inductive study for a chapter, localized to `language` with English fallback.
+ *
+ * Fetches the DB-backed study from the backend (which serves the translation
+ * for `language` when one exists, English otherwise). On any network/API
+ * failure — or for a chapter the backend doesn't have — it falls back to the
+ * bundled `@versemate/studies` content, so the Study tab keeps working offline
+ * with exactly the content that shipped before the DB migration.
+ */
+export function useStudy(bookId: number, chapter: number, language?: string) {
+  return useQuery({
+    queryKey: ['study', bookId, chapter, language ?? 'en-US'],
+    enabled: bookId > 0 && chapter > 0,
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async (): Promise<InductiveStudy | null> => {
+      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+      try {
+        const accessToken = await getAccessToken();
+        const headers: HeadersInit = {};
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
+        }
+        const qs = language ? `?lang=${encodeURIComponent(language)}` : '';
+        const response = await fetch(`${baseUrl}/bible/study/${bookId}/${chapter}${qs}`, {
+          method: 'GET',
+          headers,
+        });
+        if (response.ok) {
+          const data = (await response.json()) as {
+            study?: { content?: InductiveStudy } | null;
+          };
+          if (data?.study?.content) return data.study.content;
+        }
+      } catch {
+        // network/offline → bundled fallback below
+      }
+      return (await getStudyFor(bookId, chapter)) ?? null;
+    },
+  });
+}
 
 // ============================================================================
 // Recently Viewed Books Hooks

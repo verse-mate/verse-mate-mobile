@@ -21,7 +21,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { getStudyFor, type InductiveStudy } from '@versemate/studies';
+import type { InductiveStudy } from '@versemate/studies';
 import type {
   StepBullets,
   StepContrasts,
@@ -39,6 +39,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useTheme } from '@/contexts/ThemeContext';
+import { usePreferredLanguage } from '@/hooks/use-preferred-language';
+import { useStudy } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 
 export interface StudyPanelProps {
@@ -56,20 +58,14 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
   const styles = useMemo(() => createStyles(colors), [colors]);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
 
-  const [study, setStudy] = useState<InductiveStudy | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    getStudyFor(bookId, chapter).then((s) => {
-      if (cancelled) return;
-      setStudy(s);
-      setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [bookId, chapter]);
+  // Study language follows the same content-language axis as AI explanations.
+  // The DB-backed study endpoint serves the translation for this language when
+  // one exists and falls back to English; useStudy additionally falls back to
+  // the bundled package offline. See useStudy in src/api/hooks.ts.
+  const language = usePreferredLanguage();
+  const { data: studyData, isLoading } = useStudy(bookId, chapter, language);
+  const study: InductiveStudy | null = studyData ?? null;
+  const loading = isLoading;
 
   // Bulk state drives the default for every section. Per-card overrides
   // win when the user toggles individually after a bulk action.
