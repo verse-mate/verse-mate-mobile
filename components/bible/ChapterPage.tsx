@@ -49,7 +49,6 @@ import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { bookHasVisuals, VisualsPanel } from '@/components/bible/VisualsPanel';
-import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -139,7 +138,6 @@ function TabContent({
   filteredAutoHighlights,
   scrollRef,
   onTabContentSizeChange,
-  isAvailableOffline,
   onByLineSectionRegister,
   bibleVersion,
   bibleLanguage,
@@ -159,7 +157,6 @@ function TabContent({
   filteredAutoHighlights?: AutoHighlight[];
   scrollRef?: React.RefObject<ScrollView | null>;
   onTabContentSizeChange?: (contentWidth: number, contentHeight: number) => void;
-  isAvailableOffline?: boolean;
   onByLineSectionRegister?: (verseNumber: number, node: View | null) => void;
   /** Threaded through to ChapterReader — see ChapterReaderProps. */
   bibleVersion?: string;
@@ -285,7 +282,6 @@ function TabContent({
               sourceHref={`/bible/${chapter.bookId}/${chapter.chapterNumber}`}
             />
           ) : null}
-          {isAvailableOffline && <AvailableOfflineBadge />}
           {chapter && (
             <ChapterReader
               chapter={chapter}
@@ -717,7 +713,6 @@ export function ChapterPage({
     data: summaryData,
     isLoading: isSummaryLoading,
     error: summaryError,
-    isLocalData: summaryIsLocal,
   } = useBibleSummary(bookId, chapterNumber, bibleVersion, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -729,7 +724,6 @@ export function ChapterPage({
     data: byLineData,
     isLoading: isByLineLoading,
     error: byLineError,
-    isLocalData: byLineIsLocal,
   } = useBibleByLine(bookId, chapterNumber, bibleVersion, {
     enabled:
       (!isPreloading || activeView === 'explanations') &&
@@ -1120,7 +1114,6 @@ export function ChapterPage({
                 content={summaryData}
                 isLoading={isSummaryLoading}
                 error={summaryError}
-                isAvailableOffline={summaryIsLocal}
                 visible={true}
                 shouldRenderHidden={true}
                 testID={`chapter-page-scroll-${bookId}-${chapterNumber}-summary`}
@@ -1150,7 +1143,6 @@ export function ChapterPage({
                 content={byLineData}
                 isLoading={isByLineLoading}
                 error={byLineError}
-                isAvailableOffline={byLineIsLocal}
                 visible={true}
                 shouldRenderHidden={true}
                 testID={`chapter-page-scroll-${bookId}-${chapterNumber}-byline`}
