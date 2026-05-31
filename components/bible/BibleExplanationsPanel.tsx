@@ -29,7 +29,6 @@ import {
 import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { AvailableOfflineBadge } from '@/components/offline/AvailableOfflineBadge';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -227,7 +226,6 @@ export function BibleExplanationsPanel({
     data: summaryData,
     isLoading: summaryLoading,
     isPending: summaryPending,
-    isLocalData: summaryIsLocal,
   } = useBibleSummary(bookId, chapterNumber, bibleVersion, {
     enabled: activeTab === 'summary',
     language,
@@ -237,7 +235,6 @@ export function BibleExplanationsPanel({
     data: byLineData,
     isLoading: byLineLoading,
     isPending: byLinePending,
-    isLocalData: byLineIsLocal,
   } = useBibleByLine(bookId, chapterNumber, bibleVersion, {
     enabled: activeTab === 'byline',
     language,
@@ -494,7 +491,6 @@ export function BibleExplanationsPanel({
               // window where the query has just been enabled but the
               // fetch hasn't kicked off yet. See destructure comment.
               loading: summaryLoading || (activeTab === 'summary' && summaryPending),
-              isLocal: summaryIsLocal,
             },
             {
               key: 'byline' as const,
@@ -504,7 +500,6 @@ export function BibleExplanationsPanel({
               explanationId:
                 byLineData && 'explanationId' in byLineData ? byLineData.explanationId : null,
               loading: byLineLoading || (activeTab === 'byline' && byLinePending),
-              isLocal: byLineIsLocal,
             },
           ] as const
         ).map((tab) => (
@@ -532,7 +527,6 @@ export function BibleExplanationsPanel({
                     sourceHref={`/bible/${bookId}/${chapterNumber}`}
                   />
                 ) : null}
-                {tab.isLocal && <AvailableOfflineBadge />}
                 {tab.key === 'byline' && byLineSections.length > 0 ? (
                   byLineSections.map((section, index) => (
                     <View
