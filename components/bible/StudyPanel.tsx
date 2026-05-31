@@ -21,7 +21,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import type { InductiveStudy } from '@versemate/studies';
+import { getStudyLabels, type InductiveStudy } from '@versemate/studies';
 import type {
   StepBullets,
   StepContrasts,
@@ -63,6 +63,9 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
   // one exists and falls back to English; useStudy additionally falls back to
   // the bundled package offline. See useStudy in src/api/hooks.ts.
   const language = usePreferredLanguage();
+  // Fixed Precept-method UI chrome, localized once per language (English
+  // fallback). See @versemate/studies labels.
+  const labels = getStudyLabels(language);
   const { data: studyData, isLoading } = useStudy(bookId, chapter, language);
   const study: InductiveStudy | null = studyData ?? null;
   const loading = isLoading;
@@ -150,7 +153,9 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
     }
   }
   if (study.interpretation.intro) allIds.push('interpretation-intro');
-  for (const m of study.interpretation.movements) allIds.push(`mv-${m.number}`);
+  study.interpretation.movements.forEach((m, i) => {
+    allIds.push(`mv-${m.number ?? i}`);
+  });
   allIds.push('application');
 
   const allOpen = allIds.every((id) => isOpen(id));
@@ -164,7 +169,7 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
       {/* Title row + Copy / Share */}
       <View style={styles.titleRow}>
         <Text style={styles.title} testID={`${testID}-title`} accessibilityRole="header">
-          Inductive Study of {study.title}
+          {labels.inductiveStudyOf} {study.title}
         </Text>
         <View style={styles.titleActions}>
           <Pressable
@@ -210,26 +215,23 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
           testID={`${testID}-toggle-all`}
           hitSlop={6}
         >
-          <Text style={styles.expandAllText}>{allOpen ? 'Collapse All' : 'Expand All'}</Text>
+          <Text style={styles.expandAllText}>
+            {allOpen ? labels.collapseAll : labels.expandAll}
+          </Text>
         </Pressable>
       </View>
 
       {/* OBSERVATION */}
-      <SectionHeading label="Observation — 9 Inductive Steps" colors={colors} styles={styles} />
+      <SectionHeading label={labels.observationSection} colors={colors} styles={styles} />
       <Card
         open={isOpen('observation-intro')}
         onToggle={() => toggle('observation-intro')}
-        heading="About the nine observation steps"
+        heading={labels.aboutObservationTitle}
         colors={colors}
         styles={styles}
         testID={`${testID}-observation-intro`}
       >
-        <Text style={styles.sectionIntro}>
-          Observation asks what the text says — slowing down to mark the keywords, contrasts,
-          repetitions, and structural cues the author left for you. Each of the nine steps below
-          builds the evidence the interpretation that follows is built on. Don&apos;t skip ahead;
-          the meaning comes from what you observed.
-        </Text>
+        <Text style={styles.sectionIntro}>{labels.aboutObservationBody.replace(/\*/g, '')}</Text>
       </Card>
       {study.steps.map((step) => (
         <StepCard
@@ -245,12 +247,12 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
       ))}
 
       {/* INTERPRETATION */}
-      <SectionHeading label="Interpretation" colors={colors} styles={styles} />
+      <SectionHeading label={labels.interpretationSection} colors={colors} styles={styles} />
       {study.interpretation.intro ? (
         <Card
           open={isOpen('interpretation-intro')}
           onToggle={() => toggle('interpretation-intro')}
-          heading="About the interpretation movements"
+          heading={labels.aboutInterpretationTitle}
           colors={colors}
           styles={styles}
           testID={`${testID}-interpretation-intro`}
@@ -258,27 +260,27 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
           <Text style={styles.sectionIntro}>{study.interpretation.intro}</Text>
         </Card>
       ) : null}
-      {study.interpretation.movements.map((movement) => (
+      {study.interpretation.movements.map((movement, mvIdx) => (
         <Card
-          key={movement.number}
-          open={isOpen(`mv-${movement.number}`)}
-          onToggle={() => toggle(`mv-${movement.number}`)}
-          heading={`Movement ${movement.number} — ${movement.title}`}
+          key={movement.number ?? mvIdx}
+          open={isOpen(`mv-${movement.number ?? mvIdx}`)}
+          onToggle={() => toggle(`mv-${movement.number ?? mvIdx}`)}
+          heading={`${labels.movement} ${movement.number} — ${movement.title}`}
           subPill={movement.range}
           colors={colors}
           styles={styles}
-          testID={`${testID}-movement-${movement.number}`}
+          testID={`${testID}-movement-${movement.number ?? mvIdx}`}
         >
           <MovementBody movement={movement} styles={styles} markdownStyles={markdownStyles} />
         </Card>
       ))}
 
       {/* APPLICATION */}
-      <SectionHeading label="Application" colors={colors} styles={styles} />
+      <SectionHeading label={labels.applicationSection} colors={colors} styles={styles} />
       <Card
         open={isOpen('application')}
         onToggle={() => toggle('application')}
-        heading="Apply, one question per movement"
+        heading={labels.applyOneQuestion}
         colors={colors}
         styles={styles}
         testID={`${testID}-application`}
@@ -462,6 +464,7 @@ function QAStep({
 }
 
 function KeywordsStep({ step, styles }: { step: StepKeywords; styles: Styles }) {
+  const labels = getStudyLabels(usePreferredLanguage());
   // Each keyword is wrapped in its own card (darker background, padding, rounded)
   // to match the web layout. The word + Greek + count badge sit on the top row,
   // the verses listing comes next, and the definition reads underneath.
@@ -477,7 +480,7 @@ function KeywordsStep({ step, styles }: { step: StepKeywords; styles: Styles }) 
             </View>
           </View>
           <Text style={styles.keywordVerses}>
-            <Text style={styles.keywordVersesLabel}>VERSES </Text>
+            <Text style={styles.keywordVersesLabel}>{labels.versesLabel} </Text>
             {kw.verses}
           </Text>
           {kw.definition ? <Text style={styles.keywordDef}>{kw.definition}</Text> : null}
@@ -643,10 +646,11 @@ function SegmentsStep({
   styles: Styles;
   markdownStyles: MarkdownStyles;
 }) {
+  const labels = getStudyLabels(usePreferredLanguage());
   return (
     <View>
       <View style={styles.themeBlock}>
-        <Text style={styles.themeLabel}>CHAPTER THEME</Text>
+        <Text style={styles.themeLabel}>{labels.chapterThemeLabel}</Text>
         <Text style={styles.themeHeadline}>{step.themeHeadline}</Text>
       </View>
       {step.segments.map((seg, i) => (
