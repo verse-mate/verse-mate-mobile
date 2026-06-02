@@ -37,6 +37,9 @@ jest.mock('react-native-markdown-display', () => {
 const mockUseStudy = jest.fn();
 jest.mock('@/src/api', () => ({
   useStudy: (...args: unknown[]) => mockUseStudy(...args),
+  // Labels are now DB-backed via useStudyLabels; in tests resolve the same
+  // bundled chrome the component used before (no network / react-query).
+  useStudyLabels: (lang?: string) => jest.requireActual('@versemate/studies').getStudyLabels(lang),
 }));
 
 // Pin the content language so the test doesn't depend on AsyncStorage / auth.

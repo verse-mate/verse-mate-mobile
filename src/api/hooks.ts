@@ -1,7 +1,12 @@
 // Custom React Query hooks wrapping the generated options
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getStudyFor, type InductiveStudy } from '@versemate/studies';
+import {
+  getStudyFor,
+  getStudyLabels,
+  type InductiveStudy,
+  type StudyLabels,
+} from '@versemate/studies';
 import { useEffect, useMemo, useState } from 'react';
 // Offline mode imports
 import { BIBLE_BOOKS, getBookById } from '@/constants/bible-books';
@@ -1113,6 +1118,48 @@ export function useStudy(bookId: number, chapter: number, language?: string) {
       return (await getStudyFor(bookId, chapter)) ?? null;
     },
   });
+}
+
+/**
+ * Inductive-study UI chrome labels for the given language.
+ *
+ * Two-tier: the bundled `getStudyLabels` map (en/ro/es) is the synchronous
+ * default/offline fallback; the DB-backed `/bible/study-labels` row (any
+ * enabled language) is fetched and merged OVER it. A language with no row — or
+ * a key the row omits — degrades to English per-key, and new languages go live
+ * with no app release. Keyed by base ISO so every chapter + sub-renderer shares
+ * one cached fetch.
+ */
+export function useStudyLabels(language?: string): StudyLabels {
+  const base = (language ?? 'en').toLowerCase().split('-')[0];
+  const query = useQuery({
+    queryKey: ['study-labels', base],
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: async (): Promise<Partial<StudyLabels> | null> => {
+      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
+      try {
+        const accessToken = await getAccessToken();
+        const headers: HeadersInit = {};
+        if (accessToken) {
+          headers.Authorization = `Bearer ${accessToken}`;
+        }
+        const response = await fetch(
+          `${baseUrl}/bible/study-labels?lang=${encodeURIComponent(language ?? 'en')}`,
+          { method: 'GET', headers }
+        );
+        if (response.ok) {
+          const data = (await response.json()) as {
+            labels?: Record<string, string> | null;
+          };
+          return (data?.labels as Partial<StudyLabels> | undefined) ?? null;
+        }
+      } catch {
+        // network/offline → bundled fallback below
+      }
+      return null;
+    },
+  });
+  return { ...getStudyLabels(language), ...(query.data ?? {}) };
 }
 
 // ============================================================================

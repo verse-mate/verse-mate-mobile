@@ -21,7 +21,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { getStudyLabels, type InductiveStudy } from '@versemate/studies';
+import type { InductiveStudy } from '@versemate/studies';
 import type {
   StepBullets,
   StepContrasts,
@@ -40,7 +40,7 @@ import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
-import { useStudy } from '@/src/api';
+import { useStudy, useStudyLabels } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 
 export interface StudyPanelProps {
@@ -63,9 +63,10 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
   // one exists and falls back to English; useStudy additionally falls back to
   // the bundled package offline. See useStudy in src/api/hooks.ts.
   const language = usePreferredLanguage();
-  // Fixed Precept-method UI chrome, localized once per language (English
-  // fallback). See @versemate/studies labels.
-  const labels = getStudyLabels(language);
+  // Fixed Precept-method UI chrome, localized per language. DB-backed
+  // (useStudyLabels) so a new language's chrome ships without an app release,
+  // with the bundled @versemate/studies map as offline/English fallback.
+  const labels = useStudyLabels(language);
   const { data: studyData, isLoading } = useStudy(bookId, chapter, language);
   const study: InductiveStudy | null = studyData ?? null;
   const loading = isLoading;
@@ -464,7 +465,7 @@ function QAStep({
 }
 
 function KeywordsStep({ step, styles }: { step: StepKeywords; styles: Styles }) {
-  const labels = getStudyLabels(usePreferredLanguage());
+  const labels = useStudyLabels(usePreferredLanguage());
   // Each keyword is wrapped in its own card (darker background, padding, rounded)
   // to match the web layout. The word + Greek + count badge sit on the top row,
   // the verses listing comes next, and the definition reads underneath.
@@ -646,7 +647,7 @@ function SegmentsStep({
   styles: Styles;
   markdownStyles: MarkdownStyles;
 }) {
-  const labels = getStudyLabels(usePreferredLanguage());
+  const labels = useStudyLabels(usePreferredLanguage());
   return (
     <View>
       <View style={styles.themeBlock}>
