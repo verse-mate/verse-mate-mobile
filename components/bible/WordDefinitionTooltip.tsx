@@ -35,6 +35,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BIBLE_BOOKS } from '@/constants/bible-books';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
@@ -157,7 +158,8 @@ export function WordDefinitionTooltip({
 
       try {
         // Use unified dictionary service for lookup
-        const result = await lookupWord(word);
+        const bibleBook = BIBLE_BOOKS.find((b) => b.name === bookName);
+        const result = await lookupWord(word, bibleBook?.testament);
 
         // Check native dictionary availability (iOS only, or when no other source found)
         let hasNative = false;
