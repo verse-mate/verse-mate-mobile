@@ -43,7 +43,9 @@
     "skip": "Omitir",
     "next": "Siguiente",
     "get_started": "Comenzar",
-    "login": "Iniciar sesión"
+    "login": "Iniciar sesión",
+    "start_reading": "Empezar a leer",
+    "whats_new": "Novedades"
   },
 
   "settings": {
