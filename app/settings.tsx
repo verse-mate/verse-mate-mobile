@@ -92,6 +92,30 @@ const LANGUAGE_NAMES: Record<string, string> = {
   id: 'Indonesian',
 };
 
+// Native (endonym) display name per base ISO code, region stripped — the
+// language dropdown shows "Native (English)" (e.g. "Español (Spanish)") with
+// the region carried only by the underlying code (es-MX), not the label.
+const LANGUAGE_NATIVE_NAMES: Record<string, string> = {
+  en: 'English',
+  ro: 'Română',
+  es: 'Español',
+  pt: 'Português',
+  ru: 'Русский',
+  uk: 'Українська',
+  fr: 'Français',
+  de: 'Deutsch',
+  it: 'Italiano',
+  hi: 'हिन्दी',
+};
+
+// Drop region qualifiers from a free-form language name — a trailing
+// "(Region)" or " de Region" — for languages not in the curated maps above.
+const stripRegionQualifier = (s: string): string =>
+  s
+    .replace(/\s*\([^)]*\)\s*/g, ' ')
+    .replace(/\s+de\s+.+$/i, '')
+    .trim();
+
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -592,11 +616,19 @@ export default function SettingsScreen() {
     clearError();
   };
 
+  // "Native (English)" with the region stripped from both — e.g.
+  // "Español (Spanish)", not "Español de México (Mexican Spanish)". Prefer the
+  // curated maps (clean endonym/English per base ISO), falling back to a
+  // region-stripped form of the DB names for any language not in them. The
+  // region is preserved in `lang.code` (es-MX), just not shown.
   const formatLanguageDisplay = (lang: Language) => {
-    if (lang.name === lang.nativeName) {
-      return lang.name;
+    const base = lang.code.toLowerCase().split('-')[0];
+    const english = LANGUAGE_NAMES[base] ?? stripRegionQualifier(lang.name);
+    const native = LANGUAGE_NATIVE_NAMES[base] ?? stripRegionQualifier(lang.nativeName);
+    if (native === english) {
+      return english;
     }
-    return `${lang.nativeName} (${lang.name})`;
+    return `${native} (${english})`;
   };
 
   /**
