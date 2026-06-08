@@ -90,9 +90,12 @@ export function generateChapterShareUrl(
  * parseChapterShareUrl('https://example.com/wrong/path')
  * // Returns: null
  */
-export function parseChapterShareUrl(
-  url: string
-): { bookId: number; chapterNumber: number } | null {
+export function parseChapterShareUrl(url: string): {
+  bookId: number;
+  chapterNumber: number;
+  verseStart?: number;
+  verseEnd?: number;
+} | null {
   const baseUrl = process.env.EXPO_PUBLIC_WEB_URL;
 
   if (!baseUrl) {
@@ -134,7 +137,22 @@ export function parseChapterShareUrl(
       return null;
     }
 
-    return { bookId, chapterNumber };
+    // Optional verse range (used by the verse-of-the-day widget deep link):
+    // ?verseStart=N&verseEnd=M. Invalid/absent values are simply omitted.
+    const parsePositiveInt = (raw: string | null): number | undefined => {
+      if (!raw) return undefined;
+      const n = Number.parseInt(raw, 10);
+      return Number.isNaN(n) || n < 1 ? undefined : n;
+    };
+    const verseStart = parsePositiveInt(urlObj.searchParams.get('verseStart'));
+    const verseEnd = parsePositiveInt(urlObj.searchParams.get('verseEnd'));
+
+    return {
+      bookId,
+      chapterNumber,
+      ...(verseStart !== undefined ? { verseStart } : {}),
+      ...(verseEnd !== undefined ? { verseEnd } : {}),
+    };
   } catch (error) {
     console.warn('Failed to parse chapter share URL:', error);
     return null;

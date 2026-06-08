@@ -128,4 +128,36 @@ describe('parseChapterShareUrl', () => {
     const result = parseChapterShareUrl('https://app.versemate.org/bible/1/1');
     expect(result).toBeNull();
   });
+
+  // Verse-of-the-day widget deep link (GH-265): optional verse range params.
+  it('parses a single-verse widget deep link (verseStart)', () => {
+    const result = parseChapterShareUrl(
+      'https://app.versemate.org/bible/john/3?verseStart=16&src=widget'
+    );
+    expect(result).toEqual({ bookId: 43, chapterNumber: 3, verseStart: 16 });
+  });
+
+  it('parses a passage widget deep link (verseStart + verseEnd)', () => {
+    const result = parseChapterShareUrl(
+      'https://app.versemate.org/bible/45/8?verseStart=38&verseEnd=39'
+    );
+    expect(result).toEqual({
+      bookId: 45,
+      chapterNumber: 8,
+      verseStart: 38,
+      verseEnd: 39,
+    });
+  });
+
+  it('omits verse keys when no verse params present', () => {
+    const result = parseChapterShareUrl('https://app.versemate.org/bible/john/3');
+    expect(result).toEqual({ bookId: 43, chapterNumber: 3 });
+  });
+
+  it('ignores invalid verse params', () => {
+    const result = parseChapterShareUrl(
+      'https://app.versemate.org/bible/john/3?verseStart=abc&verseEnd=0'
+    );
+    expect(result).toEqual({ bookId: 43, chapterNumber: 3 });
+  });
 });

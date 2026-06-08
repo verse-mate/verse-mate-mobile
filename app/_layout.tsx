@@ -41,6 +41,7 @@ import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { preloadAllTopicsCache } from '@/hooks/topics/use-cached-topics';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   trackAudioPlaybackCompleted,
   trackAudioPlaybackPaused,
@@ -256,7 +257,7 @@ function RootLayoutInner() {
           return;
         }
 
-        const { bookId, chapterNumber } = chapterParsed;
+        const { bookId, chapterNumber, verseStart, verseEnd } = chapterParsed;
 
         // Validate bookId (parser already validates 1-66 range)
         if (bookId < 1 || bookId > 66) {
@@ -273,7 +274,27 @@ function RootLayoutInner() {
           return;
         }
 
-        // TODO: Track analytics - deep_link_navigation_success with { bookId, chapterNumber }
+        // Verse-of-the-day widget deep link carries ?verseStart (and ?src=widget).
+        // Forward to the reader's existing `verse`/`endVerse` params (scroll +
+        // highlight) and emit the re-entry analytics event.
+        const isWidget = url.includes('src=widget');
+        if (verseStart) {
+          if (isWidget) {
+            analytics.track(AnalyticsEvent.WIDGET_TAPPED, {
+              bookId,
+              chapterNumber,
+              verseStart,
+              verseEnd,
+              source: 'verse-of-the-day',
+            });
+          }
+          const verseParams = new URLSearchParams();
+          verseParams.set('verse', String(verseStart));
+          if (verseEnd) verseParams.set('endVerse', String(verseEnd));
+          if (isWidget) verseParams.set('src', 'widget');
+          router.replace(`/bible/${bookId}/${chapterNumber}?${verseParams.toString()}`);
+          return;
+        }
 
         // Navigate to the chapter
         router.replace(`/bible/${bookId}/${chapterNumber}`);

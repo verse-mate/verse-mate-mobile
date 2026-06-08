@@ -1,0 +1,43 @@
+---
+appId: org.versemate.app
+name: Verse-of-the-Day Widget Deep Link Flow
+description: Tapping the widget deep link opens the chapter at the target verse
+tags:
+  - user-flow
+  - widget
+
+---
+
+# Verse-of-the-Day widget deep link (GH-265).
+#
+# The widget links to the Universal Link form with a verse range +
+# src=widget marker. The app's deep-link handler forwards it to the reader's
+# verse/endVerse params (scroll + highlight) and emits WIDGET_TAPPED.
+
+# Launch the app from the widget's deep link (John 3:16).
+- launchApp:
+    clearState: true
+    appId: org.versemate.app
+    arguments:
+      url: "https://app.versemate.org/bible/john/3?verseStart=16&src=widget"
+
+# Some launchers/CI show a system dialog first.
+- runFlow:
+    when:
+      visible: "Wait"
+    commands:
+      - tapOn: "Wait"
+
+# We should land in the chapter reader.
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+
+- waitForAnimationToEnd
+
+# The target verse should be scrolled into view / present.
+- extendedWaitUntil:
+    visible:
+      id: "verse-group-16"
+    timeout: 30000
