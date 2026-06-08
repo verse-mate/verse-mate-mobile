@@ -868,6 +868,38 @@ export default function SettingsScreen() {
         {/* Theme Selector Section */}
         <ThemeSelector />
 
+        {/* Home Screen Widget — mobile only (GH-265) */}
+        {Platform.OS !== 'web' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Home Screen Widget</Text>
+            <Pressable
+              style={[styles.selectButton, styles.manageDownloadsButton]}
+              onPress={() => router.push('/widget-info')}
+              accessibilityLabel="Set up the verse of the day home screen widget"
+              accessibilityRole="button"
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={colors.textPrimary}
+                style={styles.manageDownloadsIcon}
+              />
+              <View style={styles.manageDownloadsTextContainer}>
+                <Text
+                  style={[styles.selectButtonText, styles.manageDownloadsTitle]}
+                  numberOfLines={1}
+                >
+                  Verse of the Day widget
+                </Text>
+                <Text style={styles.manageDownloadsSubtitle}>
+                  Add today's verse to your home screen
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        )}
+
         {/* Downloads & Offline — hidden on web (online-only) */}
         {Platform.OS !== 'web' && (
           <View style={styles.section}>
