@@ -17,6 +17,10 @@ import SwiftUI
 
 private let appGroup = "group.org.versemate.app"
 private let versionKeyDefaultsKey = "preferred_bible_version"
+// Personalization id (the logged-in user's own id) mirrored from the app via
+// the App Group; sent as `pid` so the widget shows the user's personal verse
+// (PD-7). Empty/absent when logged out → the endpoint serves the global verse.
+private let userIdDefaultsKey = "widget_user_id"
 private let cacheKey = "votd_last_response"
 private let apiBaseURL = "https://api.versemate.org"
 // KNOWN PROD-ONLY CONSTANT (GH-265 / L-003): the iOS widget extension is a
@@ -63,6 +67,11 @@ private func preferredVersion() -> String {
   sharedDefaults()?.string(forKey: versionKeyDefaultsKey) ?? defaultVersion
 }
 
+private func personalizationId() -> String? {
+  let id = sharedDefaults()?.string(forKey: userIdDefaultsKey)
+  return (id?.isEmpty == false) ? id : nil
+}
+
 private func localDateString() -> String {
   let f = DateFormatter()
   f.dateFormat = "yyyy-MM-dd"
@@ -86,10 +95,14 @@ private func fetchVerseOfTheDay(completion: @escaping (VerseOfTheDay?) -> Void) 
   guard
     var components = URLComponents(string: "\(apiBaseURL)/bible/verse-of-the-day")
   else { completion(cachedResponse()); return }
-  components.queryItems = [
+  var items = [
     URLQueryItem(name: "date", value: date),
     URLQueryItem(name: "bible_version", value: version),
   ]
+  if let pid = personalizationId() {
+    items.append(URLQueryItem(name: "pid", value: pid))
+  }
+  components.queryItems = items
   guard let url = components.url else { completion(cachedResponse()); return }
 
   let task = URLSession.shared.dataTask(with: url) { data, _, _ in
