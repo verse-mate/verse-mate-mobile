@@ -18,8 +18,8 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
@@ -82,6 +82,16 @@ const BASE_TABS: readonly Tab[] = [
 const DETAILED_TAB: Tab = { id: 'detailed', label: 'Detailed' };
 const STUDY_TAB: Tab = { id: 'study', label: 'Study' };
 const VISUALS_TAB: Tab = { id: 'visuals', label: 'Visuals' };
+
+/**
+ * Minimum width a single pill is allowed to shrink to. When the container is
+ * wide enough, tabs split the space evenly (usable / N) and fill the row. When
+ * the container narrows (e.g. the split-view right pane is dragged small) the
+ * even width would drop below this floor, so we clamp to it and the row becomes
+ * horizontally scrollable instead of squashing the labels — matching the web
+ * behaviour Andy expects (MOBILE-1001 #1).
+ */
+const MIN_TAB_WIDTH = 88;
 
 /**
  * ChapterContentTabs Component
@@ -155,6 +165,11 @@ export function ChapterContentTabs({
   );
 
   const [tabWidth, setTabWidth] = useState(0);
+  // Available width of the pill track (the visible row, not the scroll content).
+  // Used to keep the row at least full-width when tabs fit, and to centre the
+  // active tab when the row overflows and scrolls.
+  const [trackWidth, setTrackWidth] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
 
   /**
    * Handle tab press
@@ -180,8 +195,22 @@ export function ChapterContentTabs({
     const { width } = event.nativeEvent.layout;
     const n = tabs.length;
     const usableWidth = width - 8 - (n - 1) * 4;
-    setTabWidth(usableWidth / n);
+    // Even split when there's room; clamp to MIN_TAB_WIDTH when narrow so the
+    // row scrolls horizontally instead of cramming the labels (#1).
+    setTabWidth(Math.max(usableWidth / n, MIN_TAB_WIDTH));
+    setTrackWidth(width);
   };
+
+  // When the active tab changes and the row is scrollable, bring the active
+  // pill into view (centred when possible). No-op while everything fits.
+  useEffect(() => {
+    if (trackWidth <= 0 || tabWidth <= 0) return;
+    const idx = getTabIndex(activeTab);
+    if (idx < 0) return;
+    const tabStart = idx * (tabWidth + 4);
+    const target = Math.max(0, tabStart - (trackWidth - tabWidth) / 2);
+    scrollRef.current?.scrollTo({ x: target, animated: true });
+  }, [activeTab, tabWidth, trackWidth, getTabIndex]);
 
   // Indicator translateX animation runs on the UI thread driven by
   // animatedIndex (smoothed targetIndex). Translates to index * (tabWidth + 4).
@@ -200,26 +229,38 @@ export function ChapterContentTabs({
 
   return (
     <View style={styles.container} testID="chapter-content-tabs">
-      <View style={styles.tabsRow} onLayout={handleLayout}>
-        {/* Sliding active indicator */}
-        <Animated.View
-          style={[styles.slidingIndicator, { width: tabWidth }, indicatorAnimatedStyle]}
-        />
-
-        {tabs.map((tab, index) => (
-          <TabButton
-            key={tab.id}
-            tab={tab}
-            index={index}
-            animatedIndex={animatedIndex}
-            activeColor={activeColor}
-            inactiveColor={inactiveColor}
-            onPress={handleTabPress}
-            disabled={disabled}
-            activeTab={activeTab}
-            styles={styles}
+      <View style={styles.scrollTrack} onLayout={handleLayout}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          // The pill track stays at least as wide as the visible area so it
+          // fills the row when tabs fit; when their clamped widths overflow it,
+          // this ScrollView lets the user scroll sideways (#1).
+          contentContainerStyle={[styles.tabsRow, trackWidth > 0 && { minWidth: trackWidth }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Sliding active indicator */}
+          <Animated.View
+            style={[styles.slidingIndicator, { width: tabWidth }, indicatorAnimatedStyle]}
           />
-        ))}
+
+          {tabs.map((tab, index) => (
+            <TabButton
+              key={tab.id}
+              tab={tab}
+              index={index}
+              width={tabWidth}
+              animatedIndex={animatedIndex}
+              activeColor={activeColor}
+              inactiveColor={inactiveColor}
+              onPress={handleTabPress}
+              disabled={disabled}
+              activeTab={activeTab}
+              styles={styles}
+            />
+          ))}
+        </ScrollView>
       </View>
     </View>
   );
@@ -233,6 +274,7 @@ export function ChapterContentTabs({
 function TabButton({
   tab,
   index,
+  width,
   animatedIndex,
   activeColor,
   inactiveColor,
@@ -243,6 +285,7 @@ function TabButton({
 }: {
   tab: Tab;
   index: number;
+  width: number;
   animatedIndex: SharedValue<number>;
   activeColor: string;
   inactiveColor: string;
@@ -264,6 +307,7 @@ function TabButton({
       onPress={() => onPress(tab.id)}
       style={({ pressed }) => [
         styles.tab,
+        width > 0 && { width },
         pressed && styles.tabPressed,
         disabled && styles.tabDisabled,
       ]}
@@ -291,13 +335,19 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       borderBottomWidth: 1,
       borderBottomColor: colors.gold,
     },
+    // Visible track wrapping the horizontal ScrollView. onLayout here measures
+    // the available width (used for even-split vs. clamp + active-tab centring).
+    scrollTrack: {
+      width: '100%',
+    },
     tabsRow: {
       backgroundColor: colors.backgroundElevated,
       borderRadius: 100,
       padding: 4,
       flexDirection: 'row',
       gap: 4,
-      justifyContent: 'space-between',
+      // No justifyContent: tabs have explicit widths (even-split or clamped),
+      // so they fill the track exactly when fitting and scroll when overflowing.
       position: 'relative',
       minHeight: 36,
     },
@@ -310,7 +360,6 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
       left: 4,
     },
     tab: {
-      flex: 1,
       borderRadius: 100,
       paddingVertical: 2,
       paddingHorizontal: spacing.sm,

@@ -415,62 +415,76 @@ export function BibleExplanationsPanel({
       {/* Tab Selector */}
 
       <View style={styles.tabContainer}>
-        <View
-          style={styles.tabsRow}
-          onLayout={(event) => {
-            const { width } = event.nativeEvent.layout;
-            // Container has 4px padding each side + 4px gap between
-            // tabs, so usable width = W - 8 - (N-1)*4 for N tabs.
-            const n = tabs.length;
-            const usableWidth = width - 8 - (n - 1) * 4;
-            setTabWidth(usableWidth / n);
-          }}
+        {/* Horizontal scroll so the fixed-width pills can be reached by
+            scrolling sideways when the right panel is narrowed, instead of
+            being clipped off the edge (MOBILE-1001 #1). Centred while they
+            fit via the content container. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabScrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Sliding active indicator. Animation indices match `tabs` order. */}
-          <Animated.View
-            style={[
-              styles.slidingIndicator,
-              {
-                width: tabWidth,
-                transform: [
-                  {
-                    translateX: slideAnim.interpolate({
-                      // inputRange must be monotonically increasing
-                      // with length === outputRange.length; both built
-                      // from `tabs.length` so this scales with the
-                      // optional Visuals tab.
-                      inputRange: tabs.length < 2 ? [0, 1] : tabs.map((_, i) => i),
-                      outputRange:
-                        tabs.length < 2
-                          ? [0, tabWidth + 4]
-                          : tabs.map((_, i) => i * (tabWidth + 4)),
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
+          <View
+            style={styles.tabsRow}
+            onLayout={(event) => {
+              const { width } = event.nativeEvent.layout;
+              // Container has 4px padding each side + 4px gap between
+              // tabs, so usable width = W - 8 - (N-1)*4 for N tabs.
+              const n = tabs.length;
+              const usableWidth = width - 8 - (n - 1) * 4;
+              setTabWidth(usableWidth / n);
+            }}
+          >
+            {/* Sliding active indicator. Animation indices match `tabs` order. */}
+            <Animated.View
+              style={[
+                styles.slidingIndicator,
+                {
+                  width: tabWidth,
+                  transform: [
+                    {
+                      translateX: slideAnim.interpolate({
+                        // inputRange must be monotonically increasing
+                        // with length === outputRange.length; both built
+                        // from `tabs.length` so this scales with the
+                        // optional Visuals tab.
+                        inputRange: tabs.length < 2 ? [0, 1] : tabs.map((_, i) => i),
+                        outputRange:
+                          tabs.length < 2
+                            ? [0, tabWidth + 4]
+                            : tabs.map((_, i) => i * (tabWidth + 4)),
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
 
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <Pressable
-                key={tab.id}
-                style={styles.tab}
-                onPress={() => handleTabChange(tab.id)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: isActive }}
-                testID={`${testID}-tab-${tab.id}`}
-              >
-                <Text
-                  style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <Pressable
+                  key={tab.id}
+                  style={styles.tab}
+                  onPress={() => handleTabChange(tab.id)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: isActive }}
+                  testID={`${testID}-tab-${tab.id}`}
                 >
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[
+                      styles.tabText,
+                      isActive ? styles.tabTextActive : styles.tabTextInactive,
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
       </View>
 
       {/* Content Area — one ScrollView per tab for independent scroll
@@ -677,6 +691,12 @@ function createStyles(
       backgroundColor: colors.background,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
+    },
+    // Centre the pill row while it fits; allow horizontal scroll when the
+    // fixed-width pills overflow a narrow panel (#1).
+    tabScrollContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
     },
     tabsRow: {
       backgroundColor: colors.backgroundElevated,
