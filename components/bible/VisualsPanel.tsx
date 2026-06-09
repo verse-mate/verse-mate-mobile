@@ -47,7 +47,6 @@ import {
 // the new `File.downloadFileAsync` API end-to-end.
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
-import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -194,18 +193,11 @@ export function VisualsPanel({
     setVideoError(false);
   }, [bookId, chapter]);
 
-  // The whole Visuals tab is landscape-capable, not just the lightbox
-  // modal — wide diagrams (Genesis poster) are easier to read rotated.
-  // Unlock at mount and re-lock to portrait at unmount so other tabs /
-  // screens stay portrait. One mount/unmount effect (vs per-`openCard`)
-  // avoids rapid lock/unlock churn that previously crashed on background
-  // → resume of the PDF flow.
-  useEffect(() => {
-    ScreenOrientation.unlockAsync().catch(() => {});
-    return () => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
-    };
-  }, []);
+  // Orientation is owned by the reader screen (app/bible/[bookId]/[chapterNumber].tsx)
+  // as of MOBILE-1001 #2 — the entire reader is landscape-capable now, so the
+  // Visuals tab no longer unlocks on mount / re-locks PORTRAIT_UP on unmount.
+  // Re-locking on unmount here is exactly what snapped the Bible/Summary tabs
+  // back to portrait, and the per-tab churn fed the resume crash (#5).
 
   // ─── Bug #8 — pinch/zoom + pan SharedValues for the lightbox image ───
   // Held at module-scope-equivalent (component scope) so the same animated

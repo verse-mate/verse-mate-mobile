@@ -19,6 +19,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import {
   useCallback,
   useDeferredValue,
@@ -242,6 +243,20 @@ export default function ChapterScreen() {
       }
     }
   }, [targetVerse, activeView, setActiveView]);
+
+  // Orientation (MOBILE-1001 #2): the whole reader is landscape-capable, not
+  // just the Visuals tab. Unlock once when the reader mounts and re-lock to
+  // portrait only when leaving the reader entirely. Previously the Visuals tab
+  // owned this and re-locked PORTRAIT_UP on unmount, so rotating to landscape
+  // on the Bible/Summary/By Line tabs snapped back to portrait. Owning it at
+  // the screen level also removes the per-tab lock/unlock churn that the PDF
+  // share-on-resume crash (#5) reproduced from.
+  useEffect(() => {
+    ScreenOrientation.unlockAsync().catch(() => {});
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    };
+  }, []);
 
   // Handle deep-linked insight tab parameter
   // When user opens a shared insight URL, navigate to that specific tab
