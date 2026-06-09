@@ -24,8 +24,8 @@ jest.mock('react-native-android-widget', () => ({
 }));
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { buildDeepLink, fetchVerse } from '@/widgets/widget-task-handler';
 import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
+import { buildDeepLink, fetchVerse } from '@/widgets/widget-task-handler';
 
 const originalFetch = global.fetch;
 
@@ -88,7 +88,9 @@ describe('widget-task-handler', () => {
       const result = await fetchVerse();
 
       // Uses the stored version in the request.
-      expect((global.fetch as unknown as jest.Mock).mock.calls[0][0]).toContain('bible_version=KJV');
+      expect((global.fetch as unknown as jest.Mock).mock.calls[0][0]).toContain(
+        'bible_version=KJV'
+      );
       expect(result.verseText).toBe('For God so loved the world');
       expect(result.reference).toBe('John 3:16');
       expect(parseChapterShareUrl(result.deepLink)).toEqual({
@@ -130,7 +132,9 @@ describe('widget-task-handler', () => {
     });
 
     it('returns a branded fallback when fetch throws', async () => {
-      global.fetch = jest.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
 
       const result = await fetchVerse();
 
