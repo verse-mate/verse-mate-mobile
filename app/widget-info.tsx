@@ -40,7 +40,7 @@ export default function WidgetInfoScreen() {
         testID="widget-info-screen"
       >
         <View style={styles.hero}>
-          <Ionicons name="calendar-outline" size={40} color={colors.primary} />
+          <Ionicons name="calendar-outline" size={40} color={colors.gold} />
           <Text style={[styles.title, { color: colors.textPrimary }]}>Verse of the Day</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             A fresh verse on your home screen each day. Tap it to open the passage in VerseMate.
@@ -50,7 +50,7 @@ export default function WidgetInfoScreen() {
         <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>How to add it</Text>
         {steps.map((step, i) => (
           <View key={step} style={styles.step}>
-            <View style={[styles.stepNumber, { backgroundColor: colors.primary }]}>
+            <View style={[styles.stepNumber, { backgroundColor: colors.gold }]}>
               <Text style={styles.stepNumberText}>{i + 1}</Text>
             </View>
             <Text style={[styles.stepText, { color: colors.textPrimary }]}>{step}</Text>
