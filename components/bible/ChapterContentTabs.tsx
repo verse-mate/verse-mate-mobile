@@ -19,7 +19,7 @@
 
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   interpolateColor,
@@ -229,7 +229,7 @@ export function ChapterContentTabs({
 
   return (
     <View style={styles.container} testID="chapter-content-tabs">
-      <View style={styles.scrollTrack} onLayout={handleLayout}>
+      <View style={styles.scrollTrack} onLayout={handleLayout} testID="chapter-content-tabs-track">
         <ScrollView
           ref={scrollRef}
           horizontal
