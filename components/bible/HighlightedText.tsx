@@ -34,6 +34,7 @@ import {
 } from 'react-native';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
@@ -306,6 +307,9 @@ export function HighlightedText({
   // Without lexicon wiring we keep the legacy long-press → dictionary path
   // intact so BibleExplanationsPanel / TopicContentPanel still work.
   const lexiconMode = Boolean(alignment && onLexiconWordPress);
+  // User preference (#7): when off, lexicon words stay tappable but lose the
+  // gold underline hint. Read here so the worklets below can gate the style.
+  const { showUnderlines: showLexUnderlines } = useLexiconUnderlines();
   const longPressEnabled = !lexiconMode && Boolean(onWordSelect || onWordLongPress);
 
   // Lookup maps for lex highlighting:
@@ -939,7 +943,11 @@ export function HighlightedText({
         if (multi) {
           const endIdx = idx + multi.parts.length - 1;
           const lastToken = tokens[endIdx];
-          const lexStyle = multi.isTheme ? lexiconWordStyles.theme : lexiconWordStyles.regular;
+          const lexStyle = !showLexUnderlines
+            ? undefined
+            : multi.isTheme
+              ? lexiconWordStyles.theme
+              : lexiconWordStyles.regular;
 
           // Build the inner phrase: include all internal spaces (joined as
           // one continuous underline) and, if the LAST word has trailing
@@ -1023,7 +1031,11 @@ export function HighlightedText({
       // --- 2. Single-word lex match (preserves exact prior behavior) -----
       const lexHit = lexHits[idx];
       if (lexHit && onLexiconWordPress) {
-        const lexStyle = lexHit.isTheme ? lexiconWordStyles.theme : lexiconWordStyles.regular;
+        const lexStyle = !showLexUnderlines
+          ? undefined
+          : lexHit.isTheme
+            ? lexiconWordStyles.theme
+            : lexiconWordStyles.regular;
         const match = token.word.match(/^([\p{L}\p{M}\p{N}'’-]+)(.*)$/u);
         const wordCore = match ? match[1] : token.word;
         const trailing = match ? match[2] : '';
@@ -1280,8 +1292,12 @@ const selectionStyles = StyleSheet.create({
  * or a full-SVG text renderer (loses native selection + a11y). Both
  * are out of scope for this pass — captured as TODO below.
  */
-const LEX_UNDERLINE = '#B09A6D';
-const LEX_UNDERLINE_THEME = '#C7B074';
+// Lightened for MOBILE-1001 #7 ("make line thinner"). RN can't set underline
+// thickness cross-platform, so we lower the alpha to make the line read as
+// lighter/thinner. iOS honors textDecorationColor (Andy's platform); on Android
+// textDecorationColor is a no-op so the underline stays the system default.
+const LEX_UNDERLINE = 'rgba(176,154,109,0.55)';
+const LEX_UNDERLINE_THEME = 'rgba(199,176,116,0.75)';
 // Thin solid underline on both iOS and Android.
 //
 // We don't use `textDecorationStyle: 'dotted'` because it's iOS-only (RN
