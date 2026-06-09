@@ -16,6 +16,10 @@ import { VerseOfTheDayWidget } from "./VerseOfTheDayWidget";
 
 const BIBLE_VERSION_KEY = "bible-version";
 const DEFAULT_VERSION = "NASB1995";
+// Personalization id (the logged-in user's own id) the app mirrors into
+// AsyncStorage; sent as `pid` so the widget shows the user's personal verse
+// (PD-7). Absent when logged out → the endpoint serves the global verse.
+const USER_ID_KEY = "widget-user-id";
 const FALLBACK_MESSAGE = "Open VerseMate to see today's verse";
 
 /**
@@ -62,11 +66,12 @@ export async function fetchVerse(): Promise<{
   const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "https://api.versemate.org";
   const version =
     (await AsyncStorage.getItem(BIBLE_VERSION_KEY)) ?? DEFAULT_VERSION;
+  const pid = await AsyncStorage.getItem(USER_ID_KEY);
 
   try {
-    const res = await fetch(
-      `${apiBase}/bible/verse-of-the-day?date=${localDate()}&bible_version=${version}`
-    );
+    let url = `${apiBase}/bible/verse-of-the-day?date=${localDate()}&bible_version=${version}`;
+    if (pid) url += `&pid=${encodeURIComponent(pid)}`;
+    const res = await fetch(url);
     const data = (await res.json()) as VerseResponse;
     if (data.empty || !data.verses?.length) {
       return {

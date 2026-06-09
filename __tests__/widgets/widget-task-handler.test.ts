@@ -98,6 +98,24 @@ describe('widget-task-handler', () => {
       });
     });
 
+    it('sends pid when a user id is stored, omits it otherwise (PD-7)', async () => {
+      const fetchMock = jest.fn().mockResolvedValue({
+        json: async () => ({ empty: true, fallbackMessage: 'x' }),
+      }) as unknown as typeof fetch;
+
+      // Logged out: no widget-user-id stored → no pid param.
+      await AsyncStorage.removeItem('widget-user-id');
+      global.fetch = fetchMock;
+      await fetchVerse();
+      expect((fetchMock as jest.Mock).mock.calls[0][0]).not.toContain('pid=');
+
+      // Logged in: id mirrored into AsyncStorage → pid param present.
+      await AsyncStorage.setItem('widget-user-id', 'user-123');
+      await fetchVerse();
+      expect((fetchMock as jest.Mock).mock.calls[1][0]).toContain('pid=user-123');
+      await AsyncStorage.removeItem('widget-user-id');
+    });
+
     it('returns the fallback message when the verse pool is empty', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         json: async () => ({ empty: true, fallbackMessage: 'No verse today' }),

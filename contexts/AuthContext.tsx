@@ -16,6 +16,7 @@ import {
 } from '@/lib/auth/token-storage';
 import { clearTokenCache } from '@/lib/api/client-interceptors';
 import { analytics, AnalyticsEvent } from '@/lib/analytics';
+import { syncWidgetUserId } from '@/hooks/use-shared-widget-prefs';
 import {
   getAuthSession,
   postAuthLogin,
@@ -215,6 +216,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Get PostHog instance for analytics
   const posthog = usePostHog();
+
+  // Mirror the user's id into the widget container so the home-screen widget
+  // shows this user's personal verse (PD-7); cleared on logout. Memoize the id
+  // so the effect deps are a primitive (Biome react-hooks rule).
+  const widgetUserId = user?.id ?? null;
+  useEffect(() => {
+    void syncWidgetUserId(widgetUserId);
+  }, [widgetUserId]);
 
   /**
    * Fetch user session from backend and cache the result for offline use.
