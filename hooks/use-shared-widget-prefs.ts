@@ -52,11 +52,7 @@ export async function syncWidgetUserId(userId: string | null): Promise<void> {
     }
     if (Platform.OS === 'ios') {
       // No delete API — store empty string to represent "no user".
-      await SharedGroupPreferences.setItem(
-        USER_ID_GROUP_KEY,
-        userId ?? '',
-        APP_GROUP,
-      );
+      await SharedGroupPreferences.setItem(USER_ID_GROUP_KEY, userId ?? '', APP_GROUP);
     }
   } catch (error) {
     if (__DEV__) {
