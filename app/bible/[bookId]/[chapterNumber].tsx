@@ -30,7 +30,7 @@ import {
   useTransition,
 } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -253,7 +253,21 @@ export default function ChapterScreen() {
   // share-on-resume crash (#5) reproduced from.
   useEffect(() => {
     ScreenOrientation.unlockAsync().catch(() => {});
+
+    // MOBILE-1001 #5: on resume from background the reader could stick in a
+    // stale layout (e.g. landscape-sized content rendered in portrait — see the
+    // black dead-zone in the reported screenshot), which then crashed. Re-assert
+    // the reader's orientation policy whenever the app returns to the foreground
+    // so the layout reconciles to the device's current orientation instead of a
+    // cached one.
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        ScreenOrientation.unlockAsync().catch(() => {});
+      }
+    });
+
     return () => {
+      sub.remove();
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     };
   }, []);
