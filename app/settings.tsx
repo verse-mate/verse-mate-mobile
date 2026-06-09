@@ -892,7 +892,7 @@ export default function SettingsScreen() {
                   Verse of the Day widget
                 </Text>
                 <Text style={styles.manageDownloadsSubtitle}>
-                  Add today's verse to your home screen
+                  Add the verse of the day to your home screen
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
