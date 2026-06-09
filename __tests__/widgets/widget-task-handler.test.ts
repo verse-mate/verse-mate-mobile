@@ -88,7 +88,7 @@ describe('widget-task-handler', () => {
       const result = await fetchVerse();
 
       // Uses the stored version in the request.
-      expect((global.fetch as jest.Mock).mock.calls[0][0]).toContain('bible_version=KJV');
+      expect((global.fetch as unknown as jest.Mock).mock.calls[0][0]).toContain('bible_version=KJV');
       expect(result.verseText).toBe('For God so loved the world');
       expect(result.reference).toBe('John 3:16');
       expect(parseChapterShareUrl(result.deepLink)).toEqual({
@@ -107,12 +107,12 @@ describe('widget-task-handler', () => {
       await AsyncStorage.removeItem('widget-user-id');
       global.fetch = fetchMock;
       await fetchVerse();
-      expect((fetchMock as jest.Mock).mock.calls[0][0]).not.toContain('pid=');
+      expect((fetchMock as unknown as jest.Mock).mock.calls[0][0]).not.toContain('pid=');
 
       // Logged in: id mirrored into AsyncStorage → pid param present.
       await AsyncStorage.setItem('widget-user-id', 'user-123');
       await fetchVerse();
-      expect((fetchMock as jest.Mock).mock.calls[1][0]).toContain('pid=user-123');
+      expect((fetchMock as unknown as jest.Mock).mock.calls[1][0]).toContain('pid=user-123');
       await AsyncStorage.removeItem('widget-user-id');
     });
 
