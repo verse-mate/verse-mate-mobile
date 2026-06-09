@@ -26,8 +26,10 @@
  * embed restriction. When YouTube still refuses (e.g. age-gated content
  * in the future) `onError` falls back to opening the watch URL.
  *
- * The whole Visuals tab unlocks ScreenOrientation on mount so users can
- * rotate to landscape for wide diagrams — not just inside the lightbox.
+ * Orientation is owned by the reader screen
+ * (app/bible/[bookId]/[chapterNumber].tsx) — the whole reader is
+ * landscape-capable (MOBILE-1001 #2), so this tab no longer unlocks/locks
+ * orientation itself.
  */
 
 import { Ionicons } from '@expo/vector-icons';

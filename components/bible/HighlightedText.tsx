@@ -34,8 +34,8 @@ import {
 } from 'react-native';
 import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
 /**
