@@ -29,7 +29,7 @@ import {
 } from '@gorhom/bottom-sheet';
 import type { AlignedToken, LexEntry, RelatedWord } from '@versemate/lexicon';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type LemmaCard, useLemma } from '@/hooks/use-lemma';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
@@ -140,6 +140,20 @@ export function LexiconPopover({
   // custom modal's `maxHeight: 85%`.
   const snapPoints = useMemo(() => ['85%'], []);
 
+  // In landscape the full-width 85% sheet swallows nearly the whole screen
+  // (#3). Constrain it to a centred column so the reader stays visible on
+  // either side. Portrait keeps the default full-width bottom sheet.
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isLandscape = windowWidth > windowHeight;
+  const landscapeSheetStyle = useMemo(() => {
+    if (!isLandscape) return undefined;
+    const width = Math.min(560, windowWidth * 0.62);
+    // gorhom's sheet container is absolutely positioned (left:0), so alignSelf
+    // can't centre it — offset it manually to sit centred with the reader
+    // visible on both sides.
+    return { width, marginLeft: Math.max(0, (windowWidth - width) / 2) };
+  }, [isLandscape, windowWidth]);
+
   // Open + close spring physics that match AutoHighlightTooltip (the
   // verse-insight modal). User explicitly asked for parity on both
   // directions; AutoHighlightTooltip's snap-back/close uses
@@ -193,6 +207,7 @@ export function LexiconPopover({
       enableDynamicSizing={false}
       animationConfigs={animationConfigs}
       backdropComponent={renderBackdrop}
+      style={landscapeSheetStyle}
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handleIndicator}
       handleStyle={styles.handle}
