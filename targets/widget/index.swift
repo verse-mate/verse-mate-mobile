@@ -19,6 +19,15 @@ private let appGroup = "group.org.versemate.app"
 private let versionKeyDefaultsKey = "preferred_bible_version"
 private let cacheKey = "votd_last_response"
 private let apiBaseURL = "https://api.versemate.org"
+// KNOWN PROD-ONLY CONSTANT (GH-265 / L-003): the iOS widget extension is a
+// separate process and cannot read the JS `EXPO_PUBLIC_WEB_URL` at runtime, so
+// this host is hardcoded to production. It MUST match the deployed web host that
+// the JS deep-link parser (parseChapterShareUrl) validates against — on the JS
+// side that value comes from EXPO_PUBLIC_WEB_URL. On a non-prod build whose web
+// host differs, an iOS widget tap would deep-link to a host the parser rejects
+// (falling back to Genesis 1). If non-prod iOS widget taps ever need to work,
+// inject the host at build time (e.g. an Info.plist value derived from the same
+// env, read here via Bundle.main.object(forInfoDictionaryKey:)).
 private let webBaseURL = "https://app.versemate.org"
 private let defaultVersion = "NASB1995"
 

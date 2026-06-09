@@ -17,7 +17,17 @@ import { VerseOfTheDayWidget } from "./VerseOfTheDayWidget";
 const BIBLE_VERSION_KEY = "bible-version";
 const DEFAULT_VERSION = "NASB1995";
 const FALLBACK_MESSAGE = "Open VerseMate to see today's verse";
-const WEB_BASE_URL = "https://app.versemate.org";
+
+/**
+ * Base web host for the tap deep link.
+ *
+ * Must match the host the deep-link parser expects: parseChapterShareUrl
+ * (utils/sharing/generate-chapter-share-url.ts) rejects any URL whose host
+ * differs from `EXPO_PUBLIC_WEB_URL`. Deriving from the same env here keeps the
+ * widget link and the parser in sync on every build (staging/preview/dev),
+ * instead of hardcoding prod. Falls back to prod when the env is unset.
+ */
+const WEB_BASE_URL = process.env.EXPO_PUBLIC_WEB_URL ?? "https://app.versemate.org";
 
 interface VerseResponse {
   empty: boolean;
@@ -37,14 +47,14 @@ function localDate(): string {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
 }
 
-function buildDeepLink(ref?: VerseResponse["reference"]): string {
+export function buildDeepLink(ref?: VerseResponse["reference"]): string {
   if (!ref) return `${WEB_BASE_URL}/bible/1/1?src=widget`;
   let url = `${WEB_BASE_URL}/bible/${ref.bookId}/${ref.chapterNumber}?verseStart=${ref.verseStart}`;
   if (ref.verseEnd) url += `&verseEnd=${ref.verseEnd}`;
   return `${url}&src=widget`;
 }
 
-async function fetchVerse(): Promise<{
+export async function fetchVerse(): Promise<{
   verseText: string;
   reference: string;
   deepLink: string;

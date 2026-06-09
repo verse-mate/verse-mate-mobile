@@ -5,8 +5,11 @@
  * explains how to add the Verse-of-the-Day home-screen widget per platform.
  *
  * NOTE: the Android programmatic pin-request (AppWidgetManager
- * .requestPinAppWidget, D-35) is wired once the native widget module lands;
- * until then both platforms show manual instructions.
+ * .requestPinAppWidget, D-35) is intentionally NOT implemented. The
+ * react-native-android-widget dependency (v0.20.x) exposes no pin-request API
+ * (no requestPinAppWidget / requestWidgetPin), so wiring it would require a
+ * custom native module. Until that module exists, both platforms show manual
+ * instructions. See GH-265 R-008.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
