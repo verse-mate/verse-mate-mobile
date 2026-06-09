@@ -36,6 +36,7 @@ import { DeleteAccountPasswordModal } from '@/components/account/DeleteAccountPa
 import { DeleteAccountWarningModal } from '@/components/account/DeleteAccountWarningModal';
 import { Button } from '@/components/Button';
 import { FontSizeSelector } from '@/components/settings/FontSizeSelector';
+import { LexiconUnderlineToggle } from '@/components/settings/LexiconUnderlineToggle';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { Avatar } from '@/components/ui/Avatar';
 import { TextInput } from '@/components/ui/TextInput';
@@ -864,6 +865,9 @@ export default function SettingsScreen() {
 
         {/* Font Size Section */}
         <FontSizeSelector />
+
+        {/* Reading — lexicon underline toggle (#7) */}
+        <LexiconUnderlineToggle />
 
         {/* Theme Selector Section */}
         <ThemeSelector />
