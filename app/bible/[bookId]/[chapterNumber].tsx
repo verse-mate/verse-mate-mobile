@@ -19,6 +19,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import {
   useCallback,
   useDeferredValue,
@@ -29,7 +30,7 @@ import {
   useTransition,
 } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -259,6 +260,34 @@ export default function ChapterScreen() {
       });
     }
   }, [params.src, targetVerse, bookId, chapterNumber]);
+
+  // Orientation (MOBILE-1001 #2): the whole reader is landscape-capable, not
+  // just the Visuals tab. Unlock once when the reader mounts and re-lock to
+  // portrait only when leaving the reader entirely. Previously the Visuals tab
+  // owned this and re-locked PORTRAIT_UP on unmount, so rotating to landscape
+  // on the Bible/Summary/By Line tabs snapped back to portrait. Owning it at
+  // the screen level also removes the per-tab lock/unlock churn that the PDF
+  // share-on-resume crash (#5) reproduced from.
+  useEffect(() => {
+    ScreenOrientation.unlockAsync().catch(() => {});
+
+    // MOBILE-1001 #5: on resume from background the reader could stick in a
+    // stale layout (e.g. landscape-sized content rendered in portrait — see the
+    // black dead-zone in the reported screenshot), which then crashed. Re-assert
+    // the reader's orientation policy whenever the app returns to the foreground
+    // so the layout reconciles to the device's current orientation instead of a
+    // cached one.
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        ScreenOrientation.unlockAsync().catch(() => {});
+      }
+    });
+
+    return () => {
+      sub.remove();
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    };
+  }, []);
 
   // Handle deep-linked insight tab parameter
   // When user opens a shared insight URL, navigate to that specific tab

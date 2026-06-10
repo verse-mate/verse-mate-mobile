@@ -396,8 +396,9 @@ export function TopicVerseTooltip({
   ).current;
 
   // Animated style for expansion (Reanimated — runs on UI thread)
+  // Fade in only — no maxHeight clamp. The old fixed-height inner ScrollView
+  // trapped the analysis scroll (#9); the modal body now scrolls as one region.
   const insightAnimatedStyle = useAnimatedStyle(() => ({
-    maxHeight: interpolate(expansionAnim.value, [0, 1], [0, 400]),
     opacity: interpolate(expansionAnim.value, [0, 0.5, 1], [0, 0, 1]),
   }));
 
@@ -437,10 +438,14 @@ export function TopicVerseTooltip({
           <Text style={styles.verseMateHeader}>Verse Insight</Text>
         </View>
 
-        {/* Content */}
+        {/* Content — single scroll region so the full analysis is reachable (#9). */}
         <View style={styles.contentContainer}>
-          <View style={styles.scrollContainer}>
-            <View {...panResponder.panHandlers}>
+          <ScrollView
+            style={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View>
               {/* Title */}
               <Text style={styles.title}>{verseReference}</Text>
 
@@ -458,13 +463,9 @@ export function TopicVerseTooltip({
                 ) : insightText ? (
                   <>
                     <Text style={styles.analysisTitle}>Analysis</Text>
-                    <ScrollView
-                      style={styles.insightScroll}
-                      contentContainerStyle={styles.insightScrollContent}
-                      showsVerticalScrollIndicator={false}
-                    >
+                    <View style={[styles.insightScroll, styles.insightScrollContent]}>
                       <Markdown style={markdownStyles}>{insightText}</Markdown>
-                    </ScrollView>
+                    </View>
                   </>
                 ) : (
                   <View style={styles.emptyInsightContainer}>
@@ -475,7 +476,7 @@ export function TopicVerseTooltip({
                 )}
               </Reanimated.View>
             </View>
-          </View>
+          </ScrollView>
 
           {/* Actions Footer */}
           <View style={styles.actionsContainer}>
