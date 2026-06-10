@@ -484,8 +484,11 @@ export function VerseMateTooltip({
   ).current;
 
   // Animated style for expansion (Reanimated — runs on UI thread)
+  // Fade the insight in. We deliberately no longer animate (or cap) maxHeight
+  // here: clamping the analysis to a fixed-height inner box and nesting a
+  // ScrollView inside it trapped the scroll so the full analysis couldn't be
+  // reached (#9). The whole modal body now scrolls as one region instead.
   const insightAnimatedStyle = useAnimatedStyle(() => ({
-    maxHeight: interpolate(expansionAnim.value, [0, 1], [0, screenHeight * 0.6]),
     opacity: interpolate(expansionAnim.value, [0, 0.5, 1], [0, 0, 1]),
   }));
 
@@ -531,10 +534,15 @@ export function VerseMateTooltip({
           <Text style={styles.verseMateHeader}>Verse Insight</Text>
         </View>
 
-        {/* Content */}
+        {/* Content — single scroll region so the full analysis is always
+            reachable (#9). Actions footer stays fixed below. */}
         <View style={styles.contentContainer}>
-          <View style={styles.scrollContainer}>
-            <View {...panResponder.panHandlers} style={{ paddingHorizontal: spacing.lg }}>
+          <ScrollView
+            style={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={{ paddingHorizontal: spacing.lg }}>
               {/* Title with optional color indicator */}
               <View style={styles.titleRow}>
                 <Text style={styles.title}>{verseReference}</Text>
@@ -564,13 +572,9 @@ export function VerseMateTooltip({
                 ) : insightText ? (
                   <>
                     <Text style={styles.analysisTitle}>Analysis</Text>
-                    <ScrollView
-                      style={styles.insightScroll}
-                      contentContainerStyle={styles.insightScrollContent}
-                      showsVerticalScrollIndicator={false}
-                    >
+                    <View style={[styles.insightScroll, styles.insightScrollContent]}>
                       <Markdown style={markdownStyles}>{insightText}</Markdown>
-                    </ScrollView>
+                    </View>
                   </>
                 ) : (
                   <View style={styles.emptyInsightContainer}>
@@ -582,7 +586,7 @@ export function VerseMateTooltip({
                 )}
               </Reanimated.View>
             </View>
-          </View>
+          </ScrollView>
 
           {/* Actions Footer - Context-aware */}
           <View style={styles.actionsContainer}>

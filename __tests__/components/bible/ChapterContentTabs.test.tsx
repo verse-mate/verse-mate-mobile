@@ -144,4 +144,39 @@ describe('ChapterContentTabs', () => {
     expect(screen.getByText('Visuals')).toBeTruthy();
     expect(screen.queryByText('Detailed')).toBeNull();
   });
+
+  /**
+   * Test 7 (MOBILE-1001 #1): when the track is too narrow to fit all pills,
+   * each pill clamps to the minimum width (88) instead of squashing — the row
+   * then overflows into the horizontal ScrollView so it scrolls sideways.
+   * usable = 200 - 8 (padding) - 3*4 (gaps) = 180; 180/4 = 45 < 88 → clamp to 88.
+   */
+  it('clamps pills to a minimum width when the track is narrow (#1)', () => {
+    renderWithTheme(
+      <ChapterContentTabs activeTab="summary" onTabChange={mockOnTabChange} showStudy showVisuals />
+    );
+
+    fireEvent(screen.getByTestId('chapter-content-tabs-track'), 'layout', {
+      nativeEvent: { layout: { width: 200, height: 44, x: 0, y: 0 } },
+    });
+
+    expect(screen.getByTestId('tab-summary')).toHaveStyle({ width: 88 });
+    expect(screen.getByTestId('tab-visuals')).toHaveStyle({ width: 88 });
+  });
+
+  /**
+   * Test 8 (MOBILE-1001 #1): when there is room, pills split the track evenly
+   * (no scroll needed). usable = 800 - 8 - 12 = 780; 780/4 = 195 > 88.
+   */
+  it('splits pills evenly across the row when there is room (#1)', () => {
+    renderWithTheme(
+      <ChapterContentTabs activeTab="summary" onTabChange={mockOnTabChange} showStudy showVisuals />
+    );
+
+    fireEvent(screen.getByTestId('chapter-content-tabs-track'), 'layout', {
+      nativeEvent: { layout: { width: 800, height: 44, x: 0, y: 0 } },
+    });
+
+    expect(screen.getByTestId('tab-summary')).toHaveStyle({ width: 195 });
+  });
 });
