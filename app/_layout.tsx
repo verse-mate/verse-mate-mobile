@@ -27,7 +27,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect, useRef, useState } from 'react';
-import { InteractionManager, Platform } from 'react-native';
+import { AppState, type AppStateStatus, InteractionManager, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -41,6 +41,7 @@ import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { preloadAllTopicsCache } from '@/hooks/topics/use-cached-topics';
+import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   trackAudioPlaybackCompleted,
   trackAudioPlaybackPaused,
@@ -55,7 +56,10 @@ import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
 import { UpgradePromptScreen } from '@/src/screens/UpgradePromptScreen';
 import { checkVersionPolicy } from '@/src/services/versionPolicy';
-import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
+import {
+  buildWidgetVerseRoute,
+  parseChapterShareUrl,
+} from '@/utils/sharing/generate-chapter-share-url';
 import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
 import { ONBOARDING_KEY } from './onboarding';
 
@@ -256,7 +260,7 @@ function RootLayoutInner() {
           return;
         }
 
-        const { bookId, chapterNumber } = chapterParsed;
+        const { bookId, chapterNumber, verseStart, verseEnd } = chapterParsed;
 
         // Validate bookId (parser already validates 1-66 range)
         if (bookId < 1 || bookId > 66) {
@@ -273,7 +277,25 @@ function RootLayoutInner() {
           return;
         }
 
-        // TODO: Track analytics - deep_link_navigation_success with { bookId, chapterNumber }
+        // Verse-of-the-day widget deep link carries ?verseStart (and ?src=widget).
+        // Forward to the reader's existing `verse`/`endVerse` params (scroll +
+        // highlight) and emit the re-entry analytics event.
+        const isWidget = url.includes('src=widget');
+        if (verseStart) {
+          if (isWidget) {
+            analytics.track(AnalyticsEvent.WIDGET_TAPPED, {
+              bookId,
+              chapterNumber,
+              verseStart,
+              verseEnd,
+              source: 'verse-of-the-day',
+            });
+          }
+          router.replace(
+            buildWidgetVerseRoute(bookId, chapterNumber, verseStart, verseEnd, isWidget)
+          );
+          return;
+        }
 
         // Navigate to the chapter
         router.replace(`/bible/${bookId}/${chapterNumber}`);
@@ -321,6 +343,42 @@ function RootLayoutInner() {
       }
     };
   }, [router]);
+
+  // Best-effort Android widget-install detection (GH-265, Task 18.4).
+  // On every foreground, query whether the Verse-of-the-Day widget is on the
+  // home screen via react-native-android-widget's getWidgetInfo. Emit
+  // WIDGET_INSTALLED once (guarded by an AsyncStorage flag so it fires a single
+  // time per install, not on every foreground). Android-only and fully
+  // best-effort — any failure is swallowed.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const WIDGET_INSTALLED_TRACKED_KEY = 'widget-installed-tracked';
+
+    const checkWidgetInstalled = async () => {
+      try {
+        const alreadyTracked = await AsyncStorage.getItem(WIDGET_INSTALLED_TRACKED_KEY);
+        if (alreadyTracked === 'true') return;
+
+        const { getWidgetInfo } = await import('react-native-android-widget');
+        const widgets = await getWidgetInfo('VerseOfTheDay');
+        if (widgets.length > 0) {
+          analytics.track(AnalyticsEvent.WIDGET_INSTALLED, { platform: 'android' });
+          await AsyncStorage.setItem(WIDGET_INSTALLED_TRACKED_KEY, 'true');
+        }
+      } catch {
+        // Best-effort: widget module unavailable or query failed — ignore.
+      }
+    };
+
+    // Run on mount (covers cold start) and on each foreground transition.
+    checkWidgetInstalled();
+    const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') checkWidgetInstalled();
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   // Web: copy data-testid → id for Maestro web E2E compatibility
   // Maestro's web driver uses Selenium which matches `id` attribute, not `data-testid`.

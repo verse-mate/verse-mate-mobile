@@ -90,9 +90,12 @@ export function generateChapterShareUrl(
  * parseChapterShareUrl('https://example.com/wrong/path')
  * // Returns: null
  */
-export function parseChapterShareUrl(
-  url: string
-): { bookId: number; chapterNumber: number } | null {
+export function parseChapterShareUrl(url: string): {
+  bookId: number;
+  chapterNumber: number;
+  verseStart?: number;
+  verseEnd?: number;
+} | null {
   const baseUrl = process.env.EXPO_PUBLIC_WEB_URL;
 
   if (!baseUrl) {
@@ -134,9 +137,56 @@ export function parseChapterShareUrl(
       return null;
     }
 
-    return { bookId, chapterNumber };
+    // Optional verse range (used by the verse-of-the-day widget deep link):
+    // ?verseStart=N&verseEnd=M. Invalid/absent values are simply omitted.
+    const parsePositiveInt = (raw: string | null): number | undefined => {
+      if (!raw) return undefined;
+      const n = Number.parseInt(raw, 10);
+      return Number.isNaN(n) || n < 1 ? undefined : n;
+    };
+    const verseStart = parsePositiveInt(urlObj.searchParams.get('verseStart'));
+    const verseEnd = parsePositiveInt(urlObj.searchParams.get('verseEnd'));
+
+    return {
+      bookId,
+      chapterNumber,
+      ...(verseStart !== undefined ? { verseStart } : {}),
+      ...(verseEnd !== undefined ? { verseEnd } : {}),
+    };
   } catch (error) {
     console.warn('Failed to parse chapter share URL:', error);
     return null;
   }
+}
+
+/**
+ * Builds the in-app reader route for a verse-of-the-day widget deep link.
+ *
+ * Maps the parsed `verseStart`/`verseEnd` onto the reader's existing
+ * `verse`/`endVerse` query params (which drive scroll-to + highlight). When the
+ * link came from the widget (`?src=widget`), `src=widget` is preserved so the
+ * chapter screen can fire its WIDGET_OPENED_VERSE_DETAIL re-entry event.
+ *
+ * Pure string builder — extracted from the deep-link handler so the forwarding
+ * mapping is unit-testable (GH-265 T-002).
+ *
+ * @param bookId - Validated Bible book ID (1-66)
+ * @param chapterNumber - Validated chapter number (>= 1)
+ * @param verseStart - First verse to scroll to / highlight
+ * @param verseEnd - Optional last verse of the passage
+ * @param isWidget - Whether the originating link carried `?src=widget`
+ * @returns Reader route, e.g. `/bible/43/3?verse=16&endVerse=18&src=widget`
+ */
+export function buildWidgetVerseRoute(
+  bookId: number,
+  chapterNumber: number,
+  verseStart: number,
+  verseEnd: number | undefined,
+  isWidget: boolean
+): string {
+  const verseParams = new URLSearchParams();
+  verseParams.set('verse', String(verseStart));
+  if (verseEnd) verseParams.set('endVerse', String(verseEnd));
+  if (isWidget) verseParams.set('src', 'widget');
+  return `/bible/${bookId}/${chapterNumber}?${verseParams.toString()}`;
 }

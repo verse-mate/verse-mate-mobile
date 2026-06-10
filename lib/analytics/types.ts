@@ -63,6 +63,11 @@ export enum AnalyticsEvent {
   UPGRADE_PROMPT_SHOWN = 'upgrade_prompt_shown',
   UPGRADE_PROMPT_CTA_TAPPED = 'upgrade_prompt_cta_tapped',
   UPGRADE_PROMPT_DISMISSED = 'upgrade_prompt_dismissed',
+
+  // Verse-of-the-Day Widget Events (GH-265)
+  WIDGET_TAPPED = 'WIDGET_TAPPED',
+  WIDGET_OPENED_VERSE_DETAIL = 'WIDGET_OPENED_VERSE_DETAIL',
+  WIDGET_INSTALLED = 'WIDGET_INSTALLED',
 }
 
 // ============================================================================
@@ -340,6 +345,26 @@ export interface UpgradePromptDismissedProperties {
 // Event Properties Type Map
 // ============================================================================
 
+// Verse-of-the-Day Widget Events (GH-265)
+export interface WidgetTappedProperties {
+  bookId: number;
+  chapterNumber: number;
+  verseStart?: number;
+  verseEnd?: number;
+  source: string;
+}
+
+export interface WidgetOpenedVerseDetailProperties {
+  bookId: number;
+  chapterNumber: number;
+  verseNumber: number;
+  source: string;
+}
+
+export interface WidgetInstalledProperties {
+  platform: 'ios' | 'android';
+}
+
 /**
  * Maps each AnalyticsEvent to its corresponding properties type
  * Enables type-safe tracking calls
@@ -383,6 +408,10 @@ export interface EventProperties {
   [AnalyticsEvent.UPGRADE_PROMPT_SHOWN]: UpgradePromptShownProperties;
   [AnalyticsEvent.UPGRADE_PROMPT_CTA_TAPPED]: UpgradePromptCtaTappedProperties;
   [AnalyticsEvent.UPGRADE_PROMPT_DISMISSED]: UpgradePromptDismissedProperties;
+  // Verse-of-the-Day Widget Events (GH-265)
+  [AnalyticsEvent.WIDGET_TAPPED]: WidgetTappedProperties;
+  [AnalyticsEvent.WIDGET_OPENED_VERSE_DETAIL]: WidgetOpenedVerseDetailProperties;
+  [AnalyticsEvent.WIDGET_INSTALLED]: WidgetInstalledProperties;
 }
 
 // ============================================================================
