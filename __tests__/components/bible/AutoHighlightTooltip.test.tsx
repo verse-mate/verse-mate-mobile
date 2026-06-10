@@ -169,4 +169,33 @@ describe('AutoHighlightTooltip', () => {
     // Tooltip now always starts expanded, so verse insight should be immediately visible
     expect(screen.getByText(/God loved the world so much/)).toBeTruthy();
   });
+
+  /**
+   * MOBILE-1001 #9: the analysis is no longer trapped in a fixed-height inner
+   * ScrollView — the whole modal body scrolls as one region. Guard that the
+   * Analysis heading + body AND the action footer all render together, so the
+   * full analysis stays reachable alongside the buttons.
+   */
+  it('renders the full analysis together with the action footer (single scroll region, #9)', () => {
+    renderWithProviders(
+      <AutoHighlightTooltip
+        autoHighlight={mockAutoHighlight}
+        visible={true}
+        onClose={mockOnClose}
+        onSaveAsUserHighlight={mockOnSave}
+        isLoggedIn={true}
+      />
+    );
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    // Analysis content is present (not clipped/trapped)...
+    expect(screen.getByText('Analysis')).toBeTruthy();
+    expect(screen.getByText(/God loved the world so much/)).toBeTruthy();
+    // ...and the fixed action footer is reachable in the same view.
+    expect(screen.getByText('Copy')).toBeTruthy();
+    expect(screen.getByText('Share')).toBeTruthy();
+  });
 });
