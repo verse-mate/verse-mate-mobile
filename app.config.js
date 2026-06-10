@@ -13,6 +13,13 @@ const config = {
     bundleIdentifier: 'org.versemate.app',
     supportsTablet: true,
     associatedDomains: ['applinks:app.versemate.org'],
+    // App Group shared between the app and the Verse-of-the-Day widget
+    // extension (GH-265). The app writes the user's preferred Bible version
+    // here; the widget reads it. The widget target declares the same group
+    // in targets/widget/expo-target.config.js.
+    entitlements: {
+      'com.apple.security.application-groups': ['group.org.versemate.app'],
+    },
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSPhotoLibraryUsageDescription:
@@ -146,6 +153,29 @@ const config = {
         microphonePermission: 'Allow Verse Mate to use the microphone for voice-to-text input.',
         speechRecognitionPermission:
           'Allow Verse Mate to use speech recognition for voice-to-text input.',
+      },
+    ],
+    // Verse-of-the-Day widget (GH-265).
+    // iOS: @bacons/apple-targets generates the WidgetKit extension from
+    // targets/widget/ during prebuild. Android: react-native-android-widget
+    // registers the AppWidgetProvider + the JS-rendered widget.
+    '@bacons/apple-targets',
+    [
+      'react-native-android-widget',
+      {
+        widgets: [
+          {
+            name: 'VerseOfTheDay',
+            label: 'Verse of the Day',
+            description: "Today's Bible verse from VerseMate",
+            minWidth: '180dp',
+            minHeight: '110dp',
+            targetCellWidth: 4,
+            targetCellHeight: 2,
+            resizeMode: 'horizontal|vertical',
+            updatePeriodMillis: 86400000, // ~daily; OS-throttled periodic refresh
+          },
+        ],
       },
     ],
   ],

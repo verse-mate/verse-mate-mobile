@@ -136,6 +136,7 @@ export default function ChapterScreen() {
     verse?: string;
     endVerse?: string;
     tab?: string;
+    src?: string;
   }>();
   const targetVerse = params.verse ? Number(params.verse) : undefined;
   const targetEndVerse = params.endVerse ? Number(params.endVerse) : undefined;
@@ -243,6 +244,22 @@ export default function ChapterScreen() {
       }
     }
   }, [targetVerse, activeView, setActiveView]);
+
+  // Verse-of-the-day widget re-entry: when arriving from the widget on a
+  // specific verse, record the dive-deeper event once. The existing
+  // targetVerse flow scrolls to and highlights the verse.
+  const hasTrackedWidgetOpen = useRef(false);
+  useEffect(() => {
+    if (params.src === 'widget' && targetVerse && !hasTrackedWidgetOpen.current) {
+      hasTrackedWidgetOpen.current = true;
+      analytics.track(AnalyticsEvent.WIDGET_OPENED_VERSE_DETAIL, {
+        bookId,
+        chapterNumber,
+        verseNumber: targetVerse,
+        source: 'widget',
+      });
+    }
+  }, [params.src, targetVerse, bookId, chapterNumber]);
 
   // Orientation (MOBILE-1001 #2): the whole reader is landscape-capable, not
   // just the Visuals tab. Unlock once when the reader mounts and re-lock to

@@ -15,6 +15,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
+import { syncWidgetBibleVersion } from '@/hooks/use-shared-widget-prefs';
 import { getPostHogInstance } from '@/lib/analytics/posthog-provider';
 
 const BIBLE_VERSION_KEY = 'bible-version';
@@ -83,6 +84,10 @@ export function useBibleVersion() {
           $set: { preferred_bible_version: version },
         });
       }
+
+      // Mirror to the iOS widget's App Group so the home-screen widget renders
+      // in the newly-selected version (GH-265). Fire-and-forget; no-op on Android.
+      void syncWidgetBibleVersion(version);
 
       notifyBibleVersionChanged();
     } catch (error) {
