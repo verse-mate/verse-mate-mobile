@@ -123,37 +123,44 @@ jobs:
         run: bun run lint
 
       - name: Run tests
+        id: tests
         if: steps.check_trigger.outputs.skip != 'true'
         run: npm test
 
+      # iOS and Android are independent deliverables. Each platform step uses
+      # `!cancelled()` so a failure on one platform (e.g. expired iOS signing
+      # credentials) does NOT skip the other — without this, GitHub implicitly
+      # ANDs `success()` into the condition and skips every following step once
+      # iOS fails. `steps.tests.outcome == 'success'` keeps the test gate intact
+      # (it is only 'success' when checkout/install/tsc/lint/tests all passed).
       - name: Build iOS Preview
         id: ios_build
-        if: ${{ steps.check_trigger.outputs.skip != 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'ios') }}
+        if: ${{ !cancelled() && steps.tests.outcome == 'success' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'ios') }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/build-preview.sh ios
 
       - name: Build Android Preview
         id: android_build
-        if: ${{ steps.check_trigger.outputs.skip != 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'android') }}
+        if: ${{ !cancelled() && steps.tests.outcome == 'success' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'android') }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/build-preview.sh android
 
       - name: Submit to TestFlight
-        if: ${{ steps.check_trigger.outputs.skip != 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'ios') }}
+        if: ${{ !cancelled() && steps.ios_build.outcome == 'success' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'ios') }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/submit-testflight.sh "${{ steps.ios_build.outputs.build_id }}"
 
       - name: Submit to Play Store
-        if: ${{ steps.check_trigger.outputs.skip != 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'android') }}
+        if: ${{ !cancelled() && steps.android_build.outcome == 'success' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'android') }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/submit-play-store.sh "${{ steps.android_build.outputs.build_id }}"
 
       - name: Build Summary
-        if: steps.check_trigger.outputs.skip != 'true'
+        if: ${{ !cancelled() && steps.check_trigger.outputs.skip != 'true' }}
         run: |
           echo "=========================================="
           echo "Preview Build Summary"
