@@ -55,6 +55,7 @@
       },
       "env": {
         "APP_ENV": "preview",
+        "EXPO_EXCLUDE_IOS_WIDGET": "1",
         "EXPO_PUBLIC_API_URL": "https://api.versemate.org",
         "EXPO_PUBLIC_WEB_URL": "https://app.versemate.org",
         "EXPO_PUBLIC_POSTHOG_KEY": "phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC",
@@ -79,6 +80,7 @@
       },
       "env": {
         "APP_ENV": "production",
+        "EXPO_EXCLUDE_IOS_WIDGET": "1",
         "EXPO_PUBLIC_API_URL": "https://api.versemate.org",
         "EXPO_PUBLIC_WEB_URL": "https://app.versemate.org",
         "EXPO_PUBLIC_POSTHOG_KEY": "phc_UhHXkLHgiD6916hYZgaKy9pjOOlZi9sTRic3RhWWLRC",
