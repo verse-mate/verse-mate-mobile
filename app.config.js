@@ -121,6 +121,24 @@ const config = {
   },
   plugins: [
     'expo-router',
+    // GoogleSignin v16 pulls in AppCheckCore, a Swift pod that depends on
+    // GoogleUtilities and RecaptchaInterop. Those pods don't define Clang
+    // modules, so CocoaPods can't integrate them as static libraries and
+    // `pod install` fails ("cannot yet be integrated as static libraries").
+    // Force modular headers for just those two pods (the targeted fix
+    // CocoaPods itself recommends) instead of flipping use_modular_headers!
+    // globally, which would risk breaking other pods.
+    [
+      'expo-build-properties',
+      {
+        ios: {
+          extraPods: [
+            { name: 'GoogleUtilities', modular_headers: true },
+            { name: 'RecaptchaInterop', modular_headers: true },
+          ],
+        },
+      },
+    ],
     [
       'expo-splash-screen',
       {
@@ -211,14 +229,11 @@ const isE2E = process.env.APP_ENV === 'e2e-test';
 // Remove the env flag to bring the iOS widget back once #347 is resolved.
 const excludeIosWidget = process.env.EXPO_EXCLUDE_IOS_WIDGET === '1';
 
+// Drop the App Group entitlement when the widget is excluded — without the
+// widget there is no reader, and keeping it would still require the App Groups
+// capability on the main app's provisioning profile.
 const iosConfig = excludeIosWidget
-  ? (() => {
-      // Drop the App Group entitlement — without the widget there is no
-      // reader, and keeping it would still require the App Groups capability
-      // on the main app's provisioning profile.
-      const { entitlements, ...iosRest } = config.ios;
-      return iosRest;
-    })()
+  ? Object.fromEntries(Object.entries(config.ios).filter(([key]) => key !== 'entitlements'))
   : config.ios;
 
 const basePlugins = excludeIosWidget
