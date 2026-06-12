@@ -19,8 +19,21 @@ echo "=========================================="
 echo "Triggering $PLATFORM Preview Build"
 echo "=========================================="
 
-# Trigger build and capture output
+# Trigger build and capture output.
+# Disable `set -e` around the build so a non-zero exit doesn't abort the
+# script before we get a chance to surface EAS's error output. Without this,
+# the redirect below swallows the real failure reason (e.g. expired iOS
+# credentials) and CI only shows a bare "Process exit code 1".
+set +e
 eas build --platform "$PLATFORM" --profile preview --non-interactive --no-wait --json > build_output.json 2>&1
+EAS_EXIT=$?
+set -e
+
+if [ "$EAS_EXIT" -ne 0 ]; then
+  echo "❌ eas build failed for $PLATFORM (exit code $EAS_EXIT). EAS output:"
+  cat build_output.json
+  exit "$EAS_EXIT"
+fi
 
 # Extract JSON array from output
 BUILD_ID=$(grep -A 100 '^\[' build_output.json | jq -r '.[0].id')
