@@ -134,21 +134,14 @@ jobs:
       # iOS fails. `steps.tests.outcome == 'success'` keeps the test gate intact
       # (it is only 'success' when checkout/install/tsc/lint/tests all passed).
       #
-      # iOS builds are gated behind the `ENABLE_IOS_PREVIEW_BUILDS` repository
-      # variable. They are DISABLED unless that variable is set to 'true',
-      # because the VerseOfTheDay widget target lacks EAS credentials and fails
-      # non-interactive builds (see issue #347). Once those credentials are
-      # provisioned, set the repo variable to 'true' to re-enable iOS — no code
-      # change needed:
-      #   gh variable set ENABLE_IOS_PREVIEW_BUILDS --body true --repo <owner>/<repo>
-      - name: Skip iOS notice
-        if: ${{ !cancelled() && steps.tests.outcome == 'success' && vars.ENABLE_IOS_PREVIEW_BUILDS != 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'ios') }}
-        run: |
-          echo "::notice title=iOS build skipped::iOS preview builds are disabled. Set the ENABLE_IOS_PREVIEW_BUILDS repository variable to 'true' to enable them (blocked on widget credentials — see issue #347)."
-
+      # The iOS build excludes the Verse-of-the-Day WidgetKit extension via
+      # EXPO_EXCLUDE_IOS_WIDGET=1 (set in the preview/production eas.json env)
+      # because the org.versemate.app.widget target lacks EAS credentials and
+      # fails non-interactive builds (see issue #347). Re-enable the iOS widget
+      # by removing that env flag once its credentials are provisioned.
       - name: Build iOS Preview
         id: ios_build
-        if: ${{ !cancelled() && steps.tests.outcome == 'success' && vars.ENABLE_IOS_PREVIEW_BUILDS == 'true' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'ios') }}
+        if: ${{ !cancelled() && steps.tests.outcome == 'success' && (steps.check_trigger.outputs.platform == 'all' || steps.check_trigger.outputs.platform == 'ios') }}
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: bash .deployment/build-preview.sh ios
