@@ -64,11 +64,15 @@ export async function fetchVerse(): Promise<{
   deepLink: string;
 }> {
   const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "https://api.versemate.org";
-  const version =
-    (await AsyncStorage.getItem(BIBLE_VERSION_KEY)) ?? DEFAULT_VERSION;
-  const pid = await AsyncStorage.getItem(USER_ID_KEY);
 
   try {
+    // Read inside the try: in the headless widget task AsyncStorage can throw
+    // if its native module isn't ready yet. A throw here must fall through to
+    // the rendered fallback below — never bubble out of fetchVerse, which would
+    // skip the widget render and leave a blank (transparent) widget.
+    const version =
+      (await AsyncStorage.getItem(BIBLE_VERSION_KEY)) ?? DEFAULT_VERSION;
+    const pid = await AsyncStorage.getItem(USER_ID_KEY);
     let url = `${apiBase}/bible/verse-of-the-day?date=${localDate()}&bible_version=${version}`;
     if (pid) url += `&pid=${encodeURIComponent(pid)}`;
     const res = await fetch(url);
@@ -99,14 +103,27 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
     case "WIDGET_ADDED":
     case "WIDGET_UPDATE":
     case "WIDGET_RESIZED": {
-      const { verseText, reference, deepLink } = await fetchVerse();
-      props.renderWidget(
-        <VerseOfTheDayWidget
-          verseText={verseText}
-          reference={reference}
-          deepLink={deepLink}
-        />
-      );
+      // Always render *something* — a blank/transparent widget is the worst
+      // outcome. fetchVerse no longer rejects, but guard the whole render so
+      // any unexpected failure still paints a tap-to-open fallback.
+      try {
+        const { verseText, reference, deepLink } = await fetchVerse();
+        props.renderWidget(
+          <VerseOfTheDayWidget
+            verseText={verseText}
+            reference={reference}
+            deepLink={deepLink}
+          />
+        );
+      } catch {
+        props.renderWidget(
+          <VerseOfTheDayWidget
+            verseText={FALLBACK_MESSAGE}
+            reference="VerseMate"
+            deepLink={`${WEB_BASE_URL}/bible/1/1?src=widget`}
+          />
+        );
+      }
       break;
     }
     case "WIDGET_CLICK": {
