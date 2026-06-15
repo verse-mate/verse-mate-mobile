@@ -58,11 +58,17 @@ export function buildDeepLink(ref?: VerseResponse["reference"]): string {
   return `${url}&src=widget`;
 }
 
-export async function fetchVerse(): Promise<{
-  verseText: string;
+export interface WidgetVerseData {
+  /** Per-verse data; null when the pool is empty or the fetch failed. */
+  verses: { verseNumber: number; text: string }[] | null;
+  /** Rendered reference (e.g. "Genesis 1:1-2"); empty in the fallback state. */
   reference: string;
   deepLink: string;
-}> {
+  /** Message rendered when `verses` is null. */
+  fallbackText: string;
+}
+
+export async function fetchVerse(): Promise<WidgetVerseData> {
   const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "https://api.versemate.org";
 
   try {
@@ -79,21 +85,24 @@ export async function fetchVerse(): Promise<{
     const data = (await res.json()) as VerseResponse;
     if (data.empty || !data.verses?.length) {
       return {
-        verseText: data.fallbackMessage ?? FALLBACK_MESSAGE,
-        reference: "VerseMate",
+        verses: null,
+        reference: "",
         deepLink: buildDeepLink(data.reference),
+        fallbackText: data.fallbackMessage ?? FALLBACK_MESSAGE,
       };
     }
     return {
-      verseText: data.verses.map((v) => v.text).join(" "),
-      reference: data.referenceText ?? "VerseMate",
+      verses: data.verses,
+      reference: data.referenceText ?? "",
       deepLink: buildDeepLink(data.reference),
+      fallbackText: FALLBACK_MESSAGE,
     };
   } catch {
     return {
-      verseText: FALLBACK_MESSAGE,
-      reference: "VerseMate",
+      verses: null,
+      reference: "",
       deepLink: `${WEB_BASE_URL}/bible/1/1?src=widget`,
+      fallbackText: FALLBACK_MESSAGE,
     };
   }
 }
@@ -105,24 +114,25 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
     case "WIDGET_RESIZED": {
       // Always render *something* — a blank/transparent widget is the worst
       // outcome. fetchVerse no longer rejects, but guard the whole render so
-      // any unexpected failure still paints a tap-to-open fallback.
+      // any unexpected failure still paints a tap-to-open fallback. Render a
+      // light + dark variant so the widget matches the launcher's theme.
       try {
-        const { verseText, reference, deepLink } = await fetchVerse();
-        props.renderWidget(
-          <VerseOfTheDayWidget
-            verseText={verseText}
-            reference={reference}
-            deepLink={deepLink}
-          />
-        );
+        const data = await fetchVerse();
+        props.renderWidget({
+          light: <VerseOfTheDayWidget {...data} theme="light" />,
+          dark: <VerseOfTheDayWidget {...data} theme="dark" />,
+        });
       } catch {
-        props.renderWidget(
-          <VerseOfTheDayWidget
-            verseText={FALLBACK_MESSAGE}
-            reference="VerseMate"
-            deepLink={`${WEB_BASE_URL}/bible/1/1?src=widget`}
-          />
-        );
+        const fallback: WidgetVerseData = {
+          verses: null,
+          reference: "",
+          deepLink: `${WEB_BASE_URL}/bible/1/1?src=widget`,
+          fallbackText: FALLBACK_MESSAGE,
+        };
+        props.renderWidget({
+          light: <VerseOfTheDayWidget {...fallback} theme="light" />,
+          dark: <VerseOfTheDayWidget {...fallback} theme="dark" />,
+        });
       }
       break;
     }

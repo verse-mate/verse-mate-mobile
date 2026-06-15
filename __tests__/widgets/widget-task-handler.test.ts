@@ -91,7 +91,7 @@ describe('widget-task-handler', () => {
       expect((global.fetch as unknown as jest.Mock).mock.calls[0][0]).toContain(
         'bible_version=KJV'
       );
-      expect(result.verseText).toBe('For God so loved the world');
+      expect(result.verses).toEqual([{ verseNumber: 16, text: 'For God so loved the world' }]);
       expect(result.reference).toBe('John 3:16');
       expect(parseChapterShareUrl(result.deepLink)).toEqual({
         bookId: 43,
@@ -125,8 +125,9 @@ describe('widget-task-handler', () => {
 
       const result = await fetchVerse();
 
-      expect(result.verseText).toBe('No verse today');
-      expect(result.reference).toBe('VerseMate');
+      expect(result.verses).toBeNull();
+      expect(result.fallbackText).toBe('No verse today');
+      expect(result.reference).toBe('');
       // No reference → Genesis 1 fallback link.
       expect(parseChapterShareUrl(result.deepLink)).toEqual({ bookId: 1, chapterNumber: 1 });
     });
@@ -138,8 +139,9 @@ describe('widget-task-handler', () => {
 
       const result = await fetchVerse();
 
-      expect(result.verseText).toBe("Open VerseMate to see today's verse");
-      expect(result.reference).toBe('VerseMate');
+      expect(result.verses).toBeNull();
+      expect(result.fallbackText).toBe("Open VerseMate to see today's verse");
+      expect(result.reference).toBe('');
       expect(parseChapterShareUrl(result.deepLink)).toEqual({ bookId: 1, chapterNumber: 1 });
     });
   });
