@@ -25,6 +25,11 @@ export function VerseOfTheDayWidget({
   // no React dispatcher — `useMemoCache` reads from null and throws, leaving the
   // Android widget blank/transparent (GH-265). Opt this component out of the
   // compiler; it's a pure render-to-tree, so memoization buys nothing here.
+  // The eslint react-compiler rule flags this as an "unused" directive, but its
+  // static analysis disagrees with the actual babel build — on-device testing
+  // confirmed the directive IS what stops the crash (with it the widget renders,
+  // without it the useMemoCache TypeError above recurs). Suppress the false positive.
+  // eslint-disable-next-line react-compiler/react-compiler
   "use no memo";
 
   return (
