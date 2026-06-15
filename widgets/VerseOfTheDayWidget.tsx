@@ -19,6 +19,14 @@ export function VerseOfTheDayWidget({
   reference,
   deepLink,
 }: VerseOfTheDayWidgetProps) {
+  // React Compiler (app.config.js `experiments.reactCompiler`) instruments this
+  // component with a `useMemoCache` call. react-native-android-widget renders
+  // the tree via its own `buildWidgetTree`, NOT React's reconciler, so there is
+  // no React dispatcher — `useMemoCache` reads from null and throws, leaving the
+  // Android widget blank/transparent (GH-265). Opt this component out of the
+  // compiler; it's a pure render-to-tree, so memoization buys nothing here.
+  "use no memo";
+
   return (
     <FlexWidget
       style={{
