@@ -23,15 +23,20 @@ const USER_ID_KEY = "widget-user-id";
 const FALLBACK_MESSAGE = "Open VerseMate to see today's verse";
 
 /**
- * Base web host for the tap deep link.
+ * Base for the tap deep link — the app's custom scheme (versemate://), NOT the
+ * https App Link host.
  *
- * Must match the host the deep-link parser expects: parseChapterShareUrl
- * (utils/sharing/generate-chapter-share-url.ts) rejects any URL whose host
- * differs from `EXPO_PUBLIC_WEB_URL`. Deriving from the same env here keeps the
- * widget link and the parser in sync on every build (staging/preview/dev),
- * instead of hardcoding prod. Falls back to prod when the env is unset.
+ * A home-screen widget always has the app installed, and the custom scheme
+ * opens the native app directly. The https form (app.versemate.org) depends on
+ * Android App Links / iOS Universal Links domain verification
+ * (`.well-known/assetlinks.json` / `apple-app-site-association`); when that
+ * isn't verified the OS falls back to the browser — which is exactly what
+ * happened (the widget tap opened the web app). The triple slash yields an
+ * empty authority so the path is `/bible/...` — the shape parseChapterShareUrl
+ * (utils/sharing/generate-chapter-share-url.ts) parses; it accepts the
+ * `versemate:` scheme alongside the web host.
  */
-const WEB_BASE_URL = process.env.EXPO_PUBLIC_WEB_URL ?? "https://app.versemate.org";
+const DEEP_LINK_BASE = "versemate:///bible";
 
 interface VerseResponse {
   empty: boolean;
@@ -52,8 +57,8 @@ function localDate(): string {
 }
 
 export function buildDeepLink(ref?: VerseResponse["reference"]): string {
-  if (!ref) return `${WEB_BASE_URL}/bible/1/1?src=widget`;
-  let url = `${WEB_BASE_URL}/bible/${ref.bookId}/${ref.chapterNumber}?verseStart=${ref.verseStart}`;
+  if (!ref) return `${DEEP_LINK_BASE}/1/1?src=widget`;
+  let url = `${DEEP_LINK_BASE}/${ref.bookId}/${ref.chapterNumber}?verseStart=${ref.verseStart}`;
   if (ref.verseEnd) url += `&verseEnd=${ref.verseEnd}`;
   return `${url}&src=widget`;
 }
@@ -101,7 +106,7 @@ export async function fetchVerse(): Promise<WidgetVerseData> {
     return {
       verses: null,
       reference: "",
-      deepLink: `${WEB_BASE_URL}/bible/1/1?src=widget`,
+      deepLink: `${DEEP_LINK_BASE}/1/1?src=widget`,
       fallbackText: FALLBACK_MESSAGE,
     };
   }
@@ -126,7 +131,7 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
         const fallback: WidgetVerseData = {
           verses: null,
           reference: "",
-          deepLink: `${WEB_BASE_URL}/bible/1/1?src=widget`,
+          deepLink: `${DEEP_LINK_BASE}/1/1?src=widget`,
           fallbackText: FALLBACK_MESSAGE,
         };
         props.renderWidget({
