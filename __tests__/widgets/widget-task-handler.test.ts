@@ -40,6 +40,9 @@ describe('widget-task-handler', () => {
       const ref = { bookId: 43, chapterNumber: 3, verseStart: 16, verseEnd: null };
       const url = buildDeepLink(ref);
 
+      // Custom scheme (not the https App Link host) so the tap always opens the
+      // native app without depending on App Links domain verification.
+      expect(url).toMatch(/^versemate:\/\/\/bible\//);
       // src=widget must survive for the layout to fire WIDGET_TAPPED.
       expect(url).toContain('src=widget');
       expect(url).toContain('verseStart=16');

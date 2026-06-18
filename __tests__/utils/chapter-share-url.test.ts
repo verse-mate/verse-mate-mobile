@@ -97,6 +97,11 @@ describe('parseChapterShareUrl', () => {
     expect(result).toEqual({ bookId: 43, chapterNumber: 3 });
   });
 
+  it('parses the app custom scheme used by the widget (versemate:///bible/...)', () => {
+    const result = parseChapterShareUrl('versemate:///bible/43/3?verseStart=16&src=widget');
+    expect(result).toEqual({ bookId: 43, chapterNumber: 3, verseStart: 16 });
+  });
+
   it('returns null for malformed URL', () => {
     const result = parseChapterShareUrl('https://example.com/wrong/path');
     expect(result).toBeNull();

@@ -107,8 +107,13 @@ export function parseChapterShareUrl(url: string): {
     const urlObj = new URL(url);
     const baseUrlObj = new URL(baseUrl);
 
-    // Verify the URL matches our base URL (host must match)
-    if (urlObj.host !== baseUrlObj.host) {
+    // Accept either an https App Link on our web host, or the app's own custom
+    // scheme (versemate://) used by the home-screen widget — the latter always
+    // opens the native app without relying on App Links domain verification.
+    // Custom-scheme URLs are emitted as `versemate:///bible/...` (empty
+    // authority), so the path shape below is identical to the web host's.
+    const isAppScheme = urlObj.protocol === 'versemate:';
+    if (!isAppScheme && urlObj.host !== baseUrlObj.host) {
       return null;
     }
 
