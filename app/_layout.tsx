@@ -61,7 +61,7 @@ import {
   parseChapterShareUrl,
 } from '@/utils/sharing/generate-chapter-share-url';
 import { parseTopicShareUrl } from '@/utils/sharing/generate-topic-share-url';
-import { ONBOARDING_KEY } from './onboarding';
+import { ONBOARDING_KEY, WHATS_NEW_KEY, WHATS_NEW_VERSION } from './onboarding';
 
 // Keep the splash screen visible while we fetch last read position
 SplashScreen.preventAutoHideAsync();
@@ -157,7 +157,14 @@ function RootLayoutInner() {
       try {
         const hasSeenOnboarding = await AsyncStorage.getItem(ONBOARDING_KEY);
         if (hasSeenOnboarding !== 'true') {
+          // New user / first run: show the full feature tour.
           router.replace('/onboarding');
+          return;
+        }
+        // Existing user who just updated: show only the new feature cards once.
+        const seenWhatsNew = await AsyncStorage.getItem(WHATS_NEW_KEY);
+        if (seenWhatsNew !== WHATS_NEW_VERSION) {
+          router.replace({ pathname: '/onboarding', params: { mode: 'whatsnew' } });
         }
       } catch (error) {
         console.error('Error checking onboarding status:', error);
