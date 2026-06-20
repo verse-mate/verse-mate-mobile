@@ -1,4 +1,4 @@
-import { normalizeWord } from '@/services/word-mapping-service';
+import { getStrongsNumber, normalizeWord } from '@/services/word-mapping-service';
 
 describe('normalizeWord', () => {
   it('lowercases and strips punctuation', () => {
@@ -26,5 +26,21 @@ describe('normalizeWord', () => {
   it('leaves plain ASCII words unchanged apart from case', () => {
     expect(normalizeWord('LOVE')).toBe('love');
     expect(normalizeWord('Heaven')).toBe('heaven');
+  });
+});
+
+// VER-119: "Repent" in Jer 26:3 (OT) was resolving to G3340 (Greek metanoeo) instead
+// of H5162 (Hebrew nacham) because the combined map always gave Greek precedence.
+describe('getStrongsNumber testament context (VER-119)', () => {
+  it('returns Hebrew H5162 for "Repent" in OT context', () => {
+    expect(getStrongsNumber('Repent', 'OT')).toBe('H5162');
+  });
+
+  it('returns Greek G3340 for "repent" in NT context', () => {
+    expect(getStrongsNumber('repent', 'NT')).toBe('G3340');
+  });
+
+  it('falls back to Greek when no testament provided (existing behaviour)', () => {
+    expect(getStrongsNumber('repent')).toBe('G3340');
   });
 });
