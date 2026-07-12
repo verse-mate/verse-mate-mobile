@@ -377,11 +377,20 @@ export function VisualsPanel({
   // Player API behind the scenes and exposes `onChangeState` / `onError`
   // for status. When the channel hard-blocks the embed, `onError` flips
   // `videoError` and we render an "Open in YouTube" fallback.
-  const youtubeWatchUrl = video ? `https://www.youtube.com/watch?v=${video.youtubeId}` : null;
+  // Fall back to the canonical BibleProject video page rather than a YouTube
+  // watch URL. Every VideoEntry carries a `page` that always resolves, whereas
+  // `youtube.com/watch?v=<youtubeId>` dead-ends when the bundled id is stale —
+  // several BibleProject overviews were re-released, leaving 403 ids (Matthew,
+  // Romans, 1 Corinthians, Titus, Hebrews), which made this very fallback
+  // button broken (Andy, 2026-07-12). The page also lets the user reach the
+  // video even when YouTube blocks the in-app embed.
+  const videoFallbackUrl = video
+    ? video.page || `https://www.youtube.com/watch?v=${video.youtubeId}`
+    : null;
   const handleVideoFallback = useCallback(() => {
-    if (!youtubeWatchUrl) return;
-    Linking.openURL(youtubeWatchUrl).catch(() => {});
-  }, [youtubeWatchUrl]);
+    if (!videoFallbackUrl) return;
+    Linking.openURL(videoFallbackUrl).catch(() => {});
+  }, [videoFallbackUrl]);
 
   // The youtube-iframe player needs an explicit `height`. The video card
   // itself is `aspectRatio: 16/9`, but RN measures children by absolute
@@ -427,10 +436,10 @@ export function VisualsPanel({
                 onPress={handleVideoFallback}
                 style={styles.videoErrorButton}
                 accessibilityRole="button"
-                accessibilityLabel="Open video in YouTube"
+                accessibilityLabel="Watch video on BibleProject"
                 testID={`${testID}-video-open-external`}
               >
-                <Text style={styles.videoErrorButtonText}>Open in YouTube</Text>
+                <Text style={styles.videoErrorButtonText}>Watch on BibleProject</Text>
               </Pressable>
             </View>
           ) : (
