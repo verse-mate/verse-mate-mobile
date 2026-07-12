@@ -17,18 +17,26 @@ export interface VerseSummary {
 }
 
 /**
- * Parses the full byline markdown content and extracts summaries for specific verses.
+ * Robust by-line summary extractor.
  *
- * @param markdownContent The full markdown string from the API.
- * @param bookName The name of the book (e.g., "Genesis") to help match headers.
- * @param chapterNumber The chapter number.
- * @param startVerse The start verse of the range to extract.
- * @param endVerse The end verse of the range to extract.
- * @returns A combined summary string for the requested verse range, or null if not found.
+ * Hardened after the "No specific insight available for this verse" bug
+ * (Andy, 2026-06-27, Mark 10:29): the previous version only captured text that
+ * sat under an EXACT `### Summary` sub-header for an EXACT `## Book C:V` header.
+ * If the generated content omitted the `### Summary` line, used a different
+ * sub-header (e.g. `### Analysis`), or grouped verses into a range header
+ * (`## Mark 10:28-31`), the tapped verse silently resolved to "no insight" even
+ * though prose existed. This version:
+ *   - captures ALL prose under a matched verse header (skipping the `>` verse-
+ *     text blockquote and stripping any `###`+ sub-header lines), so a missing
+ *     or renamed `### Summary` no longer drops the content, and
+ *   - matches verse RANGE headers (`## Book C:28-31`) so a tap on any verse in
+ *     the range resolves.
+ * A verse still resolves to null only when the content genuinely has no section
+ * covering it (a backend content gap) — which is the correct signal.
  */
 export function parseByLineExplanation(
   markdownContent: string,
-  bookName: string,
+  _bookName: string,
   chapterNumber: number,
   startVerse: number,
   endVerse: number
@@ -36,117 +44,68 @@ export function parseByLineExplanation(
   if (!markdownContent) return null;
 
   const summaries: string[] = [];
-
-  // Normalize line endings
   const content = markdownContent.replace(/\r\n/g, '\n');
 
-  // Create a range of verse numbers to look for
   const versesToFind = new Set<number>();
   for (let i = startVerse; i <= endVerse; i++) {
     versesToFind.add(i);
   }
 
-  // Helper to check if a header matches a specific verse
-  // Matches: "## Genesis 1:1" or "## 1:1" (if book name is omitted)
-  const _isVerseHeader = (line: string, verseNum: number) => {
-    const normalizedLine = line.trim().toLowerCase();
-    const patterns = [
-      `## ${bookName.toLowerCase()} ${chapterNumber}:${verseNum}`,
-      `## ${chapterNumber}:${verseNum}`,
-    ];
-    return patterns.some((p) => normalizedLine.startsWith(p.toLowerCase()));
+  const lines = content.split('\n');
+  let currentVerse: number | null = null; // requested verse the current section covers
+  let buffer: string[] = [];
+
+  const flush = () => {
+    if (currentVerse !== null) {
+      // Drop any `###`/`####` sub-header lines (Summary/Analysis/etc.) but keep
+      // their prose; the `>` blockquote verse text is already excluded below.
+      const summaryText = buffer
+        .join('\n')
+        .replace(/^\s*#{3,}.*$/gm, '')
+        .trim();
+      if (summaryText) {
+        summaries.push(
+          startVerse === endVerse ? summaryText : `**${currentVerse}:** ${summaryText}`
+        );
+      }
+    }
+    currentVerse = null;
+    buffer = [];
   };
 
-  const lines = content.split('\n');
-  let currentVerse: number | null = null;
-  let inSummarySection = false;
-  let currentSummaryBuffer: string[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Check if this line is a verse header
+  for (const line of lines) {
+    // Verse header (`## Book C:V` or a range `## Book C:V-W`)
     if (line.startsWith('## ')) {
-      // If we were collecting a summary for a requested verse, save it
-      if (currentVerse !== null && inSummarySection && versesToFind.has(currentVerse)) {
-        const summaryText = currentSummaryBuffer.join('\n').trim();
-        if (summaryText) {
-          if (startVerse === endVerse) {
-            summaries.push(summaryText);
-          } else {
-            summaries.push(`**${currentVerse}:** ${summaryText}`);
-          }
-        }
-      }
-
-      // Reset state for new section
-      currentVerse = null;
-      inSummarySection = false;
-      currentSummaryBuffer = [];
-
-      // Try to identify which verse this header belongs to
-      // Iterate through our requested verses to see if this header matches one
-      // Optimization: If we only need a few verses, this loop is tiny.
-      // If we needed all verses, we'd parse the number from the header string instead.
-      // Let's parse the number from the string to be more robust for any verse.
-      const match = line.match(/(\d+):(\d+)/);
+      flush();
+      const match = line.match(/(\d+):(\d+)(?:\s*[-–—]\s*(\d+))?/);
       if (match) {
         const foundChapter = parseInt(match[1], 10);
-        const foundVerse = parseInt(match[2], 10);
-
-        if (foundChapter === chapterNumber && versesToFind.has(foundVerse)) {
-          currentVerse = foundVerse;
-        }
-      }
-      continue;
-    }
-
-    // Check for Summary header
-    if (currentVerse !== null && line.trim().startsWith('### Summary')) {
-      inSummarySection = true;
-      continue;
-    }
-
-    // Stop collecting if we hit another header (safety check, though '##' above handles major sections)
-    if (line.startsWith('#')) {
-      // If we were capturing, save what we have (e.g., hit a ## header we didn't parse correctly)
-      // But usually the '##' block above catches this. This is for safety.
-      if (currentVerse !== null && inSummarySection && versesToFind.has(currentVerse)) {
-        const summaryText = currentSummaryBuffer.join('\n').trim();
-        if (summaryText) {
-          if (startVerse === endVerse) {
-            summaries.push(summaryText);
-          } else {
-            summaries.push(`**${currentVerse}:** ${summaryText}`);
+        const vStart = parseInt(match[2], 10);
+        const vEnd = match[3] ? parseInt(match[3], 10) : vStart;
+        if (foundChapter === chapterNumber) {
+          for (let v = vStart; v <= vEnd; v++) {
+            if (versesToFind.has(v)) {
+              currentVerse = v;
+              break;
+            }
           }
         }
       }
-      currentVerse = null;
-      inSummarySection = false;
-      currentSummaryBuffer = [];
       continue;
     }
 
-    // Collect summary content
-    if (currentVerse !== null && inSummarySection) {
-      // Skip quote blocks (verse text) if they appear after Summary (unlikely but possible)
-      if (!line.trim().startsWith('>')) {
-        currentSummaryBuffer.push(line);
-      }
+    // A top-level `# ` header (chapter title) ends the current verse section.
+    if (line.startsWith('# ')) {
+      flush();
+      continue;
+    }
+
+    if (currentVerse !== null && !line.trim().startsWith('>')) {
+      buffer.push(line);
     }
   }
 
-  // Handle the last section if file ends
-  if (currentVerse !== null && inSummarySection && versesToFind.has(currentVerse)) {
-    const summaryText = currentSummaryBuffer.join('\n').trim();
-    if (summaryText) {
-      if (startVerse === endVerse) {
-        summaries.push(summaryText);
-      } else {
-        summaries.push(`**${currentVerse}:** ${summaryText}`);
-      }
-    }
-  }
+  flush();
 
   if (summaries.length === 0) return null;
 
