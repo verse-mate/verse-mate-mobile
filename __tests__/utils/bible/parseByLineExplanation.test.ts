@@ -51,6 +51,34 @@ Simple summary.
     const result = parseByLineExplanation(simpleMarkdown, 'Genesis', 1, 1, 1);
     expect(result).toContain('Simple summary');
   });
+
+  // Regression guards for the "No specific insight available for this verse"
+  // tooltip bug (Andy, 2026-06-27, Mark 10:29). The old parser required an
+  // exact `### Summary` under an exact `## Book C:V` header; any deviation
+  // dropped the content.
+  it('captures prose even when the ### Summary sub-header is missing', () => {
+    const md =
+      '## Genesis 1:1\n> In the beginning...\nGod is the uncaused origin of everything.\n\n## Genesis 1:2\n> ...\n### Summary\nNext.';
+    expect(parseByLineExplanation(md, 'Genesis', 1, 1, 1)).toContain(
+      'God is the uncaused origin of everything.'
+    );
+  });
+
+  it('captures prose under a renamed sub-header (e.g. ### Analysis)', () => {
+    const md = '## Genesis 1:1\n> In the beginning...\n### Analysis\nCreation from nothing.';
+    expect(parseByLineExplanation(md, 'Genesis', 1, 1, 1)).toBe('Creation from nothing.');
+  });
+
+  it('resolves a verse that falls inside a range header (## Book C:V-W)', () => {
+    const md = '## Genesis 1:1-3\n> ...\n### Summary\nThe first three days.';
+    expect(parseByLineExplanation(md, 'Genesis', 1, 2, 2)).toContain('The first three days.');
+  });
+
+  it('still returns null when a matched verse header has no prose (genuine gap)', () => {
+    const md =
+      '## Genesis 1:1\n> In the beginning...\n### Summary\n\n## Genesis 1:2\n> ...\n### Summary\nx';
+    expect(parseByLineExplanation(md, 'Genesis', 1, 1, 1)).toBeNull();
+  });
 });
 
 describe('parseByLineSections', () => {
