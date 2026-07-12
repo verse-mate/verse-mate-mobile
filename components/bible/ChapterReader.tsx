@@ -313,7 +313,10 @@ export function ChapterReader({
   const specs = getHeaderSpecs(mode);
   const { fontSize: userFontSize } = useFontSize();
   const styles = createStyles(colors, explanationsOnly, userFontSize);
-  const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
+  const markdownStyles = useMemo(
+    () => createMarkdownStyles(colors, userFontSize),
+    [colors, userFontSize]
+  );
 
   // Use Bible Interaction Context for highlights and interactions
   const {
@@ -977,40 +980,53 @@ const createStyles = (
     },
   });
 
-const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
-  StyleSheet.create({
+const createMarkdownStyles = (
+  colors: ReturnType<typeof getColors>,
+  userFontSize: number = fontSizes.bodyLarge
+) => {
+  // Scale Insight (Summary / By Line / Detailed) markdown with the reader's
+  // font-size preference, mirroring the verse-text scaling above. Previously
+  // these were fixed tokens, so the slider moved verse text but not the
+  // Insight — the bug Andy reported. bodyLarge (18) is the default reader
+  // size, so the scale is 1 at the default.
+  const contentScale = userFontSize / fontSizes.bodyLarge;
+  const bodyFont = fontSizes.bodyLarge * contentScale;
+  const heading1Font = fontSizes.heading1 * contentScale;
+  const heading2Font = fontSizes.heading2 * contentScale;
+  const heading3Font = fontSizes.heading3 * contentScale;
+  return StyleSheet.create({
     body: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: bodyFont,
+      lineHeight: bodyFont * 2.0,
       color: colors.textPrimary,
     },
     heading1: {
-      fontSize: fontSizes.heading1,
+      fontSize: heading1Font,
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      lineHeight: heading1Font * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xxl,
       marginBottom: spacing.md,
     },
     heading2: {
-      fontSize: fontSizes.heading2,
+      fontSize: heading2Font,
       fontWeight: fontWeights.semibold,
-      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      lineHeight: heading2Font * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: 64,
       marginBottom: spacing.sm,
     },
     heading3: {
-      fontSize: fontSizes.heading3,
+      fontSize: heading3Font,
       fontWeight: fontWeights.semibold,
-      lineHeight: fontSizes.heading3 * lineHeights.heading,
+      lineHeight: heading3Font * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: 64,
       marginBottom: spacing.sm,
     },
     paragraph: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: bodyFont,
+      lineHeight: bodyFont * 2.0,
       color: colors.textPrimary,
       marginBottom: spacing.lg,
     },
@@ -1023,8 +1039,8 @@ const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
       color: colors.textPrimary,
     },
     list_item: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * 2.0,
+      fontSize: bodyFont,
+      lineHeight: bodyFont * 2.0,
       color: colors.textPrimary,
       marginBottom: spacing.sm,
     },
@@ -1070,3 +1086,4 @@ const createMarkdownStyles = (colors: ReturnType<typeof getColors>) =>
       marginVertical: spacing.xl,
     },
   });
+};

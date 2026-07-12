@@ -33,6 +33,7 @@ import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUn
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import { useFontSize } from '@/hooks/bible/use-font-size';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useBibleByLine, useBibleSummary } from '@/src/api';
@@ -144,10 +145,11 @@ export function BibleExplanationsPanel({
   const { user } = useAuth();
   const { isOffline } = useOfflineStatus();
   const insets = useSafeAreaInsets();
+  const { fontSize: userFontSize } = useFontSize();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = useMemo(
-    () => createStyles(specs, colors, insets),
-    [specs, colors, insets]
+    () => createStyles(specs, colors, insets, userFontSize),
+    [specs, colors, insets, userFontSize]
   );
   // Get current language from user preferences (default to 'en-US')
   // This ensures the query key changes when language changes
@@ -650,7 +652,8 @@ export function BibleExplanationsPanel({
 function createStyles(
   specs: ReturnType<typeof getSplitViewSpecs>,
   colors: ReturnType<typeof getColors>,
-  insets: ReturnType<typeof useSafeAreaInsets>
+  insets: ReturnType<typeof useSafeAreaInsets>,
+  userFontSize: number
 ) {
   const styles = StyleSheet.create({
     container: {
@@ -771,31 +774,41 @@ function createStyles(
     },
   });
 
+  // Scale the AI-explanation (Summary / By Line) reading text with the user's
+  // Bible font-size preference so Insight text grows alongside verse text
+  // (previously these were fixed tokens, so the font-size slider moved the
+  // Bible text but not the Insight — the bug Andy reported). bodyLarge (18) is
+  // the default reader size, so the scale is 1 at the default.
+  const contentScale = userFontSize / fontSizes.bodyLarge;
+  const bodyFont = fontSizes.bodyLarge * contentScale;
+  const heading1Font = fontSizes.heading1 * contentScale;
+  const heading2Font = fontSizes.heading2 * contentScale;
+
   const markdownStyles = StyleSheet.create({
     body: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      fontSize: bodyFont,
+      lineHeight: bodyFont * lineHeights.body,
       color: colors.textPrimary,
     },
     heading1: {
-      fontSize: fontSizes.heading1,
+      fontSize: heading1Font,
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading1 * lineHeights.heading,
+      lineHeight: heading1Font * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xxl,
       marginBottom: spacing.md,
     },
     heading2: {
-      fontSize: fontSizes.heading2,
+      fontSize: heading2Font,
       fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.heading2 * lineHeights.heading,
+      lineHeight: heading2Font * lineHeights.heading,
       color: colors.textPrimary,
       marginTop: spacing.xl,
       marginBottom: spacing.sm,
     },
     paragraph: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      fontSize: bodyFont,
+      lineHeight: bodyFont * lineHeights.body,
       color: colors.textPrimary,
       marginBottom: spacing.md,
     },
@@ -808,8 +821,8 @@ function createStyles(
       marginBottom: spacing.lg,
     },
     blockquote_text: {
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: fontSizes.bodyLarge * lineHeights.body,
+      fontSize: bodyFont,
+      lineHeight: bodyFont * lineHeights.body,
       color: colors.textPrimary,
     },
   });
