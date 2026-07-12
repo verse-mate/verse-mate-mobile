@@ -28,7 +28,7 @@ module.exports = {
     // Whitelist @versemate/studies + @versemate/visuals — both ship .ts
     // source via a github:/file: dep, so Jest needs to run them through
     // babel-jest like any project file.
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|msw|@mswjs/.*|@bundled-es-modules/.*|until-async|@versemate/(studies|visuals)))',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|msw|@mswjs/.*|@bundled-es-modules/.*|until-async|@versemate/(studies|visuals|red-letter)))',
   ],
 
   // Ignore flow type files
