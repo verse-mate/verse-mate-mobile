@@ -22,6 +22,7 @@
  */
 
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
+import { getRedLetterVerses } from '@versemate/red-letter';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type NativeSyntheticEvent,
@@ -44,6 +45,7 @@ import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityCo
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import {
   fontSizes,
@@ -313,6 +315,24 @@ export function ChapterReader({
   const specs = getHeaderSpecs(mode);
   const { fontSize: userFontSize } = useFontSize();
   const styles = createStyles(colors, explanationsOnly, userFontSize);
+
+  // Red-letter (words of Jesus): render whole verses Jesus speaks in red when
+  // the "Jesus's Words" toggle is on. Local, translation-independent dataset
+  // (@versemate/red-letter) — no API, works offline / for guests. Mirrors
+  // verse-mate-web's `.red-letter` class; the color cascades into the verse's
+  // lexicon/highlight child spans (they set no text color of their own).
+  const { isEnabled: redLetterEnabled } = useRedLetterEnabled();
+  const redLetterVerses = useMemo(
+    () =>
+      new Set<number>(
+        redLetterEnabled ? getRedLetterVerses(chapter.bookId, chapter.chapterNumber) : []
+      ),
+    [redLetterEnabled, chapter.bookId, chapter.chapterNumber]
+  );
+  const redLetterStyle = useMemo(
+    () => ({ color: mode === 'dark' ? '#ff6b6b' : '#c1121f' }),
+    [mode]
+  );
   const markdownStyles = useMemo(
     () => createMarkdownStyles(colors, userFontSize),
     [colors, userFontSize]
@@ -703,7 +723,11 @@ export function ChapterReader({
                                 onVerseTap={handleVerseTap}
                                 alignment={alignment}
                                 onLexiconWordPress={handleLexiconWordPress}
-                                style={styles.verseTextInline}
+                                style={
+                                  redLetterVerses.has(verse.verseNumber)
+                                    ? [styles.verseTextInline, redLetterStyle]
+                                    : styles.verseTextInline
+                                }
                                 isVisible={isVerseVisible(group[0].verseNumber)}
                               />
                             </Text>
@@ -735,7 +759,11 @@ export function ChapterReader({
                       onVerseTap={handleVerseTap}
                       alignment={alignment}
                       onLexiconWordPress={handleLexiconWordPress}
-                      style={styles.verseText}
+                      style={
+                        redLetterVerses.has(verse.verseNumber)
+                          ? [styles.verseText, redLetterStyle]
+                          : styles.verseText
+                      }
                       isVisible={true}
                     />
                   </View>

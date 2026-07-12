@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { useAutoHighlightsEnabled } from '@/hooks/use-auto-highlights-enabled';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
@@ -58,6 +59,7 @@ export function AutoHighlightSettings({
   const styles = createStyles(colors);
   const queryClient = useQueryClient();
   const { isEnabled: localEnabled, setEnabled: setLocalEnabled } = useAutoHighlightsEnabled();
+  const { isEnabled: redLetterEnabled, setEnabled: setRedLetterEnabled } = useRedLetterEnabled();
   const [themes, setThemes] = useState<HighlightTheme[]>([]);
   const [publicThemes, setPublicThemes] = useState<
     { theme_id: number; name: string; color: string; description: string | null }[]
@@ -224,6 +226,29 @@ export function AutoHighlightSettings({
                 Toggle themes on or off to customize which highlights you see.
               </Text>
             )}
+          </View>
+
+          {/* Jesus's Words (red-letter). Always shown + purely client-side, so
+              it works for signed-out users too — backed by the shared
+              @versemate/red-letter dataset, independent of the sign-in-gated API
+              themes below. Mirrors verse-mate-web's "Jesus's Words" toggle. */}
+          <View style={styles.themeItem} testID="red-letter-row">
+            <View style={styles.themeHeader}>
+              <View style={styles.themeHeaderLeft}>
+                <View style={[styles.colorBadge, { backgroundColor: '#c1121f' }]} />
+                <Text style={styles.themeName}>{"Jesus's Words"}</Text>
+              </View>
+              <Switch
+                value={redLetterEnabled}
+                onValueChange={setRedLetterEnabled}
+                trackColor={{ false: colors.border, true: colors.gold }}
+                thumbColor={colors.background}
+                testID="toggle-red-letter"
+              />
+            </View>
+            <Text style={styles.themeDescription}>
+              Show every verse spoken by Jesus in red (red-letter)
+            </Text>
           </View>
 
           {error && <Text style={styles.errorText}>{error}</Text>}
