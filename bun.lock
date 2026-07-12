@@ -21,7 +21,7 @@
         "@versemate/dotted-underline-text": "file:./modules/dotted-underline-text",
         "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#d16f2e0",
         "@versemate/studies": "github:verse-mate/verse-mate-studies#b91fa3ca9bbdaf0ccf27d290ebba2b7ff68f593f",
-        "@versemate/visuals": "github:verse-mate/verse-mate-visuals#751d1a3",
+        "@versemate/visuals": "github:verse-mate/verse-mate-visuals#6e8a427",
         "axios": "^1.12.2",
         "expo": "~54.0.27",
         "expo-apple-authentication": "~8.0.8",
@@ -849,7 +849,7 @@
 
     "@versemate/studies": ["@versemate/studies@github:verse-mate/verse-mate-studies#b91fa3c", {}, "verse-mate-verse-mate-studies-b91fa3c"],
 
-    "@versemate/visuals": ["@versemate/visuals@github:verse-mate/verse-mate-visuals#751d1a3", {}, "verse-mate-verse-mate-visuals-751d1a3"],
+    "@versemate/visuals": ["@versemate/visuals@github:verse-mate/verse-mate-visuals#6e8a427", {}, "verse-mate-verse-mate-visuals-6e8a427"],
 
     "@vitest/expect": ["@vitest/expect@3.2.4", "", { "dependencies": { "@types/chai": "^5.2.2", "@vitest/spy": "3.2.4", "@vitest/utils": "3.2.4", "chai": "^5.2.0", "tinyrainbow": "^2.0.0" } }, "sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig=="],
 

@@ -49,7 +49,7 @@
     "@versemate/dotted-underline-text": "file:./modules/dotted-underline-text",
     "@versemate/lexicon": "github:verse-mate/verse-mate-lexicon#d16f2e0",
     "@versemate/studies": "github:verse-mate/verse-mate-studies#b91fa3ca9bbdaf0ccf27d290ebba2b7ff68f593f",
-    "@versemate/visuals": "github:verse-mate/verse-mate-visuals#751d1a3",
+    "@versemate/visuals": "github:verse-mate/verse-mate-visuals#6e8a427",
     "axios": "^1.12.2",
     "expo": "~54.0.27",
     "expo-apple-authentication": "~8.0.8",
