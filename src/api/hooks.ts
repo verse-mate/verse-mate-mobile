@@ -262,6 +262,18 @@ export const useBibleChapterExplanation = (
   const query = useQuery({
     queryKey: generatedExplOpts.queryKey,
     staleTime: 1000 * 60 * 30, // AI explanations: 30 min stale time
+    // Must be 'always' so the queryFn runs when offline — mirrors useBibleChapter
+    // above. React Query's default 'online' mode pauses the query whenever
+    // NetInfo reports no connection (the onlineManager bridge in app/_layout.tsx
+    // keys off state.isConnected), which stops the SQLite-first read below from
+    // ever executing. The result: a downloaded commentary shows a perpetual
+    // skeleton / OfflineContentUnavailable even though it is cached locally —
+    // the offline-Insight bug Andy reported. Bible text worked offline only
+    // because useBibleChapter already sets this.
+    networkMode: 'always',
+    // Recover from the OfflineContentUnavailable state the instant connectivity
+    // returns (the 30-min staleTime would otherwise suppress the refetch).
+    refetchOnReconnect: 'always',
     queryFn: async ({ signal }) => {
       // Try local SQLite first, regardless of whether the full language bundle
       // is "downloaded" — a single explanation may have been auto-cached on a
@@ -1093,6 +1105,11 @@ export function useStudy(bookId: number, chapter: number, language?: string) {
     queryKey: ['study', bookId, chapter, language ?? 'en-US'],
     enabled: bookId > 0 && chapter > 0,
     staleTime: Number.POSITIVE_INFINITY,
+    // Run offline so the bundled `@versemate/studies` fallback in queryFn
+    // executes when there's no network; default 'online' mode would pause the
+    // query and hang the Study tab offline (same class as the commentary bug,
+    // surfaced after the DB-backed study migration #343).
+    networkMode: 'always',
     queryFn: async (): Promise<InductiveStudy | null> => {
       const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
       try {
@@ -1135,6 +1152,9 @@ export function useStudyLabels(language?: string): StudyLabels {
   const query = useQuery({
     queryKey: ['study-labels', base],
     staleTime: Number.POSITIVE_INFINITY,
+    // Offline-safe: default 'online' mode would pause this and strand the
+    // Study-tab labels; the bundled getStudyLabels() below is the fallback.
+    networkMode: 'always',
     queryFn: async (): Promise<Partial<StudyLabels> | null> => {
       const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
       try {
