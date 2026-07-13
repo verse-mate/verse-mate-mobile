@@ -338,30 +338,40 @@ export function HighlightedText({
     for (const token of alignment.verses[verseNumber]) {
       const entry = alignment.lexicon[token.lemma];
       if (!entry) continue;
-      const rawSurface = token.surface;
-      // Split on whitespace and hyphens for multi-word detection.
-      const parts = rawSurface
-        .toLowerCase()
-        .split(/[\s-]+/)
-        .filter(Boolean);
-      if (parts.length <= 1) {
-        const normalized = rawSurface.toLowerCase();
-        // First-write-wins keeps the data file's ordering authoritative when
-        // the same surface maps to multiple lemmas in a verse.
-        if (!single.has(normalized)) {
-          single.set(normalized, { token, entry, isTheme: themeSet.has(token.lemma) });
+      // AlignedToken.surface is a single BSB-anchored string on legacy data,
+      // and a string[] of cross-translation surfaces (KJV/NASB/ESV/NIV/…) on
+      // newer @versemate/lexicon builds (via _aliases.json). Register every
+      // variant so a word underlines / looks up regardless of which
+      // translation the API is currently serving — otherwise BSB↔NASB wording
+      // drift silently drops the underline (e.g. BSB "Submit yourselves" vs
+      // NASB "Submit"). Mirror of web TokenizedVerse's `surfacesOf`.
+      const surfaces = Array.isArray(token.surface) ? token.surface : [token.surface];
+      for (const rawSurface of surfaces) {
+        if (!rawSurface) continue;
+        // Split on whitespace and hyphens for multi-word detection.
+        const parts = rawSurface
+          .toLowerCase()
+          .split(/[\s-]+/)
+          .filter(Boolean);
+        if (parts.length <= 1) {
+          const normalized = rawSurface.toLowerCase();
+          // First-write-wins keeps the data file's ordering authoritative when
+          // the same surface maps to multiple lemmas in a verse.
+          if (!single.has(normalized)) {
+            single.set(normalized, { token, entry, isTheme: themeSet.has(token.lemma) });
+          }
+        } else {
+          const head = parts[0];
+          const list = multi.get(head) ?? [];
+          list.push({
+            parts,
+            surface: rawSurface,
+            token,
+            entry,
+            isTheme: themeSet.has(token.lemma),
+          });
+          multi.set(head, list);
         }
-      } else {
-        const head = parts[0];
-        const list = multi.get(head) ?? [];
-        list.push({
-          parts,
-          surface: rawSurface,
-          token,
-          entry,
-          isTheme: themeSet.has(token.lemma),
-        });
-        multi.set(head, list);
       }
     }
     return { single, multi };
