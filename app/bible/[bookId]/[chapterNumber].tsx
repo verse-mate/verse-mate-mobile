@@ -553,7 +553,28 @@ export default function ChapterScreen() {
    */
   const renderChapterPage = useCallback(
     (pageBookId: number, pageChapterNumber: number) => {
-      const isCurrent = pageBookId === bookId && pageChapterNumber === chapterNumber;
+      // Is this page the reader's actual destination? `bookId`/`chapterNumber`
+      // are the URGENT values (set synchronously by navigateToChapter), so a
+      // swipe's destination lights up the instant the swipe fires. Deep-link
+      // scroll-to-verse must target the real destination only, so it stays
+      // gated on this.
+      const isUrgentCurrent = pageBookId === bookId && pageChapterNumber === chapterNumber;
+      // Content-visibility, however, must also accept the DEFERRED value the
+      // pager actually builds its 3-page window from (bookId/chapterNumber are
+      // passed to SimpleChapterPager via useDeferredValue). Gating purely on the
+      // urgent value broke DROPDOWN jumps: on a non-adjacent jump the urgent
+      // target isn't in the pager's (still-deferred) window yet, so NO rendered
+      // page matched `isCurrent` and all three showed the preloading skeleton
+      // until a swipe forced a re-sync (the "stuck skeleton, swipe to reveal"
+      // bug — regression from #328's useDeferredValue optimization, whose "the
+      // native swipe already moved to the content" premise doesn't hold for a
+      // programmatic jump that has no swipe animation). Accepting the deferred
+      // value keeps the current chapter's content on screen during the brief
+      // catch-up render instead of a skeleton; swipes are unaffected because
+      // their destination still matches the urgent value immediately.
+      const isCurrent =
+        isUrgentCurrent ||
+        (pageBookId === deferredBookId && pageChapterNumber === deferredChapterNumber);
       return (
         <ChapterPage
           bookId={pageBookId}
@@ -565,8 +586,8 @@ export default function ChapterScreen() {
           onScroll={handleScroll}
           onTap={handleTap}
           isPreloading={!isCurrent}
-          targetVerse={isCurrent ? targetVerse : undefined}
-          targetEndVerse={isCurrent ? targetEndVerse : undefined}
+          targetVerse={isUrgentCurrent ? targetVerse : undefined}
+          targetEndVerse={isUrgentCurrent ? targetEndVerse : undefined}
           fabVisible={fabVisible}
           onFABInteraction={showButtons}
         />
@@ -581,6 +602,8 @@ export default function ChapterScreen() {
       handleTap,
       bookId,
       chapterNumber,
+      deferredBookId,
+      deferredChapterNumber,
       targetVerse,
       targetEndVerse,
       fabVisible,
