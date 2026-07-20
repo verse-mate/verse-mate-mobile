@@ -69,6 +69,7 @@
     "expo-localization": "~17.0.8",
     "expo-location": "~19.0.8",
     "expo-navigation-bar": "~5.0.10",
+    "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.17",
     "expo-screen-orientation": "~9.0.9",
     "expo-secure-store": "^55.0.13",
@@ -152,7 +153,7 @@
   "bun": {
     "test": {
       "preload": "./test-setup.ts",
-      "timeout": 10000
+      "timeout": 1e4
     }
   },
   "private": true
