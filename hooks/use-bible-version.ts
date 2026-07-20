@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { syncWidgetBibleVersion } from '@/hooks/use-shared-widget-prefs';
 import { getPostHogInstance } from '@/lib/analytics/posthog-provider';
+import { syncPreferredBibleVersion } from '@/lib/notifications/push-api';
 
 const BIBLE_VERSION_KEY = 'bible-version';
 const DEFAULT_VERSION = 'NASB1995';
@@ -88,6 +89,11 @@ export function useBibleVersion() {
       // Mirror to the iOS widget's App Group so the home-screen widget renders
       // in the newly-selected version (GH-265). Fire-and-forget; no-op on Android.
       void syncWidgetBibleVersion(version);
+
+      // GH-281: persist server-side too, so the daily verse-of-the-day push
+      // (which reads user.preferred_bible_version) renders in this version.
+      // Best-effort; no-op when logged out (401 ignored).
+      void syncPreferredBibleVersion(version);
 
       notifyBibleVersionChanged();
     } catch (error) {

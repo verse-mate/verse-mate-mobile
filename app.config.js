@@ -63,7 +63,12 @@ const config = {
       'FOREGROUND_SERVICE',
       'FOREGROUND_SERVICE_MEDIA_PLAYBACK',
       'WAKE_LOCK',
+      // GH-281: Android 13+ runtime notification permission for push.
+      'POST_NOTIFICATIONS',
     ],
+    // GH-281: FCM V1 service config for Expo push. Uploaded to EAS credentials;
+    // the file is gitignored (contains project keys). Override path via env.
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     blockedPermissions: ['android.permission.ACTIVITY_RECOGNITION'],
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
@@ -121,6 +126,16 @@ const config = {
   },
   plugins: [
     'expo-router',
+    // GH-281: push notifications. The plugin adds the iOS push entitlement
+    // (aps-environment) and Android POST_NOTIFICATIONS wiring at prebuild.
+    [
+      'expo-notifications',
+      {
+        icon: './assets/images/android-icon.png',
+        color: '#E6F4FE',
+        defaultChannel: 'default',
+      },
+    ],
     // GoogleSignin v16 pulls in AppCheckCore, a Swift pod that depends on
     // GoogleUtilities and RecaptchaInterop. Those pods don't define Clang
     // modules, so CocoaPods can't integrate them as static libraries and
