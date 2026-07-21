@@ -26,10 +26,6 @@ export function isGranted(
   );
 }
 
-export async function getNotificationPermissionGranted(): Promise<boolean> {
-  return isGranted(await Notifications.getPermissionsAsync());
-}
-
 /** Requests permission (creating the Android channel first). Returns whether granted. */
 export async function requestNotificationPermission(): Promise<boolean> {
   await ensureAndroidChannel();
