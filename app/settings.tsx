@@ -53,7 +53,10 @@ import {
   disableDailyVerseNotifications,
   enableDailyVerseNotifications,
 } from '@/lib/notifications/push-registration';
-import { isDailyVerseNotificationEnabled } from '@/lib/notifications/push-token-storage';
+import {
+  getDailyVerseNotificationEnabledCached,
+  isDailyVerseNotificationEnabled,
+} from '@/lib/notifications/push-token-storage';
 import {
   getBibleLanguages,
   patchUserPreferences,
@@ -169,7 +172,7 @@ export default function SettingsScreen() {
   const { deleteAccount, isDeleting, error: deleteError, clearError } = useDeleteAccount();
 
   // GH-281: daily verse-of-the-day notification opt-in.
-  const [dailyVerseNotif, setDailyVerseNotif] = useState(false);
+  const [dailyVerseNotif, setDailyVerseNotif] = useState(getDailyVerseNotificationEnabledCached());
   const [dailyVerseNotifBusy, setDailyVerseNotifBusy] = useState(false);
   useEffect(() => {
     void isDailyVerseNotificationEnabled().then(setDailyVerseNotif);

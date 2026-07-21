@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
 import { analytics } from '@/lib/analytics';
 import { AnalyticsEvent } from '@/lib/analytics/types';
 import {
-  getNotificationPermissionGranted,
+  isGranted,
   requestNotificationPermission,
 } from './notification-permission';
 import { registerDeviceToken, unregisterDeviceToken } from './push-api';
@@ -57,15 +57,32 @@ export async function acquireAndRegisterPushToken(): Promise<string | null> {
 }
 
 /**
- * On login/app-entry: register only if the user is opted-in (D-5) AND OS
- * permission is already granted. Never prompts here — the prompt belongs to
- * onboarding / the Settings toggle.
+ * On login/app-entry, for an opted-in user (D-5):
+ *  - permission already granted → register;
+ *  - never asked (UNDETERMINED) → prompt once (spec: "request once after
+ *    login/onboarding, not a cold-launch nag"), then register if granted;
+ *  - previously denied → do nothing (respect the choice; re-enabling goes
+ *    through Settings, which deep-links to OS settings).
+ * Without this, the default-ON opt-in would never activate for users who
+ * never open Settings (R-001).
  */
 export async function maybeRegisterOnLogin(): Promise<void> {
   if (Platform.OS === 'web') return;
   if (!(await isDailyVerseNotificationEnabled())) return;
-  if (!(await getNotificationPermissionGranted())) return;
-  await acquireAndRegisterPushToken();
+
+  const perms = await Notifications.getPermissionsAsync();
+  if (isGranted(perms)) {
+    await acquireAndRegisterPushToken();
+    return;
+  }
+  if (perms.status === Notifications.PermissionStatus.UNDETERMINED) {
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      await acquireAndRegisterPushToken();
+    } else {
+      analytics.track(AnalyticsEvent.NOTIFICATION_PERMISSION_DENIED, {});
+    }
+  }
 }
 
 /** Settings toggle ON: prompt if needed, register, persist. Returns whether granted. */
