@@ -20,6 +20,10 @@ const config = {
   ios: {
     icon: './assets/images/ios-icon.png',
     bundleIdentifier: 'org.versemate.app',
+    // GH-281: explicit Apple Developer team so iOS builds (incl. the
+    // Verse-of-the-Day widget extension signing) resolve credentials
+    // non-interactively. Team: VerseMate (Company/Organization).
+    appleTeamId: 'U9SRD4VJPX',
     supportsTablet: true,
     associatedDomains: ['applinks:app.versemate.org'],
     // App Group shared between the app and the Verse-of-the-Day widget
