@@ -1,3 +1,12 @@
+const fs = require('node:fs');
+
+// GH-281: only wire the FCM config when google-services.json is actually
+// present, so an Android prebuild/build doesn't fail before push credentials
+// are provisioned (the file is gitignored, added via EAS credentials). Until
+// then push simply stays dormant on Android; iOS and the build are unaffected.
+const googleServicesFile = process.env.GOOGLE_SERVICES_JSON ?? './google-services.json';
+const hasGoogleServices = fs.existsSync(googleServicesFile);
+
 const config = {
   name: 'VerseMate',
   slug: 'verse-mate-mobile',
@@ -66,9 +75,10 @@ const config = {
       // GH-281: Android 13+ runtime notification permission for push.
       'POST_NOTIFICATIONS',
     ],
-    // GH-281: FCM V1 service config for Expo push. Uploaded to EAS credentials;
-    // the file is gitignored (contains project keys). Override path via env.
-    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
+    // GH-281: FCM V1 service config for Expo push. Only wired when the file is
+    // present (see top of file) so Android builds don't fail before push
+    // credentials are provisioned. Uploaded via EAS credentials; gitignored.
+    ...(hasGoogleServices ? { googleServicesFile } : {}),
     blockedPermissions: ['android.permission.ACTIVITY_RECOGNITION'],
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
