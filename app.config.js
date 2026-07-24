@@ -11,7 +11,7 @@ const config = {
   name: 'VerseMate',
   slug: 'verse-mate-mobile',
   owner: 'versemate',
-  version: '1.4.0',
+  version: '1.5.0',
   orientation: 'default',
   icon: './assets/images/icon.png',
   scheme: 'versemate',
