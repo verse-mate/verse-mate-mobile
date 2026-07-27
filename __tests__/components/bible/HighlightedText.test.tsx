@@ -77,6 +77,74 @@ describe('HighlightedText', () => {
     expect(getByText('In the beginning God created the heavens and the earth.')).toBeTruthy();
   });
 
+  describe('whitespace preservation around highlight boundaries', () => {
+    const text = 'In the beginning God created the heavens and the earth.';
+
+    it('keeps the space after a highlight that ends on a word boundary', () => {
+      // Regression: tokenizeText matches /(\S+)(\s*)/g, capturing TRAILING
+      // whitespace only. A segment beginning with whitespace lost it on
+      // reassembly. Highlighting "beginning God" ends at char 20 — the space
+      // before "created" — so the verse rendered "Godcreated".
+      const { root } = render(
+        <HighlightedText
+          text={text}
+          verseNumber={1}
+          highlights={[{ ...mockHighlight, start_char: 7, end_char: 20 }]}
+          isVisible
+        />
+      );
+
+      expect(extractText(root.props.children)).toBe(text);
+    });
+
+    it('keeps whitespace for a highlight starting on a word boundary', () => {
+      // The mirror case: the highlighted segment itself starts with the space.
+      const { root } = render(
+        <HighlightedText
+          text={text}
+          verseNumber={1}
+          highlights={[{ ...mockHighlight, start_char: 16, end_char: 29 }]}
+          isVisible
+        />
+      );
+
+      expect(extractText(root.props.children)).toBe(text);
+    });
+
+    it('keeps whitespace across two highlights in one verse', () => {
+      const { root } = render(
+        <HighlightedText
+          text={text}
+          verseNumber={1}
+          highlights={[
+            { ...mockHighlight, highlight_id: 1, start_char: 7, end_char: 20 },
+            { ...mockHighlight, highlight_id: 2, start_char: 28, end_char: 40, color: 'green' },
+          ]}
+          isVisible
+        />
+      );
+
+      expect(extractText(root.props.children)).toBe(text);
+    });
+
+    it('keeps whitespace when the verse is not tokenized', () => {
+      // `isVisible` DEFAULTS TO TRUE, so omitting it does not reach this path —
+      // it has to be passed explicitly. The non-tokenized branch renders
+      // `segment.text` whole and was always correct; asserted so a future
+      // refactor cannot regress it silently.
+      const { root } = render(
+        <HighlightedText
+          text={text}
+          verseNumber={1}
+          highlights={[{ ...mockHighlight, start_char: 7, end_char: 20 }]}
+          isVisible={false}
+        />
+      );
+
+      expect(extractText(root.props.children)).toBe(text);
+    });
+  });
+
   it('should have selectable={true} on root Text for native text selection', () => {
     const { root } = render(
       <HighlightedText
