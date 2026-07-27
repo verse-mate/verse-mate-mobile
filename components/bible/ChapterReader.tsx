@@ -172,6 +172,15 @@ function calculateBreakPoints(verses: { verseNumber: number; text: string }[]): 
   return breakAfter;
 }
 
+/**
+ * Stable key for a section, used to look up its memoised paragraph groups.
+ *
+ * Matches the Fragment key in the render path so the two cannot drift apart.
+ */
+function sectionKeyOf(section: { startVerse: number; subtitle?: string | null }): string {
+  return `section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`;
+}
+
 interface ChapterReaderProps {
   /** Chapter content with verses and sections */
   chapter: ChapterContent;
@@ -496,6 +505,36 @@ export function ChapterReader({
   );
 
   /**
+   * Paragraph groups per section, memoised on the chapter.
+   *
+   * These were computed inside an IIFE in the render body, so every `group` array
+   * was a fresh reference on every render — which invalidated `ParagraphText`'s
+   * compile memo every time. A capture showed `paragraph.compile` running 1250
+   * times in a window with 8 chapter mounts, against ~35 groups per mount: a ~4.5x
+   * waste, and worse, ~4.5x the React work to reconcile it.
+   *
+   * `calculateBreakPoints` depends only on the verses, so the grouping is stable
+   * for a given chapter and belongs in a memo keyed on it.
+   */
+  const sectionGroups = useMemo(() => {
+    const bySection = new Map<string, ChapterContent['sections'][number]['verses'][]>();
+    for (const section of chapter.sections ?? []) {
+      const breakPoints = new Set(calculateBreakPoints(section.verses));
+      const groups: (typeof section.verses)[] = [];
+      let current: typeof section.verses = [];
+      section.verses.forEach((verse, index) => {
+        current.push(verse);
+        if (breakPoints.has(verse.verseNumber) || index === section.verses.length - 1) {
+          groups.push(current);
+          current = [];
+        }
+      });
+      bySection.set(sectionKeyOf(section), groups);
+    }
+    return bySection;
+  }, [chapter.sections]);
+
+  /**
    * Store native line geometry in the same shape the RN `onTextLayout` path uses,
    * so the lexicon popover's positioning code is untouched by the swap.
    */
@@ -695,17 +734,9 @@ export function ChapterReader({
             {/* Verses with Highlighting */}
             {PARAGRAPH_VIEW_ENABLED ? (
               (() => {
-                const breakPoints = new Set(calculateBreakPoints(section.verses));
-                const groups: (typeof section.verses)[] = [];
-                let currentGroup: typeof section.verses = [];
-
-                section.verses.forEach((verse, index) => {
-                  currentGroup.push(verse);
-                  if (breakPoints.has(verse.verseNumber) || index === section.verses.length - 1) {
-                    groups.push([...currentGroup]);
-                    currentGroup = [];
-                  }
-                });
+                // Memoised above so each `group` keeps a stable identity across
+                // renders — ParagraphText's compile memo depends on it.
+                const groups = sectionGroups.get(sectionKeyOf(section)) ?? [];
 
                 return groups.map((group, groupIndex) => {
                   const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
