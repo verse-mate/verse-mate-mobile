@@ -89,6 +89,16 @@ export interface SimpleChapterPagerRef {
 /**
  * Page position constants (used when all 3 pages exist)
  */
+/**
+ * Ceiling on how long a dev-only `swipe.settle` span may stay open, in ms.
+ *
+ * A settled swipe that is going to navigate does so well within this. Anything
+ * longer means the gesture produced no chapter change, so the span is closed as
+ * abandoned rather than left to accumulate — it previously stayed open until the
+ * next real navigation and reported a 19-second "swipe latency".
+ */
+const SWIPE_SPAN_TIMEOUT_MS = 3000;
+
 const PAGE_CURRENT_MIDDLE = 1; // Current page when prev exists
 
 /**
@@ -156,9 +166,17 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     // stays open, which matters because an open span is attributed to every
     // JS block that follows it.
     const swipeSpanRef = useRef<(() => void) | null>(null);
+    const swipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clearSwipeTimeout = () => {
+      if (swipeTimeoutRef.current !== null) {
+        clearTimeout(swipeTimeoutRef.current);
+        swipeTimeoutRef.current = null;
+      }
+    };
     // biome-ignore lint/correctness/useExhaustiveDependencies: bookId/chapterNumber are the trigger for the cleanup, not values read inside it
     useEffect(() => {
       return () => {
+        clearSwipeTimeout();
         swipeSpanRef.current?.();
         swipeSpanRef.current = null;
       };
@@ -260,13 +278,28 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         return;
       }
 
-      // Dev-only. Opens at the moment the native pager settles on a new page —
-      // i.e. when the user's finger is already off — and closes when the new
-      // chapter has actually committed. That window is the "header lags 1-2s
-      // behind the text" and post-swipe hiccup the user reports, so it is the
-      // headline number for this project.
+      // Dev-only. Opens when the native pager settles on a new page — the user's
+      // finger is already off — and closes when the new chapter has committed.
+      // That window is the "header lags 1-2s behind the text" and post-swipe
+      // hiccup the user reports.
+      //
+      // The timeout matters. This span used to close ONLY on a chapter change, so
+      // a gesture that settled without navigating — a boundary page, or a drag the
+      // pager resolved as a scroll — left it open until the next real navigation.
+      // The first A/B reported mean 5071ms / max 19450ms, which is not a latency at
+      // all, and the whole swipe metric had to be thrown out. An abandoned span is
+      // also worse than useless for block attribution: while open, every unrelated
+      // stall gets blamed on it.
       swipeSpanRef.current?.();
+      clearSwipeTimeout();
       swipeSpanRef.current = perfSpan('swipe.settle', { from: currentKeyRef.current });
+      swipeTimeoutRef.current = setTimeout(() => {
+        // Closing as abandoned rather than leaving it open. The recorded duration
+        // is then a known ceiling instead of an arbitrary one.
+        swipeSpanRef.current?.();
+        swipeSpanRef.current = null;
+        swipeTimeoutRef.current = null;
+      }, SWIPE_SPAN_TIMEOUT_MS);
 
       if (canGoPrevious && canGoNext) {
         // 3 pages: [prev, current, next]
