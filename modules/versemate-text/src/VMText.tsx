@@ -33,6 +33,14 @@ export interface VMTextProps {
   onPress?: (event: TextPressEvent) => void;
   /** Line geometry after layout, for anchoring popovers. */
   onTextLayout?: (lines: TextLineLayout[]) => void;
+  /**
+   * Native selection changed. `start`/`end` are -1 when nothing is selected.
+   *
+   * The platform draws the selection itself, along with handles and the Copy
+   * menu; this is for the app's own affordances on top of it, e.g. the Define
+   * button for a dictionary lookup.
+   */
+  onSelectionChange?: (selection: TextSelectionRange) => void;
   testID?: string;
   accessibilityLabel?: string;
 }
@@ -47,6 +55,7 @@ export function VMText(props: VMTextProps) {
     onRangeTap,
     onPress,
     onTextLayout,
+    onSelectionChange,
     testID,
     accessibilityLabel,
   } = props;
@@ -72,6 +81,13 @@ export function VMText(props: VMTextProps) {
       onPress?.(event.nativeEvent);
     },
     [onPress]
+  );
+
+  const handleSelectionChange = useCallback(
+    (event: { nativeEvent: TextSelectionRange }) => {
+      onSelectionChange?.(event.nativeEvent);
+    },
+    [onSelectionChange]
   );
 
   const handleTextLayout = useCallback(
@@ -113,6 +129,7 @@ export function VMText(props: VMTextProps) {
     onPress: onPress ? handlePress : undefined,
     onRangeTap: onRangeTap ? handleRangeTap : undefined,
     onTextLayout: onTextLayout ? handleTextLayout : undefined,
+    onSelectionChange: onSelectionChange ? handleSelectionChange : undefined,
   };
 
   return <NativeView {...nativeProps} />;

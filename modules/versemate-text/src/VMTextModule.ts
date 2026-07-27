@@ -25,6 +25,7 @@ export interface NativeVMTextProps {
   testID?: string;
   onPress?: (event: { nativeEvent: { charOffset: number; x: number; y: number } }) => void;
   onRangeTap?: (event: { nativeEvent: { index: number; charOffset: number } }) => void;
+  onSelectionChange?: (event: { nativeEvent: { start: number; end: number } }) => void;
   onTextLayout?: (event: {
     nativeEvent: {
       lines: {
