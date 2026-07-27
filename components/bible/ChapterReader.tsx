@@ -25,6 +25,7 @@ import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import { getRedLetterVerses } from '@versemate/red-letter';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  type LayoutChangeEvent,
   type NativeSyntheticEvent,
   StyleSheet,
   Text,
@@ -45,9 +46,14 @@ import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityCo
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
+import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { usePerfMountSpan } from '@/lib/perf';
+import { ParagraphText } from '@/lib/text/ParagraphText';
+import type { CompileTheme } from '@/lib/text/types';
+import type { TextLineLayout } from '@/modules/versemate-text';
 import {
   fontSizes,
   fontWeights,
@@ -66,6 +72,18 @@ import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
+
+/**
+ * Lexicon underline appearance, shared with the legacy renderer's constants in
+ * HighlightedText. Fractional thickness is meaningful here because the native
+ * path DRAWS the line rather than asking for a system underline.
+ */
+const LEX_UNDERLINE_COLOR = 'rgba(176,154,109,0.55)';
+const LEX_UNDERLINE_THEME_COLOR = 'rgba(199,176,116,0.75)';
+const LEX_UNDERLINE_THICKNESS = 1;
+
+/** Tap/selection wash, matching HighlightedText's selectionStyles. */
+const SELECTION_COLOR = '#3390FF40';
 
 /**
  * Convert a number to Unicode superscript characters
@@ -429,6 +447,74 @@ export function ChapterReader({
     >
   >(new Map());
 
+  // --- Native text renderer -------------------------------------------------
+  // Runtime-switched so ONE build serves both arms of the Phase 4 A/B; see
+  // hooks/bible/use-native-text.ts.
+  const { useNativeText: useNativeTextRenderer } = useNativeText();
+  const { showUnderlines: showLexUnderlines } = useLexiconUnderlines();
+
+  /**
+   * Width a paragraph will be laid out at, in dp.
+   *
+   * MEASURED, not derived from the window. The reader's insets come from a chain
+   * of ancestors (ChapterPage's reader container, the ScrollView's content
+   * container, section padding), and deriving the width from
+   * `useWindowDimensions()` minus an assumed padding is how text ends up measured
+   * at one width and drawn at another — which clips it. A wrong assumption here
+   * is invisible in code review and obvious only on a device, so it is not worth
+   * making.
+   *
+   * The cost is that the width is unknown for exactly one frame. While it is,
+   * `useNativeTextRenderer && paragraphWidth > 0` is false and the legacy path
+   * renders, so nothing flashes empty. The reader stays mounted across chapter
+   * swipes, so only the very first chapter of a session pays that frame; after
+   * that the width is already known and changes only on rotation.
+   */
+  const [paragraphWidth, setParagraphWidth] = useState(0);
+  const handleContainerLayout = (event: LayoutChangeEvent) => {
+    const next = event.nativeEvent.layout.width;
+    // Round to whole dp: a fractional width churns the native measurement cache
+    // (its key includes the width) without changing a single line break.
+    const rounded = Math.round(next);
+    if (rounded > 0 && rounded !== paragraphWidth) setParagraphWidth(rounded);
+  };
+
+  /** Colors the compiler cannot derive, resolved from the active theme. */
+  const nativeTextTheme = useMemo<CompileTheme>(
+    () => ({
+      mode,
+      lexUnderlineColor: LEX_UNDERLINE_COLOR,
+      lexUnderlineThemeColor: LEX_UNDERLINE_THEME_COLOR,
+      lexUnderlineThickness: LEX_UNDERLINE_THICKNESS,
+      // Real dots at last — this is the decoration RN cannot express on Android
+      // (textDecorationStyle is a no-op there), and the reason the module exists.
+      lexUnderlineStyle: 'dotted',
+      redLetterColor: redLetterStyle.color,
+      selectionColor: SELECTION_COLOR,
+    }),
+    [mode, redLetterStyle.color]
+  );
+
+  /**
+   * Store native line geometry in the same shape the RN `onTextLayout` path uses,
+   * so the lexicon popover's positioning code is untouched by the swap.
+   */
+  const handleNativeTextLayout = (groupKey: string, lines: TextLineLayout[]) => {
+    paragraphLineLayoutsRef.current.set(
+      groupKey,
+      lines.map((line) => ({
+        // The legacy path recorded each line's text; positioning only uses the
+        // geometry, and native reports offsets instead, which is strictly more
+        // precise than re-deriving them from a text slice.
+        text: '',
+        y: line.y,
+        height: line.height,
+        width: line.width,
+        startCharOffset: line.start,
+      }))
+    );
+  };
+
   /**
    * Handle layout of a verse/paragraph
    * Stores both Y position (for scroll-to) and height (for visibility calculation)
@@ -556,7 +642,7 @@ export function ChapterReader({
   };
 
   return (
-    <View style={styles.container} collapsable={false}>
+    <View style={styles.container} collapsable={false} onLayout={handleContainerLayout}>
       {/* Chapter Title Row with Bookmark, Notes, and Share buttons - Only show in Bible view */}
       {!explanationsOnly && (
         <View style={styles.titleRow} collapsable={false}>
@@ -623,6 +709,48 @@ export function ChapterReader({
 
                 return groups.map((group, groupIndex) => {
                   const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
+
+                  // Native path: the whole group becomes ONE view. This replaces
+                  // the nested structure below — a paragraph <Text>, a <Text> per
+                  // verse, four more per verse for the superscript number and its
+                  // highlight background, and one or two per WORD inside
+                  // HighlightedText. That is 160-290 shadow nodes for a five-verse
+                  // group, which Android re-flattens into a single Spannable on
+                  // every commit. See docs/native-text-rendering-plan.md.
+                  if (useNativeTextRenderer && paragraphWidth > 0) {
+                    return (
+                      <View
+                        key={groupKey}
+                        testID={`verse-group-${group[0].verseNumber}`}
+                        onLayout={(e) =>
+                          handleVerseLayout(
+                            group[0].verseNumber,
+                            e.nativeEvent.layout.y,
+                            e.nativeEvent.layout.height
+                          )
+                        }
+                      >
+                        <ParagraphText
+                          alignment={alignment}
+                          autoHighlights={autoHighlights}
+                          highlights={chapterHighlights}
+                          onAutoHighlightPress={handleAutoHighlightPress}
+                          onHighlightTap={handleHighlightTap}
+                          onLexiconWordPress={handleLexiconWordPress}
+                          onTextLayout={(lines) => handleNativeTextLayout(groupKey, lines)}
+                          onVerseTap={handleVerseTap}
+                          redLetterVerses={redLetterVerses}
+                          showLexUnderlines={showLexUnderlines}
+                          style={styles.verseTextParagraph}
+                          theme={nativeTextTheme}
+                          verses={group}
+                          width={paragraphWidth}
+                        />
+                        {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}
+                      </View>
+                    );
+                  }
+
                   return (
                     <View
                       key={groupKey}

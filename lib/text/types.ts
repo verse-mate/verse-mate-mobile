@@ -30,9 +30,17 @@ export interface CompileHighlight {
   highlight_id: number;
   start_verse: number;
   end_verse: number;
-  /** Null means "the whole verse", matching the API. */
-  start_char?: number | null;
-  end_char?: number | null;
+  /**
+   * Character bounds within the verse, or null/absent for "the whole verse".
+   *
+   * Typed `unknown` because that is what the generated API type says: the OpenAPI
+   * schema leaves these untyped, and the legacy renderer papered over it with
+   * `as number`. Accepting `unknown` and narrowing inside the compiler puts the
+   * coercion somewhere it can be tested, instead of in a cast at each call site
+   * that would happily pass a string through.
+   */
+  start_char?: unknown;
+  end_char?: unknown;
   color: HighlightColor;
 }
 
