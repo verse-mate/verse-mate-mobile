@@ -1,0 +1,23 @@
+appId: org.versemate.app
+name: Perf — is the native text module registered?
+description: >
+  Positive check that the Kotlin VMText module registered on this build. The
+  Settings row renders only when isNativeTextAvailable() is true, so its presence
+  proves both the module AND the view manager resolved.
+tags:
+  - perf
+---
+
+# Absence of a NativeViewManagerAdapter warning proves nothing: with the flag off
+# the view is never requested, so no warning is emitted either way. This asserts
+# the positive instead.
+
+- runFlow: ../shared/setup-warm.yaml
+- tapOn:
+    id: "hamburger-menu-button"
+    optional: true
+- waitForAnimationToEnd
+- openLink: "versemate://settings"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "native-text-toggle"
