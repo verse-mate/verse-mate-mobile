@@ -332,6 +332,32 @@ New module `modules/versemate-text/`.
 on-device screenshot diff at 3 font scales × portrait/landscape. No reflow
 frame on mount.
 
+**STATUS: met on Genesis 1 (2026-07-27).** The native reader renders on device
+with correct paragraph grouping, correct superscript verse numbers, line spacing
+matching legacy line-for-line, no clipping (so the synchronous measurement agreed
+with what was drawn) — and **real dotted gold underlines on Android**, the
+decoration RN cannot express there at all. Four bugs had to be fixed on device
+that compiling and registering cleanly did not catch:
+
+1. **Every view failed to construct.** `setTextIsSelectable(true)` fires
+   `onSelectionChanged` from the inner view's `init`, and the inner view is created
+   by an outer property initializer — so the handler ran before the outer
+   `EventDispatcher` delegates existed and recursed until the stack blew. The
+   reader rendered its chrome and no text.
+2. **No underline ever drew.** The TS type nests `underline: {style,color,thickness}`;
+   the Kotlin Record declares them flat. `underlineStyle` arrived null for every
+   range, and a null style is a valid "no underline", so nothing errored.
+3. **Line height applied twice, inconsistently.** Both the measuring `StaticLayout`
+   and the drawing `TextView` backed a target height out of natural leading
+   independently, and disagreed.
+4. **`lineHeight` not font-scaled.** `fontSize` converted through SP (applies the
+   user's font scale), `lineHeight` through raw density (does not). The reader style
+   is `lineHeight: fontSize * 2.0` and the test device sits at font scale 0.85, so
+   the effective ratio was 2.35× — 17.6% too loose. Invisible on any device left at
+   1.0.
+
+Still to verify for full exit: 3 font scales × both orientations, and Psalm 119.
+
 ### Phase 3 — Decoration + interaction, Android
 
 - `ranges` → real dotted underlines on Android at last, with per-range colour
