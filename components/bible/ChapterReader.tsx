@@ -31,6 +31,7 @@ import {
   Text,
   type TextLayoutEventData,
   type TextStyle,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
@@ -492,6 +493,10 @@ export function ChapterReader({
    * swipes, so only the very first chapter of a session pays that frame; after
    * that the width is already known and changes only on rotation.
    */
+  // Window height, used as the mount-time viewport for paragraph windowing before
+  // the first scroll event exists.
+  const { height: windowHeight } = useWindowDimensions();
+
   const [paragraphWidth, setParagraphWidth] = useState(0);
   const handleContainerLayout = (event: LayoutChangeEvent) => {
     const next = event.nativeEvent.layout.width;
@@ -624,18 +629,19 @@ export function ChapterReader({
     if (!useNativeTextRenderer) return true;
     const layout = paragraphLayouts[flatIndex];
     if (!layout) return true;
-    if (!visibleYRange) return true;
-    const viewportHeight = visibleYRange.endY - visibleYRange.startY;
-    // Without a viewport height there is nothing to window against yet.
+    // Before the first scroll `visibleYRange` is null — it is populated by the
+    // scroll worklet, which by definition has not run yet at mount. Falling back to
+    // "render everything" there is what made the previous two attempts at windowing
+    // measure as no-ops: they both opted out at exactly the moment that matters.
+    //
+    // The window height is available synchronously and is what the reader occupies,
+    // so at mount the visible band is [0, windowHeight].
+    const scrollY = visibleYRange?.startY ?? 0;
+    const viewportHeight = visibleYRange ? visibleYRange.endY - visibleYRange.startY : windowHeight;
     if (viewportHeight <= 0) return true;
     const firstRecorded = sectionLayouts.current[flatGroups[0]?.verses[0]?.verseNumber ?? -1];
     const base = firstRecorded?.y ?? 0;
-    return isParagraphVisible(
-      layout,
-      visibleYRange.startY - base,
-      viewportHeight,
-      GROUP_WINDOW_BUFFER_PX
-    );
+    return isParagraphVisible(layout, scrollY - base, viewportHeight, GROUP_WINDOW_BUFFER_PX);
   };
 
   /**

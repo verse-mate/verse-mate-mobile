@@ -33,7 +33,7 @@ import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { perfSpan } from '@/lib/perf';
 import { compileParagraph, verseAtOffset } from './compile-paragraph';
-import type { ParagraphInput } from './types';
+import type { CompiledParagraph, ParagraphInput } from './types';
 
 export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
   /** Verses to render, in reading order. */
@@ -96,6 +96,8 @@ export function ParagraphText(props: ParagraphTextProps) {
     onTextLayout,
     onSelectionChange,
     isVisible = true,
+    compiled: compiledProp,
+    height: heightProp,
     testID,
   } = props;
 
@@ -103,8 +105,12 @@ export function ParagraphText(props: ParagraphTextProps) {
   // though node count halved, so the cost has moved somewhere else. These two
   // spans say where: compiling ranges in JS, or the synchronous native measure.
   // Both run during render, so both land inside reader.mount.bible.
-  const compiled = useMemo(
+  // Only compile when the caller did not. A windowing caller compiles every group
+  // already (it needs the heights), so compiling again here would double the cost of
+  // the very thing being optimised.
+  const ownCompiled = useMemo(
     () =>
+      compiledProp ??
       compileWithSpan({
         verses,
         highlights,
@@ -117,6 +123,7 @@ export function ParagraphText(props: ParagraphTextProps) {
         theme,
       }),
     [
+      compiledProp,
       verses,
       highlights,
       autoHighlights,
@@ -139,7 +146,11 @@ export function ParagraphText(props: ParagraphTextProps) {
   // every render and make the memo useless.
   const { fontSize, fontFamily, fontWeight, lineHeight, letterSpacing, textAlign } = font;
 
+  const compiled = ownCompiled;
+
   const height = useMemo(() => {
+    // Measured by the caller already; re-measuring would be pure duplication.
+    if (heightProp != null) return heightProp;
     // Only the ranges that change metrics matter to measurement. Underlines and
     // backgrounds are drawn over the glyphs and cannot change line breaking, so
     // including them would evict the native cache on every highlight toggle for
@@ -175,6 +186,7 @@ export function ParagraphText(props: ParagraphTextProps) {
     endMeasure();
     return measured;
   }, [
+    heightProp,
     compiled.text,
     compiled.ranges,
     width,
