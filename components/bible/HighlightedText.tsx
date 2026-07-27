@@ -935,6 +935,26 @@ export function HighlightedText({
     };
 
     const elements: ReactNode[] = [];
+
+    // Re-emit any whitespace at the START of the segment.
+    //
+    // `tokenizeText` matches /(\S+)(\s*)/g, which captures each word plus its
+    // TRAILING whitespace — leading whitespace is matched by nothing and so was
+    // silently dropped when the tokens were reassembled.
+    //
+    // A segment only begins with whitespace when a highlight boundary lands
+    // there, and that is the NORMAL case: selecting whole words puts `end_char`
+    // immediately before a space. The visible result was two words running
+    // together — highlight "beginning God" in Genesis 1:1 and the verse rendered
+    // "Godcreated".
+    //
+    // Only affects the tokenized path (`isVisible`), i.e. verses actually on
+    // screen. The non-tokenized path renders `segment.text` whole and was always
+    // correct, which is why this survived: it is invisible until you highlight.
+    if (tokens.length > 0 && tokens[0].startChar > 0) {
+      elements.push(segment.text.slice(0, tokens[0].startChar));
+    }
+
     let idx = 0;
     while (idx < tokens.length) {
       const token = tokens[idx];
