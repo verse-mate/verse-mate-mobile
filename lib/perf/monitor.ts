@@ -69,6 +69,19 @@ interface MonitorState {
   dropped: number;
   /** Currently-open span names, innermost last. Used to attribute blocks. */
   openSpans: string[];
+  /**
+   * Spans that were open at any point since the previous heartbeat tick,
+   * including ones that have already closed.
+   *
+   * Without this, attribution misses the case it exists for. A span whose work
+   * blocks the thread synchronously — a chapter mount, say — prevents the
+   * heartbeat from firing at all while it runs. By the time a tick does fire, the
+   * render has committed and the effect has closed the span, so `openSpans` is
+   * empty and the block is recorded as unattributed. That is exactly what the
+   * first real device capture showed: a 569ms `reader.mount.bible` span and a
+   * 2112ms block, with the block attributed to "(none)".
+   */
+  spansSinceTick: Set<string>;
   counters: Map<string, number>;
 }
 
@@ -101,6 +114,7 @@ export function startPerfMonitor(label: string, blockThresholdMs = DEFAULT_BLOCK
     records: [],
     dropped: 0,
     openSpans: [],
+    spansSinceTick: new Set(),
     counters: new Map(),
   };
 
@@ -112,13 +126,21 @@ export function startPerfMonitor(label: string, blockThresholdMs = DEFAULT_BLOCK
     const gap = t - state.lastTick - TICK_MS;
     state.lastTick = t;
     if (gap >= state.blockThresholdMs) {
+      // Union of still-open spans and any that opened AND closed inside the gap.
+      // The latter is the important half: synchronous work that blocks the thread
+      // also prevents the tick that would have observed it while it was open.
+      const during = new Set(state.spansSinceTick);
+      for (const name of state.openSpans) during.add(name);
       push({
         kind: 'jsBlock',
         ms: round(gap),
         at: round(t - state.startedAt),
-        during: [...state.openSpans],
+        during: [...during],
       });
     }
+    // Reset per-tick tracking AFTER recording, and re-seed with what is still
+    // open — a span spanning several ticks must stay attributable to each.
+    state.spansSinceTick = new Set(state.openSpans);
   }, TICK_MS);
 
   log(`monitor started label=${label} threshold=${blockThresholdMs}ms`);
@@ -154,6 +176,7 @@ export function perfSpan(name: string, meta?: PerfMeta): () => void {
   if (!__DEV__ || !state) return noop;
   const started = now();
   state.openSpans.push(name);
+  state.spansSinceTick.add(name);
   let closed = false;
   return () => {
     if (closed || !state) return;

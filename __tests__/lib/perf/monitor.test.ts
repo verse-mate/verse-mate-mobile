@@ -139,6 +139,40 @@ describe('JS block detection', () => {
     expect(recorded[0].during).toEqual(['chapter.mount', 'paragraph.render']);
   });
 
+  it('attributes a block to a span that opened AND closed inside the gap', () => {
+    // The case attribution exists for: synchronous work inside a span blocks the
+    // thread, which also prevents the tick that would have seen the span open.
+    // The first real device capture reported a 569ms mount span alongside a
+    // 2112ms block attributed to "(none)" — this is that gap closed.
+    startPerfMonitor('test', 30);
+    advance(16);
+
+    const end = perfSpan('reader.mount.bible');
+    blockThread(600);
+    end();
+    advance(16);
+
+    const recorded = blocks(stopPerfMonitor()?.records ?? []);
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0].during).toEqual(['reader.mount.bible']);
+  });
+
+  it('stops attributing to a closed span once a clean tick has passed', () => {
+    // Otherwise every later block would inherit a long-finished span and the
+    // attribution would become useless noise.
+    startPerfMonitor('test', 30);
+    advance(16);
+    const end = perfSpan('reader.mount.bible');
+    end();
+    advance(16);
+    advance(16);
+
+    blockThread(300);
+    const recorded = blocks(stopPerfMonitor()?.records ?? []);
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0].during).toEqual([]);
+  });
+
   it('marks a block with no open spans as unattributed in the summary', () => {
     startPerfMonitor('test', 30);
     advance(16);
