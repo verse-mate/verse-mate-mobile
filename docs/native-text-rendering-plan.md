@@ -165,6 +165,60 @@ can shift between RN versions. We are pinned to RN 0.81.5 / Expo 54, the module
 is ours, and Phase 2 exists specifically to prove or disprove this before any
 domain code depends on it. Section 5 documents the fallback.
 
+### REVISION (2026-07-27, after investigating the build path)
+
+The C++ shadow node remains the ideal, but investigating what it actually takes
+turned up three things that change the sequencing:
+
+1. **No precedent in this dependency tree.** Nothing in `node_modules` — not
+   `react-native-svg`, `-screens`, `-pager-view` — implements `measureContent`.
+   Every third-party Fabric component here uses default Yoga measurement.
+2. **Codegen has no override hook.** `GenerateShadowNodeH` unconditionally emits
+   `using XShadowNode = ConcreteViewShadowNode<...>` — a type alias, not a
+   subclass. Supplying a custom shadow node means bypassing codegen for the C++
+   side entirely and registering a hand-written `ComponentDescriptorProvider`,
+   through per-platform internal registration paths.
+3. **Android's documented custom-measure hook needs C++ anyway.**
+   `ViewManager.measure` carries the comment "This function is never called
+   automatically" — it only fires from `FabricUIManager.measure`, which is
+   reached from a custom C++ shadow node. So there is no Kotlin-only route to
+   Yoga-integrated measurement.
+
+Meanwhile a better intermediate exists than the reflow-push model rejected
+above. Expo's `Function()` is a **synchronous JSI call**
+(`SyncFunctionComponent`), so the module can expose:
+
+```ts
+measureText({ text, ranges, width, fontSize, ... }): number  // height, synchronous
+```
+
+JS then renders `<VMText style={{ width, height }} />`, and Yoga has exact
+dimensions on the **first** layout pass. No state push, no reflow frame, no
+Android/iOS NaN divergence. The width comes from `useWindowDimensions()` minus
+stylesheet padding — synchronously available, so not even an extra layout pass.
+Measurement and drawing are the same Kotlin/Swift code against the same
+`TextPaint`, so they agree by construction and cannot clip.
+
+Its one real cost is that measurement runs on the JS thread. Mitigated by a
+native-side cache keyed on `(text, width, fontSize, fontScale)`: a chapter pays
+~20 `StaticLayout` measures once (~1-3ms each) instead of 500-700ms of nested
+`<Text>` flattening, and pays nothing on re-render.
+
+**So Phase 2 splits:**
+
+- **2a — sync-measure (Kotlin only, stable public APIs).** Delivers exact
+  first-layout measurement and the whole decoration/interaction layer. This is
+  what gets measured in Phase 4.
+- **2b — C++ `measureContent`, only if 2a's numbers justify it.** Escalation
+  moves measurement off the JS thread entirely and onto RN's own
+  `TextLayoutManager` with its cache. The range model, the compiler and the
+  Kotlin drawing code are all unchanged by the swap — it is contained to the
+  measurement layer, which is exactly why it is safe to defer rather than
+  gamble the phase on unprecedented build plumbing.
+
+This is a sequencing change, not a scope reduction: 2b stays on the table and
+the design keeps it cheap to reach.
+
 ### The modularity seam: a pure-TypeScript range compiler
 
 The native module knows nothing about Bibles, verses, lexicons, highlights, or
