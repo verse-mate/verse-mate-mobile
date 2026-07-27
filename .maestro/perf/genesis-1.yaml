@@ -16,7 +16,7 @@ tags:
 # dev client's saved Metro URL — the app then boots into the dev-launcher and no
 # JS runs at all. A warm launch also avoids re-downloading ~30MB of offline
 # commentaries, which would dominate every measurement.
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: shared/reset-to-reader.yaml
 
 - tapOn:
     id: "chapter-selector-button"

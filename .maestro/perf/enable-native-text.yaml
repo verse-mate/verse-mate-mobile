@@ -7,7 +7,7 @@ tags:
   - perf
 ---
 
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: shared/reset-to-reader.yaml
 - tapOn:
     id: "hamburger-menu-button"
 - extendedWaitUntil:

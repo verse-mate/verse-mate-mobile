@@ -180,6 +180,37 @@ and that the reverse tunnel is up:
 adb_sh 'logcat -c' >/dev/null
 adb_sh "shell dumpsys gfxinfo $PKG reset" >/dev/null
 
+# --- 3c. verify which arm is actually live -----------------------------------
+
+step 'Verifying the arm'
+# A paired capture had its flag-flip flow fail silently, so the "native" arm
+# measured the legacy path and the comparison looked like a result. Never trust the
+# flip; read the arm back from the app.
+#
+# The native path logs paragraph.compile spans and the legacy path logs textNodes
+# from HighlightedText, so the presence of a compile span is a direct read of which
+# renderer is live. Checked AFTER the bundle is up and the reader has rendered.
+# The reader has to have rendered at least one paragraph for the probe to mean
+# anything, and logcat was cleared just above to scope the capture. So warm the
+# reader first with the reset flow, which is idempotent and cheap.
+pcrun "cd '$PC_REPO'; \$env:PATH += ';$PC_MAESTRO_BIN'; maestro --device $DEVICE test '.maestro/perf/shared/reset-to-reader.yaml'" >/dev/null 2>&1 || true
+ARM_PROBE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -c 'paragraph.compile' || true)"
+if [[ "$ARM" == "native" && "$ARM_PROBE" == "0" ]]; then
+  die "Asked to measure the NATIVE arm, but the app is rendering through the legacy path.
+
+No 'paragraph.compile' span appeared. The renderer flag is off. Flip it with:
+  maestro --device $DEVICE test .maestro/perf/enable-native-text.yaml
+and confirm the toggle actually moved — that flow has failed silently before when a
+modal was left open by a previous run."
+fi
+if [[ "$ARM" == "legacy" && "$ARM_PROBE" != "0" ]]; then
+  die "Asked to measure the LEGACY arm, but the app is rendering through the native path.
+
+'paragraph.compile' spans are present, so the renderer flag is on. Flip it off
+before capturing this arm."
+fi
+step "Arm confirmed: $ARM"
+
 # --- 4. run the flow ---------------------------------------------------------
 
 step "Running Maestro flow: $FLOW"
