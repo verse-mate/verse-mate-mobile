@@ -37,6 +37,7 @@ import { DeleteAccountWarningModal } from '@/components/account/DeleteAccountWar
 import { Button } from '@/components/Button';
 import { FontSizeSelector } from '@/components/settings/FontSizeSelector';
 import { LexiconUnderlineToggle } from '@/components/settings/LexiconUnderlineToggle';
+import { NativeTextToggle } from '@/components/settings/NativeTextToggle';
 import { ThemeSelector } from '@/components/settings/ThemeSelector';
 import { Avatar } from '@/components/ui/Avatar';
 import { TextInput } from '@/components/ui/TextInput';
@@ -868,6 +869,10 @@ export default function SettingsScreen() {
 
         {/* Reading — lexicon underline toggle (#7) */}
         <LexiconUnderlineToggle />
+
+        {/* Dev-only: drives the native-text-renderer A/B. Renders nothing in
+            release builds or where the native module is absent. */}
+        <NativeTextToggle />
 
         {/* Theme Selector Section */}
         <ThemeSelector />
