@@ -1,0 +1,41 @@
+appId: org.versemate.app
+name: Perf — turn the native text renderer ON
+description: >
+  Flips the runtime flag via the dev Settings toggle, then returns to the reader.
+  Used to switch A/B arms without rebuilding, so one build serves both.
+tags:
+  - perf
+---
+
+- runFlow: ../shared/setup-warm.yaml
+- tapOn:
+    id: "hamburger-menu-button"
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 10000
+- tapOn:
+    id: "menu-item-settings"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "native-text-toggle"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "native-text-toggle"
+- waitForAnimationToEnd
+
+# Back to the reader so the next capture starts where a user would be.
+- pressKey: Back
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+- waitForAnimationToEnd
+
+# Prove the reader still renders verse text with the native path live. If the
+# native view failed to size or draw, this is where it shows up as a blank screen
+# rather than as a subtle regression later.
+- assertVisible:
+    text: "In the beginning"
