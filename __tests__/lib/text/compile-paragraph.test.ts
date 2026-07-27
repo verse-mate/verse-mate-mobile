@@ -199,6 +199,25 @@ describe('compileParagraph — user highlights', () => {
     expect(hl.covers).toBe('the beginning God created.');
   });
 
+  it('falls back to the whole verse for a non-numeric char bound', () => {
+    // The generated API type leaves these `unknown`. A NaN offset would produce a
+    // highlight that renders nowhere and gives no clue why, so an unusable bound
+    // degrades to whole-verse instead.
+    const out = compile({
+      highlights: [highlight({ start_char: 'oops' as unknown as number, end_char: 12 })],
+    });
+    expect(taggedRanges(out, 'highlight:')[0].covers).toBe('In the beginning God created.');
+  });
+
+  it('accepts a numeric string char bound', () => {
+    const out = compile({
+      highlights: [
+        highlight({ start_char: '3' as unknown as number, end_char: '16' as unknown as number }),
+      ],
+    });
+    expect(taggedRanges(out, 'highlight:')[0].covers).toBe('the beginning');
+  });
+
   it('drops a highlight that clamps to nothing', () => {
     const out = compile({ highlights: [highlight({ start_char: 500, end_char: 600 })] });
     expect(taggedRanges(out, 'highlight:')).toHaveLength(0);

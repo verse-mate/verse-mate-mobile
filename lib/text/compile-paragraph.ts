@@ -222,10 +222,15 @@ function emitHighlights(
 ): void {
   const relevant = highlights
     .filter((h) => h.start_verse <= span.verseNumber && h.end_verse >= span.verseNumber)
-    .sort((a, b) => (a.start_char ?? 0) - (b.start_char ?? 0));
+    // Document order, so two highlights in one verse emit in reading order.
+    // Coerced through the same narrowing as the bounds themselves — sorting on the
+    // raw `unknown` would compare a string lexically and reorder them.
+    .sort((a, b) => (asFiniteNumber(a.start_char) ?? 0) - (asFiniteNumber(b.start_char) ?? 0));
 
   for (const highlight of relevant) {
-    const hasCharPrecision = highlight.start_char != null && highlight.end_char != null;
+    const startChar = asFiniteNumber(highlight.start_char);
+    const endChar = asFiniteNumber(highlight.end_char);
+    const hasCharPrecision = startChar !== null && endChar !== null;
 
     // Offsets are relative to the verse's own text, so they need the verse's
     // body offset added to reach compiled coordinates.
@@ -234,8 +239,8 @@ function emitHighlights(
     if (hasCharPrecision) {
       const isFirst = span.verseNumber === highlight.start_verse;
       const isLast = span.verseNumber === highlight.end_verse;
-      if (isFirst) from = highlight.start_char as number;
-      if (isLast) to = highlight.end_char as number;
+      if (isFirst) from = startChar;
+      if (isLast) to = endChar;
     }
 
     // A stored offset can exceed the current text: the user may have highlighted
@@ -381,4 +386,23 @@ function withOpacity(hexColor: string, opacity: number): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * Coerce an untyped API value to a usable character offset, or null.
+ *
+ * The generated `Highlight` type leaves `start_char`/`end_char` as `unknown`.
+ * Numeric strings are accepted because JSON from an older API revision could
+ * carry them; anything else — including NaN, which would poison every downstream
+ * comparison silently — becomes null and is treated as "no character precision",
+ * i.e. the whole verse. Losing precision is a visible, recoverable degradation;
+ * a NaN offset produces a highlight that renders nowhere.
+ */
+function asFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
