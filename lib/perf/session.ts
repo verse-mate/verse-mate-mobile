@@ -27,10 +27,23 @@ import { isPerfMonitorRunning, startPerfMonitor, stopPerfMonitor } from './monit
 import type { PerfReport } from './types';
 
 /**
- * Safety-net emit interval. Long enough not to spam a normal dev session,
- * short enough that a crashed capture run still leaves usable data behind.
+ * Safety-net emit interval.
+ *
+ * Deliberately LONG, so a capture run produces exactly ONE window covering the
+ * whole flow.
+ *
+ * This was 30s, and it made the A/B unsound: the interval boundaries fall wherever
+ * they fall, so one arm's window contained 1 chapter mount and 2 view switches
+ * while the other's contained 6 and 12. Comparing "percent of session blocked"
+ * across windows holding different amounts of work measures the window, not the
+ * renderer — and the numbers looked plausible either way, which is the dangerous
+ * kind of wrong.
+ *
+ * With one window per run, both arms execute the identical Maestro flow and their
+ * windows are activity-matched by construction. The interval survives only as a
+ * genuine safety net for a run that crashes before it can background.
  */
-const SAFETY_EMIT_MS = 30_000;
+const SAFETY_EMIT_MS = 600_000;
 
 let installed = false;
 let safetyTimer: ReturnType<typeof setInterval> | null = null;
