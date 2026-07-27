@@ -190,24 +190,36 @@ step 'Verifying the arm'
 # The native path logs paragraph.compile spans and the legacy path logs textNodes
 # from HighlightedText, so the presence of a compile span is a direct read of which
 # renderer is live. Checked AFTER the bundle is up and the reader has rendered.
-# The reader has to have rendered at least one paragraph for the probe to mean
-# anything, and logcat was cleared just above to scope the capture. So warm the
-# reader first with the reset flow, which is idempotent and cheap.
+# Read the arm the app itself reports, rather than inferring it from rendered
+# output. The app logs `[VMPERF] arm preference=<bool> available=<bool>` once the
+# stored flag resolves. Inference was indirect and got it wrong: a flip flow that
+# reported FAILED had actually toggled the flag (it only failed a later, unrelated
+# assertion), and the probe still read the stale arm.
+#
+# The reader is warmed first because the log line only appears once the hook
+# resolves. The reset flow is idempotent and cheap.
 pcrun "cd '$PC_REPO'; \$env:PATH += ';$PC_MAESTRO_BIN'; maestro --device $DEVICE test '.maestro/perf/shared/reset-to-reader.yaml'" >/dev/null 2>&1 || true
-ARM_PROBE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -c 'paragraph.compile' || true)"
-if [[ "$ARM" == "native" && "$ARM_PROBE" == "0" ]]; then
-  die "Asked to measure the NATIVE arm, but the app is rendering through the legacy path.
+ARM_LINE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r')"
+[[ -n "$ARM_LINE" ]] || die "The app never reported its renderer arm.
 
-No 'paragraph.compile' span appeared. The renderer flag is off. Flip it with:
+Expected a '[VMPERF] arm preference=...' line. Either the bundle is stale (Metro
+needs the current commit) or the reader never mounted."
+ARM_PROBE=0
+[[ "$ARM_LINE" == 'arm preference=true' ]] && ARM_PROBE=1
+step "App reports: $ARM_LINE"
+
+if [[ "$ARM" == "native" && "$ARM_PROBE" == "0" ]]; then
+  die "Asked to measure the NATIVE arm, but the app reports the flag is OFF.
+
+Flip it with:
   maestro --device $DEVICE test .maestro/perf/enable-native-text.yaml
 and confirm the toggle actually moved — that flow has failed silently before when a
 modal was left open by a previous run."
 fi
 if [[ "$ARM" == "legacy" && "$ARM_PROBE" != "0" ]]; then
-  die "Asked to measure the LEGACY arm, but the app is rendering through the native path.
+  die "Asked to measure the LEGACY arm, but the app reports the flag is ON.
 
-'paragraph.compile' spans are present, so the renderer flag is on. Flip it off
-before capturing this arm."
+Flip it off before capturing this arm."
 fi
 step "Arm confirmed: $ARM"
 

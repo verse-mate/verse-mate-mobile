@@ -34,8 +34,8 @@ tags:
     timeout: 30000
 - waitForAnimationToEnd
 
-# Prove the reader still renders verse text with the native path live. If the
-# native view failed to size or draw, this is where it shows up as a blank screen
-# rather than as a subtle regression later.
-- assertVisible:
-    text: "In the beginning"
+# NOT asserting on verse text here. `assertVisible: text: "In the beginning"` never
+# passed in either arm — the native TextView does not expose verse text to the
+# accessibility tree the way RN's <Text> does, so the assertion failed even when
+# rendering was perfect, and a failed flip flow looked like a failed flip. The
+# capture script verifies the arm from the app's own reported flag instead.
