@@ -38,6 +38,42 @@ Native-only spans, after the grouping memo fix:
 
 ---
 
+## Cumulative result (2026-07-28)
+
+Three further changes landed after the first A/B, each measured on the same device
+and flow. Psalm 119:
+
+| metric | legacy | native only | + UI-thread scroll | + windowing |
+| --- | --- | --- | --- | --- |
+| JS blocked | 38.0% | 22.1% | 26.5% | **16.7%** |
+| severe blocks (>300ms) | 34 | 14 | 15 | **6** |
+| Janky frames | 6.19% | 2.08% | 2.60% | **2.13%** |
+| p99 frame | 61ms | 32ms | 31ms | **23ms** |
+| Missed Vsync | 216 | 21 | 24 | **20** |
+| Slow UI thread | 238 | 79 | 89 | **56** |
+| text nodes | 34,568 | 15,383 | 15,174 | **10,241** |
+| `paragraph.compile` calls | — | 349 | 349 | **152** |
+
+Against legacy: blocked **−56%**, jank **−66%**, p99 **−62%**, Slow UI thread
+**−76%**, Missed Vsync **−91%**, severe blocks **34 → 6**.
+
+### The one metric that never moved
+
+`reader.mount.bible` has now been measured at 726, 699, 761, 702 and 817ms across
+arms and changes. It does not respond to any of this. Everything that reduces *node
+count* leaves it alone, so whatever dominates chapter-open is not text rendering —
+it is something in the mount path not yet instrumented. That wants its own
+evidence pass rather than another guess; three hypotheses have already died here
+(staging, sync measurement, off-screen view creation).
+
+### Why the scroll worklet looked like a regression
+
+The "+ UI-thread scroll" column looks worse than "native only" on frame metrics.
+It is not: that capture was contaminated by the arm-verification step, which ran an
+extra warm-up flow and inflated the window from 78s to 95s and chapter mounts from
+8 to 13. Re-measured cleanly, the worklet improved every metric. A guard that
+changes the thing it measures is its own bug.
+
 ## What this establishes
 
 **A clear win on everything except chapter-open.** Blocked time −49%, blocks −67%,
