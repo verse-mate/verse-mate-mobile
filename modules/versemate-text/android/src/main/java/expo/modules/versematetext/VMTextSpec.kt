@@ -116,6 +116,42 @@ fun VMTextSpec.buildPaint(): TextPaint {
 }
 
 /**
+ * Forces every line to an exact total height, the way React Native's own
+ * `CustomLineHeightSpan` does.
+ *
+ * `setLineSpacing(add, mult)` was the first approach and it over-spaced: it ADDS
+ * leading on top of the font's natural line height, and the arithmetic to back a
+ * target height out of that has to agree exactly between the measuring
+ * `StaticLayout` and the drawing `TextView`. It did not, and the native reader
+ * rendered visibly looser than the legacy one — enough that a screenful showed one
+ * fewer verse.
+ *
+ * A span is the right home for this because it travels WITH the text, so the
+ * measurement layout and the view cannot disagree by construction. Hand-written
+ * rather than using `LineHeightSpan.Standard`, which needs API 29 while this
+ * module supports 24.
+ *
+ * The extra space is distributed proportionally above and below, as the platform
+ * does, so text stays optically centred in its line box instead of riding the top.
+ */
+private class ExactLineHeightSpan(private val heightPx: Int) : LineHeightSpan {
+  override fun chooseHeight(
+    text: CharSequence?,
+    start: Int,
+    end: Int,
+    spanstartv: Int,
+    lineHeight: Int,
+    fm: Paint.FontMetricsInt,
+  ) {
+    val original = fm.descent - fm.ascent
+    if (original <= 0) return
+    val ratio = heightPx.toFloat() / original
+    fm.descent = Math.round(fm.descent * ratio)
+    fm.ascent = fm.descent - heightPx
+  }
+}
+
+/**
  * Build the styled text.
  *
  * Underlines are deliberately NOT spans. Android's `UnderlineSpan` is always
