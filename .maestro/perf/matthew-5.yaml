@@ -14,5 +14,6 @@ tags:
 - runFlow:
     file: shared/reader-workout.yaml
     env:
-      BOOK_ID: "40"
+      TESTAMENT_TAB: "tab-new-testament"
+      BOOK_SLUG: "matthew"
       CHAPTER: "5"

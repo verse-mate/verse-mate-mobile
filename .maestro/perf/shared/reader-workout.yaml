@@ -5,7 +5,10 @@ description: >
   interactions the user reports as slow, in a fixed order so two runs are
   comparable.
 env:
-  BOOK_ID: "1"
+  # Navigation is by UI, not deep link, so these are the selector values the
+  # navigation modal uses rather than route params.
+  TESTAMENT_TAB: "tab-old-testament"
+  BOOK_SLUG: "genesis"
   CHAPTER: "1"
 ---
 
@@ -38,13 +41,43 @@ env:
 # which would dominate every measurement and make runs incomparable.
 - runFlow: ../../shared/setup-warm.yaml
 
-# Deep-link straight to the target chapter. Navigating via the chapter modal
-# would fold modal render cost into every scenario's numbers and make the
-# chapters incomparable.
-- openLink: "versemate://bible/${BOOK_ID}/${CHAPTER}"
+# Navigate via the chapter modal, NOT a deep link.
+#
+# `versemate://bible/<book>/<chapter>` does not route in a dev-client build: the
+# dev client claims the app's URL scheme for its own launcher, and `am start`
+# cannot resolve the intent. The first attempt at this silently landed on the
+# default chapter, so BOTH the Genesis 1 and Matthew 5 captures measured book 1
+# chapter 1 — identical 1582 textNodes gave it away. Caught by asserting on the
+# span metadata rather than trusting the flow.
+#
+# Modal navigation costs a few hundred ms that lands in the session's block
+# totals, but it happens BEFORE the workout and the per-chapter spans carry their
+# own book/chapter metadata, so the numbers that matter stay attributable.
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "${TESTAMENT_TAB}"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-${BOOK_SLUG}"
+    direction: DOWN
+- tapOn:
+    id: "book-item-${BOOK_SLUG}"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "chapter-${CHAPTER}"
+    direction: DOWN
+- tapOn:
+    id: "chapter-${CHAPTER}"
 
-# Gate on content actually being present. Without this the flow would race the
-# first render and the capture would start mid-load.
+# Gate on content actually being present, so the workout does not race the first
+# render.
 - extendedWaitUntil:
     visible:
       id: "chapter-selector-button"
