@@ -1,0 +1,18 @@
+appId: org.versemate.app
+name: Perf — psalm-119
+description: Psalm 119 — the longest chapter in the Bible (176 verses), worst case
+tags:
+  - perf
+---
+
+# Psalm 119 — the longest chapter in the Bible (176 verses), worst case
+#
+# Thin wrapper: all behaviour lives in shared/reader-workout.yaml so every
+# scenario exercises an identical interaction sequence. Only the chapter differs,
+# which is what makes "cost scales with verse count" testable.
+
+- runFlow:
+    file: shared/reader-workout.yaml
+    env:
+      BOOK_ID: "19"
+      CHAPTER: "119"

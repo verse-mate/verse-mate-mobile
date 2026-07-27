@@ -54,6 +54,7 @@ import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { ExpoAudioEngine } from '@/lib/audio/expoAudioEngine';
 import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
+import { installPerfSession } from '@/lib/perf';
 import { UpgradePromptScreen } from '@/src/screens/UpgradePromptScreen';
 import { checkVersionPolicy } from '@/src/services/versionPolicy';
 import {
@@ -123,6 +124,12 @@ function RootLayoutInner() {
     minVersion: string;
     dismissed: boolean;
   }>({ mustUpgrade: false, currentVersion: '', minVersion: '', dismissed: false });
+
+  // Dev-only JS-thread perf monitor. Starts at launch and emits its report when
+  // the app backgrounds, so a Maestro flow plus `adb ... KEYCODE_HOME` can
+  // capture a run with no UI to tap. No-op in release builds.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  useEffect(() => installPerfSession(), []);
 
   // Check version policy on app startup (T8)
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount

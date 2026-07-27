@@ -85,3 +85,7 @@ crash_logs
 
 .agent-os/**/*
 modules/*/android/build/
+
+# Perf capture artifacts (raw logcat + reassembled reports). Machine-generated;
+# committed baselines live in docs/ instead.
+reports/perf/

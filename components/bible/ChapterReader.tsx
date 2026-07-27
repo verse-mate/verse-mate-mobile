@@ -47,6 +47,7 @@ import { useFontSize } from '@/hooks/bible/use-font-size';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
+import { usePerfMountSpan } from '@/lib/perf';
 import {
   fontSizes,
   fontWeights,
@@ -315,6 +316,19 @@ export function ChapterReader({
   const specs = getHeaderSpecs(mode);
   const { fontSize: userFontSize } = useFontSize();
   const styles = createStyles(colors, explanationsOnly, userFontSize);
+
+  // Dev-only. This is the mount whose cost the whole native-text project exists
+  // to remove — instrumented so the before/after is measured, not asserted.
+  usePerfMountSpan(
+    explanationsOnly ? 'reader.mount.explanations' : 'reader.mount.bible',
+    `${chapter.bookId}:${chapter.chapterNumber}:${explanationsOnly}`,
+    {
+      book: chapter.bookId,
+      chapter: chapter.chapterNumber,
+      sections: chapter.sections?.length ?? 0,
+      verses: chapter.sections?.reduce((n, s) => n + s.verses.length, 0) ?? 0,
+    }
+  );
 
   // Red-letter (words of Jesus): render whole verses Jesus speaks in red when
   // the "Jesus's Words" toggle is on. Local, translation-independent dataset

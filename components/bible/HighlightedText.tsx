@@ -36,6 +36,7 @@ import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
+import { perfAdd } from '@/lib/perf';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
 /**
@@ -1105,6 +1106,12 @@ export function HighlightedText({
       );
       idx++;
     }
+
+    // Dev-only. The premise of the native-text work is that per-token <Text>
+    // nodes dominate the render cost, so count them: `elements` is one node per
+    // word (two for a lexicon hit), plus this wrapper. Absolute numbers are
+    // only meaningful compared against another run of the same flow.
+    perfAdd('textNodes', elements.length + 1);
 
     return (
       <Text key={segment.key} style={segmentStyle} suppressHighlighting={true}>

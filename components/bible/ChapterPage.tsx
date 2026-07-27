@@ -61,6 +61,7 @@ import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
+import { usePerfMountSpan } from '@/lib/perf';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -1028,6 +1029,16 @@ export function ChapterPage({
   // overlapping at the same bounds. Opacity decides which is visible.
   // Falls back to a local sharedValue mirroring activeView when no parent
   // sharedValue is provided (tests, BibleContentPanel split-view path).
+  // Dev-only. `view.switch` covers the Bible<->Insight toggle: the span opens
+  // when `activeView` changes and closes once React has committed the new view,
+  // so it measures the reconciliation latency the prewarm hack exists to hide.
+  usePerfMountSpan('view.switch', `${bookId}:${chapterNumber}:${activeView}`, {
+    to: activeView,
+    book: bookId,
+    chapter: chapterNumber,
+    prewarmed: insightPrewarmed,
+  });
+
   const localToggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
   useEffect(() => {
     if (toggleProgress) return;
