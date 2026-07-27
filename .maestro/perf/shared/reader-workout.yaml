@@ -25,7 +25,18 @@ env:
 # measurement. Correctness is the regression suite's job; this flow exists only
 # to produce load.
 
-- runFlow: ../../shared/setup.yaml
+# setup-WARM, deliberately not setup.yaml.
+#
+# setup.yaml uses `clearState: true`, which runs `pm clear` — and that wipes the
+# Expo dev client's saved Metro URL along with everything else. The app then
+# launches into the dev-launcher instead of our bundle: no onboarding, no JS, no
+# perf data. Learned the hard way; the symptom was a flow failing on a missing
+# "Skip" button and an empty logcat.
+#
+# A warm launch is also the correct choice on its own merits: a cleared app
+# re-downloads ~30MB of offline commentaries and re-inserts them into SQLite,
+# which would dominate every measurement and make runs incomparable.
+- runFlow: ../../shared/setup-warm.yaml
 
 # Deep-link straight to the target chapter. Navigating via the chapter modal
 # would fold modal render cost into every scenario's numbers and make the

@@ -73,9 +73,11 @@ function main(): void {
     return;
   }
 
-  console.log(`  mean ${mean(times).toFixed(2)}ms   p50 ${pct(times, 0.5).toFixed(2)}ms   ` +
-    `p90 ${pct(times, 0.9).toFixed(2)}ms   p95 ${pct(times, 0.95).toFixed(2)}ms   ` +
-    `p99 ${pct(times, 0.99).toFixed(2)}ms   max ${times[times.length - 1].toFixed(2)}ms`);
+  console.log(
+    `  mean ${mean(times).toFixed(2)}ms   p50 ${pct(times, 0.5).toFixed(2)}ms   ` +
+      `p90 ${pct(times, 0.9).toFixed(2)}ms   p95 ${pct(times, 0.95).toFixed(2)}ms   ` +
+      `p99 ${pct(times, 0.99).toFixed(2)}ms   max ${times[times.length - 1].toFixed(2)}ms`
+  );
 
   for (const [label, budget] of [
     ['60Hz', BUDGET_60_MS],
