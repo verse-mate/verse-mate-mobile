@@ -11,13 +11,25 @@ tags:
 # Absence of a NativeViewManagerAdapter warning proves nothing: with the flag off
 # the view is never requested, so no warning is emitted either way. This asserts
 # the positive instead.
+#
+# Navigation is via the UI, not `versemate://settings` — deep links do not route
+# in a dev-client build (the dev client claims the app's scheme for its launcher).
 
 - runFlow: ../shared/setup-warm.yaml
+
 - tapOn:
     id: "hamburger-menu-button"
-    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 10000
+- tapOn:
+    id: "menu-item-settings"
 - waitForAnimationToEnd
-- openLink: "versemate://settings"
-- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "native-text-toggle"
+    direction: DOWN
+    timeout: 20000
 - assertVisible:
     id: "native-text-toggle"
