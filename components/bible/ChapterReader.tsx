@@ -30,6 +30,7 @@ import {
   StyleSheet,
   Text,
   type TextLayoutEventData,
+  type TextStyle,
   View,
 } from 'react-native';
 import Markdown from 'react-native-markdown-display';
@@ -53,6 +54,7 @@ import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-align
 import { usePerfMountSpan } from '@/lib/perf';
 import { ParagraphText } from '@/lib/text/ParagraphText';
 import type { CompileTheme } from '@/lib/text/types';
+import { isParagraphVisible, useParagraphLayout } from '@/lib/text/use-paragraph-layout';
 import type { TextLineLayout } from '@/modules/versemate-text';
 import {
   fontSizes,
@@ -516,27 +518,6 @@ export function ChapterReader({
   );
 
   /**
-   * Whether a paragraph group is near enough the viewport to render for real.
-   *
-   * Reuses the positions `handleVerseLayout` already records for scroll-to-verse,
-   * so windowing costs no extra measurement.
-   *
-   * Separate from `isVerseVisible` despite the similarity: that one gates
-   * `HighlightedText`'s per-word tokenization and uses the default 200px buffer,
-   * whereas this decides whether a native view exists at all. A miss here shows
-   * blank content rather than degraded tap accuracy, so it gets a much larger
-   * buffer — roughly one screen. An exact-height placeholder makes being early
-   * nearly free; being late means scrolling into emptiness.
-   */
-  const isGroupVisible = (firstVerseNumber: number): boolean => {
-    const layout = sectionLayouts.current[firstVerseNumber];
-    // Unknown position means this is the first paint. Render it: a wrong guess here
-    // shows blank content, which is far worse than an unnecessary mount.
-    if (!layout) return true;
-    return isElementVisible(layout.y, layout.height, visibleYRange, GROUP_WINDOW_BUFFER_PX);
-  };
-
-  /**
    * Paragraph groups per section, memoised on the chapter.
    *
    * These were computed inside an IIFE in the render body, so every `group` array
@@ -565,6 +546,97 @@ export function ChapterReader({
     }
     return bySection;
   }, [chapter.sections]);
+
+  /**
+   * Every paragraph group across every section, flattened, with a stable flat index.
+   *
+   * Flattened because `useParagraphLayout` is a hook and cannot be called inside a
+   * `.map()` over sections — and because offsets have to accumulate across section
+   * boundaries to be meaningful.
+   */
+  const flatGroups = useMemo(() => {
+    const out: { key: string; verses: ChapterContent['sections'][number]['verses'] }[] = [];
+    for (const section of chapter.sections ?? []) {
+      for (const group of sectionGroups.get(sectionKeyOf(section)) ?? []) {
+        out.push({ key: `${sectionKeyOf(section)}:${group[0]?.verseNumber}`, verses: group });
+      }
+    }
+    return out;
+  }, [chapter.sections, sectionGroups]);
+
+  const flatIndexByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    flatGroups.forEach((g, i) => {
+      map.set(g.key, i);
+    });
+    return map;
+  }, [flatGroups]);
+
+  /** Compile inputs shared by every group. Memoised so the layout hook is stable. */
+  const paragraphShared = useMemo(
+    () => ({
+      highlights: chapterHighlights,
+      autoHighlights,
+      alignment,
+      redLetterVerses,
+      showLexUnderlines,
+      theme: nativeTextTheme,
+    }),
+    [
+      chapterHighlights,
+      autoHighlights,
+      alignment,
+      redLetterVerses,
+      showLexUnderlines,
+      nativeTextTheme,
+    ]
+  );
+
+  /**
+   * Heights and offsets for every group, known during the FIRST render.
+   *
+   * Only computed on the native path — it is what makes windowing possible at mount
+   * rather than only on later scrolls.
+   */
+  const paragraphLayouts = useParagraphLayout({
+    groups: useNativeTextRenderer ? flatGroups.map((g) => g.verses) : [],
+    width: paragraphWidth,
+    style: styles.verseTextParagraph as TextStyle,
+    gap: spacing.md,
+    shared: paragraphShared,
+  });
+
+  /**
+   * Whether a paragraph group is near enough the viewport to render for real.
+   *
+   * Uses PRE-LAYOUT offsets, so it works on the first mount. The layout-based
+   * version this replaces could not: on first mount nothing has a recorded position,
+   * so every group looked "unknown" and rendered anyway — measured as changing
+   * nothing (compile still n=349, mount still 761ms).
+   *
+   * Offsets are relative to the first group, and the chapter title and section
+   * headers sit above it by some unknown amount H. Not knowing H is fine because
+   * H >= 0 always pushes paragraphs FURTHER from the top: comparing against a base
+   * of 0 therefore over-estimates what is visible, never under-estimates it. Once a
+   * position has been recorded the real base is used and the window tightens.
+   */
+  const isGroupVisible = (flatIndex: number): boolean => {
+    if (!useNativeTextRenderer) return true;
+    const layout = paragraphLayouts[flatIndex];
+    if (!layout) return true;
+    if (!visibleYRange) return true;
+    const viewportHeight = visibleYRange.endY - visibleYRange.startY;
+    // Without a viewport height there is nothing to window against yet.
+    if (viewportHeight <= 0) return true;
+    const firstRecorded = sectionLayouts.current[flatGroups[0]?.verses[0]?.verseNumber ?? -1];
+    const base = firstRecorded?.y ?? 0;
+    return isParagraphVisible(
+      layout,
+      visibleYRange.startY - base,
+      viewportHeight,
+      GROUP_WINDOW_BUFFER_PX
+    );
+  };
 
   /**
    * Store native line geometry in the same shape the RN `onTextLayout` path uses,
@@ -802,7 +874,11 @@ export function ChapterReader({
                           // creates no native views. Before the first layout the
                           // position is unknown and `isElementVisible` returns true,
                           // so the first paint is never blank.
-                          isVisible={isGroupVisible(group[0].verseNumber)}
+                          isVisible={isGroupVisible(
+                            flatIndexByKey.get(
+                              `${sectionKeyOf(section)}:${group[0].verseNumber}`
+                            ) ?? -1
+                          )}
                           autoHighlights={autoHighlights}
                           highlights={chapterHighlights}
                           onAutoHighlightPress={handleAutoHighlightPress}
