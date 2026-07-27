@@ -73,6 +73,22 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
    * app's own affordances on top, e.g. the Define button.
    */
   onSelectionChange?: (selection: TextSelectionRange) => void;
+  /**
+   * Pre-compiled paragraph, when the caller already compiled it.
+   *
+   * A windowing caller must compile every group to know its height, so without this
+   * the same paragraph gets compiled twice — once for its offset, once to render it,
+   * doubling the cost of the thing being optimised. Optional, so a standalone caller
+   * still works unchanged.
+   */
+  compiled?: CompiledParagraph;
+  /**
+   * Pre-measured height in dp, when the caller already measured it.
+   *
+   * Same reasoning as `compiled`: the windowing caller measured this to compute
+   * offsets, and re-measuring here would be pure duplication.
+   */
+  height?: number;
   testID?: string;
 }
 
@@ -155,7 +171,8 @@ export function ParagraphText(props: ParagraphTextProps) {
     // backgrounds are drawn over the glyphs and cannot change line breaking, so
     // including them would evict the native cache on every highlight toggle for
     // no benefit.
-    const metricRanges = compiled.ranges
+    const metricRanges: CompiledParagraph['ranges'] = compiled.ranges;
+    const metricRangesFlat = metricRanges
       .filter(
         (r) =>
           r.fontScale !== undefined || r.baselineShift !== undefined || r.fontWeight !== undefined
@@ -174,7 +191,7 @@ export function ParagraphText(props: ParagraphTextProps) {
     const endMeasure = perfSpan('paragraph.measure');
     const measured = measureTextHeight({
       text: compiled.text,
-      ranges: metricRanges,
+      ranges: metricRangesFlat,
       width,
       fontSize,
       fontFamily,
