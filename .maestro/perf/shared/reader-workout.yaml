@@ -1,20 +1,14 @@
 appId: org.versemate.app
 name: Reader perf workout
 description: >
-  Parameterised reader exercise used by every perf scenario. Drives exactly the
-  interactions the user reports as slow, in a fixed order so two runs are
-  comparable.
-env:
-  # Navigation is by UI, not deep link, so these are the selector values the
-  # navigation modal uses rather than route params.
-  TESTAMENT_TAB: "tab-old-testament"
-  BOOK_SLUG: "genesis"
-  CHAPTER: "1"
+  Interaction sequence shared by every perf scenario. Assumes the reader is
+  ALREADY on the target chapter — each scenario navigates there itself, with
+  literal selectors.
 ---
 
 # Reader perf workout
 #
-# Every step here maps to a specific reported symptom, so the capture measures
+# Every step maps to a specific reported symptom, so the capture measures
 # complaints rather than generic activity:
 #
 #   scroll down/up        -> "scrolling gets laggier", frame drops
@@ -23,65 +17,16 @@ env:
 #   Insight <-> Bible     -> "the UI doesn't switch to Insight instantly"
 #   tap a verse           -> "opening a verse insight takes time to load"
 #
-# Deliberately NO assertions on content beyond the load gate. An assertion that
-# fails mid-flow aborts the run and truncates the capture, which would cost the
-# measurement. Correctness is the regression suite's job; this flow exists only
-# to produce load.
+# NO env variables and no navigation here. Maestro silently did not interpolate
+# `${VAR}` in `id:` selectors — it logged the literal `${BOOK_SLUG}` and reported
+# the tap as COMPLETED anyway, so three scenarios all measured Genesis 1 while
+# every step looked green. Literal selectors per scenario cost a little
+# duplication and remove that whole failure mode.
+#
+# Deliberately no content assertions beyond each scenario's navigation. An
+# assertion failing mid-flow aborts the run and truncates the capture, costing the
+# measurement. Correctness is the regression suite's job; this produces load.
 
-# setup-WARM, deliberately not setup.yaml.
-#
-# setup.yaml uses `clearState: true`, which runs `pm clear` — and that wipes the
-# Expo dev client's saved Metro URL along with everything else. The app then
-# launches into the dev-launcher instead of our bundle: no onboarding, no JS, no
-# perf data. Learned the hard way; the symptom was a flow failing on a missing
-# "Skip" button and an empty logcat.
-#
-# A warm launch is also the correct choice on its own merits: a cleared app
-# re-downloads ~30MB of offline commentaries and re-inserts them into SQLite,
-# which would dominate every measurement and make runs incomparable.
-- runFlow: ../../shared/setup-warm.yaml
-
-# Navigate via the chapter modal, NOT a deep link.
-#
-# `versemate://bible/<book>/<chapter>` does not route in a dev-client build: the
-# dev client claims the app's URL scheme for its own launcher, and `am start`
-# cannot resolve the intent. The first attempt at this silently landed on the
-# default chapter, so BOTH the Genesis 1 and Matthew 5 captures measured book 1
-# chapter 1 — identical 1582 textNodes gave it away. Caught by asserting on the
-# span metadata rather than trusting the flow.
-#
-# Modal navigation costs a few hundred ms that lands in the session's block
-# totals, but it happens BEFORE the workout and the per-chapter spans carry their
-# own book/chapter metadata, so the numbers that matter stay attributable.
-- tapOn:
-    id: "chapter-selector-button"
-- extendedWaitUntil:
-    visible:
-      id: "bible-navigation-modal"
-    timeout: 10000
-- tapOn:
-    id: "${TESTAMENT_TAB}"
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "book-item-${BOOK_SLUG}"
-    direction: DOWN
-- tapOn:
-    id: "book-item-${BOOK_SLUG}"
-- waitForAnimationToEnd
-- scrollUntilVisible:
-    element:
-      id: "chapter-${CHAPTER}"
-    direction: DOWN
-- tapOn:
-    id: "chapter-${CHAPTER}"
-
-# Gate on content actually being present, so the workout does not race the first
-# render.
-- extendedWaitUntil:
-    visible:
-      id: "chapter-selector-button"
-    timeout: 30000
 - waitForAnimationToEnd
 
 # --- scroll: within-chapter jank -------------------------------------------

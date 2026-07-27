@@ -107,12 +107,27 @@ step "Device: $DEVICE"
 step 'Verifying the installed build is debuggable'
 # A release build silently produces zero perf data (the session is __DEV__ only).
 # Catching that here saves a full run that yields an empty report.
-# `Select-String`, not `grep` — this runs inside PowerShell on the PC, where a
-# Unix grep does not exist. The earlier version silently produced 0 matches and
-# reported a perfectly debuggable build as non-debuggable.
-DEBUGGABLE="$(adb_sh "shell dumpsys package $PKG | Select-String 'pkgFlags' | Select-Object -First 1" 2>&1 | grep -c DEBUGGABLE || true)"
-if [[ "$DEBUGGABLE" == "0" ]]; then
+# Distinguish "not debuggable" from "the probe told us nothing".
+#
+# An earlier version ran `grep -c DEBUGGABLE` over the probe output and died when
+# the count was 0 — which is also what an empty result looks like when the bridge
+# hiccups. That guard failed closed on a perfectly good build and aborted a run
+# for no reason. `Select-String`, not `grep`, because this executes in PowerShell
+# on the PC where no Unix grep exists.
+PKG_FLAGS="$(adb_sh "shell dumpsys package $PKG | Select-String 'pkgFlags' | Select-Object -First 1" 2>&1 | tr -d '\r')"
+
+if [[ -z "${PKG_FLAGS// /}" ]]; then
+  die "Could not read package flags for $PKG.
+
+The probe returned nothing, which is not the same as 'not debuggable' — most
+likely the app is not installed, or the bridge call failed. Check:
+  adb -s $DEVICE shell dumpsys package $PKG | Select-String pkgFlags"
+fi
+
+if [[ "$PKG_FLAGS" != *DEBUGGABLE* ]]; then
   die "$PKG on the device is not a debuggable build.
+
+Flags reported: $PKG_FLAGS
 
 The perf session is __DEV__ only, so a release/preview APK records nothing.
 Install the dev-client debug APK:
