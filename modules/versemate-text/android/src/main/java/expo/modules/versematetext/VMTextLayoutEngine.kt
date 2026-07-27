@@ -82,15 +82,11 @@ object VMTextLayoutEngine {
       .setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE)
       .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NONE)
 
-    if (spec.lineHeightPx > 0f) {
-      // Express an explicit line height as extra leading on top of the font's
-      // natural spacing. Using a multiplier instead would scale with the font
-      // and stop matching the requested absolute value.
-      val natural = spec.buildPaint().let { it.descent() - it.ascent() }
-      builder.setLineSpacing((spec.lineHeightPx - natural).coerceAtLeast(0f), 1f)
-    } else {
-      builder.setLineSpacing(0f, 1f)
-    }
+    // Line height is NOT applied here. It travels as an ExactLineHeightSpan on the
+    // spannable (see VMTextSpec.buildSpannable), so this layout and the drawing
+    // TextView cannot disagree about it — which they did when each computed extra
+    // leading independently.
+    builder.setLineSpacing(0f, 1f)
 
     return builder.build()
   }

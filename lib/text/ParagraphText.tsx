@@ -126,9 +126,22 @@ export function ParagraphText(props: ParagraphTextProps) {
     // backgrounds are drawn over the glyphs and cannot change line breaking, so
     // including them would evict the native cache on every highlight toggle for
     // no benefit.
-    const metricRanges = compiled.ranges.filter(
-      (r) => r.fontScale !== undefined || r.baselineShift !== undefined || r.fontWeight !== undefined
-    );
+    const metricRanges = compiled.ranges
+      .filter(
+        (r) =>
+          r.fontScale !== undefined || r.baselineShift !== undefined || r.fontWeight !== undefined
+      )
+      // Flattened to the bridge shape, same as the view prop. Measurement only
+      // reads the metric fields, but sending the public nested shape here would
+      // re-create the mismatch that silently dropped every underline.
+      .map((r) => ({
+        start: r.start,
+        end: r.end,
+        fontWeight: r.fontWeight,
+        fontScale: r.fontScale,
+        baselineShift: r.baselineShift,
+        interactive: false,
+      }));
     return measureTextHeight({
       text: compiled.text,
       ranges: metricRanges,

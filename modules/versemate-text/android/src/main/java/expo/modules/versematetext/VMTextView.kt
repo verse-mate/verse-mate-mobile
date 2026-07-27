@@ -181,15 +181,11 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
         else -> TEXT_ALIGNMENT_INHERIT
       }
 
-      if (spec.lineHeightPx > 0f) {
-        // Extra leading on top of the font's natural spacing, matching how
-        // VMTextLayoutEngine expresses an explicit line height. A multiplier would
-        // scale with the font and stop matching the requested absolute value.
-        val natural = paint.descent() - paint.ascent()
-        setLineSpacing((spec.lineHeightPx - natural).coerceAtLeast(0f), 1f)
-      } else {
-        setLineSpacing(0f, 1f)
-      }
+      // Line height is NOT set here — it rides on the spannable as an
+      // ExactLineHeightSpan, so this view and the measurement layout apply the
+      // identical value. Computing leading separately in each place is what made
+      // the native reader render looser than the legacy one.
+      setLineSpacing(0f, 1f)
 
       // Text LAST: the spans are built against the metrics set above, and setting
       // text first would lay out once with the old metrics and again after.
