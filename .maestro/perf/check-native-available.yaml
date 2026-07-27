@@ -15,7 +15,7 @@ tags:
 # Navigation is via the UI, not `versemate://settings` — deep links do not route
 # in a dev-client build (the dev client claims the app's scheme for its launcher).
 
-- runFlow: ../shared/setup-warm.yaml
+- runFlow: shared/reset-to-reader.yaml
 
 - tapOn:
     id: "hamburger-menu-button"

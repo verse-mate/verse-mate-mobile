@@ -1,0 +1,44 @@
+appId: org.versemate.app
+name: Reset to a clean reader screen
+description: >
+  Dismiss any overlay left open by a previous flow, then confirm the reader is up.
+  Perf flows use a WARM launch (clearState would wipe the dev client's Metro URL),
+  so app state carries over between runs and a modal left open makes the next flow
+  fail on an unrelated assertion.
+---
+
+# Learned the hard way: a paired capture had its flag-flip flow fail on
+# "hamburger-menu is visible" because the chapter-navigation modal was still open
+# from the previous run. The native arm then silently measured the LEGACY path, and
+# the comparison looked like a result.
+#
+# Back is optional and repeated: it closes a modal if one is open and is harmless
+# otherwise. Not `clearState`, which would take the dev-client Metro URL with it.
+- runFlow: ../../shared/setup-warm.yaml
+
+- repeat:
+    times: 3
+    commands:
+      - runFlow:
+          when:
+            notVisible:
+              id: "chapter-selector-button"
+          commands:
+            - pressKey: Back
+            - waitForAnimationToEnd
+
+# Also close the navigation modal specifically — it can be open WITH the selector
+# button still visible behind it, which the check above would not catch.
+- runFlow:
+    when:
+      visible:
+        id: "bible-navigation-modal"
+    commands:
+      - pressKey: Back
+      - waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+- waitForAnimationToEnd
