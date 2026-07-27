@@ -59,6 +59,28 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
 
   private var spec: VMTextSpec = VMTextSpec.EMPTY
 
+  /**
+   * False until construction finishes. Events must not be dispatched before then.
+   *
+   * `setTextIsSelectable(true)` in the inner view's `init` synchronously fires
+   * `onSelectionChanged`, and the inner view is created by an outer property
+   * initializer — so that callback runs while `VMTextView`'s own `by
+   * EventDispatcher` delegates are still uninitialised. Touching one there
+   * recursed until the stack blew:
+   *
+   *   Couldn't create view of type class expo.modules.versematetext.VMTextView
+   *   java.lang.reflect.InvocationTargetException
+   *   Caused by: java.lang.StackOverflowError: stack size 8188KB
+   *     at VMTextView$SelectableTextView.onSelectionChanged(VMTextView.kt:274)
+   *     at VMTextView$SelectableTextView.<init>(VMTextView.kt:127)
+   *     at VMTextView.<init>(VMTextView.kt:62)
+   *
+   * Every view creation failed, so the reader rendered its chrome and no verse
+   * text at all. Declared before `textView` to make the ordering explicit, though
+   * a Boolean field defaults to false regardless.
+   */
+  private var readyToDispatch = false
+
   private val textView = SelectableTextView(context)
 
   private val density: Float get() = resources.displayMetrics.density
@@ -71,6 +93,7 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
         ViewGroup.LayoutParams.MATCH_PARENT
       )
     )
+    readyToDispatch = true
   }
 
   /**
@@ -241,6 +264,10 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
      * the geometry describes exactly what is on screen.
      */
     private fun reportLayoutIfChanged(layout: Layout) {
+      // Same guard as onSelectionChanged. A draw cannot happen during construction
+      // today, but the cost of being wrong about that is the whole view failing to
+      // instantiate, so it is not worth relying on.
+      if (!this@VMTextView.readyToDispatch) return
       val key = "${text?.length}:$width:${layout.lineCount}:${layout.height}"
       if (key == lastLayoutKey) return
       lastLayoutKey = key
@@ -270,6 +297,10 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
      */
     override fun onSelectionChanged(selStart: Int, selEnd: Int) {
       super.onSelectionChanged(selStart, selEnd)
+      // Fires during construction (setTextIsSelectable triggers it) and again on
+      // every text change, both before the outer view's event dispatchers exist.
+      // See `readyToDispatch`.
+      if (!this@VMTextView.readyToDispatch) return
       val hasSelection = selEnd > selStart
       this@VMTextView.onSelectionChange(
         mapOf(
