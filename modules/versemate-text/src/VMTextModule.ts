@@ -11,9 +11,30 @@ import type { ComponentType } from 'react';
 import type { TextRange } from './types';
 
 /** Props the native view accepts. Values are dp/sp, resolved from style by `VMText`. */
+/**
+ * Range shape the native side actually accepts — the underline fields flattened.
+ *
+ * Kept distinct from the public `TextRange` so the mismatch that caused every
+ * underline to be dropped cannot recur silently: the bridge shape is now a type,
+ * not a convention.
+ */
+export interface NativeTextRange {
+  start: number;
+  end: number;
+  underlineStyle?: string;
+  underlineColor?: string;
+  underlineThickness?: number;
+  backgroundColor?: string;
+  color?: string;
+  fontWeight?: string;
+  fontScale?: number;
+  baselineShift?: number;
+  interactive: boolean;
+}
+
 export interface NativeVMTextProps {
   text: string;
-  ranges?: TextRange[];
+  ranges?: NativeTextRange[];
   fontSize?: number;
   fontFamily?: string;
   fontWeight?: string;
@@ -44,7 +65,8 @@ export interface NativeVMTextProps {
 /** A measurement request. All sizes in dp/sp, matching RN style units. */
 export interface MeasureRequest {
   text: string;
-  ranges?: TextRange[];
+  /** Flat bridge shape, same as the view prop — see `NativeTextRange`. */
+  ranges?: NativeTextRange[];
   /** Available width in dp. Text wraps to this. */
   width: number;
   fontSize: number;

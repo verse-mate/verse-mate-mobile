@@ -69,6 +69,33 @@ export function VMText(props: VMTextProps) {
   const NativeView = isNativeTextAvailable() ? getNativeVMTextView() : null;
   const flat = useMemo(() => StyleSheet.flatten(style) as TextStyle | undefined, [style]);
 
+  // Flatten `underline` for the bridge.
+  //
+  // The public TS type nests it (`underline: { style, color, thickness }`) because
+  // that reads better and makes "no underline" a single absent key. The Kotlin
+  // Record declares the three fields flat. Sending the nested shape meant
+  // `underlineStyle` arrived null for every range and NOTHING was ever underlined
+  // — the native reader rendered with no lexicon underlines at all while the
+  // legacy path underlined nearly every phrase. Caught by diffing device
+  // screenshots of the two arms.
+  const nativeRanges = useMemo(
+    () =>
+      ranges?.map((range) => ({
+        start: range.start,
+        end: range.end,
+        underlineStyle: range.underline?.style,
+        underlineColor: range.underline?.color,
+        underlineThickness: range.underline?.thickness,
+        backgroundColor: range.backgroundColor,
+        color: range.color,
+        fontWeight: range.fontWeight,
+        fontScale: range.fontScale,
+        baselineShift: range.baselineShift,
+        interactive: range.interactive ?? false,
+      })),
+    [ranges]
+  );
+
   const handleRangeTap = useCallback(
     (event: { nativeEvent: { index: number; charOffset: number } }) => {
       onRangeTap?.(event.nativeEvent.index, event.nativeEvent.charOffset);
@@ -112,7 +139,7 @@ export function VMText(props: VMTextProps) {
 
   const nativeProps: NativeVMTextProps = {
     text,
-    ranges,
+    ranges: nativeRanges,
     // Text attributes are forwarded as explicit props rather than left in
     // `style`. RN's Android view bridge pre-processes colour strings into ints
     // and then tries to set them on the same-named prop, which collides with a

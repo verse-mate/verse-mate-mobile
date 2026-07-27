@@ -4,9 +4,11 @@ import android.graphics.Color
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.Spanned
+import android.graphics.Paint
 import android.text.TextPaint
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
+import android.text.style.LineHeightSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.StyleSpan
@@ -125,6 +127,18 @@ fun VMTextSpec.buildPaint(): TextPaint {
 fun VMTextSpec.buildSpannable(): Spannable {
   val spannable = SpannableString(text)
   val length = text.length
+
+  // Applied across the whole string so every line gets the exact requested height
+  // in both the measurement layout and the view.
+  if (lineHeightPx > 0f && length > 0) {
+    spannable.setSpan(
+      ExactLineHeightSpan(Math.round(lineHeightPx)),
+      0,
+      length,
+      Spanned.SPAN_INCLUSIVE_INCLUSIVE,
+    )
+  }
+
   for (range in ranges) {
     val start = range.start.coerceIn(0, length)
     val end = range.end.coerceIn(start, length)
