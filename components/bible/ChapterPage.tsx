@@ -33,8 +33,10 @@ import Animated, {
   Easing,
   FadeIn,
   FadeOut,
+  runOnJS,
   type SharedValue,
   useAnimatedRef,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -55,7 +57,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import {
+  BOTTOM_THRESHOLD,
+  SCROLL_VELOCITY_THRESHOLD as FAB_SCROLL_VELOCITY_THRESHOLD,
+} from '@/hooks/bible/use-fab-visibility';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
@@ -309,6 +314,16 @@ function TabContent({
  * All props are DYNAMIC - they update when the sliding window shifts.
  * The key is set by the parent based on window position, not content.
  */
+/**
+ * How often the scroll worklet pushes the visible Y range to JS, in ms.
+ *
+ * Matches the debounce the old per-frame JS handler used. Tokenization only needs
+ * a coarse window, so this is a throttle rather than a debounce now — the previous
+ * version allocated and cancelled a timeout on every scroll frame to achieve the
+ * same effect.
+ */
+const VISIBILITY_PUSH_INTERVAL_MS = 150;
+
 export interface ChapterPageProps {
   /** Book ID (1-66) - DYNAMIC prop, updates on window shift */
   bookId: number;
@@ -829,6 +844,107 @@ export function ChapterPage({
   /**
    * Handle scroll events - calculate velocity, detect bottom, and update visible range
    */
+  /**
+   * Latest `onScroll` prop, in a ref.
+   *
+   * A worklet cannot close over a changing JS value, and `runOnJS` needs a stable
+   * reference — capturing the prop directly would freeze the first render's copy.
+   */
+  const onScrollRef = useRef(onScroll);
+  onScrollRef.current = onScroll;
+
+  /**
+   * Push the visible Y range to JS. Called from the scroll worklet at most every
+   * VISIBILITY_PUSH_INTERVAL_MS.
+   *
+   * Sets the ref synchronously (consumers that read it get the freshest value) and
+   * the state for consumers that need to re-render. The old code set state behind a
+   * per-frame debounce timer, which meant allocating and cancelling a timeout 60
+   * times a second to achieve the same throttle.
+   */
+  const pushVisibleRange = useCallback(
+    (scrollY: number, viewportHeight: number, _contentHeight: number) => {
+      viewportHeightRef.current = viewportHeight;
+      const range: VisibleYRange = { startY: scrollY, endY: scrollY + viewportHeight };
+      visibleYRangeRef.current = range;
+      currentScrollYRef.current = scrollY;
+      setVisibleYRange(range);
+    },
+    []
+  );
+
+  /**
+   * UI-thread scroll handler for the Bible view.
+   *
+   * ## Why this exists
+   *
+   * `handleScroll` below is a plain JS callback on `onScroll` with
+   * `scrollEventThrottle={16}`, so it ran ~60x/second ON THE JS THREAD for the
+   * whole duration of every scroll. Each call allocated a `setTimeout`, and it
+   * called into `useFABVisibility`, which calls `setVisible()` — a React state
+   * update, i.e. a re-render of the chapter screen, mid-scroll.
+   *
+   * With the JS thread already busy ~25% of a reading session, those events queue.
+   * The device reported "High input latency: 4916" and a p99 frame of 42ms against
+   * an 8.3ms budget, while the JS-side numbers looked fine — which is why the
+   * JS-thread monitor alone was not enough to find this.
+   *
+   * This worklet runs on the UI thread and crosses to JS only on a state
+   * TRANSITION: when the FAB should change visibility, or at most every 150ms for
+   * the text-visibility range. Scrolling itself costs zero JS.
+   */
+  const lastScrollYSv = useSharedValue(0);
+  const lastScrollTimeSv = useSharedValue(0);
+  const fabVisibleSv = useSharedValue(true);
+  const lastVisibilityPushSv = useSharedValue(0);
+
+  const animatedScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      'worklet';
+      const y = event.contentOffset.y;
+      const viewportHeight = event.layoutMeasurement.height;
+      const scrollableHeight = event.contentSize.height - viewportHeight;
+      // `performance.now()` is not available in a worklet; the scroll event's own
+      // clock is monotonic and is what velocity should be measured against anyway.
+      const now = Date.now();
+
+      const timeDelta = now - lastScrollTimeSv.value;
+      const scrollDelta = y - lastScrollYSv.value;
+      const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
+      lastScrollYSv.value = y;
+      lastScrollTimeSv.value = now;
+
+      const isAtBottom = scrollableHeight - y <= BOTTOM_THRESHOLD;
+
+      // FAB decision, made here so the common case (no change) never touches JS.
+      let nextFabVisible = fabVisibleSv.value;
+      if (isAtBottom) nextFabVisible = true;
+      else if (velocity < -FAB_SCROLL_VELOCITY_THRESHOLD) nextFabVisible = true;
+      else if (velocity > FAB_SCROLL_VELOCITY_THRESHOLD) nextFabVisible = false;
+
+      if (nextFabVisible !== fabVisibleSv.value) {
+        fabVisibleSv.value = nextFabVisible;
+        if (onScrollRef.current) {
+          // Hand over the velocity that caused the transition so the JS side's
+          // existing threshold logic reaches the same conclusion.
+          runOnJS(onScrollRef.current)(velocity, isAtBottom);
+        }
+      } else if (isAtBottom && !fabVisibleSv.value) {
+        // Reaching the bottom must always show the FAB, even without a velocity
+        // spike — a slow drag to the end would otherwise leave it hidden.
+        fabVisibleSv.value = true;
+        if (onScrollRef.current) runOnJS(onScrollRef.current)(velocity, true);
+      }
+
+      // Text-visibility range, throttled. Tokenization only needs a coarse window,
+      // and pushing it every frame was the other half of the per-frame JS cost.
+      if (now - lastVisibilityPushSv.value >= VISIBILITY_PUSH_INTERVAL_MS) {
+        lastVisibilityPushSv.value = now;
+        runOnJS(pushVisibleRange)(y, viewportHeight, event.contentSize.height);
+      }
+    },
+  });
+
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     // Update current scroll ref for distance calculation
     currentScrollYRef.current = event.nativeEvent.contentOffset.y;
@@ -1244,8 +1360,11 @@ export function ChapterPage({
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={true}
         testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
+        onScroll={animatedScrollHandler}
+        // 1 rather than 16: a Reanimated handler runs on the UI thread, so there is
+        // no reason to throttle it — throttling only ever existed to reduce JS
+        // bridge traffic, and there is none now.
+        scrollEventThrottle={1}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         pointerEvents={activeView === 'bible' ? 'auto' : 'none'}

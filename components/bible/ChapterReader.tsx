@@ -177,7 +177,10 @@ function calculateBreakPoints(verses: { verseNumber: number; text: string }[]): 
  *
  * Matches the Fragment key in the render path so the two cannot drift apart.
  */
-function sectionKeyOf(section: { startVerse: number; subtitle?: string | null }): string {
+function sectionKeyOf(section: { startVerse?: number; subtitle?: string | null }): string {
+  // `startVerse` is optional on ChapterSection, and the render path's Fragment key
+  // interpolates it the same way — so an undefined must stringify identically here
+  // or the memo lookup misses and every paragraph recompiles.
   return `section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`;
 }
 
