@@ -936,6 +936,22 @@ export function HighlightedText({
     };
 
     const elements: ReactNode[] = [];
+
+    // Re-emit any whitespace at the START of the segment.
+    //
+    // `tokenizeText` matches /(\S+)(\s*)/g, which captures each word plus its
+    // TRAILING whitespace — leading whitespace is matched by nothing and so was
+    // silently dropped when the tokens were reassembled. Segments only begin
+    // with whitespace when a highlight boundary lands there, which is the normal
+    // case: selecting whole words puts `end_char` immediately before a space. The
+    // visible result was two words running together — highlight "beginning God"
+    // in Genesis 1:1 and the verse rendered "Godcreated".
+    //
+    // Found by the compiler/renderer parity harness in __tests__/lib/text.
+    if (tokens.length > 0 && tokens[0].startChar > 0) {
+      elements.push(segment.text.slice(0, tokens[0].startChar));
+    }
+
     let idx = 0;
     while (idx < tokens.length) {
       const token = tokens[idx];
