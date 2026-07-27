@@ -1,0 +1,18 @@
+appId: org.versemate.app
+name: Perf — matthew-5
+description: Matthew 5 — typical chapter (48 verses), Sermon on the Mount
+tags:
+  - perf
+---
+
+# Matthew 5 — typical chapter (48 verses), Sermon on the Mount
+#
+# Thin wrapper: all behaviour lives in shared/reader-workout.yaml so every
+# scenario exercises an identical interaction sequence. Only the chapter differs,
+# which is what makes "cost scales with verse count" testable.
+
+- runFlow:
+    file: shared/reader-workout.yaml
+    env:
+      BOOK_ID: "40"
+      CHAPTER: "5"

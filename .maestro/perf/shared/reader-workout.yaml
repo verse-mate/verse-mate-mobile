@@ -1,0 +1,112 @@
+appId: org.versemate.app
+name: Reader perf workout
+description: >
+  Parameterised reader exercise used by every perf scenario. Drives exactly the
+  interactions the user reports as slow, in a fixed order so two runs are
+  comparable.
+env:
+  BOOK_ID: "1"
+  CHAPTER: "1"
+---
+
+# Reader perf workout
+#
+# Every step here maps to a specific reported symptom, so the capture measures
+# complaints rather than generic activity:
+#
+#   scroll down/up        -> "scrolling gets laggier", frame drops
+#   swipe next + scroll   -> "teleports you back up", the two post-swipe hiccups
+#   swipe back            -> reverse-direction slot reuse
+#   Insight <-> Bible     -> "the UI doesn't switch to Insight instantly"
+#   tap a verse           -> "opening a verse insight takes time to load"
+#
+# Deliberately NO assertions on content beyond the load gate. An assertion that
+# fails mid-flow aborts the run and truncates the capture, which would cost the
+# measurement. Correctness is the regression suite's job; this flow exists only
+# to produce load.
+
+- runFlow: ../../shared/setup.yaml
+
+# Deep-link straight to the target chapter. Navigating via the chapter modal
+# would fold modal render cost into every scenario's numbers and make the
+# chapters incomparable.
+- openLink: "versemate://bible/${BOOK_ID}/${CHAPTER}"
+
+# Gate on content actually being present. Without this the flow would race the
+# first render and the capture would start mid-load.
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+- waitForAnimationToEnd
+
+# --- scroll: within-chapter jank -------------------------------------------
+- swipe:
+    direction: UP
+    duration: 400
+- swipe:
+    direction: UP
+    duration: 400
+- swipe:
+    direction: UP
+    duration: 400
+- swipe:
+    direction: DOWN
+    duration: 400
+- swipe:
+    direction: DOWN
+    duration: 400
+- waitForAnimationToEnd
+
+# --- swipe to next chapter, then scroll immediately ------------------------
+# Scrolling right after the swipe is the trigger for the teleport-back-to-top
+# and the two hiccups, so it has to happen inside the same settle window rather
+# than after waitForAnimationToEnd.
+- swipe:
+    start: 85%, 50%
+    end: 15%, 50%
+    duration: 250
+- swipe:
+    direction: UP
+    duration: 400
+- swipe:
+    direction: UP
+    duration: 400
+- waitForAnimationToEnd
+
+# --- swipe back -------------------------------------------------------------
+- swipe:
+    start: 15%, 50%
+    end: 85%, 50%
+    duration: 250
+- waitForAnimationToEnd
+
+# --- Bible <-> Insight switch ----------------------------------------------
+- tapOn:
+    id: "commentary-view-toggle"
+- waitForAnimationToEnd
+- tapOn:
+    id: "bible-view-toggle"
+- waitForAnimationToEnd
+- tapOn:
+    id: "commentary-view-toggle"
+- waitForAnimationToEnd
+- tapOn:
+    id: "bible-view-toggle"
+- waitForAnimationToEnd
+
+# --- verse insight tooltip --------------------------------------------------
+# Tapping plain verse text opens the Verse Insight sheet. Wrapped in `when` so a
+# layout where the tap lands on a lexicon word (opening the lexicon popover
+# instead) degrades the measurement rather than aborting the run.
+- tapOn:
+    point: 50%, 45%
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "verse-mate-tooltip"
+    commands:
+      - waitForAnimationToEnd
+- pressKey: Back
+- waitForAnimationToEnd

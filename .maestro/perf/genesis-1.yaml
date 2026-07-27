@@ -1,0 +1,18 @@
+appId: org.versemate.app
+name: Perf — genesis-1
+description: Genesis 1 — short chapter (31 verses), the everyday case
+tags:
+  - perf
+---
+
+# Genesis 1 — short chapter (31 verses), the everyday case
+#
+# Thin wrapper: all behaviour lives in shared/reader-workout.yaml so every
+# scenario exercises an identical interaction sequence. Only the chapter differs,
+# which is what makes "cost scales with verse count" testable.
+
+- runFlow:
+    file: shared/reader-workout.yaml
+    env:
+      BOOK_ID: "1"
+      CHAPTER: "1"

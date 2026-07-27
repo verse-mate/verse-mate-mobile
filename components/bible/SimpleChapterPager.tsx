@@ -57,6 +57,7 @@ import {
 import { StyleSheet, View } from 'react-native';
 import PagerView from '@/components/common/PagerView';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
+import { perfSpan } from '@/lib/perf';
 import type { TestamentBook } from '@/src/api';
 
 /**
@@ -144,6 +145,24 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     currentKeyRef.current = `${bookId}-${chapterNumber}`;
 
     useEffect(() => clearPendingTimer, []);
+
+    // Dev-only swipe timing. Opened in handlePageSelected, closed here once the
+    // resulting chapter change has committed. Held in a ref because it spans a
+    // native callback and a later render.
+    //
+    // Cleanup closes the span for both cases that end a swipe: the deps
+    // changing (the new chapter committed — cleanup runs after that commit) and
+    // unmount (the user left the reader mid-settle). Either way the span never
+    // stays open, which matters because an open span is attributed to every
+    // JS block that follows it.
+    const swipeSpanRef = useRef<(() => void) | null>(null);
+    // biome-ignore lint/correctness/useExhaustiveDependencies: bookId/chapterNumber are the trigger for the cleanup, not values read inside it
+    useEffect(() => {
+      return () => {
+        swipeSpanRef.current?.();
+        swipeSpanRef.current = null;
+      };
+    }, [bookId, chapterNumber]);
 
     // While a programmatic setPageWithoutAnimation is settling, the native
     // ViewPager fires `onPageSelected` for intermediate positions. Without
@@ -240,6 +259,14 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       if (programmaticTargetRef.current !== null) {
         return;
       }
+
+      // Dev-only. Opens at the moment the native pager settles on a new page —
+      // i.e. when the user's finger is already off — and closes when the new
+      // chapter has actually committed. That window is the "header lags 1-2s
+      // behind the text" and post-swipe hiccup the user reports, so it is the
+      // headline number for this project.
+      swipeSpanRef.current?.();
+      swipeSpanRef.current = perfSpan('swipe.settle', { from: currentKeyRef.current });
 
       if (canGoPrevious && canGoNext) {
         // 3 pages: [prev, current, next]
