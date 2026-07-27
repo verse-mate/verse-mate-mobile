@@ -209,12 +209,13 @@ native-side cache keyed on `(text, width, fontSize, fontScale)`: a chapter pays
 - **2a — sync-measure (Kotlin only, stable public APIs).** Delivers exact
   first-layout measurement and the whole decoration/interaction layer. This is
   what gets measured in Phase 4.
-- **2b — C++ `measureContent`, only if 2a's numbers justify it.** Escalation
-  moves measurement off the JS thread entirely and onto RN's own
-  `TextLayoutManager` with its cache. The range model, the compiler and the
-  Kotlin drawing code are all unchanged by the swap — it is contained to the
-  measurement layer, which is exactly why it is safe to defer rather than
-  gamble the phase on unprecedented build plumbing.
+- **2b — C++ `measureContent`. DROPPED, on evidence (2026-07-27).** The whole
+  point of 2b was to remove the sync-measure cost from the JS thread. Measured, it
+  is not a cost worth removing: `paragraph.measure` totals **190ms across a
+  78-second window** — roughly 24ms per chapter mount, against a 774ms mount. 2b
+  would recover under 4% of chapter-open in exchange for a C++ shadow node with no
+  precedent in this dependency tree. Keep the sync-measure design. See
+  `docs/perf-ab-native-vs-legacy.md`.
 
 This is a sequencing change, not a scope reduction: 2b stays on the table and
 the design keeps it cheap to reach.
