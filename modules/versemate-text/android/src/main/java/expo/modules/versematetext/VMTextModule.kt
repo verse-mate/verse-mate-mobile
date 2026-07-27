@@ -32,7 +32,15 @@ class MeasureRequest : Record {
   @Field var fontSize: Double = 14.0
   @Field var fontFamily: String? = null
   @Field var fontWeight: String? = null
-  /** Explicit line height in dp, or 0/absent for the font's natural spacing. */
+  /**
+   * Explicit line height in SP, or 0/absent for the font's natural spacing.
+   *
+   * SP, not dp: React Native scales `lineHeight` by the user's font scale exactly
+   * as it scales `fontSize` (`PixelUtil.toPixelFromSP`, since `allowFontScaling`
+   * defaults to true). Converting one through SP and the other through raw density
+   * silently skews the ratio by 1/fontScale — on a device at 0.85 the intended
+   * 2.0x line height rendered at 2.35x, visibly looser than the legacy renderer.
+   */
   @Field var lineHeight: Double? = null
   @Field var letterSpacing: Double? = null
   @Field var textAlign: String? = null
@@ -112,7 +120,8 @@ class VMTextModule : Module() {
         view.updateSpec(view.currentSpec().copy(fontWeight = value))
       }
       Prop("lineHeight") { view: VMTextView, value: Double? ->
-        view.updateSpec(view.currentSpec().copy(lineHeightPx = view.dpToPx((value ?: 0.0).toFloat())))
+        // spToPx, matching fontSize — see MeasureRequest.lineHeight for why.
+        view.updateSpec(view.currentSpec().copy(lineHeightPx = view.spToPx((value ?: 0.0).toFloat())))
       }
       Prop("letterSpacing") { view: VMTextView, value: Double? ->
         view.updateSpec(
@@ -148,7 +157,13 @@ private fun MeasureRequest.toSpec(
     fontSizePx = fontSizePx,
     fontFamily = fontFamily,
     fontWeight = fontWeight,
-    lineHeightPx = ((lineHeight ?: 0.0).toFloat()) * density,
+    // Through SP like fontSize, so the user's font scale applies to both and the
+    // requested ratio survives. See the field's doc comment.
+    lineHeightPx = if (metrics != null) {
+      TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, (lineHeight ?: 0.0).toFloat(), metrics)
+    } else {
+      ((lineHeight ?: 0.0).toFloat()) * density
+    },
     letterSpacingPx = ((letterSpacing ?: 0.0).toFloat()) * density,
     textAlign = textAlign,
     color = Color.BLACK,
