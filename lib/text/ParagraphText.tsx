@@ -23,7 +23,12 @@
 
 import { useCallback, useMemo } from 'react';
 import type { TextStyle } from 'react-native';
-import { type TextLineLayout, VMText, measureTextHeight } from '@/modules/versemate-text';
+import {
+  measureTextHeight,
+  type TextLineLayout,
+  type TextSelectionRange,
+  VMText,
+} from '@/modules/versemate-text';
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { compileParagraph, verseAtOffset } from './compile-paragraph';
@@ -47,6 +52,14 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
   }) => void;
   /** Line geometry after layout, for anchoring popovers to a tapped word. */
   onTextLayout?: (lines: TextLineLayout[]) => void;
+  /**
+   * Native selection changed, in COMPILED text offsets. Use `verseAtOffset` to map
+   * a bound back to a verse.
+   *
+   * The platform owns the selection visual, handles and Copy menu; this is for the
+   * app's own affordances on top, e.g. the Define button.
+   */
+  onSelectionChange?: (selection: TextSelectionRange) => void;
   testID?: string;
 }
 
@@ -68,6 +81,7 @@ export function ParagraphText(props: ParagraphTextProps) {
     onAutoHighlightPress,
     onLexiconWordPress,
     onTextLayout,
+    onSelectionChange,
     testID,
   } = props;
 
@@ -178,6 +192,7 @@ export function ParagraphText(props: ParagraphTextProps) {
       height={height ?? undefined}
       onPress={onVerseTap ? handlePress : undefined}
       onRangeTap={handleRangeTap}
+      onSelectionChange={onSelectionChange}
       onTextLayout={onTextLayout}
       ranges={compiled.ranges}
       style={style}
