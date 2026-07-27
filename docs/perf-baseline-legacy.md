@@ -52,11 +52,46 @@ From a narrower window of the same run: p50 2.83ms, p90 7.25ms, p95 13.79ms,
 **p99 428.59ms**, max 457.15ms. Two frames over 100ms (429ms, 457ms) — visible
 freezes, not stutters.
 
+## Psalm 119 (176 verses) — the worst case
+
+The chapter Phase 4's gate is judged on. Verified as book 19 / chapter 119 /
+176 verses from the span metadata, not from the flow reporting success.
+
+| metric | value |
+| --- | --- |
+| JS thread blocked | **42.5%** of a 30.1s window |
+| JS blocks | 54 (12805.0ms total) |
+| severity | 26 minor / 15 major / **13 severe** |
+| text nodes rendered | **24,806** |
+| `reader.mount.bible` | **1378.8ms** |
+| `reader.mount.explanations` | **1543.3ms** |
+
+Opening one chapter costs **1.4 seconds** of blocked JS thread, and switching to
+its commentary costs **1.5 seconds**. For nearly half the session the app cannot
+respond to a tap.
+
 ## Matthew 5 (48 verses) — pending
 
-## Psalm 119 (176 verses) — pending
+Not yet captured. Genesis 1 and Psalm 119 already bracket the range, so this is
+a nice-to-have rather than a gate input.
 
-The worst case, and the one Phase 4's gate is judged on.
+## How cost scales with verse count
+
+| | Genesis 1 (31v) | Psalm 119 (176v) | ratio |
+| --- | --- | --- | --- |
+| verses | 31 | 176 | 5.7× |
+| `reader.mount.bible` | 569ms | 1379ms | 2.4× |
+| text nodes | 11,132 | 24,806 | 2.2× |
+| JS blocked | 26.1% | 42.5% | 1.6× |
+
+Cost grows **sub-linearly** with verse count — and that is not good news, it is
+the staged-rendering scaffolding working as designed.
+`ChapterPage` caps the Bible view at 20 sections for the first 200ms and only
+then releases the rest (`setBibleSectionsMax`), so a long chapter's first paint is
+deliberately partial. The measured mount is therefore a *floor*, not the full
+cost: some of Psalm 119's work is deferred past the window rather than avoided.
+Phase 6 deletes that scaffolding, so the comparison there must be against the
+legacy arm WITH staging, not against an idealised one.
 
 ---
 
