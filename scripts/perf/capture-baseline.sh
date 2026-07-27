@@ -175,6 +175,12 @@ Check that Metro is running on the PC:
 and that the reverse tunnel is up:
   adb -s $DEVICE reverse --list"
 
+# Read the arm the app reports, from the boot logs we already have. Done BEFORE the
+# clear below, because it costs nothing here — an earlier version launched an extra
+# warm-up flow to produce this line, which added a whole app launch and chapter mount
+# to every capture and made runs incomparable (13 mounts vs 8 for the identical flow).
+ARM_LINE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r')"
+
 # The perf session started during app boot, so its records so far describe
 # startup, not the flow. Clear logcat to scope the capture to the flow itself.
 adb_sh 'logcat -c' >/dev/null
@@ -190,20 +196,13 @@ step 'Verifying the arm'
 # The native path logs paragraph.compile spans and the legacy path logs textNodes
 # from HighlightedText, so the presence of a compile span is a direct read of which
 # renderer is live. Checked AFTER the bundle is up and the reader has rendered.
-# Read the arm the app itself reports, rather than inferring it from rendered
-# output. The app logs `[VMPERF] arm preference=<bool> available=<bool>` once the
-# stored flag resolves. Inference was indirect and got it wrong: a flip flow that
-# reported FAILED had actually toggled the flag (it only failed a later, unrelated
-# assertion), and the probe still read the stale arm.
-#
-# The reader is warmed first because the log line only appears once the hook
-# resolves. The reset flow is idempotent and cheap.
-pcrun "cd '$PC_REPO'; \$env:PATH += ';$PC_MAESTRO_BIN'; maestro --device $DEVICE test '.maestro/perf/shared/reset-to-reader.yaml'" >/dev/null 2>&1 || true
-ARM_LINE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r')"
+# Verify the arm from the app's own reported flag (read above, pre-clear), not from
+# rendered output. Inference was indirect and got it wrong once: a flip flow that
+# reported FAILED had actually toggled the flag and the probe read the stale arm.
 [[ -n "$ARM_LINE" ]] || die "The app never reported its renderer arm.
 
-Expected a '[VMPERF] arm preference=...' line. Either the bundle is stale (Metro
-needs the current commit) or the reader never mounted."
+Expected a '[VMPERF] arm preference=...' line during boot. Either the bundle is
+stale (Metro needs the current commit) or the app never started."
 ARM_PROBE=0
 [[ "$ARM_LINE" == 'arm preference=true' ]] && ARM_PROBE=1
 step "App reports: $ARM_LINE"
