@@ -78,6 +78,14 @@ const PARAGRAPH_VIEW_ENABLED = true;
  * HighlightedText. Fractional thickness is meaningful here because the native
  * path DRAWS the line rather than asking for a system underline.
  */
+/**
+ * How far beyond the viewport a paragraph group still renders for real, in px.
+ *
+ * About one screen. Generous on purpose: an exact-height placeholder makes being
+ * early almost free, whereas being late means the user scrolls into blank space.
+ */
+const GROUP_WINDOW_BUFFER_PX = 600;
+
 const LEX_UNDERLINE_COLOR = 'rgba(176,154,109,0.55)';
 const LEX_UNDERLINE_THEME_COLOR = 'rgba(199,176,116,0.75)';
 const LEX_UNDERLINE_THICKNESS = 1;
@@ -508,6 +516,27 @@ export function ChapterReader({
   );
 
   /**
+   * Whether a paragraph group is near enough the viewport to render for real.
+   *
+   * Reuses the positions `handleVerseLayout` already records for scroll-to-verse,
+   * so windowing costs no extra measurement.
+   *
+   * Separate from `isVerseVisible` despite the similarity: that one gates
+   * `HighlightedText`'s per-word tokenization and uses the default 200px buffer,
+   * whereas this decides whether a native view exists at all. A miss here shows
+   * blank content rather than degraded tap accuracy, so it gets a much larger
+   * buffer — roughly one screen. An exact-height placeholder makes being early
+   * nearly free; being late means scrolling into emptiness.
+   */
+  const isGroupVisible = (firstVerseNumber: number): boolean => {
+    const layout = sectionLayouts.current[firstVerseNumber];
+    // Unknown position means this is the first paint. Render it: a wrong guess here
+    // shows blank content, which is far worse than an unnecessary mount.
+    if (!layout) return true;
+    return isElementVisible(layout.y, layout.height, visibleYRange, GROUP_WINDOW_BUFFER_PX);
+  };
+
+  /**
    * Paragraph groups per section, memoised on the chapter.
    *
    * These were computed inside an IIFE in the render body, so every `group` array
@@ -766,6 +795,14 @@ export function ChapterReader({
                       >
                         <ParagraphText
                           alignment={alignment}
+                          // Windowing. `handleVerseLayout` below records each
+                          // group's Y and height, and the scroll worklet keeps
+                          // `visibleYRange` current, so a group far from the
+                          // viewport renders as an exact-height placeholder and
+                          // creates no native views. Before the first layout the
+                          // position is unknown and `isElementVisible` returns true,
+                          // so the first paint is never blank.
+                          isVisible={isGroupVisible(group[0].verseNumber)}
                           autoHighlights={autoHighlights}
                           highlights={chapterHighlights}
                           onAutoHighlightPress={handleAutoHighlightPress}

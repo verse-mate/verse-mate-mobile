@@ -22,7 +22,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import type { TextStyle } from 'react-native';
+import { type TextStyle, View } from 'react-native';
 import {
   measureTextHeight,
   type TextLineLayout,
@@ -54,6 +54,18 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
   /** Line geometry after layout, for anchoring popovers to a tapped word. */
   onTextLayout?: (lines: TextLineLayout[]) => void;
   /**
+   * When false, render an exact-height placeholder instead of the real text view.
+   *
+   * This is what makes windowing safe here. Height is measured synchronously
+   * WITHOUT creating a view, so a placeholder occupies precisely the space the text
+   * would — total content height is unchanged, scroll offsets stay valid, and
+   * `measureLayout`-based scroll-to-verse keeps working. No FlatList, no
+   * `getItemLayout`, no scroll drift.
+   *
+   * Defaults to true, so a caller that does not opt in behaves exactly as before.
+   */
+  isVisible?: boolean;
+  /**
    * Native selection changed, in COMPILED text offsets. Use `verseAtOffset` to map
    * a bound back to a verse.
    *
@@ -83,6 +95,7 @@ export function ParagraphText(props: ParagraphTextProps) {
     onLexiconWordPress,
     onTextLayout,
     onSelectionChange,
+    isVisible = true,
     testID,
   } = props;
 
@@ -207,6 +220,22 @@ export function ParagraphText(props: ParagraphTextProps) {
     },
     [compiled, onVerseTap]
   );
+
+  // Off-window: no native views at all. A Psalm 119 mount creates ~35 paragraph
+  // groups where a phone shows about 4, so ~31 ExpoView + TextView pairs were being
+  // created, measured and laid out off-screen on every chapter open. Chapter-open
+  // was the one metric the native renderer did not improve (-4%), and this is why.
+  //
+  // Rendered after the measure hook above, not before, so the height is known and
+  // the hook order is unconditional.
+  if (!isVisible) {
+    return (
+      <View
+        style={height != null ? { height, width } : undefined}
+        testID={testID ? `${testID}-placeholder` : undefined}
+      />
+    );
+  }
 
   return (
     <VMText
