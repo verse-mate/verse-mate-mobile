@@ -7,7 +7,7 @@
 
 import { type ReactNode, useCallback, useMemo } from 'react';
 import { StyleSheet, Text, type TextStyle } from 'react-native';
-import type { TextLineLayout, TextPressEvent, TextRange } from './types';
+import type { TextLineLayout, TextPressEvent, TextRange, TextSelectionRange } from './types';
 import { getNativeVMTextView, isNativeTextAvailable, type NativeVMTextProps } from './VMTextModule';
 
 export interface VMTextProps {
