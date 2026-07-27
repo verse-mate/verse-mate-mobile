@@ -92,6 +92,13 @@ export function useNativeText(): UseNativeTextResult {
         if (isMounted) {
           inMemoryCache = value;
           setPreference(value);
+          // Announce the resolved arm so a capture can VERIFY which renderer it is
+          // measuring instead of inferring it. Inferring from rendered output was
+          // indirect and got it wrong: a flip whose flow reported FAILED had in
+          // fact toggled the flag, and the probe still read the old arm.
+          if (__DEV__) {
+            console.log(`[VMPERF] arm preference=${value} available=${isNativeTextAvailable()}`);
+          }
         }
       } catch {
         // A storage failure must not decide the renderer. Fall back to the
