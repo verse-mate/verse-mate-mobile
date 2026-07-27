@@ -1,0 +1,9 @@
+{
+  "name": "@versemate/text",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "types": "index.ts",
+  "description": "Self-measuring native text view: renders one string with decorated character ranges, and reports taps, selection and line geometry back by character offset",
+  "license": "MIT",
+  "author": "VerseMate"
+}
