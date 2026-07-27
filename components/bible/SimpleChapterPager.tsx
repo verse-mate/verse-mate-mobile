@@ -265,6 +265,37 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * Navigation is deferred until the pager reaches idle state via onPageScrollStateChanged.
      * This prevents rapid-swipe race conditions where a second swipe fires before reposition.
      */
+    /**
+     * Dev-only. Open the swipe-latency span, but ONLY for a settle that is going
+     * to navigate.
+     *
+     * Two earlier versions of this were wrong in ways that produced numbers rather
+     * than errors, which is worse:
+     *
+     *  - closing only on a chapter change left the span open until the NEXT
+     *    navigation whenever a gesture settled without moving, reporting a 19s
+     *    "swipe latency";
+     *  - opening on every `onPageSelected` counted the spurious trailing events
+     *    ViewPager emits after a settle (see armProgrammaticGuard). Those never
+     *    navigate, so they all ran to the timeout and dragged the mean toward the
+     *    ceiling — both arms sat at the 3s cap and the comparison said nothing.
+     *
+     * Opening it where the pending nav is recorded means one span per real
+     * navigation. The timeout stays as a backstop for a nav that never commits.
+     */
+    const beginSwipeSpan = () => {
+      swipeSpanRef.current?.();
+      clearSwipeTimeout();
+      swipeSpanRef.current = perfSpan('swipe.settle', { from: currentKeyRef.current });
+      swipeTimeoutRef.current = setTimeout(() => {
+        // Closed as abandoned, so a recorded duration is a known ceiling rather
+        // than an arbitrary one.
+        swipeSpanRef.current?.();
+        swipeSpanRef.current = null;
+        swipeTimeoutRef.current = null;
+      }, SWIPE_SPAN_TIMEOUT_MS);
+    };
+
     const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
       const newPosition = event.nativeEvent.position;
 
@@ -278,37 +309,16 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         return;
       }
 
-      // Dev-only. Opens when the native pager settles on a new page — the user's
-      // finger is already off — and closes when the new chapter has committed.
-      // That window is the "header lags 1-2s behind the text" and post-swipe
-      // hiccup the user reports.
-      //
-      // The timeout matters. This span used to close ONLY on a chapter change, so
-      // a gesture that settled without navigating — a boundary page, or a drag the
-      // pager resolved as a scroll — left it open until the next real navigation.
-      // The first A/B reported mean 5071ms / max 19450ms, which is not a latency at
-      // all, and the whole swipe metric had to be thrown out. An abandoned span is
-      // also worse than useless for block attribution: while open, every unrelated
-      // stall gets blamed on it.
-      swipeSpanRef.current?.();
-      clearSwipeTimeout();
-      swipeSpanRef.current = perfSpan('swipe.settle', { from: currentKeyRef.current });
-      swipeTimeoutRef.current = setTimeout(() => {
-        // Closing as abandoned rather than leaving it open. The recorded duration
-        // is then a known ceiling instead of an arbitrary one.
-        swipeSpanRef.current?.();
-        swipeSpanRef.current = null;
-        swipeTimeoutRef.current = null;
-      }, SWIPE_SPAN_TIMEOUT_MS);
-
       if (canGoPrevious && canGoNext) {
         // 3 pages: [prev, current, next]
         if (newPosition === 0 && prevChapter) {
+          beginSwipeSpan();
           pendingNavRef.current = {
             bookId: prevChapter.bookId,
             chapterNumber: prevChapter.chapterNumber,
           };
         } else if (newPosition === 2 && nextChapter) {
+          beginSwipeSpan();
           pendingNavRef.current = {
             bookId: nextChapter.bookId,
             chapterNumber: nextChapter.chapterNumber,
@@ -317,6 +327,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       } else if (!canGoPrevious && canGoNext) {
         // 2 pages at start: [current, next]
         if (newPosition === 1 && nextChapter) {
+          beginSwipeSpan();
           pendingNavRef.current = {
             bookId: nextChapter.bookId,
             chapterNumber: nextChapter.chapterNumber,
@@ -325,6 +336,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       } else if (canGoPrevious && !canGoNext) {
         // 2 pages at end: [prev, current]
         if (newPosition === 0 && prevChapter) {
+          beginSwipeSpan();
           pendingNavRef.current = {
             bookId: prevChapter.bookId,
             chapterNumber: prevChapter.chapterNumber,
