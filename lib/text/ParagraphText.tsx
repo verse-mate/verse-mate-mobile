@@ -31,6 +31,7 @@ import {
 } from '@/modules/versemate-text';
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import type { AutoHighlight } from '@/types/auto-highlights';
+import { perfSpan } from '@/lib/perf';
 import { compileParagraph, verseAtOffset } from './compile-paragraph';
 import type { ParagraphInput } from './types';
 
@@ -85,9 +86,13 @@ export function ParagraphText(props: ParagraphTextProps) {
     testID,
   } = props;
 
+  // Dev-only. The A/B showed chapter-open barely improving (Psalm 119: -7%) even
+  // though node count halved, so the cost has moved somewhere else. These two
+  // spans say where: compiling ranges in JS, or the synchronous native measure.
+  // Both run during render, so both land inside reader.mount.bible.
   const compiled = useMemo(
     () =>
-      compileParagraph({
+      compileWithSpan({
         verses,
         highlights,
         autoHighlights,
@@ -142,7 +147,8 @@ export function ParagraphText(props: ParagraphTextProps) {
         baselineShift: r.baselineShift,
         interactive: false,
       }));
-    return measureTextHeight({
+    const endMeasure = perfSpan('paragraph.measure');
+    const measured = measureTextHeight({
       text: compiled.text,
       ranges: metricRanges,
       width,
@@ -153,6 +159,8 @@ export function ParagraphText(props: ParagraphTextProps) {
       letterSpacing,
       textAlign,
     });
+    endMeasure();
+    return measured;
   }, [
     compiled.text,
     compiled.ranges,
@@ -232,6 +240,22 @@ interface ResolvedFont {
  * has a stable, minimal key: a re-render that changes only a colour should not
  * invalidate a measurement.
  */
+/**
+ * `compileParagraph` wrapped in a span.
+ *
+ * A thin wrapper rather than spans inside the compiler, so the compiler stays a
+ * pure function with no instrumentation dependency — it is testable in Jest
+ * precisely because it has none.
+ */
+function compileWithSpan(input: Parameters<typeof compileParagraph>[0]) {
+  const end = perfSpan('paragraph.compile');
+  try {
+    return compileParagraph(input);
+  } finally {
+    end();
+  }
+}
+
 function flattenFont(style: TextStyle | TextStyle[] | undefined): ResolvedFont {
   const merged: TextStyle = Array.isArray(style)
     ? Object.assign({}, ...style.filter(Boolean))
