@@ -493,9 +493,22 @@ export function ChapterPage({
   // the Insight subtree in the background so the Bible → Insight toggle
   // becomes a style flip (instant) instead of a 500-700ms first-mount
   // hit. The mount is scheduled via InteractionManager.runAfterInteractions
-  // so it doesn't run during the chapter-swipe animation. Sticky once true
-  // for the lifetime of this ChapterPage — there's no benefit to
-  // unmounting after a toggle back to Bible.
+  // so it doesn't run during the chapter-swipe animation.
+  //
+  // NOT sticky any more. It used to stay true for the ChapterPage's lifetime on
+  // the grounds that there is no benefit to unmounting — which is true for the
+  // toggle, and false for everything else. A Hermes CPU profile of six swipes
+  // put `[Host Function] completeRoot` at 1344ms of self time, the single
+  // largest cost in the whole run, reached through `updateHostContainer`. That
+  // is Fabric committing the root's child set, and in Fabric's persistent tree
+  // model EVERY commit pays a diff against the whole live tree. So the cost of
+  // an Insight subtree is not only its mount: it is added to every subsequent
+  // commit for as long as it stays mounted.
+  //
+  // Each page the reader passes through kept its own Insight subtree alive, so
+  // swiping accumulated them — matching the report that rapid swiping through
+  // many chapters degrades rather than staying flat. Dropping it when the page
+  // stops being current bounds the live tree to one.
   const [insightPrewarmed, setInsightPrewarmed] = useState(false);
 
   /**
@@ -533,10 +546,17 @@ export function ChapterPage({
   const { deleteNote, isDeletingNote } = useNotes();
 
   // Schedule the Insight subtree mount in idle time after the chapter
-  // becomes available. Runs only for the active page (not buffer pages)
-  // and only once per ChapterPage lifetime.
+  // becomes available. Runs only for the active page (not buffer pages).
   useEffect(() => {
-    if (isPreloading || insightPrewarmed) return;
+    if (isPreloading) {
+      // Released as soon as this page is no longer the current one, so at most
+      // one Insight subtree is ever in the tree Fabric has to diff. Guarded on
+      // the current value so a buffer page that never prewarmed does not
+      // schedule a pointless state update on every render.
+      setInsightPrewarmed((was) => (was ? false : was));
+      return;
+    }
+    if (insightPrewarmed) return;
     // Fire as soon as the chapter-swipe interaction finishes — no extra
     // delay. The toggleProgress-driven visibility flip below only works
     // when the Insight subtree is mounted, so we want this to flip as

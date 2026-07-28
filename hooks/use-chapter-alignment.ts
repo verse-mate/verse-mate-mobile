@@ -26,6 +26,7 @@
 import { type ChapterAlignment, loadAlignmentFor } from '@versemate/lexicon';
 import { useEffect, useState } from 'react';
 import { useOfflineContext } from '@/contexts/OfflineContext';
+import { perfSpan } from '@/lib/perf';
 import { fetchTaggedChapterAlignment } from '@/services/api-chapter-alignment';
 
 const ENGLISH_VERSION_KEYS = new Set(['NASB1995', 'KJV']);
@@ -50,8 +51,19 @@ export function useChapterAlignment(
     const load = async () => {
       // English path — unchanged, no network.
       if (isEnglishVersion(versionKey)) {
-        const a = await loadAlignmentFor(bookId, chapterNumber);
-        if (!cancelled) setAlignment(a);
+        // Instrumented because the three worst JS blocks in the swipe capture had
+        // NOTHING of ours open during them — so the cost is in an uninstrumented
+        // path, and this is the heaviest candidate. `loadAlignmentFor` rebuilds
+        // two whole-lexicon structures (an 18,100-entry object spread, then an
+        // Object.entries pass over it) on every chapter that is not already in
+        // its module-level cache, none of which depends on the chapter.
+        const endSpan = perfSpan('data.alignment', { book: bookId, chapter: chapterNumber });
+        try {
+          const a = await loadAlignmentFor(bookId, chapterNumber);
+          if (!cancelled) setAlignment(a);
+        } finally {
+          endSpan();
+        }
         return;
       }
 

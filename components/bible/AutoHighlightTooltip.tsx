@@ -28,7 +28,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Markdown from 'react-native-markdown-display';
+import { Markdown } from '@/lib/markdown/Markdown';
 import Reanimated, {
   interpolate,
   useAnimatedStyle,

@@ -34,7 +34,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Markdown from 'react-native-markdown-display';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightedText } from '@/components/bible/HighlightedText';
