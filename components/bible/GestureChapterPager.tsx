@@ -64,6 +64,15 @@ export interface GestureChapterPagerProps {
   booksMetadata: TestamentBook[] | undefined;
   onChapterChange: (bookId: number, chapterNumber: number) => void;
   renderChapterPage: (bookId: number, chapterNumber: number) => React.ReactNode;
+  /**
+   * Bumped by the screen ONLY when something other than this pager navigated.
+   *
+   * The pager watches this and ignores `bookId`/`chapterNumber`. The route lags a swipe,
+   * so its own echoes are indistinguishable from a real navigation by inspection — two
+   * heuristics were tried and both dragged the reader backwards. The screen knows the
+   * answer, so it states it.
+   */
+  externalNavSeq?: number;
 }
 
 /**
@@ -137,6 +146,7 @@ export function GestureChapterPager({
   booksMetadata,
   onChapterChange,
   renderChapterPage,
+  externalNavSeq = 0,
 }: GestureChapterPagerProps) {
   const [width, setWidth] = useState(0);
 
