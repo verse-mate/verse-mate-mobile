@@ -26,6 +26,7 @@
 
 import { useMemo, useRef } from 'react';
 import type { TextStyle } from 'react-native';
+import { perfSpan } from '@/lib/perf';
 import { measureTextHeights } from '@/modules/versemate-text';
 import { compileParagraph } from './compile-paragraph';
 import {
@@ -103,6 +104,11 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
 
   return useMemo(() => {
     if (groups.length === 0 || width <= 0) return [];
+
+    // Whole-hook cost, so windowing can be judged against the mount it sits
+    // inside. `paragraph.compile` already covers step 3's compiles; this adds the
+    // estimation, the window decision and the batched native measure around them.
+    const endSpan = perfSpan('layout.paragraphs', { groups: groups.length });
 
     const calibration =
       calibrationRef.current ?? defaultCalibration(fontSize, width, lineHeight);
@@ -208,6 +214,7 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
       });
       offsetY += height + gap;
     }
+    endSpan();
     return out;
   }, [
     groups,

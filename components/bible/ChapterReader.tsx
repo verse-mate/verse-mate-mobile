@@ -52,7 +52,7 @@ import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
-import { usePerfMountSpan } from '@/lib/perf';
+import { perfRenderSpan, usePerfMountSpan } from '@/lib/perf';
 import { ParagraphText } from '@/lib/text/ParagraphText';
 import type { CompileTheme } from '@/lib/text/types';
 import { useParagraphLayout } from '@/lib/text/use-paragraph-layout';
@@ -369,6 +369,25 @@ export function ChapterReader({
       sections: chapter.sections?.length ?? 0,
       verses: chapter.sections?.reduce((n, s) => n + s.verses.length, 0) ?? 0,
     }
+  );
+
+  /**
+   * Render-only cost, closed just before this component returns.
+   *
+   * `reader.mount.*` spans render through the post-commit effect, so it bundles
+   * three unrelated costs: building the element tree (JS), reconciling it
+   * (React), and creating the native views (UI thread hop). It has sat at
+   * 400-800ms through every change so far, and no amount of making the text
+   * layer cheaper has moved it — which only makes sense if most of it is not the
+   * element tree at all.
+   *
+   * `reader.render.bible` isolates the first of the three. Read the pair:
+   * render ≈ mount means the cost is our JS, and render ≪ mount means the cost
+   * is commit plus view creation, where the fix is fewer views rather than
+   * faster code.
+   */
+  const endRenderSpan = perfRenderSpan(
+    explanationsOnly ? 'reader.render.explanations' : 'reader.render.bible'
   );
 
   // Red-letter (words of Jesus): render whole verses Jesus speaks in red when
@@ -779,7 +798,11 @@ export function ChapterReader({
     paragraphLineLayoutsRef.current.set(groupKey, lineInfo);
   };
 
-  return (
+  // Bound to a variable rather than returned directly so the render span closes
+  // AFTER the element tree exists — mapping the chapter's groups into elements is
+  // part of render cost, and closing before the `return` would omit exactly the
+  // work being measured.
+  const tree = (
     <View style={styles.container} collapsable={false} onLayout={handleContainerLayout}>
       {/* Chapter Title Row with Bookmark, Notes, and Share buttons - Only show in Bible view */}
       {!explanationsOnly && (
@@ -1180,6 +1203,9 @@ export function ChapterReader({
       )}
     </View>
   );
+
+  endRenderSpan();
+  return tree;
 }
 
 const createStyles = (
