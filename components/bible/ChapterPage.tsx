@@ -488,8 +488,28 @@ export function ChapterPage({
 
   // Get highlights from the provider (single source of truth — avoids duplicate queries)
   const bibleInteraction = useBibleInteraction();
-  const { chapterHighlights, autoHighlights } = bibleInteraction;
+  const { chapterHighlights: routeHighlights, autoHighlights: routeAutoHighlights } =
+    bibleInteraction;
 
+  /**
+   * Highlights belonging to THIS page's chapter, not the route's.
+   *
+   * The interaction context is keyed to the route, and the route lags a swipe. So every
+   * page was handed the previous chapter's highlights: swipe from a chapter with verse 1
+   * highlighted and the next chapter showed verse 1 highlighted too, until the route
+   * caught up and it vanished. Filtering by the page's own chapter makes the highlight a
+   * property of the chapter rather than of whatever the router last committed, so it
+   * cannot bleed regardless of how far behind the route runs.
+   */
+  const chapterHighlights = useMemo(
+    () => routeHighlights.filter((h) => h.book_id === bookId && h.chapter_number === chapterNumber),
+    [routeHighlights, bookId, chapterNumber]
+  );
+  const autoHighlights = useMemo(
+    () =>
+      routeAutoHighlights.filter((h) => h.book_id === bookId && h.chapter_number === chapterNumber),
+    [routeAutoHighlights, bookId, chapterNumber]
+  );
 
   // Pre-warmed flag: once the chapter has settled on Bible view, mount
   // the Insight subtree in the background so the Bible → Insight toggle
