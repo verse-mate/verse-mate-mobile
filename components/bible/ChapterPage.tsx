@@ -549,17 +549,19 @@ export function ChapterPage({
     setBibleSectionsMax(3);
   }, [bookId, chapterNumber]);
   useEffect(() => {
-    if (isPreloading) return;
-    // Superseded by windowing on the native path. The reader already limits work to
-    // the paragraphs near the viewport, so staging adds nothing but two extra
-    // re-renders of the whole reader — and they land at 200ms and 500ms, straddling
-    // the 180ms view-switch animation, which is a plausible cause of the reported
-    // animation stutter. Reveal everything immediately and let windowing do the
-    // limiting.
+    // On the native path this runs for BUFFER pages too. They now render real
+    // content so the swipe lands on text rather than a skeleton, and a page left
+    // capped at 3 sections would render three and then visibly jump when it became
+    // current. Windowing is what makes rendering them all affordable.
     if (nativeTextOn) {
       setBibleSectionsMax(Number.POSITIVE_INFINITY);
       return;
     }
+    if (isPreloading) return;
+    // Legacy path only: progressive reveal, because it has no windowing to limit the
+    // work. Its two re-renders land at 200ms and 500ms, straddling the 180ms
+    // view-switch animation, which is a plausible cause of the animation stutter the
+    // operator reports — one more reason the native path does without it.
     const t1 = setTimeout(() => setBibleSectionsMax(20), 200);
     const t2 = setTimeout(() => setBibleSectionsMax(Number.POSITIVE_INFINITY), 500);
     return () => {
@@ -1416,7 +1418,21 @@ export function ChapterPage({
       >
         <TextVisibilityContext.Provider value={textVisibilityContextValue}>
           <View style={styles.readerContainer} collapsable={false}>
-            {displayChapter && !isPreloading ? (
+            {/* Buffer chapters render REAL CONTENT on the native path.
+                 `isPreloading` is true for the pager's prev/next pages, and gating
+                 them to a SkeletonLoader is why swiping never felt instant: the
+                 pager slides to a skeleton, and only after onPageSelected -> JS ->
+                 navigation -> re-render does the chapter actually mount, compile,
+                 measure and create its views. That work is also why swipe cost
+                 tracked chapter length.
+                 MyBible's pager has the adjacent chapter already rendered, so its
+                 swipe is pure native motion with nothing to build — measured at 0
+                 missed vsyncs and a 9ms p99 on this same phone.
+                 The gate existed because mounting a full chapter cost 500-700ms
+                 (May 2026). Windowing removes that reason: a buffer chapter renders
+                 only its top screenful, since its own visibleYRange is null at
+                 scroll 0 and windowing falls back to the window height. */}
+            {displayChapter && (!isPreloading || nativeTextOn) ? (
               <ChapterReader
                 chapter={displayChapter}
                 activeTab={activeTab}
