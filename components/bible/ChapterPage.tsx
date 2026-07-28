@@ -67,7 +67,7 @@ import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
-import { usePerfMountSpan, useWhyRender, watchFrames } from '@/lib/perf';
+import { perfAdd, usePerfMountSpan, useWhyRender, watchFrames } from '@/lib/perf';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -740,6 +740,13 @@ export function ChapterPage({
   const handleTouchStart = (event: GestureResponderEvent) => {
     touchStartTime.current = Date.now();
     touchStartY.current = event.nativeEvent.pageY;
+    // Every gesture that reaches the reader's own ScrollView. Compared against
+    // pager.dragStart this localises a lost swipe: if the reader sees a gesture
+    // the pager never registered as a drag, the swipe was lost to gesture
+    // arbitration between the two — which is what the operator's observation
+    // suggests, since the VERTICAL scroll indicator flashes at the moment of the
+    // block.
+    perfAdd('reader.touchStart', 1);
   };
 
   /**
