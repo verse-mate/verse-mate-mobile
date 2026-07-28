@@ -229,6 +229,9 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * existing counter can see it, and why it has to be timed directly rather than
      * inferred.
      */
+    /** Whether a page change has happened since the current drag began. */
+    const pagedSinceDragRef = useRef(true);
+
     const recenterSpanRef = useRef<(() => void) | null>(null);
     const endRecenterSpan = () => {
       recenterSpanRef.current?.();
@@ -418,6 +421,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
 
     const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
       const newPosition = event.nativeEvent.position;
+      pagedSinceDragRef.current = true;
 
       // Swallow ALL page-selected events while a programmatic reposition
       // is in flight (guard cleared by timer in armProgrammaticGuard).
@@ -507,6 +511,8 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // the trailing events of its own seek.
       if (state === 'dragging') {
         draggedSinceSeekRef.current = true;
+        // A drag begins: nothing has paged yet.
+        pagedSinceDragRef.current = false;
         // How many gestures the PAGER actually sees. Compared against
         // reader.touchStart (every gesture that reached the reader's ScrollView)
         // this says whether missing swipes are lost to gesture arbitration rather
@@ -516,7 +522,20 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       }
       // The recenter is over once the pager reports idle — that is the moment it
       // starts accepting drags again.
-      if (state === 'idle') endRecenterSpan();
+      if (state === 'idle') {
+        endRecenterSpan();
+        // A drag that reached idle without ever paging was SNAPPED BACK by
+        // ViewPager2 to the page it started on. Ten synthetic swipes at a 260ms
+        // cadence produced ten drags but only five navigations, and neither the
+        // recenter (2.8ms) nor gesture arbitration (pager saw all ten) explains
+        // the gap. This counts the remaining candidate directly: a drag that
+        // began while the pager was still settling from the previous one, which
+        // ViewPager2 resolves by returning to the current page.
+        if (draggedSinceSeekRef.current && !pagedSinceDragRef.current) {
+          perfAdd('swipe.snappedBack', 1);
+        }
+        pagedSinceDragRef.current = true;
+      }
       if (state === 'idle' && pendingNavRef.current) {
         clearPendingTimer();
         const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
