@@ -143,6 +143,8 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     private var downX = 0f
     private var downY = 0f
     private var downTime = 0L
+    /** Whether this gesture's long-press has already been cancelled as a swipe. */
+    private var longPressCancelled = false
 
     init {
       configureForMeasurementParity()
@@ -326,6 +328,30 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           downX = event.x
           downY = event.y
           downTime = event.eventTime
+          longPressCancelled = false
+        }
+        MotionEvent.ACTION_MOVE -> {
+          // A slow horizontal drag is a page swipe, not a selection.
+          //
+          // Selection is super's job, and `setTextIsSelectable(true)` makes this
+          // view long-clickable, so Android's 500ms long-press timer starts on every
+          // touch down. Someone dragging slowly sideways would cross that timer
+          // before travelling far enough for the pager's gesture to claim the touch,
+          // and the platform would begin selecting a word mid-swipe.
+          //
+          // Cancelling the pending long-press as soon as horizontal travel is both
+          // past the touch slop and dominant over vertical travel keeps swiping and
+          // scrolling intact while leaving the real selection gesture — press and
+          // HOLD, without moving — completely untouched.
+          if (!longPressCancelled) {
+            val mdx = kotlin.math.abs(event.x - downX)
+            val mdy = kotlin.math.abs(event.y - downY)
+            val slop = ViewConfiguration.get(context).scaledTouchSlop
+            if (mdx > slop && mdx > mdy) {
+              longPressCancelled = true
+              cancelLongPress()
+            }
+          }
         }
         MotionEvent.ACTION_UP -> {
           val dx = event.x - downX
