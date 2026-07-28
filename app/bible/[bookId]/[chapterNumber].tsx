@@ -191,6 +191,28 @@ export default function ChapterScreen() {
 
   const { useGesturePager: useGesturePagerArm } = useGesturePager();
 
+  /**
+   * Explicit "something other than the pager moved us" signal.
+   *
+   * The pager cannot be allowed to react to bookId/chapterNumber directly: the route lags
+   * a swipe, so its own echoes look like external navigations and drag the reader
+   * backwards. Inferring the difference — a dispatched-key set, then a time-bounded echo
+   * window — got closer each time and never got it right, because a heuristic cannot know
+   * something the screen already knows for certain.
+   *
+   * So the screen states it. This counter is bumped ONLY by the chapter picker, the
+   * prev/next buttons and deep links; the pager watches the counter and ignores the
+   * chapter props entirely. One writer, one reader, no guessing.
+   */
+  const [externalNavSeq, setExternalNavSeq] = useState(0);
+  const navigateExternally = useCallback(
+    (nextBookId: number, nextChapter: number) => {
+      setExternalNavSeq((n) => n + 1);
+      navigateToChapter(nextBookId, nextChapter);
+    },
+    [navigateToChapter]
+  );
+
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
 
@@ -572,7 +594,7 @@ export default function ChapterScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Update state via hook (V3: single source of truth)
-    navigateToChapter(prevChapter.bookId, prevChapter.chapterNumber);
+    navigateExternally(prevChapter.bookId, prevChapter.chapterNumber);
   }, [canGoPrevious, prevChapter, navigateToChapter, showButtons]);
 
   /**
@@ -590,7 +612,7 @@ export default function ChapterScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     // Update state via hook (V3: single source of truth)
-    navigateToChapter(nextChapter.bookId, nextChapter.chapterNumber);
+    navigateExternally(nextChapter.bookId, nextChapter.chapterNumber);
   }, [canGoNext, nextChapter, navigateToChapter, showButtons]);
 
   // Web keyboard shortcuts: arrow keys for chapter navigation, Escape to close modal
@@ -692,7 +714,7 @@ export default function ChapterScreen() {
           onSelectChapter={(selectedBookId, chapterNum) => {
             setIsNavigationModalOpen(false);
             setActiveView('bible');
-            navigateToChapter(selectedBookId, chapterNum);
+            navigateExternally(selectedBookId, chapterNum);
           }}
           onSelectTopic={(topicId, category) => {
             setIsNavigationModalOpen(false);
@@ -739,7 +761,7 @@ export default function ChapterScreen() {
           onSelectChapter={(selectedBookId, chapterNum) => {
             setIsNavigationModalOpen(false);
             setActiveView('bible');
-            navigateToChapter(selectedBookId, chapterNum);
+            navigateExternally(selectedBookId, chapterNum);
           }}
           onSelectTopic={(topicId, category) => {
             setIsNavigationModalOpen(false);
@@ -860,6 +882,7 @@ export default function ChapterScreen() {
                 <GestureChapterPager
                   bookId={deferredBookId}
                   chapterNumber={deferredChapterNumber}
+                  externalNavSeq={externalNavSeq}
                   bookName={bookName}
                   booksMetadata={booksMetadata}
                   onChapterChange={handlePageChange}
@@ -909,7 +932,7 @@ export default function ChapterScreen() {
             // Always default to Bible text view when switching books via modal
             setActiveView('bible');
             // V3: Update state via hook (single source of truth)
-            navigateToChapter(selectedBookId, chapterNum);
+            navigateExternally(selectedBookId, chapterNum);
           }}
           onSelectTopic={(topicId, category) => {
             setIsNavigationModalOpen(false);

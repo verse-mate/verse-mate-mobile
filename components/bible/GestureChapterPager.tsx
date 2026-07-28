@@ -112,16 +112,6 @@ const ROUTE_RUN_SETTLE_MS = 320;
 const RUN_GAP_MS = 700;
 
 /**
- * How long a chapter the pager announced still counts as its own echo, in ms.
- *
- * Generous on purpose. The cost of being wrong in one direction is the pager ignoring a
- * genuine external navigation for a moment; in the other it is the route yanking the
- * reader backwards mid-swipe, which is far more disruptive and is what actually kept
- * happening.
- */
-const ECHO_WINDOW_MS = 2500;
-
-/**
  * How many chapters of index space the row spans, and how far back it starts.
  *
  * The row needs a real width containing every page: Android does not deliver touches
@@ -210,19 +200,6 @@ export function GestureChapterPager({
   /** Latest chapter awaiting a route dispatch, its timer, and when the last flick landed. */
   const pendingRouteRef = useRef<ChapterLocation | null>(null);
   const lastFlickAtRef = useRef(0);
-  /**
-   * Chapters this pager told the route about, with when it said so.
-   *
-   * A Set was wrong for the same reason `except = this` was wrong in the selection
-   * code: it cannot represent a chapter visited TWICE. Back-and-forth swiping revisits
-   * chapters constantly, so the second echo of a repeated chapter found nothing in the
-   * set, was read as an external navigation, and yanked the reader — the reported
-   * teleport during quick reversals.
-   *
-   * Time-bounded instead. Anything the pager announced in the last ECHO_WINDOW_MS is
-   * its own voice coming back, however many times it said it.
-   */
-  const dispatchLogRef = useRef<{ key: string; at: number }[]>([]);
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -325,50 +302,42 @@ export function GestureChapterPager({
   }, [booksMetadata, index, minIndexSV, maxIndexSV]);
 
   /**
-   * Follow an external navigation — the chapter picker, a deep link, a restored
-   * reading position.
+   * Follow an EXTERNAL navigation, and nothing else.
    *
-   * A route change the pager itself caused is already reflected in `index` and is
-   * recognised and ignored. Anything else moves the index and the offset together,
-   * which needs no correction afterwards because every position derives from the
-   * index.
+   * Keyed on `externalNavSeq` alone. The chapter props are deliberately NOT dependencies:
+   * during a run they describe where the route has got to, which is behind the pager, and
+   * reacting to them is what produced the teleports. Two heuristics tried to tell the
+   * route's echo from a real navigation — a dispatched-key set, then a time-bounded window
+   * — and both failed, because the screen knows the answer for certain and was not being
+   * asked. Now it says so.
    */
+  const lastExternalSeqRef = useRef(externalNavSeq);
   useEffect(() => {
-    const committedKey = keyOf({ bookId, chapterNumber });
+    if (externalNavSeq === lastExternalSeqRef.current) return;
+    lastExternalSeqRef.current = externalNavSeq;
+    if (width <= 0) return;
+
+    const targetKey = keyOf({ bookId, chapterNumber });
     const currentLoc = chapterAt.current.get(indexRef.current);
-    if (currentLoc && keyOf(currentLoc) === committedKey) return;
+    if (currentLoc && keyOf(currentLoc) === targetKey) return;
 
-    // A commit the PAGER caused must never move the pager.
-    //
-    // During a fast run the route is always behind, so every one of its commits looked
-    // like an external navigation to a chapter the reader had left — and this effect
-    // dutifully jumped back to it. That is the reported "it forces me back a few and
-    // then continues", and the teleport during quick back-and-forth. The dispatched
-    // set is the guard that was lost in the move to absolute indexing.
-    const now = Date.now();
-    dispatchLogRef.current = dispatchLogRef.current.filter((e) => now - e.at < ECHO_WINDOW_MS);
-    if (dispatchLogRef.current.some((e) => e.key === committedKey)) {
-      perfAdd('gesturePager.ownCommitIgnored', 1);
-      return;
-    }
-
-    const known = indexOfKey.current.get(committedKey);
+    perfAdd('gesturePager.externalNav', 1);
+    const known = indexOfKey.current.get(targetKey);
     if (known !== undefined) {
       scrollX.value = -(known - origin) * width;
       setIndex(known);
       return;
     }
-    // Somewhere the index space has never reached. Re-base around it: safe, because
-    // every page position is derived from the index, so this moves everything at
-    // once rather than shifting pages relative to each other.
+    // Somewhere the index space has never reached: re-base around it. Safe because every
+    // page position derives from the index, so this moves everything at once.
     chapterAt.current = new Map([[0, { bookId, chapterNumber }]]);
-    indexOfKey.current = new Map([[committedKey, 0]]);
+    indexOfKey.current = new Map([[targetKey, 0]]);
     originSV.value = -ORIGIN_BACK;
     setOrigin(-ORIGIN_BACK);
     scrollX.value = -(0 - -ORIGIN_BACK) * width;
     setIndex(0);
     perfAdd('gesturePager.rebased', 1);
-  }, [bookId, chapterNumber, width, origin, scrollX, originSV]);
+  }, [externalNavSeq, bookId, chapterNumber, width, origin, scrollX, originSV]);
 
   /**
    * Re-centre the index space when the reader approaches the row's edge.
@@ -423,7 +392,6 @@ export function GestureChapterPager({
         pendingRouteRef.current = null;
         if (!next) return;
         perfAdd('gesturePager.routeDispatched', 1);
-        dispatchLogRef.current.push({ key: keyOf(next), at: Date.now() });
         onChapterChangeRef.current(next.bookId, next.chapterNumber);
       },
       inRun ? ROUTE_RUN_SETTLE_MS : ROUTE_SETTLE_MS
