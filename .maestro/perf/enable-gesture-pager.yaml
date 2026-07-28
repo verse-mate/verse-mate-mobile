@@ -1,0 +1,39 @@
+appId: org.versemate.app
+name: Perf — turn the gesture chapter pager ON
+description: >
+  Flips the runtime pager flag via the dev Settings toggle, then returns to the
+  reader. One build serves both paging arms, so the ViewPager2 path and the
+  gesture path can be compared in the same session on the same device — two
+  builds differ in more than the flag.
+tags:
+  - perf
+---
+
+- runFlow: shared/reset-to-reader.yaml
+- tapOn:
+    id: "hamburger-menu-button"
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 10000
+- tapOn:
+    id: "menu-item-settings"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "gesture-pager-toggle"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "gesture-pager-toggle"
+- waitForAnimationToEnd
+
+# Back to the reader so the next capture starts where a user would be. The
+# gesture pager only takes effect on a fresh chapter screen, so the Back here is
+# load-bearing rather than tidiness.
+- pressKey: Back
+- pressKey: Back
+- extendedWaitUntil:
+    visible:
+      id: "gesture-chapter-pager"
+    timeout: 20000
