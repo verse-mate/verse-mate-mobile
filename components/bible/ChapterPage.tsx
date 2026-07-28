@@ -562,6 +562,8 @@ export function ChapterPage({
 
   /** False until the first render has passed, so the mount run is not measured. */
   const viewSwitchWatchArmedRef = useRef(false);
+  /** Same, for the inner-tab frame watch. */
+  const tabWatchArmedRef = useRef(false);
 
   const [insightPrewarmed, setInsightPrewarmed] = useState(false);
 
@@ -1364,6 +1366,31 @@ export function ChapterPage({
     chapter: chapterNumber,
     prewarmed: insightPrewarmed,
   });
+
+  /**
+   * Inner Insight tab switches, measured on their own.
+   *
+   * Never instrumented before, which was a real gap: the operator reports lag when switching
+   * Insight tabs, where no lexicon and no chapter change are involved at all. That rules the
+   * lexicon out as the sole cause and points at something shared by every switch, and nothing
+   * could see it because swipes, the pill, startup and the lexicon were each measured while
+   * this was not.
+   */
+  usePerfMountSpan('tab.switch', `${bookId}:${chapterNumber}:${activeTab}`, {
+    to: activeTab,
+    book: bookId,
+    chapter: chapterNumber,
+  });
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the tab change itself
+  useEffect(() => {
+    if (!tabWatchArmedRef.current) {
+      tabWatchArmedRef.current = true;
+      return;
+    }
+    if (isPreloadingRef.current) return;
+    return watchFrames('anim.tabSwitch', VIEW_SWITCH_FRAME_WINDOW_MS);
+  }, [activeTab]);
 
   const localToggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
 
