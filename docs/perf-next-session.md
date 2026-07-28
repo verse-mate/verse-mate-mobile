@@ -295,3 +295,99 @@ code that had never compiled. Always check `BUILD SUCCESSFUL` before trusting an
 - Auto-rotate is meant to stay OFF on this phone. The capture records and restores
   it, and prints the post-Maestro value — a full run leaves it untouched, so
   Maestro is not what flips it.
+
+---
+
+# Update 2026-07-29 — the UI thread, measured at last
+
+Everything above is about the JS thread. It was the wrong thread for the remaining
+complaint ("small stutterings when switching"), and four fixes aimed there all
+measured as noise.
+
+## The instrument that was missing
+
+`scripts/perf/framestats.ts` splits each frame into its UI-thread phases: input,
+animation, traversals (measure+layout), draw, sync, gpu. Two traps had to be fixed
+before its numbers meant anything, and both had silently corrupted output:
+
+- **A row with `Flags != 0` must be discarded** — Android's own contract. Exactly
+  one such row in 120 carried a −17,006ms frame and dragged the reported means to
+  −131ms total and −141ms sync.
+- **`dumpsys` emits one PROFILEDATA block per window**, each with its own header,
+  followed by unrelated prose. Reading from the first marker to EOF swallows it.
+
+Also: **the panel is 120Hz.** `FrameInterval` reports 8,340,090ns, so the budget
+is **8.3ms**, not 16.7ms. Every jank number recorded before this was measured
+against a target twice as forgiving as reality.
+
+## What it says
+
+Across 25 captures the slow-frame count tracks the **`animation` phase and nothing
+else**:
+
+| capture | anim (slow frames) | slow frames |
+| --- | --- | --- |
+| `mybible` (reference app) | 2.6ms | 2/120 |
+| `cap-native-swipe-only` (ours, nothing mounting) | **0.9ms** | **3/119** |
+| `tabs4` (Insight tab switching) | 6.3ms | 28/119 |
+| `ab-viewpager` (gesture pager OFF) | 9.7ms | 16/119 |
+| `v5` | 28.8ms | 7/119 |
+
+`traversals` sits at **0.2–0.6ms throughout** and `draw` at 1–3ms. **It is not
+layout, and not tree depth.** On Fabric the `animation` phase is the Choreographer
+callback, which is where mount items are dispatched and where Reanimated worklets
+run — neither is the JS thread, which is exactly why a Hermes profile showed JS
+98% idle while the screen stuttered.
+
+`ab-viewpager` has the gesture pager off and no `scrollX` worklets, and still shows
+9.7ms, so this is not our Reanimated code. What every bad capture has in common is
+**a subtree being mounted**. And our own best capture is 0.9ms/3 frames, in
+MyBible's territory — so the floor is not the platform's.
+
+## Ruled out, with numbers
+
+Spreading ONE surface's mount across frames from JS. `useProgressiveReveal` ramped
+the markdown block cap a few blocks per frame via chained rAF. A/B on the new
+automated `insight-tabs` flow (same gestures both arms):
+
+| | before | after |
+| --- | --- | --- |
+| frame mean | 13.19ms | 12.70ms |
+| frames over 8.33ms | 79/119 | 86/119 |
+| p95 frame | 35.8ms | 26.9ms |
+| `tab.switch` mean | 85.7ms | 90.9ms |
+| `view.switch` mean | 92.9ms | 106.0ms |
+
+Worst single frame improves; over-budget count, tail and both felt latencies get
+worse. Reverted in `d2f5218`.
+
+That makes five measured non-improvements on this surface — tab pre-warm,
+explanation prop identity, per-word node hunt, one-shot block cap, per-frame ramp.
+**Do not retry them blind.**
+
+## In flight: fewer views, not later views
+
+`lib/text/compile-markdown.ts` + `components/markdown/NativeMarkdown.tsx` render
+markdown as one native text view per BLOCK instead of one RN `Text` per inline run,
+reusing the span renderer the verses already use. Gated by the same
+`useNativeText()` flag, falling back wholesale on anything inexpressible (tables,
+images, strikethrough). `perfCount('markdown.native' | 'markdown.fallback.<reason>')`
+so an A/B cannot be fooled by a silent fallback.
+
+Needs a native build: `fontStyle` was declared in `types.ts` and merged by the JS
+side but **never encoded on the wire**, so italic silently did nothing.
+
+## Harness traps that cost real time
+
+- **`logcat -t <count>` applies its window to the whole buffer and filters
+  afterwards.** On this chatty phone (`GMS`, `vendor.qti.servicetracker`)
+  `logcat -d -t 400 ReactNativeJS:V '*:S'` returns EMPTY while
+  `logcat -d -t 3000 | grep VMPERF` finds the marker every time. The capture script
+  reported "No device found / the JS bundle never started" against a healthy app,
+  healthy Metro and a live reverse tunnel.
+- **A wedged `pc` bridge session** accepts commands and never answers, which
+  presents as the same false "no device". `capture-baseline.sh` now closes its
+  session before every run.
+- **A perf flow that does not exist on the checked-out commit** makes Maestro a
+  no-op and the capture reports zero frames. When A/B-ing across commits, restore
+  `.maestro/` from the newer one — instrumentation must be identical in both arms.

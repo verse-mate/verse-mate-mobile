@@ -27,6 +27,8 @@ export interface NativeTextRange {
   backgroundColor?: string;
   color?: string;
   fontWeight?: string;
+  /** "italic" or absent. Present here too so MEASUREMENT sees the same style the view draws. */
+  fontStyle?: string;
   fontScale?: number;
   baselineShift?: number;
   interactive: boolean;

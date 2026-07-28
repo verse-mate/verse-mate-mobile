@@ -17,6 +17,7 @@ class RangeRecord : Record {
   @Field var backgroundColor: String? = null
   @Field var color: String? = null
   @Field var fontWeight: String? = null
+  @Field var fontStyle: String? = null
   @Field var fontScale: Double? = null
   @Field var baselineShift: Double? = null
   @Field var interactive: Boolean = false
@@ -52,7 +53,11 @@ class MeasureRequest : Record {
  * Format: ranges separated by `|`, fields by `~`, in this fixed order:
  *
  *   start ~ end ~ underlineStyle ~ underlineColor ~ underlineThickness ~
- *   backgroundColor ~ color ~ fontWeight ~ fontScale ~ baselineShift ~ interactive
+ *   backgroundColor ~ color ~ fontWeight ~ fontScale ~ baselineShift ~ interactive ~ fontStyle
+ *
+ * `fontStyle` is LAST and read with getOrNull, so a JS bundle that predates it still decodes.
+ * Field order here is the contract with `encodeRanges` in src/VMText.tsx: append only, never
+ * reorder, or every range silently decodes with its neighbours' values.
  *
  * An empty field means absent. `~` and `|` cannot appear in any value — the fields are
  * integers, floats, CSS colour strings and a small set of keywords.
@@ -80,6 +85,7 @@ private fun decodeRanges(encoded: String?): List<RangeRecord> {
         fontScale = f[8].toDoubleOrNull()
         baselineShift = f[9].toDoubleOrNull()
         interactive = f[10] == "1"
+        fontStyle = f.getOrNull(11)?.ifEmpty { null }
       }
     )
   }
@@ -246,6 +252,7 @@ private fun RangeRecord.toRange(density: Float): VMRange = VMRange(
   backgroundColor = parseColorOrNull(backgroundColor),
   textColor = parseColorOrNull(color),
   fontWeight = fontWeight,
+  fontStyle = fontStyle,
   fontScale = (fontScale ?: 1.0).toFloat(),
   baselineShift = (baselineShift ?: 0.0).toFloat(),
   interactive = interactive,
