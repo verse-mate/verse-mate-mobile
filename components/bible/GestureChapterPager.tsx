@@ -203,6 +203,17 @@ export function GestureChapterPager({
   const maxRenderedSV = useSharedValue(0);
   /** Whether a gesture is in progress, so the invariant check leaves it alone. */
   const gestureActiveSV = useSharedValue(false);
+  /**
+   * Whether a settle animation is still flying.
+   *
+   * The invariant check needs this as much as it needs the gesture flag. `extendTowards`
+   * moves the index the moment a flick STARTS, so between then and the animation landing,
+   * index-at-target and offset-not-yet-there is the correct, expected state — not
+   * divergence. Without this the guard fired on healthy runs (7 times in a 16-gesture
+   * stress test with no external navigation at all) and snapped the offset mid-animation,
+   * which would read as a teleport of its own making.
+   */
+  const settlingSV = useSharedValue(false);
 
   const onChapterChangeRef = useRef(onChapterChange);
   onChapterChangeRef.current = onChapterChange;
@@ -428,12 +439,12 @@ export function GestureChapterPager({
    */
   const assertPosition = useCallback(() => {
     if (width <= 0) return;
-    if (gestureActiveSV.value) return;
+    if (gestureActiveSV.value || settlingSV.value) return;
     const expected = -(indexRef.current - origin) * width;
     if (Math.abs(scrollX.value - expected) < 1) return;
     perfAdd('gesturePager.selfHealed', 1);
     scrollX.value = expected;
-  }, [width, origin, scrollX, gestureActiveSV]);
+  }, [width, origin, scrollX, gestureActiveSV, settlingSV]);
 
   // Checked shortly after things settle, and whenever the anchor moves.
   useEffect(() => {
@@ -463,6 +474,7 @@ export function GestureChapterPager({
           // Take over any settle in flight. Nothing else owns the position, so input
           // is never refused — the property ViewPager2 has no equivalent for.
           cancelAnimation(scrollX);
+          settlingSV.value = false;
           gestureStart.value = scrollX.value;
         })
         .onUpdate((e) => {
@@ -504,11 +516,13 @@ export function GestureChapterPager({
             : target >= Math.max(minIndexSV.value, minRenderedSV.value);
 
           if ((fast || far) && allowed) {
+            settlingSV.value = true;
             scrollX.value = withTiming(
               -(target - originSV.value) * w,
               { duration: SETTLE_MS, easing: Easing.out(Easing.cubic) },
               (finished) => {
                 'worklet';
+                settlingSV.value = false;
                 if (finished) runOnJS(commitIndex)(target);
               }
             );
@@ -518,10 +532,15 @@ export function GestureChapterPager({
             runOnJS(extendTowards)(target);
             return;
           }
-          scrollX.value = withTiming(base, {
-            duration: SETTLE_MS,
-            easing: Easing.out(Easing.cubic),
-          });
+          settlingSV.value = true;
+          scrollX.value = withTiming(
+            base,
+            { duration: SETTLE_MS, easing: Easing.out(Easing.cubic) },
+            () => {
+              'worklet';
+              settlingSV.value = false;
+            }
+          );
           runOnJS(cancelled)();
         }),
     [
@@ -529,6 +548,7 @@ export function GestureChapterPager({
       gestureStart,
       widthSV,
       originSV,
+      settlingSV,
       minIndexSV,
       maxIndexSV,
       minRenderedSV,
