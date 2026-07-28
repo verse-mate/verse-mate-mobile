@@ -65,14 +65,19 @@ export interface GestureChapterPagerProps {
   onChapterChange: (bookId: number, chapterNumber: number) => void;
   renderChapterPage: (bookId: number, chapterNumber: number) => React.ReactNode;
   /**
-   * Bumped by the screen ONLY when something other than this pager navigated.
+   * Set by the screen ONLY when something other than this pager navigated, carrying the
+   * target it navigated to.
    *
-   * The pager watches this and ignores `bookId`/`chapterNumber`. The route lags a swipe,
-   * so its own echoes are indistinguishable from a real navigation by inspection — two
-   * heuristics were tried and both dragged the reader backwards. The screen knows the
-   * answer, so it states it.
+   * The pager watches this and ignores `bookId`/`chapterNumber` entirely. The route lags a
+   * swipe, so its echoes cannot be told from a real navigation by inspection — two
+   * heuristics were tried and both dragged the reader backwards.
+   *
+   * The target is part of the signal rather than read from props, because props reach this
+   * component through `useDeferredValue` and therefore lag the signal. A bare counter
+   * produced the chapter-nav button bug: the pager woke and read the chapter it was already
+   * on, so the header moved and the page did not.
    */
-  externalNavSeq?: number;
+  externalNav?: { seq: number; bookId: number; chapterNumber: number } | null;
 }
 
 /**
@@ -161,7 +166,7 @@ export function GestureChapterPager({
   booksMetadata,
   onChapterChange,
   renderChapterPage,
-  externalNavSeq = 0,
+  externalNav = null,
 }: GestureChapterPagerProps) {
   const [width, setWidth] = useState(0);
 
@@ -347,13 +352,16 @@ export function GestureChapterPager({
    * — and both failed, because the screen knows the answer for certain and was not being
    * asked. Now it says so.
    */
-  const lastExternalSeqRef = useRef(externalNavSeq);
+  const lastExternalSeqRef = useRef(externalNav?.seq ?? 0);
   useEffect(() => {
-    if (externalNavSeq === lastExternalSeqRef.current) return;
-    lastExternalSeqRef.current = externalNavSeq;
+    if (!externalNav) return;
+    if (externalNav.seq === lastExternalSeqRef.current) return;
+    lastExternalSeqRef.current = externalNav.seq;
     if (width <= 0) return;
 
-    const targetKey = keyOf({ bookId, chapterNumber });
+    // The signal's own target, never the props.
+    const target = { bookId: externalNav.bookId, chapterNumber: externalNav.chapterNumber };
+    const targetKey = keyOf(target);
     const currentLoc = chapterAt.current.get(indexRef.current);
     if (currentLoc && keyOf(currentLoc) === targetKey) return;
 
@@ -366,14 +374,14 @@ export function GestureChapterPager({
     }
     // Somewhere the index space has never reached: re-base around it. Safe because every
     // page position derives from the index, so this moves everything at once.
-    chapterAt.current = new Map([[0, { bookId, chapterNumber }]]);
+    chapterAt.current = new Map([[0, target]]);
     indexOfKey.current = new Map([[targetKey, 0]]);
     originSV.value = -ORIGIN_BACK;
     setOrigin(-ORIGIN_BACK);
     scrollX.value = -(0 - -ORIGIN_BACK) * width;
     setIndex(0);
     perfAdd('gesturePager.rebased', 1);
-  }, [externalNavSeq, bookId, chapterNumber, width, origin, scrollX, originSV]);
+  }, [externalNav, width, origin, scrollX, originSV]);
 
   /**
    * Re-centre the index space when the reader approaches the row's edge.
