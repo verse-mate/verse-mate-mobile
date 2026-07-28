@@ -350,6 +350,13 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
             if (mdx > slop && mdx > mdy) {
               longPressCancelled = true
               cancelLongPress()
+              // Cancelling the pending long-press is not enough on its own, and
+              // shipping only that was measured to change nothing: someone who holds
+              // still past the 500ms timeout BEFORE moving already has a selection by
+              // the time this runs, which is exactly the reported gesture. So an
+              // existing selection is dropped too — a horizontal drag is a page turn,
+              // never a selection.
+              clearSelectionIfAny()
             }
           }
         }
@@ -359,12 +366,37 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           val slop = ViewConfiguration.get(context).scaledTouchSlop
           val moved = dx * dx + dy * dy > slop * slop
           val longPress = event.eventTime - downTime >= ViewConfiguration.getLongPressTimeout()
+          // A tap while something is selected DISMISSES the selection and does
+          // nothing else. Previously the tap fell through and opened the verse
+          // insight, so there was no way to simply get rid of a selection.
+          if (!moved && !longPress && hasSelection()) {
+            clearSelectionIfAny()
+            super.onTouchEvent(event)
+            return true
+          }
           val handled = super.onTouchEvent(event)
           if (!moved && !longPress) dispatchTap(event.x, event.y)
           return handled
         }
       }
       return super.onTouchEvent(event)
+    }
+
+    private fun hasSelection(): Boolean = selectionEnd > selectionStart
+
+    /**
+     * Drop any active selection.
+     *
+     * Collapsing to a zero-width range at the selection start is what the platform
+     * itself does on a dismiss, and it takes the selection handles and the action
+     * bar down with it.
+     */
+    private fun clearSelectionIfAny() {
+      if (!hasSelection()) return
+      val text = text
+      if (text is android.text.Spannable) {
+        android.text.Selection.setSelection(text, selectionStart)
+      }
     }
 
     private fun dispatchTap(x: Float, y: Float) {

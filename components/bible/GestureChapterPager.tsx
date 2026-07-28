@@ -91,6 +91,22 @@ const SETTLE_MS = 190;
 const ACTIVATE_X = 14;
 const FAIL_Y = 18;
 
+/**
+ * How many chapters of index space the row spans, and how far back it starts.
+ *
+ * The row needs a real width containing every page: Android does not deliver touches
+ * to a child outside its parent's bounds, so with a one-screen-wide row and pages at
+ * `index * width`, everything from index 1 onward became untappable and unscrollable
+ * the moment the reader swiped once.
+ *
+ * A FIXED span fixes that without reintroducing the flash. Positions are computed
+ * from `origin`, which does not move during normal reading, so mounting and
+ * unmounting still cannot disturb any other page. 32 chapters of headroom each way
+ * covers a long session; travelling beyond it re-bases while the pager is at rest.
+ */
+const ORIGIN_BACK = 32;
+const SPAN = ORIGIN_BACK * 2 + 1;
+
 function keyOf(loc: ChapterLocation): string {
   return `${loc.bookId}-${loc.chapterNumber}`;
 }
@@ -114,13 +130,21 @@ export function GestureChapterPager({
   /** The same mapping inverted, for recognising a committed route change. */
   const indexOfKey = useRef<Map<string, number>>(new Map([[keyOf({ bookId, chapterNumber }), 0]]));
 
+  /**
+   * Index that sits at the row's left edge. Only moves on a re-base.
+   *
+   * Kept out of the gesture's way: the worklet reads `originSV`, so a re-base cannot
+   * present it with a stale coordinate system.
+   */
+  const [origin, setOrigin] = useState(-ORIGIN_BACK);
+
   /** Absolute index of the chapter under the viewport. */
   const [index, setIndex] = useState(0);
   const indexRef = useRef(0);
   indexRef.current = index;
 
   /**
-   * Row translation in px. `-index * width` at rest.
+   * Row translation in px. `-(index - origin) * width` at rest.
    *
    * This — not React state — is the authority on where the pager is. The gesture
    * derives the current index from it on the UI thread, so a second fast flick sees
@@ -133,6 +157,7 @@ export function GestureChapterPager({
   const gestureStart = useSharedValue(0);
   /** Live page width and index bounds, readable from the gesture worklet. */
   const widthSV = useSharedValue(0);
+  const originSV = useSharedValue(-ORIGIN_BACK);
   const minIndexSV = useSharedValue(0);
   const maxIndexSV = useSharedValue(0);
 
@@ -200,6 +225,7 @@ export function GestureChapterPager({
    */
   useEffect(() => {
     widthSV.value = width;
+    originSV.value = origin;
     // The furthest indices that actually resolve, not index ± 1. Publishing ± 1
     // would be stale for the same reason the index was: a second fast flick would
     // find itself already at the published maximum and be clamped, which is the bug
@@ -213,7 +239,7 @@ export function GestureChapterPager({
     }
     minIndexSV.value = lo;
     maxIndexSV.value = hi;
-  }, [width, index, resolveIndex, widthSV, minIndexSV, maxIndexSV]);
+  }, [width, index, origin, resolveIndex, widthSV, originSV, minIndexSV, maxIndexSV]);
 
   /**
    * Follow an external navigation — the chapter picker, a deep link, a restored
@@ -231,7 +257,7 @@ export function GestureChapterPager({
 
     const known = indexOfKey.current.get(committedKey);
     if (known !== undefined) {
-      scrollX.value = -known * width;
+      scrollX.value = -(known - origin) * width;
       setIndex(known);
       return;
     }
@@ -240,10 +266,31 @@ export function GestureChapterPager({
     // once rather than shifting pages relative to each other.
     chapterAt.current = new Map([[0, { bookId, chapterNumber }]]);
     indexOfKey.current = new Map([[committedKey, 0]]);
-    scrollX.value = 0;
+    originSV.value = -ORIGIN_BACK;
+    setOrigin(-ORIGIN_BACK);
+    scrollX.value = -(0 - -ORIGIN_BACK) * width;
     setIndex(0);
     perfAdd('gesturePager.rebased', 1);
-  }, [bookId, chapterNumber, width, scrollX]);
+  }, [bookId, chapterNumber, width, origin, scrollX, originSV]);
+
+  /**
+   * Re-centre the index space when the reader approaches the row's edge.
+   *
+   * Only reachable after ~32 chapters of continuous swiping in one direction, and
+   * only acted on while the pager is at rest, so the one-frame coordinate change this
+   * involves is never visible mid-gesture. This is the single place where positions
+   * shift, traded deliberately for touch delivery working at every index.
+   */
+  useEffect(() => {
+    if (width <= 0) return;
+    const fromEdge = Math.min(index - origin, origin + SPAN - 1 - index);
+    if (fromEdge > RENDER_RADIUS + 1) return;
+    const nextOrigin = index - ORIGIN_BACK;
+    originSV.value = nextOrigin;
+    scrollX.value = -(index - nextOrigin) * width;
+    setOrigin(nextOrigin);
+    perfAdd('gesturePager.originRebased', 1);
+  }, [index, origin, width, scrollX, originSV]);
 
   /** Report a settled page turn. Runs on the JS thread from the animation callback. */
   const commitIndex = useCallback((target: number) => {
@@ -282,8 +329,8 @@ export function GestureChapterPager({
           // Derived from scrollX, not from React state, so a flick that begins before
           // the previous one has committed still measures from where the pager
           // actually is.
-          const from = Math.round(-gestureStart.value / w);
-          const base = -from * w;
+          const from = originSV.value + Math.round(-gestureStart.value / w);
+          const base = -(from - originSV.value) * w;
           let next = gestureStart.value + e.translationX;
           const max = from - 1 >= minIndexSV.value ? base + w : base;
           const min = from + 1 <= maxIndexSV.value ? base - w : base;
@@ -295,8 +342,8 @@ export function GestureChapterPager({
           'worklet';
           const w = widthSV.value;
           if (w <= 0) return;
-          const from = Math.round(-gestureStart.value / w);
-          const base = -from * w;
+          const from = originSV.value + Math.round(-gestureStart.value / w);
+          const base = -(from - originSV.value) * w;
           const travelled = scrollX.value - base;
           const fast = Math.abs(e.velocityX) > PAGE_VELOCITY;
           const far = Math.abs(travelled) > w * PAGE_DISTANCE_RATIO;
@@ -309,7 +356,7 @@ export function GestureChapterPager({
 
           if ((fast || far) && allowed) {
             scrollX.value = withTiming(
-              -target * w,
+              -(target - originSV.value) * w,
               { duration: SETTLE_MS, easing: Easing.out(Easing.cubic) },
               (finished) => {
                 'worklet';
@@ -324,7 +371,7 @@ export function GestureChapterPager({
           });
           runOnJS(cancelled)();
         }),
-    [scrollX, gestureStart, widthSV, minIndexSV, maxIndexSV, commitIndex, cancelled]
+    [scrollX, gestureStart, widthSV, originSV, minIndexSV, maxIndexSV, commitIndex, cancelled]
   );
 
   const rowStyle = useAnimatedStyle(() => ({
@@ -341,19 +388,19 @@ export function GestureChapterPager({
           setWidth(next);
           // Keep the current chapter under the viewport across a width change
           // (rotation, split view): every absolute position scales with it.
-          scrollX.value = -indexRef.current * next;
+          scrollX.value = -(indexRef.current - origin) * next;
         }
       }}
     >
       {width > 0 && (
         <GestureDetector gesture={pan}>
-          <Animated.View style={[styles.row, rowStyle]}>
+          <Animated.View style={[styles.row, { width: SPAN * width }, rowStyle]}>
             {rendered.map(({ index: i, loc }) => (
               // Absolutely positioned from the absolute index, so mounting or
               // unmounting a page cannot move any other page. Chapter-keyed so React
               // migrates a page's instance rather than repurposing it, which is what
               // preserves its scroll position.
-              <View key={keyOf(loc)} style={[styles.page, { left: i * width, width }]}>
+              <View key={keyOf(loc)} style={[styles.page, { left: (i - origin) * width, width }]}>
                 {renderChapterPage(loc.bookId, loc.chapterNumber)}
               </View>
             ))}
