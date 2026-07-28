@@ -172,18 +172,29 @@ step 'Launching against Metro and waiting for the bundle'
 # USB cable, which also means this works regardless of either machine's LAN
 # address.
 adb_sh "reverse tcp:8081 tcp:8081" >/dev/null 2>&1 || true
+
 adb_sh "shell am start -a android.intent.action.VIEW -d '$DEV_CLIENT_URL'" >/dev/null
 
 # Wait for the perf session's own startup line, which only appears once our
 # bundle is actually executing. Polling for it beats a fixed sleep: a cold
 # bundle can take 30s+, and a fixed wait is either flaky or wastefully long.
+#
+# The dump is UNBOUNDED, deliberately, and that is a fix rather than an oversight. `logcat -t
+# <count>` applies its window to the WHOLE buffer and filters afterwards, so a tag filter does
+# not make the window tag-relative. This phone logs GMS and vendor.qti.servicetracker chatter
+# continuously, so within seconds the app's own ReactNativeJS lines are no longer among the last
+# 400 of anything: `logcat -d -t 400 ReactNativeJS:V '*:S'` came back EMPTY while
+# `logcat -d -t 3000 | grep VMPERF` found the marker every time. The script then reported "The JS
+# bundle never started. Check that Metro is running..." against a healthy app, a healthy Metro
+# and a live reverse tunnel, which cost two pointless Metro restarts.
+#
+# Cost is not a concern here because logcat was CLEARED moments ago, just above, so there is
+# almost nothing in the buffer to dump — the same reasoning that lets the report itself be read
+# with a full dump further down.
 BUNDLE_READY=0
 for _ in $(seq 1 "$BUNDLE_WAIT_TRIES"); do
-  # -t 400, NOT a full dump. The logcat buffer is 16MB (raised so a report cannot be
-  # truncated), and dumping all of it through the PowerShell bridge on every poll made
-  # this loop take minutes and silently blow past its own timeout. The line being
-  # looked for is always among the most recent anyway.
-  if adb_sh "logcat -d -t 400 ReactNativeJS:V '*:S'" 2>/dev/null | grep -q 'VMPERF.*monitor started'; then
+  if adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null |
+    grep -q 'VMPERF.*monitor started'; then
     BUNDLE_READY=1
     break
   fi
@@ -201,8 +212,11 @@ and that the reverse tunnel is up:
 # clear below, because it costs nothing here — an earlier version launched an extra
 # warm-up flow to produce this line, which added a whole app launch and chapter mount
 # to every capture and made runs incomparable (13 mounts vs 8 for the identical flow).
-# Bounded for the same reason as the poll above.
-ARM_LINE="$(adb_sh "logcat -d -t 400 ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r')"
+# Unbounded for the reason spelled out at the poll above: a count-bounded window is global to the
+# buffer, so on this chatty device it can come back empty and leave the capture labelled with an
+# unknown arm. An A/B whose arms are mislabelled is worse than no A/B, because it looks like a
+# result.
+ARM_LINE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r')"
 
 # The perf session started during app boot, so its records so far describe
 # startup, not the flow. Clear logcat to scope the capture to the flow itself.
