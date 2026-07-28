@@ -17,12 +17,14 @@
 import * as Haptics from 'expo-haptics';
 import { Platform, StyleSheet, Switch, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useGesturePager } from '@/hooks/bible/use-gesture-pager';
 import { useNativeText } from '@/hooks/bible/use-native-text';
 import { type getColors, spacing } from '@/theme/tokens';
 
 export function NativeTextToggle() {
   const { colors } = useTheme();
   const { preference, setUseNativeText, isAvailable } = useNativeText();
+  const { useGesturePager: gesturePager, setUseGesturePager } = useGesturePager();
   const styles = createStyles(colors);
 
   if (!__DEV__ || !isAvailable) return null;
@@ -32,6 +34,13 @@ export function NativeTextToggle() {
       await Haptics.selectionAsync();
     }
     await setUseNativeText(value);
+  };
+
+  const handlePagerToggle = async (value: boolean) => {
+    if (Platform.OS !== 'web') {
+      await Haptics.selectionAsync();
+    }
+    await setUseGesturePager(value);
   };
 
   return (
@@ -56,6 +65,30 @@ export function NativeTextToggle() {
           />
         </View>
       </View>
+
+      {/* Second arm of the paging A/B. ViewPager2 refuses a drag that begins while
+          it is still settling — measured at 14 snap-backs in a 38-drag session —
+          and refuses a programmatic page in the same state. The gesture pager owns
+          the offset itself so a flick can interrupt the settle. */}
+      <View style={[styles.container, styles.secondCard]}>
+        <View style={styles.row}>
+          <View style={styles.textColumn}>
+            <Text style={styles.label}>Gesture chapter pager</Text>
+            <Text style={styles.helpText}>
+              Drive chapter swipes from a Reanimated gesture instead of ViewPager2, so a fast flick
+              can interrupt the previous one. Takes effect on the next chapter screen.
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Gesture chapter pager"
+            onValueChange={handlePagerToggle}
+            testID="gesture-pager-toggle"
+            thumbColor={colors.background}
+            trackColor={{ false: colors.divider, true: colors.gold }}
+            value={gesturePager}
+          />
+        </View>
+      </View>
     </View>
   );
 }
@@ -71,6 +104,9 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       fontWeight: '600',
       color: colors.textPrimary,
       marginBottom: spacing.lg,
+    },
+    secondCard: {
+      marginTop: spacing.lg,
     },
     container: {
       backgroundColor: colors.backgroundElevated,
