@@ -106,3 +106,50 @@ usePerfMountSpan('my.thing', keyThatChangesPerMeasurement, { meta: 'here' });
   truncated capture must not read as a clean run.
 - **Counters double under StrictMode**, since `perfAdd` is called during render.
   Harmless for A/B (both arms double), misleading as an absolute.
+
+## Hermes CPU profiling — the instrument that ends arguments
+
+The span/counter harness above says *how long* something took. It cannot say
+*what ran*, and that gap cost this project four dead hypotheses about chapter
+mount: every one of them was consistent with the numbers, and every one was
+wrong. A sampling profile does not need a hypothesis.
+
+```sh
+# 1. app running and in the foreground on the screen you want to measure
+bun scripts/perf/hermes-profile.ts 18 /tmp/swipe.cpuprofile   # then drive the gesture
+bun scripts/perf/hermes-analyse.ts /tmp/swipe.cpuprofile      # self + total time
+bun scripts/perf/hermes-callers.ts /tmp/swipe.cpuprofile      # who calls the expensive frames
+```
+
+Reading it:
+
+- **`[root]` self time is idle.** A run where `[root]` is 75% means the JS thread
+  was busy a quarter of the time; compare that number between runs before
+  anything else.
+- **self time** names the function that was executing. `[Host Function] X` is
+  native work called from JS — `completeRoot` is Fabric committing the tree,
+  `createNode`/`createTextInstance` are shadow-node creation.
+- **total time** names the subtree that owns the cost. Use it to find which of
+  *our* components a native cost hangs under.
+
+Two gotchas that cost real time here:
+
+1. **Pick the right inspector target.** `/json/list` returns both the JS runtime
+   ("React Native Bridgeless", advertises `prefersFuseboxFrontend`) and a "UI"
+   connection. The UI page accepts a websocket and then answers nothing at all,
+   so `Profiler.start` never replies — which looks exactly like "Hermes has no
+   profiler". `hermes-profile.ts` selects on the capability, not on order.
+2. **`Profiler.enable` is not implemented** and returns `-32601`. Awaiting it
+   hangs the run with no error anywhere. It is fired and not awaited.
+
+### Driving the gesture
+
+Keep synthetic swipes clear of the screen edges. On a 1080px-wide phone with
+gesture navigation, `input swipe 900 ... 150 ...` starts inside the right-edge
+back-gesture zone: the first swipe fires system Back, leaves the app, and every
+later swipe lands on the launcher — while the profile still "succeeds". Use
+`800 -> 280` and assert the app is still foreground after each swipe.
+
+Also prefer swiping FORWARD through new chapters over swiping back and forth
+between two. Per-chapter caches (alignment, layout) hit on the second visit, so
+an alternating flow measures something no reader ever does.

@@ -1,117 +1,117 @@
-# Perf — where things stand and what to run next
+# Perf — what the profiler found, and what is left
 
-Written 2026-07-28, overnight, with the phone and PC off. Everything here is
-committed on `feat/native-text-rendering`.
+Rewritten 2026-07-28. Supersedes the earlier version, whose central open question
+("`reader.mount.bible` has never moved") is now answered.
 
-## Run this first
+## The answer
 
-```sh
-scripts/perf/capture-all.sh
-```
+A Hermes CPU sampling profile of six forward chapter swipes settled it. Of 18s
+wall clock the JS thread was **idle 72%**; the busy ~5.1s was:
 
-Both arms × three scenarios (Genesis 1, Psalm 119, swipe-only), then prints the arm
-comparison and the scaling report. Takes roughly 25 minutes. It restores the
-**native** arm at the end, so the app is usable afterwards — leaving the device on
-legacy once already cost an evening of testing the wrong renderer.
+| self time | frame |
+| --- | --- |
+| 1344ms | `[Host Function] completeRoot` ← `updateHostContainer` ← `completeWork` |
+| 396ms | `[GC Young Gen]` |
+| 350ms | `[Host Function] createNode` (225ms hosts + 125ms `createTextInstance`) |
+| 178ms | `regExpConstructor` ← `LinkifyIt.compile` ← `MarkdownIt` |
+| 167ms | `measureHeights` (ours) |
+| 120ms | `buildLexIndex` + `normalizeStrongs` (the lexicon — ~2%) |
 
-Prerequisites: phone on with USB debugging, Metro running on the PC
-(`cd D:/Coding/VerseMate/verse-mate-mobile && bun start`).
+By subtree, `performWorkOnRoot` was 4270ms (23%), of which `renderRootSync` was
+4066ms — against **~620ms for all of our own components combined**.
 
-## The report that matters most
+So the cost was never the text layer, and never the lexicon. It is **React
+reconciliation plus Fabric's commit**, which is per-node overhead over the live
+tree. `completeRoot` is Fabric committing the root's child set, and in Fabric's
+persistent-tree model every commit diffs against the whole mounted tree — so a
+node costs not only its own creation but a share of every later commit too.
 
-```sh
-bun scripts/perf/compare.ts --scaling native
-```
+That reframes the whole problem: **the lever is the number of mounted nodes**, not
+the speed of any function.
 
-Genesis 1 is 31 verses, Psalm 119 is 176 — a **5.7×** verse ratio. Every metric is
-printed with its own ratio:
+### Why four earlier hypotheses died
 
-- **near 1.0×** — correctly independent of chapter length. This is the goal.
-- **near 5.7×** — doing per-verse work at a moment it should not be. That is the
-  reported "swiping depends on the length of the chapter", made specific enough to
-  point at code.
+Each was consistent with `reader.mount.bible ≈ 700ms` and each was about *our*
+code, which the profile shows accounts for ~12% of busy time. Section staging,
+sync measurement, off-screen view creation and O(chapter) compile were all real
+improvements that could not move a number dominated by something else.
 
-Before tonight's change, mount was squarely in the second category:
-`useParagraphLayout` compiled and measured every paragraph to compute offsets, so
-Psalm 119 did 35 lexicon compiles and 35 layout builds against Genesis 1's 7 — and a
-swipe mounts the adjacent chapter. It should now be near 1.0×. **If it is not, that
-is the single most valuable thing to chase**, and the ratio will say which metric
-still carries it.
+## What was fixed on the strength of it
 
-## The three reported symptoms, and what now measures each
+1. **The markdown parser was being rebuilt on every render.**
+   `react-native-markdown-display` declares it as a default parameter
+   (`markdownit = MarkdownIt({typographer: true})`), so every render of every
+   `<Markdown>` recompiled LinkifyIt's regex set. That was the entire 178ms —
+   more than our native text measurement — and ~85% of all markdown time. Fixed
+   with one shared instance in `lib/markdown/Markdown.tsx`; only the 9 import
+   lines changed, so all 21 call sites benefit untouched.
 
-| symptom | metric to read | where |
-| --- | --- | --- |
-| swiping sluggish, scales with chapter length | `swipe.pendingNav` vs `swipe.settle`, and the scaling ratio | `--scaling native`, `--arms swipe-only` |
-| toggle animation stutters | `anim.viewSwitch.dropped`, `anim.viewSwitch.worstFrameMs` | counters in any capture |
-| small stutterings while reading | `Janky frames`, `p99`, `Slow UI thread` | `--arms psalm-119`, UI THREAD block |
+2. **The Bible path was rendering the legacy per-word tree on every mount.**
+   The native branch needs `paragraphWidth > 0`, known only after `onLayout`. A
+   comment claimed only the session's first chapter paid that frame because the
+   reader stays mounted across swipes — but each chapter has its **own**
+   ChapterReader, one per pager page. Every mount rendered the whole chapter as
+   per-word `<Text>`, had Fabric create all of it, and discarded it a frame
+   later. The labelled counter proved it: **9,113 of 9,113** legacy text nodes
+   came from `bible.paragraphFallback`, none from Insight or Topics. Fixed by
+   remembering the last measured width at module scope and by reserving an
+   estimated height instead of falling back.
 
-**Swipe is now two phases.** `swipe.pendingNav` covers the pager settling and
-deciding to navigate; `swipe.settle` covers building and committing the new chapter.
-They feel identical to a user and need opposite fixes, so read them separately: a
-large `pendingNav` means the gesture layer is slow, a large `settle` means the
-content is.
+3. **The Insight prewarm was sticky per page**, so every chapter the reader passed
+   through kept its Insight subtree mounted and charged to every subsequent
+   commit. Released when the page stops being current.
 
-**The animation counters are new** because nothing could see that symptom before.
-The JS heartbeat watches the JS thread while the animation runs on the UI thread,
-and `gfxinfo` averages a 300ms animation into a 60-second session. `frame-watch`
-records rAF cadence scoped to the interaction. Note what it means: if the animation
-looks janky but these counters are clean, the jank is native and the fix is in the
-opposite place.
+4. **The neighbour chapter now builds in idle time** rather than in the same
+   commit as the navigation.
 
-## Landed tonight (all untested on device)
+Measured effect of 1+3 alone (same flow, same phone): idle 72.1% → 75.1%,
+`regExpConstructor` 178ms → 0, `MarkdownIt` 211ms → 10ms, GC 396ms → 275ms, our
+components 620ms → 385ms.
 
-1. **Mount is O(visible), not O(chapter).** Heights for off-screen paragraphs are
-   estimated in O(1) from character count, calibrated against the first real
-   measurement so they land within a line. Only paragraphs near the viewport are
-   compiled and measured.
-2. **Section staging stands down** when windowing is active — its 200ms/500ms
-   re-renders straddled the 180ms toggle animation.
-3. **Swipe phase split**, **frame-watch**, **scaling report**, **swipe-only
-   scenario**, **one-command runner**.
+Swipe path across the day: `swipe.settle` 838ms → 607ms mean (max 1444ms →
+653ms), `swipe.pendingNav` 374ms → 266ms, frame p99 150ms → 81ms.
 
-Treat all of it as unverified. Two of the last three windowing attempts measured as
-doing nothing, and looked correct while doing so.
+## What is left, in order
 
-## The one metric that has never moved
+1. **`completeRoot` is still ~1262ms (28% of busy time).** It is proportional to
+   the live tree. The remaining big contributors are the three chapters the pager
+   keeps mounted and whatever the Insight subtree costs while visible. Next
+   measurement to take: how many commits happen per swipe, and how large the tree
+   is at each. If commit count is the driver, batching or `startTransition` on the
+   chapter change is the fix; if tree size is, virtualization is.
+2. **React is rendering synchronously** (`renderRootSync` 4066ms,
+   `performSyncWorkOnRoot` 1436ms). Sync renders cannot yield to a gesture. A
+   chapter change dispatched inside `startTransition` would let React interrupt
+   itself for the swipe. Untried.
+3. **`data.alignment` reports mean 443ms, max 3074ms over 20 calls.** Mostly await
+   rather than CPU (the profile puts lexicon CPU at ~120ms), but the first load
+   parses a 17.8MB, 18,100-entry JSON. Separately, `loadAlignmentFor` rebuilds two
+   whole-lexicon structures — an 18,100-key object spread and an `Object.entries`
+   pass — on every uncached chapter, neither of which depends on the chapter.
+   Cheap to hoist, in the `@versemate/lexicon` repo rather than here.
+4. **Insight/Topics still use the legacy per-word renderer.** No longer urgent —
+   the counter shows they contribute almost nothing in a reading session — but it
+   is the largest unconverted surface.
+5. **iOS has no Swift counterpart yet**, so the native path is Android-only and
+   the flag stays off by default there.
 
-`reader.mount.bible`: 726, 699, 761, 702, 817ms across every arm and change. Three
-hypotheses have died on it — section staging (Psalm 119 is one section, so slicing
-does nothing), sync measurement (190ms across a 78s window), and off-screen view
-creation (windowing did not move it).
+## Harness notes worth keeping
 
-Tonight's O(visible) change is the fourth candidate and the first one that attacks
-per-verse work directly. **If the scaling ratio comes back near 1.0× but
-`reader.mount.bible` is still ~700ms, then chapter-open is dominated by something
-that is neither per-verse nor text-related**, and the next step is to bisect the
-mount itself — instrument `ChapterPage`'s effects, the query/`useBibleChapter` path,
-and the Insight prewarm — rather than optimise the renderer further.
-
-## On dissecting another app's binary
-
-Offered as an option; my view is that it is not the shortcut it looks like.
-
-A release APK is minified and largely native; what is recoverable is roughly "they
-use a recycling list" and "their text is one view per block" — both of which are
-already the direction here. The specific numbers that would actually help (how they
-paginate, what they precompute, where their measurement happens) are not legible
-from a binary in less time than measuring our own app takes.
-
-There is a cheaper version of the same idea worth doing if chapter-open stays stuck:
-install a Bible app that feels right, run `dumpsys gfxinfo` against **it** while
-scrolling and chapter-switching, and compare its frame profile to ours. That answers
-"how much better is actually achievable on this device" with an afternoon's work and
-no reverse engineering. It also settles whether the remaining gap is architectural or
-just a few more fixes.
-
-## Known gaps
-
-- **Insight/Topics still use the legacy per-token renderer.** Only the Bible
-  paragraph path is converted. `reader.mount.explanations` is already down to ~100ms
-  on the native path, so this is not urgent, but it is the largest unconverted
-  surface.
-- **iOS is not started.** The Kotlin has no Swift counterpart yet, so the native
-  path is Android-only. The flag is off by default, so iOS is unaffected.
-- **One run per configuration.** Run-to-run variance on a warm device is large — the
-  same legacy flow has produced 74s, 97s and 129s windows. Direction across metrics
-  is trustworthy; single percentages are not.
+- Read the JS report from **Metro's log**, not logcat. The app's `console.log`
+  stopped reaching logcat on this build, and `logd` had also pruned the app's UID
+  as chatty after a warning spam. Either alone loses the whole report.
+- The bundle loads over **LAN**, not `adb reverse`. The reverse tunnel died
+  mid-session while Metro kept serving from cache, so the dev client hung on an
+  unreachable localhost and showed a black splash with no error anywhere.
+- `.` in a JavaScript regex excludes `\r`, so `(.*)$` fails outright on a CRLF
+  capture rather than capturing one extra character. A PowerShell-written capture
+  reported "missing chunk(s) 0..12 of 13" with all thirteen in the file.
+- Wake the device and dismiss the keyguard first. Captures end with KEYCODE_HOME,
+  the screen times out, and Maestro then drives a locked phone and reports a
+  missing testID.
+- A phase span with no close is worse than no span: `swipe.pendingNav` was only
+  ever ended by the next swipe reopening it, so it silently measured "time between
+  swipes" and reported a 4467ms mean on an idle device.
+- Auto-rotate is meant to stay OFF on this phone. The capture records and restores
+  it, and prints the post-Maestro value — a full run leaves it untouched, so
+  Maestro is not what flips it.
