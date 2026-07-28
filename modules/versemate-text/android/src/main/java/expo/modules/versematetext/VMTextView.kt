@@ -165,6 +165,8 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     private var swipeClaimed = false
     /** Whether text was selected when this gesture started. */
     private var hadSelectionOnDown = false
+    /** Whether this gesture dismissed a selection belonging to another paragraph. */
+    private var dismissedForeignSelection = false
     /** Whether this gesture is the second of a double tap, whose selection is suppressed. */
     private var suppressForDoubleTap = false
     /** Event time of the previous ACTION_UP, for double-tap detection. */
@@ -319,6 +321,14 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
      */
     override fun onSelectionChanged(selStart: Int, selEnd: Int) {
       super.onSelectionChanged(selStart, selEnd)
+      // Track ownership app-wide, so a tap on ANY paragraph can dismiss this one's
+      // selection. Registered before the readyToDispatch gate below, because
+      // ownership matters even when there is no JS listener yet.
+      if (selEnd > selStart) {
+        VMTextView.setSelectionOwner(this)
+      } else if (VMTextView.hasSelectionOwner(this)) {
+        VMTextView.setSelectionOwner(null)
+      }
       // Fires during construction (setTextIsSelectable triggers it) and again on
       // every text change, both before the outer view's event dispatchers exist.
       // See `readyToDispatch`.
@@ -373,6 +383,12 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           // detect — which is why "tap to dismiss" fell through and opened the verse
           // insight instead.
           hadSelectionOnDown = anySelection()
+          // A tap anywhere dismisses a selection held by ANY paragraph, not just this
+          // one. Recorded on DOWN so the UP handler can consume the tap.
+          dismissedForeignSelection = VMTextView.clearActiveSelection(except = this)
+          if (dismissedForeignSelection) {
+            Log.d(TOUCH_TAG, "DOWN dismissed a selection owned by another paragraph")
+          }
 
           // Suppress the platform's double-tap-to-select-a-word.
           //
@@ -443,7 +459,7 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           // A tap while something is selected DISMISSES the selection and does
           // nothing else. Previously the tap fell through and opened the verse
           // insight, so there was no way to simply get rid of a selection.
-          if (!moved && !longPress && hadSelectionOnDown) {
+          if (!moved && !longPress && (hadSelectionOnDown || dismissedForeignSelection)) {
             // The tap that dismisses a selection does nothing else. Consumed so it
             // cannot also open a verse insight or a lexicon card.
             clearSelectionIfAny()
@@ -516,5 +532,41 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
      * (g, y, p) at body sizes without the line detaching from the word.
      */
     private const val UNDERLINE_BASELINE_OFFSET_DP = 3f
+
+    /**
+     * The view that currently holds a text selection, if any.
+     *
+     * Selection dismissal is inherently CROSS-VIEW and the previous attempt treated it
+     * as per-view, which is why tapping away never worked. Every paragraph is its own
+     * VMTextView: the selection lives in paragraph A, the dismissing tap lands on
+     * paragraph B, and B correctly reports that it holds no selection. The touch trace
+     * showed exactly that — `hadSelOnDown=false sel=593..593` on the dismiss tap while
+     * another view held 643..644.
+     *
+     * A weak reference so a recycled paragraph cannot be kept alive by this.
+     */
+    private var selectionOwner: java.lang.ref.WeakReference<AppCompatTextView>? = null
+
+    /** Clear whichever view holds a selection. Returns true if one was cleared. */
+    fun clearActiveSelection(except: AppCompatTextView? = null): Boolean {
+      val owner = selectionOwner?.get() ?: return false
+      if (owner === except) return false
+      val text = owner.text
+      if (text is android.text.Spannable && owner.selectionEnd > owner.selectionStart) {
+        android.text.Selection.setSelection(text, owner.selectionStart)
+        selectionOwner = null
+        return true
+      }
+      selectionOwner = null
+      return false
+    }
+
+    /** Whether `view` is the registered owner. */
+    fun hasSelectionOwner(view: AppCompatTextView): Boolean = selectionOwner?.get() === view
+
+    /** Record which view owns the current selection. */
+    fun setSelectionOwner(view: AppCompatTextView?) {
+      selectionOwner = if (view == null) null else java.lang.ref.WeakReference(view)
+    }
   }
 }
