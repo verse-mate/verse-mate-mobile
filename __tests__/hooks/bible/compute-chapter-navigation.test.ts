@@ -8,7 +8,10 @@
  * the two ends of the Bible.
  */
 
-import { computeChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
+import {
+  chapterOrdinal,
+  computeChapterNavigation,
+} from '@/hooks/bible/use-chapter-navigation';
 import type { TestamentBook } from '@/src/api';
 
 /** Genesis (50), Exodus (40), … Revelation (22) — only what the tests need. */
@@ -72,5 +75,37 @@ describe('computeChapterNavigation', () => {
       visited.push(`${at.bookId}-${at.chapterNumber}`);
     }
     expect(visited).toEqual(['1-49', '1-50', '2-1', '2-2', '2-3']);
+  });
+});
+
+describe('chapterOrdinal', () => {
+  // The pager publishes its drag bounds from this, so the numbers have to be exact:
+  // a wrong maximum silently refuses a swipe, which is the failure it was added to fix.
+  it('counts from Genesis 1 as ordinal 0', () => {
+    expect(chapterOrdinal(1, 1, BOOKS)).toEqual({ ordinal: 0, total: 113 });
+  });
+
+  it('offsets within a book', () => {
+    expect(chapterOrdinal(1, 7, BOOKS)?.ordinal).toBe(6);
+  });
+
+  it('accumulates preceding books', () => {
+    // Genesis has 50, so Exodus 1 is ordinal 50.
+    expect(chapterOrdinal(2, 1, BOOKS)?.ordinal).toBe(50);
+    expect(chapterOrdinal(2, 40, BOOKS)?.ordinal).toBe(89);
+  });
+
+  it('is independent of metadata order', () => {
+    const shuffled = [...BOOKS].reverse();
+    expect(chapterOrdinal(2, 1, shuffled)?.ordinal).toBe(50);
+  });
+
+  it('rejects a chapter outside the book', () => {
+    expect(chapterOrdinal(1, 51, BOOKS)).toBeNull();
+    expect(chapterOrdinal(1, 0, BOOKS)).toBeNull();
+  });
+
+  it('returns null without metadata', () => {
+    expect(chapterOrdinal(1, 1, undefined)).toBeNull();
   });
 });

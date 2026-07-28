@@ -51,6 +51,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import {
   type ChapterLocation,
+  chapterOrdinal,
   computeChapterNavigation,
 } from '@/hooks/bible/use-chapter-navigation';
 import { perfAdd, perfSpan } from '@/lib/perf';
@@ -254,20 +255,28 @@ export function GestureChapterPager({
   useEffect(() => {
     widthSV.value = width;
     originSV.value = origin;
-    // The furthest indices that actually resolve, not index ± 1. Publishing ± 1
-    // would be stale for the same reason the index was: a second fast flick would
-    // find itself already at the published maximum and be clamped, which is the bug
-    // this change exists to remove. RENDER_RADIUS of headroom matches how far the
-    // mounted range extends, so a flick can never outrun the content either.
-    let lo = index;
-    let hi = index;
-    for (let i = 1; i <= RENDER_RADIUS; i++) {
-      if (resolveIndex(index - i)) lo = index - i;
-      if (resolveIndex(index + i)) hi = index + i;
-    }
-    minIndexSV.value = lo;
-    maxIndexSV.value = hi;
-  }, [width, index, origin, resolveIndex, widthSV, originSV, minIndexSV, maxIndexSV]);
+  }, [width, origin, widthSV, originSV]);
+
+  /**
+   * Publish the ABSOLUTE reachable range, once per chapter-space anchor.
+   *
+   * Deliberately not derived from `index`. The previous version published "index ± what
+   * resolves", and `index` is React state that lags during a fast run — so a third quick
+   * flick found itself already at a stale maximum and was refused. That was measured:
+   * flickCancelled 6 against flickPaged 4, more gestures rejected than accepted, which
+   * is the reported "works at first then stops letting me swipe".
+   *
+   * The Bible's bounds do not move, so these are computed from the anchor chapter's
+   * ordinal and cannot go stale no matter how far ahead of React the gesture runs.
+   */
+  useEffect(() => {
+    const anchor = chapterAt.current.get(0);
+    if (!anchor) return;
+    const position = chapterOrdinal(anchor.bookId, anchor.chapterNumber, booksMetadata);
+    if (!position) return;
+    minIndexSV.value = -position.ordinal;
+    maxIndexSV.value = position.total - 1 - position.ordinal;
+  }, [booksMetadata, index, minIndexSV, maxIndexSV]);
 
   /**
    * Follow an external navigation — the chapter picker, a deep link, a restored
