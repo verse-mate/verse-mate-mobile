@@ -147,7 +147,13 @@ function RootLayoutInner() {
     startupSpanRef.current?.();
     startupSpanRef.current = null;
   };
-  useEffect(() => () => endStartupSpan(), []);
+  // Closed after the first commit as well as on the splash-hide path. The splash path alone
+  // left the span open in the capture — it never appeared in the report — and an open span is
+  // worse than none, because it silently owns every later block.
+  useEffect(() => {
+    endStartupSpan();
+    return () => endStartupSpan();
+  }, []);
 
   // Check version policy on app startup (T8)
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
