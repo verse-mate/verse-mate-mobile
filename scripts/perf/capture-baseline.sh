@@ -161,7 +161,11 @@ adb_sh "shell am start -a android.intent.action.VIEW -d '$DEV_CLIENT_URL'" >/dev
 # bundle can take 30s+, and a fixed wait is either flaky or wastefully long.
 BUNDLE_READY=0
 for _ in $(seq 1 "$BUNDLE_WAIT_TRIES"); do
-  if adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -q 'VMPERF.*monitor started'; then
+  # -t 400, NOT a full dump. The logcat buffer is 16MB (raised so a report cannot be
+  # truncated), and dumping all of it through the PowerShell bridge on every poll made
+  # this loop take minutes and silently blow past its own timeout. The line being
+  # looked for is always among the most recent anyway.
+  if adb_sh "logcat -d -t 400 ReactNativeJS:V '*:S'" 2>/dev/null | grep -q 'VMPERF.*monitor started'; then
     BUNDLE_READY=1
     break
   fi
@@ -179,7 +183,8 @@ and that the reverse tunnel is up:
 # clear below, because it costs nothing here — an earlier version launched an extra
 # warm-up flow to produce this line, which added a whole app launch and chapter mount
 # to every capture and made runs incomparable (13 mounts vs 8 for the identical flow).
-ARM_LINE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r')"
+# Bounded for the same reason as the poll above.
+ARM_LINE="$(adb_sh "logcat -d -t 400 ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r')"
 
 # The perf session started during app boot, so its records so far describe
 # startup, not the flow. Clear logcat to scope the capture to the flow itself.
