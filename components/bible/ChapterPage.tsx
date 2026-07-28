@@ -193,9 +193,6 @@ function TabContent({
     };
   }, [activeTab]);
 
-  const isHidden = !visible;
-  if (isHidden && !shouldRenderHidden) return null;
-
   // Determine content for the reader
   const rawExplanationContent = content && 'content' in content ? content : undefined;
 
@@ -228,6 +225,14 @@ function TabContent({
     };
   }
   const explanationContent = stableExplanationRef.current.value;
+
+  // Bail out AFTER every hook. This sat above the `useRef` above and was a real crash path,
+  // not a lint preference: a page going from visible to hidden ran one fewer hook than its
+  // previous render, which is exactly the "rendered fewer hooks than expected" invariant.
+  // The pager hides pages constantly, so it was only a matter of which swipe hit it.
+  const isHidden = !visible;
+  if (isHidden && !shouldRenderHidden) return null;
+
   // Defend against `content.content` being undefined/null at render time —
   // happens when the explanations API hasn't returned a body yet (loading
   // state) or the field is genuinely missing on a chapter. Without the guard,
