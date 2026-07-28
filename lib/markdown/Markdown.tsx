@@ -74,18 +74,20 @@ export function Markdown(props: MarkdownProps) {
     return () => handle.cancel();
   }, []);
 
-  return (
-    <MarkdownDisplay
-      markdownit={sharedParser}
-      // An explicit value from the caller still wins, so a consumer that needs every block up
-      // front is not blocked by this.
-      maxTopLevelChildren={showAll ? undefined : INITIAL_BLOCKS}
-      // Nothing is shown in place of the deferred blocks: an ellipsis would flash and then be
-      // replaced a frame later, which reads as a glitch rather than as loading.
-      topLevelMaxExceededItem={null}
-      {...props}
-    />
-  );
+  // `maxTopLevelChildren` and `topLevelMaxExceededItem` are implemented by the library and
+  // documented in its README, but missing from its shipped type definitions — hence the cast.
+  // Verified against node_modules/react-native-markdown-display/src/lib/AstRenderer.js, which
+  // reads both.
+  const capProps = {
+    // An explicit value from the caller still wins, so a consumer that needs every block up
+    // front is not blocked by this.
+    maxTopLevelChildren: showAll ? undefined : INITIAL_BLOCKS,
+    // Nothing is shown in place of the deferred blocks: an ellipsis would flash and then be
+    // replaced a frame later, which reads as a glitch rather than as loading.
+    topLevelMaxExceededItem: null,
+  } as Partial<MarkdownProps>;
+
+  return <MarkdownDisplay markdownit={sharedParser} {...capProps} {...props} />;
 }
 
 export default Markdown;
