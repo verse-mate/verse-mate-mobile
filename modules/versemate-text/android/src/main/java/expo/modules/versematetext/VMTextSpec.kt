@@ -31,6 +31,8 @@ data class VMRange(
   val backgroundColor: Int?,
   val textColor: Int?,
   val fontWeight: String?,
+  /** "italic", or null for upright. Combined with fontWeight into one StyleSpan. */
+  val fontStyle: String?,
   /** Font size multiplier relative to the base size. 1.0 = unchanged. */
   val fontScale: Float,
   /** Baseline offset as a multiple of the base font size; positive raises. */
@@ -183,8 +185,12 @@ fun VMTextSpec.buildSpannable(): Spannable {
 
     range.backgroundColor?.let { spannable.setSpan(BackgroundColorSpan(it), start, end, flag) }
     range.textColor?.let { spannable.setSpan(ForegroundColorSpan(it), start, end, flag) }
-    if (isBoldWeight(range.fontWeight)) {
-      spannable.setSpan(StyleSpan(Typeface.BOLD), start, end, flag)
+    // ONE StyleSpan for both axes. Two overlapping StyleSpans do not combine into BOLD_ITALIC —
+    // the later one replaces the typeface style of the earlier, so `**bold *and italic* **` would
+    // silently lose one of them. Typeface.BOLD_ITALIC is the only way to get both.
+    val typefaceStyle = typefaceStyleFor(range.fontWeight, range.fontStyle)
+    if (typefaceStyle != Typeface.NORMAL) {
+      spannable.setSpan(StyleSpan(typefaceStyle), start, end, flag)
     }
     if (range.fontScale != 1f && range.fontScale > 0f) {
       spannable.setSpan(RelativeSizeSpan(range.fontScale), start, end, flag)
@@ -207,6 +213,25 @@ fun isBoldWeight(value: String?): Boolean {
   if (value == null) return false
   if (value == "bold") return true
   return (value.toIntOrNull() ?: 400) >= 600
+}
+
+/**
+ * Combine weight and slant into one `Typeface` style constant.
+ *
+ * Needed because both axes must be expressed by a SINGLE StyleSpan; see the call site. Rendered
+ * markdown is what forced this — emphasis nested inside strong is ordinary prose, and until now
+ * `fontStyle` was declared in the TypeScript types, merged by the JS side, and then dropped on the
+ * wire, so italic silently did nothing.
+ */
+fun typefaceStyleFor(weight: String?, style: String?): Int {
+  val bold = isBoldWeight(weight)
+  val italic = style == "italic"
+  return when {
+    bold && italic -> Typeface.BOLD_ITALIC
+    bold -> Typeface.BOLD
+    italic -> Typeface.ITALIC
+    else -> Typeface.NORMAL
+  }
 }
 
 private fun resolveTypeface(family: String?, weight: String?): Typeface {

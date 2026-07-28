@@ -89,6 +89,10 @@ function encodeRanges(ranges: TextRange[] | undefined): string {
         range.fontScale ?? '',
         range.baselineShift ?? '',
         range.interactive ? '1' : '0',
+        // APPEND-ONLY. Field positions are the contract with `decodeRanges` in VMTextModule.kt;
+        // inserting a field instead of appending makes every later field decode as its
+        // neighbour's value, which shows up as wrong colours rather than as an error.
+        range.fontStyle ?? '',
       ].join('~')
     );
   }
