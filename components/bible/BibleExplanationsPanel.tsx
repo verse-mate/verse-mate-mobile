@@ -523,7 +523,8 @@ export function BibleExplanationsPanel({
           <ScrollView
             key={tab.key}
             ref={tab.ref}
-            style={[styles.scrollView, activeTab !== tab.key && { display: 'none' }]}
+            style={[styles.scrollView, styles.pane, activeTab !== tab.key && styles.paneOffscreen]}
+            pointerEvents={activeTab === tab.key ? 'auto' : 'none'}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
             onScroll={activeTab === tab.key ? handleInternalScroll : undefined}
@@ -582,7 +583,8 @@ export function BibleExplanationsPanel({
           switches like the other 3 tabs. */}
         <ScrollView
           ref={studyScrollRef}
-          style={[styles.scrollView, activeTab !== 'study' && { display: 'none' }]}
+          style={[styles.scrollView, styles.pane, activeTab !== 'study' && styles.paneOffscreen]}
+          pointerEvents={activeTab === 'study' ? 'auto' : 'none'}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={true}
           onScroll={activeTab === 'study' ? handleInternalScroll : undefined}
@@ -599,7 +601,8 @@ export function BibleExplanationsPanel({
         {hasVisuals ? (
           <ScrollView
             ref={visualsScrollRef}
-            style={[styles.scrollView, activeTab !== 'visuals' && { display: 'none' }]}
+            style={[styles.scrollView, styles.pane, activeTab !== 'visuals' && styles.paneOffscreen]}
+            pointerEvents={activeTab === 'visuals' ? 'auto' : 'none'}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
             onScroll={activeTab === 'visuals' ? handleInternalScroll : undefined}
@@ -743,6 +746,35 @@ function createStyles(
     },
     scrollView: {
       flex: 1,
+    },
+    /**
+     * Tab panes are absolutely stacked, and an inactive one is moved OFFSCREEN rather than
+     * given `display: 'none'`.
+     *
+     * `display: 'none'` looks free because the views stay mounted, but it is not: Yoga skips
+     * layout for a hidden subtree, so flipping back to `flex` forces that whole tab to lay out
+     * again and Fabric then dispatches an `updateLayout` mount item for EVERY node in it — inside
+     * the Choreographer callback, which is the `animation` phase that `framestats` shows dominating
+     * every slow frame on this screen (7.2ms of an 8.3ms budget before the native text renderer,
+     * 4.1ms after). "Already mounted" is not the same as "no mount items".
+     *
+     * Translated offscreen, the pane keeps its computed layout, so a switch is one transform on one
+     * node instead of a layout pass over a subtree. Android clips it out of drawing, so the cost of
+     * keeping it around is memory and a one-time layout, not per-frame work.
+     *
+     * Absolute rather than flex because four panes in normal flow would each claim space and size
+     * the container to their sum; `contentArea` is already `position: 'relative'` for exactly this.
+     */
+    pane: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    paneOffscreen: {
+      // Far enough that no device width can bring any part of it back into view.
+      transform: [{ translateX: -10000 }],
     },
     contentArea: {
       flex: 1,
