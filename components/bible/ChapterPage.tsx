@@ -62,6 +62,7 @@ import {
   SCROLL_VELOCITY_THRESHOLD as FAB_SCROLL_VELOCITY_THRESHOLD,
 } from '@/hooks/bible/use-fab-visibility';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
@@ -533,6 +534,15 @@ export function ChapterPage({
   // setInterval — the perpetual interval was causing a regression
   // where the Bible/Insight toggle felt hitchy (setState every 200ms
   // competed with the toggle's React work). Resets on chapter change.
+  /**
+   * Whether the native renderer (and therefore paragraph windowing) is active.
+   *
+   * Read here so the progressive-reveal staging below can stand down: windowing
+   * already limits work to the visible paragraphs, and the staging's re-renders land
+   * on top of the view-switch animation.
+   */
+  const { useNativeText: nativeTextOn } = useNativeText();
+
   const [bibleSectionsMax, setBibleSectionsMax] = useState(3);
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on chapter change
   useEffect(() => {
@@ -540,13 +550,23 @@ export function ChapterPage({
   }, [bookId, chapterNumber]);
   useEffect(() => {
     if (isPreloading) return;
+    // Superseded by windowing on the native path. The reader already limits work to
+    // the paragraphs near the viewport, so staging adds nothing but two extra
+    // re-renders of the whole reader — and they land at 200ms and 500ms, straddling
+    // the 180ms view-switch animation, which is a plausible cause of the reported
+    // animation stutter. Reveal everything immediately and let windowing do the
+    // limiting.
+    if (nativeTextOn) {
+      setBibleSectionsMax(Number.POSITIVE_INFINITY);
+      return;
+    }
     const t1 = setTimeout(() => setBibleSectionsMax(20), 200);
     const t2 = setTimeout(() => setBibleSectionsMax(Number.POSITIVE_INFINITY), 500);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [isPreloading, bookId, chapterNumber]);
+  }, [isPreloading, bookId, chapterNumber, nativeTextOn]);
 
   // Track explanation tab content heights for scroll syncing
   const tabContentHeightsRef = useRef<
