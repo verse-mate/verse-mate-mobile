@@ -88,7 +88,7 @@ export interface GestureChapterPagerProps {
  * with the LIVE tree, so nine mounted pages cost every commit more than five do. Headroom is
  * not free, and it was buying nothing.
  */
-const RENDER_RADIUS = 2;
+const RENDER_RADIUS = 1;
 
 /** Page elements kept cached. Comfortably above the mounted range. */
 const PAGE_CACHE_LIMIT = 24;
