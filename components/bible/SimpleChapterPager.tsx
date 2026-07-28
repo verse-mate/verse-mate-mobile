@@ -297,10 +297,21 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * to be thrown away to keep the rewind protection.
      */
     const draggedSinceSeekRef = useRef(false);
+    /** True between a drag starting and the pager coming to rest. */
+    const isDraggingRef = useRef(false);
 
     const armProgrammaticGuard = (targetIndex: number) => {
       programmaticTargetRef.current = targetIndex;
-      draggedSinceSeekRef.current = false;
+      // Do NOT clear the drag flag while the user is mid-drag.
+      //
+      // This is what was still eating fast swipes. The recenter is triggered by
+      // the PREVIOUS swipe's navigation committing, which at a fast cadence lands
+      // in the middle of the NEXT drag. Clearing the flag there made that
+      // in-flight drag's page-selected event look like a trailing artifact of the
+      // seek, so it was swallowed: eleven drags produced six navigations and
+      // exactly five swallows. It presented as a hard block rather than a lag
+      // because the input genuinely went nowhere.
+      if (!isDraggingRef.current) draggedSinceSeekRef.current = false;
       if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
       // 400ms covers the worst-case trailing-event window observed in
       // logs (~5 spurious events over ~250ms). Errs generous because
@@ -433,7 +444,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // the user has not dragged since. A real swipe inside the guard window is
       // let through, which is what makes fast swiping possible at all.
       if (programmaticTargetRef.current !== null) {
-        if (!draggedSinceSeekRef.current) {
+        if (!draggedSinceSeekRef.current && !isDraggingRef.current) {
           perfAdd('swipe.trailingSwallowed', 1);
           return;
         }
@@ -511,6 +522,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // the trailing events of its own seek.
       if (state === 'dragging') {
         draggedSinceSeekRef.current = true;
+        isDraggingRef.current = true;
         // A drag begins: nothing has paged yet.
         pagedSinceDragRef.current = false;
         // How many gestures the PAGER actually sees. Compared against
@@ -523,6 +535,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // The recenter is over once the pager reports idle — that is the moment it
       // starts accepting drags again.
       if (state === 'idle') {
+        isDraggingRef.current = false;
         endRecenterSpan();
         // A drag that reached idle without ever paging was SNAPPED BACK by
         // ViewPager2 to the page it started on. Ten synthetic swipes at a 260ms
