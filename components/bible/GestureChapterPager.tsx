@@ -136,6 +136,9 @@ export function GestureChapterPager({
   const onChapterChangeRef = useRef(onChapterChange);
   onChapterChangeRef.current = onChapterChange;
 
+  /** When the last flick committed, for measuring the correction lag. */
+  const commitAtRef = useRef(0);
+
   /** Horizontal offset from the centred position, in px. Negative = towards next. */
   const offset = useSharedValue(0);
   /** Offset when the current gesture began, so a takeover starts from the right place. */
@@ -187,6 +190,15 @@ export function GestureChapterPager({
    * amount of offset, so the two cancel and the chapter stays on the same pixels.
    */
   useLayoutEffect(() => {
+    // How long the shifted window ran with an uncorrected offset. Zero means the
+    // correction landed in the same commit and the flash must come from elsewhere;
+    // anything above a frame means it did not, and the window must stop moving on
+    // every swipe rather than the timing being narrowed again.
+    if (commitAtRef.current > 0) {
+      perfAdd('gesturePager.correctionLagMs', Date.now() - commitAtRef.current);
+      perfAdd('gesturePager.corrections', 1);
+      commitAtRef.current = 0;
+    }
     offset.value = 0;
   }, [centre, offset]);
 
@@ -231,6 +243,10 @@ export function GestureChapterPager({
     // which puts the previous chapter under the viewport. Leaving it at ±width
     // keeps the TARGET chapter under the viewport for exactly as long as the old
     // window is still on screen.
+    // Stamped so the correction below can report how long the window and the
+    // offset disagreed. That disagreement IS the flash, so this measures the bug
+    // directly rather than the work around it.
+    commitAtRef.current = Date.now();
     setCentre(target);
     dispatchedRef.current.push(keyOf(target));
     perfAdd('gesturePager.flickPaged', 1);

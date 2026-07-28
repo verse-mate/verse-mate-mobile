@@ -518,8 +518,12 @@ export default function ChapterScreen() {
       // haptic feedback". A single swipe is unchanged; only a rapid burst is
       // thinned.
       const now = Date.now();
+      perfAdd('nav.chapterChange', 1);
       if (now - lastChapterHapticRef.current > CHAPTER_HAPTIC_MIN_GAP_MS) {
         lastChapterHapticRef.current = now;
+        // Counted so "double haptic" can be attributed. If this fires once per
+        // swipe then the second buzz is Android's selection haptic, not ours.
+        perfAdd('haptic.chapterChange', 1);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
 
