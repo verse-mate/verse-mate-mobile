@@ -52,7 +52,7 @@ import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
-import { perfRenderSpan, usePerfMountSpan } from '@/lib/perf';
+import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
 import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
 import { ParagraphText } from '@/lib/text/ParagraphText';
 import type { CompileTheme } from '@/lib/text/types';
@@ -441,6 +441,7 @@ export function ChapterReader({
   // Text visibility context for hybrid tokenization
   const { visibleYRange } = useTextVisibility();
 
+
   // Store verse layouts: map startVerse -> { y, height }
   const sectionPositions = useRef<Record<number, number>>({});
   const sectionLayouts = useRef<Record<number, { y: number; height: number }>>({});
@@ -507,6 +508,26 @@ export function ChapterReader({
   // hooks/bible/use-native-text.ts.
   const { useNativeText: useNativeTextRenderer } = useNativeText();
   const { showUnderlines: showLexUnderlines } = useLexiconUnderlines();
+
+  // Which inputs actually drive this component's re-renders. `reader.render.bible`
+  // fires ~113 times in a 45-second session, and every render is a React commit
+  // Fabric has to diff — at the measured per-commit cost that accounts for most of
+  // `completeRoot`, the largest single frame in the CPU profile. A span says a
+  // render happened; only this says why, which is the difference between fixing
+  // the cause and memoising something at random.
+  useWhyRender(explanationsOnly ? 'render.insight' : 'render.bible', {
+    visibleYRange,
+    chapter,
+    chapterHighlights,
+    autoHighlights,
+    explanation,
+    activeTab,
+    alignment,
+    showLexUnderlines,
+    useNativeTextRenderer,
+    userFontSize,
+    mode,
+  });
 
   /**
    * Width a paragraph will be laid out at, in dp.

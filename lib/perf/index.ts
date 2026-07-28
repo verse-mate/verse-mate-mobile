@@ -36,6 +36,7 @@ export {
   stopPerfMonitor,
 } from './monitor';
 export { flushPerfReport, installPerfSession, uninstallPerfSession } from './session';
+export { useWhyRender } from './why-render';
 export type {
   PerfBlockSummary,
   PerfMeta,
