@@ -204,10 +204,25 @@ export default function ChapterScreen() {
    * prev/next buttons and deep links; the pager watches the counter and ignores the
    * chapter props entirely. One writer, one reader, no guessing.
    */
-  const [externalNavSeq, setExternalNavSeq] = useState(0);
+  const [externalNav, setExternalNav] = useState<{
+    seq: number;
+    bookId: number;
+    chapterNumber: number;
+  } | null>(null);
   const navigateExternally = useCallback(
     (nextBookId: number, nextChapter: number) => {
-      setExternalNavSeq((n) => n + 1);
+      // The TARGET travels with the signal.
+      //
+      // A bare counter raced the props and produced the chapter-nav button bug: the pager
+      // is given deferredBookId/deferredChapterNumber, which lag by design, while the
+      // counter is urgent — so the pager woke up and read the chapter it was ALREADY on.
+      // Measured: tapping Next moved the header to Genesis 2 while the page stayed on
+      // Genesis 1, and a Prev tap from that stale position moved the page FORWARD.
+      setExternalNav((prev) => ({
+        seq: (prev?.seq ?? 0) + 1,
+        bookId: nextBookId,
+        chapterNumber: nextChapter,
+      }));
       navigateToChapter(nextBookId, nextChapter);
     },
     [navigateToChapter]
@@ -882,7 +897,7 @@ export default function ChapterScreen() {
                 <GestureChapterPager
                   bookId={deferredBookId}
                   chapterNumber={deferredChapterNumber}
-                  externalNavSeq={externalNavSeq}
+                  externalNav={externalNav}
                   bookName={bookName}
                   booksMetadata={booksMetadata}
                   onChapterChange={handlePageChange}
