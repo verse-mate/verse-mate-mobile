@@ -69,11 +69,13 @@ export interface GestureChapterPagerProps {
 /**
  * How many chapters either side of the current one stay mounted.
  *
- * Two is enough for a fast run to stay ahead of React, and off-centre pages are
- * already cheap: `ChapterPage` defers a buffer chapter's real content to idle time
- * and renders exact-height placeholders until then.
+ * Four, because two was not enough: at roughly double the cadence of a scripted run the
+ * gesture reached the edge of the mounted range and was refused, which presents as the
+ * swipe stalling and snapping back before continuing. Off-centre pages are cheap —
+ * `ChapterPage` defers a buffer chapter's real content to idle time and renders
+ * exact-height placeholders until then — so headroom costs little.
  */
-const RENDER_RADIUS = 2;
+const RENDER_RADIUS = 4;
 
 /** Fraction of the screen a slow drag must cross to page. */
 const PAGE_DISTANCE_RATIO = 0.28;
@@ -196,6 +198,12 @@ export function GestureChapterPager({
   /** Latest chapter awaiting a route dispatch, its timer, and when the last flick landed. */
   const pendingRouteRef = useRef<ChapterLocation | null>(null);
   const lastFlickAtRef = useRef(0);
+  /**
+   * Chapters this pager has told the route about and not yet seen come back.
+   *
+   * Without it, the route's own echo reads as an external navigation.
+   */
+  const dispatchedKeysRef = useRef<Set<string>>(new Set());
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -311,6 +319,19 @@ export function GestureChapterPager({
     const currentLoc = chapterAt.current.get(indexRef.current);
     if (currentLoc && keyOf(currentLoc) === committedKey) return;
 
+    // A commit the PAGER caused must never move the pager.
+    //
+    // During a fast run the route is always behind, so every one of its commits looked
+    // like an external navigation to a chapter the reader had left — and this effect
+    // dutifully jumped back to it. That is the reported "it forces me back a few and
+    // then continues", and the teleport during quick back-and-forth. The dispatched
+    // set is the guard that was lost in the move to absolute indexing.
+    if (dispatchedKeysRef.current.has(committedKey)) {
+      dispatchedKeysRef.current.delete(committedKey);
+      perfAdd('gesturePager.ownCommitIgnored', 1);
+      return;
+    }
+
     const known = indexOfKey.current.get(committedKey);
     if (known !== undefined) {
       scrollX.value = -(known - origin) * width;
@@ -382,6 +403,7 @@ export function GestureChapterPager({
         pendingRouteRef.current = null;
         if (!next) return;
         perfAdd('gesturePager.routeDispatched', 1);
+        dispatchedKeysRef.current.add(keyOf(next));
         onChapterChangeRef.current(next.bookId, next.chapterNumber);
       },
       inRun ? ROUTE_RUN_SETTLE_MS : ROUTE_SETTLE_MS
