@@ -47,6 +47,7 @@ import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { ChapterPage } from '@/components/bible/ChapterPage';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
+import { GestureChapterPager } from '@/components/bible/GestureChapterPager';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
@@ -71,6 +72,7 @@ import {
 } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
+import { useGesturePager } from '@/hooks/bible/use-gesture-pager';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
@@ -181,6 +183,8 @@ export default function ChapterScreen() {
       );
     }
   };
+
+  const { useGesturePager: useGesturePagerArm } = useGesturePager();
 
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
@@ -839,14 +843,29 @@ export default function ChapterScreen() {
                 absolutely positioned against the content area only — the toggle
                 header + content tabs above stay visible and interactive. */}
             <View style={styles.pagerWrapper}>
-              <SimpleChapterPager
-                bookId={deferredBookId}
-                chapterNumber={deferredChapterNumber}
-                bookName={bookName}
-                booksMetadata={booksMetadata}
-                onChapterChange={handlePageChange}
-                renderChapterPage={renderChapterPage}
-              />
+              {useGesturePagerArm ? (
+                /* Gesture-driven paging. Owns the horizontal offset as a shared
+                   value, so a new flick interrupts the running settle instead of
+                   being refused — the failure ViewPager2 could not be talked out
+                   of. Off by default until measured against the path below. */
+                <GestureChapterPager
+                  bookId={deferredBookId}
+                  chapterNumber={deferredChapterNumber}
+                  bookName={bookName}
+                  booksMetadata={booksMetadata}
+                  onChapterChange={handlePageChange}
+                  renderChapterPage={renderChapterPage}
+                />
+              ) : (
+                <SimpleChapterPager
+                  bookId={deferredBookId}
+                  chapterNumber={deferredChapterNumber}
+                  bookName={bookName}
+                  booksMetadata={booksMetadata}
+                  onChapterChange={handlePageChange}
+                  renderChapterPage={renderChapterPage}
+                />
+              )}
               {/* Both view and inner-tab switches are now driven by
                   sharedValues on the UI thread (toggleProgress +
                   activeTabProgress in ChapterPage), so no skeleton
