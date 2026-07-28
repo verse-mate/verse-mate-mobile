@@ -166,6 +166,8 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     // stays open, which matters because an open span is attributed to every
     // JS block that follows it.
     const swipeSpanRef = useRef<(() => void) | null>(null);
+    /** Phase span: pager settle -> navigation actually dispatched. */
+    const swipeNavSpanRef = useRef<(() => void) | null>(null);
     const swipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const clearSwipeTimeout = () => {
       if (swipeTimeoutRef.current !== null) {
@@ -286,6 +288,13 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     const beginSwipeSpan = () => {
       swipeSpanRef.current?.();
       clearSwipeTimeout();
+      // Phase 1 of the swipe: the pager has settled on a new page and a navigation
+      // is pending, but React has not been told yet. Long here means the pager
+      // itself is slow to report; long in swipe.commit means the new chapter is slow
+      // to build. Splitting them is the difference between "the gesture is
+      // sluggish" and "the content is slow", which feel identical to a user.
+      swipeNavSpanRef.current?.();
+      swipeNavSpanRef.current = perfSpan('swipe.pendingNav', { from: currentKeyRef.current });
       swipeSpanRef.current = perfSpan('swipe.settle', { from: currentKeyRef.current });
       swipeTimeoutRef.current = setTimeout(() => {
         // Closed as abandoned, so a recorded duration is a known ceiling rather

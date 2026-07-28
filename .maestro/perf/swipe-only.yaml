@@ -1,0 +1,59 @@
+appId: org.versemate.app
+name: Perf — swipe in isolation
+description: >
+  Psalm 119, swipes only. Isolates the worst-reported symptom from scrolling and
+  view switching, so swipe cost is not averaged in with everything else.
+tags:
+  - perf
+---
+
+# Swipe is the worst-reported symptom and the hardest to read from the full
+# workout, where its spans sit alongside scrolling and four view switches. This does
+# nothing but swipe, so swipe.pendingNav and swipe.settle describe swiping and
+# nothing else.
+
+- runFlow: shared/reset-to-reader.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-old-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-psalms"
+    direction: DOWN
+- tapOn:
+    id: "book-item-psalms"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "chapter-119"
+    direction: DOWN
+- tapOn:
+    id: "chapter-119"
+- extendedWaitUntil:
+    visible:
+      text: "Psalms 119"
+    timeout: 30000
+- waitForAnimationToEnd
+
+# Six swipes, alternating, with a settle between each so one swipe's cost cannot
+# bleed into the next one's measurement.
+- repeat:
+    times: 3
+    commands:
+      - swipe:
+          start: 85%, 50%
+          end: 15%, 50%
+          duration: 250
+      - waitForAnimationToEnd
+      - swipe:
+          start: 15%, 50%
+          end: 85%, 50%
+          duration: 250
+      - waitForAnimationToEnd
