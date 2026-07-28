@@ -189,11 +189,36 @@ ViewPager2's velocity tracker may not see a fling at all. Synthetic runs are a w
 proxy here, and the operator's own report — a high pace keeps up, only a very fast
 one blocks — is the better evidence.
 
-If that last case is worth closing, the fix is to stop delegating the paging
-decision to ViewPager2: track horizontal offset and velocity via `onPageScroll`,
-and call `setPage` when a directional flick is unambiguous even though the pager
-would have declined. That is real work and should not be started without first
-confirming on a finger, not on `input swipe`.
+**That last case was attempted and it does not work.** Recovering intent from
+`onPageScroll` — signed peak travel of the drag, gated on a 320ms flick window to
+avoid turning a cancelled drag into a navigation — and calling `setPage` when
+ViewPager2 declined:
+
+| | without | with |
+| --- | --- | --- |
+| `pager.dragStart` | 10 | 10 |
+| `swipe.navResolved` | 5 | 5 |
+| `pager.selected.p2` | 4 | 4 |
+| `swipe.forcedPage` | — | 4 |
+
+`setPage` was called four times and produced zero additional navigations, and the
+operator's own testing agreed before the numbers arrived. The reason is the
+diagnosis eating itself: ViewPager2 declined those drags because it was still
+settling, and a pager too busy to accept a drag is equally too busy to accept a
+programmatic page. Reverted.
+
+What that rules out is worth keeping: **no amount of recovering intent in JS and
+handing it back to ViewPager2 will work**, because the refusal is downstream of us.
+A real fix has to take the paging decision away from ViewPager2 — own the pager
+offset in a gesture handler, or drop the 3-page recenter model for a virtualised
+pager where there is no settle to collide with. Both are substantial, and the
+current behaviour is fast enough that neither is urgent.
+
+One measurement caveat that cost a wrong conclusion here: a hand-driven session
+and a scripted one in the SAME recording window are indistinguishable in the
+report, and mixing them made a no-op look like churn (`pager.dragStart` 48,
+`swipe.navResolved` 23 for ten scripted swipes). Record one or the other, never
+both.
 
 ## Harness notes worth keeping
 
