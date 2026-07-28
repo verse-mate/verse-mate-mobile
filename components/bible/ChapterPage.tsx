@@ -875,13 +875,31 @@ export function ChapterPage({
    * Handle scroll events - calculate velocity, detect bottom, and update visible range
    */
   /**
-   * Latest `onScroll` prop, in a ref.
+   * Latest `onScroll` prop, in a ref, read ONLY from the JS thread.
    *
-   * A worklet cannot close over a changing JS value, and `runOnJS` needs a stable
-   * reference — capturing the prop directly would freeze the first render's copy.
+   * The ref must never be touched inside the worklet. Doing that serialises the ref
+   * OBJECT into the worklet, and the next render's `onScrollRef.current = onScroll`
+   * then fights it:
+   *
+   *   [Worklets] Tried to modify key `current` of an object which has been already
+   *   passed to a worklet.
+   *
+   * which logged on every render and left the callback path unreliable. The worklet
+   * instead calls `notifyScrollTransition` — a stable function — via runOnJS, and the
+   * ref is read there, on the JS thread, where mutating it is fine.
    */
   const onScrollRef = useRef(onScroll);
   onScrollRef.current = onScroll;
+
+  /**
+   * Stable JS-thread entry point for the scroll worklet.
+   *
+   * Stable identity matters: `runOnJS` captures whatever it is given, so a function
+   * recreated each render would be re-serialised each render.
+   */
+  const notifyScrollTransition = useCallback((velocity: number, isAtBottom: boolean) => {
+    onScrollRef.current?.(velocity, isAtBottom);
+  }, []);
 
   /**
    * Push the visible Y range to JS. Called from the scroll worklet at most every
@@ -954,16 +972,14 @@ export function ChapterPage({
 
       if (nextFabVisible !== fabVisibleSv.value) {
         fabVisibleSv.value = nextFabVisible;
-        if (onScrollRef.current) {
-          // Hand over the velocity that caused the transition so the JS side's
-          // existing threshold logic reaches the same conclusion.
-          runOnJS(onScrollRef.current)(velocity, isAtBottom);
-        }
+        // Hand over the velocity that caused the transition so the JS side's existing
+        // threshold logic reaches the same conclusion.
+        runOnJS(notifyScrollTransition)(velocity, isAtBottom);
       } else if (isAtBottom && !fabVisibleSv.value) {
         // Reaching the bottom must always show the FAB, even without a velocity
         // spike — a slow drag to the end would otherwise leave it hidden.
         fabVisibleSv.value = true;
-        if (onScrollRef.current) runOnJS(onScrollRef.current)(velocity, true);
+        runOnJS(notifyScrollTransition)(velocity, true);
       }
 
       // Text-visibility range, throttled. Tokenization only needs a coarse window,
