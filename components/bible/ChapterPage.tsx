@@ -68,6 +68,7 @@ import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { perfAdd, usePerfMountSpan, useWhyRender, watchFrames } from '@/lib/perf';
+import { useStableList } from '@/lib/perf/use-stable-list';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -501,14 +502,31 @@ export function ChapterPage({
    * property of the chapter rather than of whatever the router last committed, so it
    * cannot bleed regardless of how far behind the route runs.
    */
-  const chapterHighlights = useMemo(
-    () => routeHighlights.filter((h) => h.book_id === bookId && h.chapter_number === chapterNumber),
-    [routeHighlights, bookId, chapterNumber]
+  //
+  // Wrapped in useStableList because the filter alone made things WORSE: it produces a new
+  // array on every render of every page, and the source arrays churn identity constantly,
+  // so consumers re-rendered even when the filtered contents were identical. Measured after
+  // adding the filter: reader.render.bible 889 renders and paragraph.compile 999 calls for
+  // ~20 chapter changes, with 157 renders attributed to chapterHighlights and 142 to
+  // autoHighlights. The signature keeps the correctness and drops the churn.
+  const chapterHighlights = useStableList(
+    useMemo(
+      () =>
+        routeHighlights.filter((h) => h.book_id === bookId && h.chapter_number === chapterNumber),
+      [routeHighlights, bookId, chapterNumber]
+    ),
+    (h) =>
+      `${h.highlight_id}:${h.color}:${h.start_verse}:${h.end_verse}:${h.start_char}:${h.end_char}`
   );
-  const autoHighlights = useMemo(
-    () =>
-      routeAutoHighlights.filter((h) => h.book_id === bookId && h.chapter_number === chapterNumber),
-    [routeAutoHighlights, bookId, chapterNumber]
+  const autoHighlights = useStableList(
+    useMemo(
+      () =>
+        routeAutoHighlights.filter(
+          (h) => h.book_id === bookId && h.chapter_number === chapterNumber
+        ),
+      [routeAutoHighlights, bookId, chapterNumber]
+    ),
+    (h) => `${h.auto_highlight_id}:${h.theme_color}:${h.start_verse}:${h.end_verse}`
   );
 
   // Pre-warmed flag: once the chapter has settled on Bible view, mount
