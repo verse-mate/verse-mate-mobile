@@ -64,35 +64,75 @@ improvements that could not move a number dominated by something else.
 4. **The neighbour chapter now builds in idle time** rather than in the same
    commit as the navigation.
 
-Measured effect of 1+3 alone (same flow, same phone): idle 72.1% → 75.1%,
-`regExpConstructor` 178ms → 0, `MarkdownIt` 211ms → 10ms, GC 396ms → 275ms, our
-components 620ms → 385ms.
+5. **The BibleInteraction context value was a fresh object on every provider
+   render**, so every consumer re-rendered whether or not its data had moved. The
+   re-render probe measured `render.page.by.bibleInteraction` at 83 in a
+   45-second swipe session, cascading into both readers on all three pager pages.
+   A plain `useMemo` could not fix it — the three mutations come from
+   `useHighlights`, which has no `useCallback` anywhere, and the five triggers are
+   inline, so every dependency was already new each render. The actions are now a
+   facade created once that delegates through a ref; `value` depends only on the
+   two data arrays.
 
-Swipe path across the day: `swipe.settle` 838ms → 607ms mean (max 1444ms →
-653ms), `swipe.pendingNav` 374ms → 266ms, frame p99 150ms → 81ms.
+### Measured, same flow and phone, first profile vs last
+
+| | before | after |
+| --- | --- | --- |
+| JS idle | 72.1% | **85.7%** |
+| busy JS | ~5080ms | **~2600ms** |
+| `completeRoot` | 1344ms | **315ms** |
+| `createNode` | 350ms | **113ms** |
+| GC young gen | 396ms | 210ms |
+| `regExpConstructor` | 178ms | **0** |
+| our components | 620ms | 453ms |
+
+Span report across the day: `reader.mount.bible` 700–800ms → **85ms**,
+`view.switch` 418ms → **105ms**, `swipe.settle` 838ms → **521ms** mean (max
+1444ms → 676ms), `swipe.pendingNav` 374ms → 284ms, legacy text nodes 9113 →
+**1582**, reader renders 113 → **76**, frame p99 150ms → ~42ms, Missed Vsync 17 →
+10.
+
+Frame-level numbers vary a lot run to run (the same flow has produced 3.9% and
+4.6% jank back to back); the JS-side numbers are the trustworthy signal.
+
+### An honest negative result
+
+Making `useAutoHighlights` return a frozen shared empty array did **not** move
+`render.bible.by.autoHighlights` (28 before, 28 after). That churn is real
+per-chapter data, not the `|| []`. The change is still correct — it removes a
+genuine per-render allocation when the query has no data — but it was not the
+driver, and recording it as a win would misdirect the next person.
 
 ## What is left, in order
 
-1. **`completeRoot` is still ~1262ms (28% of busy time).** It is proportional to
-   the live tree. The remaining big contributors are the three chapters the pager
-   keeps mounted and whatever the Insight subtree costs while visible. Next
-   measurement to take: how many commits happen per swipe, and how large the tree
-   is at each. If commit count is the driver, batching or `startTransition` on the
-   chapter change is the fix; if tree size is, virtualization is.
-2. **React is rendering synchronously** (`renderRootSync` 4066ms,
-   `performSyncWorkOnRoot` 1436ms). Sync renders cannot yield to a gesture. A
-   chapter change dispatched inside `startTransition` would let React interrupt
-   itself for the swipe. Untried.
-3. **`data.alignment` reports mean 443ms, max 3074ms over 20 calls.** Mostly await
+1. **`swipe.settle` is 521ms mean and is now the biggest single user-visible
+   number.** It covers navigation dispatch through the new chapter committing.
+   With `completeRoot` down to 315ms across a whole 18s session, the commit is no
+   longer the bulk of it — so the next step is to break `settle` into phases the
+   way the swipe was split, rather than assume which part is slow.
+2. **React still renders synchronously**, and sync renders cannot yield to a
+   gesture. A chapter change dispatched inside `startTransition` would let React
+   interrupt itself for the swipe. Untried, and now more attractive than when the
+   commit itself dominated.
+3. **`compileParagraph` is 366ms — the largest remaining cost in our own code.**
+   It runs 281–314 times per session for roughly 7 chapters; worth checking
+   whether the memo key is churning rather than making the function faster.
+4. **`[Native] ErrorConstructor` shows 58ms.** Something is constructing Error
+   objects in a hot path. Small, but unexplained, and unexplained costs in this
+   project have a record of being someone's throwaway work.
+5. **The worst JS block (~2000ms) is at app startup**, not in swiping — the top
+   three blocks had no span open and two were in the first two seconds. Startup is
+   a separate problem from the one being worked on, and nobody has looked at it.
+6. **`data.alignment` reports mean 443ms, max 3074ms over 20 calls.** Mostly await
    rather than CPU (the profile puts lexicon CPU at ~120ms), but the first load
    parses a 17.8MB, 18,100-entry JSON. Separately, `loadAlignmentFor` rebuilds two
    whole-lexicon structures — an 18,100-key object spread and an `Object.entries`
    pass — on every uncached chapter, neither of which depends on the chapter.
    Cheap to hoist, in the `@versemate/lexicon` repo rather than here.
-4. **Insight/Topics still use the legacy per-word renderer.** No longer urgent —
+7. **Insight/Topics still use the legacy per-word renderer.** No longer urgent —
    the counter shows they contribute almost nothing in a reading session — but it
    is the largest unconverted surface.
-5. **iOS has no Swift counterpart yet**, so the native path is Android-only and
+8. **iOS has no Swift counterpart yet**, so the native path is Android-only and
    the flag stays off by default there.
 
 ## Harness notes worth keeping
