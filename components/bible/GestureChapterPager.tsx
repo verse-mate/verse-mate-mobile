@@ -38,7 +38,7 @@
  * exact-height placeholders until then.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -178,6 +178,18 @@ export function GestureChapterPager({
     return { before, after, all: [...before, centre, ...after] };
   }, [centre, booksMetadata]);
 
+  /**
+   * Snap the offset back to the centred position, after the window has moved.
+   *
+   * `useLayoutEffect` rather than `useEffect` so the correction is issued in the
+   * same commit that changed the window, not a frame later. The window shift moves
+   * the target chapter one slot towards the centre and this removes the matching
+   * amount of offset, so the two cancel and the chapter stays on the same pixels.
+   */
+  useLayoutEffect(() => {
+    offset.value = 0;
+  }, [centre, offset]);
+
   /** Index of the centred chapter within the rendered window. */
   const centreIndex = windowChapters.before.length;
 
@@ -190,13 +202,14 @@ export function GestureChapterPager({
       // Came from somewhere else entirely — that wins.
       queue.length = 0;
       if (keyOf(centreRef.current) !== committed) {
-        offset.value = 0;
+        // No offset write here either — same one-frame flash. The layout effect
+        // below corrects it once the new window is committed.
         setCentre({ bookId, chapterNumber });
       }
       return;
     }
     queue.splice(0, at + 1);
-  }, [bookId, chapterNumber, offset]);
+  }, [bookId, chapterNumber]);
 
   /**
    * Commit a settled flick: move the centre and zero the offset together.
@@ -206,18 +219,24 @@ export function GestureChapterPager({
    * one slot and resets the offset to 0, which lands on the same pixels. The user
    * sees continuous motion, never a jump.
    */
-  const commitFlick = useCallback(
-    (target: ChapterLocation) => {
-      const span = perfSpan('gesturePager.commit', { to: keyOf(target) });
-      offset.value = 0;
-      setCentre(target);
-      dispatchedRef.current.push(keyOf(target));
-      perfAdd('gesturePager.flickPaged', 1);
-      onChapterChangeRef.current(target.bookId, target.chapterNumber);
-      span();
-    },
-    [offset]
-  );
+  const commitFlick = useCallback((target: ChapterLocation) => {
+    const span = perfSpan('gesturePager.commit', { to: keyOf(target) });
+    // The offset is deliberately LEFT at ±width here. It is corrected in the
+    // layout effect below, once the shifted window has actually committed.
+    //
+    // Zeroing it here — the obvious-looking thing — flashed the PREVIOUS chapter
+    // for a frame on every single swipe. A shared-value write from the JS thread
+    // lands on the UI thread on the next frame, while `setCentre` needs a React
+    // render first, so for that frame the offset was zero against the OLD window,
+    // which puts the previous chapter under the viewport. Leaving it at ±width
+    // keeps the TARGET chapter under the viewport for exactly as long as the old
+    // window is still on screen.
+    setCentre(target);
+    dispatchedRef.current.push(keyOf(target));
+    perfAdd('gesturePager.flickPaged', 1);
+    onChapterChangeRef.current(target.bookId, target.chapterNumber);
+    span();
+  }, []);
 
   const settleBack = useCallback(() => {
     perfAdd('gesturePager.flickCancelled', 1);
