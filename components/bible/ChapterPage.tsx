@@ -332,6 +332,13 @@ const VISIBILITY_PUSH_INTERVAL_MS = 150;
  * Longer than the 180ms toggle animation on purpose: a stall that lands just after
  * the animation finishes is still felt as part of the switch.
  */
+/**
+ * The pill's animation duration, mirrored from the screen's `withTiming` call, plus the margin
+ * the Insight mount waits beyond it.
+ */
+const VIEW_SWITCH_ANIM_MS = 180;
+const VIEW_SWITCH_MOUNT_MARGIN_MS = 40;
+
 const VIEW_SWITCH_FRAME_WINDOW_MS = 500;
 
 export interface ChapterPageProps {
@@ -559,6 +566,21 @@ export function ChapterPage({
   const [insightPrewarmed, setInsightPrewarmed] = useState(false);
 
   /**
+   * Whether a toggle-driven Insight mount is allowed to happen yet.
+   *
+   * The pill animates on the UI thread, and creating the Insight subtree's views is also UI
+   * thread work — so mounting it in the same commit as the toggle put both on the same thread
+   * at the same moment. Measured over seven deliberate toggles: 2 dropped frames with a worst
+   * frame of 103ms in a 180ms animation, and `reader.mount.explanations` firing six times.
+   *
+   * There is no reason for the two to be coupled. The mount waits until the animation is over,
+   * so the pill gets the thread to itself and the content arrives as it finishes. When the idle
+   * prewarm has already run — the common case for a chapter the reader has sat on — this
+   * changes nothing, because the subtree is mounted before the tap.
+   */
+  const [insightMountAllowed, setInsightMountAllowed] = useState(false);
+
+  /**
    * Whether a buffer page may build its real content yet.
    *
    * Rendering buffer chapters is what makes a swipe land on text instead of a
@@ -591,6 +613,22 @@ export function ChapterPage({
   }, [isPreloading, bookId, chapterNumber]);
 
   const { deleteNote, isDeletingNote } = useNotes();
+
+  // A toggle to Insight mounts only after the pill animation has finished, so the two never
+  // share a frame. Reset when leaving Insight so a later toggle defers again rather than
+  // mounting on the tap.
+  useEffect(() => {
+    if (activeView !== 'explanations') {
+      setInsightMountAllowed((was) => (was ? false : was));
+      return;
+    }
+    if (insightPrewarmed || insightMountAllowed) return;
+    const timer = setTimeout(
+      () => setInsightMountAllowed(true),
+      VIEW_SWITCH_ANIM_MS + VIEW_SWITCH_MOUNT_MARGIN_MS
+    );
+    return () => clearTimeout(timer);
+  }, [activeView, insightPrewarmed, insightMountAllowed]);
 
   // Schedule the Insight subtree mount in idle time after the chapter
   // becomes available. Runs only for the active page (not buffer pages).
@@ -1420,7 +1458,7 @@ export function ChapterPage({
               pages so swipes-while-on-Insight have content ready), OR
            2. We've pre-warmed it after chapter settle (insightPrewarmed),
               so the Bible -> Insight toggle is an instant style flip. */}
-      {(activeView === 'explanations' || insightPrewarmed) && (
+      {(insightPrewarmed || insightMountAllowed) && (
         <Animated.View
           style={[styles.container, styles.absoluteFill, insightContainerStyle]}
           collapsable={false}
