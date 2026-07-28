@@ -364,6 +364,15 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       // immediately re-establish what had just been cleared. That is why slow-swipe
       // selection survived two fixes.
       if (swipeClaimed && event.actionMasked != MotionEvent.ACTION_DOWN) return false
+      // Remaining events of a dismissing tap: swallowed, never forwarded to super.
+      if (dismissedForeignSelection && event.actionMasked != MotionEvent.ACTION_DOWN) {
+        if (event.actionMasked == MotionEvent.ACTION_UP ||
+          event.actionMasked == MotionEvent.ACTION_CANCEL
+        ) {
+          dismissedForeignSelection = false
+        }
+        return true
+      }
 
       when (event.actionMasked) {
         MotionEvent.ACTION_DOWN -> {
@@ -387,7 +396,16 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           // one. Recorded on DOWN so the UP handler can consume the tap.
           dismissedForeignSelection = VMTextView.clearActiveSelection(except = this)
           if (dismissedForeignSelection) {
-            Log.d(TOUCH_TAG, "DOWN dismissed a selection owned by another paragraph")
+            Log.d(TOUCH_TAG, "DOWN dismissed a foreign selection — consuming this gesture")
+            // Withhold the WHOLE gesture from super, starting with this DOWN.
+            //
+            // Consuming only at UP was not enough: super still saw down/move/up and the
+            // platform selected a word in the tapped paragraph, so dismissing one
+            // selection immediately created another. The trace showed it exactly —
+            // `DOWN dismissed a selection owned by another paragraph` followed by
+            // `UP ... sel=102..106`. A tap whose entire purpose is to dismiss must do
+            // nothing else at all.
+            return true
           }
 
           // Suppress the platform's double-tap-to-select-a-word.
