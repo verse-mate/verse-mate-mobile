@@ -79,6 +79,7 @@ import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { perfAdd } from '@/lib/perf';
 import {
   useBibleChapter,
   usePrefetchNextChapter,
