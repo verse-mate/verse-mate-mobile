@@ -46,6 +46,46 @@ class MeasureRequest : Record {
   @Field var textAlign: String? = null
 }
 
+/**
+ * Parse the encoded decoration list.
+ *
+ * Format: ranges separated by `|`, fields by `~`, in this fixed order:
+ *
+ *   start ~ end ~ underlineStyle ~ underlineColor ~ underlineThickness ~
+ *   backgroundColor ~ color ~ fontWeight ~ fontScale ~ baselineShift ~ interactive
+ *
+ * An empty field means absent. `~` and `|` cannot appear in any value — the fields are
+ * integers, floats, CSS colour strings and a small set of keywords.
+ *
+ * Records are constructed directly here, so the existing `toRange` conversion is reused
+ * unchanged and only the transport differs from before.
+ */
+private fun decodeRanges(encoded: String?): List<RangeRecord> {
+  if (encoded.isNullOrEmpty()) return emptyList()
+  val out = ArrayList<RangeRecord>()
+  for (chunk in encoded.split('|')) {
+    if (chunk.isEmpty()) continue
+    val f = chunk.split('~')
+    if (f.size < 11) continue
+    out.add(
+      RangeRecord().apply {
+        start = f[0].toIntOrNull() ?: 0
+        end = f[1].toIntOrNull() ?: 0
+        underlineStyle = f[2].ifEmpty { null }
+        underlineColor = f[3].ifEmpty { null }
+        underlineThickness = f[4].toDoubleOrNull()
+        backgroundColor = f[5].ifEmpty { null }
+        color = f[6].ifEmpty { null }
+        fontWeight = f[7].ifEmpty { null }
+        fontScale = f[8].toDoubleOrNull()
+        baselineShift = f[9].toDoubleOrNull()
+        interactive = f[10] == "1"
+      }
+    )
+  }
+  return out
+}
+
 class VMTextModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("VMText")
@@ -131,9 +171,32 @@ class VMTextModule : Module() {
       Prop("textAlign") { view: VMTextView, value: String? ->
         view.updateSpec(view.currentSpec().copy(textAlign = value))
       }
-      Prop("ranges") { view: VMTextView, value: List<RangeRecord>? ->
+      /**
+       * Decorations, as ONE encoded string rather than a list of records.
+       *
+       * A `List<RangeRecord>` prop crashed:
+       *
+       *   Cannot set prop 'ranges' on view VMTextView
+       *   -> IllegalStateException: Already in the pool!
+       *   -> NullPointerException: null cannot be cast to non-null type T of
+       *      androidx.core.util.Pools.SimplePool
+       *
+       * Expo converts an array prop element by element through React Native `Dynamic`
+       * objects, which come from a `Pools.SimplePool`, and under rapid mount/unmount that
+       * pool gets a double release and a null acquire. The setter then throws, the view
+       * never receives its ranges, and the app's error boundary catches it — which is the
+       * blank screen seen while stress-testing swipes. It was investigated as a
+       * coordinate bug in the pager first; the operator's screenshot of the red box is
+       * what actually identified it.
+       *
+       * A single String touches none of that machinery. See `encodeRanges` in
+       * src/VMText.tsx for the format; the two must be changed together.
+       */
+      Prop("rangesEncoded") { view: VMTextView, value: String? ->
         view.updateSpec(
-          view.currentSpec().copy(ranges = (value ?: emptyList()).map { it.toRange(view.density()) })
+          view.currentSpec().copy(
+            ranges = decodeRanges(value).map { it.toRange(view.density()) }
+          )
         )
       }
     }

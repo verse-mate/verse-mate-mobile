@@ -23,7 +23,7 @@
 
 import { AppState, type AppStateStatus } from 'react-native';
 import { emitPerfReport } from './emit';
-import { isPerfMonitorRunning, startPerfMonitor, stopPerfMonitor } from './monitor';
+import { isPerfMonitorRunning, startPerfMonitor, stopPerfMonitor, perfCount } from './monitor';
 import type { PerfReport } from './types';
 
 /**
@@ -71,11 +71,57 @@ export function flushPerfReport(label = 'session'): PerfReport | null {
  * Start the dev perf session. Idempotent — safe to call from a layout that
  * remounts. Returns a teardown function for tests.
  */
+/**
+ * Mirror every console error into the perf channel, tagged `[VMERR]`.
+ *
+ * ## Why
+ *
+ * A red-box error is visible to whoever is holding the phone and invisible to anyone
+ * reading a capture afterwards. That gap cost a whole debugging round: the blank screen
+ * during a swipe stress test was the app's error boundary catching
+ * "Cannot set prop 'ranges' ... Already in the pool!", and it was diagnosed instead as a
+ * coordinate divergence in the pager — a wrong conclusion that a visible error would have
+ * prevented immediately.
+ *
+ * Errors DO reach Metro's log, but only as prose buried in thousands of lines. `[VMERR]`
+ * makes them greppable, and the counter makes them appear in the report next to
+ * everything else, so a capture says "this run had 3 errors" rather than staying silent.
+ *
+ * The original console.error is always called, so LogBox and any other consumer behave
+ * exactly as before.
+ */
+let restoreConsoleError: (() => void) | null = null;
+
+function installErrorCapture(): void {
+  if (restoreConsoleError) return;
+  const original = console.error;
+  console.error = (...args: unknown[]) => {
+    try {
+      perfCount('errors', 1);
+      // First line only: a stack is already in Metro's output, and a report line has a
+      // size budget it must not blow.
+      const summary = args
+        .map((a) => (a instanceof Error ? a.message : String(a)))
+        .join(' ')
+        .split('\n')[0]
+        .slice(0, 300);
+      original(`[VMERR] ${summary}`);
+    } catch {
+      // Never let the reporter break error reporting.
+    }
+    original(...(args as []));
+  };
+  restoreConsoleError = () => {
+    console.error = original;
+  };
+}
+
 export function installPerfSession(): () => void {
   if (!__DEV__ || installed) return () => undefined;
   installed = true;
 
   startPerfMonitor('session');
+  installErrorCapture();
 
   const onChange = (next: AppStateStatus) => {
     // 'inactive' is an iOS-only transitional state (control centre, app
