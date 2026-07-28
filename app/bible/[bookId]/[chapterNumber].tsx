@@ -47,7 +47,10 @@ import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { ChapterPage } from '@/components/bible/ChapterPage';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
-import { GestureChapterPager } from '@/components/bible/GestureChapterPager';
+import {
+  GestureChapterPager,
+  type GestureChapterPagerRef,
+} from '@/components/bible/GestureChapterPager';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
@@ -204,6 +207,15 @@ export default function ChapterScreen() {
    * prev/next buttons and deep links; the pager watches the counter and ignores the
    * chapter props entirely. One writer, one reader, no guessing.
    */
+  /**
+   * Handle on the gesture pager, so the chapter buttons can ask IT to move.
+   *
+   * The buttons computed their target from the route's chapter, which lags — tapping faster
+   * than the route commits aimed from a stale position and the pager then followed that
+   * stale target backwards. Delegating keeps one source of position for taps and swipes.
+   */
+  const gesturePagerRef = useRef<GestureChapterPagerRef>(null);
+
   const [externalNav, setExternalNav] = useState<{
     seq: number;
     bookId: number;
@@ -600,17 +612,21 @@ export default function ChapterScreen() {
    * V3 Linear mode: At Genesis 1, this does nothing (canGoPrevious is false)
    */
   const handlePrevious = useCallback(() => {
-    if (!canGoPrevious || !prevChapter) return;
-
     // Reset FAB visibility timer so arrows stay visible during rapid navigation
     showButtons();
 
     // Haptic feedback for button press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Update state via hook (V3: single source of truth)
+    // Ask the pager to step, so rapid taps advance from where it actually is rather than
+    // from a route that has not caught up.
+    if (useGesturePagerArm && gesturePagerRef.current) {
+      gesturePagerRef.current.goPrevious();
+      return;
+    }
+    if (!canGoPrevious || !prevChapter) return;
     navigateExternally(prevChapter.bookId, prevChapter.chapterNumber);
-  }, [canGoPrevious, prevChapter, navigateToChapter, showButtons]);
+  }, [canGoPrevious, prevChapter, navigateExternally, showButtons, useGesturePagerArm]);
 
   /**
    * Navigate to next chapter
@@ -618,17 +634,19 @@ export default function ChapterScreen() {
    * V3 Linear mode: At Revelation 22, this does nothing (canGoNext is false)
    */
   const handleNext = useCallback(() => {
-    if (!canGoNext || !nextChapter) return;
-
     // Reset FAB visibility timer so arrows stay visible during rapid navigation
     showButtons();
 
     // Haptic feedback for button press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Update state via hook (V3: single source of truth)
+    if (useGesturePagerArm && gesturePagerRef.current) {
+      gesturePagerRef.current.goNext();
+      return;
+    }
+    if (!canGoNext || !nextChapter) return;
     navigateExternally(nextChapter.bookId, nextChapter.chapterNumber);
-  }, [canGoNext, nextChapter, navigateToChapter, showButtons]);
+  }, [canGoNext, nextChapter, navigateExternally, showButtons, useGesturePagerArm]);
 
   // Web keyboard shortcuts: arrow keys for chapter navigation, Escape to close modal
   useKeyboardShortcuts({
@@ -895,6 +913,7 @@ export default function ChapterScreen() {
                    being refused — the failure ViewPager2 could not be talked out
                    of. Off by default until measured against the path below. */
                 <GestureChapterPager
+                  ref={gesturePagerRef}
                   bookId={deferredBookId}
                   chapterNumber={deferredChapterNumber}
                   externalNav={externalNav}
