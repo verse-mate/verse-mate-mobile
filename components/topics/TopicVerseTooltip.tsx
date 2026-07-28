@@ -33,7 +33,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Markdown } from '@/lib/markdown/Markdown';
 import Reanimated, {
   interpolate,
   useAnimatedStyle,
@@ -47,6 +46,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { useBibleByLine } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import { parseByLineExplanation } from '@/utils/bible/parseByLineExplanation';

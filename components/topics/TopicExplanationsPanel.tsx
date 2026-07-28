@@ -20,7 +20,6 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
-import { Markdown } from '@/lib/markdown/Markdown';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
@@ -28,6 +27,7 @@ import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip'
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { useTopicById } from '@/src/api';
 import {
   fontSizes,

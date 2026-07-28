@@ -9,8 +9,8 @@
  * in CI rather than on a device.
  */
 
-import { encodeRangesForTest } from '@/modules/versemate-text/src/VMText';
 import type { TextRange } from '@/modules/versemate-text/src/types';
+import { encodeRangesForTest } from '@/modules/versemate-text/src/VMText';
 
 /** Mirrors decodeRanges in VMTextModule.kt, field for field. */
 function decodeLikeKotlin(encoded: string) {
@@ -93,10 +93,15 @@ describe('encodeRanges', () => {
     expect(decoded[2].color).toBe('#fff');
   });
 
-  it("never emits a delimiter that would corrupt the stream", () => {
+  it('never emits a delimiter that would corrupt the stream', () => {
     // rgba() colours contain commas and parens but must never contain ~ or |.
     const encoded = encodeRangesForTest([
-      { start: 0, end: 1, backgroundColor: 'rgba(1,2,3,0.4)', underline: { style: 'dotted', color: 'rgba(5,6,7,0.8)', thickness: 1.5 } },
+      {
+        start: 0,
+        end: 1,
+        backgroundColor: 'rgba(1,2,3,0.4)',
+        underline: { style: 'dotted', color: 'rgba(5,6,7,0.8)', thickness: 1.5 },
+      },
     ]);
     expect(encoded.split('|')).toHaveLength(1);
     expect(encoded.split('~')).toHaveLength(11);

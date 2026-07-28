@@ -32,7 +32,8 @@ if (targets.length === 0) throw new Error('no inspector targets — is the app r
 const jsTarget =
   targets.find((t) => t.reactNative?.capabilities?.prefersFuseboxFrontend) ??
   targets.find((t) => /bridgeless/i.test(t.description ?? ''));
-if (!jsTarget) throw new Error(`no JS runtime target among: ${targets.map((t) => t.description).join(', ')}`);
+if (!jsTarget)
+  throw new Error(`no JS runtime target among: ${targets.map((t) => t.description).join(', ')}`);
 const url = jsTarget.webSocketDebuggerUrl;
 console.error(`connecting: ${url}`);
 
@@ -80,5 +81,7 @@ const profile = stopped?.result?.profile;
 if (!profile) throw new Error(`no profile returned: ${JSON.stringify(stopped).slice(0, 400)}`);
 
 await Bun.write(out, JSON.stringify(profile));
-console.error(`wrote ${out} — ${profile.nodes?.length ?? 0} nodes, ${profile.samples?.length ?? 0} samples`);
+console.error(
+  `wrote ${out} — ${profile.nodes?.length ?? 0} nodes, ${profile.samples?.length ?? 0} samples`
+);
 ws.close();
