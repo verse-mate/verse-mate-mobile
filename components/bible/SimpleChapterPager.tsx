@@ -217,6 +217,24 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       swipeNavSpanRef.current?.();
       swipeNavSpanRef.current = null;
     };
+    /**
+     * Open span for the programmatic recenter, closed on the next `idle`.
+     *
+     * The remaining complaint is a small mandatory pause after every swipe at a
+     * fast pace, and with the JS thread only ~8% busy it is unlikely to be our
+     * work. The standing suspect is this recenter: after each chapter change the
+     * pager snaps back to its centre page with `setPageWithoutAnimation`, and
+     * ViewPager2 does not accept user drags while a programmatic scroll is in
+     * flight. If that is it, the gesture never reaches JS at all — which is why no
+     * existing counter can see it, and why it has to be timed directly rather than
+     * inferred.
+     */
+    const recenterSpanRef = useRef<(() => void) | null>(null);
+    const endRecenterSpan = () => {
+      recenterSpanRef.current?.();
+      recenterSpanRef.current = null;
+    };
+
     const swipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const clearSwipeTimeout = () => {
       if (swipeTimeoutRef.current !== null) {
@@ -230,6 +248,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         clearSwipeTimeout();
         swipeSpanRef.current?.();
         swipeSpanRef.current = null;
+        endRecenterSpan();
         // A swipe that ends by leaving the reader still has to close its phase
         // span, or it is attributed to every JS block for the rest of the session.
         endPendingNavSpan();
@@ -327,6 +346,8 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // the trailing onPageSelected events ViewPager emits after the
       // seek finishes don't get treated as user swipes.
       armProgrammaticGuard(targetIndex);
+      endRecenterSpan();
+      recenterSpanRef.current = perfSpan('pager.recenter', { to: targetIndex });
       pagerRef.current?.setPageWithoutAnimation(targetIndex);
     }, [bookId, chapterNumber, canGoPrevious]);
 
@@ -485,6 +506,9 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // produces one. This is the signal the guard uses to tell a real swipe from
       // the trailing events of its own seek.
       if (state === 'dragging') draggedSinceSeekRef.current = true;
+      // The recenter is over once the pager reports idle — that is the moment it
+      // starts accepting drags again.
+      if (state === 'idle') endRecenterSpan();
       if (state === 'idle' && pendingNavRef.current) {
         clearPendingTimer();
         const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
