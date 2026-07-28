@@ -135,6 +135,66 @@ driver, and recording it as a win would misdirect the next person.
 8. **iOS has no Swift counterpart yet**, so the native path is Android-only and
    the flag stays off by default there.
 
+## The swipe, and where the residual block actually lives
+
+Fast swiping was fixed in three steps, and three further theories died to
+measurement along the way. Recording the dead ones matters as much as the fixes:
+each was plausible, each would have justified a large refactor, and each was wrong.
+
+**Fixed.**
+
+1. *The guard swallowed real swipes.* After each chapter change the pager recentres
+   with `setPageWithoutAnimation`, and ViewPager2 emits trailing `onPageSelected`
+   events for up to ~400ms afterwards. The old code rejected EVERY page-selected
+   event in that window, so with a ~520ms commit there was close to a one-second
+   dead zone per swipe. A trailing artifact is never preceded by a drag; a real
+   swipe always is, so the guard discriminates on that instead.
+2. *Targets were resolved from props*, i.e. from the chapter React had committed, so
+   a second quick swipe aimed at a chapter already left behind. The pager now keeps
+   a virtual position, advanced the moment a swipe settles, with a queue of
+   dispatched-but-uncommitted chapters so an out-of-order commit cannot drag it
+   backwards while an external navigation still wins.
+3. *The recenter cleared the drag flag mid-drag.* The recenter fires when the
+   PREVIOUS swipe commits, which at speed lands inside the NEXT drag — so that
+   gesture's event looked like an artifact and was discarded. Eleven drags produced
+   six navigations and exactly five swallows. The flag is now only cleared when no
+   drag is in flight.
+
+Operator-driven verification (Genesis 1 → 20, 19 chapter changes):
+`swipe.rescuedDuringGuard` 17, `swipe.navResolved` 19, Missed Vsync **0**, jank
+1.83%, p50 5ms. Seventeen of nineteen swipes would have been thrown away by the
+original code.
+
+**Theories that died, and what killed them.**
+
+| theory | measurement | verdict |
+| --- | --- | --- |
+| the recenter blocks input while it seeks | `pager.recenter` 2.8ms mean, 4.7ms max | dead |
+| the reader's ScrollView steals the gesture | `reader.touchStart` 10 vs `pager.dragStart` 10 | dead |
+| ViewPager2 snaps the drag back | `swipe.snappedBack` 0–1 | dead |
+
+The ScrollView theory came from a genuinely good observation — the vertical scroll
+indicator flashes at the moment of the block — but the counters show the pager
+registered every gesture as a drag, so nothing was stolen.
+
+**What is left, and it is not our code.** Bucketing page-selected events by
+position closes the accounting: ten fast drags produced 4 × position 2, 1 ×
+position 0, and 6 × position 1 (five recenters plus one snap-back). Four drags
+produced no page event at all. ViewPager2 entered dragging and then never crossed
+its threshold to change page, because the drag began while it was still settling
+from the previous fling and so started from a mid-transition offset.
+
+Caveat: `adb shell input swipe` delivers far fewer motion events than a finger, so
+ViewPager2's velocity tracker may not see a fling at all. Synthetic runs are a weak
+proxy here, and the operator's own report — a high pace keeps up, only a very fast
+one blocks — is the better evidence.
+
+If that last case is worth closing, the fix is to stop delegating the paging
+decision to ViewPager2: track horizontal offset and velocity via `onPageScroll`,
+and call `setPage` when a directional flick is unambiguous even though the pager
+would have declined. That is real work and should not be started without first
+confirming on a finger, not on `input swipe`.
+
 ## Harness notes worth keeping
 
 - Read the JS report from **Metro's log**, not logcat. The app's `console.log`
