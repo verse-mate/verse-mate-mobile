@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.text.Layout
 import android.text.TextPaint
 import android.util.TypedValue
+import android.util.Log
 import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.view.ViewGroup
@@ -143,6 +144,9 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     private var downX = 0f
     private var downY = 0f
     private var downTime = 0L
+    /** logcat tag for the touch trace. Filter with: adb logcat -s VMTouch */
+    private val TOUCH_TAG = "VMTouch"
+
     /** Longest gap between two taps still read as a double tap, in ms. */
     private val DOUBLE_TAP_WINDOW_MS = 300L
 
@@ -349,6 +353,12 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           downTime = event.eventTime
           longPressCancelled = false
           swipeClaimed = false
+          // Native logging, because three JS-side reasoning attempts at the selection
+          // behaviour all failed and none of them established whether this code runs
+          // at all. `android.util.Log` reaches logcat even though the app's
+          // console.log no longer does, so this is the only channel that can prove
+          // the touch is arriving here rather than in the legacy RN <Text> path.
+          Log.d(TOUCH_TAG, "DOWN x=${event.x} sel=${selectionStart}..${selectionEnd} selectable=$isTextSelectable")
           // Recorded HERE, not on UP. A selectable TextView collapses its selection
           // on ACTION_DOWN, so by the time UP arrives there is nothing left to
           // detect — which is why "tap to dismiss" fell through and opened the verse
@@ -385,7 +395,9 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
             val mdx = kotlin.math.abs(event.x - downX)
             val mdy = kotlin.math.abs(event.y - downY)
             val slop = ViewConfiguration.get(context).scaledTouchSlop
+            Log.d(TOUCH_TAG, "MOVE dx=$mdx dy=$mdy slop=$slop claimed=$swipeClaimed")
             if (mdx > slop && mdx > mdy) {
+              Log.d(TOUCH_TAG, "MOVE -> claiming swipe, clearing selection")
               longPressCancelled = true
               swipeClaimed = true
               cancelLongPress()
@@ -414,6 +426,11 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
             clearSelectionIfAny()
             return true
           }
+          Log.d(
+            TOUCH_TAG,
+            "UP moved=$moved longPress=$longPress hadSelOnDown=$hadSelectionOnDown " +
+              "sel=${selectionStart}..${selectionEnd} claimed=$swipeClaimed dbl=$suppressForDoubleTap"
+          )
           lastTapUpTime = event.eventTime
           if (suppressForDoubleTap) {
             suppressForDoubleTap = false
