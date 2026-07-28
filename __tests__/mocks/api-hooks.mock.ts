@@ -164,6 +164,18 @@ export const apiHooksMock = {
     mutationFn: jest.fn().mockResolvedValue({ bookIds: [] }),
   })),
 
+  // Inductive study: content and chrome are BOTH DB-backed hooks now, and StudyPanel calls
+  // each of them unconditionally at the top of its render. A mock missing either one does not
+  // fail the study tests — it throws inside StudyPanel and takes down every suite that renders
+  // the reader at all, which is how an unrelated "progress percentage" assertion came to fail
+  // on `useStudyLabels is not a function`.
+  useStudy: jest.fn(() => ({ data: null, isLoading: false })),
+  // Real bundled labels rather than a stub: they are the component's own offline fallback, so
+  // this keeps the rendered chrome identical to production without any network or DB.
+  useStudyLabels: jest.fn(
+    (language?: string) => jest.requireActual('@versemate/studies').getStudyLabels(language) ?? {}
+  ),
+
   // Bible keys object for query key generation
   bibleKeys: {
     testaments: jest.fn(() => ['bible', 'testaments']),
