@@ -505,7 +505,15 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // A drag can only come from the user — `setPageWithoutAnimation` never
       // produces one. This is the signal the guard uses to tell a real swipe from
       // the trailing events of its own seek.
-      if (state === 'dragging') draggedSinceSeekRef.current = true;
+      if (state === 'dragging') {
+        draggedSinceSeekRef.current = true;
+        // How many gestures the PAGER actually sees. Compared against
+        // reader.touchStart (every gesture that reached the reader's ScrollView)
+        // this says whether missing swipes are lost to gesture arbitration rather
+        // than to timing — the recenter turned out to cost 3.2ms, so the standing
+        // "the pager is busy repositioning" explanation is dead.
+        perfAdd('pager.dragStart', 1);
+      }
       // The recenter is over once the pager reports idle — that is the moment it
       // starts accepting drags again.
       if (state === 'idle') endRecenterSpan();
