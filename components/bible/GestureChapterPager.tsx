@@ -78,13 +78,17 @@ export interface GestureChapterPagerProps {
 /**
  * How many chapters either side of the current one stay mounted.
  *
- * Four, because two was not enough: at roughly double the cadence of a scripted run the
- * gesture reached the edge of the mounted range and was refused, which presents as the
- * swipe stalling and snapping back before continuing. Off-centre pages are cheap —
- * `ChapterPage` defers a buffer chapter's real content to idle time and renders
- * exact-height placeholders until then — so headroom costs little.
+ * Two, measured. It was raised to four when fast runs hit the edge of the mounted range and
+ * were refused — but that had a different cause (bounds derived from stale React state) which
+ * was fixed separately, and nobody rechecked the radius afterwards. Same flow, radius 4
+ * against radius 2: jank 7.52% -> 5.78%, p90 14ms -> 12ms, missed vsync 5 -> 3, worst swipe
+ * frame 109ms -> 82ms, reader renders 512 -> 314, and all 16 flicks still paged either way.
+ *
+ * The reason is the one this whole project keeps rediscovering: Fabric's commit cost scales
+ * with the LIVE tree, so nine mounted pages cost every commit more than five do. Headroom is
+ * not free, and it was buying nothing.
  */
-const RENDER_RADIUS = 4;
+const RENDER_RADIUS = 2;
 
 /** Page elements kept cached. Comfortably above the mounted range. */
 const PAGE_CACHE_LIMIT = 24;
