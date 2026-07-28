@@ -26,7 +26,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Markdown from 'react-native-markdown-display';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';

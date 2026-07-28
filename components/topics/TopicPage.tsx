@@ -21,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { FlatList, InteractionManager, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
-import Markdown from 'react-native-markdown-display';
+import { Markdown } from '@/lib/markdown/Markdown';
 import Animated, {
   Easing,
   type SharedValue,
