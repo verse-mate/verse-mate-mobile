@@ -49,7 +49,7 @@ export function parsePerfReports(raw: string): ParsedReport[] {
   const results: ParsedReport[] = [];
   const pending = new Map<string, Pending>();
 
-  for (const line of raw.split('\n')) {
+  for (const line of raw.split(/\r?\n/)) {
     const marker = findMarker(line);
     if (!marker) continue;
 
@@ -111,10 +111,16 @@ export function parsePerfReports(raw: string): ParsedReport[] {
 /**
  * Strip any log-pipeline prefix and return the `[VMPERF-*]` marker onwards, or
  * null when the line carries no marker.
+ *
+ * The trailing carriage return of a CRLF log has to go before the payload is
+ * matched. `.` in a JavaScript regex excludes `\r` — it counts as a line
+ * terminator — so `(.*)$` fails outright on a CRLF line rather than merely
+ * capturing one extra character. A capture written by PowerShell's `Out-File`
+ * therefore parsed as "every chunk missing" while the chunks sat in the file.
  */
 function findMarker(line: string): string | null {
   const at = line.indexOf('[VMPERF-');
-  return at === -1 ? null : line.slice(at);
+  return at === -1 ? null : line.slice(at).replace(/\r+$/, '');
 }
 
 function finalise(entry: Pending, expectedLen: number, expectedSum: string): ParsedReport {

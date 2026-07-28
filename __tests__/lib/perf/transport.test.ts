@@ -120,6 +120,23 @@ describe('perf log transport round-trip', () => {
     if (parsed[0].ok) expect(parsed[0].report.label).toBe('psalm-119');
   });
 
+  it('parses a CRLF capture written on Windows', () => {
+    // A capture taken through PowerShell arrives CRLF. `.` in a JavaScript regex
+    // excludes `\r`, so `(.*)$` does not merely capture one stray character — it
+    // fails to match at all, and every DATA line is silently skipped. That
+    // reported as "missing chunk(s) 0..12 of 13" while all thirteen sat in the
+    // file, which cost a debugging session chasing a transport that was fine.
+    const original = makeReport(120);
+    const lines = captureLog(() => emitPerfReport(original));
+
+    const crlf = lines.map((line) => ` LOG  ${line}`).join('\r\n');
+    const parsed = parsePerfReports(crlf);
+
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].ok).toBe(true);
+    if (parsed[0].ok) expect(parsed[0].report).toEqual(original);
+  });
+
   it('parses multiple reports from one capture', () => {
     const lines = captureLog(() => {
       emitPerfReport(makeReport(20, 'genesis-1'));

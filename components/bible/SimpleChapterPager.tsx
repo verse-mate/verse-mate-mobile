@@ -168,6 +168,19 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     const swipeSpanRef = useRef<(() => void) | null>(null);
     /** Phase span: pager settle -> navigation actually dispatched. */
     const swipeNavSpanRef = useRef<(() => void) | null>(null);
+    /**
+     * Close `swipe.pendingNav` at the instant the navigation is dispatched.
+     *
+     * This has to be called at every dispatch site. The first version closed it
+     * nowhere, so it was only ever ended by the *next* swipe reopening it — which
+     * silently turned the metric into "time between swipes" and reported a 4.5s
+     * mean swipe on a device that was idle for four of those seconds. A phase span
+     * with no close is worse than no span, because it reads as a plausible number.
+     */
+    const endPendingNavSpan = () => {
+      swipeNavSpanRef.current?.();
+      swipeNavSpanRef.current = null;
+    };
     const swipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const clearSwipeTimeout = () => {
       if (swipeTimeoutRef.current !== null) {
@@ -181,6 +194,9 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         clearSwipeTimeout();
         swipeSpanRef.current?.();
         swipeSpanRef.current = null;
+        // A swipe that ends by leaving the reader still has to close its phase
+        // span, or it is attributed to every JS block for the rest of the session.
+        endPendingNavSpan();
       };
     }, [bookId, chapterNumber]);
 
@@ -293,7 +309,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // itself is slow to report; long in swipe.commit means the new chapter is slow
       // to build. Splitting them is the difference between "the gesture is
       // sluggish" and "the content is slow", which feel identical to a user.
-      swipeNavSpanRef.current?.();
+      endPendingNavSpan();
       swipeNavSpanRef.current = perfSpan('swipe.pendingNav', { from: currentKeyRef.current });
       swipeSpanRef.current = perfSpan('swipe.settle', { from: currentKeyRef.current });
       swipeTimeoutRef.current = setTimeout(() => {
@@ -301,6 +317,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         // than an arbitrary one.
         swipeSpanRef.current?.();
         swipeSpanRef.current = null;
+        endPendingNavSpan();
         swipeTimeoutRef.current = null;
       }, SWIPE_SPAN_TIMEOUT_MS);
     };
@@ -362,6 +379,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
           if (!pendingNavRef.current) return;
           const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
           pendingNavRef.current = null;
+          endPendingNavSpan();
           onChapterChangeRef.current(navBookId, navChapter);
         }, 500);
       }
@@ -378,6 +396,10 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         clearPendingTimer();
         const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
         pendingNavRef.current = null;
+        // The pager has stopped moving and the nav is going out now: this is the
+        // exact boundary between "the gesture layer was slow" and "the content was
+        // slow to build", which is the whole reason the swipe is two spans.
+        endPendingNavSpan();
         onChapterChange(navBookId, navChapter);
       }
     };
