@@ -92,6 +92,16 @@ const ACTIVATE_X = 14;
 const FAIL_Y = 18;
 
 /**
+ * How long to wait for the swiping to stop before telling the route, in ms.
+ *
+ * Short enough that a single deliberate swipe updates the header almost at once, long
+ * enough that a fast run collapses into one navigation instead of one per chapter.
+ * Safe only because the pager's visuals are independent of the route — that was the
+ * whole point of absolute indexing.
+ */
+const ROUTE_COALESCE_MS = 140;
+
+/**
  * How many chapters of index space the row spans, and how far back it starts.
  *
  * The row needs a real width containing every page: Android does not deliver touches
@@ -163,6 +173,16 @@ export function GestureChapterPager({
 
   const onChapterChangeRef = useRef(onChapterChange);
   onChapterChangeRef.current = onChapterChange;
+
+  /** Latest chapter awaiting a route dispatch, and its timer. */
+  const pendingRouteRef = useRef<ChapterLocation | null>(null);
+  const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (routeTimerRef.current) clearTimeout(routeTimerRef.current);
+    },
+    []
+  );
 
   /**
    * Resolve and memoise the chapter at an absolute index.
@@ -292,7 +312,16 @@ export function GestureChapterPager({
     perfAdd('gesturePager.originRebased', 1);
   }, [index, origin, width, scrollX, originSV]);
 
-  /** Report a settled page turn. Runs on the JS thread from the animation callback. */
+  /**
+   * Report a settled page turn. Runs on the JS thread from the animation callback.
+   *
+   * The index moves immediately, because the mounted range follows it. The ROUTE is
+   * coalesced: the pager's visuals no longer depend on it, so firing a navigation per
+   * flick only spent React commits, header renders and a reading-position write on
+   * chapters the reader was already past. That is the "state cannot keep up" the
+   * operator felt, and the occasional stick. Only the chapter the run ends on is
+   * dispatched.
+   */
   const commitIndex = useCallback((target: number) => {
     const loc = chapterAt.current.get(target);
     if (!loc) return;
@@ -302,7 +331,17 @@ export function GestureChapterPager({
     // there is nothing left to reconcile. That absence is the fix for the flash.
     setIndex(target);
     perfAdd('gesturePager.flickPaged', 1);
-    onChapterChangeRef.current(loc.bookId, loc.chapterNumber);
+
+    pendingRouteRef.current = loc;
+    if (routeTimerRef.current) clearTimeout(routeTimerRef.current);
+    routeTimerRef.current = setTimeout(() => {
+      routeTimerRef.current = null;
+      const next = pendingRouteRef.current;
+      pendingRouteRef.current = null;
+      if (!next) return;
+      perfAdd('gesturePager.routeDispatched', 1);
+      onChapterChangeRef.current(next.bookId, next.chapterNumber);
+    }, ROUTE_COALESCE_MS);
     span();
   }, []);
 

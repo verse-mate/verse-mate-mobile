@@ -143,8 +143,19 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     private var downX = 0f
     private var downY = 0f
     private var downTime = 0L
+    /** Longest gap between two taps still read as a double tap, in ms. */
+    private val DOUBLE_TAP_WINDOW_MS = 300L
+
     /** Whether this gesture's long-press has already been cancelled as a swipe. */
     private var longPressCancelled = false
+    /** Whether this gesture has been claimed as a horizontal swipe. */
+    private var swipeClaimed = false
+    /** Whether text was selected when this gesture started. */
+    private var hadSelectionOnDown = false
+    /** Whether this gesture is the second of a double tap, whose selection is suppressed. */
+    private var suppressForDoubleTap = false
+    /** Event time of the previous ACTION_UP, for double-tap detection. */
+    private var lastTapUpTime = 0L
 
     init {
       configureForMeasurementParity()
@@ -323,12 +334,39 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
      * tried to select a word.
      */
     override fun onTouchEvent(event: MotionEvent): Boolean {
+      // Once this gesture is a horizontal swipe, super must not see another event
+      // from it. Clearing the selection and then calling super anyway — which the
+      // previous attempt did, because the ACTION_MOVE branch fell through to
+      // `return super.onTouchEvent(event)` — let the selection controller
+      // immediately re-establish what had just been cleared. That is why slow-swipe
+      // selection survived two fixes.
+      if (swipeClaimed && event.actionMasked != MotionEvent.ACTION_DOWN) return false
+
       when (event.actionMasked) {
         MotionEvent.ACTION_DOWN -> {
           downX = event.x
           downY = event.y
           downTime = event.eventTime
           longPressCancelled = false
+          swipeClaimed = false
+          // Recorded HERE, not on UP. A selectable TextView collapses its selection
+          // on ACTION_DOWN, so by the time UP arrives there is nothing left to
+          // detect — which is why "tap to dismiss" fell through and opened the verse
+          // insight instead.
+          hadSelectionOnDown = anySelection()
+
+          // Suppress the platform's double-tap-to-select-a-word.
+          //
+          // A selectable TextView selects a word on double tap, which is why rapid
+          // swiping occasionally left a word highlighted: two taps landing close
+          // together in time and space read as a double tap. Selection here is meant
+          // to come from a deliberate press-and-hold only, so the second tap of a
+          // pair is withheld from super — it still behaves as an ordinary tap for
+          // this view's own purposes.
+          val sinceLastTap = event.eventTime - lastTapUpTime
+          if (sinceLastTap in 1..DOUBLE_TAP_WINDOW_MS) {
+            suppressForDoubleTap = true
+          }
         }
         MotionEvent.ACTION_MOVE -> {
           // A slow horizontal drag is a page swipe, not a selection.
@@ -349,6 +387,7 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
             val slop = ViewConfiguration.get(context).scaledTouchSlop
             if (mdx > slop && mdx > mdy) {
               longPressCancelled = true
+              swipeClaimed = true
               cancelLongPress()
               // Cancelling the pending long-press is not enough on its own, and
               // shipping only that was measured to change nothing: someone who holds
@@ -369,9 +408,16 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           // A tap while something is selected DISMISSES the selection and does
           // nothing else. Previously the tap fell through and opened the verse
           // insight, so there was no way to simply get rid of a selection.
-          if (!moved && !longPress && anySelection()) {
+          if (!moved && !longPress && hadSelectionOnDown) {
+            // The tap that dismisses a selection does nothing else. Consumed so it
+            // cannot also open a verse insight or a lexicon card.
             clearSelectionIfAny()
-            super.onTouchEvent(event)
+            return true
+          }
+          lastTapUpTime = event.eventTime
+          if (suppressForDoubleTap) {
+            suppressForDoubleTap = false
+            if (!moved && !longPress) dispatchTap(event.x, event.y)
             return true
           }
           val handled = super.onTouchEvent(event)
