@@ -119,10 +119,22 @@ export function GestureChapterPager({
   const indexRef = useRef(0);
   indexRef.current = index;
 
-  /** Row translation in px. `-index * width` at rest. */
+  /**
+   * Row translation in px. `-index * width` at rest.
+   *
+   * This — not React state — is the authority on where the pager is. The gesture
+   * derives the current index from it on the UI thread, so a second fast flick sees
+   * the true position instead of a stale render. Closing over `index` from state was
+   * why two quick swipes only advanced one chapter: the worklet computed the same
+   * target twice.
+   */
   const scrollX = useSharedValue(0);
   /** `scrollX` when the gesture began, so a takeover resumes from the right place. */
   const gestureStart = useSharedValue(0);
+  /** Live page width and index bounds, readable from the gesture worklet. */
+  const widthSV = useSharedValue(0);
+  const minIndexSV = useSharedValue(0);
+  const maxIndexSV = useSharedValue(0);
 
   const onChapterChangeRef = useRef(onChapterChange);
   onChapterChangeRef.current = onChapterChange;
@@ -177,9 +189,31 @@ export function GestureChapterPager({
     return out;
   }, [index, resolveIndex, booksMetadata]);
 
-  /** Whether an adjacent chapter exists, for clamping the drag at the two ends. */
-  const hasPrev = useMemo(() => resolveIndex(index - 1) !== null, [index, resolveIndex]);
-  const hasNext = useMemo(() => resolveIndex(index + 1) !== null, [index, resolveIndex]);
+  /**
+   * Publish the page width and the reachable index range to the gesture.
+   *
+   * The worklet cannot read React state without capturing a stale copy, and a stale
+   * copy is exactly what made two quick swipes advance one chapter: the second flick
+   * computed its target from the index the first flick had not yet committed, so both
+   * aimed at the same page. Everything the gesture needs is now a shared value it
+   * reads live.
+   */
+  useEffect(() => {
+    widthSV.value = width;
+    // The furthest indices that actually resolve, not index ± 1. Publishing ± 1
+    // would be stale for the same reason the index was: a second fast flick would
+    // find itself already at the published maximum and be clamped, which is the bug
+    // this change exists to remove. RENDER_RADIUS of headroom matches how far the
+    // mounted range extends, so a flick can never outrun the content either.
+    let lo = index;
+    let hi = index;
+    for (let i = 1; i <= RENDER_RADIUS; i++) {
+      if (resolveIndex(index - i)) lo = index - i;
+      if (resolveIndex(index + i)) hi = index + i;
+    }
+    minIndexSV.value = lo;
+    maxIndexSV.value = hi;
+  }, [width, index, resolveIndex, widthSV, minIndexSV, maxIndexSV]);
 
   /**
    * Follow an external navigation — the chapter picker, a deep link, a restored
@@ -236,42 +270,46 @@ export function GestureChapterPager({
         .failOffsetY([-FAIL_Y, FAIL_Y])
         .onStart(() => {
           'worklet';
-          // Take over any settle in flight. This is the line ViewPager2 has no
-          // equivalent for: input is never refused, because nothing else owns the
-          // position.
+          // Take over any settle in flight. Nothing else owns the position, so input
+          // is never refused — the property ViewPager2 has no equivalent for.
           cancelAnimation(scrollX);
           gestureStart.value = scrollX.value;
         })
         .onUpdate((e) => {
           'worklet';
-          if (width <= 0) return;
-          const base = -index * width;
+          const w = widthSV.value;
+          if (w <= 0) return;
+          // Derived from scrollX, not from React state, so a flick that begins before
+          // the previous one has committed still measures from where the pager
+          // actually is.
+          const from = Math.round(-gestureStart.value / w);
+          const base = -from * w;
           let next = gestureStart.value + e.translationX;
-          // Refuse to travel into a chapter that does not exist, rather than
-          // rubber-banding into empty space.
-          const max = hasPrev ? base + width : base;
-          const min = hasNext ? base - width : base;
+          const max = from - 1 >= minIndexSV.value ? base + w : base;
+          const min = from + 1 <= maxIndexSV.value ? base - w : base;
           if (next > max) next = max;
           if (next < min) next = min;
           scrollX.value = next;
         })
         .onEnd((e) => {
           'worklet';
-          if (width <= 0) return;
-          const base = -index * width;
+          const w = widthSV.value;
+          if (w <= 0) return;
+          const from = Math.round(-gestureStart.value / w);
+          const base = -from * w;
           const travelled = scrollX.value - base;
           const fast = Math.abs(e.velocityX) > PAGE_VELOCITY;
-          const far = Math.abs(travelled) > width * PAGE_DISTANCE_RATIO;
+          const far = Math.abs(travelled) > w * PAGE_DISTANCE_RATIO;
           // Velocity decides direction on a flick; on a slow drag, where the finger
           // ended up decides, since a slow drag can drift backwards at the end
           // without meaning to reverse.
           const forward = fast ? e.velocityX < 0 : travelled < 0;
-          const target = forward ? index + 1 : index - 1;
-          const allowed = forward ? hasNext : hasPrev;
+          const target = forward ? from + 1 : from - 1;
+          const allowed = forward ? target <= maxIndexSV.value : target >= minIndexSV.value;
 
           if ((fast || far) && allowed) {
             scrollX.value = withTiming(
-              -target * width,
+              -target * w,
               { duration: SETTLE_MS, easing: Easing.out(Easing.cubic) },
               (finished) => {
                 'worklet';
@@ -286,7 +324,7 @@ export function GestureChapterPager({
           });
           runOnJS(cancelled)();
         }),
-    [index, width, hasPrev, hasNext, scrollX, gestureStart, commitIndex, cancelled]
+    [scrollX, gestureStart, widthSV, minIndexSV, maxIndexSV, commitIndex, cancelled]
   );
 
   const rowStyle = useAnimatedStyle(() => ({
