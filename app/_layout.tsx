@@ -54,7 +54,7 @@ import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { ExpoAudioEngine } from '@/lib/audio/expoAudioEngine';
 import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
-import { installPerfSession } from '@/lib/perf';
+import { installPerfSession, perfSpan } from '@/lib/perf';
 import { UpgradePromptScreen } from '@/src/screens/UpgradePromptScreen';
 import { checkVersionPolicy } from '@/src/services/versionPolicy';
 import {
@@ -130,6 +130,24 @@ function RootLayoutInner() {
   // capture a run with no UI to tap. No-op in release builds.
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => installPerfSession(), []);
+
+  /**
+   * Own the startup window, so a block during it is attributable.
+   *
+   * The worst JS block in every capture is ~2s within the first two seconds and the top three
+   * blocks all had NO span open — which is why startup has never been explained. This span
+   * covers boot until the splash is hidden, so anything expensive in there stops being
+   * anonymous, and the finer spans in OfflineContext say which part.
+   */
+  const startupSpanRef = useRef<(() => void) | null>(null);
+  if (startupSpanRef.current === null) {
+    startupSpanRef.current = perfSpan('startup.toFirstPaint');
+  }
+  const endStartupSpan = () => {
+    startupSpanRef.current?.();
+    startupSpanRef.current = null;
+  };
+  useEffect(() => () => endStartupSpan(), []);
 
   // Check version policy on app startup (T8)
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
@@ -446,6 +464,7 @@ function RootLayoutInner() {
               setTimeout(resolve, 200);
             });
           });
+          endStartupSpan();
           await SplashScreen.hideAsync();
         } catch (err) {
           console.error('Error hiding splash screen:', err);
