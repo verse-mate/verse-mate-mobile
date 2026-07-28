@@ -433,6 +433,13 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
       const newPosition = event.nativeEvent.position;
       pagedSinceDragRef.current = true;
+      // Every page-selected event, by the position reported. This closes the
+      // accounting that three dead theories could not: a run of ten drags
+      // produced ten drags, zero snap-backs and only five navigations, and the
+      // five that passed the guard resolved to nothing — which only happens when
+      // the pager reports the CENTRE index. Bucketing by position says whether the
+      // pager is advancing and we are dropping it, or never advancing at all.
+      perfAdd(`pager.selected.p${newPosition}`, 1);
 
       // Swallow ALL page-selected events while a programmatic reposition
       // is in flight (guard cleared by timer in armProgrammaticGuard).
