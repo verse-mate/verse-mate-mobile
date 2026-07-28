@@ -1,63 +1,112 @@
 /**
- * Tests for pre-layout paragraph positioning.
+ * Tests for paragraph placement and windowing.
  *
- * The point of this module is that offsets are known during the FIRST render, so a
- * chapter's off-screen groups can be skipped at mount rather than only on later
- * scrolls. These tests pin the arithmetic and — more importantly — the fallback
- * behaviour when measurement is unavailable, because getting that wrong shows the
- * user blank text rather than a slow screen.
+ * The property that matters is that mount work does NOT scale with chapter length.
+ * That is the whole reason this hook exists: the previous version compiled and
+ * measured every paragraph to compute offsets, so a 176-verse chapter did 35 lexicon
+ * compiles and 35 layout builds where a 31-verse chapter did 7 — which is exactly
+ * what "swiping depends on the length of the chapter" felt like.
  */
 
-import { isParagraphVisible, type ParagraphLayout } from '@/lib/text/use-paragraph-layout';
+import { renderHook } from '@testing-library/react-native';
+import { useParagraphLayout } from '@/lib/text/use-paragraph-layout';
+import type { CompileTheme, ParagraphInput } from '@/lib/text/types';
 
-function layout(offsetY: number, height: number | null): ParagraphLayout {
-  return {
-    compiled: { text: '', ranges: [], targets: [], verses: [] },
-    height,
-    offsetY,
-  };
+const THEME: CompileTheme = {
+  mode: 'light',
+  lexUnderlineColor: 'rgba(176,154,109,0.55)',
+  lexUnderlineThemeColor: 'rgba(199,176,116,0.75)',
+  lexUnderlineThickness: 1,
+  lexUnderlineStyle: 'dotted',
+  redLetterColor: '#c1121f',
+  selectionColor: '#3390FF40',
+};
+
+/** `count` paragraph groups of five verses each, roughly Bible-sized. */
+function makeGroups(count: number): ParagraphInput['verses'][] {
+  return Array.from({ length: count }, (_, g) =>
+    Array.from({ length: 5 }, (_, v) => ({
+      verseNumber: g * 5 + v + 1,
+      text: 'In the beginning God created the heavens and the earth, and it was very good.',
+    }))
+  );
 }
 
-describe('isParagraphVisible', () => {
-  const viewport = 800;
-  const buffer = 600;
+function render(groupCount: number, over: Partial<Parameters<typeof useParagraphLayout>[0]> = {}) {
+  return renderHook(() =>
+    useParagraphLayout({
+      groups: makeGroups(groupCount),
+      width: 360,
+      style: { fontSize: 18, lineHeight: 36 },
+      gap: 12,
+      scrollY: 0,
+      viewportHeight: 800,
+      bufferPx: 600,
+      shared: { theme: THEME },
+      ...over,
+    })
+  ).result.current;
+}
 
-  it('renders a group inside the viewport', () => {
-    expect(isParagraphVisible(layout(0, 200), 0, viewport, buffer)).toBe(true);
-    expect(isParagraphVisible(layout(400, 200), 0, viewport, buffer)).toBe(true);
+describe('useParagraphLayout — work does not scale with chapter length', () => {
+  it('compiles only the paragraphs inside the window', () => {
+    const short = render(7); // ~Genesis 1
+    const long = render(35); // ~Psalm 119
+
+    const compiledShort = short.filter((p) => p.compiled !== null).length;
+    const compiledLong = long.filter((p) => p.compiled !== null).length;
+
+    // The long chapter must not compile ~5x more just for being longer. Both are
+    // bounded by what fits in viewport + buffer.
+    expect(compiledLong).toBeLessThanOrEqual(compiledShort + 2);
+    expect(compiledLong).toBeLessThan(long.length);
   });
 
-  it('renders a group within the buffer above the viewport', () => {
-    // Scrolled to 2000; a group ending at 1500 is 500px above, inside the 600 buffer.
-    expect(isParagraphVisible(layout(1300, 200), 2000, viewport, buffer)).toBe(true);
+  it('still positions every paragraph, compiled or not', () => {
+    const layouts = render(35);
+    expect(layouts).toHaveLength(35);
+    expect(layouts.every((p) => Number.isFinite(p.offsetY))).toBe(true);
+    expect(layouts.every((p) => p.height > 0)).toBe(true);
   });
 
-  it('renders a group within the buffer below the viewport', () => {
-    // Viewport bottom is 800; a group starting at 1300 is 500px below.
-    expect(isParagraphVisible(layout(1300, 200), 0, viewport, buffer)).toBe(true);
+  it('produces strictly increasing offsets', () => {
+    // A non-monotonic offset would place a later paragraph above an earlier one and
+    // corrupt the window decision for everything after it.
+    const layouts = render(35);
+    for (let i = 1; i < layouts.length; i++) {
+      expect(layouts[i].offsetY).toBeGreaterThan(layouts[i - 1].offsetY);
+    }
   });
 
-  it('skips a group far above the viewport', () => {
-    expect(isParagraphVisible(layout(0, 200), 5000, viewport, buffer)).toBe(false);
+  it('marks far-off paragraphs as not visible', () => {
+    const layouts = render(35);
+    expect(layouts[layouts.length - 1].visible).toBe(false);
   });
 
-  it('skips a group far below the viewport', () => {
-    expect(isParagraphVisible(layout(5000, 200), 0, viewport, buffer)).toBe(false);
+  it('marks the top of the chapter visible at scroll 0', () => {
+    const layouts = render(35);
+    expect(layouts[0].visible).toBe(true);
   });
 
-  it('renders a group whose height is unknown', () => {
-    // Without a height the offsets downstream are unreliable too, so guessing
-    // "not visible" would blank real content. Over-rendering costs time;
-    // under-rendering is a visible bug.
-    expect(isParagraphVisible(layout(99999, null), 0, viewport, buffer)).toBe(true);
+  it('moves the window as the reader scrolls', () => {
+    const atTop = render(35, { scrollY: 0 });
+    const scrolled = render(35, { scrollY: 5000 });
+
+    expect(atTop[0].visible).toBe(true);
+    expect(scrolled[0].visible).toBe(false);
+    // Something further down must have taken its place.
+    expect(scrolled.some((p, i) => p.visible && i > 5)).toBe(true);
   });
 
-  it('includes a group that straddles the viewport top', () => {
-    expect(isParagraphVisible(layout(1900, 400), 2000, viewport, buffer)).toBe(true);
+  it('renders something rather than nothing when the viewport is unknown', () => {
+    // A zero viewport would otherwise window everything out and blank the reader,
+    // which is far worse than doing a little extra work.
+    const layouts = render(35, { viewportHeight: 0, bufferPx: 0 });
+    expect(layouts.some((p) => p.visible)).toBe(true);
   });
 
-  it('treats a zero buffer as viewport-only', () => {
-    expect(isParagraphVisible(layout(900, 100), 0, viewport, 0)).toBe(false);
-    expect(isParagraphVisible(layout(700, 100), 0, viewport, 0)).toBe(true);
+  it('returns nothing for an empty chapter or an unknown width', () => {
+    expect(render(0)).toEqual([]);
+    expect(render(10, { width: 0 })).toEqual([]);
   });
 });

@@ -55,7 +55,7 @@ import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-align
 import { usePerfMountSpan } from '@/lib/perf';
 import { ParagraphText } from '@/lib/text/ParagraphText';
 import type { CompileTheme } from '@/lib/text/types';
-import { isParagraphVisible, useParagraphLayout } from '@/lib/text/use-paragraph-layout';
+import { useParagraphLayout } from '@/lib/text/use-paragraph-layout';
 import type { TextLineLayout } from '@/modules/versemate-text';
 import {
   fontSizes,
@@ -603,46 +603,35 @@ export function ChapterReader({
    * Only computed on the native path — it is what makes windowing possible at mount
    * rather than only on later scrolls.
    */
+  const paragraphGroupsForLayout = useMemo(
+    () => (useNativeTextRenderer ? flatGroups.map((g) => g.verses) : []),
+    [useNativeTextRenderer, flatGroups]
+  );
+
+  /**
+   * Scroll position expressed relative to the first paragraph group.
+   *
+   * The chapter title and section headers sit above it by some amount H. Before any
+   * position has been recorded H is unknown, and 0 is the safe assumption: H >= 0
+   * always pushes paragraphs further down, so assuming 0 over-estimates what is
+   * visible and never under-estimates it.
+   */
+  const firstGroupY = sectionLayouts.current[flatGroups[0]?.verses[0]?.verseNumber ?? -1]?.y ?? 0;
+  const paragraphScrollY = (visibleYRange?.startY ?? 0) - firstGroupY;
+  const paragraphViewportHeight = visibleYRange
+    ? visibleYRange.endY - visibleYRange.startY
+    : windowHeight;
+
   const paragraphLayouts = useParagraphLayout({
-    groups: useNativeTextRenderer ? flatGroups.map((g) => g.verses) : [],
+    groups: paragraphGroupsForLayout,
     width: paragraphWidth,
     style: styles.verseTextParagraph as TextStyle,
     gap: spacing.md,
+    scrollY: paragraphScrollY,
+    viewportHeight: paragraphViewportHeight,
+    bufferPx: GROUP_WINDOW_BUFFER_PX,
     shared: paragraphShared,
   });
-
-  /**
-   * Whether a paragraph group is near enough the viewport to render for real.
-   *
-   * Uses PRE-LAYOUT offsets, so it works on the first mount. The layout-based
-   * version this replaces could not: on first mount nothing has a recorded position,
-   * so every group looked "unknown" and rendered anyway — measured as changing
-   * nothing (compile still n=349, mount still 761ms).
-   *
-   * Offsets are relative to the first group, and the chapter title and section
-   * headers sit above it by some unknown amount H. Not knowing H is fine because
-   * H >= 0 always pushes paragraphs FURTHER from the top: comparing against a base
-   * of 0 therefore over-estimates what is visible, never under-estimates it. Once a
-   * position has been recorded the real base is used and the window tightens.
-   */
-  const isGroupVisible = (flatIndex: number): boolean => {
-    if (!useNativeTextRenderer) return true;
-    const layout = paragraphLayouts[flatIndex];
-    if (!layout) return true;
-    // Before the first scroll `visibleYRange` is null — it is populated by the
-    // scroll worklet, which by definition has not run yet at mount. Falling back to
-    // "render everything" there is what made the previous two attempts at windowing
-    // measure as no-ops: they both opted out at exactly the moment that matters.
-    //
-    // The window height is available synchronously and is what the reader occupies,
-    // so at mount the visible band is [0, windowHeight].
-    const scrollY = visibleYRange?.startY ?? 0;
-    const viewportHeight = visibleYRange ? visibleYRange.endY - visibleYRange.startY : windowHeight;
-    if (viewportHeight <= 0) return true;
-    const firstRecorded = sectionLayouts.current[flatGroups[0]?.verses[0]?.verseNumber ?? -1];
-    const base = firstRecorded?.y ?? 0;
-    return isParagraphVisible(layout, scrollY - base, viewportHeight, GROUP_WINDOW_BUFFER_PX);
-  };
 
   /**
    * Store native line geometry in the same shape the RN `onTextLayout` path uses,
@@ -859,6 +848,10 @@ export function ChapterReader({
                   // group, which Android re-flattens into a single Spannable on
                   // every commit. See docs/native-text-rendering-plan.md.
                   if (useNativeTextRenderer && paragraphWidth > 0) {
+                    const groupLayout =
+                      paragraphLayouts[
+                        flatIndexByKey.get(`${sectionKeyOf(section)}:${group[0].verseNumber}`) ?? -1
+                      ];
                     return (
                       <View
                         key={groupKey}
@@ -873,20 +866,16 @@ export function ChapterReader({
                       >
                         <ParagraphText
                           alignment={alignment}
-                          // Windowing. `handleVerseLayout` below records each
-                          // group's Y and height, and the scroll worklet keeps
-                          // `visibleYRange` current, so a group far from the
-                          // viewport renders as an exact-height placeholder and
-                          // creates no native views. Before the first layout the
-                          // position is unknown and `isElementVisible` returns true,
-                          // so the first paint is never blank.
-                          isVisible={isGroupVisible(
-                            flatIndexByKey.get(
-                              `${sectionKeyOf(section)}:${group[0].verseNumber}`
-                            ) ?? -1
-                          )}
                           autoHighlights={autoHighlights}
+                          // Compiled, measured and windowed by useParagraphLayout.
+                          // Passing all three down means the paragraph is compiled
+                          // and measured ONCE — the hook already had to do both to
+                          // place it — and that a group outside the window renders
+                          // an exact-height placeholder with no native views at all.
+                          compiled={groupLayout?.compiled ?? undefined}
+                          height={groupLayout?.height}
                           highlights={chapterHighlights}
+                          isVisible={groupLayout?.visible ?? true}
                           onAutoHighlightPress={handleAutoHighlightPress}
                           onHighlightTap={handleHighlightTap}
                           onLexiconWordPress={handleLexiconWordPress}
