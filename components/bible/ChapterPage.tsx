@@ -615,13 +615,15 @@ export function ChapterPage({
   const { deleteNote, isDeletingNote } = useNotes();
 
   // A toggle to Insight mounts only after the pill animation has finished, so the two never
-  // share a frame. Reset when leaving Insight so a later toggle defers again rather than
-  // mounting on the tap.
+  // share a frame.
+  //
+  // Deliberately NOT reset when leaving Insight. Resetting it made the subtree unmount on the
+  // way back to Bible and remount on the next toggle — measured as reader.mount.explanations
+  // firing once per toggle, which is the very cost the deferral exists to keep away from the
+  // animation. Staying mounted for as long as the page is current is what the prewarm already
+  // intends; the page-level release when it stops being current still bounds the live tree.
   useEffect(() => {
-    if (activeView !== 'explanations') {
-      setInsightMountAllowed((was) => (was ? false : was));
-      return;
-    }
+    if (activeView !== 'explanations') return;
     if (insightPrewarmed || insightMountAllowed) return;
     const timer = setTimeout(
       () => setInsightMountAllowed(true),
