@@ -25,7 +25,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type LayoutChangeEvent, Linking, type TextStyle, View } from 'react-native';
 import { useNativeText } from '@/hooks/bible/use-native-text';
-import { getSharedParser, ReactMarkdown } from '@/lib/markdown/ReactMarkdown';
+import { getSharedParser, type MarkdownProps, ReactMarkdown } from '@/lib/markdown/ReactMarkdown';
 import { perfCount } from '@/lib/perf/monitor';
 import {
   compileMarkdown,
@@ -60,14 +60,16 @@ const QUOTE_PADDING = 10;
 const CODE_PADDING = 10;
 const RULE_HEIGHT = 1;
 
-export interface NativeMarkdownProps {
+/**
+ * Every prop the React renderer takes, plus the two this adds.
+ *
+ * Accepting the whole surface is what makes this a drop-in replacement: a caller that needs a
+ * library feature this cannot express keeps working, because the props are forwarded verbatim to
+ * the fallback rather than dropped.
+ */
+export type NativeMarkdownProps = MarkdownProps & {
   /** Markdown source. */
   children: string;
-  /**
-   * The same `style` object the React renderer takes. `style.body` supplies base size, line
-   * height and colour, so callers pass what they already pass and the two paths agree.
-   */
-  style?: Record<string, TextStyle>;
   /** Colours for links, code backgrounds and heading scales. */
   markdownStyle?: Partial<MarkdownStyleConfig>;
   /**
@@ -77,19 +79,20 @@ export interface NativeMarkdownProps {
    */
   enabled?: boolean;
   testID?: string;
-}
+};
 
 export function NativeMarkdown({
   children,
-  style,
   markdownStyle,
   enabled,
   testID,
+  ...markdownProps
 }: NativeMarkdownProps) {
   const [contentWidth, setContentWidth] = useState(lastContentWidth);
   const { useNativeText: preferNative } = useNativeText();
 
-  const body = style?.body ?? {};
+  const { style, rules, renderer, onLinkPress } = markdownProps;
+  const body = (style as Record<string, TextStyle> | undefined)?.body ?? {};
   const fontSize = typeof body.fontSize === 'number' ? body.fontSize : 16;
   const lineHeight = typeof body.lineHeight === 'number' ? body.lineHeight : fontSize * 1.5;
   const color = typeof body.color === 'string' ? body.color : '#000000';
@@ -99,7 +102,16 @@ export function NativeMarkdown({
     [markdownStyle]
   );
 
-  const native = (enabled ?? preferNative) && isNativeTextAvailable();
+  /**
+   * Custom render rules keep a caller on the React path, always.
+   *
+   * `rules` and `renderer` mean "draw these node types MY way" — Topics uses them for verse-number
+   * superscripts and tappable references. A span list cannot express an arbitrary component, so
+   * rendering natively here would silently drop the caller's own markup. This was caught by the
+   * type-checker rather than by a screenshot, which is the only reason it is not a shipped bug.
+   */
+  const hasCustomRendering = rules !== undefined || renderer !== undefined;
+  const native = (enabled ?? preferNative) && !hasCustomRendering && isNativeTextAvailable();
 
   const compiled = useMemo(() => {
     if (!native) return null;
@@ -139,9 +151,13 @@ export function NativeMarkdown({
     (blockIndex: number, rangeIndex: number) => {
       const range = compiledRange(compiled?.blocks[blockIndex]?.ranges, rangeIndex);
       const href = range?.tag?.startsWith('link:') ? range.tag.slice('link:'.length) : null;
-      if (href) Linking.openURL(href).catch(() => undefined);
+      if (!href) return;
+      // A caller's own handler wins, and may veto by returning false — same contract the library
+      // documents, so link behaviour does not change with the renderer.
+      if (onLinkPress && onLinkPress(href) === false) return;
+      Linking.openURL(href).catch(() => undefined);
     },
-    [compiled]
+    [compiled, onLinkPress]
   );
 
   const usable = compiled?.supported === true && measured !== null;
@@ -154,7 +170,7 @@ export function NativeMarkdown({
    * counted in an effect because a render that React discards under concurrent rendering would
    * otherwise inflate the number being used to judge the experiment.
    */
-  const reason = usable ? null : fallbackReason(compiled, measured);
+  const reason = usable ? null : fallbackReason(compiled, measured, hasCustomRendering);
   useEffect(() => {
     if (!native) return;
     perfCount(reason === null ? 'markdown.native' : `markdown.fallback.${reason}`, 1);
@@ -165,7 +181,7 @@ export function NativeMarkdown({
     // itself on the next frame instead of being permanent.
     return (
       <View onLayout={handleLayout} testID={testID}>
-        <ReactMarkdown style={style}>{children}</ReactMarkdown>
+        <ReactMarkdown {...markdownProps}>{children}</ReactMarkdown>
       </View>
     );
   }
@@ -322,8 +338,12 @@ function compiledRange(ranges: TextRange[] | undefined, index: number): TextRang
 /** Why the React renderer was used, for the perf report. */
 function fallbackReason(
   compiled: ReturnType<typeof compileMarkdown> | null,
-  measured: number[] | null
+  measured: number[] | null,
+  hasCustomRendering: boolean
 ): string {
+  // Distinguished from 'no-native' because it is a permanent, intended property of the call site
+  // rather than a platform limitation — seeing it in a report is not a problem to investigate.
+  if (hasCustomRendering) return 'custom-rules';
   if (!compiled) return 'no-native';
   if (!compiled.supported) return compiled.unsupportedReason ?? 'unsupported';
   if (measured === null) return 'unmeasured';
