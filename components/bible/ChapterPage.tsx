@@ -511,6 +511,10 @@ export function ChapterPage({
   // swiping accumulated them — matching the report that rapid swiping through
   // many chapters degrades rather than staying flat. Dropping it when the page
   // stops being current bounds the live tree to one.
+  /** Latest `isPreloading`, read by effects that must not re-run when it flips. */
+  const isPreloadingRef = useRef(isPreloading);
+  isPreloadingRef.current = isPreloading;
+
   /** False until the first render has passed, so the mount run is not measured. */
   const viewSwitchWatchArmedRef = useRef(false);
 
@@ -1301,9 +1305,13 @@ export function ChapterPage({
       viewSwitchWatchArmedRef.current = true;
       return;
     }
-    if (isPreloading) return;
+    // Read through a ref rather than a dependency: `isPreloading` flips on every
+    // chapter change, so listing it re-ran this effect 23 times in a session with
+    // no view switches at all — the exact pollution the mount guard above was
+    // meant to remove.
+    if (isPreloadingRef.current) return;
     return watchFrames('anim.viewSwitch', VIEW_SWITCH_FRAME_WINDOW_MS);
-  }, [activeView, isPreloading]);
+  }, [activeView]);
 
   useEffect(() => {
     if (toggleProgress) return;
