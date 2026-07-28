@@ -92,10 +92,14 @@ import { isContentTabType } from '@/types/bible';
 /**
  * Minimum gap between chapter-change haptics, in ms.
  *
- * Above a normal deliberate swipe's cadence and below a fast flick's, so one
- * swipe always buzzes and a rapid burst buzzes once.
+ * Raised from 400ms because the operator reported the buzz coinciding with a visible
+ * stall during fast swiping — the screen pausing, then the haptic, then the header
+ * catching up, then swiping possible again. `Haptics.impactAsync` is a native call on
+ * the JS thread, so during a run it lands in the middle of exactly the work that must
+ * not be interrupted. 900ms is longer than the gap between flicks in a run, so a run
+ * buzzes once at most, while a single deliberate swipe still always buzzes.
  */
-const CHAPTER_HAPTIC_MIN_GAP_MS = 400;
+const CHAPTER_HAPTIC_MIN_GAP_MS = 900;
 
 /** How long the reader must settle before the position is persisted, in ms. */
 const SAVE_LAST_READ_DEBOUNCE_MS = 900;
