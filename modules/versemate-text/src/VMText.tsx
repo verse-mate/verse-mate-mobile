@@ -46,6 +46,55 @@ export interface VMTextProps {
   accessibilityLabel?: string;
 }
 
+/**
+ * Encode decoration ranges as a single string for the native prop.
+ *
+ * ## Why not just pass the array
+ *
+ * An array prop crashed the native setter:
+ *
+ *   Cannot set prop 'ranges' on view VMTextView
+ *   -> IllegalStateException: Already in the pool!
+ *   -> NullPointerException: null cannot be cast to non-null type T of
+ *      androidx.core.util.Pools.SimplePool
+ *
+ * Expo converts array props element by element through React Native `Dynamic` objects,
+ * which come from a pool, and under rapid mount/unmount that pool sees a double release
+ * and a null acquire. When the setter throws, the view never receives its decorations and
+ * the app's error boundary catches it — a blank screen with a perfectly normal-looking
+ * view hierarchy. A single string touches none of that machinery.
+ *
+ * Format: ranges separated by `|`, fields by `~`, fixed order, empty means absent. `~`
+ * and `|` cannot appear in any value — every field is a number, a CSS colour or a
+ * keyword. `decodeRanges` in VMTextModule.kt is the other half and must change with it.
+ */
+export function encodeRangesForTest(ranges: TextRange[] | undefined): string {
+  return encodeRanges(ranges);
+}
+
+function encodeRanges(ranges: TextRange[] | undefined): string {
+  if (!ranges || ranges.length === 0) return '';
+  const parts: string[] = [];
+  for (const range of ranges) {
+    parts.push(
+      [
+        range.start,
+        range.end,
+        range.underline?.style ?? '',
+        range.underline?.color ?? '',
+        range.underline?.thickness ?? '',
+        range.backgroundColor ?? '',
+        range.color ?? '',
+        range.fontWeight ?? '',
+        range.fontScale ?? '',
+        range.baselineShift ?? '',
+        range.interactive ? '1' : '0',
+      ].join('~')
+    );
+  }
+  return parts.join('|');
+}
+
 export function VMText(props: VMTextProps) {
   const {
     text,
@@ -79,23 +128,7 @@ export function VMText(props: VMTextProps) {
   // — the native reader rendered with no lexicon underlines at all while the
   // legacy path underlined nearly every phrase. Caught by diffing device
   // screenshots of the two arms.
-  const nativeRanges = useMemo(
-    () =>
-      ranges?.map((range) => ({
-        start: range.start,
-        end: range.end,
-        underlineStyle: range.underline?.style,
-        underlineColor: range.underline?.color,
-        underlineThickness: range.underline?.thickness,
-        backgroundColor: range.backgroundColor,
-        color: range.color,
-        fontWeight: range.fontWeight,
-        fontScale: range.fontScale,
-        baselineShift: range.baselineShift,
-        interactive: range.interactive ?? false,
-      })),
-    [ranges]
-  );
+  const rangesEncoded = useMemo(() => encodeRanges(ranges), [ranges]);
 
   const handleRangeTap = useCallback(
     (event: { nativeEvent: { index: number; charOffset: number } }) => {
@@ -147,7 +180,7 @@ export function VMText(props: VMTextProps) {
 
   const nativeProps: NativeVMTextProps = {
     text,
-    ranges: nativeRanges,
+    rangesEncoded,
     // Text attributes are forwarded as explicit props rather than left in
     // `style`. RN's Android view bridge pre-processes colour strings into ints
     // and then tries to set them on the same-named prop, which collides with a

@@ -34,7 +34,13 @@ export interface NativeTextRange {
 
 export interface NativeVMTextProps {
   text: string;
-  ranges?: NativeTextRange[];
+  /**
+   * Decorations as one encoded string — see `encodeRanges` in VMText.tsx.
+   *
+   * Not an array: an array prop is converted element-by-element through pooled RN
+   * `Dynamic` objects and crashed the native setter under rapid mount/unmount.
+   */
+  rangesEncoded?: string;
   fontSize?: number;
   fontFamily?: string;
   fontWeight?: string;
