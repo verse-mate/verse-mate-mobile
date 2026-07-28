@@ -191,6 +191,8 @@ export function GestureChapterPager({
    */
   const minRenderedSV = useSharedValue(0);
   const maxRenderedSV = useSharedValue(0);
+  /** Whether a gesture is in progress, so the invariant check leaves it alone. */
+  const gestureActiveSV = useSharedValue(false);
 
   const onChapterChangeRef = useRef(onChapterChange);
   onChapterChangeRef.current = onChapterChange;
@@ -416,6 +418,34 @@ export function GestureChapterPager({
   }, []);
 
   /**
+   * Guarantee the offset and the mounted content agree once the pager is at rest.
+   *
+   * There are three things that must stay consistent — the shared offset, the React
+   * index, and the route — and five rounds of reconciliation rules did not stop them
+   * diverging: a stress test of fast runs and quick reversals ended with Genesis 1
+   * mounted, the header reading Genesis 1, and the offset pointing somewhere else
+   * entirely, which renders as a blank screen.
+   *
+   * Rather than add a sixth rule about WHY they diverge, this makes divergence
+   * self-correcting. Any mismatch is a bug and the counter records it, but the reader
+   * gets a chapter instead of a blank page. A blank screen is far worse than a snap.
+   */
+  const assertPosition = useCallback(() => {
+    if (width <= 0) return;
+    if (gestureActiveSV.value) return;
+    const expected = -(indexRef.current - origin) * width;
+    if (Math.abs(scrollX.value - expected) < 1) return;
+    perfAdd('gesturePager.selfHealed', 1);
+    scrollX.value = expected;
+  }, [width, origin, scrollX, gestureActiveSV]);
+
+  // Checked shortly after things settle, and whenever the anchor moves.
+  useEffect(() => {
+    const timer = setTimeout(assertPosition, 350);
+    return () => clearTimeout(timer);
+  }, [assertPosition, index]);
+
+  /**
    * Move the mounted range towards a flick's target as the animation starts.
    *
    * `commitIndex` runs when the animation FINISHES, which is one flick too late during
@@ -433,6 +463,7 @@ export function GestureChapterPager({
         .failOffsetY([-FAIL_Y, FAIL_Y])
         .onStart(() => {
           'worklet';
+          gestureActiveSV.value = true;
           // Take over any settle in flight. Nothing else owns the position, so input
           // is never refused — the property ViewPager2 has no equivalent for.
           cancelAnimation(scrollX);
@@ -468,6 +499,7 @@ export function GestureChapterPager({
           // Velocity decides direction on a flick; on a slow drag, where the finger
           // ended up decides, since a slow drag can drift backwards at the end
           // without meaning to reverse.
+          gestureActiveSV.value = false;
           const forward = fast ? e.velocityX < 0 : travelled < 0;
           const target = forward ? from + 1 : from - 1;
           // Both conditions: the chapter must exist AND be mounted.
