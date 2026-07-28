@@ -9,8 +9,8 @@
  */
 
 import { renderHook } from '@testing-library/react-native';
-import { useParagraphLayout } from '@/lib/text/use-paragraph-layout';
 import type { CompileTheme, ParagraphInput } from '@/lib/text/types';
+import { useParagraphLayout } from '@/lib/text/use-paragraph-layout';
 
 const THEME: CompileTheme = {
   mode: 'light',

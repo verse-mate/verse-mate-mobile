@@ -21,7 +21,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { FlatList, InteractionManager, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
-import { Markdown } from '@/lib/markdown/Markdown';
 import Animated, {
   Easing,
   type SharedValue,
@@ -38,6 +37,7 @@ import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/contexts/ToastContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { useTopicById, useTopicReferences } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';

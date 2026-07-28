@@ -13,6 +13,10 @@
 
 // Pin web/api hosts BEFORE importing the handler — both read process.env at
 // module load time.
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
+import { buildDeepLink, fetchVerse } from '@/widgets/widget-task-handler';
+
 process.env.EXPO_PUBLIC_WEB_URL = 'https://app.versemate.org';
 process.env.EXPO_PUBLIC_API_URL = 'https://api.versemate.org';
 
@@ -22,10 +26,6 @@ jest.mock('react-native-android-widget', () => ({
   FlexWidget: 'FlexWidget',
   TextWidget: 'TextWidget',
 }));
-
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
-import { buildDeepLink, fetchVerse } from '@/widgets/widget-task-handler';
 
 const originalFetch = global.fetch;
 

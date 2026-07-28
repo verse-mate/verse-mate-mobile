@@ -8,10 +8,7 @@
  * the two ends of the Bible.
  */
 
-import {
-  chapterOrdinal,
-  computeChapterNavigation,
-} from '@/hooks/bible/use-chapter-navigation';
+import { chapterOrdinal, computeChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import type { TestamentBook } from '@/src/api';
 
 /** Genesis (50), Exodus (40), … Revelation (22) — only what the tests need. */

@@ -33,7 +33,10 @@ for (let i = 0; i < p.samples.length; i++) {
 
 const label = (n: Node): string => {
   const fn = n.callFrame.functionName || '(anonymous)';
-  const url = (n.callFrame.url ?? '').replace(/^.*?(node_modules|app|components|hooks|lib|src)\//, '$1/');
+  const url = (n.callFrame.url ?? '').replace(
+    /^.*?(node_modules|app|components|hooks|lib|src)\//,
+    '$1/'
+  );
   return `${fn}  ${url ? `[${url}:${n.callFrame.lineNumber ?? '?'}]` : ''}`;
 };
 
@@ -66,7 +69,9 @@ for (const [id, ms] of self) {
 const show = (m: Map<string, number>, title: string, n = 22) => {
   console.log(`\n=== ${title} (of ${total.toFixed(0)}ms sampled) ===`);
   for (const [k, ms] of [...m].sort((a, b) => b[1] - a[1]).slice(0, n)) {
-    console.log(`  ${ms.toFixed(0).padStart(6)}ms  ${((ms / total) * 100).toFixed(1).padStart(5)}%  ${k}`);
+    console.log(
+      `  ${ms.toFixed(0).padStart(6)}ms  ${((ms / total) * 100).toFixed(1).padStart(5)}%  ${k}`
+    );
   }
 };
 show(selfByName, 'SELF time — what was executing');

@@ -5,6 +5,7 @@
  * Tests cover critical deep link behaviors without exhaustive coverage.
  */
 
+import { analytics } from '@/lib/analytics/analytics';
 import { AnalyticsEvent } from '@/lib/analytics/types';
 import {
   buildWidgetVerseRoute,
@@ -25,8 +26,6 @@ jest.mock('@/lib/analytics/analytics', () => ({
     isEnabled: jest.fn(() => true),
   },
 }));
-
-import { analytics } from '@/lib/analytics/analytics';
 
 /**
  * Mirrors the widget-link branch of `handleDeepLink` in app/_layout.tsx:

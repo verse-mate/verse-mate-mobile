@@ -37,9 +37,9 @@ import type {
 import * as Clipboard from 'expo-clipboard';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
-import { Markdown } from '@/lib/markdown/Markdown';
 import { useTheme } from '@/contexts/ThemeContext';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { useStudy, useStudyLabels } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 

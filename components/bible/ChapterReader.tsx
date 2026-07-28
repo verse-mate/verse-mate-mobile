@@ -34,7 +34,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Markdown } from '@/lib/markdown/Markdown';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightedText } from '@/components/bible/HighlightedText';
@@ -52,6 +51,7 @@ import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
 import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
 import { ParagraphText } from '@/lib/text/ParagraphText';
@@ -441,7 +441,6 @@ export function ChapterReader({
   // Text visibility context for hybrid tokenization
   const { visibleYRange } = useTextVisibility();
 
-
   // Store verse layouts: map startVerse -> { y, height }
   const sectionPositions = useRef<Record<number, number>>({});
   const sectionLayouts = useRef<Record<number, { y: number; height: number }>>({});
@@ -578,11 +577,12 @@ export function ChapterReader({
    * invisible, and the estimate is replaced by a real measurement immediately.
    */
   const estimatedGroupHeight = (group: { verseNumber: number; text: string }[]): number => {
-    const chars = group.reduce(
-      (n, v) => n + v.text.length + String(v.verseNumber).length + 2,
-      0
+    const chars = group.reduce((n, v) => n + v.text.length + String(v.verseNumber).length + 2, 0);
+    const calibration = defaultCalibration(
+      userFontSize,
+      Math.max(windowWidth - 32, 1),
+      userFontSize * 2.0
     );
-    const calibration = defaultCalibration(userFontSize, Math.max(windowWidth - 32, 1), userFontSize * 2.0);
     return estimateHeight(chars, calibration);
   };
 
