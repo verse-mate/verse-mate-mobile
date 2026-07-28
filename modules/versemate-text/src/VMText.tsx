@@ -7,6 +7,7 @@
 
 import { type ReactNode, useCallback, useMemo } from 'react';
 import { StyleSheet, Text, type TextStyle } from 'react-native';
+import { perfAdd } from '@/lib/perf';
 import type { TextLineLayout, TextPressEvent, TextRange, TextSelectionRange } from './types';
 import { getNativeVMTextView, isNativeTextAvailable, type NativeVMTextProps } from './VMTextModule';
 
@@ -112,7 +113,14 @@ export function VMText(props: VMTextProps) {
 
   const handleSelectionChange = useCallback(
     (event: { nativeEvent: TextSelectionRange }) => {
-      onSelectionChange?.(event.nativeEvent);
+      // Counted unconditionally: the operator reports a slow horizontal drag
+      // starting a word selection, and a selection that fires during a SWIPE is
+      // invisible from JS otherwise — the haptic is Android's, not ours. This is
+      // the only signal that says whether selection is happening at all.
+      const range = event.nativeEvent;
+      perfAdd('text.selectionEvent', 1);
+      if (range && range.end > range.start) perfAdd('text.selectionNonEmpty', 1);
+      onSelectionChange?.(range);
     },
     [onSelectionChange]
   );
@@ -156,7 +164,9 @@ export function VMText(props: VMTextProps) {
     onPress: onPress ? handlePress : undefined,
     onRangeTap: onRangeTap ? handleRangeTap : undefined,
     onTextLayout: onTextLayout ? handleTextLayout : undefined,
-    onSelectionChange: onSelectionChange ? handleSelectionChange : undefined,
+    // Always attached so the dev-only selection counters see every event, not
+    // only the ones a consumer happened to subscribe to.
+    onSelectionChange: handleSelectionChange,
   };
 
   return <NativeView {...nativeProps} />;
