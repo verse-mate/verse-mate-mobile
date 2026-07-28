@@ -1,73 +1,75 @@
 /**
- * Compute paragraph heights and positions BEFORE anything is laid out.
+ * Position every paragraph, but only do real work for the ones on screen.
  *
- * ## Why this exists
+ * ## The problem this solves
  *
- * Windowing paragraph groups by their recorded `onLayout` position does not help
- * the case that needs it most. On a chapter's first mount nothing has been laid out
- * yet, so every group looks "position unknown" and renders for real — which is
- * exactly the moment ~31 off-screen views get created. Measured: adding
- * layout-based windowing left `paragraph.compile` at n=349 and chapter mount at
- * 761ms, i.e. changed nothing.
+ * Windowing needs offsets, offsets need heights, and the first version got heights
+ * by compiling and measuring EVERY paragraph. That made chapter mount O(chapter
+ * length): 35 lexicon compiles and 35 layout builds for Psalm 119 against 7 for
+ * Genesis 1. Rendering was windowed; the arithmetic behind it was not — which is
+ * precisely the reported symptom that swiping "depends on the length of the chapter
+ * when it really shouldn't", since a swipe mounts the adjacent chapter.
  *
- * The native module can measure text synchronously *without creating a view*, so
- * heights — and therefore cumulative offsets — are knowable during the very first
- * render. That is what lets the first mount skip work rather than merely the
- * scrolls after it.
+ * ## How it is O(visible)
  *
- * Positions are exact, not estimated, so placeholders occupy precisely the space
- * their text would: content height is correct from the first frame, the scrollbar
- * does not jump as groups fill in, and `measureLayout`-based scroll-to-verse keeps
- * working. That is the difference between this and the `setBibleSectionsMax`
- * progressive-reveal it replaces, which shows the right number of sections
- * eventually but the wrong content height meanwhile.
+ * 1. Estimate every paragraph's height from its character count. O(1) each, no
+ *    compile, no native call.
+ * 2. Accumulate estimated offsets and decide the window.
+ * 3. Compile and measure EXACTLY the paragraphs in the window — a handful.
+ * 4. Rebuild offsets using exact heights where known and estimates elsewhere.
+ * 5. Feed one exact measurement back into the estimator, so later estimates are
+ *    calibrated to the real font and width rather than a guessed constant.
+ *
+ * Everything the user can see or is about to scroll into is exact. Only far
+ * off-screen placement is approximate, and only to within about a line.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import type { TextStyle } from 'react-native';
 import { measureTextHeights } from '@/modules/versemate-text';
 import { compileParagraph } from './compile-paragraph';
+import {
+  calibrateFrom,
+  defaultCalibration,
+  estimateHeight,
+  type HeightCalibration,
+} from './estimate-height';
 import type { CompiledParagraph, ParagraphInput } from './types';
 
-/** One group's compiled content plus where it sits in the scroll content. */
+/** One group's position, and its content when it is close enough to render. */
 export interface ParagraphLayout {
-  compiled: CompiledParagraph;
-  /** Measured height in dp, or null when native measurement is unavailable. */
-  height: number | null;
+  /** Compiled content — only present for paragraphs inside the window. */
+  compiled: CompiledParagraph | null;
+  /** Height in dp: exact when measured, otherwise estimated. */
+  height: number;
+  /** True when `height` came from a real measurement rather than an estimate. */
+  exact: boolean;
   /** Distance from the top of the first group to the top of this one, in dp. */
   offsetY: number;
+  /** Whether this group should render for real. */
+  visible: boolean;
 }
 
 export interface UseParagraphLayoutOptions {
-  /** One entry per paragraph group, in document order. */
   groups: ParagraphInput['verses'][];
   /** Width the groups will be laid out at, in dp. */
   width: number;
-  /** Base text style; font attributes drive measurement. */
   style?: TextStyle;
-  /** Vertical gap between groups, in dp. Part of the offset arithmetic. */
+  /** Vertical gap between groups, in dp. */
   gap: number;
+  /** Scroll position, in the same space as `offsetY` (i.e. relative to group 0). */
+  scrollY: number;
+  /** Visible height in dp. */
+  viewportHeight: number;
+  /** How far beyond the viewport still counts as visible, in dp. */
+  bufferPx: number;
   /** Everything else `compileParagraph` needs, shared by every group. */
   shared: Omit<ParagraphInput, 'verses'>;
 }
 
-/**
- * Compile and measure every group, and accumulate offsets.
- *
- * Measurement is batched into ONE native call. A chapter can hold ~35 groups, and
- * 35 separate JSI crossings for work that is identical per item is pure overhead —
- * the per-item cost is the same either way and is cached natively by spec.
- */
 export function useParagraphLayout(options: UseParagraphLayoutOptions): ParagraphLayout[] {
-  const { groups, width, style, gap, shared } = options;
+  const { groups, width, style, gap, scrollY, viewportHeight, bufferPx, shared } = options;
 
-  const compiled = useMemo(
-    () => groups.map((verses) => compileParagraph({ ...shared, verses })),
-    [groups, shared]
-  );
-
-  // Font attributes are read once here rather than per group: they are shared, and
-  // pulling them out keeps the measurement memo's key small.
   const fontSize = typeof style?.fontSize === 'number' ? style.fontSize : 14;
   const fontFamily = style?.fontFamily;
   const fontWeight = style?.fontWeight != null ? String(style.fontWeight) : undefined;
@@ -75,56 +77,147 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
   const letterSpacing = typeof style?.letterSpacing === 'number' ? style.letterSpacing : undefined;
   const textAlign = style?.textAlign;
 
-  return useMemo(() => {
-    const heights =
-      width > 0
-        ? measureTextHeights(
-            compiled.map((c) => ({
-              text: c.text,
-              // Only metric-affecting ranges. Background and foreground colour spans
-              // are CharacterStyle, not MetricAffectingSpan, so they provably cannot
-              // change line breaking — including them would evict the native
-              // measurement cache on every highlight toggle for nothing.
-              ranges: c.ranges
-                .filter(
-                  (r) =>
-                    r.fontScale !== undefined ||
-                    r.baselineShift !== undefined ||
-                    r.fontWeight !== undefined
-                )
-                .map((r) => ({
-                  start: r.start,
-                  end: r.end,
-                  fontWeight: r.fontWeight,
-                  fontScale: r.fontScale,
-                  baselineShift: r.baselineShift,
-                  interactive: false,
-                })),
-              width,
-              fontSize,
-              fontFamily,
-              fontWeight,
-              lineHeight,
-              letterSpacing,
-              textAlign,
-            }))
-          )
-        : null;
+  /**
+   * Calibration persists across renders and chapters.
+   *
+   * A ref rather than state on purpose: learning a slightly better constant must
+   * never trigger a re-render, and the value is an optimisation detail — using a
+   * marginally stale calibration costs nothing, since it only places off-screen
+   * content.
+   */
+  const calibrationRef = useRef<HeightCalibration | null>(null);
 
-    let offsetY = 0;
-    return compiled.map((c, i) => {
-      const height = heights?.[i] ?? null;
-      const layout: ParagraphLayout = { compiled: c, height, offsetY };
-      // An unmeasured group contributes nothing to the running offset. That makes
-      // every subsequent offset meaningless, which is why `isParagraphVisible`
-      // treats a null height as "always render" rather than trusting the number.
-      if (height != null) offsetY += height + gap;
-      return layout;
+  // Character counts drive the estimate. Cheap, and independent of everything except
+  // the verses themselves, so this survives scrolling.
+  const textLengths = useMemo(
+    () =>
+      groups.map((verses) =>
+        verses.reduce(
+          // +2 approximates the verse number and its following space.
+          (total, verse) => total + verse.text.length + String(verse.verseNumber).length + 2,
+          0
+        )
+      ),
+    [groups]
+  );
+
+  return useMemo(() => {
+    if (groups.length === 0 || width <= 0) return [];
+
+    const calibration =
+      calibrationRef.current ?? defaultCalibration(fontSize, width, lineHeight);
+
+    // --- 1. Estimated offsets, O(1) per group -------------------------------
+    const estimated: number[] = [];
+    let cursor = 0;
+    for (const length of textLengths) {
+      estimated.push(cursor);
+      cursor += estimateHeight(length, calibration) + gap;
+    }
+
+    // --- 2. Window from estimates -------------------------------------------
+    const top = scrollY - bufferPx;
+    const bottom = scrollY + viewportHeight + bufferPx;
+    const inWindow = estimated.map((offset, i) => {
+      const height = estimateHeight(textLengths[i], calibration);
+      return offset + height >= top && offset <= bottom;
     });
+
+    // Nothing visible means the estimates are probably nonsense (no viewport yet).
+    // Render the first screenful rather than nothing — a blank reader is far worse
+    // than a little extra work.
+    if (!inWindow.some(Boolean)) {
+      for (let i = 0; i < Math.min(inWindow.length, 3); i++) inWindow[i] = true;
+    }
+
+    // --- 3. Compile + measure ONLY the window -------------------------------
+    const windowIndices: number[] = [];
+    inWindow.forEach((v, i) => {
+      if (v) windowIndices.push(i);
+    });
+
+    const compiledByIndex = new Map<number, CompiledParagraph>();
+    for (const i of windowIndices) {
+      compiledByIndex.set(i, compileParagraph({ ...shared, verses: groups[i] }));
+    }
+
+    const measured = measureTextHeights(
+      windowIndices.map((i) => {
+        const c = compiledByIndex.get(i) as CompiledParagraph;
+        return {
+          text: c.text,
+          // Only metric-affecting ranges: background and foreground colour spans are
+          // CharacterStyle, not MetricAffectingSpan, so they cannot change line
+          // breaking, and including them would evict the native cache on every
+          // highlight toggle.
+          ranges: c.ranges
+            .filter(
+              (r) =>
+                r.fontScale !== undefined ||
+                r.baselineShift !== undefined ||
+                r.fontWeight !== undefined
+            )
+            .map((r) => ({
+              start: r.start,
+              end: r.end,
+              fontWeight: r.fontWeight,
+              fontScale: r.fontScale,
+              baselineShift: r.baselineShift,
+              interactive: false,
+            })),
+          width,
+          fontSize,
+          fontFamily,
+          fontWeight,
+          lineHeight,
+          letterSpacing,
+          textAlign,
+        };
+      })
+    );
+
+    const exactByIndex = new Map<number, number>();
+    if (measured) {
+      windowIndices.forEach((groupIndex, k) => {
+        const h = measured[k];
+        if (typeof h === 'number') exactByIndex.set(groupIndex, h);
+      });
+    }
+
+    // --- 4. Teach the estimator from a real sample --------------------------
+    for (const [groupIndex, height] of exactByIndex) {
+      const next = calibrateFrom(textLengths[groupIndex], height, calibration);
+      if (next) {
+        calibrationRef.current = next;
+        break;
+      }
+    }
+
+    // --- 5. Final offsets: exact where known, estimated elsewhere -----------
+    const out: ParagraphLayout[] = [];
+    let offsetY = 0;
+    for (let i = 0; i < groups.length; i++) {
+      const exact = exactByIndex.get(i);
+      const height = exact ?? estimateHeight(textLengths[i], calibration);
+      out.push({
+        compiled: compiledByIndex.get(i) ?? null,
+        height,
+        exact: exact != null,
+        offsetY,
+        visible: inWindow[i],
+      });
+      offsetY += height + gap;
+    }
+    return out;
   }, [
-    compiled,
+    groups,
+    textLengths,
     width,
     gap,
+    scrollY,
+    viewportHeight,
+    bufferPx,
+    shared,
     fontSize,
     fontFamily,
     fontWeight,
@@ -132,27 +225,4 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
     letterSpacing,
     textAlign,
   ]);
-}
-
-/**
- * Whether a group is close enough to the viewport to be worth rendering for real.
- *
- * `scrollY` and `viewportHeight` are in the same coordinate space as `offsetY` —
- * i.e. relative to the first group — so the caller passes the scroll position
- * already adjusted for whatever sits above the paragraph list.
- *
- * Returns true when the height is unknown, because then the offsets downstream are
- * unreliable too and a wrong guess shows blank content. Over-rendering is a
- * performance cost; under-rendering is a visible bug.
- */
-export function isParagraphVisible(
-  layout: ParagraphLayout,
-  scrollY: number,
-  viewportHeight: number,
-  bufferPx: number
-): boolean {
-  if (layout.height == null) return true;
-  const top = layout.offsetY;
-  const bottom = top + layout.height;
-  return bottom >= scrollY - bufferPx && top <= scrollY + viewportHeight + bufferPx;
 }
