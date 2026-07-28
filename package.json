@@ -1,7 +1,7 @@
 {
   "name": "verse-mate-mobile",
   "main": "index.js",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -69,6 +69,7 @@
     "expo-localization": "~17.0.8",
     "expo-location": "~19.0.8",
     "expo-navigation-bar": "~5.0.10",
+    "expo-notifications": "~0.32.17",
     "expo-router": "~6.0.17",
     "expo-screen-orientation": "~9.0.9",
     "expo-secure-store": "^55.0.13",
