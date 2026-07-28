@@ -92,14 +92,21 @@ const ACTIVATE_X = 14;
 const FAIL_Y = 18;
 
 /**
- * How long to wait for the swiping to stop before telling the route, in ms.
+ * Adaptive route dispatch.
  *
- * Short enough that a single deliberate swipe updates the header almost at once, long
- * enough that a fast run collapses into one navigation instead of one per chapter.
- * Safe only because the pager's visuals are independent of the route — that was the
- * whole point of absolute indexing.
+ * A fixed 140ms debounce was measured to do nothing at all: 19 flicks produced 19
+ * route dispatches, because the gap between human swipes is longer than 140ms. Every
+ * flick still cost a navigation, and the header fell progressively further behind — the
+ * reported "works at first, then breaks once the header cannot keep up".
+ *
+ * So the delay depends on whether a run is under way. An isolated swipe dispatches
+ * almost immediately, keeping the header live. A flick arriving within RUN_GAP_MS of
+ * the previous one means the reader is mid-run, and the route waits for the run to
+ * finish instead of chasing every chapter through it.
  */
-const ROUTE_COALESCE_MS = 140;
+const ROUTE_SETTLE_MS = 60;
+const ROUTE_RUN_SETTLE_MS = 320;
+const RUN_GAP_MS = 700;
 
 /**
  * How many chapters of index space the row spans, and how far back it starts.
@@ -174,8 +181,9 @@ export function GestureChapterPager({
   const onChapterChangeRef = useRef(onChapterChange);
   onChapterChangeRef.current = onChapterChange;
 
-  /** Latest chapter awaiting a route dispatch, and its timer. */
+  /** Latest chapter awaiting a route dispatch, its timer, and when the last flick landed. */
   const pendingRouteRef = useRef<ChapterLocation | null>(null);
+  const lastFlickAtRef = useRef(0);
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -332,16 +340,24 @@ export function GestureChapterPager({
     setIndex(target);
     perfAdd('gesturePager.flickPaged', 1);
 
+    const now = Date.now();
+    const inRun = now - lastFlickAtRef.current < RUN_GAP_MS;
+    lastFlickAtRef.current = now;
+    if (inRun) perfAdd('gesturePager.flickInRun', 1);
+
     pendingRouteRef.current = loc;
     if (routeTimerRef.current) clearTimeout(routeTimerRef.current);
-    routeTimerRef.current = setTimeout(() => {
-      routeTimerRef.current = null;
-      const next = pendingRouteRef.current;
-      pendingRouteRef.current = null;
-      if (!next) return;
-      perfAdd('gesturePager.routeDispatched', 1);
-      onChapterChangeRef.current(next.bookId, next.chapterNumber);
-    }, ROUTE_COALESCE_MS);
+    routeTimerRef.current = setTimeout(
+      () => {
+        routeTimerRef.current = null;
+        const next = pendingRouteRef.current;
+        pendingRouteRef.current = null;
+        if (!next) return;
+        perfAdd('gesturePager.routeDispatched', 1);
+        onChapterChangeRef.current(next.bookId, next.chapterNumber);
+      },
+      inRun ? ROUTE_RUN_SETTLE_MS : ROUTE_SETTLE_MS
+    );
     span();
   }, []);
 
