@@ -392,11 +392,20 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           // detect — which is why "tap to dismiss" fell through and opened the verse
           // insight instead.
           hadSelectionOnDown = anySelection()
-          // A tap anywhere dismisses a selection held by ANY paragraph, not just this
-          // one. Recorded on DOWN so the UP handler can consume the tap.
-          dismissedForeignSelection = VMTextView.clearActiveSelection(except = this)
+          // Dismiss a selection wherever it lives, INCLUDING this view's own.
+          //
+          // `except = this` was wrong: when the selected word and the tapped word are in
+          // the same paragraph, nothing is foreign, so the dismissal never triggered and
+          // super went on to select the newly tapped word. That is the reported "it
+          // deselects the old one but selects the one I tapped". A tap while anything is
+          // selected means dismiss, regardless of which paragraph holds it.
+          //
+          // Selection handles live in their own PopupWindows, so dragging one does not
+          // arrive here and is unaffected.
+          dismissedForeignSelection = anySelection() || VMTextView.clearActiveSelection()
           if (dismissedForeignSelection) {
-            Log.d(TOUCH_TAG, "DOWN dismissed a foreign selection — consuming this gesture")
+            clearSelectionIfAny()
+            Log.d(TOUCH_TAG, "DOWN dismissed a selection — consuming this gesture")
             // Withhold the WHOLE gesture from super, starting with this DOWN.
             //
             // Consuming only at UP was not enough: super still saw down/move/up and the
@@ -568,7 +577,7 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     /** Clear whichever view holds a selection. Returns true if one was cleared. */
     fun clearActiveSelection(except: AppCompatTextView? = null): Boolean {
       val owner = selectionOwner?.get() ?: return false
-      if (owner === except) return false
+      if (except != null && owner === except) return false
       val text = owner.text
       if (text is android.text.Spannable && owner.selectionEnd > owner.selectionStart) {
         android.text.Selection.setSelection(text, owner.selectionStart)
