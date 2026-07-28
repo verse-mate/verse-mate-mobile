@@ -144,6 +144,15 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     private var downX = 0f
     private var downY = 0f
     private var downTime = 0L
+    /**
+     * Horizontal travel that marks a gesture as a swipe, in px.
+     *
+     * Must stay below the pager pan's activation distance (14px), or events stop
+     * arriving before the threshold is reached. A tap moves a pixel or two, so this is
+     * comfortably clear of one.
+     */
+    private val SWIPE_CLAIM_PX = 6f
+
     /** logcat tag for the touch trace. Filter with: adb logcat -s VMTouch */
     private val TOUCH_TAG = "VMTouch"
 
@@ -394,9 +403,14 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           if (!longPressCancelled) {
             val mdx = kotlin.math.abs(event.x - downX)
             val mdy = kotlin.math.abs(event.y - downY)
-            val slop = ViewConfiguration.get(context).scaledTouchSlop
-            Log.d(TOUCH_TAG, "MOVE dx=$mdx dy=$mdy slop=$slop claimed=$swipeClaimed")
-            if (mdx > slop && mdx > mdy) {
+            Log.d(TOUCH_TAG, "MOVE dx=$mdx dy=$mdy claimed=$swipeClaimed")
+            // NOT scaledTouchSlop, which is 35px on this device. The pager's pan
+            // claims the gesture at 14px, so events stop arriving here at ~35px — the
+            // touch trace showed a drag reaching dx=34.84 and then going silent, which
+            // means a 35px threshold could never once be true. Three selection fixes
+            // did nothing for exactly this reason: the code was correct and
+            // unreachable. The threshold has to sit BELOW the pan's activation.
+            if (mdx > SWIPE_CLAIM_PX && mdx > mdy) {
               Log.d(TOUCH_TAG, "MOVE -> claiming swipe, clearing selection")
               longPressCancelled = true
               swipeClaimed = true
@@ -410,6 +424,15 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
               clearSelectionIfAny()
             }
           }
+        }
+        MotionEvent.ACTION_CANCEL -> {
+          // The pager's pan took the gesture. That is a swipe by definition, and it is
+          // the only signal available when the finger holds still past the long-press
+          // timeout before moving — the platform has already started selecting by
+          // then, and no MOVE threshold can help.
+          Log.d(TOUCH_TAG, "CANCEL sel=${selectionStart}..${selectionEnd}")
+          swipeClaimed = true
+          clearSelectionIfAny()
         }
         MotionEvent.ACTION_UP -> {
           val dx = event.x - downX
