@@ -171,6 +171,7 @@ export function TopicExplanationsPanel({
       ...markdownRules,
       text: (node, _children, _parent, styles, inheritedStyles = {}) => (
         <HighlightedText
+          perfSurface="topics.explanations"
           key={node.key}
           text={node.content}
           verseNumber={0}

@@ -1021,6 +1021,9 @@ export function ChapterReader({
                                 </Text>
                               </Text>
                               <HighlightedText
+                                perfSurface={
+                                  explanationsOnly ? 'insight.verse' : 'bible.paragraphFallback'
+                                }
                                 text={verse.text}
                                 verseNumber={verse.verseNumber}
                                 highlights={chapterHighlights}
@@ -1057,6 +1060,7 @@ export function ChapterReader({
                       {verse.verseNumber}
                     </Text>
                     <HighlightedText
+                      perfSurface={explanationsOnly ? 'insight.verseRow' : 'bible.verseRow'}
                       text={verse.text}
                       verseNumber={verse.verseNumber}
                       highlights={chapterHighlights}
