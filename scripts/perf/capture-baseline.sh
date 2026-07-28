@@ -64,7 +64,11 @@ mkdir -p "$OUT/report"
 # Run a PowerShell command on ThorSPC. `pc` is the persistent-shell bridge;
 # preferred over raw ssh so the adb daemon survives between calls (a fresh SSH
 # session per adb command is how the connection gets dropped mid-run).
-pcrun() { pc -s perfcap "$@"; }
+# `< /dev/null` matters: the bridge client reads stdin, and when the script's stdout
+# is redirected (as it is for most of these calls) it could block waiting for input
+# that never comes. Every leg of a six-capture run hung this way, with no error,
+# while the identical commands typed by hand returned instantly.
+pcrun() { pc -s perfcap "$@" < /dev/null; }
 
 # Run one adb command against the discovered device.
 #
