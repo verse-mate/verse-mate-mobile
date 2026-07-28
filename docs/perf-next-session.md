@@ -391,3 +391,38 @@ side but **never encoded on the wire**, so italic silently did nothing.
 - **A perf flow that does not exist on the checked-out commit** makes Maestro a
   no-op and the capture reports zero frames. When A/B-ing across commits, restore
   `.maestro/` from the newer one — instrumentation must be identical in both arms.
+
+## Result: native markdown is a real win (2026-07-29)
+
+Same-binary A/B on `.maestro/perf/insight-tabs.yaml`, flipping only the `useNativeText`
+preference — no commit swap, so the two arms differ by one boolean:
+
+| | React markdown | native markdown |
+| --- | --- | --- |
+| frames over 8.33ms | 74/119 (62.2%) | **57/119 (47.9%)** |
+| frame mean | 16.53ms | **11.36ms** |
+| p90 | 22.96ms | **17.02ms** |
+| p95 | 44.94ms | **32.79ms** |
+| p99 | 279.33ms | **61.71ms** |
+| worst frame | 300.34ms | **62.82ms** |
+| `tab.switch` mean | 136.9ms | **118.4ms** |
+
+The tail is the headline: a 300ms frame is a visible hitch, and it is gone. Phase breakdown
+confirms the mechanism rather than just the outcome — `animation` (Fabric mount dispatch)
+**7.2ms → 4.1ms**, which is the exact lever the 25-capture analysis identified. `traversals`
+rose 0.2 → 2.1ms and `draw` 1.1 → 1.7ms, since native views do real measure and fewer, larger
+views each draw more; both remain small.
+
+`view.switch` regressed (161.7 → 265.0ms) but on **n=6 vs 16**, and the flag also flips the verse
+renderer, so the Bible pane differs between arms too. Not claimable either way — re-measure with
+the `enabled` prop override if it matters.
+
+Two traps for whoever measures next:
+
+- **A release/preview build has `__DEV__` false, so there is no perf session and no `perfCount`.**
+  `gfxinfo`/`framestats` still work; span timings and the `markdown.native` /
+  `markdown.fallback.<reason>` path counters do not. Confirm the path on a dev build.
+- **`markdown.native` counts TRANSITIONS, not renders.** It lives in an effect keyed on the
+  fallback reason, so one document rendering natively for a whole session counts once. It answers
+  "did the native path engage" and nothing more. A `fallback.unmeasured` of 1 at startup is
+  expected — width is unknown for one frame.
