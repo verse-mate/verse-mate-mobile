@@ -1510,19 +1510,27 @@ export function ChapterPage({
     });
   }, [activeView, localToggleProgress, toggleProgress]);
   const effectiveProgress = toggleProgress ?? localToggleProgress;
+  /**
+   * Visibility is opacity ONLY — deliberately no animated `zIndex`.
+   *
+   * `zIndex` was animated alongside opacity on both containers and all four tabs. Opacity is a cheap
+   * per-view property, but changing `zIndex` REORDERS the parent's children, which is a structural
+   * mutation: Fabric emits it as mount operations applied in the Choreographer callback — the
+   * `animation` phase that `framestats` shows dominating every slow frame on this screen. It fired on
+   * every view switch and every tab switch, for every pane, to reorder views that are invisible
+   * anyway.
+   *
+   * Static declaration order is sufficient because an inactive pane is already `opacity: 0` and
+   * `pointerEvents: 'none'`: draw order only matters between things you can see, and only one pane is
+   * ever visible. Insight is declared after Bible, so it naturally composites on top when shown.
+   */
   const insightContainerStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      opacity: effectiveProgress.value,
-      zIndex: effectiveProgress.value > 0.5 ? 1 : 0,
-    };
+    return { opacity: effectiveProgress.value };
   });
   const bibleContainerStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      opacity: 1 - effectiveProgress.value,
-      zIndex: effectiveProgress.value > 0.5 ? 0 : 1,
-    };
+    return { opacity: 1 - effectiveProgress.value };
   });
 
   // Inner-tab visibility — driven by activeTabProgress (string sharedValue
@@ -1539,22 +1547,22 @@ export function ChapterPage({
   const summaryTabStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'summary';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    return { opacity: match ? 1 : 0 };
   });
   const bylineTabStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'byline';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    return { opacity: match ? 1 : 0 };
   });
   const studyTabStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'study';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    return { opacity: match ? 1 : 0 };
   });
   const visualsTabStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'visuals';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    return { opacity: match ? 1 : 0 };
   });
 
   return (
