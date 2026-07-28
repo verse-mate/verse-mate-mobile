@@ -178,6 +178,17 @@ export function GestureChapterPager({
   const originSV = useSharedValue(-ORIGIN_BACK);
   const minIndexSV = useSharedValue(0);
   const maxIndexSV = useSharedValue(0);
+  /**
+   * The range that is actually MOUNTED.
+   *
+   * The gesture must never travel past this, or it lands on empty space — which is
+   * exactly what happened when the bounds were widened to the whole Bible: a fast run
+   * outran the rendered pages and left a black screen at Genesis 10 while the header
+   * sat at 6. Bible bounds say where chapters EXIST; these say where content is, and a
+   * swipe needs both to be true.
+   */
+  const minRenderedSV = useSharedValue(0);
+  const maxRenderedSV = useSharedValue(0);
 
   const onChapterChangeRef = useRef(onChapterChange);
   onChapterChangeRef.current = onChapterChange;
@@ -256,6 +267,14 @@ export function GestureChapterPager({
     widthSV.value = width;
     originSV.value = origin;
   }, [width, origin, widthSV, originSV]);
+
+  // Publish the mounted range every time it changes, so the gesture can refuse to
+  // travel into unrendered space rather than showing nothing.
+  useEffect(() => {
+    if (rendered.length === 0) return;
+    minRenderedSV.value = rendered[0].index;
+    maxRenderedSV.value = rendered[rendered.length - 1].index;
+  }, [rendered, minRenderedSV, maxRenderedSV]);
 
   /**
    * Publish the ABSOLUTE reachable range, once per chapter-space anchor.
@@ -374,6 +393,17 @@ export function GestureChapterPager({
     perfAdd('gesturePager.flickCancelled', 1);
   }, []);
 
+  /**
+   * Move the mounted range towards a flick's target as the animation starts.
+   *
+   * `commitIndex` runs when the animation FINISHES, which is one flick too late during
+   * a run — the gesture would reach the edge of the mounted range before React had been
+   * asked to extend it. This is the same state update, issued early.
+   */
+  const extendTowards = useCallback((target: number) => {
+    setIndex((current) => (current === target ? current : target));
+  }, []);
+
   const pan = useMemo(
     () =>
       Gesture.Pan()
@@ -396,8 +426,10 @@ export function GestureChapterPager({
           const from = originSV.value + Math.round(-gestureStart.value / w);
           const base = -(from - originSV.value) * w;
           let next = gestureStart.value + e.translationX;
-          const max = from - 1 >= minIndexSV.value ? base + w : base;
-          const min = from + 1 <= maxIndexSV.value ? base - w : base;
+          const lo = Math.max(minIndexSV.value, minRenderedSV.value);
+          const hi = Math.min(maxIndexSV.value, maxRenderedSV.value);
+          const max = from - 1 >= lo ? base + w : base;
+          const min = from + 1 <= hi ? base - w : base;
           if (next > max) next = max;
           if (next < min) next = min;
           scrollX.value = next;
@@ -416,7 +448,10 @@ export function GestureChapterPager({
           // without meaning to reverse.
           const forward = fast ? e.velocityX < 0 : travelled < 0;
           const target = forward ? from + 1 : from - 1;
-          const allowed = forward ? target <= maxIndexSV.value : target >= minIndexSV.value;
+          // Both conditions: the chapter must exist AND be mounted.
+          const allowed = forward
+            ? target <= Math.min(maxIndexSV.value, maxRenderedSV.value)
+            : target >= Math.max(minIndexSV.value, minRenderedSV.value);
 
           if ((fast || far) && allowed) {
             scrollX.value = withTiming(
@@ -427,6 +462,10 @@ export function GestureChapterPager({
                 if (finished) runOnJS(commitIndex)(target);
               }
             );
+            // Start extending the mounted range NOW rather than when the animation
+            // ends, so a run of flicks keeps content ahead of itself instead of
+            // catching up afterwards.
+            runOnJS(extendTowards)(target);
             return;
           }
           scrollX.value = withTiming(base, {
@@ -435,7 +474,19 @@ export function GestureChapterPager({
           });
           runOnJS(cancelled)();
         }),
-    [scrollX, gestureStart, widthSV, originSV, minIndexSV, maxIndexSV, commitIndex, cancelled]
+    [
+      scrollX,
+      gestureStart,
+      widthSV,
+      originSV,
+      minIndexSV,
+      maxIndexSV,
+      minRenderedSV,
+      maxRenderedSV,
+      commitIndex,
+      cancelled,
+      extendTowards,
+    ]
   );
 
   const rowStyle = useAnimatedStyle(() => ({
