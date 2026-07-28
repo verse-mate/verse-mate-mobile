@@ -27,41 +27,32 @@
  * response. They point at completely different work, which is the distinction that has been
  * missing.
  *
+ * ## Two traps in the format, both of which produced wrong numbers here
+ *
+ * A row whose `Flags` column is non-zero MUST be discarded — Android's own contract for this
+ * block. Those rows carry timestamps from a different frame lifecycle and their columns are not
+ * ordered in time. Keeping exactly ONE such row (of 120) put a -17,006ms frame in the set and
+ * dragged the reported means to -131ms total and -141ms sync, which is how a real finding —
+ * `draw` dominating the slow frames — nearly got thrown out with the arithmetic.
+ *
+ * And `dumpsys` emits one block PER WINDOW, each with its own header, followed by unrelated
+ * prose (`View hierarchy:`). Reading from the first marker to end-of-file and splitting on
+ * newlines swallows all of it.
+ *
+ * The frame budget comes from the `FrameInterval` column rather than an assumed 16.7ms. This
+ * device reports 8,340,090ns — it is a 120Hz panel, so a frame that looks fine against 16ms is
+ * already two vsyncs late.
+ *
  * Usage: bun scripts/perf/framestats.ts <gfxinfo-with-framestats.txt> [slowMs]
  */
 
 import { readFileSync } from 'node:fs';
 
 const file = process.argv[2];
-const slowMs = Number(process.argv[3] ?? 16);
+const slowOverride = process.argv[3] ? Number(process.argv[3]) : null;
 if (!file) {
   console.error('usage: bun scripts/perf/framestats.ts <gfxinfo.txt> [slowMs]');
   process.exit(2);
-}
-
-const text = readFileSync(file, 'utf8').replace(/\r/g, '');
-const start = text.indexOf('---PROFILEDATA---');
-if (start === -1) {
-  console.error('No ---PROFILEDATA--- block. Capture with: dumpsys gfxinfo <pkg> framestats');
-  process.exit(1);
-}
-const lines = text.slice(start).split('\n').slice(1);
-const header = lines[0]?.split(',') ?? [];
-const col = (name: string) => header.indexOf(name);
-
-const idx = {
-  intended: col('IntendedVsync'),
-  input: col('HandleInputStart'),
-  anim: col('AnimationStart'),
-  trav: col('PerformTraversalsStart'),
-  draw: col('DrawStart'),
-  sync: col('SyncStart'),
-  issue: col('IssueDrawCommandsStart'),
-  done: col('FrameCompleted'),
-};
-if (Object.values(idx).some((i) => i < 0)) {
-  console.error(`Unexpected framestats columns: ${header.join(',')}`);
-  process.exit(1);
 }
 
 interface Frame {
@@ -74,23 +65,55 @@ interface Frame {
   gpu: number;
 }
 
-const ms = (a: number, b: number) => (b - a) / 1e6;
-const frames: Frame[] = [];
+const PHASES = [
+  ['input', 'HandleInputStart', 'AnimationStart'],
+  ['animation', 'AnimationStart', 'PerformTraversalsStart'],
+  ['traversals', 'PerformTraversalsStart', 'DrawStart'],
+  ['draw', 'DrawStart', 'SyncStart'],
+  ['sync', 'SyncStart', 'IssueDrawCommandsStart'],
+  ['gpu', 'IssueDrawCommandsStart', 'FrameCompleted'],
+] as const;
 
-for (const line of lines.slice(1)) {
-  const f = line.split(',').map(Number);
-  if (f.length < header.length || !Number.isFinite(f[idx.done]) || f[idx.done] <= 0) continue;
-  // A dropped/never-drawn frame reports 0 in a phase column; skip rather than report noise.
-  if (f[idx.input] <= 0 || f[idx.trav] <= 0) continue;
-  frames.push({
-    total: ms(f[idx.intended], f[idx.done]),
-    input: ms(f[idx.input], f[idx.anim]),
-    animation: ms(f[idx.anim], f[idx.trav]),
-    traversals: ms(f[idx.trav], f[idx.draw]),
-    draw: ms(f[idx.draw], f[idx.sync]),
-    sync: ms(f[idx.sync], f[idx.issue]),
-    gpu: ms(f[idx.issue], f[idx.done]),
-  });
+const text = readFileSync(file, 'utf8').replace(/\r/g, '');
+if (!text.includes('---PROFILEDATA---')) {
+  console.error('No ---PROFILEDATA--- block. Capture with: dumpsys gfxinfo <pkg> framestats');
+  process.exit(1);
+}
+
+const frames: Frame[] = [];
+const intervals: number[] = [];
+let skippedFlagged = 0;
+
+for (const block of text.split('---PROFILEDATA---').slice(1)) {
+  const lines = block.split('\n').filter((l) => l.trim().length > 0);
+  // A block that does not open with the header is trailing prose from another section.
+  if (!lines[0]?.startsWith('Flags')) continue;
+  const header = lines[0].split(',');
+  const col = (name: string) => header.indexOf(name);
+  const at = { flags: col('Flags'), interval: col('FrameInterval') };
+  if (PHASES.some(([, from, to]) => col(from) < 0 || col(to) < 0)) continue;
+
+  for (const line of lines.slice(1)) {
+    // The next window's header, or prose, ends this block's rows.
+    const raw = line.split(',');
+    const f = raw.map(Number);
+    if (raw.length < header.length - 1 || f.slice(0, at.flags + 2).some((n) => !Number.isFinite(n)))
+      break;
+    if (f[at.flags] !== 0) {
+      skippedFlagged++;
+      continue;
+    }
+    const phase = Object.fromEntries(
+      PHASES.map(([name, from, to]) => [name, (f[col(to)] - f[col(from)]) / 1e6])
+    ) as Omit<Frame, 'total'>;
+    // A frame that never drew reports 0 in a phase column, which shows up as a large negative.
+    if (Object.values(phase).some((v) => v < 0)) continue;
+    frames.push({
+      ...phase,
+      total: (f[col('FrameCompleted')] - f[col('IntendedVsync')]) / 1e6,
+    });
+    if (at.interval >= 0 && f[at.interval] > 0) intervals.push(f[at.interval] / 1e6);
+  }
 }
 
 if (frames.length === 0) {
@@ -98,7 +121,15 @@ if (frames.length === 0) {
   process.exit(1);
 }
 
+const budget = intervals.length
+  ? intervals.reduce((t, v) => t + v, 0) / intervals.length
+  : 1000 / 60;
+const slowMs = slowOverride ?? budget;
 const slow = frames.filter((f) => f.total > slowMs).sort((a, b) => b.total - a.total);
+console.log(
+  `budget ${budget.toFixed(2)}ms/frame (${Math.round(1000 / budget)}Hz)` +
+    `${skippedFlagged ? `, ${skippedFlagged} flagged row(s) discarded` : ''}`
+);
 const mean = (pick: (f: Frame) => number, set: Frame[]) =>
   set.length === 0 ? 0 : set.reduce((t, f) => t + pick(f), 0) / set.length;
 
