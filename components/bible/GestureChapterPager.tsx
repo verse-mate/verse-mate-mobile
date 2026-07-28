@@ -54,7 +54,7 @@ import {
   chapterOrdinal,
   computeChapterNavigation,
 } from '@/hooks/bible/use-chapter-navigation';
-import { perfAdd, perfSpan } from '@/lib/perf';
+import { perfAdd, perfSpan, watchFrames } from '@/lib/perf';
 import type { TestamentBook } from '@/src/api';
 
 export interface GestureChapterPagerProps {
@@ -100,6 +100,14 @@ const SETTLE_MS = 190;
  * hands it to the ScrollView instead. Every page scrolls vertically, so the pan has
  * to lose that contest.
  */
+/**
+ * How long a swipe's frame recording runs, in ms.
+ *
+ * Longer than the 190ms settle so a stall landing just after the animation still shows up
+ * — the interesting stutter is often the commit that follows, not the motion itself.
+ */
+const SWIPE_FRAME_WINDOW_MS = 500;
+
 const ACTIVATE_X = 14;
 const FAIL_Y = 18;
 
@@ -425,6 +433,31 @@ export function GestureChapterPager({
   }, []);
 
   /**
+   * Instrument one swipe, start to finish.
+   *
+   * The existing instruments cannot answer "was THAT swipe smooth". `dumpsys gfxinfo`
+   * averages a 300ms gesture into a whole session, and the JS heartbeat reports blocks
+   * without saying what was on screen at the time. So a swipe opens its own span — which
+   * makes every JS block during it attributable — and its own scoped frame recording.
+   *
+   * Read them together. `anim.swipe.dropped` high with a clean `gesture.swipe` span means
+   * the JS thread starved while the gesture itself was fine; the reverse means the work is
+   * in our commit path. They lead to opposite fixes, which is why the sluggishness has to
+   * be split before it can be chased.
+   */
+  const swipeSpanRef = useRef<(() => void) | null>(null);
+  const beginSwipeMeasure = useCallback(() => {
+    swipeSpanRef.current?.();
+    swipeSpanRef.current = perfSpan('gesture.swipe');
+    watchFrames('anim.swipe', SWIPE_FRAME_WINDOW_MS);
+  }, []);
+  const endSwipeMeasure = useCallback(() => {
+    swipeSpanRef.current?.();
+    swipeSpanRef.current = null;
+  }, []);
+  useEffect(() => () => swipeSpanRef.current?.(), []);
+
+  /**
    * Guarantee the offset and the mounted content agree once the pager is at rest.
    *
    * There are three things that must stay consistent — the shared offset, the React
@@ -471,6 +504,7 @@ export function GestureChapterPager({
         .onStart(() => {
           'worklet';
           gestureActiveSV.value = true;
+          runOnJS(beginSwipeMeasure)();
           // Take over any settle in flight. Nothing else owns the position, so input
           // is never refused — the property ViewPager2 has no equivalent for.
           cancelAnimation(scrollX);
@@ -523,6 +557,7 @@ export function GestureChapterPager({
               (finished) => {
                 'worklet';
                 settlingSV.value = false;
+                runOnJS(endSwipeMeasure)();
                 if (finished) runOnJS(commitIndex)(target);
               }
             );
@@ -539,6 +574,7 @@ export function GestureChapterPager({
             () => {
               'worklet';
               settlingSV.value = false;
+              runOnJS(endSwipeMeasure)();
             }
           );
           runOnJS(cancelled)();
@@ -549,6 +585,8 @@ export function GestureChapterPager({
       widthSV,
       originSV,
       settlingSV,
+      beginSwipeMeasure,
+      endSwipeMeasure,
       minIndexSV,
       maxIndexSV,
       minRenderedSV,
