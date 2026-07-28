@@ -220,6 +220,61 @@ report, and mixing them made a no-op look like churn (`pager.dragStart` 48,
 `swipe.navResolved` 23 for ten scripted swipes). Record one or the other, never
 both.
 
+## The gesture pager (ViewPager3), and what it cost to get right
+
+ViewPager2 could not be talked round: it declines a drag that begins while it is
+still settling, and declines a programmatic `setPage` in the same state. So the
+paging decision moved into `GestureChapterPager`, behind the
+`@versemate:gesture_pager` flag with a dev Settings toggle, one build serving both
+arms.
+
+**Four wrong turns, all corrected by operator testing rather than by reasoning.**
+Recording them because each looked right when written:
+
+1. *Sliding window with an offset correction.* Flashed a neighbouring chapter on
+   EVERY swipe, single swipes included. Measured, not argued:
+   `gesturePager.correctionLagMs` = **67ms mean**, four frames. The window was React
+   state and the offset a shared value, so no effect could make them atomic. Narrowing
+   the timing failed twice.
+   → Fixed by positioning pages at an **absolute index** that never moves. Mounting or
+   unmounting a page cannot disturb another, so the target page is already at its final
+   position before the gesture starts and there is nothing left to correct.
+2. *Gesture reading `index` from React state.* Two quick swipes advanced one chapter —
+   the second flick computed its target from an index the first had not yet committed.
+   The identical stale-state bug as the ViewPager path, relocated.
+   → The gesture derives position from `scrollX`, and width and reachable bounds are
+   shared values too. Bounds publish the furthest *resolvable* indices, not index ± 1,
+   which would have been just as stale.
+3. *One-screen-wide row.* Touches died after the first swipe: Android does not deliver
+   touches to a child outside its parent's bounds. I diagnosed this correctly, then
+   talked myself out of it when the operator suspected the nav buttons, then had to put
+   it back when they pinned it down — works on the page you are on, dies once you swipe.
+   → Row spans a fixed 65 chapters of index space.
+4. *Route navigation per flick.* Each cost a React commit, a header render and a
+   reading-position write for a chapter already left behind — the reported "state cannot
+   keep up" and occasional stick.
+   → Coalesced to the chapter a run ENDS on, 140ms after the last flick. Only safe
+   because absolute indexing had already decoupled the visuals from the route.
+
+### Text selection during swipes
+
+Three attempts, and the first two were structurally wrong rather than merely unbuilt:
+
+- Cancelling the *pending* long-press does nothing for someone who holds still past the
+  500ms timeout before moving — which is the actual reported gesture.
+- Clearing the selection and then calling `super.onTouchEvent()` on the same event lets
+  the selection controller immediately re-establish it. A claimed swipe now withholds
+  every subsequent event from super.
+- Tap-to-dismiss must test for a selection on ACTION_**DOWN**: a selectable TextView
+  collapses its selection on down, so by ACTION_UP there is nothing to detect and the
+  tap falls through to the verse insight.
+- Double-tap-to-select is the platform's, and is why rapid swiping sometimes left a word
+  highlighted. The second tap of a pair is withheld from super.
+
+**A build trap worth remembering:** a failed gradle build followed by `adb install`
+reports "Success" — it installs the previous APK. Two rounds of native testing measured
+code that had never compiled. Always check `BUILD SUCCESSFUL` before trusting an install.
+
 ## Harness notes worth keeping
 
 - Read the JS report from **Metro's log**, not logcat. The app's `console.log`
