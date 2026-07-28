@@ -336,6 +336,9 @@ const VISIBILITY_PUSH_INTERVAL_MS = 150;
  * The pill's animation duration, mirrored from the screen's `withTiming` call, plus the margin
  * the Insight mount waits beyond it.
  */
+/** Every Insight tab, in the order they are pre-warmed. */
+const INSIGHT_TABS: ContentTabType[] = ['summary', 'byline', 'study', 'visuals'];
+
 const VIEW_SWITCH_ANIM_MS = 180;
 const VIEW_SWITCH_MOUNT_MARGIN_MS = 40;
 
@@ -898,6 +901,45 @@ export function ChapterPage({
       return next;
     });
   }, [activeTab]);
+
+  /**
+   * Pre-visit the remaining Insight tabs in idle time.
+   *
+   * Measured over twelve tab switches: mean 59ms, but p95 321ms and max 482ms, with
+   * `reader.mount.explanations` firing five times. The slow switches are exactly the ones that
+   * have to MOUNT a tab; a switch to an already-mounted tab is an opacity flip driven by a
+   * shared value and costs nothing.
+   *
+   * Which is the same reason swiping is smooth: the next chapter is already rendered before
+   * the gesture starts. The operator made the point directly — if a chapter change can be
+   * smooth while also loading a lexicon, a tab switch has no excuse. So the tabs get the same
+   * treatment the buffer chapters got: built during idle, one at a time, so the work lands
+   * between interactions instead of inside one.
+   *
+   * Only for the current page, and only once Insight is mounted at all — a buffer page has no
+   * business building four tabs.
+   */
+  useEffect(() => {
+    if (isPreloading) return;
+    if (!insightPrewarmed && !insightMountAllowed) return;
+    if (visitedTabs.size >= INSIGHT_TABS.length) return;
+
+    const next = INSIGHT_TABS.find((tab) => !visitedTabs.has(tab));
+    if (!next) return;
+
+    // One tab per idle window rather than all of them at once: each is a real subtree, and
+    // mounting four in a single commit would recreate the stall this is meant to remove.
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setVisitedTabs((prev) => {
+        if (prev.has(next)) return prev;
+        const updated = new Set(prev);
+        updated.add(next);
+        return updated;
+      });
+      perfAdd('insight.tabPrewarmed', 1);
+    });
+    return () => handle.cancel();
+  }, [isPreloading, insightPrewarmed, insightMountAllowed, visitedTabs]);
 
   // Eagerly pre-fetch the byline explanation a moment after the chapter
   // settles so the first tap on the By Line tab finds the data already
