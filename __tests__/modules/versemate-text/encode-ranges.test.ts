@@ -32,6 +32,8 @@ function decodeLikeKotlin(encoded: string) {
       fontScale: f[8] === '' ? null : Number.parseFloat(f[8]),
       baselineShift: f[9] === '' ? null : Number.parseFloat(f[9]),
       interactive: f[10] === '1',
+      // getOrNull(11) in Kotlin: absent on chunks written before fontStyle existed.
+      fontStyle: f[11] || null,
     }));
 }
 
@@ -49,6 +51,7 @@ describe('encodeRanges', () => {
       backgroundColor: '#ffcc0059',
       color: '#c1121f',
       fontWeight: 'bold',
+      fontStyle: 'italic',
       fontScale: 0.7,
       baselineShift: 0.35,
       interactive: true,
@@ -63,6 +66,7 @@ describe('encodeRanges', () => {
       backgroundColor: '#ffcc0059',
       color: '#c1121f',
       fontWeight: 'bold',
+      fontStyle: 'italic',
       fontScale: 0.7,
       baselineShift: 0.35,
       interactive: true,
@@ -104,6 +108,36 @@ describe('encodeRanges', () => {
       },
     ]);
     expect(encoded.split('|')).toHaveLength(1);
-    expect(encoded.split('~')).toHaveLength(11);
+    // 12 fields since fontStyle was appended. Update this number ONLY by appending: the position of
+    // every field is the contract with decodeRanges in VMTextModule.kt, and inserting one instead
+    // makes every later field decode as its neighbour's value — wrong colours rather than an error.
+    expect(encoded.split('~')).toHaveLength(12);
+  });
+
+  it('decodes a chunk written before fontStyle existed', () => {
+    // The reason fontStyle went LAST. An older JS bundle emits 11 fields; Kotlin reads index 11 with
+    // getOrNull, so such a chunk must still decode fully rather than be skipped as malformed.
+    const legacy = '0~4~dotted~#fff~1~~#000~bold~0.7~0.35~1';
+    const [decoded] = decodeLikeKotlin(legacy);
+    expect(decoded.start).toBe(0);
+    expect(decoded.interactive).toBe(true);
+    expect(decoded.fontWeight).toBe('bold');
+    expect(decoded.fontStyle).toBeNull();
+  });
+
+  it('carries fontStyle independently of fontWeight', () => {
+    // Both axes must survive together: the native side composes them into one Typeface style, and
+    // markdown routinely nests emphasis inside strong.
+    const [both] = decodeLikeKotlin(
+      encodeRangesForTest([{ start: 0, end: 3, fontWeight: '700', fontStyle: 'italic' }])
+    );
+    expect(both.fontWeight).toBe('700');
+    expect(both.fontStyle).toBe('italic');
+
+    const [italicOnly] = decodeLikeKotlin(
+      encodeRangesForTest([{ start: 0, end: 3, fontStyle: 'italic' }])
+    );
+    expect(italicOnly.fontWeight).toBeNull();
+    expect(italicOnly.fontStyle).toBe('italic');
   });
 });
