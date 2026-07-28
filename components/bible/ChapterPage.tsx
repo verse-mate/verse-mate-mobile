@@ -498,6 +498,38 @@ export function ChapterPage({
   // unmounting after a toggle back to Bible.
   const [insightPrewarmed, setInsightPrewarmed] = useState(false);
 
+  /**
+   * Whether a buffer page may build its real content yet.
+   *
+   * Rendering buffer chapters is what makes a swipe land on text instead of a
+   * skeleton, but doing it in the same commit as the navigation just moves the
+   * stall: measurement put `reader.render.bible` at 2.9ms against a
+   * `reader.mount.bible` of 352ms, so the cost is not our JS — it is React
+   * commit plus native view creation, and it lands squarely on the gesture.
+   *
+   * So the neighbour is built in idle time instead. After a chapter change there
+   * is normally a second or more before the next swipe, which is ample; if the
+   * user out-runs that, they see the skeleton they saw before this change and
+   * nothing is worse than it was.
+   *
+   * The active page never waits — it sets this true on the spot.
+   */
+  const [bufferContentReady, setBufferContentReady] = useState(!isPreloading);
+  useEffect(() => {
+    if (!isPreloading) {
+      setBufferContentReady(true);
+      return;
+    }
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setBufferContentReady(true);
+    });
+    return () => {
+      handle.cancel();
+    };
+    // bookId/chapterNumber are included so a recycled page re-defers for its new
+    // chapter rather than inheriting the previous one's ready flag.
+  }, [isPreloading, bookId, chapterNumber]);
+
   const { deleteNote, isDeletingNote } = useNotes();
 
   // Schedule the Insight subtree mount in idle time after the chapter
@@ -1448,7 +1480,7 @@ export function ChapterPage({
                  (May 2026). Windowing removes that reason: a buffer chapter renders
                  only its top screenful, since its own visibleYRange is null at
                  scroll 0 and windowing falls back to the window height. */}
-            {displayChapter && (!isPreloading || nativeTextOn) ? (
+            {displayChapter && (!isPreloading || (nativeTextOn && bufferContentReady)) ? (
               <ChapterReader
                 chapter={displayChapter}
                 activeTab={activeTab}
