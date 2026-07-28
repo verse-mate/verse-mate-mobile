@@ -53,6 +53,7 @@ import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { perfRenderSpan, usePerfMountSpan } from '@/lib/perf';
+import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
 import { ParagraphText } from '@/lib/text/ParagraphText';
 import type { CompileTheme } from '@/lib/text/types';
 import { useParagraphLayout } from '@/lib/text/use-paragraph-layout';
@@ -88,6 +89,18 @@ const PARAGRAPH_VIEW_ENABLED = true;
  * early almost free, whereas being late means the user scrolls into blank space.
  */
 const GROUP_WINDOW_BUFFER_PX = 600;
+
+/**
+ * The most recent paragraph width measured by any reader, in whole dp.
+ *
+ * Module scope because the value has to outlive a single ChapterReader: the pager
+ * mounts a new one per chapter, and each would otherwise start at 0 and render
+ * the whole chapter through the legacy per-word path first. See the long note on
+ * `paragraphWidth` below for what that cost.
+ *
+ * 0 until the first real layout — never a guess.
+ */
+let lastMeasuredParagraphWidth = 0;
 
 const LEX_UNDERLINE_COLOR = 'rgba(176,154,109,0.55)';
 const LEX_UNDERLINE_THEME_COLOR = 'rgba(199,176,116,0.75)';
@@ -506,23 +519,62 @@ export function ChapterReader({
    * is invisible in code review and obvious only on a device, so it is not worth
    * making.
    *
-   * The cost is that the width is unknown for exactly one frame. While it is,
-   * `useNativeTextRenderer && paragraphWidth > 0` is false and the legacy path
-   * renders, so nothing flashes empty. The reader stays mounted across chapter
-   * swipes, so only the very first chapter of a session pays that frame; after
-   * that the width is already known and changes only on rotation.
+   * The claim that used to be here — that only the first chapter of a session
+   * pays the unknown-width frame, because the reader stays mounted across swipes
+   * — was wrong, and expensively so. Every chapter gets its OWN ChapterReader
+   * (one per pager page), so every mount started at width 0 and rendered the
+   * whole chapter through the legacy per-word renderer before re-rendering it
+   * natively. The labelled counter caught it: 9,113 of 9,113 legacy text nodes in
+   * a six-swipe capture came from `bible.paragraphFallback`, none from Insight or
+   * Topics. Fabric created every one of those nodes and then threw them away,
+   * which is what `completeRoot` (1262ms, the largest single cost in the profile)
+   * and `createTextInstance` were paying for.
+   *
+   * Two things stop it, without giving up the measured-not-assumed guarantee:
+   *
+   *  1. The last measured width is remembered at module scope and used as the
+   *     initial value. Every reader in the pager is laid out at the same width,
+   *     so this is a real measurement rather than an assumption — just one taken
+   *     a moment earlier. `onLayout` still corrects it in the same single frame
+   *     as before if it ever differs (rotation, split view).
+   *  2. When the width genuinely is unknown (the very first reader of a session)
+   *     the native path renders exact-height placeholders rather than falling
+   *     back to per-word text. One frame without glyphs costs nothing; nine
+   *     thousand throwaway shadow nodes cost a visible stutter.
    */
   // Window height, used as the mount-time viewport for paragraph windowing before
   // the first scroll event exists.
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
 
-  const [paragraphWidth, setParagraphWidth] = useState(0);
+  /**
+   * Rough height to reserve for a group while the real width is still unknown.
+   *
+   * This DOES assume a width, which the note above rules out — and the
+   * distinction matters: an assumed width used for text layout measures at one
+   * width and draws at another, which clips glyphs. Here nothing is laid out or
+   * drawn; the number only stops the chapter collapsing to zero height for the
+   * single frame before `onLayout`. Being a line or two out for one frame is
+   * invisible, and the estimate is replaced by a real measurement immediately.
+   */
+  const estimatedGroupHeight = (group: { verseNumber: number; text: string }[]): number => {
+    const chars = group.reduce(
+      (n, v) => n + v.text.length + String(v.verseNumber).length + 2,
+      0
+    );
+    const calibration = defaultCalibration(userFontSize, Math.max(windowWidth - 32, 1), userFontSize * 2.0);
+    return estimateHeight(chars, calibration);
+  };
+
+  const [paragraphWidth, setParagraphWidth] = useState(lastMeasuredParagraphWidth);
   const handleContainerLayout = (event: LayoutChangeEvent) => {
     const next = event.nativeEvent.layout.width;
     // Round to whole dp: a fractional width churns the native measurement cache
     // (its key includes the width) without changing a single line break.
     const rounded = Math.round(next);
-    if (rounded > 0 && rounded !== paragraphWidth) setParagraphWidth(rounded);
+    if (rounded > 0 && rounded !== paragraphWidth) {
+      lastMeasuredParagraphWidth = rounded;
+      setParagraphWidth(rounded);
+    }
   };
 
   /** Colors the compiler cannot derive, resolved from the active theme. */
@@ -862,6 +914,22 @@ export function ChapterReader({
 
                 return groups.map((group, groupIndex) => {
                   const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
+
+                  // Native renderer selected but the width is not measured yet —
+                  // only possible for the first reader of a session, since the
+                  // width is remembered at module scope. Hold the space for one
+                  // frame rather than rendering the legacy per-word tree that is
+                  // about to be discarded: that fallback was creating every one of
+                  // the 9,113 throwaway text nodes a six-swipe capture counted.
+                  if (useNativeTextRenderer && paragraphWidth === 0) {
+                    return (
+                      <View
+                        key={groupKey}
+                        testID={`verse-group-${group[0].verseNumber}`}
+                        style={{ height: estimatedGroupHeight(group) }}
+                      />
+                    );
+                  }
 
                   // Native path: the whole group becomes ONE view. This replaces
                   // the nested structure below — a paragraph <Text>, a <Text> per
