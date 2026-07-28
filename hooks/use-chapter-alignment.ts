@@ -25,6 +25,7 @@
 
 import { type ChapterAlignment, loadAlignmentFor } from '@versemate/lexicon';
 import { useEffect, useState } from 'react';
+import { InteractionManager } from 'react-native';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { perfSpan } from '@/lib/perf';
 import { fetchTaggedChapterAlignment } from '@/services/api-chapter-alignment';
@@ -92,10 +93,23 @@ export function useChapterAlignment(
       }
     };
 
-    load();
+    // Deferred until interactions settle, so it cannot block first paint.
+    //
+    // Instrumenting startup showed the worst JS block in every capture — ~2s in the first two
+    // seconds — is not startup work at all: offline init is ~213ms and the DB open 196ms,
+    // while the block belongs to this call. It parses a 17.8MB, 18,100-entry lexicon file,
+    // measured at 652ms on a Raspberry Pi 5 and worse on a phone.
+    //
+    // Underlines are decoration: they can arrive a moment after the text without anything
+    // being wrong, and the reader's null-alignment path already renders plain text. A stalled
+    // first paint is far more costly than a late underline.
+    const handle = InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) load();
+    });
 
     return () => {
       cancelled = true;
+      handle.cancel();
     };
   }, [bookId, chapterNumber, versionKey, isOnline]);
 
