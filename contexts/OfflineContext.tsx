@@ -44,6 +44,7 @@ import {
   type SyncProgress,
 } from '@/services/offline';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { perfSpan } from '@/lib/perf';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useQueryClient } from '@tanstack/react-query';
 import { InteractionManager, Platform } from 'react-native';
@@ -262,8 +263,16 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   // Initialize database and load state
   useEffect(() => {
     async function initialize() {
+      // The worst JS block in every capture is ~2s in the first two seconds of the app, and
+      // nothing measured it — the top three blocks all had no span open. Startup work is
+      // instrumented in pieces rather than as a whole, because "startup is slow" is not
+      // actionable and four hypotheses about chapter mount already died for want of exactly
+      // this kind of breakdown.
+      const endInit = perfSpan('startup.offlineInit');
       try {
+        const endDb = perfSpan('startup.initDatabase');
         await initDatabase();
+        endDb();
 
         const autoSync = await AsyncStorage.getItem(AUTO_SYNC_KEY);
 
@@ -271,11 +280,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
           setAutoSyncEnabledState(true);
         }
 
+        const endDownloaded = perfSpan('startup.downloadedLists');
         const [bibleVersions, commentaryLangs, topicLangs] = await Promise.all([
           getDownloadedBibleVersions(),
           getDownloadedCommentaryLanguages(),
           getDownloadedTopicLanguages(),
         ]);
+        endDownloaded();
 
         if (__DEV__) {
           console.log('[Offline Context] Downloaded Bible versions:', bibleVersions);
@@ -292,11 +303,13 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         );
         setDownloadedBibleBooks(Object.fromEntries(bookEntries));
 
+        const endStorage = perfSpan('startup.storageStats');
         const [syncTime, storage, userDataSynced] = await Promise.all([
           getLastSyncTime(),
           getTotalStorageUsed(),
           isUserDataDownloaded(),
         ]);
+        endStorage();
 
         setLastSyncTime(syncTime);
         setTotalStorageUsed(storage);
@@ -313,6 +326,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Failed to initialize offline context:', error);
         setIsInitialized(true);
+      } finally {
+        endInit();
       }
     }
 
