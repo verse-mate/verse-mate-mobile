@@ -369,7 +369,7 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           // A tap while something is selected DISMISSES the selection and does
           // nothing else. Previously the tap fell through and opened the verse
           // insight, so there was no way to simply get rid of a selection.
-          if (!moved && !longPress && hasSelection()) {
+          if (!moved && !longPress && anySelection()) {
             clearSelectionIfAny()
             super.onTouchEvent(event)
             return true
@@ -382,7 +382,8 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       return super.onTouchEvent(event)
     }
 
-    private fun hasSelection(): Boolean = selectionEnd > selectionStart
+    /** Named to avoid shadowing TextView's own `hasSelection()`. */
+    private fun anySelection(): Boolean = selectionEnd > selectionStart
 
     /**
      * Drop any active selection.
@@ -392,7 +393,7 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
      * bar down with it.
      */
     private fun clearSelectionIfAny() {
-      if (!hasSelection()) return
+      if (!anySelection()) return
       val text = text
       if (text is android.text.Spannable) {
         android.text.Selection.setSelection(text, selectionStart)
