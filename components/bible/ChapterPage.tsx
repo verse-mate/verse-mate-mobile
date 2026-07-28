@@ -66,7 +66,7 @@ import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
-import { usePerfMountSpan } from '@/lib/perf';
+import { usePerfMountSpan, watchFrames } from '@/lib/perf';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -323,6 +323,14 @@ function TabContent({
  * same effect.
  */
 const VISIBILITY_PUSH_INTERVAL_MS = 150;
+
+/**
+ * How long to record frames after a view switch starts, in ms.
+ *
+ * Longer than the 180ms toggle animation on purpose: a stall that lands just after
+ * the animation finishes is still felt as part of the switch.
+ */
+const VIEW_SWITCH_FRAME_WINDOW_MS = 500;
 
 export interface ChapterPageProps {
   /** Book ID (1-66) - DYNAMIC prop, updates on window shift */
@@ -1156,6 +1164,23 @@ export function ChapterPage({
   });
 
   const localToggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
+
+  /**
+   * Dev-only. Record frame cadence across the view-switch animation.
+   *
+   * The switch itself is instant but the animation is reported as stuttering, and
+   * neither existing instrument can see that: the JS heartbeat watches the wrong
+   * thread, and gfxinfo averages a 300ms animation into a 60-second session. This
+   * scopes a frame recording to exactly this interaction.
+   *
+   * Window is deliberately longer than the 180ms animation, so a stall that lands
+   * just after it still shows up.
+   */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the view change itself
+  useEffect(() => {
+    return watchFrames('anim.viewSwitch', VIEW_SWITCH_FRAME_WINDOW_MS);
+  }, [activeView]);
+
   useEffect(() => {
     if (toggleProgress) return;
     localToggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {

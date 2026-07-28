@@ -24,6 +24,7 @@
  */
 
 export { checksum, emitPerfReport } from './emit';
+export { watchFrames } from './frame-watch';
 export { perfRenderSpan, usePerfMountSpan } from './hooks';
 export { formatPerfReport, parsePerfReports, type ParsedReport } from './parse';
 export {
