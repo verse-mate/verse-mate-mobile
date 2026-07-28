@@ -67,7 +67,7 @@ import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
-import { usePerfMountSpan, watchFrames } from '@/lib/perf';
+import { usePerfMountSpan, useWhyRender, watchFrames } from '@/lib/perf';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -487,7 +487,26 @@ export function ChapterPage({
   const viewportHeightRef = useRef<number>(0);
 
   // Get highlights from the provider (single source of truth — avoids duplicate queries)
-  const { chapterHighlights, autoHighlights } = useBibleInteraction();
+  const bibleInteraction = useBibleInteraction();
+  const { chapterHighlights, autoHighlights } = bibleInteraction;
+
+  // 104 of the reader's ~186 renders were attributed to `nothing-tracked`, meaning
+  // no input the reader itself watches had changed — so the trigger is this
+  // parent re-rendering and handing down fresh props. Probing here rather than
+  // memoising on instinct: `bibleInteraction` is included because a context value
+  // object rebuilt each render re-renders every consumer regardless of whether
+  // the data inside it moved, and that is indistinguishable from the outside.
+  useWhyRender('render.page', {
+    bibleInteraction,
+    chapterHighlights,
+    autoHighlights,
+    chapter,
+    activeView,
+    activeTab,
+    isPreloading,
+    bookId,
+    chapterNumber,
+  });
 
   // Pre-warmed flag: once the chapter has settled on Bible view, mount
   // the Insight subtree in the background so the Bible → Insight toggle
