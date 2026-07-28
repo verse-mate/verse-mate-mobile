@@ -105,6 +105,31 @@ const SWIPE_SPAN_TIMEOUT_MS = 3000;
 const PAGE_CURRENT_MIDDLE = 1; // Current page when prev exists
 
 /**
+ * Minimum fraction of a page a flick must travel before we page it ourselves.
+ *
+ * ViewPager2 decides paging from its own distance/velocity thresholds measured
+ * against its CURRENT offset. When a drag begins while it is still settling from
+ * the previous fling it starts from a mid-transition offset, never crosses the
+ * threshold, and resolves as an over-scroll bounce instead of a page — the subtle
+ * "swiping against the end of the list" animation. A real 38-drag session produced
+ * 13 navigations and 14 snap-backs, so about half of a fast run was lost this way.
+ *
+ * 0.18 of a page is well past an accidental brush and well short of the ~0.5
+ * ViewPager2 wants, which is the whole gap being closed.
+ */
+const FORCE_PAGE_MIN_DELTA = 0.18;
+
+/**
+ * Longest drag still treated as a flick, in ms.
+ *
+ * The time gate is what separates "flicked and the pager declined" from
+ * "deliberately dragged partway and released to cancel". A cancel is slow and
+ * ends where it started; a flick is fast. Without this, cancelling a drag would
+ * navigate — a new bug in place of the old one.
+ */
+const FORCE_PAGE_MAX_DURATION_MS = 320;
+
+/**
  * SimpleChapterPager Component
  *
  * Renders a 3-page PagerView with previous, current, and next chapters.
@@ -229,6 +254,29 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * existing counter can see it, and why it has to be timed directly rather than
      * inferred.
      */
+    /**
+     * Fractional pager position (`position + offset`), updated on every scroll
+     * frame. This is the only signal available for how far a drag actually
+     * travelled — ViewPager2 reports no velocity to JS.
+     */
+    /**
+     * How many pages are rendered right now.
+     *
+     * A ref because the scroll-state handler is declared above the `pages` memo
+     * and must not reference it directly, and because the count changes at the
+     * Bible's two boundaries (2 pages instead of 3).
+     */
+    const pageCountRef = useRef(3);
+    const fractionRef = useRef(0);
+    /** Fractional position when the current drag began. */
+    const dragStartFractionRef = useRef(0);
+    /** Signed peak travel of the current drag, in pages. */
+    const dragPeakDeltaRef = useRef(0);
+    /** When the current drag began, for the flick-vs-cancel time gate. */
+    const dragStartedAtRef = useRef(0);
+    /** Whether a navigation resolved since the current drag began. */
+    const navSinceDragRef = useRef(true);
+
     /** Whether a page change has happened since the current drag began. */
     const pagedSinceDragRef = useRef(true);
 
@@ -480,6 +528,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         virtualRef.current = target;
         pendingNavRef.current = target;
         dispatchedQueueRef.current.push(`${target.bookId}-${target.chapterNumber}`);
+        navSinceDragRef.current = true;
         perfAdd('swipe.navResolved', 1);
       };
 
@@ -522,6 +571,56 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * This ensures the swipe gesture + settling animation are fully complete before
      * we trigger the state update and reposition.
      */
+    /**
+     * Track how far the current drag has travelled, in pages.
+     *
+     * `position + offset` is the pager's fractional index. Recording the signed
+     * peak (rather than the final value) is deliberate: the failure being fixed
+     * ends back where it started, so the final value is ~0 and only the peak
+     * carries the user's intent.
+     */
+    const handlePageScroll = (event: { nativeEvent: { position: number; offset: number } }) => {
+      const { position, offset } = event.nativeEvent;
+      const fraction = position + offset;
+      fractionRef.current = fraction;
+      if (!isDraggingRef.current) return;
+      const delta = fraction - dragStartFractionRef.current;
+      if (Math.abs(delta) > Math.abs(dragPeakDeltaRef.current)) {
+        dragPeakDeltaRef.current = delta;
+      }
+    };
+
+    /**
+     * Page it ourselves when a clear flick was declined by ViewPager2.
+     *
+     * Returns true when a page was forced, so the caller can skip the
+     * snapped-back bookkeeping for a gesture that is now going somewhere.
+     */
+    const forcePageIfFlickDeclined = (pageCount: number): boolean => {
+      if (navSinceDragRef.current) return false;
+      const delta = dragPeakDeltaRef.current;
+      const duration = Date.now() - dragStartedAtRef.current;
+      if (Math.abs(delta) < FORCE_PAGE_MIN_DELTA) return false;
+      if (duration > FORCE_PAGE_MAX_DURATION_MS) {
+        // A slow partial drag is a cancel, not a declined flick. Counted so the
+        // time gate's effect is visible rather than assumed.
+        perfAdd('swipe.forceDeclinedSlow', 1);
+        return false;
+      }
+      // Never fight a navigation already on its way out.
+      if (pendingNavRef.current) return false;
+
+      const from = Math.round(dragStartFractionRef.current);
+      const target = from + (delta > 0 ? 1 : -1);
+      if (target < 0 || target > pageCount - 1) return false;
+
+      perfAdd('swipe.forcedPage', 1);
+      // setPage animates and emits a real onPageSelected, so this rejoins the
+      // normal navigation path rather than duplicating it.
+      pagerRef.current?.setPage(target);
+      return true;
+    };
+
     const handlePageScrollStateChanged = (event: { nativeEvent: { pageScrollState: string } }) => {
       const state = event.nativeEvent.pageScrollState;
       // A drag can only come from the user — `setPageWithoutAnimation` never
@@ -532,6 +631,10 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         isDraggingRef.current = true;
         // A drag begins: nothing has paged yet.
         pagedSinceDragRef.current = false;
+        navSinceDragRef.current = false;
+        dragStartFractionRef.current = fractionRef.current;
+        dragPeakDeltaRef.current = 0;
+        dragStartedAtRef.current = Date.now();
         // How many gestures the PAGER actually sees. Compared against
         // reader.touchStart (every gesture that reached the reader's ScrollView)
         // this says whether missing swipes are lost to gesture arbitration rather
@@ -551,8 +654,10 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         // the gap. This counts the remaining candidate directly: a drag that
         // began while the pager was still settling from the previous one, which
         // ViewPager2 resolves by returning to the current page.
-        if (draggedSinceSeekRef.current && !pagedSinceDragRef.current) {
-          perfAdd('swipe.snappedBack', 1);
+        if (draggedSinceSeekRef.current && !navSinceDragRef.current) {
+          if (!forcePageIfFlickDeclined(pageCountRef.current)) {
+            perfAdd('swipe.snappedBack', 1);
+          }
         }
         pagedSinceDragRef.current = true;
       }
@@ -613,6 +718,9 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         );
       }
 
+      // Kept in a ref so the scroll-state handler above can bound a forced page
+      // without referencing this memo before its declaration.
+      pageCountRef.current = result.length;
       return result;
     }, [
       bookId,
@@ -629,6 +737,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         ref={pagerRef}
         style={styles.pagerView}
         initialPage={initialPageIndex}
+        onPageScroll={handlePageScroll}
         onPageSelected={handlePageSelected}
         onPageScrollStateChanged={handlePageScrollStateChanged}
         testID="simple-chapter-pager"
