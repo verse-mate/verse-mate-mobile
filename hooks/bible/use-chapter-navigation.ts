@@ -86,13 +86,26 @@ export interface ChapterNavigation {
  * // => { nextChapter: { bookId: 1, chapterNumber: 1 }, canGoNext: true }
  * ```
  */
-export function useChapterNavigation(
+/**
+ * Pure prev/next resolution for an arbitrary chapter.
+ *
+ * Extracted from the hook so a caller can resolve navigation for a chapter it is
+ * not currently rendering. `SimpleChapterPager` needs exactly that: while a
+ * chapter change is still in flight its props still describe the OLD chapter, so
+ * a second fast swipe computed its target from stale values and re-navigated to
+ * the chapter it had already left. That is the reported "swipe too fast and it
+ * stops advancing, with the header a chapter behind".
+ *
+ * The hook below is now a thin memo over this, so there is one implementation and
+ * the two cannot drift.
+ */
+export function computeChapterNavigation(
   bookId: number,
   chapterNumber: number,
   booksMetadata: TestamentBook[] | undefined,
   circular: boolean = false
 ): ChapterNavigation {
-  return useMemo(() => {
+  {
     // Handle undefined or empty metadata
     if (!booksMetadata || booksMetadata.length === 0) {
       return {
@@ -194,5 +207,17 @@ export function useChapterNavigation(
       canGoNext,
       canGoPrevious,
     };
-  }, [bookId, chapterNumber, booksMetadata, circular]);
+  }
+}
+
+export function useChapterNavigation(
+  bookId: number,
+  chapterNumber: number,
+  booksMetadata: TestamentBook[] | undefined,
+  circular: boolean = false
+): ChapterNavigation {
+  return useMemo(
+    () => computeChapterNavigation(bookId, chapterNumber, booksMetadata, circular),
+    [bookId, chapterNumber, booksMetadata, circular]
+  );
 }
