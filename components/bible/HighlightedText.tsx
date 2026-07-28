@@ -615,6 +615,7 @@ export function HighlightedText({
    */
   const handleVerseTap = () => {
     if (!onVerseTap) return;
+    perfAdd(`legacy.verseTap.${perfSurface}`, 1);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Mark the whole verse as selected for the duration of the debounce window
     // so the user sees a clear tap target before the insight tooltip opens.
@@ -704,6 +705,12 @@ export function HighlightedText({
       const cleanWord = result.word.replace(/[.,;:!?"']+$/, '').replace(/^[.,;:!?"']+/, '');
       if (!cleanWord) return;
 
+      // The native touch trace proved VMTextView receives NOTHING during a drag, so
+      // the word selection and the second haptic cannot be coming from there. This is
+      // the other candidate: a JS long-press selection with its own Medium haptic,
+      // living in the legacy renderer. Counted with its surface so a slow drag says
+      // which component is responsible instead of which one seems likely.
+      perfAdd(`legacy.wordLongPress.${perfSurface}`, 1);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Calculate absolute character positions in full verse text
