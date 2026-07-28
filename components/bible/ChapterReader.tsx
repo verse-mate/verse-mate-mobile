@@ -670,6 +670,43 @@ export function ChapterReader({
   }, [flatGroups]);
 
   /** Compile inputs shared by every group. Memoised so the layout hook is stable. */
+  /**
+   * Content signatures for the highlight arrays.
+   *
+   * These exist because array IDENTITY churns far more often than array CONTENT.
+   * A real 19-chapter swipe session measured `render.bible.by.autoHighlights` at
+   * 117 of 224 reader renders — roughly six identity changes per chapter change,
+   * as the query key settles and the data flips between "none" and a result. Each
+   * one invalidated `paragraphShared`, which invalidated the whole paragraph
+   * layout memo, which recompiled and re-measured the visible window:
+   * `paragraph.compile` ran 334 times and `layout.paragraphs` 243 times for 19
+   * chapters. That recompile storm is what sits inside the 438ms `swipe.settle`
+   * the user feels as a pause after each swipe.
+   *
+   * The signature covers exactly the fields the compiler reads, so identical
+   * content produces an identical string no matter how many new arrays arrive.
+   * Cheap: a handful of highlights per chapter, joined once per identity change,
+   * versus a full recompile and native re-measure.
+   */
+  const highlightsSignature = useMemo(
+    () =>
+      chapterHighlights
+        .map(
+          (h) =>
+            `${h.highlight_id}:${h.color}:${h.start_verse}:${h.end_verse}:${h.start_char}:${h.end_char}`
+        )
+        .join('|'),
+    [chapterHighlights]
+  );
+  const autoHighlightsSignature = useMemo(
+    () =>
+      autoHighlights
+        .map((a) => `${a.auto_highlight_id}:${a.theme_color}:${a.start_verse}:${a.end_verse}`)
+        .join('|'),
+    [autoHighlights]
+  );
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the signatures stand in for the arrays on purpose — see above
   const paragraphShared = useMemo(
     () => ({
       highlights: chapterHighlights,
@@ -680,8 +717,11 @@ export function ChapterReader({
       theme: nativeTextTheme,
     }),
     [
-      chapterHighlights,
-      autoHighlights,
+      // Signatures, not the arrays. When content is unchanged the captured arrays
+      // are stale but equal, so the compiled output is identical — and when
+      // content does change the signature changes and the fresh arrays are read.
+      highlightsSignature,
+      autoHighlightsSignature,
       alignment,
       redLetterVerses,
       showLexUnderlines,

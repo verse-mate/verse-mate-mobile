@@ -511,6 +511,9 @@ export function ChapterPage({
   // swiping accumulated them — matching the report that rapid swiping through
   // many chapters degrades rather than staying flat. Dropping it when the page
   // stops being current bounds the live tree to one.
+  /** False until the first render has passed, so the mount run is not measured. */
+  const viewSwitchWatchArmedRef = useRef(false);
+
   const [insightPrewarmed, setInsightPrewarmed] = useState(false);
 
   /**
@@ -1288,8 +1291,19 @@ export function ChapterPage({
    */
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the view change itself
   useEffect(() => {
+    // Skip the mount run, and skip buffer pages. An effect keyed on [activeView]
+    // also fires on mount, and three ChapterPages mount per chapter change — so
+    // this was recording 21 windows in a session with no view switches at all,
+    // reporting chapter-change cost as pill-animation jank. The operator asked
+    // specifically about the pill; the metric has to answer that question and not
+    // a different one.
+    if (!viewSwitchWatchArmedRef.current) {
+      viewSwitchWatchArmedRef.current = true;
+      return;
+    }
+    if (isPreloading) return;
     return watchFrames('anim.viewSwitch', VIEW_SWITCH_FRAME_WINDOW_MS);
-  }, [activeView]);
+  }, [activeView, isPreloading]);
 
   useEffect(() => {
     if (toggleProgress) return;

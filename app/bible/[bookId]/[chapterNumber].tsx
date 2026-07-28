@@ -87,6 +87,17 @@ import { getHeaderSpecs, spacing } from '@/theme/tokens';
 import { isContentTabType } from '@/types/bible';
 
 /**
+ * Minimum gap between chapter-change haptics, in ms.
+ *
+ * Above a normal deliberate swipe's cadence and below a fast flick's, so one
+ * swipe always buzzes and a rapid burst buzzes once.
+ */
+const CHAPTER_HAPTIC_MIN_GAP_MS = 400;
+
+/** How long the reader must settle before the position is persisted, in ms. */
+const SAVE_LAST_READ_DEBOUNCE_MS = 900;
+
+/**
  * View mode type for Bible reading interface
  */
 type ViewMode = 'bible' | 'explanations';
@@ -471,6 +482,15 @@ export default function ChapterScreen() {
     [activeTab, setActiveTab, activeTabProgress]
   );
 
+  const lastChapterHapticRef = useRef(0);
+  const saveLastReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (saveLastReadTimerRef.current) clearTimeout(saveLastReadTimerRef.current);
+    },
+    []
+  );
+
   /**
    * Handle page change from SimpleChapterPager (V3)
    *
@@ -486,16 +506,37 @@ export default function ChapterScreen() {
       // Update state via hook (V3: single source of truth)
       navigateToChapter(newBookId, newChapterNumber);
 
-      // Haptic feedback for chapter change
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      // Haptic feedback for chapter change.
+      //
+      // Coalesced during a fast run. Every chapter change used to fire a Medium
+      // impact, so flicking through twenty chapters queued twenty vibrations — and
+      // the operator reported the residual pause as feeling "in sync with the
+      // haptic feedback". A single swipe is unchanged; only a rapid burst is
+      // thinned.
+      const now = Date.now();
+      if (now - lastChapterHapticRef.current > CHAPTER_HAPTIC_MIN_GAP_MS) {
+        lastChapterHapticRef.current = now;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
 
-      // Save reading position - only for authenticated users
+      // Save reading position - only for authenticated users.
+      //
+      // Debounced, because this is a NETWORK WRITE and it was firing once per
+      // chapter change: a twenty-chapter swipe run sent twenty requests, each with
+      // mutation state changes that re-render the screen. Only the chapter the
+      // reader actually stops on is worth persisting, so the write is deferred
+      // until the swiping stops.
       if (user?.id) {
-        saveLastRead({
-          user_id: user.id,
-          book_id: newBookId,
-          chapter_number: newChapterNumber,
-        });
+        if (saveLastReadTimerRef.current) clearTimeout(saveLastReadTimerRef.current);
+        const userId = user.id;
+        saveLastReadTimerRef.current = setTimeout(() => {
+          saveLastReadTimerRef.current = null;
+          saveLastRead({
+            user_id: userId,
+            book_id: newBookId,
+            chapter_number: newChapterNumber,
+          });
+        }, SAVE_LAST_READ_DEBOUNCE_MS);
       }
 
       // Prefetch is handled automatically by the hooks' internal useEffect
