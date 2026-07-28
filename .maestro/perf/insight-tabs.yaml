@@ -1,0 +1,94 @@
+appId: org.versemate.app
+name: Perf — insight-tabs
+description: Insight tab switching in isolation — the surface with no lexicon and no chapter mount
+tags:
+  - perf
+---
+
+# Insight tab switching, on its own.
+#
+# ## Why this scenario exists
+#
+# Every measurement of this surface so far was operator-driven, which meant each A/B compared
+# two different sets of gestures. Four consecutive "fixes" were evaluated that way and all four
+# were indistinguishable from noise — which is at least partly the instrument's fault, not the
+# fixes'.
+#
+# It is also the cleanest available test of what the frame data implies. `traversals` (measure
+# and layout) sits at 0.2-0.6ms across every capture while `animation` ranges 0.9-28.8ms, and
+# the slow-frame count tracks `animation` alone. On Fabric that phase is where mount items are
+# dispatched, so a surface that ONLY mounts — no chapter text, no lexicon, no gesture — isolates
+# mounting from everything it has been confounded with.
+#
+# Genesis 1 rather than a long chapter on purpose: the point is to keep chapter cost out of the
+# way so the tab content is what varies.
+
+- runFlow: shared/reset-to-reader.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-old-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-genesis"
+    direction: DOWN
+- tapOn:
+    id: "book-item-genesis"
+- waitForAnimationToEnd
+- tapOn:
+    id: "chapter-1"
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 1"
+    timeout: 30000
+
+# Into Insight, and let the first explanation settle. The FIRST mount of a tab is the expensive
+# one and it is measured below on purpose — but it should not be racing the chapter's own mount,
+# which is a separate cost that has its own scenario.
+- tapOn:
+    id: "commentary-view-toggle"
+- extendedWaitUntil:
+    visible:
+      id: "chapter-content-tabs"
+    timeout: 30000
+- waitForAnimationToEnd
+
+# Cycle the tabs. Three passes: the first pays every tab's initial mount, the later two measure
+# switching between tabs whose data is already cached — the case the operator describes as still
+# feeling sluggish, and the one where a mount-cost explanation is falsifiable.
+#
+# No content assertions between taps. An assertion that fails mid-flow aborts the run and
+# truncates the capture, which costs the measurement; the tab bar's own visibility check above is
+# enough to know the flow is on the right screen.
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: "tab-summary"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "tab-byline"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "tab-study"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "tab-summary"
+      - waitForAnimationToEnd
+
+# Bible <-> Insight, which mounts and unmounts the whole subtree rather than swapping within it.
+- repeat:
+    times: 3
+    commands:
+      - tapOn:
+          id: "bible-view-toggle"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "commentary-view-toggle"
+      - waitForAnimationToEnd

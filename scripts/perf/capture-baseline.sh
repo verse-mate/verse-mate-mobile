@@ -78,6 +78,20 @@ pcrun() { pc -s perfcap "$@" < /dev/null; }
 # of this script did that and every adb call silently ran with an empty -s.
 adb_sh() { pcrun "& '$PC_ADB' -s $DEVICE $*"; }
 
+# --- 0. a shell that answers --------------------------------------------------
+
+# Start from a FRESH bridge session, every run.
+#
+# A persistent PowerShell that is waiting for more input — the state an unbalanced quote or a
+# multi-line command leaves behind — accepts commands and never answers. Every probe in this
+# script then times out, and because the first probe is device discovery the script blames the
+# phone: "No device found. Attach a USB cable..." while `adb devices` from any other session
+# lists it happily. That has now cost two debugging detours, the second one after the warning
+# comment above had already been written, which is the argument for fixing it in code instead.
+#
+# `pc -c` on a session that does not exist is harmless, so this needs no guard.
+pc -c perfcap >/dev/null 2>&1 || true
+
 # --- 1. device ---------------------------------------------------------------
 
 step 'Finding the phone'
