@@ -490,23 +490,6 @@ export function ChapterPage({
   const bibleInteraction = useBibleInteraction();
   const { chapterHighlights, autoHighlights } = bibleInteraction;
 
-  // 104 of the reader's ~186 renders were attributed to `nothing-tracked`, meaning
-  // no input the reader itself watches had changed — so the trigger is this
-  // parent re-rendering and handing down fresh props. Probing here rather than
-  // memoising on instinct: `bibleInteraction` is included because a context value
-  // object rebuilt each render re-renders every consumer regardless of whether
-  // the data inside it moved, and that is indistinguishable from the outside.
-  useWhyRender('render.page', {
-    bibleInteraction,
-    chapterHighlights,
-    autoHighlights,
-    chapter,
-    activeView,
-    activeTab,
-    isPreloading,
-    bookId,
-    chapterNumber,
-  });
 
   // Pre-warmed flag: once the chapter has settled on Bible view, mount
   // the Insight subtree in the background so the Bible → Insight toggle
@@ -783,6 +766,24 @@ export function ChapterPage({
     lastChapterRef.current = chapter;
   }
   const displayChapter = chapter || lastChapterRef.current;
+
+  // 104 of the reader's ~186 renders were attributed to `nothing-tracked`, meaning
+  // no input the reader itself watches had changed — so the trigger is this
+  // parent re-rendering and handing down fresh props. Probing here rather than
+  // memoising on instinct: `bibleInteraction` is included because a context value
+  // object rebuilt each render re-renders every consumer regardless of whether
+  // the data inside it moved, and that is indistinguishable from the outside.
+  useWhyRender('render.page', {
+    bibleInteraction,
+    chapterHighlights,
+    autoHighlights,
+    displayChapter,
+    activeView,
+    activeTab,
+    isPreloading,
+    bookId,
+    chapterNumber,
+  });
 
   // Track which explanation tabs have been visited so we only fetch on demand
   const [visitedTabs, setVisitedTabs] = useState<Set<ContentTabType>>(() => new Set([activeTab]));
