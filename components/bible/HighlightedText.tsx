@@ -154,6 +154,16 @@ export interface HighlightedTextProps extends TextProps {
     entry: LexEntry;
     isTheme: boolean;
   }) => void;
+  /**
+   * Which surface this instance belongs to, for the dev-only node counter.
+   *
+   * With the Bible paragraphs converted, a five-figure `textNodes` count on the
+   * native arm has at least three possible sources — the Insight subtree, the
+   * Topics screens, or the Bible path silently falling back to this renderer
+   * when `paragraphWidth` is still 0. Those need completely different fixes, and
+   * a single undifferentiated counter cannot tell them apart.
+   */
+  perfSurface?: string;
 }
 
 /**
@@ -297,6 +307,7 @@ export function HighlightedText({
   selectedWord: externalSelectedWord,
   style,
   isVisible = true,
+  perfSurface = 'unlabelled',
   ...textProps
 }: HighlightedTextProps) {
   // When the caller wires up the lexicon, the gesture model flips:
@@ -1128,6 +1139,7 @@ export function HighlightedText({
     // word (two for a lexicon hit), plus this wrapper. Absolute numbers are
     // only meaningful compared against another run of the same flow.
     perfAdd('textNodes', elements.length + 1);
+    perfAdd(`textNodes.${perfSurface}`, elements.length + 1);
 
     return (
       <Text key={segment.key} style={segmentStyle} suppressHighlighting={true}>

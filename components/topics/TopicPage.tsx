@@ -270,6 +270,7 @@ export function TopicPage({
       ...markdownRules,
       text: (node, _children, _parent, styles, inheritedStyles = {}) => (
         <HighlightedText
+          perfSurface="topics.markdown"
           key={node.key}
           text={node.content}
           verseNumber={0}

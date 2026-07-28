@@ -171,6 +171,7 @@ export function TopicText({
                     )}
                     {/* Verse text — HighlightedText adds word long-press for dictionary lookup */}
                     <HighlightedText
+                      perfSurface="topics.verse"
                       text={verse.text}
                       verseNumber={parsedVerseNumber}
                       style={[styles.verseText, isPressable && styles.verseTextPressable]}
