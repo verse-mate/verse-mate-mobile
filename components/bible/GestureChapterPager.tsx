@@ -86,6 +86,9 @@ export interface GestureChapterPagerProps {
  */
 const RENDER_RADIUS = 4;
 
+/** Page elements kept cached. Comfortably above the mounted range. */
+const PAGE_CACHE_LIMIT = 24;
+
 /** Fraction of the screen a slow drag must cross to page. */
 const PAGE_DISTANCE_RATIO = 0.28;
 
@@ -597,6 +600,45 @@ export function GestureChapterPager({
     ]
   );
 
+  /**
+   * Cache each page's element by chapter, so moving the index does not recreate them.
+   *
+   * When React sees the SAME element object it skips that subtree entirely. Without this,
+   * every index change built a fresh element for all nine mounted pages, so all nine
+   * re-rendered even though eight were unchanged: reader.render.bible measured 735 renders
+   * with 666 of them attributed to `nothing-tracked` — nothing the reader watches had
+   * changed, because the cause was above it.
+   *
+   * Cleared when `renderChapterPage` changes identity, since a new render function may
+   * close over different state and reusing an element built by the old one would show stale
+   * content.
+   */
+  const pageCacheRef = useRef<{
+    render: typeof renderChapterPage;
+    map: Map<string, React.ReactNode>;
+  }>({ render: renderChapterPage, map: new Map() });
+  if (pageCacheRef.current.render !== renderChapterPage) {
+    pageCacheRef.current = { render: renderChapterPage, map: new Map() };
+  }
+  const pageElement = useCallback(
+    (loc: ChapterLocation): React.ReactNode => {
+      const cacheKey = keyOf(loc);
+      const cache = pageCacheRef.current.map;
+      const existing = cache.get(cacheKey);
+      if (existing !== undefined) return existing;
+      const created = renderChapterPage(loc.bookId, loc.chapterNumber);
+      cache.set(cacheKey, created);
+      // Bounded so a long reading session cannot accumulate every chapter visited. Well
+      // above the mounted range, so nothing on screen is ever evicted.
+      if (cache.size > PAGE_CACHE_LIMIT) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) cache.delete(oldest);
+      }
+      return created;
+    },
+    [renderChapterPage]
+  );
+
   const rowStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: scrollX.value }],
   }));
@@ -624,7 +666,7 @@ export function GestureChapterPager({
               // migrates a page's instance rather than repurposing it, which is what
               // preserves its scroll position.
               <View key={keyOf(loc)} style={[styles.page, { left: (i - origin) * width, width }]}>
-                {renderChapterPage(loc.bookId, loc.chapterNumber)}
+                {pageElement(loc)}
               </View>
             ))}
           </Animated.View>
