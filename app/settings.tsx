@@ -27,7 +27,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -50,14 +49,6 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { notifyLanguageChanged } from '@/hooks/use-preferred-language';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
-import {
-  disableDailyVerseNotifications,
-  enableDailyVerseNotifications,
-} from '@/lib/notifications/push-registration';
-import {
-  getDailyVerseNotificationEnabledCached,
-  isDailyVerseNotificationEnabled,
-} from '@/lib/notifications/push-token-storage';
 import {
   getBibleLanguages,
   patchUserPreferences,
@@ -171,34 +162,6 @@ export default function SettingsScreen() {
   const [showFinalModal, setShowFinalModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState<string | undefined>();
   const { deleteAccount, isDeleting, error: deleteError, clearError } = useDeleteAccount();
-
-  // GH-281: daily verse-of-the-day notification opt-in.
-  const [dailyVerseNotif, setDailyVerseNotif] = useState(getDailyVerseNotificationEnabledCached());
-  const [dailyVerseNotifBusy, setDailyVerseNotifBusy] = useState(false);
-  useEffect(() => {
-    void isDailyVerseNotificationEnabled().then(setDailyVerseNotif);
-  }, []);
-  const handleDailyVerseNotifToggle = async (next: boolean) => {
-    if (dailyVerseNotifBusy) return;
-    setDailyVerseNotifBusy(true);
-    try {
-      if (next) {
-        const granted = await enableDailyVerseNotifications();
-        setDailyVerseNotif(granted);
-        if (!granted) {
-          Alert.alert(
-            'Notifications disabled',
-            'Enable notifications for Verse Mate in your device settings to receive the daily verse.'
-          );
-        }
-      } else {
-        await disableDailyVerseNotifications();
-        setDailyVerseNotif(false);
-      }
-    } finally {
-      setDailyVerseNotifBusy(false);
-    }
-  };
 
   // Update form fields when user session changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: isOffline intentionally included to re-run effect when connectivity changes
@@ -943,38 +906,6 @@ export default function SettingsScreen() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </Pressable>
-          </View>
-        )}
-
-        {/* Daily Verse Notification — mobile only (GH-281) */}
-        {Platform.OS !== 'web' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Notifications</Text>
-            <View style={[styles.selectButton, styles.manageDownloadsButton]}>
-              <Ionicons
-                name="notifications-outline"
-                size={20}
-                color={colors.textPrimary}
-                style={styles.manageDownloadsIcon}
-              />
-              <View style={styles.manageDownloadsTextContainer}>
-                <Text
-                  style={[styles.selectButtonText, styles.manageDownloadsTitle]}
-                  numberOfLines={1}
-                >
-                  Daily verse notification
-                </Text>
-                <Text style={styles.manageDownloadsSubtitle}>
-                  Get the verse of the day each morning
-                </Text>
-              </View>
-              <Switch
-                value={dailyVerseNotif}
-                onValueChange={handleDailyVerseNotifToggle}
-                disabled={dailyVerseNotifBusy}
-                accessibilityLabel="Daily verse notification"
-              />
-            </View>
           </View>
         )}
 
