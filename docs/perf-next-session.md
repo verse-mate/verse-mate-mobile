@@ -459,3 +459,36 @@ Metro itself was gone. **Check that the server is alive before debugging the tra
 Two durable fixes: long-lived servers are now launched detached
 (`Start-Process ... -WindowStyle Hidden`) so no session close can kill them, and bridge sessions are
 closed individually rather than in a sweep.
+
+
+## How to measure a RELEASE build (added 2026-07-29)
+
+The largest number in every capture is `data.alignment`: 18 calls, 9,785ms total, **mean 543ms** — about
+six times the total cost of all tab switching, and by far the biggest single item in the report.
+
+It has never been attributable, for a specific reason. Chapter alignments load through `import()`, and
+`@versemate/lexicon` ships each chapter as its own Metro code-split chunk, so **in dev the first request
+for a chunk makes Metro transform it on demand** — routinely 100-500ms, which matches the mean almost
+exactly. The spread supports that too: a 543ms mean against a 2,856ms max looks like I/O, not a
+deterministic loop. In a release build those chunks are pre-bundled and much of the cost may simply not
+exist.
+
+The instrument switched itself off in precisely the build that could answer this, because every perf
+primitive was gated on `__DEV__`. That is now one predicate, `perfEnabled()` in `lib/perf/enabled.ts`:
+
+    __DEV__ || process.env.EXPO_PUBLIC_PERF === '1'
+
+`EXPO_PUBLIC_*` is inlined at build time, so with the flag unset it folds to `__DEV__` and dead-code
+elimination strips the perf code exactly as before. A normal release build is unchanged.
+
+To take the measurement:
+
+    eas build --profile preview-perf --platform android
+
+`preview-perf` extends `preview` (same distribution, channel and native config — it cannot drift) and adds
+only `EXPO_PUBLIC_PERF=1`. Then capture as usual: the app emits its report on background, which
+`adb shell input keyevent KEYCODE_HOME` triggers, and `scripts/perf/capture-baseline.sh` already does.
+
+**Why this is the highest-value next step.** It decides whether the lexicon work (a data-generation change
+to `@versemate/lexicon`, needing a small generated `strongs -> slug` map plus a lazy definition lookup) is
+worth doing at all. Right now that decision would be a guess about the biggest number on the board.
