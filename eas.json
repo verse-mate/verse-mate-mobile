@@ -69,7 +69,13 @@
       "extends": "preview",
       "env": {
         "EXPO_PUBLIC_PERF": "1"
-      }
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "autoIncrement": false,
+      "distribution": "internal"
     },
     "production": {
       "distribution": "store",
