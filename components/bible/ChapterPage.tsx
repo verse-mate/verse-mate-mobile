@@ -1504,10 +1504,8 @@ export function ChapterPage({
 
   useEffect(() => {
     if (toggleProgress) return;
-    localToggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
-      duration: 180,
-      easing: Easing.out(Easing.cubic),
-    });
+    // EXPERIMENT: snap, matching the parent-driven path.
+    localToggleProgress.value = activeView === 'bible' ? 0 : 1;
   }, [activeView, localToggleProgress, toggleProgress]);
   const effectiveProgress = toggleProgress ?? localToggleProgress;
   /**
