@@ -199,3 +199,25 @@ complete one.
 The finding that motivated all of this is written up in `docs/perf-next-session.md` ("The animation
 phase, finally opened up"): 119.4ms of one toggle's animation phase was 228 native text-view
 creations, arriving in a single burst ~1.1s after the tap — the idle tab prewarm, not the tap itself.
+
+## Verifying a session's changes
+
+```bash
+scripts/perf/verify-session.sh            # everything, ~12 min
+scripts/perf/verify-session.sh lexicon    # just the biggest question, ~3 min
+```
+
+Runs each capture the current changes need and prints the result **next to the number it has to beat**,
+with the arm those baselines came from. The baselines are hardcoded on purpose: every A/B in this project
+that went wrong went wrong by comparing arms that were not comparable — one measured an idle app on the
+wrong screen, one warmed the tabs before measuring a tab switch, one put 261 created views against 113.
+Leaving the comparison to memory is how that happens.
+
+Two rules it prints back at you, because both were learned expensively:
+
+- **A wall-clock span around an `await` measures latency, not work.** Cross-check any span total against
+  the session's total JS blocking. If the spans sum to more than the thread was ever blocked, they are
+  measuring waiting — that is how `data.alignment` came to be called "the biggest cost in the app" when
+  it was mostly an open span absorbing other work's time.
+- **Judge a change on the felt metrics** — `tab.switch`, `view.switch`, `gesture.swipe` — not on frame
+  phases alone. Two changes were reverted on 2026-07-29 for improving one while the other did not move.

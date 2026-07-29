@@ -763,3 +763,81 @@ buffer-off: JS blocks 110 ( 9292.8ms total, worst 2206.7ms) [severe 2] — block
 A **~2.2s** block, twice per session, while the mount work being optimised is measured in tens of
 milliseconds. That is the lexicon parse (task #14), and it is the largest real stall left in the reader by
 two orders of magnitude. Fix that before any further mount micro-tuning.
+
+---
+
+# The lexicon parse: the actual biggest stall (2026-07-29, second half)
+
+Everything above optimises mount work measured in tens of milliseconds. The same captures were showing,
+in plain sight, a **~2s block of the JS thread** — four independent times:
+
+```
+insight-tabs  ramp-on : JS blocks  61 ( 5197.3ms total, worst 1991.2ms) [severe 1]
+insight-tabs  ramp-off: JS blocks  59 ( 5267.7ms total, worst 1946.1ms) [severe 1]
+swipe-only  buffer-on : JS blocks 129 (10163.0ms total, worst 2162.7ms) [severe 2] — blocked 17.7%
+swipe-only  buffer-off: JS blocks 110 ( 9292.8ms total, worst 2206.7ms) [severe 2] — blocked 18.6%
+```
+
+A 2-second freeze is not a dropped frame, it is the app stopping. It is deferred past first paint so
+startup is unaffected, but a swipe or tab switch landing inside that window simply stops.
+
+## What was in the 18.7MB
+
+Measured field by field rather than assumed:
+
+| field | size | needed to render a chapter? |
+|---|---|---|
+| `notes` | 5.54 MB | no — popover only |
+| `related` | 4.51 MB | no — popover only |
+| `semanticRange` | 2.09 MB | no — popover only |
+| `lemma` | 0.32 MB | yes |
+| `pos` | 0.21 MB | yes |
+| `basicGloss` | 0.19 MB | yes |
+| `translit` | 0.18 MB | yes |
+| `strongs` | 0.13 MB | yes |
+| `loaded` | 0.09 MB | yes |
+
+**12.1MB of 18.7MB is prose that is only read when a reader taps a word** — and `loadAlignmentFor`
+awaited all of it before a chapter could render, for one field: `strongs`, to disambiguate homographs.
+
+## The fix
+
+Upstream (`verse-mate-lexicon` PR #6, pinned here at `f660236`): a `{ lite: true }` option resolving the
+chapter's lexicon from a **1.15MB columnar projection — 16x smaller** — plus `lookupLemma(slug)` for the
+prose.
+
+```
+row-oriented (6 fields)   2.48 MB
+columnar                  1.42 MB
+columnar + pos vocab      1.15 MB
+```
+
+Columnar because at this size the field *names* dominate: five keys repeated 18,100 times cost more than
+the values.
+
+Two things made the mobile side almost free:
+
+- **Every field kept is one of `LexEntry`'s REQUIRED fields**, so a light entry satisfies the type
+  structurally — no type changes anywhere in the app.
+- **`LexiconPopover` already fills in progressively**, because non-English versions resolve their card
+  from the backend. So a tap opens instantly on the light entry and `lookupLemma` upgrades it; the
+  upgrade is skipped for HAND_LEXICON's ~144 full entries, and applied only if the tapped lemma is still
+  the active one (a reader can tap a second word while the first is loading, and a stale result would put
+  the wrong definition under the right heading).
+
+## Unverified — this is the first thing to measure
+
+The phone left with the operator before this could be captured. `data.alignment.first` (added alongside)
+isolates exactly this cost, and the decisive signal is **whether the ~2s "severe" block disappears**, not
+whether it shrinks. If a ~2s block survives, the parse was never the cause and the premise here is wrong.
+
+    scripts/perf/verify-session.sh lexicon
+
+## Harness fix that came out of it
+
+`check_pr_versemate.sh` never installed dependencies. A branch changing `package.json` or `bun.lock`
+therefore ran its gates against the PREVIOUS dependency tree — green, and proving nothing about the
+change under test. It now installs after the sync when a manifest changed, fails loudly, and names a
+lockfile/package.json disagreement explicitly (CI installs `--frozen-lockfile`, so it would fail there
+too). Same defect class as the `check_pr.sh` fix where the install ran *before* the sync and so always
+installed the wrong revision.
