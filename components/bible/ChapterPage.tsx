@@ -411,7 +411,35 @@ const VISIBILITY_PUSH_INTERVAL_MS = 150;
  * the Insight mount waits beyond it.
  */
 /** Every Insight tab, in the order they are pre-warmed. */
-const INSIGHT_TABS: ContentTabType[] = ['summary', 'byline', 'study', 'visuals'];
+/**
+ * Which tabs are worth mounting BEFORE the reader asks for them.
+ *
+ * The full set is summary / byline / study / visuals; only the first two are prewarmed.
+ *
+ * Not all of them, and the exclusions are measured rather than guessed. atrace bucketed every native view
+ * creation during a first visit to each tab:
+ *
+ *     after tab-byline:  57 RCTView  104 VMText   4 RCTText
+ *     after tab-study:   51 RCTView    0 VMText  66 RCTText   <- ~117 views, and the 47.39ms frame
+ *
+ * Study is the heaviest tab in the reader by a wide margin — 36 distinct `<Text>` sites, several inside
+ * `.map()`s over cards — and its 47ms mount is about 5.7 dropped frames at 120Hz, i.e. one clearly
+ * visible stutter. (Its card BODIES are already lazy; those 117 views are headers and chrome.)
+ *
+ * Prewarming it is actively harmful to how the app feels. The prewarm fires ~250ms apart after the reader
+ * opens Insight, so Study mounts while they are reading Summary or By Line — an UNPROMPTED hitch with no
+ * action attached to it, which is the worst kind: a stutter tied to a tap reads as "that was heavy", one
+ * that arrives on its own reads as "this app is janky".
+ *
+ * So the cheap tabs prewarm and the heavy ones mount when actually opened. That does not make Study's
+ * mount cheaper — it moves the cost onto a deliberate tap, where it is expected. Reducing it needs fewer
+ * views, which is a separate change.
+ *
+ * `visuals` is excluded for the same reason plus a stronger one: it is gated on `bookHasVisuals` and
+ * carries WebViews (`createViewUnsafe(RNCWebView)` showed up at 9.18ms EACH in an earlier capture), so
+ * prewarming it spends the most for the least likely visit.
+ */
+const PREWARMED_TABS: ContentTabType[] = ['summary', 'byline'];
 
 /**
  * Byline reveal ramp. See the effect in `TabContent` for the capture these come from.
@@ -1067,9 +1095,9 @@ export function ChapterPage({
   useEffect(() => {
     if (isPreloading) return;
     if (!insightPrewarmed && !insightMountAllowed) return;
-    if (visitedTabs.size >= INSIGHT_TABS.length) return;
+    if (PREWARMED_TABS.every((tab) => visitedTabs.has(tab))) return;
 
-    const next = INSIGHT_TABS.find((tab) => !visitedTabs.has(tab));
+    const next = PREWARMED_TABS.find((tab) => !visitedTabs.has(tab));
     if (!next) return;
 
     // One tab per idle window rather than all of them at once: each is a real subtree, and
