@@ -98,13 +98,20 @@ function installErrorCapture(): void {
   console.error = (...args: unknown[]) => {
     try {
       perfCount('errors', 1);
-      // First line only: a stack is already in Metro's output, and a report line has a
-      // size budget it must not blow.
-      const summary = args
-        .map((a) => (a instanceof Error ? a.message : String(a)))
-        .join(' ')
-        .split('\n')[0]
-        .slice(0, 300);
+      // The FIRST argument is truncated; the later ones are kept.
+      //
+      // Joining everything and then slicing to 300 chars looks equivalent and is not: React's
+      // warnings put a long paragraph in argument 0 and the interesting VALUE in argument 1, so the
+      // slice ate exactly the part worth having. A real case — "Encountered two children with the
+      // same key, `%s`" — reported 15 times without ever naming the key, and the key
+      // (`precept-book-luketime`, a duplicated id in the visuals registry) was what identified the
+      // bug. A stack is still in Metro's output; the arguments are not, once dropped.
+      const line = (value: unknown, limit: number) =>
+        (value instanceof Error ? value.message : String(value)).split('\n')[0].slice(0, limit);
+      const [head, ...rest] = args;
+      const summary = [line(head, 200), ...rest.map((a) => line(a, 80))]
+        .filter((part) => part.length > 0)
+        .join(' | ');
       original(`[VMERR] ${summary}`);
     } catch {
       // Never let the reporter break error reporting.

@@ -286,13 +286,27 @@ export default function ChapterScreen() {
   // content opacity swap.
   const tabsWrapperStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      // Cap is generous (tabs row is ~50-60dp); the inner content sets the
-      // actual rendered height, the cap just gates the collapse animation.
-      maxHeight: interpolate(toggleProgress.value, [0, 1], [0, 120]),
-      opacity: toggleProgress.value,
-    };
+    // OPACITY ONLY — `maxHeight` is set below from React state instead of interpolated here.
+    //
+    // maxHeight is a LAYOUT property. Interpolating it meant every frame of the 250ms cross-fade
+    // resized this wrapper and therefore relayouted the whole pane beneath it. That is a large part of
+    // why this toggle is the expensive interaction on the reader: p50 13.6ms with 107 of 119 frames
+    // over the 8.3ms budget, against p50 8.4ms and 62/120 for a sub-tab switch, which does not resize
+    // anything.
+    //
+    // Snapping the height and fading only the opacity keeps the animation the operator wants while
+    // paying for exactly ONE relayout instead of ~30. Opacity is a compositing property, so the fade
+    // itself costs no layout at all.
+    return { opacity: toggleProgress.value };
   });
+
+  /**
+   * The tabs row's height, snapped rather than animated — see `tabsWrapperStyle`.
+   *
+   * Generous cap (the row is ~50-60dp); the inner content sets the real height and this only gates
+   * the collapse.
+   */
+  const tabsMaxHeight = activeView === 'explanations' ? 120 : 0;
 
   // Track chapter reading duration (Time-Based Analytics)
   // Hook fires CHAPTER_READING_DURATION event on unmount with AppState awareness
@@ -383,8 +397,10 @@ export default function ChapterScreen() {
   // synchronously in handleViewChange and is idempotent here — withTiming
   // to the same target is a no-op.
   useEffect(() => {
-    // EXPERIMENT: snap instead of cross-fade. See the tap path below for the reasoning and numbers.
-    toggleProgress.value = activeView === 'bible' ? 0 : 1;
+    toggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
+      duration: 250,
+      easing: Easing.out(Easing.cubic),
+    });
   }, [activeView, toggleProgress]);
 
   // Navigation modal state
@@ -503,14 +519,10 @@ export default function ChapterScreen() {
       if (view === activeView) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // UI-thread visual flip — happens this frame, no React work involved.
-      // EXPERIMENT: snap instead of cross-fade.
-      //
-      // The isolated bible-insight flow shows this toggle is the expensive interaction on the reader:
-      // p50 13.6ms with 107 of 119 frames over the 8.3ms budget, against p50 8.4ms and 62/120 for a
-      // sub-tab switch. The difference between them is that the toggle CROSS-FADES two large subtrees
-      // while the sub-tab switch snaps — so the fade itself is the suspect, not the content. Making it
-      // cheaper with a hardware layer was tried and lost on the tail (worst frame 37ms -> 52ms).
-      toggleProgress.value = view === 'bible' ? 0 : 1;
+      toggleProgress.value = withTiming(view === 'bible' ? 0 : 1, {
+        duration: 180,
+        easing: Easing.out(Easing.cubic),
+      });
       // Bridge to React for non-visual state (pointerEvents, scroll
       // handlers, deep-link sync). Wrapped in a transition so the heavy
       // reconciliation doesn't block the tap.
@@ -890,7 +902,7 @@ export default function ChapterScreen() {
                 frame as the Bible/Insight tap — no waiting for React. */}
             <Animated.View
               testID="content-tabs-wrapper"
-              style={[styles.tabsWrapper, tabsWrapperStyle]}
+              style={[styles.tabsWrapper, { maxHeight: tabsMaxHeight }, tabsWrapperStyle]}
               pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
             >
               <ChapterContentTabs
