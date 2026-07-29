@@ -383,10 +383,8 @@ export default function ChapterScreen() {
   // synchronously in handleViewChange and is idempotent here — withTiming
   // to the same target is a no-op.
   useEffect(() => {
-    toggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
-      duration: 250,
-      easing: Easing.out(Easing.cubic),
-    });
+    // EXPERIMENT: snap instead of cross-fade. See the tap path below for the reasoning and numbers.
+    toggleProgress.value = activeView === 'bible' ? 0 : 1;
   }, [activeView, toggleProgress]);
 
   // Navigation modal state
@@ -505,10 +503,14 @@ export default function ChapterScreen() {
       if (view === activeView) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // UI-thread visual flip — happens this frame, no React work involved.
-      toggleProgress.value = withTiming(view === 'bible' ? 0 : 1, {
-        duration: 180,
-        easing: Easing.out(Easing.cubic),
-      });
+      // EXPERIMENT: snap instead of cross-fade.
+      //
+      // The isolated bible-insight flow shows this toggle is the expensive interaction on the reader:
+      // p50 13.6ms with 107 of 119 frames over the 8.3ms budget, against p50 8.4ms and 62/120 for a
+      // sub-tab switch. The difference between them is that the toggle CROSS-FADES two large subtrees
+      // while the sub-tab switch snaps — so the fade itself is the suspect, not the content. Making it
+      // cheaper with a hardware layer was tried and lost on the tail (worst frame 37ms -> 52ms).
+      toggleProgress.value = view === 'bible' ? 0 : 1;
       // Bridge to React for non-visual state (pointerEvents, scroll
       // handlers, deep-link sync). Wrapped in a transition so the heavy
       // reconciliation doesn't block the tap.
