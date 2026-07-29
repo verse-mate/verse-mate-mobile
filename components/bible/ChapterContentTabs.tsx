@@ -22,7 +22,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
-  interpolateColor,
   type SharedValue,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -294,13 +293,29 @@ function TabButton({
   activeTab: ContentTabType;
   styles: ReturnType<typeof createStyles>;
 }) {
-  const textAnimatedStyle = useAnimatedStyle(() => {
+  /**
+   * Cross-fade two stacked labels with OPACITY, rather than animating one label's `color`.
+   *
+   * `color` is not a compositing property. Animating it forces the text to be re-rasterised every
+   * frame, and Fabric has to push a prop update to each label on every frame of the pill animation —
+   * four labels, ~120 times a second. That is why the inner pill stutters more than the Bible<->Insight
+   * toggle, which animates opacity only: same distance, very different per-frame cost.
+   *
+   * Opacity and transform are the two properties Android can change on a RenderNode without
+   * re-recording the view's draw commands, so an opacity cross-fade of two pre-rendered labels is
+   * compositing work instead of text work. The extra label per tab is four small Text nodes total,
+   * which is a trade worth making against a per-frame re-rasterise.
+   */
+  const activeTextStyle = useAnimatedStyle(() => {
     'worklet';
     const distance = Math.min(1, Math.abs(animatedIndex.value - index));
-    return {
-      color: interpolateColor(distance, [0, 1], [activeColor, inactiveColor]),
-    };
-  }, [index, activeColor, inactiveColor]);
+    return { opacity: 1 - distance };
+  }, [index]);
+  const inactiveTextStyle = useAnimatedStyle(() => {
+    'worklet';
+    const distance = Math.min(1, Math.abs(animatedIndex.value - index));
+    return { opacity: distance };
+  }, [index]);
 
   return (
     <Pressable
@@ -318,7 +333,28 @@ function TabButton({
       testID={`tab-${tab.id}`}
       disabled={disabled}
     >
-      <Animated.Text style={[styles.tabText, textAnimatedStyle]}>{tab.label}</Animated.Text>
+      {/* Stacked so both occupy the same box: the inactive copy is absolutely positioned over the
+          active one, and only their opacities animate. `collapsable={false}` keeps Android from
+          flattening the wrapper away, which would break the stacking. */}
+      <View collapsable={false}>
+        <Animated.Text style={[styles.tabText, { color: activeColor }, activeTextStyle]}>
+          {tab.label}
+        </Animated.Text>
+        <Animated.Text
+          style={[
+            styles.tabText,
+            styles.tabTextOverlay,
+            { color: inactiveColor },
+            inactiveTextStyle,
+          ]}
+          // Never a hit target and never read aloud — it is the same word twice.
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          {tab.label}
+        </Animated.Text>
+      </View>
     </Pressable>
   );
 }
@@ -339,6 +375,13 @@ const createStyles = (colors: ReturnType<typeof getColors>, mode: ThemeMode) => 
     // the available width (used for even-split vs. clamp + active-tab centring).
     scrollTrack: {
       width: '100%',
+    },
+    // The inactive label sits exactly on top of the active one; only opacity distinguishes them.
+    tabTextOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
     },
     tabsRow: {
       backgroundColor: colors.backgroundElevated,
