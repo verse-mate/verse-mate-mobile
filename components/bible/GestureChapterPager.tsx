@@ -449,32 +449,23 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
     }, [externalNav, width, jumpTo]);
 
     /**
-     * Follow a navigation that changed the ROUTE without going through `externalNav`.
+     * NO route-driven sync here, deliberately — and this is a scar, not an omission.
      *
-     * The chapter picker does exactly that: it pushes a route, so `bookId`/`chapterNumber` arrive as
-     * new props with no `externalNav.seq` bump — and the pager, which only listened to that seq, stayed
-     * where it was. The header then read "John 1" while the page still showed Genesis 1, which is the
-     * header/content mismatch reported against the nav buttons, reachable by a second route the button
-     * fix never touched. Found by screenshotting the QA flow rather than by any assertion: Maestro's
-     * `assertVisible: "John 1"` PASSED, because the header did say John 1.
+     * A version of this file synced the pager whenever the `bookId`/`chapterNumber` PROPS disagreed with
+     * its own position. It broke chapter-picker navigation in the most confusing possible way: every jump
+     * landed one selection behind. Pick Genesis 5 and you stayed on Genesis 1; pick Exodus 3 next and you
+     * arrived at Genesis 5.
      *
-     * The reason the props were not dependencies before is real and still respected — during a swipe
-     * run the route lags behind the pager, and reacting to that lag is what caused teleports. The
-     * distinction is comparing against the pager's OWN position rather than against the previous props:
-     * if the incoming chapter is not the one currently under the viewport, the change came from outside
-     * and must be followed; if it is, this is the route catching up and there is nothing to do. After a
-     * jump the two agree, so it cannot oscillate.
+     * The cause is that this component is given `deferredBookId`/`deferredChapterNumber` — useDeferredValue
+     * outputs, which lag by design. So the sequence was: `navigateExternally` correctly jumps to the new
+     * chapter, then the deferred props arrive still holding the OLD chapter, the sync sees a disagreement
+     * and jumps back. Reading a deliberately-lagging value as if it were the truth.
+     *
+     * It is also unnecessary: all three `onSelectChapter` handlers already call `navigateExternally`, so the
+     * picker uses the same explicit signal as the nav buttons. The screenshot that prompted it — the header
+     * reading "John 1" over Genesis 1 content — was a TRANSIENT one-frame lag between the immediate header
+     * and the deferred page, frozen by a screenshot, not a persistent mismatch.
      */
-    useEffect(() => {
-      if (width <= 0) return;
-      const target = { bookId, chapterNumber };
-      const currentLoc = chapterAt.current.get(indexRef.current);
-      if (currentLoc && keyOf(currentLoc) === keyOf(target)) return;
-      // An unconsumed externalNav is about to move us; let it, so the two paths cannot both jump.
-      if (externalNav && externalNav.seq !== lastExternalSeqRef.current) return;
-      perfAdd('gesturePager.routeSync', 1);
-      jumpTo(target);
-    }, [bookId, chapterNumber, width, externalNav, jumpTo]);
 
     /**
      * Re-centre the index space when the reader approaches the row's edge.
