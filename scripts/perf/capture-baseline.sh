@@ -94,6 +94,10 @@ Nothing can be measured through it. Inspect with 'pc -l', kill with 'pc -c perfc
   printf '%s\n' "$out"
 }
 
+# Shared pre-flight gates. Sourced rather than duplicated so capture-atrace.sh cannot drift from this.
+# shellcheck source=scripts/perf/preflight.sh
+source "$(dirname "${BASH_SOURCE[0]}")/preflight.sh"
+
 # Run one adb command against the discovered device.
 #
 # The device serial is interpolated from THIS shell, not read from a PowerShell
@@ -197,6 +201,14 @@ step 'Launching against Metro and waiting for the bundle'
 # address.
 adb_sh "reverse tcp:8081 tcp:8081" >/dev/null 2>&1 || true
 
+# GATE: prove Metro can serve a bundle BEFORE the device is touched.
+#
+# Skipping this is what produced every white error screen in this project. After `bun start --clear`,
+# Metro's first build takes minutes; launch inside that window and the dev client asks, gets nothing,
+# and shows the error screen — and the capture then measures an app that never ran a line of our JS,
+# reporting an idle app as a fast one. The gate forces the build on the PC and fails there, in words.
+preflight_bundle_compiles || exit 1
+
 adb_sh "shell am start -a android.intent.action.VIEW -d '$DEV_CLIENT_URL'" >/dev/null
 
 # Wait for the perf session's own startup line, which only appears once our
@@ -241,6 +253,11 @@ and that the reverse tunnel is up:
 # unknown arm. An A/B whose arms are mislabelled is worse than no A/B, because it looks like a
 # result.
 ARM_LINE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r')"
+
+# GATE: an app that logged errors must not be measured. A rejected import still closes its span, so a
+# broken feature reports as a fast one — that is exactly how a lexicon that never loaded once measured
+# as a 9x improvement.
+preflight_no_errors "$DEVICE" || exit 1
 
 # The perf session started during app boot, so its records so far describe
 # startup, not the flow. Clear logcat to scope the capture to the flow itself.
