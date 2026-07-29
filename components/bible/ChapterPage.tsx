@@ -376,6 +376,21 @@ const VISIBILITY_PUSH_INTERVAL_MS = 150;
 /** Every Insight tab, in the order they are pre-warmed. */
 const INSIGHT_TABS: ContentTabType[] = ['summary', 'byline', 'study', 'visuals'];
 
+/**
+ * Gap between one prewarmed tab and the next, in ms.
+ *
+ * The effect below says "one tab per idle window", and it did not achieve that:
+ * `runAfterInteractions` fires immediately when nothing is happening, and the effect re-runs on
+ * every `visitedTabs` change, so the remaining tabs chained back-to-back. atrace caught the result —
+ * 228 native text views created in two consecutive commits, worst `animation` frame 46.70ms.
+ *
+ * NativeMarkdown now ramps its blocks at 8 per frame, so one tab takes roughly
+ * `blocks / 8` frames — ~14 frames, ~117ms at 120Hz for a typical Insight document. A gap
+ * comfortably longer than that keeps two tabs' ramps from overlapping and re-coalescing into the
+ * big commit both changes exist to avoid.
+ */
+const PREWARM_TAB_GAP_MS = 250;
+
 const VIEW_SWITCH_ANIM_MS = 180;
 const VIEW_SWITCH_MOUNT_MARGIN_MS = 40;
 
@@ -966,16 +981,27 @@ export function ChapterPage({
 
     // One tab per idle window rather than all of them at once: each is a real subtree, and
     // mounting four in a single commit would recreate the stall this is meant to remove.
+    //
+    // The explicit gap is load-bearing. `runAfterInteractions` resolves immediately when no
+    // interaction is in flight, and this effect re-runs on every `visitedTabs` change, so on its own
+    // it chained all remaining tabs into consecutive frames — measured as a single 228-view burst
+    // rather than the intended one-at-a-time. See PREWARM_TAB_GAP_MS.
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const handle = InteractionManager.runAfterInteractions(() => {
-      setVisitedTabs((prev) => {
-        if (prev.has(next)) return prev;
-        const updated = new Set(prev);
-        updated.add(next);
-        return updated;
-      });
-      perfAdd('insight.tabPrewarmed', 1);
+      timer = setTimeout(() => {
+        setVisitedTabs((prev) => {
+          if (prev.has(next)) return prev;
+          const updated = new Set(prev);
+          updated.add(next);
+          return updated;
+        });
+        perfAdd('insight.tabPrewarmed', 1);
+      }, PREWARM_TAB_GAP_MS);
     });
-    return () => handle.cancel();
+    return () => {
+      handle.cancel();
+      if (timer) clearTimeout(timer);
+    };
   }, [isPreloading, insightPrewarmed, insightMountAllowed, visitedTabs]);
 
   // Eagerly pre-fetch the byline explanation so the first tap on the By Line tab finds the data

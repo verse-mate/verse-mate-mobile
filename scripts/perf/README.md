@@ -153,3 +153,49 @@ later swipe lands on the launcher — while the profile still "succeeds". Use
 Also prefer swiping FORWARD through new chapters over swiping back and forth
 between two. Per-chapter caches (alignment, layout) hit on the second visit, so
 an alternating flow measures something no reader ever does.
+
+## atrace — what runs INSIDE a slow frame phase
+
+`capture-baseline.sh` collects `gfxinfo framestats`, which tells you which **phase** of a frame was
+slow. That is where this project's investigation kept landing: the `animation` phase, every time. A
+phase is a time boundary, not a cause, so framestats cannot take you further — and three separate
+hypotheses were offered for that phase before it was measured properly (one confirmed, one wrong, one
+retracted as untested).
+
+atrace goes inside it, because Android and React Native both emit **named** slices, and the app's own
+show up once `atrace -a <package>` enables the `app` category:
+
+```bash
+# The Bible <-> Insight toggle, three times.
+scripts/perf/capture-atrace.sh toggle \
+  --taps "commentary-view-toggle:1800 bible-view-toggle:1800 commentary-view-toggle:1800"
+
+# The Insight sub-tabs. --pre gets onto the Insight view OUTSIDE the measured window.
+scripts/perf/capture-atrace.sh subtabs --pre "commentary-view-toggle:2500" \
+  --taps "tab-byline:1500 tab-study:1500 tab-summary:1500"
+
+# Re-attribute a trace already on disk, e.g. with a different phase or a longer table.
+bun scripts/perf/atrace-slices.ts reports/perf/atrace/toggle.txt --within animation --top 30
+```
+
+Three things about it are deliberate:
+
+- **Taps name a testID, not a pixel.** A hardcoded `input tap 839 143` taps the wrong thing on another
+  screen size or after a layout change, and a capture of the wrong interaction is indistinguishable
+  from a capture of a fast one. IDs resolve from a `uiautomator dump` taken *before* the window opens,
+  since the dump itself perturbs the app.
+- **`--pre` exists so warm-up stays out of the measurement.** Getting to the screen is not the thing
+  being measured, and its frames would dilute the window — the same mistake that once produced a
+  phantom regression here by measuring the wrong 120 frames.
+- **Ranking is by SELF time**, not total. A parent's total includes all its children, so `animation`
+  totalling 30ms tells you nothing about which child to fix. Self time is additive across the tree, so
+  the top row is the thing actually executing.
+
+Keep the window short. atrace produced ~16MB of text for four seconds of scrolling on this phone, and
+the buffer is a ring — a long capture silently discards its own beginning. The parser reports what it
+dropped (`ends with no begin`, `begins never closed`) rather than letting a truncated trace read as a
+complete one.
+
+The finding that motivated all of this is written up in `docs/perf-next-session.md` ("The animation
+phase, finally opened up"): 119.4ms of one toggle's animation phase was 228 native text-view
+creations, arriving in a single burst ~1.1s after the tap — the idle tab prewarm, not the tap itself.
