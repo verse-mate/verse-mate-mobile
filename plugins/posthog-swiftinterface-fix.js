@@ -35,29 +35,45 @@
  * ## Why a custom plugin
  *
  * `expo-build-properties` covers pod modular headers and `useFrameworks`, but not arbitrary Xcode build
- * settings, so there is no declarative route. This appends a `post_install` hook to the Podfile at
- * prebuild, which is the same mechanism a bare project would use.
+ * settings, so there is no declarative route. This injects into the Podfile's EXISTING `post_install`
+ * hook at prebuild — see the note on ANCHOR for why appending a second one breaks the build.
  */
 const { withDangerousMod } = require('@expo/config-plugins');
 const fs = require('node:fs');
 const path = require('node:path');
 
-/** Marker so re-running prebuild cannot append the hook twice. */
+/** Marker so re-running prebuild cannot inject twice. */
 const MARKER = '# posthog-swiftinterface-fix';
 
-const HOOK = `
-${MARKER}
-# Disable Swift module-interface verification for PostHog only. See
-# plugins/posthog-swiftinterface-fix.js for the build log this fixes. Not project-wide: a broken
-# interface in our own VMText module is a signal we want to keep failing on.
-post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    next unless target.name == 'PostHog'
-    target.build_configurations.each do |config|
-      config.build_settings['SWIFT_VERIFY_EMITTED_MODULE_INTERFACE'] = 'NO'
+/**
+ * The line Expo's generated Podfile uses to open its own post_install hook.
+ *
+ * Injecting INTO this block is the whole point. The first version of this plugin APPENDED a second
+ * `post_install do |installer|` at file scope, which broke the build — `post_install` is a setter, so
+ * the second declaration replaced Expo's and wiped `react_native_post_install(...)`, essential React
+ * Native configuration. Expo reported it as `UNKNOWN_ERROR: See logs of the Install pods build phase`,
+ * and generating the Podfile locally (`npx expo prebuild --platform ios --no-install`, which needs Linux
+ * or macOS — it silently skips on Windows) showed two `post_install` blocks, at lines 52 and 67.
+ */
+const ANCHOR = '  post_install do |installer|';
+
+const INJECTION = `
+    ${MARKER}
+    # Disable Swift module-interface verification for PostHog only. PostHog compiles with
+    # -enable-library-evolution, so Xcode emits a textual .swiftinterface and re-typechecks it in
+    # isolation; that re-typecheck cannot see PostHog's private Objective-C pods (phlibwebp,
+    # PHPLCrashReporter, PostHogObjCExceptionSupport) and fails with "underlying Objective-C module
+    # 'PostHog' not found" even though the library compiled fine. The setting is a self-check on a file
+    # Xcode just wrote — disabling it changes nothing that ships.
+    #
+    # Scoped to PostHog by name: a project-wide flip would also silence the check for our own VMText
+    # module, where a broken interface would be a real signal.
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'PostHog'
+      target.build_configurations.each do |build_config|
+        build_config.build_settings['SWIFT_VERIFY_EMITTED_MODULE_INTERFACE'] = 'NO'
+      end
     end
-  end
-end
 `;
 
 module.exports = function posthogSwiftinterfaceFix(config) {
@@ -70,7 +86,17 @@ module.exports = function posthogSwiftinterfaceFix(config) {
       // Idempotent: prebuild runs repeatedly on EAS and locally.
       if (contents.includes(MARKER)) return cfg;
 
-      fs.writeFileSync(podfile, `${contents}\n${HOOK}`, 'utf8');
+      // Fail loudly rather than silently shipping a build without the fix. A missing anchor means the
+      // Expo template changed, and a silent no-op here would resurface as the same opaque pod failure.
+      if (!contents.includes(ANCHOR)) {
+        throw new Error(
+          `[posthog-swiftinterface-fix] could not find "${ANCHOR}" in the generated Podfile. ` +
+            'The Expo template has changed; update the anchor rather than appending a second ' +
+            'post_install block, which replaces Expo\'s and breaks pod install.'
+        );
+      }
+
+      fs.writeFileSync(podfile, contents.replace(ANCHOR, ANCHOR + INJECTION), 'utf8');
       return cfg;
     },
   ]);
