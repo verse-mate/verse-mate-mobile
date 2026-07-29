@@ -841,3 +841,40 @@ change under test. It now installs after the sync when a manifest changed, fails
 lockfile/package.json disagreement explicitly (CI installs `--frozen-lockfile`, so it would fail there
 too). Same defect class as the `check_pr.sh` fix where the install ran *before* the sync and so always
 installed the wrong revision.
+
+## Is any of this React Native's fault? (asked 2026-07-29)
+
+Worth separating, because the answer decides whether more tuning or a refactor is the right next move.
+
+**Per-view cost — not RN's.** `createViewUnsafe(ViewManagerAdapter_VMText)` at ~0.52ms is the cost of
+constructing an Android `TextView` (Paint, span machinery, layout params). Native Kotlin pays roughly the
+same. Nothing to win there.
+
+**Mount timing — genuinely RN.** Fabric applies mount operations *synchronously on the main UI thread*,
+so a batch of view creations lands inside one Choreographer callback — literally the `animation` phase
+every capture in this document points at. And the JS thread is single: an 18MB JSON parse blocks
+everything, where Kotlin would hand it to a background thread in three lines. That is the one place where
+"native would be better by default" is straightforwardly true.
+
+**View count — ours, and asymmetric.** A native app written the same way (mount every verse into a scroll
+container) would stutter identically; written idiomatically with a `RecyclerView` it would not, because it
+never inflates more than a screenful. The reader is half-way there, and it took reading the code to see
+which half:
+
+| surface | windowed? |
+|---|---|
+| Bible view | **yes** — `use-paragraph-layout.ts` windows paragraph groups from `scrollY + viewportHeight + bufferPx` and compiles only what is inside |
+| Insight tabs | **no** — byline only CAPS sections (`maxBylineSections`), and the cap ramps to `POSITIVE_INFINITY`; summary/study render whole documents into a plain `ScrollView` |
+
+Which is exactly consistent with the measurements: the largest single storm all day was the Insight
+prewarm at 228 views, and the Bible view's own navigation storm turned out to be a **buffer** page — one
+deliberately built offscreen so a swipe lands on text rather than a skeleton.
+
+**Evidence the platform is not the ceiling:** swiping over already-mounted pages measures `animation`
+0.9ms with 3/119 slow frames, against MyBible — a native-feeling competitor — at 2.6ms / 2 of 120. When
+nothing mounts, this app already matches or beats it. Mounting is the entire problem, and mounting is an
+architecture choice, not a framework tax.
+
+So the remaining structural work is narrow: **virtualize the Insight tab section lists** (task #7),
+ideally by extending the Bible view's existing windowing rather than adding a recycling list. Not the
+whole-reader rewrite the question implied.
