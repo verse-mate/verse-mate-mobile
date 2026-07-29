@@ -172,7 +172,9 @@ function TabContent({
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const styles = createStyles(colors, insets.bottom); // Use local createStyles for TabContent
+  // Memoised for the same reason as ChapterReader's: a fresh StyleSheet each render defeats
+  // memoisation in every child that receives one of its entries.
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
   const { isOffline } = useOfflineStatus();
 
   // Progressive reveal for byline verse sections. Two discrete bumps
@@ -474,7 +476,7 @@ export function ChapterPage({
 }: ChapterPageProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const styles = createStyles(colors, insets.bottom); // Use local createStyles for ChapterPage
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
 
   // Use Reanimated ref for the animated ScrollView
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
