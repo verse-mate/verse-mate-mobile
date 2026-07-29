@@ -1,0 +1,89 @@
+appId: org.versemate.app
+name: QA — chapter picker navigation
+description: Two consecutive picker jumps, each screenshotted TWICE, to separate a transient lag from a real mismatch
+tags:
+  - qa
+---
+
+# Chapter-picker navigation, verified across two consecutive jumps.
+#
+# ## Why two jumps, and two screenshots each
+#
+# A single screenshot of a single jump is what produced a wrong diagnosis before: the header updates
+# immediately while the page renders a `useDeferredValue` copy that is intentionally one render behind, so a
+# frame captured in between shows "John 1" above Genesis 1 text. That looks exactly like a broken navigation
+# and is not one. The "fix" for it then broke the picker for real, one selection behind on every jump.
+#
+# So this flow pins down the difference:
+#   * TWO screenshots per jump — one immediately, one after a settle. If the first disagrees and the second
+#     agrees, that is the deferred render catching up and nothing is wrong. If BOTH disagree, it is a bug.
+#   * TWO consecutive jumps — the off-by-one regression only showed itself on the second, where the page
+#     arrived at the FIRST jump's destination. One jump cannot distinguish "stale" from "slow".
+#
+# Verify in the images: `qa-pick1-settled` must read Isaiah 40 in both header and body, and
+# `qa-pick2-settled` must read John 3 in both — not Isaiah 40.
+
+- runFlow: shared/reset-to-reader.yaml
+
+# --- jump 1: somewhere far from the start, in the Old Testament ---
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-old-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-isaiah"
+    direction: DOWN
+- tapOn:
+    id: "book-item-isaiah"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "chapter-40"
+    direction: DOWN
+- tapOn:
+    id: "chapter-40"
+
+# Immediately: the header may already say Isaiah 40 while the page is still catching up. That is allowed.
+- takeScreenshot: qa-pick1-immediate
+- extendedWaitUntil:
+    visible:
+      text: "Isaiah 40"
+    timeout: 30000
+- waitForAnimationToEnd
+# Settled: header AND body must agree. A disagreement here is a real bug.
+- takeScreenshot: qa-pick1-settled
+
+# --- jump 2: a different testament, so a stale target is unmistakable ---
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-new-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-john"
+    direction: DOWN
+- tapOn:
+    id: "book-item-john"
+- waitForAnimationToEnd
+- tapOn:
+    id: "chapter-3"
+
+- takeScreenshot: qa-pick2-immediate
+- extendedWaitUntil:
+    visible:
+      text: "John 3"
+    timeout: 30000
+- waitForAnimationToEnd
+# If this shows Isaiah 40, the pager is one selection behind — the exact regression this guards.
+- takeScreenshot: qa-pick2-settled
