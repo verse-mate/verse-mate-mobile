@@ -878,3 +878,82 @@ architecture choice, not a framework tax.
 So the remaining structural work is narrow: **virtualize the Insight tab section lists** (task #7),
 ideally by extending the Bible view's existing windowing rather than adding a recycling list. Not the
 whole-reader rewrite the question implied.
+
+## Retraction: the lexicon "win" was a silent failure (2026-07-29, third pass)
+
+The section above reports the ~2s block eliminated: *worst JS block 232.2ms, severe 0*. **That was
+wrong, and the mechanism by which it was wrong is the most useful thing in this document.**
+
+### What actually happened
+
+The generated `_lemmas-light.json` was written compact — 1.15MB **on a single line**. Valid JSON; Python
+round-trips it. On device, every `import()` of it rejected:
+
+```
+[VMERR] Uncaught (in promise, id: 0) SyntaxError: 13786:43:non-terminated string
+… ids 1, 2, 3, 4
+```
+
+Five rejections, one per chapter load. `alignment` stayed null: no underlines, and `by.alignment`
+counters never fired. The capture then reported a spectacular improvement **because the work it was
+measuring never ran.**
+
+Two things should have caught this before it was reported:
+
+1. **Five uncaught rejections matching five alignment calls** were sitting in the same logcat that the
+   perf report came from. The report was grepped for span names; the errors were not read.
+2. **`by.alignment` counters were absent.** They only fire on a non-null alignment, so their absence is a
+   direct "the feature is off" signal — and it was in the same file.
+
+The operator noticed the Metro error. Without that, a broken lexicon would have shipped behind a claimed
+9x win.
+
+**Rule: before believing a perf improvement, confirm the feature still works.** A span that closes proves
+a promise settled, not that it resolved. `try { … } finally { endSpan() }` times a rejection just as
+happily as a success.
+
+### The real numbers, once it loaded
+
+Multi-line file → SyntaxError gone, `by.alignment` fires, underlines return. And:
+
+```
+JS blocks: 20 (3531.1ms total, worst 2134.4ms) [severe 1]
+data.alignment.first  3103.4ms
+```
+
+**The ~2s block survived a 16x data reduction.** Because `loadLightLexicon` built 18,100 entry objects in
+a loop and then spread them (`{...out, ...HAND_LEXICON}`) — 18,100 allocations plus a full-map spread,
+costing about what parsing 18.7MB did. The columnar layout existed to avoid exactly that, and the loader
+ignored it.
+
+### Both fixed
+
+- **Multi-line output** (`indent=0`: 110,906 lines, 1.26MB), and the generator now **fails** if the line
+  count drops under 1000. A silent revert here does not look like a crash — it looks like a 9x
+  improvement, which is how it fooled me once already.
+- **Nothing materialised up front**: a slug→row `Map`, `strongsToSlug` read straight off the columns, and
+  entries built on demand behind a Proxy. The lite path deliberately avoids `getStrongsToSlug`, which
+  walks `Object.entries` and would materialise the lazy view completely.
+
+### Why the single-line file failed — honestly, not known
+
+`_lemmas.json` is 16x LARGER and has always worked; it is pretty-printed across 454,260 lines. The
+reported error position (line 13786 of a 2-line file) shows Hermes is parsing a transform of the bytes,
+not the bytes. The boundary is established empirically; the mechanism is not. The generator follows the
+format known to work rather than the one that is 9% smaller.
+
+### Parity, because `lite` swaps the data source under the renderer
+
+`strongsToSlug` is first-writer-wins over the merged lexicon's key order, and that order decides which
+**sense** a homograph resolves to (Hebrew אֵת obj-marker H0853 / plowshare H0855 / עֵת "time" H6256 all
+slugify to `et`). The first generator **sorted** the slugs — which would have diverged from
+`_lemmas.json`'s order and quietly broken the disambiguation the per-token Strong's work was built to
+fix. `scripts/verify_light_parity.py` replicates both implementations against the real data:
+
+```
+entry existence   18100 slugs match exactly
+column order      identical to _lemmas.json
+strongsToSlug     identical across both paths (18081 Strong's numbers)
+fields            lemma/translit/strongs/pos/basicGloss identical for all 18,100
+loaded flag       identical (2177 entries)
+```
