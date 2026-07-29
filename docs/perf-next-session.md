@@ -1022,3 +1022,58 @@ guess.
 Note for whoever does it: `data.alignment.first` currently wraps ALL of the above, so a per-step
 breakdown is the only way to tell them apart. And the aliases/contextual files load in the same
 `Promise.all`, so they are candidates too and have never been measured separately.
+
+## RESOLVED: the ~2s block is gone, and the culprit was none of my five guesses
+
+Health-gated captures on the phone (`by.alignment` firing, `VMPERF` present, zero VMERR/SyntaxError):
+
+| | full 18.7MB | after |
+|---|---|---|
+| worst JS block | **1991–2207ms** | **230–260ms** |
+| "severe" blocks | 1–2 per session | **0** |
+| JS thread blocked | 6.3% – 17.7% | **3.2 – 3.3%** |
+| `data.alignment.first` | ~2000–3103ms | **334–558ms** |
+| warm alignment calls | — | 49–125ms mean |
+
+### Per-step attribution ended five rounds of guessing
+
+|  | cold (after `--clear`) | warm | |
+|---|---|---|---|
+| `lex.aliases.import` | 1013ms | 227ms | −78% |
+| `lex.lex.import` | 904ms | 504ms | −44% |
+| `lex.chapter.import` | 674ms | 369ms | −45% |
+| `lex.contextual.import` | 248ms | 163ms | −34% |
+| **`lex.lex.strongs`** | **25ms** | **24ms** | flat |
+| `lex.verses.merge` | 5ms | 8ms | |
+| `lex.lexicon.scope` | 1ms | | |
+
+Five hypotheses were offered for this block. **Four were refuted by measurement and the fifth was mine,
+made minutes before the instrumentation landed:**
+
+1. the 18.7MB file size — refuted (phone: 2163ms full vs 2134ms light)
+2. the 18,100-entry materialisation — refuted (removing it changed nothing)
+3. a lazy Proxy over the columns — **8x worse** (13560ms vs 1685ms first call)
+4. chapter-scoping — no effect on the emulator
+5. the 18,100-entry Strong's regex loop — **25ms.** Negligible.
+
+The answer was the three JSON **imports**, and the largest was `_aliases.json` — a file that had never been
+measured separately in the entire investigation, because it sat inside the same `Promise.all` as
+everything else.
+
+### Two things the cold/warm split proves
+
+- **The import cost is Metro's dev-server transform, not parse work.** `_aliases.json` is 0.35MB and cost
+  MORE than the 1.26MB light lexicon; warm transforms then cut it 78%. Cost does not track size, so it is
+  fixed per-chunk overhead. In a release build these are pre-bundled and the remainder shrinks further.
+- **`lex.strongs` is the only pure-CPU step**, being the only one unchanged cold-to-warm (25 → 24ms). It is
+  also trivial, which is what makes guess #5 wrong.
+
+### Why the fix works — not the reason it was designed for
+
+Total import work is still ~1–2s. But it is now **three smaller parses instead of one 18.7MB synchronous
+parse**, so it lands as many blocks of ≤260ms rather than a single 2-second freeze. The win is not less
+work; it is no single huge block. That is exactly what `severe 0` means, and why a swipe inside that window
+no longer stalls.
+
+**Method rule, earned expensively:** when one span covers several steps, split the span before theorising
+about which step is slow. Four wrong answers fitted the single number equally well.
