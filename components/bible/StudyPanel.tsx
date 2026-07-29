@@ -382,7 +382,10 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
  */
 function totalTopLevelCards(study: InductiveStudy): number {
   return (
-    2 + study.steps.length + (study.interpretation.intro ? 1 : 0) + study.interpretation.movements.length
+    2 +
+    study.steps.length +
+    (study.interpretation.intro ? 1 : 0) +
+    study.interpretation.movements.length
   );
 }
 
