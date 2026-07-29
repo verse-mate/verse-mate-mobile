@@ -82,6 +82,9 @@ pcrun() {
   printf '%s\n' "$out"
 }
 
+# shellcheck source=scripts/perf/preflight.sh
+source "$(dirname "${BASH_SOURCE[0]}")/preflight.sh"
+
 step "Finding the device"
 DEVICE="$(pcrun "& '$PC_ADB' devices" | awk '/\tdevice$/ {print $1; exit}' | tr -d '\r')"
 [[ -n "$DEVICE" ]] || die "no adb device in state 'device'. Is the phone attached to ThorSPC?"
@@ -139,6 +142,11 @@ if [[ -n "$PRE" ]]; then
     sleep "$(awk "BEGIN{print $ms/1000}")"
   done <<< "$PRE_TAPS"
 fi
+
+# Same gates as capture-baseline: an atrace of an app on the error screen is a trace of an idle process,
+# and its `animation` phase will look wonderfully fast.
+preflight_js_running "$DEVICE" || exit 1
+preflight_no_errors "$DEVICE" || exit 1
 
 step "Resolving measured taps: $TAPS"
 MEASURED="$(resolve_taps "$TAPS")" || die "could not resolve --taps testIDs"

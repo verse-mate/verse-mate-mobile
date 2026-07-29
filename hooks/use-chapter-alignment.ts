@@ -27,7 +27,7 @@ import { type ChapterAlignment, loadAlignmentFor } from '@versemate/lexicon';
 import { useEffect, useState } from 'react';
 import { InteractionManager } from 'react-native';
 import { useOfflineContext } from '@/contexts/OfflineContext';
-import { perfSpan } from '@/lib/perf';
+import { perfAdd, perfSpan } from '@/lib/perf';
 import { fetchTaggedChapterAlignment } from '@/services/api-chapter-alignment';
 
 const ENGLISH_VERSION_KEYS = new Set(['NASB1995', 'KJV']);
@@ -98,7 +98,18 @@ export function useChapterAlignment(
           // The light lexicon still answers everything a chapter needs: whether a lemma has an entry
           // (which gates the underline), its Strong's number (homograph disambiguation), and
           // `translit`/`basicGloss`/`loaded` for accessibility labels and the context-sensitive marker.
-          const a = await loadAlignmentFor(bookId, chapterNumber, { lite: true });
+          // Per-step attribution, because `data.alignment.first` sums six different things — the light
+          // lexicon import, the Strong's map build, the chapter JSON import, aliases, contextual, and
+          // the per-verse merge. That single number allowed FOUR wrong diagnoses of the ~2s block on
+          // device (the 18.7MB file size, the 18,100 entry materialisation, a lazy Proxy that made it
+          // 8x worse, and chapter-scoping), each of which changed one part and left the block intact.
+          //
+          // Recorded as accumulating counters rather than spans: these are already durations, and a
+          // counter per step is exactly the "which one owns the time" table that was missing.
+          const a = await loadAlignmentFor(bookId, chapterNumber, {
+            lite: true,
+            onTiming: (step, ms) => perfAdd(`lex.${step}`, Math.round(ms)),
+          });
           if (!cancelled) setAlignment(a);
         } finally {
           endSpan();
