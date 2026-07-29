@@ -956,10 +956,36 @@ export function ChapterPage({
    * Only for the current page, and only once Insight is mounted at all — a buffer page has no
    * business building four tabs.
    */
+  /**
+   * True while a view or tab animation is in flight, so mounting can be held off until it finishes.
+   *
+   * This is the fix for the operator's question — "why can't an animation just play at 120fps?".
+   * Reanimated worklets DO run on the UI thread, independent of JS, so fetching data does not block
+   * them. What blocks them is the RESULT: Fabric applies mount and prop operations on that same UI
+   * thread, inside the same Choreographer callback where animations are evaluated. So an animation is
+   * only immune to content work if nothing is being mounted underneath it while it runs.
+   *
+   * The pre-warm below mounts one tab subtree at a time, which is right, but it schedules with
+   * `runAfterInteractions` — and on an otherwise idle app that fires almost immediately, so a mount can
+   * land in the middle of the very animation it should be waiting for. A first-visit capture measured a
+   * single 51ms frame with 32.7ms of it in the `animation` phase: one tab subtree arriving inside one
+   * frame.
+   */
+  const [animationInFlight, setAnimationInFlight] = useState(false);
+  useEffect(() => {
+    setAnimationInFlight(true);
+    // Slightly longer than the longest switch animation (250ms) so the mount lands in a quiet frame
+    // rather than on the animation's last one.
+    const handle = setTimeout(() => setAnimationInFlight(false), 300);
+    return () => clearTimeout(handle);
+  }, [activeView, activeTab]);
+
   useEffect(() => {
     if (isPreloading) return;
     if (!insightPrewarmed && !insightMountAllowed) return;
     if (visitedTabs.size >= INSIGHT_TABS.length) return;
+    // Wait for the animation to finish before adding another subtree to the tree Fabric must mount.
+    if (animationInFlight) return;
 
     const next = INSIGHT_TABS.find((tab) => !visitedTabs.has(tab));
     if (!next) return;
@@ -976,7 +1002,7 @@ export function ChapterPage({
       perfAdd('insight.tabPrewarmed', 1);
     });
     return () => handle.cancel();
-  }, [isPreloading, insightPrewarmed, insightMountAllowed, visitedTabs]);
+  }, [isPreloading, insightPrewarmed, insightMountAllowed, visitedTabs, animationInFlight]);
 
   // Eagerly pre-fetch the byline explanation a moment after the chapter
   // settles so the first tap on the By Line tab finds the data already
