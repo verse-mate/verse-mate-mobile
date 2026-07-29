@@ -27,7 +27,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -105,6 +105,15 @@ const regularMenuItems: MenuItem[] = [
   { id: 'about', label: 'About', icon: IconInfo, action: 'about' },
   { id: 'giving', label: 'Giving', icon: IconHeart, action: 'giving' },
   { id: 'help', label: 'Help', icon: IconHelp, action: 'help' },
+  // duplicated for testing overflow — remove after test
+  { id: 'bookmarks-2', label: 'Bookmarks', icon: IconBookmarkFilled, action: 'bookmarks' },
+  { id: 'notes-2', label: 'Notes', icon: IconDocument, action: 'notes' },
+  { id: 'highlights-2', label: 'Highlights', icon: IconHighlight, action: 'highlights' },
+  { id: 'settings-2', label: 'Settings', icon: IconSettings, action: 'settings' },
+  { id: 'share-2', label: 'Share VerseMate', icon: IconShare, action: 'share' },
+  { id: 'about-2', label: 'About', icon: IconInfo, action: 'about' },
+  { id: 'giving-2', label: 'Giving', icon: IconHeart, action: 'giving' },
+  { id: 'help-2', label: 'Help', icon: IconHelp, action: 'help' },
 ];
 
 export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
@@ -250,10 +259,11 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
     onClose();
     router.push('/settings' as never);
   };
-
+  const nativeGesture = useMemo(() => Gesture.Native(), []);
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
+        .simultaneousWithExternalGesture(nativeGesture)
         .onUpdate((event) => {
           translateX.value = Math.max(0, event.translationX);
         })
@@ -321,92 +331,99 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
                     </View>
                   </Pressable>
                 </View>
-
-                <ScrollView
-                  style={styles.menuScrollContent}
-                  contentContainerStyle={styles.menuScrollContainer}
-                  showsVerticalScrollIndicator={false}
-                  bounces={false}
-                >
-                  {/* User Profile Section (Button) */}
-                  <Pressable
-                    onPress={handleProfilePress}
-                    style={({ pressed }) => [styles.userSection, pressed && styles.menuItemPressed]}
+                <GestureDetector gesture={nativeGesture}>
+                  <ScrollView
+                    style={styles.menuScrollContent}
+                    contentContainerStyle={styles.menuScrollContainer}
+                    showsVerticalScrollIndicator={false}
+                    bounces={false}
                   >
-                    <View style={styles.avatarContainer}>
-                      <Avatar url={user?.imageSrc} size={40} />
-                    </View>
-                    <View style={styles.userInfo}>
-                      <Text style={styles.userName}>
-                        {isAuthenticated && user
-                          ? `${user.firstName} ${user.lastName}`
-                          : 'Guest User'}
-                      </Text>
-                      <Text style={styles.userEmail}>
-                        {isAuthenticated && user ? user.email : 'Sign in to sync your data'}
-                      </Text>
-                    </View>
-                  </Pressable>
+                    {/* User Profile Section (Button) */}
+                    <Pressable
+                      onPress={handleProfilePress}
+                      style={({ pressed }) => [
+                        styles.userSection,
+                        pressed && styles.menuItemPressed,
+                      ]}
+                    >
+                      <View style={styles.avatarContainer}>
+                        <Avatar url={user?.imageSrc} size={40} />
+                      </View>
+                      <View style={styles.userInfo}>
+                        <Text style={styles.userName}>
+                          {isAuthenticated && user
+                            ? `${user.firstName} ${user.lastName}`
+                            : 'Guest User'}
+                        </Text>
+                        <Text style={styles.userEmail}>
+                          {isAuthenticated && user ? user.email : 'Sign in to sync your data'}
+                        </Text>
+                      </View>
+                    </Pressable>
 
-                  {/* Menu Items */}
-                  <View style={styles.menuItems}>
-                    {regularMenuItems.map((item) => (
+                    {/* Menu Items */}
+                    <View style={styles.menuItems}>
+                      {regularMenuItems.map((item) => (
+                        <Pressable
+                          key={item.id}
+                          style={({ pressed }) => [
+                            styles.menuItem,
+                            pressed && styles.menuItemPressed,
+                          ]}
+                          onPress={() => handleItemPress(item)}
+                          accessibilityLabel={item.label}
+                          accessibilityRole="button"
+                          testID={`menu-item-${item.id}`}
+                        >
+                          <View style={styles.menuIconContainer}>
+                            <item.icon width={24} height={24} color={colors.textPrimary} />
+                            {item.id === 'help' && hasUnreadHelp && (
+                              <View style={styles.unreadBadge} />
+                            )}
+                          </View>
+                          <Text style={styles.menuItemText}>{item.label}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    {/* Authentication Action (Login/Logout) */}
+                    <View style={styles.footer}>
                       <Pressable
-                        key={item.id}
                         style={({ pressed }) => [
                           styles.menuItem,
                           pressed && styles.menuItemPressed,
                         ]}
-                        onPress={() => handleItemPress(item)}
-                        accessibilityLabel={item.label}
-                        accessibilityRole="button"
-                        testID={`menu-item-${item.id}`}
+                        onPress={async () => {
+                          if (isAuthenticated) {
+                            await logout();
+                            showSuccess('Logged Out', 'You have been logged out successfully.');
+                            onClose();
+                          } else {
+                            onClose();
+                            router.push('/auth/login');
+                          }
+                        }}
+                        testID={isAuthenticated ? 'menu-item-logout' : 'menu-item-login'}
                       >
                         <View style={styles.menuIconContainer}>
-                          <item.icon width={24} height={24} color={colors.textPrimary} />
-                          {item.id === 'help' && hasUnreadHelp && (
-                            <View style={styles.unreadBadge} />
-                          )}
+                          <IconProfile
+                            width={24}
+                            height={24}
+                            color={isAuthenticated ? colors.error : colors.gold}
+                          />
                         </View>
-                        <Text style={styles.menuItemText}>{item.label}</Text>
+                        <Text
+                          style={[
+                            styles.menuItemText,
+                            { color: isAuthenticated ? colors.error : colors.gold },
+                          ]}
+                        >
+                          {isAuthenticated ? 'Log Out' : 'Log In'}
+                        </Text>
                       </Pressable>
-                    ))}
-                  </View>
-
-                  {/* Authentication Action (Login/Logout) */}
-                  <View style={styles.footer}>
-                    <Pressable
-                      style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                      onPress={async () => {
-                        if (isAuthenticated) {
-                          await logout();
-                          showSuccess('Logged Out', 'You have been logged out successfully.');
-                          onClose();
-                        } else {
-                          onClose();
-                          router.push('/auth/login');
-                        }
-                      }}
-                      testID={isAuthenticated ? 'menu-item-logout' : 'menu-item-login'}
-                    >
-                      <View style={styles.menuIconContainer}>
-                        <IconProfile
-                          width={24}
-                          height={24}
-                          color={isAuthenticated ? colors.error : colors.gold}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.menuItemText,
-                          { color: isAuthenticated ? colors.error : colors.gold },
-                        ]}
-                      >
-                        {isAuthenticated ? 'Log Out' : 'Log In'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                </ScrollView>
+                    </View>
+                  </ScrollView>
+                </GestureDetector>
               </Animated.View>
             </Animated.View>
           </GestureDetector>
