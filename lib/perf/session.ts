@@ -25,6 +25,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { emitPerfReport } from './emit';
 import { isPerfMonitorRunning, startPerfMonitor, stopPerfMonitor, perfCount } from './monitor';
 import type { PerfReport } from './types';
+import { perfEnabled } from './enabled';
 
 /**
  * Safety-net emit interval.
@@ -58,7 +59,7 @@ let subscription: { remove: () => void } | null = null;
  * why the safety interval is long relative to the spans we record.
  */
 export function flushPerfReport(label = 'session'): PerfReport | null {
-  if (!__DEV__ || !isPerfMonitorRunning()) return null;
+  if (!perfEnabled() || !isPerfMonitorRunning()) return null;
   const report = stopPerfMonitor();
   if (report) {
     emitPerfReport({ ...report, label });
@@ -124,7 +125,7 @@ function installErrorCapture(): void {
 }
 
 export function installPerfSession(): () => void {
-  if (!__DEV__ || installed) return () => undefined;
+  if (!perfEnabled() || installed) return () => undefined;
   installed = true;
 
   startPerfMonitor('session');

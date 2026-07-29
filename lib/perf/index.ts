@@ -2,7 +2,10 @@
  * Dev-only performance instrumentation for VerseMate mobile.
  *
  * See `lib/perf/monitor.ts` for the rationale and for what this can and cannot
- * measure. Everything is gated on `__DEV__` and compiles to no-ops in release.
+ * measure. Everything is gated on `perfEnabled()` — `__DEV__`, plus an opt-in build flag — and
+ * compiles to no-ops in a normal release. See ./enabled for why a release build sometimes needs to
+ * be measurable: the largest number in any capture (`data.alignment`, mean 543ms) cannot be told
+ * apart from a Metro dev-server artifact without one.
  *
  * ## Typical use
  *
@@ -35,6 +38,7 @@ export {
   startPerfMonitor,
   stopPerfMonitor,
 } from './monitor';
+export { perfEnabled } from './enabled';
 export { flushPerfReport, installPerfSession, uninstallPerfSession } from './session';
 export { useWhyRender } from './why-render';
 export type {

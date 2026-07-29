@@ -26,6 +26,7 @@
  */
 
 import { perfCount, perfSpan } from './monitor';
+import { perfEnabled } from './enabled';
 
 /** Nominal frame budget at 60Hz, in ms. */
 const BUDGET_60_MS = 16.67;
@@ -45,7 +46,7 @@ const now = (): number =>
  * ```
  */
 export function watchFrames(name: string, durationMs: number): () => void {
-  if (!__DEV__) return () => undefined;
+  if (!perfEnabled()) return () => undefined;
 
   const start = now();
   let last = start;

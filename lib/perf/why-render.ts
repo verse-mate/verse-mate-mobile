@@ -31,6 +31,7 @@
 
 import { useRef } from 'react';
 import { perfAdd } from './monitor';
+import { perfEnabled } from './enabled';
 
 /**
  * Count which of `inputs` changed since the last render of this component.
@@ -45,7 +46,7 @@ import { perfAdd } from './monitor';
 export function useWhyRender(name: string, inputs: Record<string, unknown>): void {
   const previous = useRef<Record<string, unknown> | null>(null);
 
-  if (!__DEV__) return;
+  if (!perfEnabled()) return;
 
   const before = previous.current;
   // Snapshot before any early return, so the NEXT render compares against this

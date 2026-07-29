@@ -16,6 +16,7 @@
  */
 
 import type { PerfReport } from './types';
+import { perfEnabled } from './enabled';
 
 /**
  * Bytes per chunk. Well under the ~4076-byte logcat cap, leaving room for the
@@ -32,7 +33,7 @@ let sequence = 0;
  * checksum and refuses to emit a report with missing chunks.
  */
 export function emitPerfReport(report: PerfReport): void {
-  if (!__DEV__) return;
+  if (!perfEnabled()) return;
 
   const json = JSON.stringify(report);
   const id = `r${++sequence}`;

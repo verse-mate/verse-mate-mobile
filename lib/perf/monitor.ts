@@ -32,6 +32,7 @@
  */
 
 import type {
+import { perfEnabled } from './enabled';
   PerfBlockSummary,
   PerfMeta,
   PerfRecord,
@@ -101,7 +102,7 @@ function push(record: PerfRecord): void {
  * a re-run never silently appends to a previous session's data.
  */
 export function startPerfMonitor(label: string, blockThresholdMs = DEFAULT_BLOCK_THRESHOLD_MS): void {
-  if (!__DEV__) return;
+  if (!perfEnabled()) return;
   if (state) stopPerfMonitor();
 
   const startedAt = now();
@@ -148,7 +149,7 @@ export function startPerfMonitor(label: string, blockThresholdMs = DEFAULT_BLOCK
 
 /** Stop monitoring and return the report. Returns null if never started. */
 export function stopPerfMonitor(): PerfReport | null {
-  if (!__DEV__ || !state) return null;
+  if (!perfEnabled() || !state) return null;
   if (state.timer) clearInterval(state.timer);
   const report = buildReport(state);
   state = null;
@@ -157,7 +158,7 @@ export function stopPerfMonitor(): PerfReport | null {
 
 /** True when a monitor session is active. */
 export function isPerfMonitorRunning(): boolean {
-  return __DEV__ && state !== null;
+  return perfEnabled() && state !== null;
 }
 
 /**
@@ -173,7 +174,7 @@ export function isPerfMonitorRunning(): boolean {
  * in a `useEffect` cleanup that may run more than once under StrictMode.
  */
 export function perfSpan(name: string, meta?: PerfMeta): () => void {
-  if (!__DEV__ || !state) return noop;
+  if (!perfEnabled() || !state) return noop;
   const started = now();
   state.openSpans.push(name);
   state.spansSinceTick.add(name);
@@ -199,7 +200,7 @@ export function perfSpan(name: string, meta?: PerfMeta): () => void {
  * corrupt the running total.
  */
 export function perfCount(name: string, value: number, meta?: PerfMeta): void {
-  if (!__DEV__ || !state) return;
+  if (!perfEnabled() || !state) return;
   state.counters.set(name, value);
   push({ kind: 'count', name, value, at: round(now() - state.startedAt), meta });
 }
@@ -212,7 +213,7 @@ export function perfCount(name: string, value: number, meta?: PerfMeta): void {
  * that matter. Only the accumulated total reaches the report.
  */
 export function perfAdd(name: string, delta: number): void {
-  if (!__DEV__ || !state) return;
+  if (!perfEnabled() || !state) return;
   state.counters.set(name, (state.counters.get(name) ?? 0) + delta);
 }
 
