@@ -32,13 +32,13 @@
  */
 
 import type {
-import { perfEnabled } from './enabled';
   PerfBlockSummary,
   PerfMeta,
   PerfRecord,
   PerfReport,
   PerfSpanSummary,
 } from './types';
+import { perfEnabled } from './enabled';
 
 /**
  * Max records held. At ~16ms cadence a heartbeat alone produces no records
