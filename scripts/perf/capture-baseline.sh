@@ -68,7 +68,31 @@ mkdir -p "$OUT/report"
 # is redirected (as it is for most of these calls) it could block waiting for input
 # that never comes. Every leg of a six-capture run hung this way, with no error,
 # while the identical commands typed by hand returned instantly.
-pcrun() { pc -s perfcap "$@" < /dev/null; }
+# One bridge session, with an explicit timeout and a poisoned-session guard.
+#
+# `pc`'s client timeout defaults to 120s. When a single adb call exceeds it the CLIENT returns but the
+# SERVER keeps executing, so the session stays busy and every later call returns the banner
+# "[command still running in 'perfcap' ...]" — on STDOUT, where this script reads its data. That
+# banner then gets parsed as a device serial, or as a readiness marker that never matches, and the run
+# stalls in a poll loop until something reaps it. Four captures died exactly that way with no error
+# message and no artifacts, which is far worse than failing: a silent stall looks like slowness.
+#
+# So: a longer explicit timeout (adb dumps over the bridge are occasionally slow), and if the banner
+# appears anyway, close the session and retry ONCE. A second occurrence is fatal, because continuing
+# means reporting numbers derived from a banner.
+pcrun() {
+  local out
+  out="$(pc -s perfcap --timeout 300 "$@" < /dev/null)"
+  if [[ "$out" == *"still running in"* ]]; then
+    pc -c perfcap >/dev/null 2>&1 || true
+    out="$(pc -s perfcap --timeout 300 "$@" < /dev/null)"
+    [[ "$out" == *"still running in"* ]] && die "The bridge session is wedged and will not reset.
+
+A previous command is still executing server-side, so every probe returns a banner instead of data.
+Nothing can be measured through it. Inspect with 'pc -l', kill with 'pc -c perfcap'."
+  fi
+  printf '%s\n' "$out"
+}
 
 # Run one adb command against the discovered device.
 #
