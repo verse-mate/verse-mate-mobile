@@ -73,6 +73,40 @@ preflight_bundle_compiles() {
 preflight_js_running() {
   local device="$1" tries="${2:-15}"
   echo "==> Preflight 2/3: is our JS executing?"
+
+  # A RELEASE build cannot pass this gate, and that is not a failure.
+  #
+  # `[VMPERF] monitor started` comes from the perf session, which is `__DEV__`-only (plus the
+  # EXPO_PUBLIC_PERF opt-in). A store/preview build emits nothing, so requiring the marker would abort
+  # every release measurement — and release builds are exactly where the honest numbers live: no Metro,
+  # no dev overhead, Hermes bytecode precompiled. The operator measured a store build as noticeably
+  # smoother than a dev build, which is the whole reason this branch exists.
+  #
+  # So for a non-debuggable package, substitute a liveness check the app can actually satisfy: it is the
+  # foreground activity AND the UI thread has produced frames. That proves something is rendering, which
+  # is what this gate is really for. atrace and gfxinfo both work regardless of __DEV__.
+  local flags
+  flags="$(adb_sh "shell dumpsys package org.versemate.app | Select-String 'pkgFlags'" | head -1)"
+  if [[ "$flags" != *DEBUGGABLE* ]]; then
+    echo "    NOTE: release build (not debuggable) — the perf session is absent by design."
+    # Grep the WHOLE output, not `head -1`. The bridge prefixes a blank line, so taking the first line
+    # discarded the match and this gate refused a perfectly healthy release build.
+    local fg frames
+    fg="$(adb_sh "shell dumpsys activity activities | Select-String 'ResumedActivity'")"
+    frames="$(adb_sh "shell dumpsys gfxinfo org.versemate.app | Select-String 'Total frames rendered'")"
+    if ! printf '%s' "$fg" | grep -q versemate; then
+      echo "    ✗ the app is not the foreground activity — nothing to measure."
+      return 1
+    fi
+    if [[ -z "${frames//[[:space:]]/}" ]]; then
+      echo "    ✗ no frame stats — the app has rendered nothing."
+      return 1
+    fi
+    echo "    ✓ foreground and rendering ($(printf '%s' "$frames" | tr -d '\r' | tr -s ' ' | xargs | head -c 60))"
+    echo "    NOTE: span/counter gates do not apply here; judge this run on atrace + gfxinfo only."
+    return 0
+  fi
+
   local i=0
   while [[ $i -lt $tries ]]; do
     if adb_sh "logcat -d 2>\$null | Select-String -Pattern 'monitor started'" | grep -q 'monitor started'; then
