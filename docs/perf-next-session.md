@@ -712,3 +712,54 @@ Method lesson, since this is the second attribution error in one session: a **wa
 `await` measures latency, not work.** Cross-check any span total against the session's total JS blocking
 before calling it a cost. If spans sum to more than the thread was ever blocked, they are measuring
 waiting.
+
+## The buffer-page ramp (#16): kept, on a same-binary felt-metric A/B
+
+Only **buffer** pages ramp. The current page still mounts whole and immediately, because it is what the
+reader is looking at and a chapter visibly filling in top-down is a worse artifact than one mount. That
+split is not a compromise — it is where the cost actually is: with the gesture pager, moving to the next
+chapter *promotes* a page that is already built and then builds a new offscreen neighbour, so the views
+created during a navigation mostly belong to a page nobody is looking at.
+
+Promotion stays safe. The effect re-runs with `isPreloading` false and sets `POSITIVE_INFINITY`, so a page
+still ramping completes in one commit — which preserves exactly what the original comment was protecting:
+"a page left capped at 3 sections would render three and then visibly jump when it became current".
+
+**atrace** (`next-chapter-button:6500`, comparable workloads of 261 vs 247 created views):
+
+| | timers, bible=INF | + buffer ramp |
+|---|---|---|
+| worst `animation` frame | 59.48ms | **48.59ms** |
+| peak VMText creations in one frame | 65 | **48** |
+| p95 creations per frame | 52 | **40** |
+| frames over 8.34ms | 27/447 (6.0%) | 33/485 (6.8%) |
+
+**Felt metric** (`swipe-only.yaml`, same binary, only `BIBLE_SECTIONS_PER_FRAME` changed):
+
+| | ramp on | ramp off |
+|---|---|---|
+| `anim.swipe.worstFrameMs` | **34** | 48 |
+| `anim.swipe.dropped` | **2** | 3 |
+| `gesture.swipe` mean | **420.9ms** | 429.2ms |
+| `anim.swipe.window` mean | **517.7ms** | 534.1ms |
+
+Kept because **both instruments agree in direction and nothing contradicts** — which is precisely the
+test the markdown block ramp failed, where frame phases improved while `tab.switch` did not.
+
+Stated plainly, though: this is modest. `gesture.swipe` moves 2%, which is inside the noise for n=6; the
+load-bearing numbers are the worst frame (34 vs 48) and dropped frames (2 vs 3), and they are consistent
+with atrace's peak-per-frame drop. The over-budget *count* still rises slightly, because spreading work
+converts one large overrun into several small ones — an acceptable trade for a smaller spike, but a trade.
+
+### What the swipe capture says is actually worst
+
+Both arms are dominated by something neither ramp touches:
+
+```
+buffer-on : JS blocks 129 (10163.0ms total, worst 2162.7ms) [severe 2] — blocked 17.7% of session
+buffer-off: JS blocks 110 ( 9292.8ms total, worst 2206.7ms) [severe 2] — blocked 18.6% of session
+```
+
+A **~2.2s** block, twice per session, while the mount work being optimised is measured in tens of
+milliseconds. That is the lexicon parse (task #14), and it is the largest real stall left in the reader by
+two orders of magnitude. Fix that before any further mount micro-tuning.

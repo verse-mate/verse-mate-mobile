@@ -427,6 +427,15 @@ const BYLINE_SECTIONS_PER_FRAME = 4;
 const BYLINE_MAX_SECTIONS = 200;
 
 /**
+ * Same ramp for an offscreen BUFFER page's Bible sections. Only buffers ramp — see the effect.
+ *
+ * Shares the byline sizing because the unit is the same: sections whose text becomes native views at
+ * the measured ~0.52ms each, against a 120Hz budget of 8.34ms.
+ */
+const BIBLE_SECTIONS_PER_FRAME = 4;
+const BIBLE_MAX_SECTIONS = 200;
+
+/**
  * Gap between one prewarmed tab and the next, in ms.
  *
  * The effect below says "one tab per idle window", and it did not achieve that:
@@ -795,12 +804,21 @@ export function ChapterPage({
     setBibleSectionsMax(3);
   }, [bookId, chapterNumber]);
   useEffect(() => {
-    // On the native path this runs for BUFFER pages too. They now render real
-    // content so the swipe lands on text rather than a skeleton, and a page left
-    // capped at 3 sections would render three and then visibly jump when it became
-    // current. Windowing is what makes rendering them all affordable.
+    // The CURRENT page mounts whole and immediately — it is what the reader is looking at, and a
+    // chapter that visibly fills in top-down is a worse artifact than one mount.
+    //
+    // A BUFFER page is offscreen, so its mount can be spread across frames, and that is where the
+    // cost actually is. With the gesture pager, moving to the next chapter PROMOTES a buffer that is
+    // already built and then builds a new neighbour — so the views created during a navigation mostly
+    // belong to a page nobody is looking at. atrace measured 54 native view creations inside a single
+    // `animation` frame during exactly that (`reports/perf/atrace/byline-ramp.txt`).
+    //
+    // Promotion stays safe: this effect re-runs with `isPreloading` false and sets INFINITY, so a page
+    // still ramping completes in one commit, exactly as it does today. That is what the original
+    // comment here was protecting — "a page left capped at 3 sections would render three and then
+    // visibly jump when it became current" — and it still holds, because nothing is left capped.
     if (nativeTextOn) {
-      setBibleSectionsMax(Number.POSITIVE_INFINITY);
+      if (!isPreloading) setBibleSectionsMax(Number.POSITIVE_INFINITY);
       return;
     }
     if (isPreloading) return;
@@ -815,6 +833,31 @@ export function ChapterPage({
       clearTimeout(t2);
     };
   }, [isPreloading, bookId, chapterNumber, nativeTextOn]);
+
+  /**
+   * Build an offscreen buffer page's sections a few per frame.
+   *
+   * Paired with the effect above: that one decides *whether* a page ramps (buffers do, the current
+   * page does not), this one does the stepping. Same shape and same reasoning as the byline ramp —
+   * `requestAnimationFrame` so the step size is paced to real frames, and the ramp terminates at
+   * `POSITIVE_INFINITY` rather than rescheduling forever.
+   *
+   * Known limitation, measured rather than assumed: React coalesces several rAF-driven `setState`s
+   * into ONE commit whenever the JS thread is blocked, and the one-time 18MB lexicon parse blocks it
+   * for ~2s. So this reduces the worst commit without guaranteeing `BIBLE_SECTIONS_PER_FRAME` views
+   * per frame, and the result has to be read off a capture, not inferred from the constant.
+   */
+  useEffect(() => {
+    if (!nativeTextOn || !isPreloading) return;
+    if (!Number.isFinite(bibleSectionsMax)) return;
+    const handle = requestAnimationFrame(() => {
+      setBibleSectionsMax((current) => {
+        const next = current + BIBLE_SECTIONS_PER_FRAME;
+        return next >= BIBLE_MAX_SECTIONS ? Number.POSITIVE_INFINITY : next;
+      });
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [nativeTextOn, isPreloading, bibleSectionsMax]);
 
   // Track explanation tab content heights for scroll syncing
   const tabContentHeightsRef = useRef<
