@@ -71,6 +71,10 @@ final class VMTextView: ExpoView {
     textView.textContainerInset = .zero
     textView.textContainer.lineFragmentPadding = 0
     textView.textContainer.lineBreakMode = .byWordWrapping
+    // Container width follows the view, so a resize re-wraps rather than keeping the old line breaks.
+    // `isScrollEnabled = false` usually implies this, but stating it makes the contract explicit — the
+    // width-change path in `layoutSubviews` depends on it being true.
+    textView.textContainer.widthTracksTextView = true
     // Underlines are custom-drawn on this view, beneath the text, so the text view must not paint
     // over them with its own opaque background.
     textView.isOpaque = false
@@ -120,8 +124,45 @@ final class VMTextView: ExpoView {
 
   override func layoutSubviews() {
     super.layoutSubviews()
+    let previousWidth = textView.frame.width
     textView.frame = bounds
+    // A WIDTH change has to invalidate the cached text layout. Assigning the frame is not enough.
+    //
+    // Reported symptom (Andy, TF 106): on a swipe or on rapid Bible/Insight taps the RIGHT side of a
+    // verse block goes blank, and scrolling even slightly repairs it permanently. That is a stale
+    // layout, not a wrong width — `draw(_:)` and `reportTextLayout()` both call
+    // `layoutManager.ensureLayout(for:)`, which COMPUTES AND CACHES glyph positions. When Yoga hands
+    // this view a new width mid-transition (a pager page coming on screen, the toggle, taps arriving
+    // faster than layout settles), the cached glyphs stay where the old narrower width put them and
+    // nothing marks the view dirty. The next unrelated redraw — a small scroll — fixes it, which is
+    // exactly the reported behaviour.
+    //
+    // Android has always reconciled this and iOS never did; see VMTextView.kt:117-121, whose comment
+    // ("Yoga owns the width … Re-apply at the real width rather than trust it") predicted this class of
+    // bug. This is the missing half of that logic.
+    if abs(previousWidth - bounds.width) > 0.5 {
+      invalidateTextLayout()
+    }
     reportTextLayout()
+  }
+
+  /**
+   Drop the cached glyph layout and force a repaint at the current width.
+
+   `invalidateDisplay` is separate from `invalidateLayout` on purpose: recomputing where glyphs go does
+   not by itself repaint them, and the blank-right-side symptom is a paint problem. `setNeedsDisplay()`
+   covers OUR `draw(_:)` too, since the underline pass reads the same layout and would otherwise stroke
+   lines at the previous width's coordinates.
+
+   The container size is deliberately NOT assigned here — `widthTracksTextView` (set in init) already
+   makes it follow the text view, and assigning it manually fights that tracking.
+   */
+  private func invalidateTextLayout() {
+    guard bounds.width > 0, !spec.text.isEmpty else { return }
+    let full = NSRange(location: 0, length: (spec.text as NSString).length)
+    textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
+    textView.layoutManager.invalidateDisplay(forCharacterRange: full)
+    setNeedsDisplay()
   }
 
   /**
