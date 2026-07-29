@@ -230,6 +230,13 @@ export default function ChapterScreen() {
       // counter is urgent — so the pager woke up and read the chapter it was ALREADY on.
       // Measured: tapping Next moved the header to Genesis 2 while the page stayed on
       // Genesis 1, and a Prev tap from that stale position moved the page FORWARD.
+      if (__DEV__) {
+        // Paired with the pager's [VMNAV] lines: this is what the ROUTE was asked for, so a divergence
+        // between the ask and what the pager renders is visible in one grep rather than deduced.
+        console.log(
+          `[VMNAV] request {"to":"${nextBookId}:${nextChapter}","from":"${bookId}:${chapterNumber}","deferred":"${deferredBookId}:${deferredChapterNumber}"}`
+        );
+      }
       setExternalNav((prev) => ({
         seq: (prev?.seq ?? 0) + 1,
         bookId: nextBookId,
@@ -237,7 +244,7 @@ export default function ChapterScreen() {
       }));
       navigateToChapter(nextBookId, nextChapter);
     },
-    [navigateToChapter]
+    [navigateToChapter, bookId, chapterNumber, deferredBookId, deferredChapterNumber]
   );
 
   // Get active tab from persistence

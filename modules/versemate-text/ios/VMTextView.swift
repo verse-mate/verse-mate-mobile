@@ -64,15 +64,16 @@ final class VMTextView: ExpoView {
     tap.cancelsTouchesInView = false
     addGestureRecognizer(tap)
 
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handleSelectionChanged),
-      name: UITextView.textDidChangeSelectionNotification,
-      object: textView
-    )
+    // Selection changes arrive via the DELEGATE, not NotificationCenter.
+    //
+    // `UITextView.textDidChangeSelectionNotification` DOES NOT EXIST. UITextView publishes
+    // textDidBeginEditing / textDidChange / textDidEndEditing; selection is reported only through
+    // `UITextViewDelegate.textViewDidChangeSelection(_:)`. Writing this port from memory of the API
+    // invented that notification and it cost an EAS build:
+    //   XCODE_BUILD_ERROR: type 'UITextView' has no member 'textDidChangeSelectionNotification'
+    // The delegate is already assigned above, so the correct version is strictly less code — no
+    // observer to register, none to tear down.
   }
-
-  deinit { NotificationCenter.default.removeObserver(self) }
 
   // MARK: - Spec
 
@@ -239,7 +240,7 @@ final class VMTextView: ExpoView {
     return charIndex
   }
 
-  @objc private func handleSelectionChanged() {
+  fileprivate func handleSelectionChanged() {
     guard let selected = textView.selectedTextRange else {
       onSelectionChange(["start": -1, "end": -1])
       return
@@ -255,7 +256,11 @@ final class VMTextView: ExpoView {
 }
 
 extension VMTextView: UITextViewDelegate {
-  // Editing is off, but a delegate is still required for selection notifications to be routed
-  // reliably on older iOS versions.
+  /// Editing is off; this view is selectable but not editable.
   func textViewShouldBeginEditing(_ textView: UITextView) -> Bool { false }
+
+  /// The only route by which UITextView reports a selection change — see the note in `init`.
+  func textViewDidChangeSelection(_ textView: UITextView) {
+    handleSelectionChanged()
+  }
 }
