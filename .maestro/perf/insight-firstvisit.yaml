@@ -1,0 +1,79 @@
+appId: org.versemate.app
+name: Perf — insight-firstvisit
+description: The FIRST visit to each Insight tab, which mounts and fetches — not steady-state re-switching
+tags:
+  - perf
+---
+
+# The first visit to each Insight tab, and nothing else.
+#
+# ## Why this exists, separately from insight-subtabs
+#
+# insight-subtabs deliberately warms every tab first and then measures repeated switching, so its
+# retained 120 frames describe a switch between tabs that are already mounted with their data cached.
+# By that measure sub-tab switching is fine: p50 8.40ms, at the 8.3ms budget.
+#
+# The operator still reports stuttering there. Both can be true, because the two are different
+# workloads: the FIRST tap on a tab mounts its subtree and enables its query, so it pays a mount and a
+# fetch that no later tap pays. A flow that warms up before measuring is structurally blind to it —
+# the same class of mistake as measuring the wrong 120 frames, which already produced one phantom
+# regression in this project.
+#
+# So: a cold chapter, one tap per tab, ending on the last tap. No repeats, no warm-up, nothing
+# afterwards to push those frames out of the buffer.
+#
+# Deliberately a chapter the earlier flows do not use, so per-chapter caches from a previous run cannot
+# warm this one.
+
+- runFlow: shared/reset-to-reader.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-old-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-isaiah"
+    direction: DOWN
+- tapOn:
+    id: "book-item-isaiah"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "chapter-40"
+    direction: DOWN
+- tapOn:
+    id: "chapter-40"
+- extendedWaitUntil:
+    visible:
+      text: "Isaiah 40"
+    timeout: 30000
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "commentary-view-toggle"
+- extendedWaitUntil:
+    visible:
+      id: "chapter-content-tabs"
+    timeout: 30000
+- waitForAnimationToEnd
+
+# One tap per tab. Each of these is a first visit for this chapter: a mount plus a query that was
+# enabled by the tap. `waitForAnimationToEnd` between them so a tab has actually settled before the
+# next is measured, rather than three mounts overlapping into one unattributable stall.
+- tapOn:
+    id: "tab-byline"
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-study"
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-summary"
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-byline"
