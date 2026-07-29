@@ -1168,3 +1168,68 @@ switching.
 
 **Before quoting a frame number, count the views created in the window.** Zero views means the capture
 measured nothing, however good the frame stats look. That check caught all four.
+
+## The last bad frame is RN `<Text>`, not `VMText` (2026-07-29, release trace)
+
+The open item had been recorded as "~284 view creations, needs fewer views". Attributing the *worst single
+frame* rather than the whole capture changed the answer, and two of the assumptions behind that sentence
+were wrong.
+
+Longest `Choreographer#doFrame` in `reports/perf/atrace/release-pills.txt` is **37.05ms**, and by SELF time:
+
+```
+12.79ms  n=55   SurfaceMountingManager::createViewUnsafe(RCTText)
+ 4.16ms  n=45   SurfaceMountingManager::createViewUnsafe(RCTView)
+ 3.49ms  n=68   ReactTextView.setText(ReactTextUpdate)
+ 3.32ms  n=1    postAndWait
+ 3.01ms  n=68   ReactTextViewManager.updateState
+ 1.22ms  n=28   Constructing StaticLayout
+ 1.01ms  n=68   ReactTextViewManager.updateExtraData
+ 0.89ms  n=1    IntBufferBatchMountItem::mountInstructions::UPDATE_LAYOUT numInstructions=119
+```
+
+**~23 of 37ms is React Native's own text views.** `VMText` does not appear in the frame's top slices at
+all — the native text work landed elsewhere and cheaply.
+
+### Two corrections
+
+**Per-view costs, measured in RELEASE (the 0.52ms figure was a dev build):**
+
+| component | n | total self | per view |
+|---|---|---|---|
+| `ViewManagerAdapter_VMText` | 172 | 30.3ms | **0.176ms** |
+| `RCTText` | 81 | 19.8ms | **0.245ms** |
+| `RCTView` | 163 | 8.2ms | **0.050ms** |
+| `RCTScrollView` | 2 | 0.3ms | 0.147ms |
+
+So an `RCTText` costs ~1.4× a `VMText` and ~5× a plain `RCTView`.
+
+**A wrapper-View cull is not worth doing.** `NativeMarkdown`'s common path wraps each `VMText` in a `View`
+purely for margins (and `buildLayoutStyle` already passes margins through, so it would be a small change).
+But at 0.050ms, removing ~100 of them saves ~5ms spread across a 250ms window — it cannot touch a 37ms
+frame. Measured before refactoring, which is the only reason it was not done.
+
+### Where the RN Text nodes are
+
+`StudyPanel`. Its *bodies* already render through `Markdown`; what remains is card **chrome**, and every
+`Card` mounts a heading `<Text>`, an optional subheading, an optional step-number or verse-range label, and
+an **`Ionicons` chevron — which is itself a `<Text>` glyph**. With a chapter's observation steps,
+interpretation movements and the application card that is ~14 cards, and they all landed in ONE commit:
+`study.steps.map(...)` and `movements.map(...)` had no ramp. It was the last unramped Insight surface.
+
+This is consistent with the prewarm measurement, which recorded Study as carrying 84 `RCTText`.
+
+### And a correction to "spreading does not shorten the worst frame"
+
+That claim was made about surfaces whose burst was *already* split across commits — the byline reveal was
+two commits 250ms apart, so ramping it moved work without shrinking either commit much (59.48 → 41.89ms).
+StudyPanel is the opposite case: **one commit carrying the whole burst.** Splitting one commit into five is
+exactly what does shorten the max frame, so `CARDS_PER_FRAME = 3` is a prediction, not a repeat of a known
+no-op — and it is falsifiable in one capture:
+
+    scripts/perf/capture-atrace.sh study-ramp --pre "commentary-view-toggle:2500" --taps "tab-study:2500"
+
+Expect: `RCTText` creations per frame down from 55 to ~12, and the worst frame well under 37ms (dev numbers
+will read ~2× higher — see the release-vs-dev section). If the worst frame does NOT move, the burst is not
+the commit boundary and the next thing to attack is the chevron glyphs plus collapsing each card's heading
+and subheading into a single `VMText`.

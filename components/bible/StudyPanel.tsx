@@ -53,6 +53,35 @@ type Colors = ReturnType<typeof getColors>;
 type Styles = ReturnType<typeof createStyles>;
 type MarkdownStyles = ReturnType<typeof createMarkdownStyles>;
 
+/**
+ * Top-level cards mounted per frame on a first visit.
+ *
+ * ## Why this exists
+ *
+ * This panel was the last unramped Insight surface, and it owned the worst frame left in the reader.
+ * An atrace of a RELEASE build attributed a 37.05ms `Choreographer#doFrame` almost entirely to React
+ * Native's own text views — not to `VMText`:
+ *
+ *     12.79ms  n=55   createViewUnsafe(RCTText)
+ *      3.49ms  n=68   ReactTextView.setText(ReactTextUpdate)
+ *      3.01ms  n=68   ReactTextViewManager.updateState
+ *      1.22ms  n=28   Constructing StaticLayout
+ *
+ * ~23 of 37ms in RN `<Text>`. The bodies here already render through `Markdown`, so those nodes are
+ * card *chrome*: every `Card` mounts a heading, an optional subheading, an optional step-number or
+ * verse-range label, and an `Ionicons` chevron — which is itself a `<Text>` glyph. With a chapter's
+ * observation steps, interpretation movements and the application card, that is ~14 cards landing in
+ * ONE commit.
+ *
+ * Three is deliberately small. The point is not to finish sooner — it is that no single frame carries
+ * the whole burst, which is the only thing that shortens the *max* frame, and max frame is the metric
+ * that matches what a reader actually perceives.
+ *
+ * Chrome-only, so the ramp is safe: a card's body is already gated behind `open`, and collapsed cards
+ * are what get mounted here.
+ */
+const CARDS_PER_FRAME = 3;
+
 export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPanelProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -75,13 +104,32 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
   // win when the user toggles individually after a bulk action.
   const [bulkState, setBulkState] = useState<'expanded' | 'collapsed'>('collapsed');
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  // How many top-level cards may mount. Ramped per frame — see CARDS_PER_FRAME.
+  const [cardLimit, setCardLimit] = useState(CARDS_PER_FRAME);
+
   // Reset open/closed state when the chapter changes — IDs (step-1, step-2,
   // etc.) are generic across chapters, so without a reset the previous
   // chapter's expanded sections would bleed into the new chapter.
   useEffect(() => {
     setBulkState('collapsed');
     setOverrides({});
+    setCardLimit(CARDS_PER_FRAME);
   }, [bookId, chapter]);
+
+  // One card batch per frame until every card is mounted.
+  //
+  // Reset above on chapter change, NOT left at its final value: the byline reveal had exactly this bug
+  // in reverse — it ramped to `Infinity` and the next chapter inherited "reveal everything", so the
+  // ramp silently stopped working after the first chapter and the burst came back.
+  useEffect(() => {
+    if (!study) return;
+    const total = totalTopLevelCards(study);
+    if (cardLimit >= total) return;
+    const handle = requestAnimationFrame(() => {
+      setCardLimit((current) => Math.min(current + CARDS_PER_FRAME, total));
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [cardLimit, study]);
 
   const isOpen = useCallback(
     (id: string): boolean => {
@@ -165,6 +213,17 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
     setOverrides({});
   };
 
+  // Flat mount order for the ramp, as explicit offsets rather than a counter incremented during
+  // render. A mutable counter would read correctly today and break silently under React Compiler,
+  // which is free to memoize the `.map` callbacks independently of the surrounding expression.
+  const observationIntroIndex = 0;
+  const stepsStartIndex = 1;
+  const interpretationIntroIndex = stepsStartIndex + study.steps.length;
+  const movementsStartIndex = interpretationIntroIndex + (study.interpretation.intro ? 1 : 0);
+  const applicationIndex = movementsStartIndex + study.interpretation.movements.length;
+  /** Has this card's turn come? Section headings are exempt — one `<Text>` each, and they anchor scroll position. */
+  const mounted = (index: number) => index < cardLimit;
+
   return (
     <View style={styles.container} testID={testID}>
       {/* Title row + Copy / Share */}
@@ -224,32 +283,36 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
 
       {/* OBSERVATION */}
       <SectionHeading label={labels.observationSection} colors={colors} styles={styles} />
-      <Card
-        open={isOpen('observation-intro')}
-        onToggle={() => toggle('observation-intro')}
-        heading={labels.aboutObservationTitle}
-        colors={colors}
-        styles={styles}
-        testID={`${testID}-observation-intro`}
-      >
-        <Text style={styles.sectionIntro}>{labels.aboutObservationBody.replace(/\*/g, '')}</Text>
-      </Card>
-      {study.steps.map((step) => (
-        <StepCard
-          key={step.number}
-          step={step}
-          isOpen={isOpen}
-          toggle={toggle}
+      {mounted(observationIntroIndex) ? (
+        <Card
+          open={isOpen('observation-intro')}
+          onToggle={() => toggle('observation-intro')}
+          heading={labels.aboutObservationTitle}
           colors={colors}
           styles={styles}
-          markdownStyles={markdownStyles}
-          testID={`${testID}-step-${step.number}`}
-        />
-      ))}
+          testID={`${testID}-observation-intro`}
+        >
+          <Text style={styles.sectionIntro}>{labels.aboutObservationBody.replace(/\*/g, '')}</Text>
+        </Card>
+      ) : null}
+      {study.steps.map((step, stepIdx) =>
+        mounted(stepsStartIndex + stepIdx) ? (
+          <StepCard
+            key={step.number}
+            step={step}
+            isOpen={isOpen}
+            toggle={toggle}
+            colors={colors}
+            styles={styles}
+            markdownStyles={markdownStyles}
+            testID={`${testID}-step-${step.number}`}
+          />
+        ) : null
+      )}
 
       {/* INTERPRETATION */}
       <SectionHeading label={labels.interpretationSection} colors={colors} styles={styles} />
-      {study.interpretation.intro ? (
+      {study.interpretation.intro && mounted(interpretationIntroIndex) ? (
         <Card
           open={isOpen('interpretation-intro')}
           onToggle={() => toggle('interpretation-intro')}
@@ -261,47 +324,65 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
           <Text style={styles.sectionIntro}>{study.interpretation.intro}</Text>
         </Card>
       ) : null}
-      {study.interpretation.movements.map((movement, mvIdx) => (
-        <Card
-          key={movement.number ?? mvIdx}
-          open={isOpen(`mv-${movement.number ?? mvIdx}`)}
-          onToggle={() => toggle(`mv-${movement.number ?? mvIdx}`)}
-          heading={`${labels.movement} ${movement.number} — ${movement.title}`}
-          subPill={movement.range}
-          colors={colors}
-          styles={styles}
-          testID={`${testID}-movement-${movement.number ?? mvIdx}`}
-        >
-          <MovementBody movement={movement} styles={styles} markdownStyles={markdownStyles} />
-        </Card>
-      ))}
+      {study.interpretation.movements.map((movement, mvIdx) =>
+        mounted(movementsStartIndex + mvIdx) ? (
+          <Card
+            key={movement.number ?? mvIdx}
+            open={isOpen(`mv-${movement.number ?? mvIdx}`)}
+            onToggle={() => toggle(`mv-${movement.number ?? mvIdx}`)}
+            heading={`${labels.movement} ${movement.number} — ${movement.title}`}
+            subPill={movement.range}
+            colors={colors}
+            styles={styles}
+            testID={`${testID}-movement-${movement.number ?? mvIdx}`}
+          >
+            <MovementBody movement={movement} styles={styles} markdownStyles={markdownStyles} />
+          </Card>
+        ) : null
+      )}
 
       {/* APPLICATION */}
       <SectionHeading label={labels.applicationSection} colors={colors} styles={styles} />
-      <Card
-        open={isOpen('application')}
-        onToggle={() => toggle('application')}
-        heading={labels.applyOneQuestion}
-        colors={colors}
-        styles={styles}
-        testID={`${testID}-application`}
-      >
-        {study.application.intro ? (
-          <Text style={[styles.sectionIntro, styles.applicationIntro]}>
-            {study.application.intro}
-          </Text>
-        ) : null}
-        {study.application.questions.map((q, i) => (
-          <ApplicationRow
-            key={`${q.range}-${i}`}
-            question={q}
-            colors={colors}
-            styles={styles}
-            testID={`${testID}-question-${i + 1}`}
-          />
-        ))}
-      </Card>
+      {mounted(applicationIndex) ? (
+        <Card
+          open={isOpen('application')}
+          onToggle={() => toggle('application')}
+          heading={labels.applyOneQuestion}
+          colors={colors}
+          styles={styles}
+          testID={`${testID}-application`}
+        >
+          {study.application.intro ? (
+            <Text style={[styles.sectionIntro, styles.applicationIntro]}>
+              {study.application.intro}
+            </Text>
+          ) : null}
+          {study.application.questions.map((q, i) => (
+            <ApplicationRow
+              key={`${q.range}-${i}`}
+              question={q}
+              colors={colors}
+              styles={styles}
+              testID={`${testID}-question-${i + 1}`}
+            />
+          ))}
+        </Card>
+      ) : null}
     </View>
+  );
+}
+
+/**
+ * Total top-level cards for a study: observation intro, one per observation step, the optional
+ * interpretation intro, one per movement, and the application card.
+ *
+ * Must agree with the offsets computed in the render body — they are the same layout expressed twice,
+ * once as a count and once as positions. Kept adjacent so a future section cannot be added to one and
+ * missed in the other without it being obvious.
+ */
+function totalTopLevelCards(study: InductiveStudy): number {
+  return (
+    2 + study.steps.length + (study.interpretation.intro ? 1 : 0) + study.interpretation.movements.length
   );
 }
 
