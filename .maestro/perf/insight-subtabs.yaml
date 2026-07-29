@@ -1,0 +1,85 @@
+appId: org.versemate.app
+name: Perf — insight-subtabs
+description: ONLY Insight sub-tab switching, so the retained frame window is homogeneous
+tags:
+  - perf
+---
+
+# Insight sub-tab switching and nothing else.
+#
+# ## Why a flow this narrow
+#
+# `dumpsys gfxinfo` retains only the LAST 120 frames. The combined `insight-tabs` flow ends with
+# three Bible<->Insight toggles, each of which runs a continuous opacity animation — so whether the
+# retained window lands on those animating frames or on settled ones changes the numbers without any
+# code changing. That confound produced an impossible-looking result: the `animation` phase measured
+# HIGHER with two independent optimisations both on (5.4ms) than with either alone (3.1ms and 3.6ms),
+# and it reproduced across two runs, which reads as a real interaction rather than as a sampling
+# artefact.
+#
+# A flow that performs ONE kind of interaction, ends on it, and never idles afterwards makes the
+# retained window mean the same thing in every arm. Comparisons across arms are only worth making
+# when the window is comparable.
+#
+# Deliberately no trailing `pressKey: Back` and no waits after the last tap: anything after the final
+# interaction pushes the interesting frames out of the 120-frame buffer.
+
+- runFlow: shared/reset-to-reader.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-old-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-genesis"
+    direction: DOWN
+- tapOn:
+    id: "book-item-genesis"
+- waitForAnimationToEnd
+- tapOn:
+    id: "chapter-1"
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 1"
+    timeout: 30000
+
+- tapOn:
+    id: "commentary-view-toggle"
+- extendedWaitUntil:
+    visible:
+      id: "chapter-content-tabs"
+    timeout: 30000
+- waitForAnimationToEnd
+
+# First pass pays each tab's initial mount and data fetch. Measured separately from the steady-state
+# passes below only in the sense that it happens first — the retained window will be dominated by the
+# later passes, which is the case the operator describes as still stuttering.
+- repeat:
+    times: 2
+    commands:
+      - tapOn:
+          id: "tab-summary"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "tab-byline"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "tab-study"
+      - waitForAnimationToEnd
+
+# Steady-state switching, enough taps to fill the 120-frame buffer with nothing but sub-tab switches.
+- repeat:
+    times: 6
+    commands:
+      - tapOn:
+          id: "tab-summary"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "tab-byline"
+      - waitForAnimationToEnd
