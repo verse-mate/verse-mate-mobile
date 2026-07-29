@@ -536,17 +536,21 @@ export function ChapterReader({
     useNativeTextRenderer,
     userFontSize,
     mode,
-    // Identity-churn candidates: props whose VALUE rarely changes but whose identity may.
-    paragraphWidth,
+    // Identity-churn candidates: props and local state whose VALUE rarely changes but whose identity
+    // may. Only things actually in scope here — the first attempt listed `notes`, `theme`, `style` and
+    // four handlers that this component never receives, which threw
+    // "Property 'notes' doesn't exist" straight into the error boundary. A diagnostic that crashes the
+    // screen it is diagnosing is worse than the missing information.
+    // NOT paragraphWidth: it is declared ~70 lines below this call, so referencing it here is a
+    // temporal-dead-zone ReferenceError. Attribution has to live where the values already exist.
     bibleVersion,
     bibleLanguage,
-    notes,
-    onHighlightTap,
-    onLexiconWordPress,
-    onVerseTap,
-    onAutoHighlightPress,
-    style,
-    theme,
+    filteredHighlights,
+    filteredAutoHighlights,
+    onContentLayout,
+    onByLineSectionRegister,
+    onOpenNotes,
+    styles,
   });
 
   /**
