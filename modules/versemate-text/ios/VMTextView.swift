@@ -121,15 +121,6 @@ final class VMTextView: ExpoView {
   override func layoutSubviews() {
     super.layoutSubviews()
     textView.frame = bounds
-    // DEBUG-ONLY: iOS clipped-text diagnosis (Andy, TF 105).
-    //
-    // Lines end MID-WORD ("lowland an", "Great Sea tov") at ~74% of the block width while the view and
-    // its custom underlines extend the full width. Mid-word truncation means glyphs are laid out beyond
-    // where they are painted, i.e. the text CONTAINER is wider than the text VIEW. These four numbers
-    // say which of them is wrong and by how much; remove once fixed.
-    NSLog("[VMTEXTDBG] bounds=%.1f tvFrame=%.1f container=%.1f specWidth=%.1f len=%d",
-          bounds.width, textView.frame.width, textView.textContainer.size.width,
-          spec.widthPt, spec.text.count)
     reportTextLayout()
   }
 
