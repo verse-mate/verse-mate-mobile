@@ -670,3 +670,45 @@ does not guarantee per-frame commits, and any future ramp must be verified, not 
 **And `data.alignment` got worse the closer it was looked at**: this session's capture puts it at 7 calls,
 **mean 1902.6ms, 13.3s total** in an 82s session — not the 543ms recorded earlier. It is far and away the
 largest cost in the app, and `preview-perf` exists to establish whether a release build still pays it.
+
+## Correction: `data.alignment` was never 13 seconds of work
+
+Two places above call `data.alignment` the largest cost in the app — "6× the total cost of all tab
+switching", "mean 1902.6ms, 13.3s total". **That reading was wrong**, and the arithmetic that disproves
+it was sitting in the same report:
+
+```
+=== background — 81981.3ms session ===
+JS blocks: 61 (5197.3ms total, worst 1991.2ms) [minor 51 / major 9 / severe 1]
+JS thread blocked 6.3% of the session
+
+  data.alignment    7   13318.2   1902.6   3028.2   3028.2
+```
+
+The JS thread was blocked for **5197ms in the entire session**. The alignment spans total **13318ms**. A
+span cannot consume more CPU than the thread ever spent blocked, so most of that 13.3s is the span
+sitting open across an `await` — waiting, including waiting through other work such as the chapter
+mount. The report even says so directly: "Blocks attributed to open spans" credits every open span with
+a block, so a long-lived span accumulates other people's cost. `startup.toFirstPaint` showing 59 blocks
+is the same artifact.
+
+**What is real** is one ~2s block, reproducible across two independent runs (`worst 1991.2ms` and
+`1946.1ms`, one "severe" each). That matches the known one-time 18MB `_lemmas.json` parse — previously
+measured at 652ms on a Pi 5 and ~1.9s on the phone. It is deferred past first paint, so it costs nothing
+at startup; but it blocks the JS thread for two seconds, so any swipe or tab switch landing inside that
+window simply freezes.
+
+Consequences:
+
+- **The `preview-perf` release measurement is no longer the priority.** It existed to answer "is the
+  13.3s real or a Metro artifact?", and that question dissolves rather than resolves. Two back-to-back
+  runs of the same flow also showed the alignment mean barely moving (1902.6 → 1634.3ms) when Metro's
+  transform cache was warm, which is further evidence the number was never dominated by on-demand
+  transforms. The profile stays (correctly configured now) for when a release-only question comes up.
+- **The lexicon split is still worth doing**, but for the honest reason: a single 2s JS block, not a
+  13-second aggregate. That does not need a release build to justify — it is visible in dev.
+
+Method lesson, since this is the second attribution error in one session: a **wall-clock span around an
+`await` measures latency, not work.** Cross-check any span total against the session's total JS blocking
+before calling it a cost. If spans sum to more than the thread was ever blocked, they are measuring
+waiting.
