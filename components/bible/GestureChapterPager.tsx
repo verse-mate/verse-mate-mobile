@@ -93,6 +93,14 @@ export interface GestureChapterPagerProps {
    * on, so the header moved and the page did not.
    */
   externalNav?: { seq: number; bookId: number; chapterNumber: number } | null;
+  /**
+   * The LIVE route location, used only to seed the pager's initial position.
+   *
+   * Separate from `bookId`/`chapterNumber` because those are deliberately deferred; see the seed itself
+   * for why a deferred value cannot be used here.
+   */
+  seedBookId?: number;
+  seedChapterNumber?: number;
 }
 
 /**
@@ -225,6 +233,8 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
       onChapterChange,
       renderChapterPage,
       externalNav = null,
+      seedBookId,
+      seedChapterNumber,
     },
     ref
   ) {
@@ -250,13 +260,33 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
      * Incremental rather than precomputed: resolving all 1189 chapters on mount would
      * walk the whole Bible for a reader who will visit four.
      */
-    const chapterAt = useRef<Map<number, ChapterLocation>>(
-      new Map([[0, { bookId, chapterNumber }]])
-    );
+    /**
+     * Seeded from the LIVE route location, never from `bookId`/`chapterNumber`.
+     *
+     * Those two props are `useDeferredValue` outputs — they lag by design — and this map is built ONCE,
+     * on mount. The screen REMOUNTS on navigation, so `externalNav` (component state) resets to null and
+     * the jump effect never runs; the only thing that decides where the pager starts is this seed. Seeded
+     * from a lagging value, the pager therefore opened on the PREVIOUS chapter, every time.
+     *
+     * That is the "picker lags one selection behind" bug, traced rather than guessed. From the [VMNAV]
+     * log:
+     *   request {"to":"43:20","from":"43:2","deferred":"43:2"}
+     *   render  {"index":0,"active":"43-2"}      <- opened on the old chapter
+     *   request {"to":"45:14","from":"43:20"}
+     *   render  {"index":0,"active":"43-20"}     <- opened on the PREVIOUS target
+     * with no `externalNav` line between them, which is what proved the effect was not the mechanism at
+     * all and that the seed was.
+     *
+     * `seedBookId`/`seedChapterNumber` carry the non-deferred route values for exactly this. Rendering
+     * still uses the deferred props, so the deferral keeps doing its job of not blocking the header.
+     */
+    const seed: ChapterLocation = {
+      bookId: seedBookId ?? bookId,
+      chapterNumber: seedChapterNumber ?? chapterNumber,
+    };
+    const chapterAt = useRef<Map<number, ChapterLocation>>(new Map([[0, seed]]));
     /** The same mapping inverted, for recognising a committed route change. */
-    const indexOfKey = useRef<Map<string, number>>(
-      new Map([[keyOf({ bookId, chapterNumber }), 0]])
-    );
+    const indexOfKey = useRef<Map<string, number>>(new Map([[keyOf(seed), 0]]));
 
     /**
      * Index that sits at the row's left edge. Only moves on a re-base.
