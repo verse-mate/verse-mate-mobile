@@ -85,3 +85,7 @@ crash_logs
 
 .agent-os/**/*
 modules/*/android/build/
+env
+package-lock.json
+env
+package-lock.json
