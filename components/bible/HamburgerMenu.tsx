@@ -105,15 +105,6 @@ const regularMenuItems: MenuItem[] = [
   { id: 'about', label: 'About', icon: IconInfo, action: 'about' },
   { id: 'giving', label: 'Giving', icon: IconHeart, action: 'giving' },
   { id: 'help', label: 'Help', icon: IconHelp, action: 'help' },
-  // duplicated for testing overflow — remove after test
-  { id: 'bookmarks-2', label: 'Bookmarks', icon: IconBookmarkFilled, action: 'bookmarks' },
-  { id: 'notes-2', label: 'Notes', icon: IconDocument, action: 'notes' },
-  { id: 'highlights-2', label: 'Highlights', icon: IconHighlight, action: 'highlights' },
-  { id: 'settings-2', label: 'Settings', icon: IconSettings, action: 'settings' },
-  { id: 'share-2', label: 'Share VerseMate', icon: IconShare, action: 'share' },
-  { id: 'about-2', label: 'About', icon: IconInfo, action: 'about' },
-  { id: 'giving-2', label: 'Giving', icon: IconHeart, action: 'giving' },
-  { id: 'help-2', label: 'Help', icon: IconHelp, action: 'help' },
 ];
 
 export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
