@@ -937,6 +937,11 @@ export default function ChapterScreen() {
                   ref={gesturePagerRef}
                   bookId={deferredBookId}
                   chapterNumber={deferredChapterNumber}
+                  // LIVE route values, for the pager's initial position only. The screen remounts on
+                  // navigation, so externalNav is null on mount and the seed is the only thing that
+                  // decides where it opens — a deferred value there opens the previous chapter.
+                  seedBookId={bookId}
+                  seedChapterNumber={chapterNumber}
                   externalNav={externalNav}
                   bookName={bookName}
                   booksMetadata={booksMetadata}
