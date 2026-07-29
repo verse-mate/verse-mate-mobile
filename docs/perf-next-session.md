@@ -426,3 +426,36 @@ Two traps for whoever measures next:
   fallback reason, so one document rendering natively for a whole session counts once. It answers
   "did the native path engage" and nothing more. A `fallback.unmeasured` of 1 at startup is
   expected — width is unknown for one frame.
+
+
+## Harness traps, round two (2026-07-29, unattended run)
+
+Four captures produced no artifacts and no error, and the visible symptoms pointed at four different
+innocent things before the real cause turned up. Worth reading before debugging this harness again,
+because the pattern repeated: **a dead dependency produces symptoms everywhere except where it lives.**
+
+Actual cause: **Metro was dead.** It had been started inside a `pc` bridge session
+(`pc -s metro4 --bg "bun start"`), and a tidy-up loop that closed stale sessions by name included
+`metro4` — which killed the dev server. Every subsequent capture sat in the readiness poll waiting for
+a bundle that could never arrive.
+
+What it looked like on the way down, in order:
+
+1. Captures stalling silently after "Launching against Metro" — read as "slow", then as the harness's
+   background task being reaped.
+2. `pc` sessions returning `[command still running in 'perfcap' ...]` **on stdout**, which the script
+   parsed as a device serial and as a readiness marker. Now guarded: `pcrun` retries once after
+   closing the session and dies loudly on a second occurrence, because any number derived from that
+   banner is fiction.
+3. A wedged **adb server** — `adb devices` and even `adb kill-server` hung, needing
+   `Get-Process adb | Stop-Process -Force`.
+4. A stale **`adb reverse`** registration: `reverse --list` happily reported `tcp:8081`, while the
+   phone got HTTP `000` on `localhost:8081`. Re-adding it did not help, because there was nothing
+   listening on the other end.
+
+Only step 4's `curl` from the phone, plus checking `Get-NetTCPConnection -LocalPort 8081`, showed
+Metro itself was gone. **Check that the server is alive before debugging the transport to it.**
+
+Two durable fixes: long-lived servers are now launched detached
+(`Start-Process ... -WindowStyle Hidden`) so no session close can kill them, and bridge sessions are
+closed individually rather than in a sweep.
