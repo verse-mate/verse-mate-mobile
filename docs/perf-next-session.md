@@ -1116,3 +1116,55 @@ is safe in one specific way worth knowing: estimates only ever apply BELOW the v
 have already rendered, so their heights are real), so an error changes total content height slightly
 rather than moving the reading position. A retained-view/memory argument may still exist for Psalm 119's
 176 sections — but no memory measurement was taken, so it is not claimed here.
+
+---
+
+# Measure RELEASE builds. Dev overstates frame cost by ~2x.
+
+The single most useful measurement of the session, and it came late because the dev build was convenient.
+
+Same flow, same code, **same work done** (verified: 468 vs 532 views created, same composition, same peak
+burst) — dev client versus the store build:
+
+| | dev | release | |
+|---|---|---|---|
+| `animation` p50 | 0.46ms | **0.17ms** | −63% |
+| p95 | 7.41ms | **2.51ms** | −66% |
+| **max** | 26.35ms | **14.52ms** | **−45%** |
+| frames over 8.34ms | 2.4% | **0.4%** | 6× fewer |
+
+And on pill switching specifically, where the release run did *more* work (418 views vs 304):
+
+| pill switching | dev | release |
+|---|---|---|
+| `animation` max | 47.39ms | **30.69ms** |
+| p95 | 4.67ms | **2.37ms** |
+| over budget | 6/455 (1.3%) | **2/486 (0.4%)** |
+
+**Consequence: every frame number in this document taken from a dev build overstates the problem by
+roughly 2×.** The 47ms pill frame is ~31ms in release; the 41ms nav frame and 33ms toggle scale similarly.
+Statements of the form "this doesn't fix what you feel" were made against an inflated baseline.
+
+The operator independently reported the store build as "10–20% better", which matches — and is if anything
+conservative against these numbers.
+
+## How to measure a release build
+
+`gfxinfo` and `atrace` both work regardless of `__DEV__`; only the JS perf session (spans, counters) is
+absent. So `capture-atrace.sh` works directly on a store build, and `scripts/perf/preflight.sh` now
+detects a non-debuggable package and substitutes a liveness check — foreground activity plus frames
+rendered — instead of requiring `[VMPERF] monitor started`, which a release build never emits.
+
+For span/counter data in a release build there is still `preview-perf` (`EXPO_PUBLIC_PERF=1`, APK not AAB
+so it can be installed) — built for exactly this and, embarrassingly, never used, because dev numbers were
+easier to get.
+
+## And a flow-design rule, learned four times today
+
+Three captures this session produced beautiful numbers from an app doing nothing: a warm toggle instead of
+a cold mount, an app whose taps were no-ops because it was already on the target screen, and a window that
+opened after the prewarm had finished. A fourth measured one tap and got reported as if it covered pill
+switching.
+
+**Before quoting a frame number, count the views created in the window.** Zero views means the capture
+measured nothing, however good the frame stats look. That check caught all four.
