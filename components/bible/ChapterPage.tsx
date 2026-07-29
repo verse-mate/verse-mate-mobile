@@ -435,6 +435,18 @@ const VISIBILITY_PUSH_INTERVAL_MS = 150;
  * mount cheaper — it moves the cost onto a deliberate tap, where it is expected. Reducing it needs fewer
  * views, which is a separate change.
  *
+ * MEASURED, matched A/B on one device (same flow `bible-view-toggle:1000 next-chapter-button:2500` then
+ * `commentary-view-toggle:6500`, both arms health-gated), bucketing every native view creation by 0.5s
+ * with the tap at ~0.4s:
+ *
+ *     lean:      0.5s: 4   1.0s: 197   1.5s: 141     total 342,  RCTText 12
+ *     all four:  0.5s: 4   1.0s: 445   1.5s:  83     total 532,  RCTText 86
+ *
+ * 445 creations in ONE 500ms bucket becomes 197 — the worst mounting burst more than halved — and
+ * Study's 84 RCTText views are simply absent. Frame-level max differed by one frame in the other
+ * direction (33.67 vs 26.35ms) and is NOT claimed: max on a single run is the noisiest statistic there
+ * is, and the view-count effect is what this change controls.
+ *
  * `visuals` is excluded for the same reason plus a stronger one: it is gated on `bookHasVisuals` and
  * carries WebViews (`createViewUnsafe(RNCWebView)` showed up at 9.18ms EACH in an earlier capture), so
  * prewarming it spends the most for the least likely visit.
