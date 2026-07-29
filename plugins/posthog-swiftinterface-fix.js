@@ -57,25 +57,39 @@ const MARKER = '# posthog-swiftinterface-fix';
  */
 const ANCHOR = '  post_install do |installer|';
 
+/**
+ * Injected AFTER this call, not before it.
+ *
+ * The first attempt put the loop at the TOP of the post_install block, and iOS build #103 failed with the
+ * original error anyway — `pod install` succeeded (so the duplicate-block bug was genuinely fixed) but
+ * PostHog still failed interface verification. `react_native_post_install` walks every target and rewrites
+ * build settings, so anything set before it can be overwritten. Ordering is the difference between a
+ * setting that survives to the Xcode build and one that does not.
+ */
+const RN_POST_INSTALL_END = `    )
+`;
+
 const INJECTION = `
     ${MARKER}
-    # Disable Swift module-interface verification for PostHog only. PostHog compiles with
-    # -enable-library-evolution, so Xcode emits a textual .swiftinterface and re-typechecks it in
-    # isolation; that re-typecheck cannot see PostHog's private Objective-C pods (phlibwebp,
-    # PHPLCrashReporter, PostHogObjCExceptionSupport) and fails with "underlying Objective-C module
-    # 'PostHog' not found" even though the library compiled fine. The setting is a self-check on a file
-    # Xcode just wrote — disabling it changes nothing that ships.
+    # PostHog compiles with -enable-library-evolution, so Xcode emits a textual .swiftinterface and
+    # re-typechecks it in isolation. That re-typecheck cannot see PostHog's private Objective-C pods
+    # (phlibwebp, PHPLCrashReporter, PostHogObjCExceptionSupport) and fails with "underlying Objective-C
+    # module 'PostHog' not found" even though the library itself compiled fine.
     #
-    # Scoped to PostHog by name: a project-wide flip would also silence the check for our own VMText
-    # module, where a broken interface would be a real signal.
-    # Matches every PostHog pod, not just the one named in the error. posthog-react-native pulls in the
-    # native PostHog pod AND posthog-react-native-session-replay, which depends on PostHog too -- so
-    # a second Swift pod can hit the identical interface-verification failure and fail the build again.
-    # Still not project-wide: our own VMText module keeps the check, where a broken interface is a real
-    # signal.
+    # TWO settings, because disabling verification alone was not enough (build #103 still failed):
+    #   * BUILD_LIBRARY_FOR_DISTRIBUTION = NO stops the interface being EMITTED at all, which removes the
+    #     verification step rather than silencing it. Safe here: that interface only matters for shipping a
+    #     prebuilt ABI-stable framework, and this pod is built from source, so nothing consumes it.
+    #   * SWIFT_VERIFY_EMITTED_MODULE_INTERFACE = NO covers the case where something else re-enables
+    #     library evolution downstream.
+    #
+    # Matches every PostHog pod, not just the one named in the error: posthog-react-native pulls in the
+    # native PostHog pod AND posthog-react-native-session-replay, which depends on PostHog too. Still not
+    # project-wide -- our own VMText module keeps the check, where a broken interface is a real signal.
     installer.pods_project.targets.each do |target|
       next unless target.name.downcase.include?('posthog')
       target.build_configurations.each do |build_config|
+        build_config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
         build_config.build_settings['SWIFT_VERIFY_EMITTED_MODULE_INTERFACE'] = 'NO'
       end
     end
@@ -93,15 +107,21 @@ module.exports = function posthogSwiftinterfaceFix(config) {
 
       // Fail loudly rather than silently shipping a build without the fix. A missing anchor means the
       // Expo template changed, and a silent no-op here would resurface as the same opaque pod failure.
-      if (!contents.includes(ANCHOR)) {
+      if (!contents.includes(RN_POST_INSTALL_END)) {
         throw new Error(
-          `[posthog-swiftinterface-fix] could not find "${ANCHOR}" in the generated Podfile. ` +
+          '[posthog-swiftinterface-fix] could not find the end of react_native_post_install in the ' +
+            'generated Podfile. ' +
             'The Expo template has changed; update the anchor rather than appending a second ' +
             'post_install block, which replaces Expo\'s and breaks pod install.'
         );
       }
 
-      fs.writeFileSync(podfile, contents.replace(ANCHOR, ANCHOR + INJECTION), 'utf8');
+      // After react_native_post_install returns, so its own settings pass cannot undo ours.
+      fs.writeFileSync(
+        podfile,
+        contents.replace(RN_POST_INSTALL_END, RN_POST_INSTALL_END + INJECTION),
+        'utf8'
+      );
       return cfg;
     },
   ]);
