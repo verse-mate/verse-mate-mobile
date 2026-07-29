@@ -90,7 +90,15 @@ export function useChapterAlignment(
           chapter: chapterNumber,
         });
         try {
-          const a = await loadAlignmentFor(bookId, chapterNumber);
+          // `lite` skips the 18.7MB `_lemmas.json` and uses a 1.15MB columnar projection instead —
+          // 16x smaller. That file is what made this call a ~2s block of the JS thread; 12.1MB of it
+          // is `notes` + `related` + `semanticRange`, which are only read when a reader taps a word.
+          // `ChapterReader`'s tap handler upgrades to the full entry via `lookupLemma` at that point.
+          //
+          // The light lexicon still answers everything a chapter needs: whether a lemma has an entry
+          // (which gates the underline), its Strong's number (homograph disambiguation), and
+          // `translit`/`basicGloss`/`loaded` for accessibility labels and the context-sensitive marker.
+          const a = await loadAlignmentFor(bookId, chapterNumber, { lite: true });
           if (!cancelled) setAlignment(a);
         } finally {
           endSpan();
