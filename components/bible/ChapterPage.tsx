@@ -177,23 +177,60 @@ function TabContent({
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
   const { isOffline } = useOfflineStatus();
 
-  // Progressive reveal for byline verse sections. Two discrete bumps
-  // instead of a continuous setInterval so the ramp finishes in ~500ms
-  // and then stops generating re-renders — a perpetual setInterval was
-  // making the Bible/Insight toggle feel hitchy because the setState
-  // every 200ms was competing with the toggle's React work. Long
-  // chapters still parse progressively (5 sections → 30 sections →
-  // everything) so first paint is fast.
-  const [bylineMax, setBylineMax] = useState(5);
+  /**
+   * Progressive reveal for byline verse sections, ramped ONE frame at a time.
+   *
+   * ## What this replaces, and why
+   *
+   * This was two discrete bumps — 5 sections, then 30 at 200ms, then everything at 500ms — chosen
+   * over a `setInterval` because the perpetual timer's re-renders competed with the toggle's React
+   * work. The reasoning was right about the timer and wrong about the bumps, and an atrace capture
+   * finally showed why (`scripts/perf/capture-atrace.sh`, written up in `docs/perf-next-session.md`).
+   *
+   * Inside the frame phase `framestats` calls `animation`, three Bible↔Insight toggles spent 119.4ms
+   * creating **228 native text views** — and they arrived in exactly **two commits, 120 then 108,
+   * 250ms apart**. Two commits, two timers, 200ms and 500ms: the bumps ARE the burst. `30 → ∞` is
+   * the worst of them, mounting every remaining section at once — 146 more sections on Psalm 119.
+   * The worst single frame in that capture was 46.70ms, about five and a half frames at 120Hz.
+   *
+   * So the fix is not fewer, larger steps but many small ones, paced to real frames. Each section is
+   * its own `<Markdown>`, so a step's cost scales with the sections it adds: at the measured ~0.52ms
+   * per view creation, four sections per frame stays inside the 8.34ms budget with room for the
+   * traversal and draw that share it.
+   *
+   * `requestAnimationFrame`, not `setTimeout`: it paces to actual frames, so the step size means
+   * what it says. A timer chain runs several times per frame under load and coalesces straight back
+   * into the big commit this exists to avoid. The ramp still STOPS — at `POSITIVE_INFINITY` the
+   * effect returns early and schedules nothing, which is what the original was protecting.
+   *
+   * `BYLINE_MAX_SECTIONS` ends the ramp without needing the section count here (it lives in
+   * `ChapterReader`, which does the slicing); 200 clears the longest chapter in the Bible, Psalm 119
+   * at 176 verses.
+   */
+  const [bylineMax, setBylineMax] = useState(BYLINE_INITIAL_SECTIONS);
+
+  /**
+   * Restart the ramp for a new chapter, not just a new tab.
+   *
+   * Keyed on the chapter too because `bylineMax` reaching `Infinity` is sticky: without this, the
+   * next chapter inherits "reveal everything" and mounts every section in one commit — the storm
+   * returns on ordinary navigation, which is the other place the capture found views landing in a
+   * single frame.
+   */
   useEffect(() => {
-    if (activeTab !== 'byline') return;
-    const t1 = setTimeout(() => setBylineMax(30), 200);
-    const t2 = setTimeout(() => setBylineMax(Number.POSITIVE_INFINITY), 500);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [activeTab]);
+    setBylineMax(BYLINE_INITIAL_SECTIONS);
+  }, [activeTab, chapter?.bookId, chapter?.chapterNumber]);
+
+  useEffect(() => {
+    if (activeTab !== 'byline' || !Number.isFinite(bylineMax)) return;
+    const handle = requestAnimationFrame(() => {
+      setBylineMax((current) => {
+        const next = current + BYLINE_SECTIONS_PER_FRAME;
+        return next >= BYLINE_MAX_SECTIONS ? Number.POSITIVE_INFINITY : next;
+      });
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [activeTab, bylineMax]);
 
   // Determine content for the reader
   const rawExplanationContent = content && 'content' in content ? content : undefined;
@@ -375,6 +412,19 @@ const VISIBILITY_PUSH_INTERVAL_MS = 150;
  */
 /** Every Insight tab, in the order they are pre-warmed. */
 const INSIGHT_TABS: ContentTabType[] = ['summary', 'byline', 'study', 'visuals'];
+
+/**
+ * Byline reveal ramp. See the effect in `TabContent` for the capture these come from.
+ *
+ * Sized from measurement: atrace put native text-view creation at ~0.52ms each, and each byline
+ * section is its own `<Markdown>`, so four sections per frame stays inside the 120Hz budget of
+ * 8.34ms with room for the traversal and draw sharing the frame. The initial 5 is unchanged — it is
+ * what makes first paint fast. 200 ends the ramp without the section count, which lives in
+ * `ChapterReader`; Psalm 119, the longest chapter, has 176 verses.
+ */
+const BYLINE_INITIAL_SECTIONS = 5;
+const BYLINE_SECTIONS_PER_FRAME = 4;
+const BYLINE_MAX_SECTIONS = 200;
 
 /**
  * Gap between one prewarmed tab and the next, in ms.
