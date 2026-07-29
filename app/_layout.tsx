@@ -41,6 +41,7 @@ import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { preloadAllTopicsCache } from '@/hooks/topics/use-cached-topics';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import {
   trackAudioPlaybackCompleted,
@@ -118,6 +119,10 @@ function RootLayoutInner() {
   const router = useRouter();
   const segments = useSegments();
   const hasInitialized = useRef(false);
+
+  // GH-281: push notifications — foreground handler, login registration, and
+  // tap routing (incl. cold-start).
+  usePushNotifications();
   const [upgradeState, setUpgradeState] = useState<{
     mustUpgrade: boolean;
     currentVersion: string;
