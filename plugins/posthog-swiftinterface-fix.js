@@ -68,8 +68,13 @@ const INJECTION = `
     #
     # Scoped to PostHog by name: a project-wide flip would also silence the check for our own VMText
     # module, where a broken interface would be a real signal.
+    # Matches every PostHog pod, not just the one named in the error. posthog-react-native pulls in the
+    # native PostHog pod AND posthog-react-native-session-replay, which depends on PostHog too -- so
+    # a second Swift pod can hit the identical interface-verification failure and fail the build again.
+    # Still not project-wide: our own VMText module keeps the check, where a broken interface is a real
+    # signal.
     installer.pods_project.targets.each do |target|
-      next unless target.name == 'PostHog'
+      next unless target.name.downcase.include?('posthog')
       target.build_configurations.each do |build_config|
         build_config.build_settings['SWIFT_VERIFY_EMITTED_MODULE_INTERFACE'] = 'NO'
       end
