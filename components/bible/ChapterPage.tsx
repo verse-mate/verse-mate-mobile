@@ -1576,6 +1576,21 @@ export function ChapterPage({
         <Animated.View
           style={[styles.container, styles.absoluteFill, insightContainerStyle]}
           collapsable={false}
+          /**
+           * Rasterized to a hardware layer while it cross-fades.
+           *
+           * The Bible<->Insight toggle animates container OPACITY over two large subtrees, so without
+           * a layer Android re-draws and re-composites BOTH trees every frame of the fade. Measured on
+           * the isolated bible-insight flow: `gpu` 3.5ms and `animation` 5.1ms per frame, with 107 of
+           * 119 frames over the 8.3ms budget — against 62/120 and a p50 at budget for a sub-tab switch,
+           * which snaps instead of fading. This toggle is the expensive interaction on this screen.
+           *
+           * A layer turns the fade into a texture blend: each tree is drawn once, then alpha-composited.
+           * That is exactly what this prop is for, and opacity is the one animation where it is
+           * unambiguously correct — there is no layout change to invalidate it mid-animation.
+           */
+          renderToHardwareTextureAndroid
+
           pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
         >
           {/* Inner tabs use visit-based lazy mount: only mount tabs the
@@ -1711,6 +1726,9 @@ export function ChapterPage({
       <Animated.ScrollView
         ref={animatedScrollRef}
         style={[styles.container, styles.absoluteFill, bibleContainerStyle]}
+        // Same reasoning as the Insight container above: the pair cross-fades, so both need a layer or
+        // the one without it is still re-drawn per frame and the win is halved.
+        renderToHardwareTextureAndroid
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={true}
         testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
