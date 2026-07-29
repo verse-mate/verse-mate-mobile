@@ -514,6 +514,16 @@ export function ChapterReader({
   // `completeRoot`, the largest single frame in the CPU profile. A span says a
   // render happened; only this says why, which is the difference between fixing
   // the cause and memoising something at random.
+  // The list below is deliberately WIDER than "things that should change the render".
+  //
+  // A first-visit capture reported `render.insight.by.nothing-tracked` 33 times: the heaviest subtree
+  // on the screen re-rendering 33 times with no attributable cause. "nothing-tracked" does not mean
+  // nothing changed — it means whatever changed was not being watched, so the counter answered a
+  // question nobody asked. Callback identity is the usual culprit (a parent that rebuilds handlers each
+  // render re-renders every child regardless of whether any DATA moved), and none of the handlers were
+  // in the list; neither was the measured paragraph width, which is local state that changes on layout.
+  //
+  // Watching them costs one Object.is per render each and turns 33 unattributed renders into a name.
   useWhyRender(explanationsOnly ? 'render.insight' : 'render.bible', {
     visibleYRange,
     chapter,
@@ -526,6 +536,17 @@ export function ChapterReader({
     useNativeTextRenderer,
     userFontSize,
     mode,
+    // Identity-churn candidates: props whose VALUE rarely changes but whose identity may.
+    paragraphWidth,
+    bibleVersion,
+    bibleLanguage,
+    notes,
+    onHighlightTap,
+    onLexiconWordPress,
+    onVerseTap,
+    onAutoHighlightPress,
+    style,
+    theme,
   });
 
   /**
