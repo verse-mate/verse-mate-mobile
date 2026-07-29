@@ -32,6 +32,12 @@ final class VMTextView: ExpoView {
   /// Set while reporting layout, so the reported geometry cannot re-enter and loop.
   private var isReportingLayout = false
 
+  /// Last selection dispatched to JS, so an unchanged selection is not re-emitted.
+  /// See `handleSelectionChanged()` for the measurement behind this; mirrors Android's
+  /// `lastSelStart`/`lastSelEnd`.
+  private var lastSelStart = Int.min
+  private var lastSelEnd = Int.min
+
   private let onPress = EventDispatcher()
   private let onRangeTap = EventDispatcher()
   private let onTextLayout = EventDispatcher()
@@ -83,6 +89,11 @@ final class VMTextView: ExpoView {
     guard next != spec else { return }
     spec = next
     textView.attributedText = next.buildAttributedString()
+    // New content means any selection JS knew about is gone, and this view may be reused for a
+    // different piece of text. Clearing the dedup state guarantees the first selection event after a
+    // change is always delivered, so suppressing duplicates can never suppress news. Matches Android.
+    lastSelStart = Int.min
+    lastSelEnd = Int.min
     setNeedsLayout()
     // Underlines are drawn from `ranges`, so a range change has to repaint even when the text did
     // not change — a highlight toggling colour is exactly that case.
@@ -240,18 +251,34 @@ final class VMTextView: ExpoView {
     return charIndex
   }
 
+  /// Emit a selection only when it actually changed.
+  ///
+  /// Mirrors the Android view's `lastSelStart`/`lastSelEnd`, and exists for the same measured reason:
+  /// on Android, `receiveEvent('topSelectionChange')` fired **1254 times in six seconds** across three
+  /// view toggles (1518 `text.selectionEvent` counted on the JS side in one session), overwhelmingly
+  /// "still nothing selected" for views that never had a selection. Cheap natively, but every one
+  /// crosses into JS.
+  ///
+  /// UIKit is at least as chatty as Android here — `textViewDidChangeSelection` fires on caret moves
+  /// and on every `attributedText` assignment — so shipping the dedup on only one platform would mean
+  /// the two behave differently for no reason.
   fileprivate func handleSelectionChanged() {
-    guard let selected = textView.selectedTextRange else {
-      onSelectionChange(["start": -1, "end": -1])
-      return
+    var start = -1
+    var end = -1
+    if let selected = textView.selectedTextRange {
+      let from = textView.offset(from: textView.beginningOfDocument, to: selected.start)
+      let to = textView.offset(from: textView.beginningOfDocument, to: selected.end)
+      // A caret reports start == end; normalise to -1/-1 so JS gets one unambiguous
+      // "nothing selected" signal rather than having to know the convention.
+      if from != to {
+        start = from
+        end = to
+      }
     }
-    let start = textView.offset(from: textView.beginningOfDocument, to: selected.start)
-    let end = textView.offset(from: textView.beginningOfDocument, to: selected.end)
-    if start == end {
-      onSelectionChange(["start": -1, "end": -1])
-    } else {
-      onSelectionChange(["start": start, "end": end])
-    }
+    guard start != lastSelStart || end != lastSelEnd else { return }
+    lastSelStart = start
+    lastSelEnd = end
+    onSelectionChange(["start": start, "end": end])
   }
 }
 
