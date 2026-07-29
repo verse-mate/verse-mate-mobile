@@ -485,8 +485,19 @@ To take the measurement:
 
     eas build --profile preview-perf --platform android
 
-`preview-perf` extends `preview` (same distribution, channel and native config — it cannot drift) and adds
-only `EXPO_PUBLIC_PERF=1`. Then capture as usual: the app emits its report on background, which
+`preview-perf` extends `preview` and overrides only what a measurable build needs:
+
+- `EXPO_PUBLIC_PERF=1` — turns the instrument on outside `__DEV__`.
+- `buildType: apk` + `:app:assembleRelease` — `preview` builds an **`.aab`**, which `adb install`
+  cannot install. A profile whose entire purpose is to be installed and measured must produce an APK;
+  the first version of this profile did not, and would have burned a build to produce an artifact that
+  could not go on the phone.
+- `autoIncrement: false`, `distribution: internal` — this build must never reach a tester, and it should
+  not consume a build number from the real preview lane.
+
+Verified as a precondition: `babel.config.js` is plain `babel-preset-expo` with no
+`transform-remove-console`, so the report still reaches logcat in a release build. If that ever changes,
+this measurement silently returns nothing. Then capture as usual: the app emits its report on background, which
 `adb shell input keyevent KEYCODE_HOME` triggers, and `scripts/perf/capture-baseline.sh` already does.
 
 **Why this is the highest-value next step.** It decides whether the lexicon work (a data-generation change
