@@ -46,6 +46,22 @@ final class VMTextView: ExpoView {
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
 
+    // THIS view must be transparent, not just the text view inside it.
+    //
+    // `UIView.isOpaque` defaults to **true**, and this class overrides `draw(_:)` to stroke underlines
+    // without ever filling `rect`. An opaque view whose `draw` leaves pixels untouched shows undefined
+    // backing store, which composites as BLACK — so every verse block rendered as an opaque black box.
+    // It looked like a theme bug but is not: it is the same black in light and dark mode and in a shade
+    // that appears nowhere in the palette, because it is not a colour anyone chose. Andy caught it on
+    // TestFlight build 105; in dark mode it hides against the dark page, in light mode it makes dark text
+    // on a black card, effectively unreadable.
+    //
+    // Setting both is deliberate: `backgroundColor = .clear` gives `draw(_:)` a transparent base, and
+    // `isOpaque = false` tells CoreAnimation the view genuinely has transparent pixels so it does not
+    // assume full coverage. Either alone leaves the artifact in some compositing paths.
+    backgroundColor = .clear
+    isOpaque = false
+
     textView.isEditable = false
     textView.isSelectable = true
     textView.isScrollEnabled = false
@@ -105,6 +121,15 @@ final class VMTextView: ExpoView {
   override func layoutSubviews() {
     super.layoutSubviews()
     textView.frame = bounds
+    // DEBUG-ONLY: iOS clipped-text diagnosis (Andy, TF 105).
+    //
+    // Lines end MID-WORD ("lowland an", "Great Sea tov") at ~74% of the block width while the view and
+    // its custom underlines extend the full width. Mid-word truncation means glyphs are laid out beyond
+    // where they are painted, i.e. the text CONTAINER is wider than the text VIEW. These four numbers
+    // say which of them is wrong and by how much; remove once fixed.
+    NSLog("[VMTEXTDBG] bounds=%.1f tvFrame=%.1f container=%.1f specWidth=%.1f len=%d",
+          bounds.width, textView.frame.width, textView.textContainer.size.width,
+          spec.widthPt, spec.text.count)
     reportTextLayout()
   }
 
