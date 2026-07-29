@@ -369,7 +369,22 @@ export function ChapterReader({
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
   const { fontSize: userFontSize } = useFontSize();
-  const styles = createStyles(colors, explanationsOnly, userFontSize);
+  /**
+   * Memoised: `createStyles` calls `StyleSheet.create`, and it was running on EVERY render.
+   *
+   * Two costs, one of them non-obvious. The allocation itself is minor. The real one is identity: a
+   * fresh `styles` object every render means every child receiving `styles.something` sees a new prop,
+   * so no consumer can ever be memoised against it — the churn propagates outward from the heaviest
+   * component on the screen.
+   *
+   * Found by widening the render attribution: `render.insight.by.styles` came back 52. That reading is
+   * circular as CAUSATION (a derived value always differs, so it cannot explain why a render happened)
+   * but it is a straight fact about waste, and the fix is the same either way.
+   */
+  const styles = useMemo(
+    () => createStyles(colors, explanationsOnly, userFontSize),
+    [colors, explanationsOnly, userFontSize]
+  );
 
   // Dev-only. This is the mount whose cost the whole native-text project exists
   // to remove — instrumented so the before/after is measured, not asserted.
