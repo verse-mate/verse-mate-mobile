@@ -957,3 +957,28 @@ strongsToSlug     identical across both paths (18081 Strong's numbers)
 fields            lemma/translit/strongs/pos/basicGloss identical for all 18,100
 loaded flag       identical (2177 entries)
 ```
+
+## Repinning a `@versemate/*` package requires a Metro restart with `--clear`
+
+After `bun install` swapped `@versemate/lexicon` to a new commit, the app stopped bundling entirely:
+
+```
+Unable to resolve module ./generated/daniel-4.json
+  from node_modules/@versemate/lexicon/src/manifest.generated.ts
+```
+
+The file exists. It is tracked in git, present in the checkout, and present in the installed package —
+all 1193 generated JSON files were verified there. **Metro's resolver cache was stale**: `bun install`
+replaces the package directory wholesale, and Metro's file map still described the previous one.
+
+Why this is worth writing down rather than shrugging at: the failure *looks* like missing data — a
+generated file that "does not exist" — so the instinct is to go hunting for a broken generator or a
+partial install. It is neither. And it is silent in the other direction too: an in-place edit to a single
+file inside `node_modules` IS picked up (that is how the eager-vs-lazy A/B was run), so the cache only
+misleads you when a whole package changes.
+
+    # after any @versemate/* repin
+    kill the process listening on 8081, then:  bun start --clear
+
+`--clear` costs one full re-transform. Skipping it costs a debugging session chasing a file that is
+sitting right there.
