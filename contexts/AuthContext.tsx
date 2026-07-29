@@ -17,6 +17,7 @@ import {
 import { clearTokenCache } from '@/lib/api/client-interceptors';
 import { analytics, AnalyticsEvent } from '@/lib/analytics';
 import { syncWidgetUserId } from '@/hooks/use-shared-widget-prefs';
+import { unregisterPushOnLogout } from '@/lib/notifications/push-registration';
 import {
   getAuthSession,
   postAuthLogin,
@@ -390,6 +391,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async (): Promise<void> => {
     // Track analytics: fire LOGOUT event before resetting identity
     analytics.track(AnalyticsEvent.LOGOUT, {});
+
+    // GH-281 (D-15): unregister this device's push token while the session is
+    // still valid, so a signed-out device stops receiving the daily verse.
+    // Best-effort — never block logout on it.
+    await unregisterPushOnLogout().catch(() => {});
 
     // Clear tokens and cached user profile from storage
     await clearTokens();
