@@ -1077,3 +1077,42 @@ no longer stalls.
 
 **Method rule, earned expensively:** when one span covers several steps, split the span before theorising
 about which step is slow. Four wrong answers fitted the single number equally well.
+
+## Insight windowing: built, measured, reverted — and the Insight surface is now healthy
+
+Out-of-window byline sections rendered as a spacer of their last-measured height instead of their
+`<Markdown>` subtree, reusing the Bible view's own `isElementVisible` + `sectionLayouts`.
+
+Matched A/B (same binary, same flow, one constant changed, both arms health-gated):
+
+| | window ON | window OFF |
+|---|---|---|
+| `animation` max | 27.39ms | 29.85ms |
+| over 8.34ms budget | 5/577 (0.87%) | 9/550 (1.6%) |
+| p95 | 4.45ms | 4.03ms |
+| VMText creations | **110** | **100** |
+
+**No benefit; slightly more views created.** Reverted.
+
+### The flaw was in the design, and it was written down before it was measured
+
+A section with no measured height *must* render in full — there is no height to put in a spacer, and
+inventing one makes the page jump. On a **first** visit no heights exist, so everything mounts and
+windowing does nothing. The first visit is exactly when the storm happens. Windowing could only ever
+reduce *retained* views afterwards.
+
+That limitation was in the comment I wrote when implementing it. Reading one's own caveat and not
+carrying it through to "so this cannot help the case I am targeting" is a cheaper mistake to catch at the
+design stage than after two device captures.
+
+### More usefully: this surface no longer needs the work
+
+p95 **4.45ms**, max **27ms**, **0.87%** of frames over budget. The 228-view / 119.4ms / 46.70ms storm that
+motivated the task was largely absorbed by the byline per-frame ramp. There is no longer a mount storm
+here to virtualize away.
+
+If someone does revisit it, the missing piece is **estimated** heights so the first pass can window. That
+is safe in one specific way worth knowing: estimates only ever apply BELOW the viewport (sections above
+have already rendered, so their heights are real), so an error changes total content height slightly
+rather than moving the reading position. A retained-view/memory argument may still exist for Psalm 119's
+176 sections — but no memory measurement was taken, so it is not claimed here.
