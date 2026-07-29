@@ -65,6 +65,12 @@
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "94126503648-htsubrfo04f7ef34ig58lsiscj9kbmo6.apps.googleusercontent.com"
       }
     },
+    "preview-perf": {
+      "extends": "preview",
+      "env": {
+        "EXPO_PUBLIC_PERF": "1"
+      }
+    },
     "production": {
       "distribution": "store",
       "channel": "production",
