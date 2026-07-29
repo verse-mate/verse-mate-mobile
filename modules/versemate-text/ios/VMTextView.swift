@@ -29,6 +29,9 @@ final class VMTextView: ExpoView {
   /// Populated by the module's Prop setters; a single `spec` keeps measure and draw from diverging.
   private(set) var spec = VMTextSpec()
 
+  /// The last built attributed string, so a width change can re-apply it without rebuilding.
+  private var builtText: NSAttributedString?
+
   /// Set while reporting layout, so the reported geometry cannot re-enter and loop.
   private var isReportingLayout = false
 
@@ -108,7 +111,11 @@ final class VMTextView: ExpoView {
     transform(&next)
     guard next != spec else { return }
     spec = next
-    textView.attributedText = next.buildAttributedString()
+    // Kept so a width change can RE-APPLY the same string without paying `buildAttributedString()`
+    // again — see `invalidateTextLayout()`, which needs to force UITextView to rebuild its interior.
+    let attributed = next.buildAttributedString()
+    builtText = attributed
+    textView.attributedText = attributed
     // New content means any selection JS knew about is gone, and this view may be reused for a
     // different piece of text. Clearing the dedup state guarantees the first selection event after a
     // change is always delivered, so suppressing duplicates can never suppress news. Matches Android.
@@ -162,6 +169,27 @@ final class VMTextView: ExpoView {
     let full = NSRange(location: 0, length: (spec.text as NSString).length)
     textView.layoutManager.invalidateLayout(forCharacterRange: full, actualCharacterRange: nil)
     textView.layoutManager.invalidateDisplay(forCharacterRange: full)
+
+    // Invalidating the layout manager is NOT sufficient, and a captured screenshot proved it:
+    // after a rapid toggle every line of text was cut at one hard vertical edge at ~31% of the width
+    // while the dotted underlines ran the FULL width. Those underlines come from our own `draw(_:)`
+    // reading this same layout manager — so glyph layout was already correct and full-width. The text
+    // itself is drawn by the UITextView, which IS a UIScrollView and clips to a `contentSize` derived
+    // from the text layout. That contentSize was still the old narrow one, so glyphs past it were never
+    // painted. Hence: correct underlines, truncated text.
+    //
+    // Re-applying the (cached) attributed string is what makes UITextView rebuild its interior,
+    // contentSize included — the same "re-apply at the real width rather than trust it" move Android
+    // makes in VMTextView.kt:117-121. `layoutIfNeeded` then commits it inside this layout pass rather
+    // than a frame later, which is what stops the blank frame from ever being shown.
+    //
+    // Skipped while a selection is active: re-assigning attributedText clears it, and a width change
+    // during an active selection is far rarer than mid-transition ones.
+    if textView.selectedRange.length == 0, let attributed = builtText {
+      textView.attributedText = attributed
+    }
+    textView.setNeedsLayout()
+    textView.layoutIfNeeded()
     setNeedsDisplay()
   }
 
