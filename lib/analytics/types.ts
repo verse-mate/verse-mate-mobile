@@ -68,12 +68,6 @@ export enum AnalyticsEvent {
   WIDGET_TAPPED = 'WIDGET_TAPPED',
   WIDGET_OPENED_VERSE_DETAIL = 'WIDGET_OPENED_VERSE_DETAIL',
   WIDGET_INSTALLED = 'WIDGET_INSTALLED',
-
-  // Push Notification Events (GH-281)
-  NOTIFICATION_TAPPED = 'NOTIFICATION_TAPPED',
-  NOTIFICATION_ENABLED = 'NOTIFICATION_ENABLED',
-  NOTIFICATION_DISABLED = 'NOTIFICATION_DISABLED',
-  NOTIFICATION_PERMISSION_DENIED = 'NOTIFICATION_PERMISSION_DENIED',
 }
 
 // ============================================================================
@@ -371,19 +365,6 @@ export interface WidgetInstalledProperties {
   platform: 'ios' | 'android';
 }
 
-// Push Notification Events (GH-281)
-export interface NotificationTappedProperties {
-  bookId: number;
-  chapterNumber: number;
-  verseStart?: number;
-  verseEnd?: number;
-  type: string;
-}
-
-export type NotificationEnabledProperties = Record<string, never>;
-export type NotificationDisabledProperties = Record<string, never>;
-export type NotificationPermissionDeniedProperties = Record<string, never>;
-
 /**
  * Maps each AnalyticsEvent to its corresponding properties type
  * Enables type-safe tracking calls
@@ -431,11 +412,6 @@ export interface EventProperties {
   [AnalyticsEvent.WIDGET_TAPPED]: WidgetTappedProperties;
   [AnalyticsEvent.WIDGET_OPENED_VERSE_DETAIL]: WidgetOpenedVerseDetailProperties;
   [AnalyticsEvent.WIDGET_INSTALLED]: WidgetInstalledProperties;
-  // Push Notification Events (GH-281)
-  [AnalyticsEvent.NOTIFICATION_TAPPED]: NotificationTappedProperties;
-  [AnalyticsEvent.NOTIFICATION_ENABLED]: NotificationEnabledProperties;
-  [AnalyticsEvent.NOTIFICATION_DISABLED]: NotificationDisabledProperties;
-  [AnalyticsEvent.NOTIFICATION_PERMISSION_DENIED]: NotificationPermissionDeniedProperties;
 }
 
 // ============================================================================
