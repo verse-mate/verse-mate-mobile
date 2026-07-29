@@ -169,6 +169,38 @@ const RUN_GAP_MS = 700;
  * covers a long session; travelling beyond it re-bases while the pager is at rest.
  */
 /**
+ * Navigation trace, tagged so it can be grepped out of Metro's log.
+ *
+ * Added because the chapter picker "lags one selection behind" survived two fixes and a scripted flow that
+ * PASSES — so the scripted interaction is not reproducing the operator's, and another hypothesis would
+ * just be a third guess. This records, at every point that can move the reader, what the route asked for
+ * against what the pager is actually showing. A divergence names itself instead of being inferred.
+ *
+ * Deliberately `console.log` rather than a perf counter: counters aggregate, and what matters here is the
+ * ORDER and the pairing of values within a single navigation.
+ */
+/** Log the currently rendered window once per render, paired with the active index. */
+function logRendered(
+  index: number,
+  rendered: { index: number; loc: ChapterLocation }[]
+): undefined {
+  if (__DEV__) {
+    const active = rendered.find((r) => r.index === index);
+    console.log(
+      `[VMNAV] render {"index":${index},"active":"${active ? keyOf(active.loc) : 'MISSING'}","window":"${rendered
+        .map((r) => keyOf(r.loc))
+        .join(',')}"}`
+    );
+  }
+  return undefined;
+}
+
+function logNav(event: string, data: Record<string, unknown>): void {
+  if (!__DEV__) return;
+  console.log(`[VMNAV] ${event} ${JSON.stringify(data)}`);
+}
+
+/**
  * Last measured pager width, kept at module scope.
  *
  * Seeds the next mount so a remount does not re-render blank for a frame while waiting for
@@ -467,6 +499,14 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
       if (currentLoc && keyOf(currentLoc) === targetKey) return;
 
       perfAdd('gesturePager.externalNav', 1);
+      logNav('externalNav', {
+        target: targetKey,
+        at: currentLoc ? keyOf(currentLoc) : 'none',
+        index: indexRef.current,
+        origin,
+        width,
+        known: indexOfKey.current.get(targetKey) ?? -1,
+      });
       jumpTo(target);
     }, [externalNav, width, jumpTo]);
 
@@ -826,10 +866,12 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
           }
         }}
       >
-        {width > 0 && (
+        {width > 0 && logRendered(index, rendered) === undefined && (
           <GestureDetector gesture={pan}>
             <Animated.View style={[styles.row, { width: SPAN * width }, rowStyle]}>
-              {rendered.map(({ index: i, loc }) => (
+              {/* Trace the rendered set, so "what the screen shows" is in the log next to what the
+                  route asked for. */}
+              {rendered.map(({ index: i, loc }, renderedIdx) => (
                 // Absolutely positioned from the absolute index, so mounting or
                 // unmounting a page cannot move any other page. Chapter-keyed so React
                 // migrates a page's instance rather than repurposing it, which is what
