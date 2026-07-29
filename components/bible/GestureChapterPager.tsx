@@ -394,6 +394,34 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
     }, [booksMetadata, index, minIndexSV, maxIndexSV]);
 
     /**
+     * Move the pager onto `target`, re-basing the index space when it has never been visited.
+     *
+     * Shared by the two paths that can move the reader from outside a gesture — the nav buttons via
+     * `externalNav`, and a route change from the chapter picker — so they cannot drift apart.
+     */
+    const jumpTo = useCallback(
+      (target: ChapterLocation) => {
+        const targetKey = keyOf(target);
+        const known = indexOfKey.current.get(targetKey);
+        if (known !== undefined) {
+          scrollX.value = -(known - origin) * width;
+          setIndex(known);
+          return;
+        }
+        // Somewhere the index space has never reached: re-base around it. Safe because every page
+        // position derives from the index, so this moves everything at once.
+        chapterAt.current = new Map([[0, target]]);
+        indexOfKey.current = new Map([[targetKey, 0]]);
+        originSV.value = -ORIGIN_BACK;
+        setOrigin(-ORIGIN_BACK);
+        scrollX.value = -(0 - -ORIGIN_BACK) * width;
+        setIndex(0);
+        perfAdd('gesturePager.rebased', 1);
+      },
+      [width, origin, scrollX, originSV]
+    );
+
+    /**
      * Follow an EXTERNAL navigation, and nothing else.
      *
      * Keyed on `externalNavSeq` alone. The chapter props are deliberately NOT dependencies:
@@ -417,22 +445,36 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
       if (currentLoc && keyOf(currentLoc) === targetKey) return;
 
       perfAdd('gesturePager.externalNav', 1);
-      const known = indexOfKey.current.get(targetKey);
-      if (known !== undefined) {
-        scrollX.value = -(known - origin) * width;
-        setIndex(known);
-        return;
-      }
-      // Somewhere the index space has never reached: re-base around it. Safe because every
-      // page position derives from the index, so this moves everything at once.
-      chapterAt.current = new Map([[0, target]]);
-      indexOfKey.current = new Map([[targetKey, 0]]);
-      originSV.value = -ORIGIN_BACK;
-      setOrigin(-ORIGIN_BACK);
-      scrollX.value = -(0 - -ORIGIN_BACK) * width;
-      setIndex(0);
-      perfAdd('gesturePager.rebased', 1);
-    }, [externalNav, width, origin, scrollX, originSV]);
+      jumpTo(target);
+    }, [externalNav, width, jumpTo]);
+
+    /**
+     * Follow a navigation that changed the ROUTE without going through `externalNav`.
+     *
+     * The chapter picker does exactly that: it pushes a route, so `bookId`/`chapterNumber` arrive as
+     * new props with no `externalNav.seq` bump — and the pager, which only listened to that seq, stayed
+     * where it was. The header then read "John 1" while the page still showed Genesis 1, which is the
+     * header/content mismatch reported against the nav buttons, reachable by a second route the button
+     * fix never touched. Found by screenshotting the QA flow rather than by any assertion: Maestro's
+     * `assertVisible: "John 1"` PASSED, because the header did say John 1.
+     *
+     * The reason the props were not dependencies before is real and still respected — during a swipe
+     * run the route lags behind the pager, and reacting to that lag is what caused teleports. The
+     * distinction is comparing against the pager's OWN position rather than against the previous props:
+     * if the incoming chapter is not the one currently under the viewport, the change came from outside
+     * and must be followed; if it is, this is the route catching up and there is nothing to do. After a
+     * jump the two agree, so it cannot oscillate.
+     */
+    useEffect(() => {
+      if (width <= 0) return;
+      const target = { bookId, chapterNumber };
+      const currentLoc = chapterAt.current.get(indexRef.current);
+      if (currentLoc && keyOf(currentLoc) === keyOf(target)) return;
+      // An unconsumed externalNav is about to move us; let it, so the two paths cannot both jump.
+      if (externalNav && externalNav.seq !== lastExternalSeqRef.current) return;
+      perfAdd('gesturePager.routeSync', 1);
+      jumpTo(target);
+    }, [bookId, chapterNumber, width, externalNav, jumpTo]);
 
     /**
      * Re-centre the index space when the reader approaches the row's edge.
