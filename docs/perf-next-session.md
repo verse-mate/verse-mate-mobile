@@ -982,3 +982,43 @@ misleads you when a whole package changes.
 
 `--clear` costs one full re-transform. Skipping it costs a debugging session chasing a file that is
 sitting right there.
+
+## Arm C measured: chapter-scoping did NOT fix the block either
+
+Same emulator, health-checked (0 SyntaxError, 0 VMERR, `by.alignment` firing):
+
+| | eager, all 18,100 | lazy Proxy | **chapter-scoped** |
+|---|---|---|---|
+| `data.alignment.first` | 1685.7ms | 13559.9ms | **2532.2ms** |
+| worst JS block | 1404.4ms | 7147.9ms | **1657.5ms** |
+| JS thread blocked | 24.0% | 44.7% | **21.0%** |
+| warm `data.alignment` mean | 308.4ms | 10803.5ms | **461.9ms** |
+
+**No improvement — if anything slightly worse**, though with single runs on hardware already blocking
+21-24% of the time, 1685 vs 2532 is not safely outside noise. What is clear is that removing the
+18,100 entry-object constructions did **not** remove the block.
+
+### Why the diagnosis was still wrong
+
+I claimed the cost was "the 18,100-entry pass" and then only removed *part* of it. Both surviving arms
+still run `strongsToSlug` over all 18,100 entries, executing `normalizeStrongs` — **a regex per entry** —
+on every one. Chapter-scoping skipped the object construction and left that loop untouched.
+
+So the honest state of this investigation: three different data shapes have now been measured (18.7MB
+eager, 1.26MB eager, 1.26MB chapter-scoped) and the ~1.4-2.5s first-call cost is present in all of them.
+The common factor is the whole-lexicon Strong's loop, which none of them changed.
+
+### Stop guessing — instrument the loader
+
+Four hypotheses have been offered for this block and none survived: the file size, the entry
+materialisation, the Proxy (actively harmful), and chapter-scoping. That is the same pattern this document
+already recorded for the `animation` phase, and the same fix applies: **measure inside, don't theorise.**
+
+Add spans around each step of `loadAlignmentFor`'s lite path — the `import()` of the light file, the
+`strongsToSlug` build, the per-chapter merge, and the chapter JSON's own `import()` — and read which one
+owns the time. That is a small change to the package and it settles it in one capture, instead of a fifth
+guess.
+
+Note for whoever does it: `data.alignment.first` currently wraps ALL of the above, so a per-step
+breakdown is the only way to tell them apart. And the aliases/contextual files load in the same
+`Promise.all`, so they are candidates too and have never been measured separately.
