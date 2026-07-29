@@ -47,7 +47,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Dimensions, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -168,6 +168,15 @@ const RUN_GAP_MS = 700;
  * unmounting still cannot disturb any other page. 32 chapters of headroom each way
  * covers a long session; travelling beyond it re-bases while the pager is at rest.
  */
+/**
+ * Last measured pager width, kept at module scope.
+ *
+ * Seeds the next mount so a remount does not re-render blank for a frame while waiting for
+ * `onLayout`. Every pager instance is the same full-width column in the same reader, so the previous
+ * measurement is a correct opening bid — and it is corrected on the very next layout if it is not.
+ */
+let lastPagerWidth = 0;
+
 const ORIGIN_BACK = 32;
 const SPAN = ORIGIN_BACK * 2 + 1;
 
@@ -187,7 +196,21 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
     },
     ref
   ) {
-    const [width, setWidth] = useState(0);
+    /**
+     * Seeded from the window width, not 0.
+     *
+     * The render below is gated on `width > 0`, and `width` used to start at 0 and only become real
+     * when `onLayout` fired — so the pager rendered NOTHING on its first frame, every mount. On device
+     * that is a blank frame before the chapter appears; under Jest `onLayout` never fires at all, so
+     * the tree stayed permanently empty and three chapter-screen tests could not find their content
+     * once this pager became the default. Both are the same bug.
+     *
+     * The window width is available synchronously and the pager fills the screen in every layout the
+     * app has, so it is a correct opening value rather than a guess; `onLayout` still corrects it for
+     * split view and rotation. `lastPagerWidth` then carries the real measurement across remounts, so
+     * only the very first mount of a session uses the window value.
+     */
+    const [width, setWidth] = useState(lastPagerWidth || Dimensions.get('window').width);
 
     /**
      * Absolute index → chapter, filled outwards as the reader travels.
@@ -229,7 +252,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
     /** `scrollX` when the gesture began, so a takeover resumes from the right place. */
     const gestureStart = useSharedValue(0);
     /** Live page width and index bounds, readable from the gesture worklet. */
-    const widthSV = useSharedValue(0);
+    const widthSV = useSharedValue(lastPagerWidth || Dimensions.get('window').width);
     const originSV = useSharedValue(-ORIGIN_BACK);
     const minIndexSV = useSharedValue(0);
     const maxIndexSV = useSharedValue(0);
@@ -740,6 +763,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
         onLayout={(e) => {
           const next = Math.round(e.nativeEvent.layout.width);
           if (next > 0 && next !== width) {
+            lastPagerWidth = next;
             setWidth(next);
             // Keep the current chapter under the viewport across a width change
             // (rotation, split view): every absolute position scales with it.
