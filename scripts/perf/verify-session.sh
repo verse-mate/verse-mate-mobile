@@ -9,6 +9,7 @@
 #   scripts/perf/verify-session.sh              # everything
 #   scripts/perf/verify-session.sh lexicon      # just the lexicon question (fastest, ~3 min)
 #   scripts/perf/verify-session.sh swipe insight
+#   scripts/perf/verify-session.sh study        # just the StudyPanel card ramp (the open question)
 #
 # ## Why a script and not a list of commands in a doc
 #
@@ -25,7 +26,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 WANT=("$@")
-[[ ${#WANT[@]} -eq 0 ]] && WANT=(lexicon swipe insight mount)
+[[ ${#WANT[@]} -eq 0 ]] && WANT=(lexicon swipe insight mount study)
 
 want() { printf '%s\n' "${WANT[@]}" | grep -qx "$1"; }
 step() { printf '\n\033[1m=== %s\033[0m\n' "$*"; }
@@ -102,6 +103,41 @@ if want mount; then
   echo "    + buffer ramp     : worst 48.59ms          peak 48/frame  p95 40/frame"
   echo "  Single captures here are NOISY — the same code produced 261 and 113 created views on"
   echo "  consecutive runs. Compare per-FRAME figures, not totals, and run it twice before believing it."
+fi
+
+# ── 5. Study card ramp — the last unramped Insight surface (84a5ab5) ────────
+#
+# The one open claim in this work, and it is falsifiable. Attributing the WORST single frame of a release
+# capture (37.05ms) put ~23ms of it in React Native's own text views, with VMText absent from the top
+# slices entirely:
+#
+#     12.79ms  n=55   createViewUnsafe(RCTText)
+#      3.49ms  n=68   ReactTextView.setText(ReactTextUpdate)
+#      3.01ms  n=68   ReactTextViewManager.updateState
+#
+# Those are StudyPanel's card CHROME — heading, optional subheading, optional step/range label, and an
+# Ionicons chevron, which is itself a <Text> glyph — for ~14 cards landing in ONE commit.
+#
+# Why this is not the ramp that already failed: the byline reveal's burst was ALREADY two commits 250ms
+# apart, so ramping it moved work without shrinking either commit (59.48 -> 41.89ms). This is one commit
+# carrying the whole burst, which is the case where splitting it should actually cut the max frame.
+#
+# What would falsify it: RCTText-per-frame stays near 55, or the worst frame stays near 37ms (release) /
+# 47ms (dev). Then the commit boundary was not the problem, and the next targets are the chevron glyphs
+# and collapsing each card's heading+subheading into a single VMText.
+if want study; then
+  step "STUDY — did ramping the card chrome cut the worst frame?"
+  # --pre lands on Insight OUTSIDE the window, so `tab-study` is present in the UI dump that resolves the
+  # measured tap. A tap that resolves to a default coordinate measures whatever happened to be there.
+  scripts/perf/capture-atrace.sh study-ramp --pre "commentary-view-toggle:2500" \
+    --taps "tab-study:2500" || echo "  capture FAILED — see output above"
+  echo
+  echo "  ---- before (release build, no card ramp) ----"
+  echo "    worst Choreographer#doFrame  37.05ms"
+  echo "    RCTText created in that frame  55   (68 setText / updateState)"
+  echo "    per-view, RELEASE: VMText 0.176ms · RCTText 0.245ms · RCTView 0.050ms"
+  echo "  A DEV build reads ~2x higher on the same work — compare dev to dev, release to release."
+  echo "  If the worst frame did not move, say so plainly: the burst was not the commit boundary."
 fi
 
 step "Done"
