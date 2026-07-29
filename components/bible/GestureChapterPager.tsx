@@ -236,6 +236,15 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
 
     /** Absolute index of the chapter under the viewport. */
     const [index, setIndex] = useState(0);
+    /**
+     * Bumped whenever the index space is re-based, purely to publish a ref mutation.
+     *
+     * `chapterAt` / `indexOfKey` are refs (they are written from a gesture worklet's JS callback and
+     * from effects, and making them state would re-render on every settle). A re-base rewrites both, and
+     * that rewrite has to reach the render — see the comment at the re-base itself for the bug this
+     * fixes.
+     */
+    const [, setRebaseSeq] = useState(0);
     const indexRef = useRef(0);
     indexRef.current = index;
 
@@ -416,6 +425,19 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
         setOrigin(-ORIGIN_BACK);
         scrollX.value = -(0 - -ORIGIN_BACK) * width;
         setIndex(0);
+        // Force a render, because the two setters above are NO-OPS after the first re-base.
+        //
+        // This is the chapter-picker bug: `chapterAt` is a ref, and the only thing that made the new
+        // map visible was one of those setState calls happening to change value. After a first re-base
+        // both `index` and `origin` are ALREADY 0 and -ORIGIN_BACK, so React bails out of both updates,
+        // never re-renders, and the screen keeps showing the previous chapter while the ref holds the
+        // new one. Every picker jump therefore appeared exactly one selection behind: pick Genesis 5 and
+        // stay on Genesis 1, pick Exodus 3 next and arrive at Genesis 5. Swiping worked because it moves
+        // `index` to a genuinely different value.
+        //
+        // Mutating a ref and hoping an unrelated setState will publish it is the actual defect; an
+        // explicit counter says what it needs.
+        setRebaseSeq((n) => n + 1);
         perfAdd('gesturePager.rebased', 1);
       },
       [width, origin, scrollX, originSV]
