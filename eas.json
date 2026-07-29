@@ -98,6 +98,15 @@
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "true",
         "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
       }
+    },
+    "sim-release": {
+      "extends": "preview-perf",
+      "developmentClient": false,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Release"
+      }
     }
   },
   "submit": {
