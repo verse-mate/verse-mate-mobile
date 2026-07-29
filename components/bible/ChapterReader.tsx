@@ -21,7 +21,7 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
-import type { AlignedToken, LexEntry } from '@versemate/lexicon';
+import { type AlignedToken, type LexEntry, lookupLemma } from '@versemate/lexicon';
 import { getRedLetterVerses } from '@versemate/red-letter';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -916,6 +916,22 @@ export function ChapterReader({
 
   /**
    * Tap on a lexicon-covered word in the verse text — open the popover.
+   *
+   * Opens IMMEDIATELY with whatever entry the chapter already has, then upgrades it.
+   *
+   * The chapter's alignment is loaded with `{ lite: true }`, so its lexicon carries the fields needed
+   * to render a chapter — `lemma`, `translit`, `strongs`, `pos`, `basicGloss`, `loaded` — but not the
+   * prose (`notes`, `semanticRange`, `related`), which is 12.1MB of the 18.7MB lemma file and the whole
+   * reason a chapter open used to block the JS thread for ~2s.
+   *
+   * A word tap is the right moment to pay for that: user-initiated, rare, already asynchronous, and by
+   * then the file is usually long since idle-cached. Opening first and filling in second is also what
+   * the popover already does for non-English versions, where `apiLang` resolves the real card from the
+   * backend — so a progressive fill is the established behaviour here, not a new one.
+   *
+   * Guarded on the tapped lemma still being the active one when the lookup resolves: a reader can tap
+   * a second word while the first is loading, and applying a stale result would show the wrong
+   * definition under the right heading — worse than showing none.
    */
   const handleLexiconWordPress = ({
     surface,
@@ -929,6 +945,21 @@ export function ChapterReader({
     isTheme: boolean;
   }) => {
     setLexiconActive({ surface, token, entry, isTheme });
+
+    // Already has the prose (a HAND_LEXICON entry, or the full path) — nothing to fetch.
+    if (entry.notes || entry.semanticRange || entry.related) return;
+
+    lookupLemma(token.lemma)
+      .then((full) => {
+        if (!full) return;
+        setLexiconActive((current) =>
+          current && current.token.lemma === token.lemma ? { ...current, entry: full } : current
+        );
+      })
+      .catch(() => {
+        // The popover is already open and rendering the light entry; a failed upgrade leaves the
+        // reader with a gloss instead of a blank card, which is the right degradation.
+      });
   };
 
   /**
