@@ -18,7 +18,12 @@ set -uo pipefail
 
 LOG="${1:-}"
 if [[ -z "$LOG" ]]; then
-  PC_LOG='D:/tmp/vm-metro3.log'
+  # Newest vm-metro*.log, not a hardcoded name. Metro gets restarted into a fresh log
+  # (vm-metro3 -> vm-metro4 -> ...) and a pinned path then reports "no errors" from a dead file —
+  # a silent all-clear is the worst possible failure mode for an error checker.
+  PC_LOG="$(pc -s errlog "(Get-ChildItem D:/tmp/vm-metro*.log | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName" 2>/dev/null | tr -d '\r' | tr '\\' '/' | grep -oE 'D:/[^ ]+\.log' | head -1)"
+  PC_LOG="${PC_LOG:-D:/tmp/vm-metro4.log}"
+  echo "reading $PC_LOG" >&2
   TMP="${TMPDIR:-/tmp}/vm-metro-errors.log"
   # Only the error-ish lines are transferred; the full log runs to tens of thousands.
   pc -s probe "(Get-Content '$PC_LOG' | Select-String 'VMERR|ERROR|Exception|Cannot set prop|Already in the pool|Invariant Violation|componentDidCatch|Unable to resolve')" \

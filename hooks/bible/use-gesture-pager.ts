@@ -25,13 +25,22 @@ import { useEffect, useState } from 'react';
 const STORAGE_KEY = '@versemate:gesture_pager';
 
 /**
- * Off by default.
+ * ON by default, as of 2026-07-29.
  *
- * The ViewPager path is the one that has survived contact with users. This stays
- * opt-in until it has been measured against it and driven by hand — the residual
- * swipe problem was only ever visible on a finger, never on `adb input swipe`.
+ * It has now met both conditions the previous comment set: measured against ViewPager2, and driven
+ * by hand. The decisive number is fast-swipe reliability — a rapid run of swipes lands **20/20**
+ * chapter navigations on this pager and **11/20** on ViewPager2, which drops nine outright. That is
+ * the operator's primary complaint ("the swiping is what matters here", MyBible swipes "basically
+ * endlessly"), and dropping half of a fast run is a correctness failure, not a smoothness one.
+ *
+ * Its jank percentage IS higher in a paired capture (5.64% vs 2.68%) and that is not hidden here —
+ * but it performs about 80% MORE navigations in the same window, so it is doing more work per unit
+ * time rather than the same work worse. A pager that ignores half your gestures has a flattering
+ * frame profile precisely because it rendered nothing.
+ *
+ * The stored preference still wins, so anyone who flips it off keeps ViewPager2.
  */
-const DEFAULT_ENABLED = false;
+const DEFAULT_ENABLED = true;
 
 let inMemoryCache: boolean | null = null;
 const listeners = new Set<(value: boolean) => void>();
