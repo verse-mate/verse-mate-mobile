@@ -492,3 +492,118 @@ only `EXPO_PUBLIC_PERF=1`. Then capture as usual: the app emits its report on ba
 **Why this is the highest-value next step.** It decides whether the lexicon work (a data-generation change
 to `@versemate/lexicon`, needing a small generated `strongs -> slug` map plus a lazy definition lookup) is
 worth doing at all. Right now that decision would be a guess about the biggest number on the board.
+
+---
+
+# The animation phase, finally opened up (2026-07-29)
+
+Every finding in this work pointed at one frame phase, `animation`, and `framestats` cannot say what
+executes inside a phase — only where its boundaries are. Three hypotheses were offered for it: one
+confirmed, one wrong, one retracted as untested. That ratio is the signature of guessing, so the phase
+needed naming rather than a fourth theory.
+
+## atrace does name it
+
+Android and React Native both emit named trace slices, and the app's own process emits them under the
+`app` category once `atrace -a <package>` enables it. New tooling:
+
+- `scripts/perf/capture-atrace.sh <label> [--pre "id[:ms] …"] --taps "id[:ms] …"` — starts atrace,
+  drives the interaction by **testID** (resolved from a `uiautomator dump` taken before the window,
+  because the dump itself perturbs the app), stops, pulls the trace, and attributes it.
+- `scripts/perf/atrace-slices.ts` — B/E pairs into per-thread stacks, aggregated by **self** time
+  (duration minus time spent in children). Total wall time double-counts: `animation` totalling 30ms
+  says nothing about which child to fix.
+
+## What the toggle actually spends its time on
+
+Three Bible↔Insight toggles on Acts 23. `animation` x425: p50 0.74ms, p95 7.54ms, **max 46.70ms**,
+20/425 over the 8.34ms budget. Inside it, by self time:
+
+```
+   self(ms)  count  slice
+    119.4     228   SurfaceMountingManager::createViewUnsafe(ViewManagerAdapter_VMText)
+     37.8     425   Choreographer#scheduleVsyncLocked
+     31.6     158   ReactTextViewManager.updateState
+     28.1     108   IntBufferBatchMountItem::mountInstructions::UPDATE_PROPS numInstructions=10
+     13.7       1   IntBufferBatchMountItem::mountInstructions::UPDATE_LAYOUT numInstructions=172
+     12.7       1   IntBufferBatchMountItem::mountInstructions::UPDATE_LAYOUT numInstructions=190
+```
+
+**228 native text views created, ~0.52ms each.** Not a slow animation — a mount storm inside the
+animation phase.
+
+## Two details that changed the fix
+
+Bucketing the creations by time against the known tap times (0.4s → Insight, 2.2s → Bible, 4.0s →
+Insight) was decisive:
+
+```
+VMText:  1.50s:120  1.75s:108        <- ONE burst, ~1.1s AFTER the first tap
+RCTView: 0.50s:2  0.75s:18  1.50s:65  1.75s:59  4.25s:6
+```
+
+1. **The 2nd and 3rd toggles create almost nothing.** The steady-state toggle is already cheap, and
+   the sticky mount (`insightPrewarmed || insightMountAllowed`) works. So mounting is the whole cost,
+   and the earlier toggle work has nothing left to win.
+2. **The burst is not the tap.** It lands ~1.1s later — it is the idle tab prewarm, so the stall
+   arrives *while the reader is reading*, which is worse than a slow tap.
+
+The prewarm's comment says "one tab per idle window". It wasn't achieving that:
+`InteractionManager.runAfterInteractions` resolves immediately when nothing is in flight, and the
+effect re-runs on every `visitedTabs` change, so the remaining tabs chained into consecutive frames —
+one burst, exactly as measured.
+
+## The fix, sized from the measurement
+
+- `NativeMarkdown` mounts `BLOCKS_PER_FRAME = 8` blocks per `requestAnimationFrame`
+  (8 × 0.52 = ~4.2ms against an 8.34ms budget, leaving room for traversal and draw). `rAF` rather
+  than a timer, because a `setTimeout(0)` chain runs several times per frame under load and would
+  coalesce back into the big commit.
+- `PREWARM_TAB_GAP_MS = 250` spaces one prewarmed tab from the next, so two ramps (~14 frames each)
+  cannot overlap and re-create the storm.
+
+## Still open
+
+- `ReactTextViewManager.updateState` x158 — a legacy RN `<Text>` path is still mounting during the
+  toggle. Worth finding which surface: it is 31.6ms that the native renderer was supposed to have
+  replaced.
+- `FabricEventEmitter.receiveEvent('topSelectionChange')` fired **1254 times** in six seconds. Cheap
+  natively (5.0ms total) but it crosses into JS on every one, and nothing needs a selection event from
+  a view that was just created.
+- `createViewUnsafe` at ~0.52ms per view is the real unit cost. Fabric can recycle views per component
+  type; if VMText opted in, the ramp could be shorter as well as smoother.
+
+## Measured result of the ramp (same-scenario A/B, 2026-07-29)
+
+Three Bible↔Insight toggles, the identical flow as the capture above:
+
+| | before | after |
+|---|---|---|
+| `animation` max | **46.70ms** | **20.51ms** |
+| `animation` p95 | 7.47ms | 5.00ms |
+| frames over 8.34ms | 20/425 (4.7%) | 3/333 (0.9%) |
+| VMText created *inside* the phase | 228 | **0** |
+
+Two honest caveats. The two windows are not perfectly matched: the before-capture happened to contain
+the prewarm burst and the after-capture does not, because with the ramp the prewarm finished during the
+7s settle instead of stalling on the first toggle — which is the intended outcome, but it means part of
+the delta is "the work moved out of this window" rather than "the work got cheaper". The total work is
+unchanged by design; only its distribution changed.
+
+Second, a chapter-navigation capture taken the same day did **not** improve — 65 VMText creations still
+land in a single frame, p95 52/frame:
+
+```
+AFTER (chapter nav): 261 creations, peak 100 per 250ms, animation max 59.48ms
+```
+
+That is not the ramp failing. Both changes were verified present in the PC source that Metro serves
+(`BLOCKS_PER_FRAME` x4, `PREWARM_TAB_GAP_MS` x3) and the app was cold-started after the sync, so the
+code is live. The creations in that scenario are the **Bible reader's paragraph views**
+(`ChapterReader` → `ParagraphText` → VMText), a different path that the markdown ramp does not touch:
+it is windowed by viewport, but its mount is not spread across frames.
+
+So: Insight/markdown mounting is fixed, Bible-paragraph mounting is not, and that is the next target —
+the same `rAF` chunk applied to `ChapterReader`'s paragraph groups. Worth measuring before assuming,
+because paragraphs are what the reader looks at on arrival, so a visible top-down ramp there is a UX
+trade the toggle case did not have.
