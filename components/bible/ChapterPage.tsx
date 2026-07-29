@@ -978,16 +978,22 @@ export function ChapterPage({
     return () => handle.cancel();
   }, [isPreloading, insightPrewarmed, insightMountAllowed, visitedTabs]);
 
-  // Eagerly pre-fetch the byline explanation a moment after the chapter
-  // settles so the first tap on the By Line tab finds the data already
-  // cached (no fetch lag, no skeleton). Summary is fetched on mount
-  // because activeTab starts as 'summary'; Study + Visuals are bundled
-  // (no fetch). The 1500ms delay lets the chapter render / scroll into
-  // place before we add another API call to the queue. Skipped for
-  // buffer pages to avoid prefetching for chapters the user may never
-  // actually open.
+  // Eagerly pre-fetch the byline explanation so the first tap on the By Line tab finds the data
+  // already cached (no fetch lag, no skeleton). Summary is fetched on mount because activeTab starts
+  // as 'summary'; Study + Visuals are bundled (no fetch). Skipped for buffer pages to avoid prefetching
+  // chapters the user may never open.
+  //
+  // OPENING INSIGHT SHORTENS THE WAIT. The delay used to be a flat 1500ms from chapter load, chosen to
+  // let the chapter render before adding an API call to the queue — sound while the reader is on the
+  // Bible view. But tapping the Insight toggle is a much stronger signal than a timer: the user is
+  // about to browse tabs. Measured, a first tab visit costs `tab.switch` up to 584ms because the tap
+  // beat the timer and paid the whole fetch.
+  //
+  // So the wait is short once Insight is open and unchanged otherwise: the chapter still gets its quiet
+  // window when nobody is looking at explanations, and the tab is warm by the time a hand reaches it.
   useEffect(() => {
     if (isPreloading) return;
+    const delay = activeView === 'explanations' ? 150 : 1500;
     const t = setTimeout(() => {
       setVisitedTabs((prev) => {
         if (prev.has('byline')) return prev;
@@ -995,9 +1001,9 @@ export function ChapterPage({
         next.add('byline');
         return next;
       });
-    }, 1500);
+    }, delay);
     return () => clearTimeout(t);
-  }, [isPreloading, bookId, chapterNumber]);
+  }, [isPreloading, bookId, chapterNumber, activeView]);
 
   // Fetch explanations lazily — only enable for the active tab or previously visited tabs
   const {
