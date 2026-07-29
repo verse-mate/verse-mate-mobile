@@ -141,6 +141,24 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     /** Last reported layout signature, so identical geometry is not re-emitted. */
     private var lastLayoutKey: String? = null
 
+    /**
+     * Last selection actually dispatched to JS, so an unchanged selection is not re-emitted.
+     *
+     * Android calls `onSelectionChanged` on construction (`setTextIsSelectable` triggers it) and again
+     * on every text change, and for a bare caret it reports start == end — which this view normalises
+     * to -1/-1, i.e. "nothing selected". For a view that never had a selection, that produces a stream
+     * of identical "still nothing selected" events carrying no information.
+     *
+     * An atrace capture of three Bible<->Insight toggles counted
+     * `FabricEventEmitter.receiveEvent('topSelectionChange')` **1254 times in six seconds**, and the JS
+     * side counted `text.selectionEvent` **1518** in one session. Cheap natively — 5.0ms of self time —
+     * but every one crosses into JS, and that cost does not appear in the native trace at all.
+     *
+     * Same idea as `lastLayoutKey` directly above: emit on change, not on notification.
+     */
+    private var lastSelStart = Int.MIN_VALUE
+    private var lastSelEnd = Int.MIN_VALUE
+
     private var downX = 0f
     private var downY = 0f
     private var downTime = 0L
@@ -219,6 +237,11 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       // text first would lay out once with the old metrics and again after.
       text = spec.buildSpannable()
       lastLayoutKey = null
+      // New text means any selection JS knew about is gone, and Fabric may hand this view to a
+      // different piece of content entirely. Clearing the dedup state guarantees the first selection
+      // event after a change is always delivered, so suppressing duplicates can never suppress news.
+      lastSelStart = Int.MIN_VALUE
+      lastSelEnd = Int.MIN_VALUE
       requestLayout()
       invalidate()
     }
@@ -334,12 +357,14 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       // See `readyToDispatch`.
       if (!this@VMTextView.readyToDispatch) return
       val hasSelection = selEnd > selStart
-      this@VMTextView.onSelectionChange(
-        mapOf(
-          "start" to if (hasSelection) selStart else -1,
-          "end" to if (hasSelection) selEnd else -1,
-        )
-      )
+      val start = if (hasSelection) selStart else -1
+      val end = if (hasSelection) selEnd else -1
+      // Emit on CHANGE, not on notification — see lastSelStart/lastSelEnd. Placed after the
+      // readyToDispatch gate so the fields only ever track what JS was actually told.
+      if (start == lastSelStart && end == lastSelEnd) return
+      lastSelStart = start
+      lastSelEnd = end
+      this@VMTextView.onSelectionChange(mapOf("start" to start, "end" to end))
     }
 
     /**

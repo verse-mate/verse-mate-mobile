@@ -32,6 +32,15 @@ import { fetchTaggedChapterAlignment } from '@/services/api-chapter-alignment';
 
 const ENGLISH_VERSION_KEYS = new Set(['NASB1995', 'KJV']);
 
+/**
+ * How many English alignment loads have happened this process.
+ *
+ * Module scope, not a ref: the point is to identify the ONE call that pays the whole-lexicon parse,
+ * and that cost is per-process, not per-component. A ref would restart the count on every remount and
+ * mislabel a warm call as the first.
+ */
+let alignmentCalls = 0;
+
 export function isEnglishVersion(versionKey: string | null | undefined): boolean {
   if (!versionKey) return true;
   return ENGLISH_VERSION_KEYS.has(versionKey);
@@ -58,7 +67,28 @@ export function useChapterAlignment(
         // two whole-lexicon structures (an 18,100-entry object spread, then an
         // Object.entries pass over it) on every chapter that is not already in
         // its module-level cache, none of which depends on the chapter.
-        const endSpan = perfSpan('data.alignment', { book: bookId, chapter: chapterNumber });
+        // FIRST call gets its own span name, because the two costs inside are completely
+        // different and lumping them made the number useless.
+        //
+        // `loadAlignmentFor` awaits `loadGeneratedLexicon()`, an `import()` of an 18MB
+        // `_lemmas.json`, which happens exactly ONCE per process — plus per-chapter work that
+        // happens every time. Reported as one span, `data.alignment` showed mean 1902.6ms over 7
+        // calls and was read (by me) as "13.3s of cost, the biggest item in the app". It is not:
+        // the same report says the JS thread was blocked 5197ms for the WHOLE session, and a span
+        // cannot burn more CPU than the thread was ever blocked. Most of that total is the span
+        // sitting open across an `await`.
+        //
+        // What IS real is one ~2s block, seen as `worst 1991.2ms` / `1946.1ms` / `2162.7ms` /
+        // `2206.7ms` across four independent captures. Splitting the span settles whether that
+        // block is the one-time parse: if `.first` is ~2s and `data.alignment` is small, it is, and
+        // the lexicon work is justified. If both are large, the premise is wrong and the per-chapter
+        // path needs the attention instead.
+        const isFirstAlignment = alignmentCalls === 0;
+        alignmentCalls += 1;
+        const endSpan = perfSpan(isFirstAlignment ? 'data.alignment.first' : 'data.alignment', {
+          book: bookId,
+          chapter: chapterNumber,
+        });
         try {
           const a = await loadAlignmentFor(bookId, chapterNumber);
           if (!cancelled) setAlignment(a);
