@@ -607,3 +607,55 @@ So: Insight/markdown mounting is fixed, Bible-paragraph mounting is not, and tha
 the same `rAF` chunk applied to `ChapterReader`'s paragraph groups. Worth measuring before assuming,
 because paragraphs are what the reader looks at on arrival, so a visible top-down ramp there is a UX
 trade the toggle case did not have.
+
+## Correction: the block ramp was inert, and the real cause was two timers
+
+The section above credits `BLOCKS_PER_FRAME` with the toggle improvement. That was wrong, and the
+correction is worth more than the original claim.
+
+**First, the A/B that killed it.** Same binary, same `insight-tabs.yaml` flow, the only difference
+`BLOCKS_PER_FRAME = 8` vs a value large enough to disable the ramp:
+
+| | ramp on | ramp off |
+|---|---|---|
+| `tab.switch` mean | 35.5ms | **34.7ms** |
+| `view.switch` mean | **36.4ms** | 37.6ms |
+| `anim.tabSwitch.worstFrameMs` | 49 | **42** |
+| `anim.viewSwitch.worstFrameMs` | **44** | 59 |
+| `markdown.native` | **1** | **1** |
+
+Noise in both directions — and `markdown.native` = **1** explains why. The ramp chunks blocks *within*
+one `<Markdown>` instance, but the By Line tab renders **one `<Markdown>` per verse section** (~35 for
+Acts 23, 176 for Psalm 119), each only a few blocks. Chunking inside an instance cannot help a surface
+whose cost is many small instances mounted together. Reverted.
+
+This is the same trap that produced the earlier "five non-improvements": the fix was measured against
+frame phases, which moved, rather than the felt metric, which didn't.
+
+**Second, what the two commits actually were.** `TabContent` revealed byline sections in two discrete
+bumps — 5, then 30 at 200ms, then *everything* at 500ms. Two timers, 300ms apart. The atrace burst was
+**two commits of 120 and 108 views, 250ms apart.** The bumps *are* the burst, and `30 → ∞` is the worst
+of them: it mounts every remaining section at once, 146 more on Psalm 119.
+
+Fixed by ramping `bylineMax` **+4 sections per `requestAnimationFrame`** instead, and by resetting it
+per chapter — `Infinity` was sticky, so the next chapter inherited "reveal everything" and mounted in
+one commit, which is the other place the capture found a storm.
+
+Same-scenario A/B on `next-chapter-button:6500`:
+
+| | two-step timers | per-frame ramp |
+|---|---|---|
+| worst `animation` frame | 59.48ms | **41.89ms** |
+| peak VMText creations in one frame | 65 | **54** |
+| frames over 8.34ms | 27/447 | 25/457 |
+
+**Honest reading: a ~30% cut to the worst frame, and the over-budget count did not move.** 54 creations
+still land in one frame, where +4 sections should be ~12 views. Two candidates, both measurable: the
+Bible view's own mount is not ramped at all on the native path (`bibleSectionsMax` is set straight to
+`POSITIVE_INFINITY`, ChapterPage.tsx:797-812), and React batches several rAF-driven `setState`s into one
+commit whenever the JS thread is blocked — which `data.alignment` does for ~1.9s. So a per-frame ramp
+does not guarantee per-frame commits, and any future ramp must be verified, not assumed.
+
+**And `data.alignment` got worse the closer it was looked at**: this session's capture puts it at 7 calls,
+**mean 1902.6ms, 13.3s total** in an 82s session — not the 543ms recorded earlier. It is far and away the
+largest cost in the app, and `preview-perf` exists to establish whether a release build still pays it.

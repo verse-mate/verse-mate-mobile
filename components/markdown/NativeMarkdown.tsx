@@ -49,16 +49,6 @@ import {
  */
 let lastContentWidth = 0;
 
-/**
- * Blocks mounted per frame. See the ramp in `NativeMarkdown` for the capture behind the number.
- *
- * Sized from measurement, not taste: atrace put `createViewUnsafe(ViewManagerAdapter_VMText)` at
- * ~0.52ms per view, so 8 x 0.52 = ~4.2ms against a 120Hz budget of 8.34ms — about half the frame,
- * leaving the traversal and draw that share it. Raising this trades frame headroom for a shorter
- * ramp; lowering it does the reverse.
- */
-const BLOCKS_PER_FRAME = 8;
-
 /** Vertical rhythm, in dp. Deliberately data rather than a stylesheet so blocks stay one view. */
 const GAP_PARAGRAPH = 12;
 const GAP_HEADING_TOP = 18;
@@ -171,64 +161,6 @@ export function NativeMarkdown({
   );
 
   const usable = compiled?.supported === true && measured !== null;
-  const blockCount = compiled?.blocks.length ?? 0;
-
-  /**
-   * Mount blocks a few per frame instead of all in one commit.
-   *
-   * ## The measurement that motivates this
-   *
-   * An atrace capture over three Bible<->Insight toggles (`scripts/perf/atrace-slices.ts`) attributed
-   * the `animation` phase — the phase every finding in this work has pointed at — for the first time:
-   *
-   *     self(ms)  count  slice
-   *      119.4     228   SurfaceMountingManager::createViewUnsafe(ViewManagerAdapter_VMText)
-   *
-   * 228 native text views created, ~0.52ms each, and **all 228 landed in a single burst spanning two
-   * commits** (120 then 108). The worst `animation` frame in that capture was 46.70ms — five and a
-   * half frames' worth at 120Hz, which is the visible stutter.
-   *
-   * Two details make it worse than a slow first paint. The burst arrives ~1.1s AFTER the toggle,
-   * because it is the idle tab prewarm, not the tap — so the stall lands while the reader is already
-   * reading. And the 2nd and 3rd toggles created almost nothing, confirming the steady-state toggle
-   * is already cheap and that mounting is the entire cost.
-   *
-   * ## Why per-frame chunks
-   *
-   * Nothing about a hidden prewarm needs to complete in one frame; only the total needs to finish
-   * before the user taps. Fabric mounts one commit per frame, so N blocks per commit is a direct
-   * lever on the per-frame cost:
-   *
-   *     8 blocks x ~0.52ms = ~4.2ms  <  8.34ms budget (120Hz)
-   *
-   * leaving room for the traversal and draw that share the frame. A cold *visible* tab now reveals
-   * top-down over a few frames rather than freezing — strictly better than a 46ms stall, and the
-   * common case is the hidden prewarm where it is invisible.
-   *
-   * Driven by `requestAnimationFrame` rather than a timer on purpose: it paces to actual frames, so
-   * the chunk size means what it says. A `setTimeout(0)` chain would run several times per frame
-   * under load and coalesce back into one big commit — the exact thing being fixed.
-   */
-  const [mountLimit, setMountLimit] = useState(BLOCKS_PER_FRAME);
-
-  // A different document restarts the ramp. Keyed on the compiled result rather than on `children`
-  // so a re-render with identical text does not re-mount what is already there.
-  useEffect(() => {
-    setMountLimit(BLOCKS_PER_FRAME);
-  }, [compiled]);
-
-  useEffect(() => {
-    if (!usable || mountLimit >= blockCount) return;
-    const handle = requestAnimationFrame(() => {
-      setMountLimit((current) => Math.min(blockCount, current + BLOCKS_PER_FRAME));
-    });
-    return () => cancelAnimationFrame(handle);
-  }, [usable, mountLimit, blockCount]);
-
-  const visibleBlocks = useMemo(
-    () => (usable ? (compiled?.blocks ?? []).slice(0, mountLimit) : []),
-    [usable, compiled, mountLimit]
-  );
 
   /**
    * Record which path was taken, in an EFFECT rather than during render.
@@ -256,7 +188,7 @@ export function NativeMarkdown({
 
   return (
     <View onLayout={handleLayout} testID={testID}>
-      {visibleBlocks.map((block, index) => (
+      {compiled.blocks.map((block, index) => (
         <BlockView
           // Index is a legitimate key here: blocks are positional and a document has no stable
           // per-block identity to key on. A changed document re-renders wholly regardless.
