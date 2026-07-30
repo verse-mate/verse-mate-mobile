@@ -234,6 +234,19 @@ final class VMTextView: ExpoView {
     // `textLayoutManager` is iOS 16+. Reading it unguarded failed BOTH of the previous builds with
     // "'textLayoutManager' is only available in iOS 16.0 or newer" — and because this line lives in the
     // same function as the repaint fix, it took that fix down with it.
+    // THE decisive measurement for the lazy-layout hypothesis, rather than another inference.
+    //
+    // `firstUnlaidCharacterIndex()` reports where the layout manager has stopped laying out. If the text
+    // renders cut at ~62% and this reports ~62% of the string, lazy layout IS the cause and
+    // `allowsNonContiguousLayout = false` is the right fix. If it reports the FULL length while the screen
+    // is still cut, layout is complete and the fault is purely in drawing — at which point the answer is
+    // to draw the glyphs ourselves from this same layout manager, which is what already makes the
+    // underlines correct in every failed capture.
+    let lm = textView.layoutManager
+    NSLog("[VMTEXTDBG4] firstUnlaid=%d of %d glyphs=%d nonContig=%@ hasNonContig=%@",
+          lm.firstUnlaidCharacterIndex(), (spec.text as NSString).length, lm.numberOfGlyphs,
+          lm.allowsNonContiguousLayout ? "YES" : "no",
+          lm.hasNonContiguousLayout ? "YES" : "no")
     let tk2: String
     if #available(iOS 16.0, *) {
       tk2 = textView.textLayoutManager == nil ? "no" : "YES"
