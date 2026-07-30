@@ -46,17 +46,26 @@ final class VMTextView: ExpoView {
    the same string, but the underlines come from TextKit 1 (complete) and the glyphs from TextKit 2
    (viewport-limited).
    */
-  private let textView: UITextView = {
+  /// The whole TextKit 1 stack. The STORAGE is held here on purpose: `NSTextStorage` owns its layout
+  /// managers, not the reverse, so a locally-created storage would deallocate and leave the layout
+  /// manager without one. Keeping the tuple alive keeps the chain alive.
+  ///
+  /// `0 as CGFloat` is not noise — `CGSize(width: 0, …)` selects the `Int` overload, and
+  /// `.greatestFiniteMagnitude` does not exist on `Int`, which fails as
+  /// "ambiguous use of 'greatestFiniteMagnitude'".
+  private let textKit: (view: UITextView, storage: NSTextStorage) = {
     let storage = NSTextStorage()
     let layoutManager = NSLayoutManager()
     storage.addLayoutManager(layoutManager)
-    // Height unbounded: the view is sized by Yoga from a pre-measured height, and the width is tracked
-    // from the text view (see `widthTracksTextView` below), so only the height needs to be permissive.
-    let container = NSTextContainer(size: CGSize(width: 0, height: .greatestFiniteMagnitude))
+    // Height unbounded: the view is sized by Yoga from a pre-measured height, and the width tracks the
+    // text view, so only the height needs to be permissive.
+    let container = NSTextContainer(size: CGSize(width: 0 as CGFloat, height: .greatestFiniteMagnitude))
     container.widthTracksTextView = true
     layoutManager.addTextContainer(container)
-    return UITextView(frame: .zero, textContainer: container)
+    return (UITextView(frame: .zero, textContainer: container), storage)
   }()
+
+  private var textView: UITextView { textKit.view }
 
   /// Populated by the module's Prop setters; a single `spec` keeps measure and draw from diverging.
   private(set) var spec = VMTextSpec()
