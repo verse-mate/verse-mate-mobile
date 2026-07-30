@@ -24,7 +24,39 @@ import UIKit
  styled run.
  */
 final class VMTextView: ExpoView {
-  private let textView = UITextView()
+  /**
+   Built with an explicit TextKit 1 stack. `UITextView()` would give us TextKit 2, and that is the bug.
+
+   On iOS 15+ a plain `UITextView` uses `NSTextLayoutManager` (TextKit 2), which lays out and renders
+   **only the viewport it thinks is visible**. This class reads the LEGACY `textView.layoutManager`
+   (TextKit 1) for underline geometry and for line reporting, which silently puts the view in a hybrid
+   state: the TextKit 1 numbers are complete and correct while the actual glyph rendering is partial.
+   Passing a container whose layout manager is an `NSLayoutManager` to `UITextView(frame:textContainer:)`
+   opts into TextKit 1 for good.
+
+   That hybrid is what produced the reported bug. On a swipe or rapid Bible/Insight taps the right side of
+   a verse block rendered blank, and scrolling even slightly repaired it permanently — because scrolling is
+   what makes TextKit 2's viewport controller lay out more. Instrumenting 334 layout passes proved the
+   geometry was never at fault: `bounds == textView.frame == container.size == contentSize` in EVERY pass,
+   at both 370pt and 343pt block widths. Two earlier fixes aimed at that geometry (invalidating the layout
+   manager, then re-applying the attributed string) therefore could not have worked, and did not — though
+   the second did fix the toggle path, which resizes an existing view rather than rendering a fresh one.
+
+   The underlines being drawn at full width while the text was cut was the tell all along: both come from
+   the same string, but the underlines come from TextKit 1 (complete) and the glyphs from TextKit 2
+   (viewport-limited).
+   */
+  private let textView: UITextView = {
+    let storage = NSTextStorage()
+    let layoutManager = NSLayoutManager()
+    storage.addLayoutManager(layoutManager)
+    // Height unbounded: the view is sized by Yoga from a pre-measured height, and the width is tracked
+    // from the text view (see `widthTracksTextView` below), so only the height needs to be permissive.
+    let container = NSTextContainer(size: CGSize(width: 0, height: .greatestFiniteMagnitude))
+    container.widthTracksTextView = true
+    layoutManager.addTextContainer(container)
+    return UITextView(frame: .zero, textContainer: container)
+  }()
 
   /// Populated by the module's Prop setters; a single `spec` keeps measure and draw from diverging.
   private(set) var spec = VMTextSpec()
