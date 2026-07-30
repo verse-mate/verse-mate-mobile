@@ -428,6 +428,36 @@ final class VMTextView: ExpoView {
       }
       context.restoreGState()
     }
+
+    // Draw the GLYPHS ourselves, after the underlines so the text sits on top.
+    //
+    // This is the fix, and it is the one the evidence pointed at from the first screenshot. UITextView
+    // does not paint text it has already laid out. Proven, not assumed: `firstUnlaidCharacterIndex()`
+    // reports the FULL string length for every block (271 of 271, 264 of 264, …) with
+    // `hasNonContiguousLayout = no`, while the screen still showed lines cut mid-word. Layout complete,
+    // paint incomplete.
+    //
+    // Everything else was ruled out by measurement first: TextKit 2's viewport (`tk2=no`), a width or
+    // contentSize mismatch (`bounds == frame == container == contentSize` across 300+ passes), stale paint
+    // (an unconditional repaint plus a deferred tick changed nothing), and lazy layout (this probe).
+    //
+    // The tell was always the dotted underlines: complete in EVERY failed capture, from this same layout
+    // manager and this same string. Our drawing works; UITextView's does not. So we draw the text too, and
+    // Android does the equivalent — it owns its layout and pins it for measurement parity.
+    //
+    // Origin `.zero` is correct because `textContainerInset` is zeroed, `lineFragmentPadding` is 0 and the
+    // text view's frame is this view's bounds, so container coordinates and view coordinates coincide —
+    // the same assumption the underline pass above already relies on.
+    //
+    // UITextView still paints whatever it manages to, on top of this. That is harmless: identical glyphs
+    // at identical positions from the same layout, and wherever it paints nothing, ours shows through.
+    // Leaving it in place keeps system selection, the loupe and the Copy menu, which is the entire reason
+    // this class uses a UITextView rather than a UILabel.
+    // `container` and `layoutManager` are already bound at the top of this function by the underline pass.
+    let allGlyphs = layoutManager.glyphRange(for: container)
+    guard allGlyphs.length > 0 else { return }
+    layoutManager.drawBackground(forGlyphRange: allGlyphs, at: .zero)
+    layoutManager.drawGlyphs(forGlyphRange: allGlyphs, at: .zero)
   }
 
   // MARK: - Interaction
