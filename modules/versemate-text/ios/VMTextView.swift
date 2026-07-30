@@ -56,6 +56,19 @@ final class VMTextView: ExpoView {
   private let textKit: (view: UITextView, storage: NSTextStorage) = {
     let storage = NSTextStorage()
     let layoutManager = NSLayoutManager()
+    // Lay the WHOLE block out, always. This is the switch that was cutting the text.
+    //
+    // `allowsNonContiguousLayout` lets NSLayoutManager lay out glyphs on demand and out of order, and
+    // UITextView turns it on for performance. Under it, only the portion the view currently believes it
+    // needs gets laid out and drawn — the rest is blank until something asks for it, which is why
+    // scrolling always repaired it permanently.
+    //
+    // It also explains why every geometry probe looked innocent: querying `usedRect` or a glyph range
+    // FORCES layout for the queried range, so each measurement made itself correct as it was taken
+    // (bounds == frame == container == contentSize in 300+ passes), and the underlines — which we draw
+    // from explicit range queries — were right in every single failed capture while the text was cut.
+    // Same layout manager, but our reads forced layout and UITextView's draw did not.
+    layoutManager.allowsNonContiguousLayout = false
     storage.addLayoutManager(layoutManager)
     // Height unbounded: the view is sized by Yoga from a pre-measured height, and the width tracks the
     // text view, so only the height needs to be permissive.
@@ -157,6 +170,9 @@ final class VMTextView: ExpoView {
     let attributed = next.buildAttributedString()
     builtText = attributed
     textView.attributedText = attributed
+    // Belt and braces with `allowsNonContiguousLayout = false`: ask for the whole block up front so the
+    // first paint has everything, rather than relying on the view to request it.
+    textView.layoutManager.ensureLayout(for: textView.textContainer)
     // New content means any selection JS knew about is gone, and this view may be reused for a
     // different piece of text. Clearing the dedup state guarantees the first selection event after a
     // change is always delivered, so suppressing duplicates can never suppress news. Matches Android.
