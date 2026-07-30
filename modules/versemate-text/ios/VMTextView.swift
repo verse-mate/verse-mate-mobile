@@ -196,9 +196,15 @@ final class VMTextView: ExpoView {
     // first round of instrumentation never captured. `used` is the layout manager's own idea of how wide
     // the text is; if used > contentSize, the scroll view is the thing cutting it.
     let used = textView.layoutManager.usedRect(for: textView.textContainer).width
-    NSLog("[VMTEXTDBG2] bounds=%.1f tv=%.1f container=%.1f content=%.1f used=%.1f len=%d",
-          bounds.width, textView.frame.width, textView.textContainer.size.width,
-          textView.contentSize.width, used, spec.text.count)
+    // `textLayoutManager` is non-nil ONLY under TextKit 2. Geometry has been provably consistent across
+    // 300+ passes, so the remaining question is whether the TextKit 1 opt-in actually took effect. If
+    // this says tk2=YES the force failed; if it says tk2=no then TextKit 2 is not the cause either and
+    // the only reliable route left is to draw the glyphs ourselves from the layout manager we already own
+    // (which is what the Android side does with its StaticLayout).
+    let tk2 = textView.textLayoutManager == nil ? "no" : "YES"
+    NSLog("[VMTEXTDBG3] tk2=%@ bounds=%.1f tv=%.1f layer=%.1f container=%.1f content=%.1f used=%.1f len=%d",
+          tk2, bounds.width, textView.frame.width, textView.layer.bounds.width,
+          textView.textContainer.size.width, textView.contentSize.width, used, spec.text.count)
     reportTextLayout()
   }
 
