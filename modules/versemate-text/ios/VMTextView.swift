@@ -150,6 +150,14 @@ final class VMTextView: ExpoView {
     if abs(previousWidth - bounds.width) > 0.5 {
       invalidateTextLayout()
     }
+    // DEBUG-ONLY: swipe-clipping diagnosis. Reproduced with 4 rapid swipes on the build that already
+    // re-applies the text — so contentSize is still the clip and I need its actual value, which the
+    // first round of instrumentation never captured. `used` is the layout manager's own idea of how wide
+    // the text is; if used > contentSize, the scroll view is the thing cutting it.
+    let used = textView.layoutManager.usedRect(for: textView.textContainer).width
+    NSLog("[VMTEXTDBG2] bounds=%.1f tv=%.1f container=%.1f content=%.1f used=%.1f len=%d",
+          bounds.width, textView.frame.width, textView.textContainer.size.width,
+          textView.contentSize.width, used, spec.text.count)
     reportTextLayout()
   }
 
