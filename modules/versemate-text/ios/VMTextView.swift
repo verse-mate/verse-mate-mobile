@@ -25,26 +25,15 @@ import UIKit
  */
 final class VMTextView: ExpoView {
   /**
-   Built with an explicit TextKit 1 stack. `UITextView()` would give us TextKit 2, and that is the bug.
+   Built with an explicit TextKit 1 stack.
 
-   On iOS 15+ a plain `UITextView` uses `NSTextLayoutManager` (TextKit 2), which lays out and renders
-   **only the viewport it thinks is visible**. This class reads the LEGACY `textView.layoutManager`
-   (TextKit 1) for underline geometry and for line reporting, which silently puts the view in a hybrid
-   state: the TextKit 1 numbers are complete and correct while the actual glyph rendering is partial.
-   Passing a container whose layout manager is an `NSLayoutManager` to `UITextView(frame:textContainer:)`
-   opts into TextKit 1 for good.
+   Not because TextKit 2 caused the clipping — it did not, and a probe proved it (`textLayoutManager` read
+   nil, i.e. TextKit 1 was already active, while the text was still cut). It is here because this class
+   reads the legacy `layoutManager` for underline geometry, line reporting and now glyph drawing, so
+   depending on which engine a plain `UITextView()` happens to give us is an ambiguity worth removing.
+   `UITextView(frame:textContainer:)` with an `NSLayoutManager`-backed container opts in permanently.
 
-   That hybrid is what produced the reported bug. On a swipe or rapid Bible/Insight taps the right side of
-   a verse block rendered blank, and scrolling even slightly repaired it permanently — because scrolling is
-   what makes TextKit 2's viewport controller lay out more. Instrumenting 334 layout passes proved the
-   geometry was never at fault: `bounds == textView.frame == container.size == contentSize` in EVERY pass,
-   at both 370pt and 343pt block widths. Two earlier fixes aimed at that geometry (invalidating the layout
-   manager, then re-applying the attributed string) therefore could not have worked, and did not — though
-   the second did fix the toggle path, which resizes an existing view rather than rendering a fresh one.
-
-   The underlines being drawn at full width while the text was cut was the tell all along: both come from
-   the same string, but the underlines come from TextKit 1 (complete) and the glyphs from TextKit 2
-   (viewport-limited).
+   The actual bug was that UITextView does not paint all the text it has laid out — see `draw(_:)`.
    */
   /// The whole TextKit 1 stack. The STORAGE is held here on purpose: `NSTextStorage` owns its layout
   /// managers, not the reverse, so a locally-created storage would deallocate and leave the layout
@@ -190,72 +179,21 @@ final class VMTextView: ExpoView {
     super.layoutSubviews()
     let previousWidth = textView.frame.width
     textView.frame = bounds
-    // A WIDTH change has to invalidate the cached text layout. Assigning the frame is not enough.
-    //
-    // Reported symptom (Andy, TF 106): on a swipe or on rapid Bible/Insight taps the RIGHT side of a
-    // verse block goes blank, and scrolling even slightly repairs it permanently. That is a stale
-    // layout, not a wrong width — `draw(_:)` and `reportTextLayout()` both call
-    // `layoutManager.ensureLayout(for:)`, which COMPUTES AND CACHES glyph positions. When Yoga hands
-    // this view a new width mid-transition (a pager page coming on screen, the toggle, taps arriving
-    // faster than layout settles), the cached glyphs stay where the old narrower width put them and
-    // nothing marks the view dirty. The next unrelated redraw — a small scroll — fixes it, which is
-    // exactly the reported behaviour.
-    //
-    // Android has always reconciled this and iOS never did; see VMTextView.kt:117-121, whose comment
-    // ("Yoga owns the width … Re-apply at the real width rather than trust it") predicted this class of
-    // bug. This is the missing half of that logic.
+
+    // Re-lay-out on a width change. Kept because it is correct — Android reconciles the same way
+    // (VMTextView.kt:117-121, "Yoga owns the width … Re-apply at the real width rather than trust it") —
+    // but note it was NOT the fix for the reported clipping: instrumentation showed the width never
+    // changes on the swipe path (bounds == frame == container == contentSize across 300+ passes), so this
+    // branch simply never ran there. It does cover the toggle path, which resizes an existing view.
     if abs(previousWidth - bounds.width) > 0.5 {
       invalidateTextLayout()
     }
-    // Repaint after EVERY layout pass, and again on the next runloop tick.
-    //
-    // This is the fix that follows from the evidence instead of from a theory about widths. The one
-    // constant across every reported and captured failure is that A REPAINT FIXES IT — scrolling even
-    // slightly restores the full text permanently. Previous attempts only repainted when the width
-    // changed, and instrumentation then proved the width NEVER changes: across 300+ layout passes, and at
-    // the failing moment itself, bounds == frame == container == contentSize every time. So that repaint
-    // never actually ran, which is why two "fixes" changed nothing on the swipe path.
-    //
-    // The deferred tick matters as much as the immediate one: whatever leaves the first render partial has
-    // already happened by the time `layoutSubviews` returns, so a repaint scheduled for the next tick is
-    // the earliest point that behaves like the user's scroll. Coalesced by `repaintScheduled` so a burst
-    // of layout passes during a swipe cannot queue hundreds of them.
+
+    // Repaint after layout and again on the next tick. Also not the fix — a repaint of a fully laid-out
+    // block still left the text cut, which is what pointed at drawing rather than layout. Retained
+    // because it is cheap, coalesced, and keeps the underline pass in step with any late geometry change.
     schedulePostLayoutRepaint()
-    // DEBUG-ONLY: swipe-clipping diagnosis. Reproduced with 4 rapid swipes on the build that already
-    // re-applies the text — so contentSize is still the clip and I need its actual value, which the
-    // first round of instrumentation never captured. `used` is the layout manager's own idea of how wide
-    // the text is; if used > contentSize, the scroll view is the thing cutting it.
-    let used = textView.layoutManager.usedRect(for: textView.textContainer).width
-    // `textLayoutManager` is non-nil ONLY under TextKit 2. Geometry has been provably consistent across
-    // 300+ passes, so the remaining question is whether the TextKit 1 opt-in actually took effect. If
-    // this says tk2=YES the force failed; if it says tk2=no then TextKit 2 is not the cause either and
-    // the only reliable route left is to draw the glyphs ourselves from the layout manager we already own
-    // (which is what the Android side does with its StaticLayout).
-    // `textLayoutManager` is iOS 16+. Reading it unguarded failed BOTH of the previous builds with
-    // "'textLayoutManager' is only available in iOS 16.0 or newer" — and because this line lives in the
-    // same function as the repaint fix, it took that fix down with it.
-    // THE decisive measurement for the lazy-layout hypothesis, rather than another inference.
-    //
-    // `firstUnlaidCharacterIndex()` reports where the layout manager has stopped laying out. If the text
-    // renders cut at ~62% and this reports ~62% of the string, lazy layout IS the cause and
-    // `allowsNonContiguousLayout = false` is the right fix. If it reports the FULL length while the screen
-    // is still cut, layout is complete and the fault is purely in drawing — at which point the answer is
-    // to draw the glyphs ourselves from this same layout manager, which is what already makes the
-    // underlines correct in every failed capture.
-    let lm = textView.layoutManager
-    NSLog("[VMTEXTDBG4] firstUnlaid=%d of %d glyphs=%d nonContig=%@ hasNonContig=%@",
-          lm.firstUnlaidCharacterIndex(), (spec.text as NSString).length, lm.numberOfGlyphs,
-          lm.allowsNonContiguousLayout ? "YES" : "no",
-          lm.hasNonContiguousLayout ? "YES" : "no")
-    let tk2: String
-    if #available(iOS 16.0, *) {
-      tk2 = textView.textLayoutManager == nil ? "no" : "YES"
-    } else {
-      tk2 = "n/a"
-    }
-    NSLog("[VMTEXTDBG3] tk2=%@ bounds=%.1f tv=%.1f layer=%.1f container=%.1f content=%.1f used=%.1f len=%d",
-          tk2, bounds.width, textView.frame.width, textView.layer.bounds.width,
-          textView.textContainer.size.width, textView.contentSize.width, used, spec.text.count)
+
     reportTextLayout()
   }
 
