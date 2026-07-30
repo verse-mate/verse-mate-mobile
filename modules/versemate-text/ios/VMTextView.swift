@@ -191,6 +191,20 @@ final class VMTextView: ExpoView {
     if abs(previousWidth - bounds.width) > 0.5 {
       invalidateTextLayout()
     }
+    // Repaint after EVERY layout pass, and again on the next runloop tick.
+    //
+    // This is the fix that follows from the evidence instead of from a theory about widths. The one
+    // constant across every reported and captured failure is that A REPAINT FIXES IT — scrolling even
+    // slightly restores the full text permanently. Previous attempts only repainted when the width
+    // changed, and instrumentation then proved the width NEVER changes: across 300+ layout passes, and at
+    // the failing moment itself, bounds == frame == container == contentSize every time. So that repaint
+    // never actually ran, which is why two "fixes" changed nothing on the swipe path.
+    //
+    // The deferred tick matters as much as the immediate one: whatever leaves the first render partial has
+    // already happened by the time `layoutSubviews` returns, so a repaint scheduled for the next tick is
+    // the earliest point that behaves like the user's scroll. Coalesced by `repaintScheduled` so a burst
+    // of layout passes during a swipe cannot queue hundreds of them.
+    schedulePostLayoutRepaint()
     // DEBUG-ONLY: swipe-clipping diagnosis. Reproduced with 4 rapid swipes on the build that already
     // re-applies the text — so contentSize is still the clip and I need its actual value, which the
     // first round of instrumentation never captured. `used` is the layout manager's own idea of how wide
@@ -219,6 +233,36 @@ final class VMTextView: ExpoView {
    The container size is deliberately NOT assigned here — `widthTracksTextView` (set in init) already
    makes it follow the text view, and assigning it manually fights that tracking.
    */
+  /// Set while a deferred repaint is queued, so a burst of layout passes queues exactly one.
+  private var repaintScheduled = false
+
+  /**
+   Force the text to repaint now and again on the next runloop tick.
+
+   `invalidateDisplay` over the whole range is what makes the layout manager re-render glyphs rather than
+   reuse whatever it already put on screen; `setNeedsDisplay()` on both this view and the text view covers
+   our underline pass and the text itself. This is deliberately unconditional — the failure happens with
+   perfectly consistent geometry, so there is no condition to key off.
+   */
+  private func schedulePostLayoutRepaint() {
+    repaintNow()
+    guard !repaintScheduled else { return }
+    repaintScheduled = true
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      self.repaintScheduled = false
+      self.repaintNow()
+    }
+  }
+
+  private func repaintNow() {
+    guard bounds.width > 0, !spec.text.isEmpty else { return }
+    let full = NSRange(location: 0, length: (spec.text as NSString).length)
+    textView.layoutManager.invalidateDisplay(forCharacterRange: full)
+    textView.setNeedsDisplay()
+    setNeedsDisplay()
+  }
+
   private func invalidateTextLayout() {
     guard bounds.width > 0, !spec.text.isEmpty else { return }
     let full = NSRange(location: 0, length: (spec.text as NSString).length)
