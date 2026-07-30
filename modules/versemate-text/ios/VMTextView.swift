@@ -215,7 +215,15 @@ final class VMTextView: ExpoView {
     // this says tk2=YES the force failed; if it says tk2=no then TextKit 2 is not the cause either and
     // the only reliable route left is to draw the glyphs ourselves from the layout manager we already own
     // (which is what the Android side does with its StaticLayout).
-    let tk2 = textView.textLayoutManager == nil ? "no" : "YES"
+    // `textLayoutManager` is iOS 16+. Reading it unguarded failed BOTH of the previous builds with
+    // "'textLayoutManager' is only available in iOS 16.0 or newer" — and because this line lives in the
+    // same function as the repaint fix, it took that fix down with it.
+    let tk2: String
+    if #available(iOS 16.0, *) {
+      tk2 = textView.textLayoutManager == nil ? "no" : "YES"
+    } else {
+      tk2 = "n/a"
+    }
     NSLog("[VMTEXTDBG3] tk2=%@ bounds=%.1f tv=%.1f layer=%.1f container=%.1f content=%.1f used=%.1f len=%d",
           tk2, bounds.width, textView.frame.width, textView.layer.bounds.width,
           textView.textContainer.size.width, textView.contentSize.width, used, spec.text.count)
