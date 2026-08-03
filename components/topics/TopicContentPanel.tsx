@@ -17,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { RenderRules } from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
@@ -72,8 +71,6 @@ function formatVerseNumbers(text: string): string {
     return `**${toSuperscript(Number.parseInt(verseNum, 10))}**${firstChar}`;
   });
 }
-
-const markdownRules: RenderRules = {};
 
 /**
  * Props for TopicContentPanel
@@ -285,7 +282,7 @@ export function TopicContentPanel({
 
                 {/* References Content */}
                 <View style={styles.referencesContainer}>
-                  <Markdown style={markdownStyles} rules={markdownRules}>
+                  <Markdown style={markdownStyles}>
                     {formatVerseNumbers(contentString)
                       .replace(/\n\n/g, '___PARAGRAPH___')
                       .replace(/\n/g, ' ')

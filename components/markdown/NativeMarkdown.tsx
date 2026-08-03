@@ -24,6 +24,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type LayoutChangeEvent, Linking, type TextStyle, View } from 'react-native';
+import type { RenderRules } from 'react-native-markdown-display';
 import { useNativeText } from '@/hooks/bible/use-native-text';
 import { getSharedParser, type MarkdownProps, ReactMarkdown } from '@/lib/markdown/ReactMarkdown';
 import { perfCount } from '@/lib/perf/monitor';
@@ -33,6 +34,7 @@ import {
   type MarkdownBlock,
   type MarkdownStyleConfig,
 } from '@/lib/text/compile-markdown';
+import { wordAtOffset } from '@/lib/text/word-at-offset';
 import {
   isNativeTextAvailable,
   measureTextHeights,
@@ -113,6 +115,27 @@ export type NativeMarkdownProps = MarkdownProps & {
    * thread a flag down, and one toggle still moves everything.
    */
   enabled?: boolean;
+  /**
+   * A word was tapped. Resolved from the native `charOffset`, so this costs ZERO extra views.
+   *
+   * Topics needs every word tappable for a dictionary lookup, and it used to buy that with a
+   * `<HighlightedText>` per markdown text node, which tokenizes per word and emits a `<Text>` per
+   * segment — 7453 `RCTText` views in a four-tab-switch capture. `VMText` reports the character offset
+   * of a tap precisely so a caller can answer "what was tapped" without a node per unit, so one native
+   * view per block is enough.
+   */
+  onWordPress?: (word: string, blockIndex: number) => void;
+  /**
+   * Render rules applied ONLY when the React fallback renders, and deliberately NOT counted as custom
+   * rendering.
+   *
+   * `rules` forces the React path for every caller, always — that is correct, because a span list cannot
+   * express an arbitrary component. But a caller whose rules exist purely to reproduce something the
+   * native path does natively (Topics' tappable words) would then be stuck on the slow renderer forever.
+   * This prop keeps the behaviour where there is no native module — web, Expo Go, Jest — without holding
+   * the native path hostage to it.
+   */
+  fallbackRules?: RenderRules;
   testID?: string;
 };
 
@@ -120,6 +143,8 @@ export function NativeMarkdown({
   children,
   markdownStyle,
   enabled,
+  onWordPress,
+  fallbackRules,
   testID,
   ...markdownProps
 }: NativeMarkdownProps) {
@@ -182,6 +207,23 @@ export function NativeMarkdown({
   }, []);
 
   /** Open the href carried in the tapped range's `tag`. */
+  /**
+   * Resolve which word a tap landed on, from the block's own text.
+   *
+   * A tap on whitespace resolves to nothing and is dropped rather than snapped to a neighbour — opening a
+   * definition for a word the reader did not touch is worse than opening none.
+   */
+  const handleBlockPress = useCallback(
+    (blockIndex: number, charOffset: number) => {
+      if (!onWordPress) return;
+      const text = compiled?.blocks[blockIndex]?.text;
+      if (!text) return;
+      const { word } = wordAtOffset(text, charOffset);
+      if (word) onWordPress(word, blockIndex);
+    },
+    [compiled, onWordPress]
+  );
+
   const handleRangeTap = useCallback(
     (blockIndex: number, rangeIndex: number) => {
       const range = compiledRange(compiled?.blocks[blockIndex]?.ranges, rangeIndex);
@@ -274,7 +316,9 @@ export function NativeMarkdown({
     // itself on the next frame instead of being permanent.
     return (
       <View onLayout={handleLayout} testID={testID}>
-        <ReactMarkdown {...markdownProps}>{children}</ReactMarkdown>
+        <ReactMarkdown {...markdownProps} rules={rules ?? fallbackRules}>
+          {children}
+        </ReactMarkdown>
       </View>
     );
   }
@@ -293,6 +337,7 @@ export function NativeMarkdown({
           fontSize={fontSize}
           height={measured[index]}
           lineHeight={lineHeight}
+          onBlockPress={onWordPress ? handleBlockPress : undefined}
           onRangeTap={handleRangeTap}
           styleConfig={styleConfig}
         />
@@ -310,6 +355,7 @@ function BlockView({
   fontSize,
   height,
   lineHeight,
+  onBlockPress,
   onRangeTap,
   styleConfig,
 }: {
@@ -320,6 +366,7 @@ function BlockView({
   fontSize: number;
   height: number;
   lineHeight: number;
+  onBlockPress?: (blockIndex: number, charOffset: number) => void;
   onRangeTap: (blockIndex: number, rangeIndex: number) => void;
   styleConfig: MarkdownStyleConfig;
 }) {
@@ -342,6 +389,7 @@ function BlockView({
   const text = (
     <VMText
       height={height}
+      onPress={onBlockPress ? (e) => onBlockPress(blockIndex, e.charOffset) : undefined}
       onRangeTap={(rangeIndex) => onRangeTap(blockIndex, rangeIndex)}
       ranges={block.ranges}
       style={{
