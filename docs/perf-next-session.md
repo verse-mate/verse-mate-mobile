@@ -1377,3 +1377,42 @@ earlier in this document for `VMText`. The suspect stands and the lazy-selection
   tracing AND asserts the geometry from the trace itself before printing anything.
 * The geometry check must use the LARGEST drawn surface, not the most frequent: a valid portrait capture's
   most-frequent surface was a 1034x59 overlay that drew 24 times against the app window's 22.
+
+### StudyPanel card ramp — VERIFIED on device (2026-08-03, release build, portrait)
+
+`capture-atrace.sh study-ramp-release --pre "commentary-view-toggle:2500" --taps "tab-study:2500"`, geometry
+asserted `1080x2340`. Trace: `reports/perf/atrace/study-ramp-release.txt`.
+
+**The ramp works.** Per-`animation`-phase `RCTText` creations, app-process-filtered:
+
+    rank  phase(ms)   RCTText in phase
+       1     70.10                   0
+       2     36.62                   0
+       3     16.42                   0
+       7      8.61                  10
+       8      8.14                  18
+
+Baseline was **55 in a single frame**. The burst is now spread across small phases, max 18, and the six
+longest phases contain none at all. That is the mechanism the ramp was built for, confirmed.
+
+**And it did not cut the worst frame.** The worst phase is still 70.10ms, and attributing what is inside it:
+
+       4.25ms  named (mountViews, UPDATE_PROPS, scheduleVsync — all mount work)
+      65.85ms  UNNAMED self time in the Choreographer animation callback
+
+So 94% of the worst first-visit frame is UI-thread work that atrace does not name, and mounting — the thing
+the ramp targeted — is 4.25ms of it. **The ramp fixed what it aimed at; it was not what made the frame slow.**
+The same shape as Topics: mounting addressed, worst frame unchanged and empty of creations.
+
+Next instrument, not next guess: this needs atrace categories that name the missing work (or a Perfetto
+capture with `sched`), because 65.85ms of unnamed UI-thread time cannot be reasoned about from this trace.
+Candidates worth naming rather than assuming: Typeface/Ionicons glyph work, `requestLayout` cascades from the
+reveal animation, and `setTextIsSelectable` on any view mounted in that phase.
+
+**Tooling note.** `scripts/perf/atrace-slices.ts` reports whole-capture totals, so it cannot answer a
+per-FRAME criterion like "RCTText-per-frame stays near 55". The per-phase grouping above came from a
+scratch script; it agreed with the parser on three independent values (506 phases, 7453 creations, 144.36ms
+worst phase for the Topics baseline) only AFTER being filtered to the app process by the trace mark's own
+pid. Unfiltered, it attributed SurfaceFlinger's `captureScreenshot` / `composeSurfaces` / `RegionSampling`
+to the app's worst frame and counted 251 phases where the app had 238. Any future per-frame analysis must
+filter by pid first.
