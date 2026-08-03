@@ -1327,3 +1327,17 @@ on a release APK: 4.85ms average per `VMText` creation is ~28× the 0.17ms/view 
 document, and that gap is too large to be debug overhead alone. Either the release build shows a normal
 per-view cost (in which case this is a debug artifact and there is nothing to fix), or it does not (in which
 case VMText creation itself is doing something expensive for long blocks). Measure first.
+
+**Leading suspect for the expensive `VMText` creation — `setTextIsSelectable(true)`.**
+`VMTextView.kt:196` calls it in `SelectableTextView.init`, and that inner view is built by an outer property
+initializer (`VMTextView.kt:85`), so it runs INSIDE `createViewUnsafe` — exactly the slice that is hot.
+The call is expensive by nature: it installs a TextView `Editor`, switches the text to editable/spannable,
+enables the selection controller, forces `focusable`/`longClickable`, and triggers a layout pass.
+Independent corroboration in the same trace: `FabricEventEmitter.receiveEvent('topSelectionChange')` fired
+**497 times** across 88 views while nothing was ever selected — the selection machinery is live on every view.
+
+If the release capture still shows creation as the hot slice, the experiment is to make selection LAZY —
+construct plain, and call `setTextIsSelectable(true)` on first long-press — then re-measure. Do not ship it
+on the strength of the reasoning above; the reasoning is what a measurement is for. Note the constraint
+recorded at `VMTextView.kt:63-82`: enabling selection synchronously fires `onSelectionChanged`, which
+already caused a StackOverflow once when it ran before the event dispatchers were initialised.
