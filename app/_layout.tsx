@@ -265,7 +265,7 @@ function RootLayoutInner() {
           return;
         }
 
-        const { bookId, chapterNumber, verseStart, verseEnd } = chapterParsed;
+        const { bookId, chapterNumber, verseStart, verseEnd, tab } = chapterParsed;
 
         // Validate bookId (parser already validates 1-66 range)
         if (bookId < 1 || bookId > 66) {
@@ -284,7 +284,9 @@ function RootLayoutInner() {
 
         // Verse-of-the-day widget deep link carries ?verseStart (and ?src=widget).
         // Forward to the reader's existing `verse`/`endVerse` params (scroll +
-        // highlight) and emit the re-entry analytics event.
+        // highlight) and emit the re-entry analytics event. `tab` is forwarded
+        // too — the widget's "Why it matters" zone sends ?tab=summary so the
+        // reader opens straight on that insight.
         const isWidget = url.includes('src=widget');
         if (verseStart) {
           if (isWidget) {
@@ -297,13 +299,15 @@ function RootLayoutInner() {
             });
           }
           router.replace(
-            buildWidgetVerseRoute(bookId, chapterNumber, verseStart, verseEnd, isWidget)
+            buildWidgetVerseRoute(bookId, chapterNumber, verseStart, verseEnd, isWidget, tab)
           );
           return;
         }
 
-        // Navigate to the chapter
-        router.replace(`/bible/${bookId}/${chapterNumber}`);
+        // Navigate to the chapter (preserving a deep-linked insight tab)
+        router.replace(
+          tab ? `/bible/${bookId}/${chapterNumber}?tab=${tab}` : `/bible/${bookId}/${chapterNumber}`
+        );
       } catch (error) {
         // TODO: Track analytics - deep_link_failed with { url, error: error.message }
         console.error('Error handling deep link:', error);

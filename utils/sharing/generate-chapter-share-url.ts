@@ -10,7 +10,7 @@
  * Example: https://app.versemate.org/bible/john/3?tab=summary (John 3 Summary insight)
  */
 
-import type { ContentTabType } from '@/types/bible';
+import { type ContentTabType, isContentTabType } from '@/types/bible';
 import { getBookSlug, parseBookParam } from '../bookSlugs';
 
 /**
@@ -95,6 +95,7 @@ export function parseChapterShareUrl(url: string): {
   chapterNumber: number;
   verseStart?: number;
   verseEnd?: number;
+  tab?: ContentTabType;
 } | null {
   const baseUrl = process.env.EXPO_PUBLIC_WEB_URL;
 
@@ -152,11 +153,18 @@ export function parseChapterShareUrl(url: string): {
     const verseStart = parsePositiveInt(urlObj.searchParams.get('verseStart'));
     const verseEnd = parsePositiveInt(urlObj.searchParams.get('verseEnd'));
 
+    // Optional insight tab (?tab=summary) — set by share links and by the
+    // widget's "Why it matters" tap zone. Unknown values are dropped so a
+    // malformed link still opens the chapter on the default tab.
+    const rawTab = urlObj.searchParams.get('tab');
+    const tab = isContentTabType(rawTab) ? rawTab : undefined;
+
     return {
       bookId,
       chapterNumber,
       ...(verseStart !== undefined ? { verseStart } : {}),
       ...(verseEnd !== undefined ? { verseEnd } : {}),
+      ...(tab !== undefined ? { tab } : {}),
     };
   } catch (error) {
     console.warn('Failed to parse chapter share URL:', error);
@@ -180,6 +188,8 @@ export function parseChapterShareUrl(url: string): {
  * @param verseStart - First verse to scroll to / highlight
  * @param verseEnd - Optional last verse of the passage
  * @param isWidget - Whether the originating link carried `?src=widget`
+ * @param tab - Optional insight tab to open (the widget's note zone sends
+ *   `summary`); forwarded verbatim so the reader's deep-link effect picks it up
  * @returns Reader route, e.g. `/bible/43/3?verse=16&endVerse=18&src=widget`
  */
 export function buildWidgetVerseRoute(
@@ -187,11 +197,13 @@ export function buildWidgetVerseRoute(
   chapterNumber: number,
   verseStart: number,
   verseEnd: number | undefined,
-  isWidget: boolean
+  isWidget: boolean,
+  tab?: ContentTabType
 ): string {
   const verseParams = new URLSearchParams();
   verseParams.set('verse', String(verseStart));
   if (verseEnd) verseParams.set('endVerse', String(verseEnd));
   if (isWidget) verseParams.set('src', 'widget');
+  if (tab) verseParams.set('tab', tab);
   return `/bible/${bookId}/${chapterNumber}?${verseParams.toString()}`;
 }
