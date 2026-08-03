@@ -68,6 +68,11 @@ tags:
 - tapOn:
     id: "topics-search-input"
 - inputText: "Creation"
+# The IME covers the result list, and on this phone in LANDSCAPE it covers essentially all of it — a
+# screenshot of the failure showed "Creation" typed with the keyboard filling the screen and no list at all,
+# so the title assertion below failed against a perfectly working app. Callers should also lock portrait,
+# since the perf baseline was captured in portrait and a different orientation is a different layout.
+- hideKeyboard
 - extendedWaitUntil:
     visible:
       text: "The Creation of the World"
