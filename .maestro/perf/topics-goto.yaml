@@ -7,24 +7,64 @@ tags:
 
 # Navigation only. Exists because a COLD measurement is the only one that can tell the two renderers apart:
 # warm tab switches mount nothing on either arm — measured, a warm switch created ZERO views and still hit a
-# 163.9ms frame — so the difference only shows on first visit.
+# 163.9ms frame — so the difference only shows on a first visit.
 #
 # `capture-atrace.sh` resolves testIDs and cannot type, and reaching a topic needs TEXT INPUT because the
-# topic list order is not stable. So the navigation lives here, and the capture script then taps the tabs.
+# topic list order is not stable. So navigation lives here, and the capture script then taps the tabs.
 #
-# Ends on the topic's BIBLE view, with only the default tab mounted, so the following taps are first visits.
+# ## Why this does NOT use shared/reset-to-reader.yaml
+#
+# That flow asserts `chapter-selector-button`, which only exists in the Bible reader. The app restores its
+# last route, so after a force-stop it can come back on the TOPICS screen, where the selector is
+# `topic-selector-button` — and the flow then fails at step one against a perfectly healthy app. Hit that
+# twice today. Both selectors open the SAME navigation modal, so tapping whichever is present is strictly
+# more robust and costs nothing.
 
-- runFlow: shared/reset-to-reader.yaml
+# NO `launchApp` — deliberately. On a DEV-CLIENT build the default activity is
+# `expo.modules.devlauncher.launcher.DevLauncherActivity`, so `launchApp` lands on the "Development
+# servers" screen where none of the app's testIDs exist, and every selector below misses. Confirmed from
+# `dumpsys activity activities`. The caller starts the app via the dev-client deep link (which loads the
+# bundle) and waits for `[VMPERF] monitor started` BEFORE running this flow — the same launch path that
+# capture-baseline.sh uses for the same reason.
 
+# Onboarding only appears on a fresh install; harmless otherwise.
 - tapOn:
-    id: "chapter-selector-button"
+    text: "Skip"
+    optional: true
+
+# Wait for the app itself, not just the process: `runFlow: when: visible:` is an INSTANT check with no
+# wait, so without this both selector conditionals below evaluated against an unrendered screen, neither
+# fired, and the flow failed on a modal that was never opened.
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-button"
+    timeout: 60000
+
+# Whichever screen the app restored to, open the navigation modal from its own selector.
+- runFlow:
+    when:
+      visible:
+        id: "topic-selector-button"
+    commands:
+      - tapOn:
+          id: "topic-selector-button"
+- runFlow:
+    when:
+      visible:
+        id: "chapter-selector-button"
+    commands:
+      - tapOn:
+          id: "chapter-selector-button"
+
 - extendedWaitUntil:
     visible:
       id: "bible-navigation-modal"
-    timeout: 10000
+    timeout: 20000
 - tapOn:
     id: "tab-topics"
 - waitForAnimationToEnd
+
+# Filter by name — topic list order is not stable, so selecting by position would drift.
 - tapOn:
     id: "topics-search-input"
 - inputText: "Creation"
@@ -34,6 +74,8 @@ tags:
     timeout: 15000
 - tapOn:
     text: "The Creation of the World"
+
+# The pager builds prev/current/next; wait for it to settle so the capture starts from a quiet screen.
 - extendedWaitUntil:
     visible:
       id: "topic-pager-ready"
