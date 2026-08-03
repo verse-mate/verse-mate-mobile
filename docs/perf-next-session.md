@@ -1341,3 +1341,39 @@ construct plain, and call `setTextIsSelectable(true)` on first long-press — th
 on the strength of the reasoning above; the reasoning is what a measurement is for. Note the constraint
 recorded at `VMTextView.kt:63-82`: enabling selection synchronously fires `onSelectionChanged`, which
 already caused a StackOverflow once when it ran before the event dispatchers were initialised.
+
+### Topics — the VALID release-vs-release comparison (2026-08-03)
+
+Trace: `reports/perf/atrace/topics-release-p2.txt`. Both arms are RELEASE builds in PORTRAIT (`1080x2340`,
+asserted from each trace's own `Drawing` slices), same tap sequence, same parser.
+
+| metric | baseline | after |
+|---|---|---|
+| `createViewUnsafe(RCTText)` | 7453 (36.7ms self) | **0** |
+| `createViewUnsafe(ViewManagerAdapter_VMText)` | 0 | 88 (124.5ms self, max 24.90ms) |
+| `ReactTextViewManager.updateState` | 604 calls, 105.8ms self, max 13.17ms | **absent** |
+| `ReactTextView.onMeasure` | 575 calls, 20.4ms self, max 5.39ms | **absent** |
+| `Constructing StaticLayout` | 575, 52.7ms self | 62, 30.2ms self |
+| worst `animation` phase | **144.36ms** | **52.39ms** |
+| `animation` total | 665.6ms | 490.4ms |
+| `traversal` — count / self / max | 137 / 212.8ms / **154.88ms** | 41 / 12.7ms / **13.47ms** |
+| `animation` phases over the 8.34ms budget | 7/506 (1.4%) | 17/372 (**4.6%**) |
+
+The worst stall is down ~64% and `traversal` — the thing the whole diagnosis rested on — is down ~91%. React
+Native's text machinery is gone from the trace entirely rather than merely reduced.
+
+**The honest negative: over-budget phases got MORE frequent, 1.4% → 4.6%.** That is not noise and it follows
+from the change: 7453 tiny mounts became 88 chunky ones, so the total is far lower but individual phases are
+likelier to cross 8.34ms. A single `VMText` creation still costs up to 24.90ms — three frame budgets. Net
+this is a large win (the perceptible stall is what a reader feels), but it is not "Topics is now smooth".
+
+**`setTextIsSelectable` is NOT just debug overhead.** Per-creation cost is 1.41ms on release (124.5/88)
+against 4.85ms on debug — so debug inflated it ~3.4×, but 1.41ms is still ~8× the 0.17ms/view recorded
+earlier in this document for `VMText`. The suspect stands and the lazy-selection experiment is worth running.
+
+**Method notes, both of which produced discarded runs today:**
+* Two release captures silently recorded in LANDSCAPE, and their numbers looked BETTER than portrait
+  (less content fits, so fewer views stay resident). `capture-atrace.sh` now locks portrait seconds before
+  tracing AND asserts the geometry from the trace itself before printing anything.
+* The geometry check must use the LARGEST drawn surface, not the most frequent: a valid portrait capture's
+  most-frequent surface was a 1034x59 overlay that drew 24 times against the app window's 22.
