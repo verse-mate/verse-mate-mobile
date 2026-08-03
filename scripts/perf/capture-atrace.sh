@@ -132,6 +132,30 @@ print("\n".join(out))
 PY
 }
 
+# --- geometry: lock portrait HERE, seconds before the trace -------------------
+#
+# Orientation decides the layout, the line breaking, and therefore how many views are resident, so a
+# landscape capture cannot be compared to a portrait one. This lives inside the capture script and not in
+# the caller because the drift is time-dependent: a caller locked portrait, the window manager confirmed
+# `cur=1080x2340`, and by the time this script ran minutes later the phone was back in landscape and
+# produced a whole set of unusable numbers. `accelerometer_rotation` had flipped 0 -> 1 on its own — this is
+# the operator's daily-driver phone, so auto-rotate gets re-enabled outside our control. The only reliable
+# window is the one right before tracing.
+#
+# EXPECTED_GEOMETRY is asserted again AFTER the trace, at the bottom of this script. That second check is
+# the one that matters: it makes a wrong-geometry capture impossible to read as a result.
+EXPECTED_GEOMETRY='1080x2340'
+step "Locking portrait ($EXPECTED_GEOMETRY) — orientation changes what is being measured"
+adb_sh 'shell settings put system accelerometer_rotation 0' >/dev/null 2>&1 || true
+adb_sh 'shell settings put system user_rotation 0' >/dev/null 2>&1 || true
+sleep 2
+CUR="$(adb_sh "shell dumpsys window displays" | grep -o 'cur=[0-9]*x[0-9]*' | head -1)"
+echo "  window manager reports: ${CUR:-unknown}"
+[[ "$CUR" == "cur=$EXPECTED_GEOMETRY" ]] \
+  || die "display is $CUR, expected cur=$EXPECTED_GEOMETRY.
+Rotate the phone to portrait (or stop using it) and re-run. Measuring another geometry produces numbers that
+look valid and cannot be compared to anything."
+
 if [[ -n "$PRE" ]]; then
   step "Warm-up taps (outside the trace): $PRE"
   PRE_TAPS="$(resolve_taps "$PRE")" || die "could not resolve --pre testIDs"
@@ -178,6 +202,27 @@ step "Pulling the trace"
 TRACE="$OUT/$LABEL.txt"
 scp -q -o ConnectTimeout=20 "thorspc:D:/tmp/vm-atrace-$LABEL.txt" "$TRACE" || die "scp of the trace failed"
 ls -la "$TRACE"
+
+# Assert the geometry the trace ACTUALLY recorded, from the trace itself.
+#
+# This is the check that matters, and it goes before the numbers are printed rather than after. The phone
+# rotated BETWEEN a caller's verified portrait lock and this capture once already; the resulting landscape
+# numbers looked better than the portrait ones (landscape has less vertical space, so fewer sections stay
+# resident) and would have been quoted as a win. The window manager's own `Drawing` slices are the ground
+# truth for what was rendered, so they cannot drift away from the measurement the way a pre-flight read can.
+step "Verifying the trace's own geometry"
+# The app window is the LARGEST drawn surface, not the most frequent one. Picking "most frequent" was wrong
+# and a self-test caught it: a valid portrait capture reported 1034x59, a small overlay surface that drew 24
+# times against the app window's 22. That check would have rejected a good capture.
+TRACE_GEOM="$(grep -o 'Drawing  *[0-9.]*  *[0-9.]*  *[0-9.]*  *[0-9.]*' "$TRACE" \
+  | awk '{w=$4; h=$5; a=w*h; if (a>best) { best=a; g=int(w)"x"int(h) } } END { print g }')"
+echo "  largest Drawing surface (the app window): ${TRACE_GEOM:-none found}"
+if [[ "$TRACE_GEOM" != "$EXPECTED_GEOMETRY" ]]; then
+  echo "  trace kept for inspection at: $TRACE" >&2
+  die "the trace was recorded at $TRACE_GEOM, not $EXPECTED_GEOMETRY.
+The phone rotated during the capture. NOT printing the numbers: they are not comparable to anything measured
+at $EXPECTED_GEOMETRY, and a landscape capture reads as an improvement purely because less content fits."
+fi
 
 step "Attributing"
 cd "$REPO_ROOT"
