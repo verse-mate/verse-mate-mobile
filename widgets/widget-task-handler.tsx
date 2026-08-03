@@ -12,7 +12,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking } from "react-native";
 import type { WidgetTaskHandlerProps } from "react-native-android-widget";
-import { VerseOfTheDayWidget } from "./VerseOfTheDayWidget";
+import { VerseOfTheDayWidget, type WidgetSize } from "./VerseOfTheDayWidget";
 
 const BIBLE_VERSION_KEY = "bible-version";
 const DEFAULT_VERSION = "NASB1995";
@@ -49,6 +49,38 @@ interface VerseResponse {
     verseEnd: number | null;
   };
   fallbackMessage?: string;
+  versionKey?: string;
+  /**
+   * Short "why it matters" summary for the expanded widget (design: ≤220 chars).
+   * NOT served by /bible/verse-of-the-day yet — the field is read optionally so
+   * the note panel lights up the day the API starts returning it, and the
+   * expanded size falls back to a verse-only composition until then.
+   */
+  explanation?: string | null;
+}
+
+/**
+ * Insight tab the note block opens. `summary` is the reader's short overview
+ * tab — the in-app counterpart of the widget's "Why it matters" panel.
+ */
+const NOTE_TAB = "summary";
+
+/** Provider that paints the 4×4 "verse + why it matters" composition. */
+const NOTE_WIDGET_NAME = "VerseOfTheDayNote";
+
+/**
+ * Which composition to paint, from the widget's provider name (app.config.js).
+ *
+ * Deliberately NOT derived from `widgetInfo.height`: in portrait the library
+ * reports OPTION_APPWIDGET_MAX_HEIGHT — the provider's maximum resize bound, not
+ * the widget's current height — so a 4×2 and a 4×4 both report 358dp on the
+ * Pixel launcher (measured on an API 35 emulator, confirmed against the
+ * launcher's own `getMinMaxSizes: Rect(360, 210 - 676, 358)`). Thresholding that
+ * value silently painted the expanded layout inside a 4×2 cell. The name is the
+ * one signal that actually distinguishes them.
+ */
+export function pickWidgetSize(widgetName: string): WidgetSize {
+  return widgetName === NOTE_WIDGET_NAME ? "expanded" : "compact";
 }
 
 function localDate(): string {
@@ -56,11 +88,16 @@ function localDate(): string {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
 }
 
-export function buildDeepLink(ref?: VerseResponse["reference"]): string {
-  if (!ref) return `${DEEP_LINK_BASE}/1/1?src=widget`;
+/**
+ * Build the widget's tap deep link. Pass `tab` for the note block's zone so the
+ * reader opens on that insight tab (design 2B: two tap zones, one per block).
+ */
+export function buildDeepLink(ref?: VerseResponse["reference"], tab?: string): string {
+  const suffix = tab ? `&src=widget&tab=${tab}` : "&src=widget";
+  if (!ref) return `${DEEP_LINK_BASE}/1/1?src=widget${tab ? `&tab=${tab}` : ""}`;
   let url = `${DEEP_LINK_BASE}/${ref.bookId}/${ref.chapterNumber}?verseStart=${ref.verseStart}`;
   if (ref.verseEnd) url += `&verseEnd=${ref.verseEnd}`;
-  return `${url}&src=widget`;
+  return `${url}${suffix}`;
 }
 
 export interface WidgetVerseData {
@@ -71,6 +108,12 @@ export interface WidgetVerseData {
   deepLink: string;
   /** Message rendered when `verses` is null. */
   fallbackText: string;
+  /** Same target as `deepLink`, but opens the reader's insight tab. */
+  noteDeepLink: string;
+  /** Translation label for the expanded header; empty when unknown. */
+  versionLabel: string;
+  /** "Why it matters" summary; null until the API serves one. */
+  explanation: string | null;
 }
 
 export async function fetchVerse(): Promise<WidgetVerseData> {
@@ -90,26 +133,36 @@ export async function fetchVerse(): Promise<WidgetVerseData> {
     const data = (await res.json()) as VerseResponse;
     if (data.empty || !data.verses?.length) {
       return {
-        verses: null,
-        reference: "",
+        ...emptyState(data.fallbackMessage ?? FALLBACK_MESSAGE),
         deepLink: buildDeepLink(data.reference),
-        fallbackText: data.fallbackMessage ?? FALLBACK_MESSAGE,
+        noteDeepLink: buildDeepLink(data.reference, NOTE_TAB),
       };
     }
     return {
       verses: data.verses,
       reference: data.referenceText ?? "",
       deepLink: buildDeepLink(data.reference),
+      noteDeepLink: buildDeepLink(data.reference, NOTE_TAB),
       fallbackText: FALLBACK_MESSAGE,
+      versionLabel: data.versionKey ?? "",
+      explanation: data.explanation ?? null,
     };
   } catch {
-    return {
-      verses: null,
-      reference: "",
-      deepLink: `${DEEP_LINK_BASE}/1/1?src=widget`,
-      fallbackText: FALLBACK_MESSAGE,
-    };
+    return emptyState(FALLBACK_MESSAGE);
   }
+}
+
+/** Verse-less state: a tap-to-open fallback pointing at Genesis 1. */
+function emptyState(fallbackText: string): WidgetVerseData {
+  return {
+    verses: null,
+    reference: "",
+    deepLink: `${DEEP_LINK_BASE}/1/1?src=widget`,
+    noteDeepLink: `${DEEP_LINK_BASE}/1/1?src=widget`,
+    fallbackText,
+    versionLabel: "",
+    explanation: null,
+  };
 }
 
 export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
@@ -121,22 +174,19 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
       // outcome. fetchVerse no longer rejects, but guard the whole render so
       // any unexpected failure still paints a tap-to-open fallback. Render a
       // light + dark variant so the widget matches the launcher's theme.
+      // Which provider was placed picks the composition (design 2B: 4×2 vs 4×4).
+      const size = pickWidgetSize(props.widgetInfo.widgetName);
       try {
         const data = await fetchVerse();
         props.renderWidget({
-          light: <VerseOfTheDayWidget {...data} theme="light" />,
-          dark: <VerseOfTheDayWidget {...data} theme="dark" />,
+          light: <VerseOfTheDayWidget {...data} size={size} theme="light" />,
+          dark: <VerseOfTheDayWidget {...data} size={size} theme="dark" />,
         });
       } catch {
-        const fallback: WidgetVerseData = {
-          verses: null,
-          reference: "",
-          deepLink: `${DEEP_LINK_BASE}/1/1?src=widget`,
-          fallbackText: FALLBACK_MESSAGE,
-        };
+        const fallback = emptyState(FALLBACK_MESSAGE);
         props.renderWidget({
-          light: <VerseOfTheDayWidget {...fallback} theme="light" />,
-          dark: <VerseOfTheDayWidget {...fallback} theme="dark" />,
+          light: <VerseOfTheDayWidget {...fallback} size={size} theme="light" />,
+          dark: <VerseOfTheDayWidget {...fallback} size={size} theme="dark" />,
         });
       }
       break;

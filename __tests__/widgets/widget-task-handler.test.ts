@@ -13,6 +13,13 @@
 
 // Pin web/api hosts BEFORE importing the handler — both read process.env at
 // module load time.
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  buildWidgetVerseRoute,
+  parseChapterShareUrl,
+} from '@/utils/sharing/generate-chapter-share-url';
+import { buildDeepLink, fetchVerse, pickWidgetSize } from '@/widgets/widget-task-handler';
+
 process.env.EXPO_PUBLIC_WEB_URL = 'https://app.versemate.org';
 process.env.EXPO_PUBLIC_API_URL = 'https://api.versemate.org';
 
@@ -22,10 +29,6 @@ jest.mock('react-native-android-widget', () => ({
   FlexWidget: 'FlexWidget',
   TextWidget: 'TextWidget',
 }));
-
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { parseChapterShareUrl } from '@/utils/sharing/generate-chapter-share-url';
-import { buildDeepLink, fetchVerse } from '@/widgets/widget-task-handler';
 
 const originalFetch = global.fetch;
 
@@ -73,6 +76,60 @@ describe('widget-task-handler', () => {
       const parsed = parseChapterShareUrl(url);
       expect(parsed).toEqual({ bookId: 1, chapterNumber: 1 });
     });
+
+    // The expanded widget's "Why it matters" block is a second tap zone that must
+    // land on the reader's summary tab — the full chain the tap travels:
+    // buildDeepLink → parseChapterShareUrl → buildWidgetVerseRoute.
+    it('carries the note zone tab through to the reader route', () => {
+      const ref = { bookId: 19, chapterNumber: 139, verseStart: 14, verseEnd: null };
+      const url = buildDeepLink(ref, 'summary');
+
+      expect(url).toContain('src=widget');
+      expect(url).toContain('tab=summary');
+
+      const parsed = parseChapterShareUrl(url);
+      expect(parsed).toEqual({
+        bookId: 19,
+        chapterNumber: 139,
+        verseStart: 14,
+        tab: 'summary',
+      });
+
+      const route = buildWidgetVerseRoute(
+        // biome-ignore lint/style/noNonNullAssertion: asserted non-null above
+        parsed!.bookId,
+        // biome-ignore lint/style/noNonNullAssertion: asserted non-null above
+        parsed!.chapterNumber,
+        14,
+        undefined,
+        true,
+        parsed?.tab
+      );
+      expect(route).toBe('/bible/19/139?verse=14&src=widget&tab=summary');
+    });
+
+    it('drops an unknown tab rather than forwarding it', () => {
+      const ref = { bookId: 43, chapterNumber: 3, verseStart: 16, verseEnd: null };
+      const parsed = parseChapterShareUrl(buildDeepLink(ref, 'not-a-tab'));
+      expect(parsed).toEqual({ bookId: 43, chapterNumber: 3, verseStart: 16 });
+    });
+  });
+
+  // The design's two Android compositions ship as two providers, because the
+  // widget's own height is not discoverable (portrait reports the provider's max
+  // resize bound: a 4×2 and a 4×4 both read 358dp on the Pixel launcher).
+  describe('pickWidgetSize', () => {
+    it('selects the composition from the provider name, not a size', () => {
+      expect(pickWidgetSize('VerseOfTheDay')).toBe('compact');
+      expect(pickWidgetSize('VerseOfTheDayNote')).toBe('expanded');
+    });
+
+    it('falls back to compact for an unknown provider', () => {
+      // A stale widget from an older install must never paint a clipped note
+      // panel; verse-only is the safe composition at any size.
+      expect(pickWidgetSize('SomethingElse')).toBe('compact');
+      expect(pickWidgetSize('')).toBe('compact');
+    });
   });
 
   describe('fetchVerse', () => {
@@ -101,6 +158,33 @@ describe('widget-task-handler', () => {
         chapterNumber: 3,
         verseStart: 16,
       });
+    });
+
+    // The expanded composition's note panel is data-gated: it only paints when
+    // the API serves a summary, which it does not do yet.
+    it('plumbs the version label and an explanation when present, null when not', async () => {
+      const base = {
+        empty: false,
+        referenceText: 'Psalm 139:14',
+        verses: [{ verseNumber: 14, text: 'I am fearfully and wonderfully made' }],
+        reference: { bookId: 19, chapterNumber: 139, verseStart: 14, verseEnd: null },
+        versionKey: 'NASB1995',
+      };
+
+      global.fetch = jest.fn().mockResolvedValue({
+        json: async () => ({ ...base, explanation: 'David pictures God weaving him together.' }),
+      }) as unknown as typeof fetch;
+      const withNote = await fetchVerse();
+      expect(withNote.versionLabel).toBe('NASB1995');
+      expect(withNote.explanation).toBe('David pictures God weaving him together.');
+      expect(withNote.noteDeepLink).toContain('tab=summary');
+
+      // Today's payload: no explanation field at all.
+      global.fetch = jest.fn().mockResolvedValue({
+        json: async () => base,
+      }) as unknown as typeof fetch;
+      const withoutNote = await fetchVerse();
+      expect(withoutNote.explanation).toBeNull();
     });
 
     it('sends pid when a user id is stored, omits it otherwise (PD-7)', async () => {

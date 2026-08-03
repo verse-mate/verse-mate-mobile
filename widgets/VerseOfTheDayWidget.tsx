@@ -2,9 +2,19 @@
  * Android Verse-of-the-Day widget UI (GH-265).
  *
  * react-native-android-widget renders this RN-like tree into a native
- * RemoteViews widget. Styled to match the in-app reader: a gold accent rail,
- * Unicode-superscript verse numbers, the verse text, and a gold reference with
- * a small wordmark. Light + dark variants are rendered by the task handler.
+ * RemoteViews widget. Layout follows the "Verse of the Day — home-screen
+ * widget" design doc (turn 2, panel 2B — Android):
+ *
+ *  - `compact`  (4×2, 336×148dp): verse clamped to 3 lines, reference + wordmark
+ *    pinned to the bottom baseline. No header, no accent rail — at this size the
+ *    design reads the widget as a plain rounded Material surface.
+ *  - `expanded` (4×4, 336×336dp): eyebrow + version, verse clamped to 4 lines,
+ *    gold reference, then a nested rounded "Why it matters" panel. The design
+ *    uses an inset surface instead of a hairline divider, and each block is its
+ *    own tap target (verse → chapter, note → the explanation tab).
+ *
+ * Type never shrinks to fit (design rule: "clamp lines, never shrink the type"),
+ * so every day's verse occupies the same slots regardless of length.
  */
 import { FlexWidget, TextWidget } from "react-native-android-widget";
 
@@ -12,6 +22,9 @@ export interface VerseData {
   verseNumber: number;
   text: string;
 }
+
+/** Which of the design's two Android compositions to paint. */
+export type WidgetSize = "compact" | "expanded";
 
 export interface VerseOfTheDayWidgetProps {
   /** Per-verse data from the API; null when rendering the fallback state. */
@@ -24,25 +37,53 @@ export interface VerseOfTheDayWidgetProps {
   fallbackText: string;
   /** Which palette to paint; the handler renders one tree per system theme. */
   theme: "light" | "dark";
+  /** Which composition to paint, derived from the host cell size. */
+  size?: WidgetSize;
+  /**
+   * Short "why it matters" summary (≤220 chars per the design). Only the
+   * `expanded` size has room for it; when absent that size paints a verse-only
+   * composition rather than an empty panel.
+   */
+  explanation?: string | null;
+  /** Deep link for the explanation tab; used by the note block's tap zone. */
+  noteDeepLink?: string;
+  /** Translation label shown in the expanded header, e.g. "NASB1995". */
+  versionLabel?: string;
 }
 
-// VerseMate brand palette (mobile theme/tokens.ts): gold accent #b09a6d.
+// Palette from the design doc (2B). The dark values are the design's verbatim;
+// light is the same structure resolved against the app's light tokens — gold
+// drops to #b09a6d there, the only gold that clears WCAG AA on white.
 const PALETTES = {
   light: {
     background: "#ffffff",
-    accent: "#b09a6d",
+    border: "#e8e4dc",
     verseText: "#1a1a1a",
     reference: "#b09a6d",
+    eyebrow: "#6e6e77",
+    version: "#8a8a8a",
     wordmark: "#9b9b9b",
+    panel: "#f7f5f1",
+    panelLabel: "#8a7345",
+    explanation: "#4a4a4a",
+    link: "#8a7345",
   },
   dark: {
-    background: "#121212",
-    accent: "#b09a6d",
-    verseText: "#e8e8e8",
-    reference: "#e0b890",
+    background: "#1b1b1b",
+    border: "#2a2a2a",
+    verseText: "#ededed",
+    reference: "#e0b872",
+    eyebrow: "#8a8a8a",
+    version: "#6e6e6e",
     wordmark: "#8a8a8a",
+    panel: "#141414",
+    panelLabel: "#e0b872",
+    explanation: "#bdbdbd",
+    link: "#e0b872",
   },
 } as const;
+
+type Palette = (typeof PALETTES)[keyof typeof PALETTES];
 
 const SUPERSCRIPTS = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"];
 
@@ -59,12 +100,53 @@ function composeVerseText(verses: VerseData[]): string {
   return verses.map((v) => `${toSuperscript(v.verseNumber)} ${v.text}`).join("  ");
 }
 
+/**
+ * Reference + wordmark row that closes every composition. Pinned so the widget's
+ * silhouette is identical whatever the verse length (design 2B, stress test).
+ */
+function FooterRow({
+  reference,
+  palette,
+  referenceSize,
+}: {
+  reference: string;
+  palette: Palette;
+  referenceSize: number;
+}) {
+  return (
+    <FlexWidget
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        width: "match_parent",
+      }}
+    >
+      <TextWidget
+        text={reference}
+        maxLines={1}
+        truncate="END"
+        style={{ fontSize: referenceSize, color: palette.reference, fontWeight: "600" }}
+      />
+      <TextWidget
+        text="✦ VerseMate"
+        maxLines={1}
+        style={{ fontSize: 10, color: palette.wordmark, fontWeight: "500" }}
+      />
+    </FlexWidget>
+  );
+}
+
 export function VerseOfTheDayWidget({
   verses,
   reference,
   deepLink,
   fallbackText,
   theme,
+  size = "compact",
+  explanation,
+  noteDeepLink,
+  versionLabel,
 }: VerseOfTheDayWidgetProps) {
   // React Compiler (app.config.js `experiments.reactCompiler`) instruments this
   // component with a `useMemoCache` call. react-native-android-widget renders
@@ -82,70 +164,143 @@ export function VerseOfTheDayWidget({
   const palette = PALETTES[theme];
   const isFallback = !verses || verses.length === 0;
   const bodyText = isFallback ? fallbackText : composeVerseText(verses);
+  // The note panel needs both room and copy; without a summary the expanded
+  // size paints a verse-only composition instead of an empty surface.
+  const showNote = size === "expanded" && !isFallback && !!explanation;
 
-  return (
-    <FlexWidget
-      style={{
-        height: "match_parent",
-        width: "match_parent",
-        flexDirection: "row",
-        backgroundColor: palette.background,
-        borderRadius: 16,
-        overflow: "hidden",
-      }}
-      clickAction="OPEN_VERSE"
-      clickActionData={{ url: deepLink }}
-    >
-      {/* Gold accent rail (matches the app's brand accent). */}
-      <FlexWidget
-        style={{ height: "match_parent", width: 5, backgroundColor: palette.accent }}
-      />
+  const surface = {
+    height: "match_parent",
+    width: "match_parent",
+    flexDirection: "column",
+    backgroundColor: palette.background,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: palette.border,
+    overflow: "hidden",
+  } as const;
 
+  if (size === "compact") {
+    return (
       <FlexWidget
         style={{
-          flex: 1,
-          height: "match_parent",
-          flexDirection: "column",
+          ...surface,
           justifyContent: isFallback ? "center" : "space-between",
-          paddingTop: 14,
-          paddingBottom: 12,
-          paddingLeft: 14,
-          paddingRight: 14,
+          paddingVertical: 16,
+          paddingHorizontal: 18,
         }}
+        clickAction="OPEN_VERSE"
+        clickActionData={{ url: deepLink }}
       >
         <TextWidget
           text={bodyText}
-          maxLines={6}
+          maxLines={3}
           truncate="END"
-          style={{
-            fontSize: isFallback ? 14 : 15,
-            color: palette.verseText,
-            fontFamily: "serif",
-          }}
+          style={{ fontSize: 15, color: palette.verseText, fontFamily: "serif" }}
         />
+        {isFallback ? null : (
+          <FooterRow reference={reference} palette={palette} referenceSize={12} />
+        )}
+      </FlexWidget>
+    );
+  }
 
+  return (
+    <FlexWidget style={surface}>
+      {/* Verse block — its own tap zone, deep-links to the chapter. */}
+      <FlexWidget
+        style={{
+          width: "match_parent",
+          flexDirection: "column",
+          flexGap: 10,
+          paddingTop: 18,
+          paddingHorizontal: 18,
+          paddingBottom: 14,
+          // Without the note panel this block owns the whole surface.
+          ...(showNote ? {} : { flex: 1 }),
+        }}
+        clickAction="OPEN_VERSE"
+        clickActionData={{ url: deepLink }}
+      >
         <FlexWidget
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
             width: "match_parent",
-            ...(isFallback ? { marginTop: 12 } : {}),
           }}
         >
           <TextWidget
-            text={isFallback ? "" : reference}
+            text="VERSE OF THE DAY"
             maxLines={1}
-            truncate="END"
-            style={{ fontSize: 12, color: palette.reference, fontWeight: "700" }}
+            style={{
+              fontSize: 9,
+              fontWeight: "700",
+              letterSpacing: 0.14,
+              color: palette.eyebrow,
+            }}
           />
           <TextWidget
-            text="✦ VerseMate"
+            text={versionLabel ?? ""}
             maxLines={1}
-            style={{ fontSize: 11, color: palette.wordmark, fontWeight: "600" }}
+            style={{ fontSize: 10, color: palette.version }}
           />
         </FlexWidget>
+
+        <TextWidget
+          text={bodyText}
+          // Without the note panel the verse takes the freed rows.
+          maxLines={showNote ? 4 : 9}
+          truncate="END"
+          style={{ fontSize: 16, color: palette.verseText, fontFamily: "serif" }}
+        />
+
+        {isFallback ? null : (
+          <FooterRow reference={reference} palette={palette} referenceSize={13} />
+        )}
       </FlexWidget>
+
+      {/* Note block — nested rounded surface, deep-links to the explanation tab. */}
+      {showNote ? (
+        <FlexWidget
+          style={{
+            flex: 1,
+            width: "match_parent",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            marginHorizontal: 12,
+            marginBottom: 12,
+            padding: 14,
+            backgroundColor: palette.panel,
+            borderRadius: 20,
+          }}
+          clickAction="OPEN_VERSE"
+          clickActionData={{ url: noteDeepLink ?? deepLink }}
+        >
+          <FlexWidget style={{ width: "match_parent", flexDirection: "column", flexGap: 8 }}>
+            <TextWidget
+              text="WHY IT MATTERS"
+              maxLines={1}
+              style={{
+                fontSize: 9,
+                fontWeight: "700",
+                letterSpacing: 0.14,
+                color: palette.panelLabel,
+              }}
+            />
+            <TextWidget
+              text={explanation ?? ""}
+              maxLines={5}
+              truncate="END"
+              style={{ fontSize: 13, color: palette.explanation, fontFamily: "serif" }}
+            />
+          </FlexWidget>
+          <TextWidget
+            text="Read the full note →"
+            maxLines={1}
+            style={{ fontSize: 11, fontWeight: "500", color: palette.link }}
+          />
+        </FlexWidget>
+      ) : null}
     </FlexWidget>
   );
 }
