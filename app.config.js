@@ -210,6 +210,17 @@ const config = {
     [
       'react-native-android-widget',
       {
+        // The design (panel 2B) draws two Android compositions: 4×2 verse-only
+        // and 4×4 verse + "Why it matters". They ship as two providers rather
+        // than one resizable widget because the widget's own size is NOT
+        // discoverable at render time: in portrait the library reports
+        // OPTION_APPWIDGET_MAX_HEIGHT, which is the provider's max resize bound,
+        // not the current height — a 4×2 and a 4×4 both report 358dp on the
+        // Pixel launcher (verified on an API 35 emulator). The widget *name* is
+        // reliable, so the task handler keys the composition off that instead.
+        // Vertical resize is disabled so each provider keeps the height its
+        // composition was drawn for (the design requires text to clamp, never
+        // overflow).
         widgets: [
           {
             name: 'VerseOfTheDay',
@@ -219,8 +230,19 @@ const config = {
             minHeight: '110dp',
             targetCellWidth: 4,
             targetCellHeight: 2,
-            resizeMode: 'horizontal|vertical',
+            resizeMode: 'horizontal',
             updatePeriodMillis: 86400000, // ~daily; OS-throttled periodic refresh
+          },
+          {
+            name: 'VerseOfTheDayNote',
+            label: 'Verse of the Day (with note)',
+            description: "Today's verse plus why it matters",
+            minWidth: '180dp',
+            minHeight: '250dp',
+            targetCellWidth: 4,
+            targetCellHeight: 4,
+            resizeMode: 'horizontal',
+            updatePeriodMillis: 86400000,
           },
         ],
       },
