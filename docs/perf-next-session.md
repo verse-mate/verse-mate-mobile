@@ -1288,3 +1288,42 @@ use the native renderer even with the flag on, for no benefit whatsoever:
   stable, which `capture-atrace.sh` cannot do — it resolves testIDs only. It also inherits
   `shared/reset-to-reader.yaml`, which asserts `chapter-selector-button`; that assertion FAILS when the app
   is parked on Topics, where the selector is `topic-selector-button`. Fix the flow before relying on it.
+
+### Topics after the change — measured 2026-08-03 (native arm)
+
+`scripts/perf/capture-atrace.sh topics-tabs-native --pre "insight-view-toggle:2500" --taps "tab-detailed
+tab-summary tab-byline tab-detailed"` — the same tap sequence as the baseline, from the same starting state
+(parked on a topic, tab row not yet open). Trace at `reports/perf/atrace/topics-tabs-native.txt`.
+
+| | baseline | native arm |
+|---|---|---|
+| `createViewUnsafe(RCTText)` | 7453 | **0** |
+| `createViewUnsafe(ViewManagerAdapter_VMText)` | 0 | 88 |
+| `createViewUnsafe(RCTView)` | 10 | 30 |
+| `traversal` — count / self / max | 137 / 212.8ms / **154.9ms** | 42 / 31.4ms / **12.02ms** |
+
+**7453 text views → 88.** The predicted mechanism is confirmed: `dictionaryMarkdownRules` was emitting one
+`<Text>` per WORD, and `wordAtOffset` + `VMText`'s `charOffset` keeps every word tappable with one native
+view per block.
+
+`traversal` was the whole diagnosis (139.68ms of the 158.8ms worst frame) and its max is now 12.02ms.
+
+## ⚠️ Two things NOT to conclude from this
+
+**1. Frame times across these two captures are not comparable.** The baseline ran on the RELEASE store
+build; this ran on the dev-client DEBUG build, which overstates frame cost roughly 2×. So "158.8ms →
+123.06ms" is NOT a result and must not be quoted as one. What IS comparable:
+  * **view counts** — how many views mount is a property of the component tree, not the build type;
+  * **`traversal`**, conservatively — it fell 13× while measured on the SLOWER build.
+
+**2. The worst frame is not fixed — the cost MOVED.** `animation` is now the hot phase at 123.06ms max, and
+inside it `createViewUnsafe(ViewManagerAdapter_VMText)` is 426.8ms self over 88 creations (max **80.01ms**
+for a single view). Text layout is not the cost: `Constructing StaticLayout` is 1.09ms max over 86, and
+`Generating StaticLayout For DynamicLayout` 3.16ms max over 88.
+
+An 80ms single view creation will not be fixed by ramping mount work across frames — the ramp that helped
+StudyPanel spreads N cheap creations, and this is one expensive one. Before designing anything, re-measure
+on a release APK: 4.85ms average per `VMText` creation is ~28× the 0.17ms/view recorded earlier in this
+document, and that gap is too large to be debug overhead alone. Either the release build shows a normal
+per-view cost (in which case this is a debug artifact and there is nothing to fix), or it does not (in which
+case VMText creation itself is doing something expensive for long blocks). Measure first.

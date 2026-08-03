@@ -373,6 +373,23 @@ PC_FLOW_LOG='D:/tmp/perfcap-maestro.log'
 # own history — a completion signal must not share a file, or an encoding, with the output it signals about.
 PC_FLOW_EXIT='D:/tmp/perfcap-maestro.exit'
 pcrun "Remove-Item '$PC_FLOW_LOG','$PC_FLOW_EXIT' -ErrorAction SilentlyContinue" >/dev/null 2>&1 || true
+
+# Confirm the transport is STILL there, immediately before handing off to Maestro.
+#
+# Everything above this line can succeed and the device can still be gone by now: one run passed every
+# gate — bundle served, no error state, arm confirmed — and then Maestro died on
+# `java.io.IOException: Command failed (host:transport:HQ65C30118): device 'HQ65C30118' not found`.
+# The adb transport had dropped in between (also documented as a daemon-life gotcha for this phone).
+# Without this check that surfaces as a bare MAESTRO_EXIT=1, which reads exactly like a drifted testID and
+# sends the next hour into the flow instead of the cable. `adb reconnect` is cheap and idempotent.
+if ! pcrun "& '$PC_ADB' devices" | grep -qE "^${DEVICE}[[:space:]]+device"; then
+  echo "    transport for $DEVICE is gone — reconnecting before the flow"
+  pcrun "& '$PC_ADB' reconnect offline; & '$PC_ADB' devices" >/dev/null 2>&1 || true
+  pcrun "& '$PC_ADB' devices" | grep -qE "^${DEVICE}[[:space:]]+device" \
+    || die "$DEVICE is not attached (adb transport dropped). This is the CABLE/DAEMON, not the flow —
+do not go looking for a broken testID. Reconnect and re-run:
+  pc \"& '$PC_ADB' reconnect offline; & '$PC_ADB' devices\""
+fi
 # The detached command APPENDS its own exit marker. Maestro's wording is not a contract: this version
 # (2.5.1) ends a SUCCESSFUL run with "Repeat 6 times... COMPLETED" and never prints "Flow Passed", so
 # polling for that string burned the whole 20-minute budget and would then have reported the outcome as
@@ -402,6 +419,10 @@ read — describes some other interaction than the one named, and its numbers ar
 valid ones. See $OUT/maestro.log
 
 Common causes:
+  * $(grep -qiE "device '?${DEVICE}'? not found|host:transport" "$OUT/maestro.log" 2>/dev/null \
+      && echo '>>> THE ADB TRANSPORT DROPPED MID-FLOW (see the IOException in the log above). This is
+    infrastructure, NOT a broken selector — reconnect the phone and re-run.' \
+      || echo 'the adb transport dropped mid-flow (not seen in this log)')
   * the Expo developer-menu sheet is covering the app, so every selector misses
   * the app is parked on a screen the flow's preconditions do not expect
     (shared/reset-to-reader.yaml asserts chapter-selector-button, which does NOT exist on Topics)
