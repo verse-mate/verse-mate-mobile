@@ -162,6 +162,21 @@ step 'Verifying the installed build is debuggable'
 # on the PC where no Unix grep exists.
 PKG_FLAGS="$(adb_sh "shell dumpsys package $PKG | Select-String 'pkgFlags' | Select-Object -First 1" 2>&1 | tr -d '\r')"
 
+# A BRIDGE failure is not an answer about the app. `PKG_FLAGS` is read with `2>&1`, so when the `pc`
+# bridge wedges it captures "HTTP handler shell.send failed, trying local: timed out" INTO the value.
+# That string is non-empty and contains no "DEBUGGABLE", so the check below concluded "not a debuggable
+# build" about an app that had just been verified debuggable by hand — a wedged transport reported as a
+# fact about the device. Same defect class as the release-build check itself: never let a failed
+# measurement masquerade as a measurement.
+if [[ "$PKG_FLAGS" == *"shell.send failed"* || "$PKG_FLAGS" == *"still running in"* || "$PKG_FLAGS" == *"timed out"* ]]; then
+  die "The pc bridge failed while reading package flags — this says NOTHING about the app.
+
+Bridge said: $PKG_FLAGS
+
+Clear the wedged session and retry:
+  pc -c perfcap"
+fi
+
 if [[ -z "${PKG_FLAGS// /}" ]]; then
   die "Could not read package flags for $PKG.
 
@@ -209,7 +224,38 @@ adb_sh "reverse tcp:8081 tcp:8081" >/dev/null 2>&1 || true
 # reporting an idle app as a fast one. The gate forces the build on the PC and fails there, in words.
 preflight_bundle_compiles || exit 1
 
-adb_sh "shell am start -a android.intent.action.VIEW -d '$DEV_CLIENT_URL'" >/dev/null
+# Force-stop first, so this is a real cold start rather than an intent handed to a running app.
+#
+# Without the stop, `am start` prints "Warning: Activity not started, intent has been delivered to
+# currently running top-most instance." on STDERR. That is a success, but the `pc` bridge runs commands
+# through PowerShell, which turns any stderr into a NativeCommandError and returns non-zero — and under
+# `set -e` that killed this script silently, because the call redirects to /dev/null. The capture died
+# right after "bundle served" with no message and no summary, which reads like a hang rather than an
+# abort. Belt and braces: stop the app, and tolerate a non-zero from the launch either way, since the
+# REAL gate is the `[VMPERF] monitor started` marker checked immediately below — that proves our JS ran,
+# which is the only thing this launch needed to achieve.
+adb_sh "shell am force-stop $PKG" >/dev/null 2>&1 || true
+# PLAIN activity launch, not the dev-client deep link.
+#
+# `am start -a VIEW -d versemate://expo-development-client/?url=...` opens the Expo DEVELOPER MENU sheet
+# over the app on this device. That sheet then blocks everything downstream: Maestro cannot see `Skip` or
+# `chapter-selector-button`, so `reset-to-reader` fails, the reader never mounts, `useNativeText` never
+# runs, and no `arm preference` line is logged — which presented as four unrelated failures. Confirmed by
+# screenshotting the phone rather than reading logs.
+#
+# The deep link is only needed to TELL a dev client which packager to use. This one already persists it
+# ("Connected to: http://localhost:8081" in its own menu), so a plain launch reconnects without the sheet.
+# Keep $DEV_CLIENT_URL as the documented fallback for a client that has never been pointed at Metro.
+# Deep link, but ONLY after the force-stop above — that distinction is the whole point.
+#
+# Deep-linking into an ALREADY-RUNNING dev client opens the Expo developer-menu sheet over the app, and
+# that sheet blocks everything downstream (Maestro cannot see `Skip` or `chapter-selector-button`, the
+# reader never mounts, `useNativeText` never logs its arm). Cold-starting with the link instead LOADS the
+# bundle, which is what is wanted. Found by screenshotting the phone.
+#
+# A plain `am start -n $PKG/.MainActivity` is NOT a substitute: on a dev client that lands on its own
+# launcher screen, and the capture then fails with "The JS bundle never started" — tried, reverted.
+adb_sh "shell am start -a android.intent.action.VIEW -d '$DEV_CLIENT_URL'" >/dev/null 2>&1 || true
 
 # Wait for the perf session's own startup line, which only appears once our
 # bundle is actually executing. Polling for it beats a fixed sleep: a cold
@@ -252,7 +298,11 @@ and that the reverse tunnel is up:
 # buffer, so on this chatty device it can come back empty and leave the capture labelled with an
 # unknown arm. An A/B whose arms are mislabelled is worse than no A/B, because it looks like a
 # result.
-ARM_LINE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r')"
+# `|| true` so the EXPLICIT check below can report this. Without it, a missing line means `grep -o`
+# exits 1, `pipefail` makes the whole pipeline non-zero, the assignment fails, and `set -e` kills the
+# script HERE — silently, before reaching the `die` that was written for exactly this case. The capture
+# then ends after "bundle served" with no message, which reads as a hang.
+ARM_LINE="$(adb_sh "logcat -d ReactNativeJS:V '*:S'" 2>/dev/null | grep -o 'arm preference=[a-z]*' | tail -1 | tr -d '\r' || true)"
 
 # GATE: an app that logged errors must not be measured. A rejected import still closes its span, so a
 # broken feature reports as a fast one — that is exactly how a lexicon that never loaded once measured
@@ -303,10 +353,59 @@ step "Arm confirmed: $ARM"
 # --- 4. run the flow ---------------------------------------------------------
 
 step "Running Maestro flow: $FLOW"
-if ! pcrun "cd '$PC_REPO'; \$env:PATH += ';$PC_MAESTRO_BIN'; maestro --device $DEVICE test '$FLOW'" 2>&1 | tee "$OUT/maestro.log"; then
-  echo 'WARNING: the Maestro flow failed. Continuing so the partial capture is' >&2
-  echo 'still available — but treat the numbers as covering less than the flow' >&2
-  echo "intended. See $OUT/maestro.log" >&2
+
+# Run the flow DETACHED and poll, instead of waiting inside one bridge call.
+#
+# A single `pcrun` cannot survive this: the `pc` bridge wedges on calls over roughly two minutes, and any
+# real flow takes longer. What that produced was worse than a timeout — `pcrun` printed
+# "HTTP handler shell.send failed, trying local: timed out" to stdout and RETURNED 0, so `if !` never
+# fired, `maestro.log` was 57 bytes of that error, and the capture went on to collect, parse and write a
+# summary for a flow whose outcome was unknown. The numbers looked plausible and were not: Bible-reader
+# counters and `tab.switch n=2` for a flow that performs 18 tab taps.
+#
+# And a failed flow is now FATAL rather than a warning. The old code continued "so the partial capture is
+# still available", but a flow that stopped early silently changes what the numbers mean — and in an A/B a
+# mislabelled or truncated arm reads as a result. That is the one failure this harness exists to prevent.
+PC_FLOW_LOG='D:/tmp/perfcap-maestro.log'
+# Marker in its OWN file. Appending it to the log mixed encodings: `*>` creates the log as UTF-16LE, an
+# `Out-File -Encoding utf8` append then reads back as "????????", and the poll below could never match a
+# marker for a flow that had completed every step. Same defect as the exit-code marker in this script's
+# own history — a completion signal must not share a file, or an encoding, with the output it signals about.
+PC_FLOW_EXIT='D:/tmp/perfcap-maestro.exit'
+pcrun "Remove-Item '$PC_FLOW_LOG','$PC_FLOW_EXIT' -ErrorAction SilentlyContinue" >/dev/null 2>&1 || true
+# The detached command APPENDS its own exit marker. Maestro's wording is not a contract: this version
+# (2.5.1) ends a SUCCESSFUL run with "Repeat 6 times... COMPLETED" and never prints "Flow Passed", so
+# polling for that string burned the whole 20-minute budget and would then have reported the outcome as
+# unknown for a flow that completed every step. An explicit `MAESTRO_EXIT=<code>` is version-proof.
+# `Out-File -Encoding utf8` because PowerShell's `>` writes UTF-16LE, which reads back unparseable.
+pc -s "perfcap-flow" --bg \
+  "cd '$PC_REPO'; \$env:PATH += ';$PC_MAESTRO_BIN'; maestro --device $DEVICE test '$FLOW' *> '$PC_FLOW_LOG'; \"MAESTRO_EXIT=\$LASTEXITCODE\" | Out-File -Encoding utf8 '$PC_FLOW_EXIT'" \
+  < /dev/null > /dev/null 2>&1
+
+FLOW_RESULT=''
+for _ in $(seq 1 80); do
+  tail_out="$(pcrun "if (Test-Path '$PC_FLOW_EXIT') { Get-Content '$PC_FLOW_EXIT' } else { '' }" 2>/dev/null || true)"
+  case "$tail_out" in
+    *"MAESTRO_EXIT=0"*) FLOW_RESULT='passed'; break ;;
+    *"MAESTRO_EXIT="*)  FLOW_RESULT="failed ($(printf '%s' "$tail_out" | grep -o 'MAESTRO_EXIT=[0-9]*' | tail -1))"; break ;;
+  esac
+  sleep 15
+done
+
+pcrun "if (Test-Path '$PC_FLOW_LOG') { Get-Content '$PC_FLOW_LOG' }" > "$OUT/maestro.log" 2>&1 || true
+
+if [[ "$FLOW_RESULT" != 'passed' ]]; then
+  die "The Maestro flow did not report success (result: ${FLOW_RESULT:-unknown/timed out}).
+
+NOTHING was measured, deliberately. A capture whose flow stopped early — or whose outcome could not be
+read — describes some other interaction than the one named, and its numbers are indistinguishable from
+valid ones. See $OUT/maestro.log
+
+Common causes:
+  * the Expo developer-menu sheet is covering the app, so every selector misses
+  * the app is parked on a screen the flow's preconditions do not expect
+    (shared/reset-to-reader.yaml asserts chapter-selector-button, which does NOT exist on Topics)
+  * a testID drifted"
 fi
 
 # --- 5. trigger the report emit ---------------------------------------------
