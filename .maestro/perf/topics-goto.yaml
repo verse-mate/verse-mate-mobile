@@ -1,0 +1,41 @@
+appId: org.versemate.app
+name: Perf — topics-goto
+description: Navigate to a known topic and STOP, so a cold first-visit capture can measure the tabs
+tags:
+  - perf
+---
+
+# Navigation only. Exists because a COLD measurement is the only one that can tell the two renderers apart:
+# warm tab switches mount nothing on either arm — measured, a warm switch created ZERO views and still hit a
+# 163.9ms frame — so the difference only shows on first visit.
+#
+# `capture-atrace.sh` resolves testIDs and cannot type, and reaching a topic needs TEXT INPUT because the
+# topic list order is not stable. So the navigation lives here, and the capture script then taps the tabs.
+#
+# Ends on the topic's BIBLE view, with only the default tab mounted, so the following taps are first visits.
+
+- runFlow: shared/reset-to-reader.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-topics"
+- waitForAnimationToEnd
+- tapOn:
+    id: "topics-search-input"
+- inputText: "Creation"
+- extendedWaitUntil:
+    visible:
+      text: "The Creation of the World"
+    timeout: 15000
+- tapOn:
+    text: "The Creation of the World"
+- extendedWaitUntil:
+    visible:
+      id: "topic-pager-ready"
+    timeout: 45000
+- waitForAnimationToEnd
