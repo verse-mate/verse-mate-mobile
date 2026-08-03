@@ -40,8 +40,6 @@ import {
 import type { ContentTabType } from '@/types/bible';
 import { ShareButton } from '../bible/ShareButton';
 
-const markdownRules: RenderRules = {};
-
 /**
  * Clean up byline explanation markdown to remove redundant verse references.
  *
@@ -155,6 +153,18 @@ export function TopicExplanationsPanel({
     clearSelection();
   }, []);
 
+  /**
+   * A word tapped in NATIVELY-rendered markdown.
+   *
+   * Same destination as `handleWordSelect`, reached without a view per word: the native text view reports
+   * the tapped character offset and `wordAtOffset` turns that into the word. `verseNumber` is 0 because
+   * topic markdown is prose, not verses — which is exactly what the old per-word rule passed too.
+   */
+  const handleMarkdownWordPress = useCallback((word: string) => {
+    setWordToDefine({ word, verseNumber: 0 });
+    setWordDefinitionVisible(true);
+  }, []);
+
   const handleWordDefinitionClose = useCallback(() => {
     setWordDefinitionVisible(false);
     setWordToDefine(null);
@@ -168,7 +178,6 @@ export function TopicExplanationsPanel({
   // long-press triggers the dictionary tooltip across Summary/By Line/Detailed.
   const dictionaryMarkdownRules: RenderRules = useMemo(
     () => ({
-      ...markdownRules,
       text: (node, _children, _parent, styles, inheritedStyles = {}) => (
         <HighlightedText
           perfSurface="topics.explanations"
@@ -258,7 +267,11 @@ export function TopicExplanationsPanel({
   const summaryMarkdown = useMemo(
     () =>
       typeof summaryContent === 'string' ? (
-        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+        <Markdown
+          style={markdownStyles}
+          fallbackRules={dictionaryMarkdownRules}
+          onWordPress={handleMarkdownWordPress}
+        >
           {summaryContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
         </Markdown>
       ) : null,
@@ -267,7 +280,11 @@ export function TopicExplanationsPanel({
   const bylineMarkdown = useMemo(
     () =>
       typeof bylineContent === 'string' ? (
-        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+        <Markdown
+          style={markdownStyles}
+          fallbackRules={dictionaryMarkdownRules}
+          onWordPress={handleMarkdownWordPress}
+        >
           {bylineContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
         </Markdown>
       ) : null,
@@ -276,7 +293,11 @@ export function TopicExplanationsPanel({
   const detailedMarkdown = useMemo(
     () =>
       typeof detailedContent === 'string' ? (
-        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+        <Markdown
+          style={markdownStyles}
+          fallbackRules={dictionaryMarkdownRules}
+          onWordPress={handleMarkdownWordPress}
+        >
           {detailedContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
         </Markdown>
       ) : null,

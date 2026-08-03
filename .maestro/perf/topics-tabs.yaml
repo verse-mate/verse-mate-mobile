@@ -1,0 +1,81 @@
+appId: org.versemate.app
+name: Perf — topics-tabs
+description: ONLY Topics inner-tab switching, so the retained frame window is homogeneous
+tags:
+  - perf
+---
+
+# Topics inner-tab switching (Summary / By Line / Detailed) and nothing else.
+#
+# The Topics counterpart of `insight-subtabs.yaml`, and it exists because Topics never received any of
+# the reader's rendering work: there is no `ParagraphText` or `VMText` anywhere under
+# `components/topics/`, so every inline run is still a React `Text`. On top of that, three call sites
+# pass `rules={markdownRules}` where `markdownRules` is an EMPTY object — and `NativeMarkdown` gates on
+# `rules !== undefined`, so even switching the flag on would leave Topics on the React renderer.
+#
+# Same window discipline as the Insight flow it mirrors: `dumpsys gfxinfo` retains only the last 120
+# frames, so this flow performs ONE kind of interaction, ends on it, and never idles afterwards.
+# No trailing `pressKey: Back`, no waits after the final tap.
+#
+# Navigation differs from the Bible flows in one way that matters for the capture harness: reaching a
+# topic requires TEXT INPUT (the topic list order varies, so the flows filter by name). That is why the
+# navigation lives here in Maestro rather than in `capture-atrace.sh`, which resolves testIDs only.
+
+- runFlow: shared/reset-to-reader.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-topics"
+- waitForAnimationToEnd
+
+# Filter by name — topic list order is not stable, so selecting by position would drift.
+- tapOn:
+    id: "topics-search-input"
+- inputText: "Creation"
+- extendedWaitUntil:
+    visible:
+      text: "The Creation of the World"
+    timeout: 15000
+- tapOn:
+    text: "The Creation of the World"
+
+# The pager builds prev/current/next, so wait for it to settle before measuring anything.
+- extendedWaitUntil:
+    visible:
+      id: "topic-pager-ready"
+    timeout: 45000
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "insight-view-toggle"
+- waitForAnimationToEnd
+
+# First pass pays each tab's initial mount and data fetch.
+- repeat:
+    times: 2
+    commands:
+      - tapOn:
+          id: "tab-summary"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "tab-byline"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "tab-detailed"
+      - waitForAnimationToEnd
+
+# Steady-state switching, enough taps to fill the 120-frame buffer with nothing but tab switches.
+- repeat:
+    times: 6
+    commands:
+      - tapOn:
+          id: "tab-summary"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "tab-byline"
+      - waitForAnimationToEnd

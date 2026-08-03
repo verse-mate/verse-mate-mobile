@@ -151,7 +151,6 @@ function formatVerseNumbers(text: string): string {
 /**
  * Custom markdown renderers for special formatting
  */
-const markdownRules: RenderRules = {};
 
 /**
  * Props for TopicPage component
@@ -254,6 +253,18 @@ export function TopicPage({
     clearSelection();
   }, []);
 
+  /**
+   * A word tapped in NATIVELY-rendered markdown.
+   *
+   * Same destination as `handleWordSelect`, reached without a view per word: the native text view reports
+   * the tapped character offset and `wordAtOffset` turns that into the word. `verseNumber` is 0 because
+   * topic markdown is prose, not verses — which is exactly what the old per-word rule passed too.
+   */
+  const handleMarkdownWordPress = useCallback((word: string) => {
+    setWordToDefine({ word, verseNumber: 0 });
+    setWordDefinitionVisible(true);
+  }, []);
+
   const handleWordDefinitionClose = useCallback(() => {
     setWordDefinitionVisible(false);
     setWordToDefine(null);
@@ -267,7 +278,6 @@ export function TopicPage({
   // long-press dictionary lookup (used in the Explanations view markdown).
   const dictionaryMarkdownRules: RenderRules = useMemo(
     () => ({
-      ...markdownRules,
       text: (node, _children, _parent, styles, inheritedStyles = {}) => (
         <HighlightedText
           perfSurface="topics.markdown"
@@ -525,7 +535,11 @@ export function TopicPage({
   // component, same rules, same styles per section.
   const renderMarkdownSection = useCallback(
     ({ item }: { item: { key: string; body: string } }) => (
-      <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+      <Markdown
+        style={markdownStyles}
+        fallbackRules={dictionaryMarkdownRules}
+        onWordPress={handleMarkdownWordPress}
+      >
         {item.body}
       </Markdown>
     ),
@@ -644,7 +658,7 @@ export function TopicPage({
               ) : null}
 
               <View style={styles.referencesContainer}>
-                <Markdown style={markdownStyles} rules={markdownRules}>
+                <Markdown style={markdownStyles}>
                   {
                     // First format verse numbers, THEN process newlines
                     formatVerseNumbers(displayReferences.content)

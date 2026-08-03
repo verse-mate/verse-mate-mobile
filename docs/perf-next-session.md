@@ -1233,3 +1233,58 @@ Expect: `RCTText` creations per frame down from 55 to ~12, and the worst frame w
 will read ~2× higher — see the release-vs-dev section). If the worst frame does NOT move, the burst is not
 the commit boundary and the next thing to attack is the chevron glyphs plus collapsing each card's heading
 and subheading into a single `VMText`.
+
+## Topics baseline — measured BEFORE any change (2026-08-03)
+
+Captured on the Xperia 5 V (release store build) over four Topics inner-tab switches:
+`scripts/perf/capture-atrace.sh topics-tabs-baseline --taps "tab-detailed tab-summary tab-byline tab-detailed"`.
+Trace kept at `reports/perf/atrace/topics-tabs-baseline.txt`.
+
+    longest frames   158.8 · 151.0 · 99.3 · 99.2 · 55.2 ms      (budget 8.34ms at 120Hz)
+
+    worst frame 158.8ms, by SELF time
+      139.68ms  n=1      traversal
+       13.76ms  n=32     ReactTextView.onDraw
+        3.04ms  n=1      animation
+
+    whole capture
+       7453  createViewUnsafe(RCTText)
+        878  Constructing StaticLayout
+        606  ReactTextViewManager.updateState
+        506  animation      self 294.6ms   max 144.4ms
+        137  traversal      self 212.8ms   max 154.9ms
+
+**The bottleneck is NOT the same as the reader's.** Every frame problem in the Bible work lived in the
+`animation` phase — the Choreographer callback where Fabric dispatches mount items — so the fixes were
+"mount fewer views" and "mount them across more frames". In Topics `animation` is 3.04ms of a 158.8ms
+frame and **`traversal` is 139.68ms**: Android measuring and laying out the native view tree. Traversal
+cost scales with the NUMBER OF VIEWS resident, not with how the mounting was scheduled, so a per-frame
+ramp would buy nothing here.
+
+**Why there are 7453 text views.** Topics is entirely on the React render path — no `ParagraphText` or
+`VMText` anywhere under `components/topics/`. Worse, its dictionary surfaces route markdown through
+`dictionaryMarkdownRules`, which overrides the `text` rule to emit a `<HighlightedText>` per markdown text
+node; `HighlightedText` then tokenizes **per word** (`tokenizeText`, `segments.map` → one `<Text>` per
+segment). So a topic paragraph becomes roughly one native TextView per word. For scale, the reader's worst
+remaining surface creates 55 `RCTText` in a frame and 81 in a whole capture.
+
+**And a free blocker.** Three call sites pass `rules={markdownRules}` where `markdownRules` is `{}` —
+an empty object. `NativeMarkdown` gates on `rules !== undefined` (`hasCustomRendering`), so Topics cannot
+use the native renderer even with the flag on, for no benefit whatsoever:
+`TopicContentPanel.tsx:76`, `TopicPage.tsx:154`, `TopicExplanationsPanel.tsx:43`.
+
+### Order of work this implies
+1. Drop the empty `markdownRules` objects — unblocks the native renderer for plain Topics markdown.
+2. Replace the per-word `HighlightedText` override with compiled interactive **ranges** on one native view
+   per block (what the reader does for lexicon words), which is what actually removes the view count.
+3. `TopicText` verse rendering → `ParagraphText`.
+4. Re-measure the same flow and compare against the numbers above. Judge on **worst frame** and on
+   `createViewUnsafe(RCTText)` count, not on the `animation` phase, which was never the problem here.
+
+### Harness notes from this capture
+* `capture-baseline.sh` refuses a release build by design (the JS perf session is `__DEV__`-only) and says
+  so — use `capture-atrace.sh`, which needs neither. Full JS spans for Topics would need a dev-client APK.
+* `.maestro/perf/topics-tabs.yaml` (added here) navigates by TEXT INPUT because the topic list order is not
+  stable, which `capture-atrace.sh` cannot do — it resolves testIDs only. It also inherits
+  `shared/reset-to-reader.yaml`, which asserts `chapter-selector-button`; that assertion FAILS when the app
+  is parked on Topics, where the selector is `topic-selector-button`. Fix the flow before relying on it.
