@@ -103,16 +103,19 @@ function composeVerseText(verses: VerseData[]): string {
 /**
  * Reference + wordmark row that closes every composition. Pinned so the widget's
  * silhouette is identical whatever the verse length (design 2B, stress test).
+ *
+ * A PLAIN FUNCTION, called directly — deliberately not a component. React
+ * Compiler instruments components with a `useMemoCache` call, and
+ * react-native-android-widget renders via its own `buildWidgetTree` with no React
+ * dispatcher, so that call reads from null and throws (GH-265). This row only
+ * appears in the non-fallback path, so when it was a `<FooterRow />` component
+ * the widget silently painted its tap-to-open fallback forever — it looked like
+ * "the verse never loads". A `"use no memo"` directive did NOT fix it here (the
+ * compiler kept instrumenting it), and no unit test can catch it: the compiler
+ * transform runs in the release babel build, not under jest. Keeping it a plain
+ * call-site helper removes the failure mode entirely.
  */
-function FooterRow({
-  reference,
-  palette,
-  referenceSize,
-}: {
-  reference: string;
-  palette: Palette;
-  referenceSize: number;
-}) {
+function footerRow(reference: string, palette: Palette, referenceSize: number) {
   return (
     <FlexWidget
       style={{
@@ -198,7 +201,7 @@ export function VerseOfTheDayWidget({
           style={{ fontSize: 15, color: palette.verseText, fontFamily: "serif" }}
         />
         {isFallback ? null : (
-          <FooterRow reference={reference} palette={palette} referenceSize={12} />
+          footerRow(reference, palette, 12)
         )}
       </FlexWidget>
     );
@@ -255,18 +258,23 @@ export function VerseOfTheDayWidget({
         />
 
         {isFallback ? null : (
-          <FooterRow reference={reference} palette={palette} referenceSize={13} />
+          footerRow(reference, palette, 13)
         )}
       </FlexWidget>
 
-      {/* Note block — nested rounded surface, deep-links to the explanation tab. */}
+      {/* Note block — nested rounded surface, deep-links to the explanation tab.
+          Deliberately FLAT: label, copy and link are direct siblings spaced with
+          margins. An earlier version wrapped them in an inner column and used
+          `flex: 1` + `justifyContent: "space-between"` + `flexGap`; RemoteViews
+          did not resolve that nesting, and on-device it clipped the explanation
+          mid-sentence and dropped the link entirely. Margins are predictable
+          where nested flex weights are not. */}
       {showNote ? (
         <FlexWidget
           style={{
             flex: 1,
             width: "match_parent",
             flexDirection: "column",
-            justifyContent: "space-between",
             marginHorizontal: 12,
             marginBottom: 12,
             padding: 14,
@@ -276,28 +284,36 @@ export function VerseOfTheDayWidget({
           clickAction="OPEN_VERSE"
           clickActionData={{ url: noteDeepLink ?? deepLink }}
         >
-          <FlexWidget style={{ width: "match_parent", flexDirection: "column", flexGap: 8 }}>
-            <TextWidget
-              text="WHY IT MATTERS"
-              maxLines={1}
-              style={{
-                fontSize: 9,
-                fontWeight: "700",
-                letterSpacing: 0.14,
-                color: palette.panelLabel,
-              }}
-            />
-            <TextWidget
-              text={explanation ?? ""}
-              maxLines={5}
-              truncate="END"
-              style={{ fontSize: 13, color: palette.explanation, fontFamily: "serif" }}
-            />
-          </FlexWidget>
+          <TextWidget
+            text="WHY IT MATTERS"
+            maxLines={1}
+            style={{
+              fontSize: 9,
+              fontWeight: "700",
+              letterSpacing: 0.14,
+              color: palette.panelLabel,
+            }}
+          />
+          <TextWidget
+            text={explanation ?? ""}
+            maxLines={5}
+            truncate="END"
+            style={{
+              fontSize: 13,
+              color: palette.explanation,
+              fontFamily: "serif",
+              marginTop: 8,
+            }}
+          />
           <TextWidget
             text="Read the full note →"
             maxLines={1}
-            style={{ fontSize: 11, fontWeight: "500", color: palette.link }}
+            style={{
+              fontSize: 11,
+              fontWeight: "500",
+              color: palette.link,
+              marginTop: 10,
+            }}
           />
         </FlexWidget>
       ) : null}
