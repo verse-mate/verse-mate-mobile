@@ -146,7 +146,7 @@
   },
   "lint-staged": {
     "**/*.{js,jsx,ts,tsx}": [
-      "biome check --write",
+      "biome check --write --no-errors-on-unmatched",
       "eslint --fix"
     ]
   },
