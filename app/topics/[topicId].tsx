@@ -54,6 +54,7 @@ import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons'
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
+import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { SimpleTopicPager } from '@/components/topics/SimpleTopicPager';
 import { TopicContentPanel } from '@/components/topics/TopicContentPanel';
 import { TopicExplanationsPanel } from '@/components/topics/TopicExplanationsPanel';
@@ -243,6 +244,19 @@ export default function TopicDetailScreen() {
   const [selectedVerse, setSelectedVerse] = useState<VersePress | null>(null);
   const [tooltipVisible, setTooltipVisible] = useState(false);
 
+  // Word-definition state lives HERE, at the screen root, not in the panels or in TopicPage.
+  //
+  // Those all sit inside a PagerView page, and on iOS an RN <Modal> presented from a pager page is rejected
+  // by UIKit — "Presenting view controller <RCTFabricModalHostViewController> from detached view
+  // controller" — so the sheet was created and silently never shown. Verified from the device log while
+  // tapping a word. Android was unaffected (its Modals are plain views), which is why this looked like a
+  // platform-specific mystery. `selectedVerse` above is the proof of the working shape: that tooltip is
+  // rendered here and presents fine.
+  const [wordToDefine, setWordToDefine] = useState<{ word: string; verseNumber: number } | null>(
+    null
+  );
+  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
+
   // FAB visibility state and handlers
   const {
     visible: fabVisible,
@@ -417,6 +431,24 @@ export default function TopicDetailScreen() {
   }, []);
 
   /**
+   * A word asked for from anywhere inside the pager (TopicText, native markdown, or either split-view
+   * panel). Stable reference so `renderTopicPage` does not rebuild its pages on every render.
+   */
+  const handleWordDefine = useCallback((word: string, verseNumber: number) => {
+    setWordToDefine({ word, verseNumber });
+    setWordDefinitionVisible(true);
+  }, []);
+
+  const handleWordDefinitionClose = useCallback(() => {
+    setWordDefinitionVisible(false);
+    setWordToDefine(null);
+  }, []);
+
+  const handleWordDefinitionCopy = useCallback(() => {
+    showToast('Copied to clipboard');
+  }, [showToast]);
+
+  /**
    * Handle tooltip close
    */
   const handleTooltipClose = () => {
@@ -459,6 +491,7 @@ export default function TopicDetailScreen() {
           onTap={handleTap}
           onShare={handleShare}
           onVersePress={handleVersePress}
+          onWordDefine={handleWordDefine}
           isPreloading={pageTopicId !== deferredActiveTopicId}
         />
       );
@@ -551,6 +584,7 @@ export default function TopicDetailScreen() {
               onScroll={handleScroll}
               onTap={handleTap}
               onVersePress={handleVersePress}
+              onWordDefine={handleWordDefine}
               visible={fabVisible}
             />
           }
@@ -562,6 +596,7 @@ export default function TopicDetailScreen() {
               onTabChange={handleTabChange}
               isTabPending={isTabPending}
               onMenuPress={() => setIsMenuOpen(true)}
+              onWordDefine={handleWordDefine}
             />
           }
         />
@@ -648,6 +683,19 @@ export default function TopicDetailScreen() {
           onCopy={handleCopy}
           isLoggedIn={isLoggedIn}
           useModal={!useSplitView}
+        />
+      )}
+
+      {/* Word definition — rendered at the SCREEN root so its Modal has an attached view controller. */}
+      {wordToDefine && (
+        <WordDefinitionTooltip
+          visible={wordDefinitionVisible}
+          word={wordToDefine.word}
+          bookName={currentTopicName || topic?.name || ''}
+          chapterNumber={0}
+          verseNumber={wordToDefine.verseNumber}
+          onClose={handleWordDefinitionClose}
+          onCopy={handleWordDefinitionCopy}
         />
       )}
     </View>

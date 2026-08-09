@@ -131,6 +131,24 @@ describe('StudyPanel', () => {
     expect(screen.queryByText('Open the chapter prayerfully.')).toBeNull();
   });
 
+  it('ramps in every top-level card, not just the first frame batch', async () => {
+    mockUseStudy.mockReturnValue({ data: minimalStudy, isLoading: false });
+
+    renderWithTheme(<StudyPanel bookId={59} chapter={1} />);
+
+    // Cards mount CARDS_PER_FRAME at a time to keep a ~14-card chapter out of one commit (that burst was
+    // ~23ms of RN <Text> work in a single 37ms frame). This fixture has six top-level cards — observation
+    // intro, two steps, the interpretation intro, one movement, the application card — so the application
+    // card sits at index 5 and CANNOT be in the first batch.
+    //
+    // Which makes it the assertion that matters: it fails if the ramp ever stalls after its first tick.
+    // The byline reveal shipped exactly that bug in reverse — it ramped to `Infinity` and was never reset,
+    // so every chapter after the first mounted everything at once again with no test to notice.
+    await waitFor(() => expect(screen.getByTestId('study-panel-application')).toBeTruthy());
+    expect(screen.getByTestId('study-panel-interpretation-intro')).toBeTruthy();
+    expect(screen.getByTestId('study-panel-movement-1')).toBeTruthy();
+  });
+
   it('Expand All reveals all card bodies; Collapse All hides them again', async () => {
     mockUseStudy.mockReturnValue({ data: minimalStudy, isLoading: false });
 

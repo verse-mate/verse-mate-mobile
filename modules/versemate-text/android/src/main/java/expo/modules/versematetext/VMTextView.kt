@@ -1,0 +1,624 @@
+package expo.modules.versematetext
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.DashPathEffect
+import android.graphics.Paint
+import android.text.Layout
+import android.text.TextPaint
+import android.util.TypedValue
+import android.util.Log
+import android.view.MotionEvent
+import android.view.ViewConfiguration
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import androidx.appcompat.widget.AppCompatTextView
+import expo.modules.kotlin.AppContext
+import expo.modules.kotlin.viewevent.EventDispatcher
+import expo.modules.kotlin.views.ExpoView
+
+/**
+ * Renders one block of decorated text and reports interaction by character offset.
+ *
+ * ## Why an inner TextView rather than drawing on a bare View
+ *
+ * The first version drew a `StaticLayout` straight onto the `ExpoView`. That is
+ * cheaper and gives complete control, but it silently gives up **system text
+ * selection** — no handles, no magnifier, no floating Copy / Select-all menu, and
+ * no accessibility text traversal. The operator confirmed selection and copy ARE
+ * used on verses, so that trade is not available.
+ *
+ * A selectable `AppCompatTextView` gets all of that from the platform, and nothing
+ * is lost on the decoration side: the custom underlines are still drawn in
+ * `onDraw`. Android's `UnderlineSpan` is always solid, always the text colour and
+ * always one pixel, and RN's `textDecorationStyle`/`textDecorationColor` are
+ * outright no-ops on Android — so a drawn line remains the only way to get a
+ * hairline dotted gold underline, which is the feature this module exists for.
+ *
+ * ## Why this does not fight Yoga
+ *
+ * The view claims exactly the size Yoga gives it and never asks to change it. JS
+ * has already called `VMText.measureHeight(...)` synchronously and passed the
+ * result as an explicit `style.height`, so the first layout pass is already
+ * correct — no reflow frame, which on a chapter of ~20 paragraphs would be a
+ * visible content jump.
+ *
+ * That only holds while the inner TextView lays text out **identically** to the
+ * `StaticLayout` used for measurement, so `configureForMeasurementParity` pins
+ * every parameter that affects line breaking. Phase 2's exit criterion — pixel
+ * comparison against an RN `<Text>` at several font scales and both orientations
+ * — is the check that catches any drift.
+ */
+@SuppressLint("ViewConstructor")
+class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
+
+  private val onPress by EventDispatcher<Map<String, Any?>>()
+  private val onRangeTap by EventDispatcher<Map<String, Any?>>()
+  private val onTextLayout by EventDispatcher<Map<String, Any?>>()
+  private val onSelectionChange by EventDispatcher<Map<String, Any?>>()
+
+  private var spec: VMTextSpec = VMTextSpec.EMPTY
+
+  /**
+   * False until construction finishes. Events must not be dispatched before then.
+   *
+   * `setTextIsSelectable(true)` in the inner view's `init` synchronously fires
+   * `onSelectionChanged`, and the inner view is created by an outer property
+   * initializer — so that callback runs while `VMTextView`'s own `by
+   * EventDispatcher` delegates are still uninitialised. Touching one there
+   * recursed until the stack blew:
+   *
+   *   Couldn't create view of type class expo.modules.versematetext.VMTextView
+   *   java.lang.reflect.InvocationTargetException
+   *   Caused by: java.lang.StackOverflowError: stack size 8188KB
+   *     at VMTextView$SelectableTextView.onSelectionChanged(VMTextView.kt:274)
+   *     at VMTextView$SelectableTextView.<init>(VMTextView.kt:127)
+   *     at VMTextView.<init>(VMTextView.kt:62)
+   *
+   * Every view creation failed, so the reader rendered its chrome and no verse
+   * text at all. Declared before `textView` to make the ordering explicit, though
+   * a Boolean field defaults to false regardless.
+   */
+  private var readyToDispatch = false
+
+  private val textView = SelectableTextView(context)
+
+  private val density: Float get() = resources.displayMetrics.density
+
+  init {
+    addView(
+      textView,
+      LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.MATCH_PARENT
+      )
+    )
+    readyToDispatch = true
+  }
+
+  /**
+   * Replace the spec.
+   *
+   * Props arrive from the bridge one at a time, so this runs several times per
+   * update. The equality check short-circuits the common case of a prop being
+   * re-sent unchanged, which would otherwise re-lay-out the text once per prop.
+   */
+  fun updateSpec(next: VMTextSpec) {
+    if (next == spec) return
+    spec = next
+    textView.applySpec(next)
+  }
+
+  fun currentSpec(): VMTextSpec = spec
+
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    super.onSizeChanged(w, h, oldw, oldh)
+    // Yoga owns the width. If it disagrees with the width JS measured against,
+    // the measured height describes different line breaking than what will be
+    // drawn — which clips. Re-apply at the real width rather than trust it.
+    if (w > 0 && w != spec.widthPx) {
+      spec = spec.copy(widthPx = w)
+      textView.applySpec(spec)
+    }
+  }
+
+  // -------------------------------------------------------------------------
+
+  /**
+   * The TextView that actually renders, selects, and draws decorations.
+   *
+   * An inner class so it can reach the outer view's event dispatchers without
+   * threading callbacks through a constructor.
+   */
+  @SuppressLint("ViewConstructor")
+  private inner class SelectableTextView(context: Context) : AppCompatTextView(context) {
+
+    private val underlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+      style = Paint.Style.STROKE
+    }
+
+    /** Last reported layout signature, so identical geometry is not re-emitted. */
+    private var lastLayoutKey: String? = null
+
+    /**
+     * Last selection actually dispatched to JS, so an unchanged selection is not re-emitted.
+     *
+     * Android calls `onSelectionChanged` on construction (`setTextIsSelectable` triggers it) and again
+     * on every text change, and for a bare caret it reports start == end — which this view normalises
+     * to -1/-1, i.e. "nothing selected". For a view that never had a selection, that produces a stream
+     * of identical "still nothing selected" events carrying no information.
+     *
+     * An atrace capture of three Bible<->Insight toggles counted
+     * `FabricEventEmitter.receiveEvent('topSelectionChange')` **1254 times in six seconds**, and the JS
+     * side counted `text.selectionEvent` **1518** in one session. Cheap natively — 5.0ms of self time —
+     * but every one crosses into JS, and that cost does not appear in the native trace at all.
+     *
+     * Same idea as `lastLayoutKey` directly above: emit on change, not on notification.
+     */
+    private var lastSelStart = Int.MIN_VALUE
+    private var lastSelEnd = Int.MIN_VALUE
+
+    private var downX = 0f
+    private var downY = 0f
+    private var downTime = 0L
+    /**
+     * Horizontal travel that marks a gesture as a swipe, in px.
+     *
+     * Must stay below the pager pan's activation distance (14px), or events stop
+     * arriving before the threshold is reached. A tap moves a pixel or two, so this is
+     * comfortably clear of one.
+     */
+    private val SWIPE_CLAIM_PX = 6f
+
+    /** logcat tag for the touch trace. Filter with: adb logcat -s VMTouch */
+    private val TOUCH_TAG = "VMTouch"
+
+    /** Longest gap between two taps still read as a double tap, in ms. */
+    private val DOUBLE_TAP_WINDOW_MS = 300L
+
+    /** Whether this gesture's long-press has already been cancelled as a swipe. */
+    private var longPressCancelled = false
+    /** Whether this gesture has been claimed as a horizontal swipe. */
+    private var swipeClaimed = false
+    /** Whether text was selected when this gesture started. */
+    private var hadSelectionOnDown = false
+    /** Whether this gesture dismissed a selection belonging to another paragraph. */
+    private var dismissedForeignSelection = false
+    /** Whether this gesture is the second of a double tap, whose selection is suppressed. */
+    private var suppressForDoubleTap = false
+    /** Event time of the previous ACTION_UP, for double-tap detection. */
+    private var lastTapUpTime = 0L
+
+    init {
+      configureForMeasurementParity()
+      // Selection handles, magnifier, and the floating Copy / Select-all menu.
+      setTextIsSelectable(true)
+      // The text fills the view; padding would shift it out of alignment with the
+      // width its height was measured against.
+      setPadding(0, 0, 0, 0)
+    }
+
+    /**
+     * Pin every layout parameter that `VMTextLayoutEngine` also pins.
+     *
+     * These are not stylistic choices — each one changes where lines break, and a
+     * mismatch against the measurement `StaticLayout` produces clipped or gapped
+     * text. They also match how React Native lays out its own `<Text>` on Android,
+     * so native paragraphs and surrounding RN text cannot visually drift.
+     */
+    private fun configureForMeasurementParity() {
+      includeFontPadding = false
+      breakStrategy = Layout.BREAK_STRATEGY_SIMPLE
+      hyphenationFrequency = Layout.HYPHENATION_FREQUENCY_NONE
+      setLineSpacing(0f, 1f)
+    }
+
+    fun applySpec(spec: VMTextSpec) {
+      val paint: TextPaint = spec.buildPaint()
+      setTextSize(TypedValue.COMPLEX_UNIT_PX, spec.fontSizePx)
+      setTextColor(spec.color)
+      typeface = paint.typeface
+      letterSpacing = paint.letterSpacing
+      textAlignment = when (spec.textAlign) {
+        "center" -> TEXT_ALIGNMENT_CENTER
+        "right" -> TEXT_ALIGNMENT_VIEW_END
+        "left" -> TEXT_ALIGNMENT_VIEW_START
+        else -> TEXT_ALIGNMENT_INHERIT
+      }
+
+      // Line height is NOT set here — it rides on the spannable as an
+      // ExactLineHeightSpan, so this view and the measurement layout apply the
+      // identical value. Computing leading separately in each place is what made
+      // the native reader render looser than the legacy one.
+      setLineSpacing(0f, 1f)
+
+      // Text LAST: the spans are built against the metrics set above, and setting
+      // text first would lay out once with the old metrics and again after.
+      text = spec.buildSpannable()
+      lastLayoutKey = null
+      // New text means any selection JS knew about is gone, and Fabric may hand this view to a
+      // different piece of content entirely. Clearing the dedup state guarantees the first selection
+      // event after a change is always delivered, so suppressing duplicates can never suppress news.
+      lastSelStart = Int.MIN_VALUE
+      lastSelEnd = Int.MIN_VALUE
+      requestLayout()
+      invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+      super.onDraw(canvas)
+      val resolved = layout ?: return
+      for (range in spec.ranges) {
+        drawUnderline(canvas, resolved, range)
+      }
+      reportLayoutIfChanged(resolved)
+    }
+
+    /**
+     * Draw one range's underline, one stroke per line it spans.
+     *
+     * A range that wraps needs its stroke clipped to the part of each line the
+     * range actually covers, or the underline runs to the line's full width.
+     */
+    private fun drawUnderline(canvas: Canvas, layout: Layout, range: VMRange) {
+      val style = range.underlineStyle ?: return
+      val length = text?.length ?: 0
+      val start = range.start.coerceIn(0, length)
+      val end = range.end.coerceIn(start, length)
+      if (end <= start) return
+
+      underlinePaint.color = range.underlineColor
+      underlinePaint.strokeWidth = range.underlineThicknessDp * density
+      underlinePaint.pathEffect = when (style) {
+        "dotted" -> {
+          // Equal dot and gap at 2dp reads as dotted at body sizes; tighter looks
+          // solid on a high-density panel.
+          val segment = 2f * density
+          DashPathEffect(floatArrayOf(segment, segment), 0f)
+        }
+        "dashed" -> {
+          val dash = 4f * density
+          DashPathEffect(floatArrayOf(dash, dash * 0.75f), 0f)
+        }
+        else -> null
+      }
+
+      val offset = UNDERLINE_BASELINE_OFFSET_DP * density
+      val firstLine = layout.getLineForOffset(start)
+      val lastLine = layout.getLineForOffset(end)
+
+      for (line in firstLine..lastLine) {
+        val from = maxOf(start, layout.getLineStart(line))
+        // getLineEnd includes trailing whitespace and the newline, so cap at the
+        // range end or the underline extends past the last character.
+        val to = minOf(end, layout.getLineEnd(line))
+        if (to <= from) continue
+
+        val x1 = layout.getPrimaryHorizontal(from)
+        val x2 = layout.getPrimaryHorizontal(to)
+        val y = layout.getLineBaseline(line) + offset
+        // RTL runs report a larger start than end; normalise so the stroke is
+        // drawn left-to-right and the dash phase stays consistent.
+        canvas.drawLine(minOf(x1, x2), y, maxOf(x1, x2), y, underlinePaint)
+      }
+    }
+
+    /**
+     * Emit line geometry so JS can anchor a popover to a tapped word.
+     *
+     * Read from the TextView's OWN layout rather than a separately built one, so
+     * the geometry describes exactly what is on screen.
+     */
+    private fun reportLayoutIfChanged(layout: Layout) {
+      // Same guard as onSelectionChanged. A draw cannot happen during construction
+      // today, but the cost of being wrong about that is the whole view failing to
+      // instantiate, so it is not worth relying on.
+      if (!this@VMTextView.readyToDispatch) return
+      val key = "${text?.length}:$width:${layout.lineCount}:${layout.height}"
+      if (key == lastLayoutKey) return
+      lastLayoutKey = key
+
+      val lines = (0 until layout.lineCount).map { line ->
+        val top = layout.getLineTop(line)
+        mapOf(
+          "start" to layout.getLineStart(line),
+          "end" to layout.getLineEnd(line),
+          "x" to (layout.getLineLeft(line) / density),
+          "y" to (top / density),
+          "width" to ((layout.getLineRight(line) - layout.getLineLeft(line)) / density),
+          "height" to ((layout.getLineBottom(line) - top) / density),
+          "baseline" to ((layout.getLineBaseline(line) - top) / density),
+        )
+      }
+      this@VMTextView.onTextLayout(mapOf("lines" to lines))
+    }
+
+    /**
+     * Report selection changes so JS can drive its own affordances — the Define
+     * button for the dictionary lookup.
+     *
+     * Android reports start == end for a bare caret; that is normalised to -1/-1
+     * so JS gets one unambiguous "nothing selected" signal instead of having to
+     * know the convention.
+     */
+    override fun onSelectionChanged(selStart: Int, selEnd: Int) {
+      super.onSelectionChanged(selStart, selEnd)
+      // Track ownership app-wide, so a tap on ANY paragraph can dismiss this one's
+      // selection. Registered before the readyToDispatch gate below, because
+      // ownership matters even when there is no JS listener yet.
+      if (selEnd > selStart) {
+        VMTextView.setSelectionOwner(this)
+      } else if (VMTextView.hasSelectionOwner(this)) {
+        VMTextView.setSelectionOwner(null)
+      }
+      // Fires during construction (setTextIsSelectable triggers it) and again on
+      // every text change, both before the outer view's event dispatchers exist.
+      // See `readyToDispatch`.
+      if (!this@VMTextView.readyToDispatch) return
+      val hasSelection = selEnd > selStart
+      val start = if (hasSelection) selStart else -1
+      val end = if (hasSelection) selEnd else -1
+      // Emit on CHANGE, not on notification — see lastSelStart/lastSelEnd. Placed after the
+      // readyToDispatch gate so the fields only ever track what JS was actually told.
+      if (start == lastSelStart && end == lastSelEnd) return
+      lastSelStart = start
+      lastSelEnd = end
+      this@VMTextView.onSelectionChange(mapOf("start" to start, "end" to end))
+    }
+
+    /**
+     * Detect taps here while leaving selection gestures to the platform.
+     *
+     * `setTextIsSelectable(true)` installs `ArrowKeyMovementMethod` and makes the
+     * view focusable and long-clickable, so super handles long-press-to-select and
+     * handle dragging. What super cannot do is say which decorated range a short
+     * tap landed on, which is how a lexicon word opens its card.
+     *
+     * super is always called, so scrolling and selection keep working — a vertical
+     * drag is never consumed here, which lets the parent ScrollView intercept it.
+     * Long presses are deliberately NOT treated as taps: that gesture belongs to
+     * selection, and firing a range tap too would open a card the instant the user
+     * tried to select a word.
+     */
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+      // Once this gesture is a horizontal swipe, super must not see another event
+      // from it. Clearing the selection and then calling super anyway — which the
+      // previous attempt did, because the ACTION_MOVE branch fell through to
+      // `return super.onTouchEvent(event)` — let the selection controller
+      // immediately re-establish what had just been cleared. That is why slow-swipe
+      // selection survived two fixes.
+      if (swipeClaimed && event.actionMasked != MotionEvent.ACTION_DOWN) return false
+      // Remaining events of a dismissing tap: swallowed, never forwarded to super.
+      if (dismissedForeignSelection && event.actionMasked != MotionEvent.ACTION_DOWN) {
+        if (event.actionMasked == MotionEvent.ACTION_UP ||
+          event.actionMasked == MotionEvent.ACTION_CANCEL
+        ) {
+          dismissedForeignSelection = false
+        }
+        return true
+      }
+
+      when (event.actionMasked) {
+        MotionEvent.ACTION_DOWN -> {
+          downX = event.x
+          downY = event.y
+          downTime = event.eventTime
+          longPressCancelled = false
+          swipeClaimed = false
+          // Native logging, because three JS-side reasoning attempts at the selection
+          // behaviour all failed and none of them established whether this code runs
+          // at all. `android.util.Log` reaches logcat even though the app's
+          // console.log no longer does, so this is the only channel that can prove
+          // the touch is arriving here rather than in the legacy RN <Text> path.
+          Log.d(TOUCH_TAG, "DOWN x=${event.x} sel=${selectionStart}..${selectionEnd} selectable=$isTextSelectable")
+          // Recorded HERE, not on UP. A selectable TextView collapses its selection
+          // on ACTION_DOWN, so by the time UP arrives there is nothing left to
+          // detect — which is why "tap to dismiss" fell through and opened the verse
+          // insight instead.
+          hadSelectionOnDown = anySelection()
+          // Dismiss a selection wherever it lives, INCLUDING this view's own.
+          //
+          // `except = this` was wrong: when the selected word and the tapped word are in
+          // the same paragraph, nothing is foreign, so the dismissal never triggered and
+          // super went on to select the newly tapped word. That is the reported "it
+          // deselects the old one but selects the one I tapped". A tap while anything is
+          // selected means dismiss, regardless of which paragraph holds it.
+          //
+          // Selection handles live in their own PopupWindows, so dragging one does not
+          // arrive here and is unaffected.
+          dismissedForeignSelection = anySelection() || VMTextView.clearActiveSelection()
+          if (dismissedForeignSelection) {
+            clearSelectionIfAny()
+            Log.d(TOUCH_TAG, "DOWN dismissed a selection — consuming this gesture")
+            // Withhold the WHOLE gesture from super, starting with this DOWN.
+            //
+            // Consuming only at UP was not enough: super still saw down/move/up and the
+            // platform selected a word in the tapped paragraph, so dismissing one
+            // selection immediately created another. The trace showed it exactly —
+            // `DOWN dismissed a selection owned by another paragraph` followed by
+            // `UP ... sel=102..106`. A tap whose entire purpose is to dismiss must do
+            // nothing else at all.
+            return true
+          }
+
+          // Suppress the platform's double-tap-to-select-a-word.
+          //
+          // A selectable TextView selects a word on double tap, which is why rapid
+          // swiping occasionally left a word highlighted: two taps landing close
+          // together in time and space read as a double tap. Selection here is meant
+          // to come from a deliberate press-and-hold only, so the second tap of a
+          // pair is withheld from super — it still behaves as an ordinary tap for
+          // this view's own purposes.
+          val sinceLastTap = event.eventTime - lastTapUpTime
+          if (sinceLastTap in 1..DOUBLE_TAP_WINDOW_MS) {
+            suppressForDoubleTap = true
+          }
+        }
+        MotionEvent.ACTION_MOVE -> {
+          // A slow horizontal drag is a page swipe, not a selection.
+          //
+          // Selection is super's job, and `setTextIsSelectable(true)` makes this
+          // view long-clickable, so Android's 500ms long-press timer starts on every
+          // touch down. Someone dragging slowly sideways would cross that timer
+          // before travelling far enough for the pager's gesture to claim the touch,
+          // and the platform would begin selecting a word mid-swipe.
+          //
+          // Cancelling the pending long-press as soon as horizontal travel is both
+          // past the touch slop and dominant over vertical travel keeps swiping and
+          // scrolling intact while leaving the real selection gesture — press and
+          // HOLD, without moving — completely untouched.
+          if (!longPressCancelled) {
+            val mdx = kotlin.math.abs(event.x - downX)
+            val mdy = kotlin.math.abs(event.y - downY)
+            Log.d(TOUCH_TAG, "MOVE dx=$mdx dy=$mdy claimed=$swipeClaimed")
+            // NOT scaledTouchSlop, which is 35px on this device. The pager's pan
+            // claims the gesture at 14px, so events stop arriving here at ~35px — the
+            // touch trace showed a drag reaching dx=34.84 and then going silent, which
+            // means a 35px threshold could never once be true. Three selection fixes
+            // did nothing for exactly this reason: the code was correct and
+            // unreachable. The threshold has to sit BELOW the pan's activation.
+            if (mdx > SWIPE_CLAIM_PX && mdx > mdy) {
+              Log.d(TOUCH_TAG, "MOVE -> claiming swipe, clearing selection")
+              longPressCancelled = true
+              swipeClaimed = true
+              cancelLongPress()
+              // Cancelling the pending long-press is not enough on its own, and
+              // shipping only that was measured to change nothing: someone who holds
+              // still past the 500ms timeout BEFORE moving already has a selection by
+              // the time this runs, which is exactly the reported gesture. So an
+              // existing selection is dropped too — a horizontal drag is a page turn,
+              // never a selection.
+              clearSelectionIfAny()
+            }
+          }
+        }
+        MotionEvent.ACTION_CANCEL -> {
+          // The pager's pan took the gesture. That is a swipe by definition, and it is
+          // the only signal available when the finger holds still past the long-press
+          // timeout before moving — the platform has already started selecting by
+          // then, and no MOVE threshold can help.
+          Log.d(TOUCH_TAG, "CANCEL sel=${selectionStart}..${selectionEnd}")
+          swipeClaimed = true
+          clearSelectionIfAny()
+        }
+        MotionEvent.ACTION_UP -> {
+          val dx = event.x - downX
+          val dy = event.y - downY
+          val slop = ViewConfiguration.get(context).scaledTouchSlop
+          val moved = dx * dx + dy * dy > slop * slop
+          val longPress = event.eventTime - downTime >= ViewConfiguration.getLongPressTimeout()
+          // A tap while something is selected DISMISSES the selection and does
+          // nothing else. Previously the tap fell through and opened the verse
+          // insight, so there was no way to simply get rid of a selection.
+          if (!moved && !longPress && (hadSelectionOnDown || dismissedForeignSelection)) {
+            // The tap that dismisses a selection does nothing else. Consumed so it
+            // cannot also open a verse insight or a lexicon card.
+            clearSelectionIfAny()
+            return true
+          }
+          Log.d(
+            TOUCH_TAG,
+            "UP moved=$moved longPress=$longPress hadSelOnDown=$hadSelectionOnDown " +
+              "sel=${selectionStart}..${selectionEnd} claimed=$swipeClaimed dbl=$suppressForDoubleTap"
+          )
+          lastTapUpTime = event.eventTime
+          if (suppressForDoubleTap) {
+            suppressForDoubleTap = false
+            if (!moved && !longPress) dispatchTap(event.x, event.y)
+            return true
+          }
+          val handled = super.onTouchEvent(event)
+          if (!moved && !longPress) dispatchTap(event.x, event.y)
+          return handled
+        }
+      }
+      return super.onTouchEvent(event)
+    }
+
+    /** Named to avoid shadowing TextView's own `hasSelection()`. */
+    private fun anySelection(): Boolean = selectionEnd > selectionStart
+
+    /**
+     * Drop any active selection.
+     *
+     * Collapsing to a zero-width range at the selection start is what the platform
+     * itself does on a dismiss, and it takes the selection handles and the action
+     * bar down with it.
+     */
+    private fun clearSelectionIfAny() {
+      if (!anySelection()) return
+      val text = text
+      if (text is android.text.Spannable) {
+        android.text.Selection.setSelection(text, selectionStart)
+      }
+    }
+
+    private fun dispatchTap(x: Float, y: Float) {
+      val offset = charOffsetAt(x, y)
+      // Later ranges paint over earlier ones, so the topmost interactive range at
+      // this offset is the one the user sees and therefore the one they meant.
+      val hitIndex = spec.ranges.indexOfLast {
+        it.interactive && offset >= it.start && offset < it.end
+      }
+      if (hitIndex >= 0) {
+        this@VMTextView.onRangeTap(mapOf("index" to hitIndex, "charOffset" to offset))
+      } else {
+        this@VMTextView.onPress(
+          mapOf("charOffset" to offset, "x" to (x / density), "y" to (y / density))
+        )
+      }
+    }
+
+    /** Character offset nearest a point, or 0 before the first layout. */
+    private fun charOffsetAt(x: Float, y: Float): Int {
+      val resolved = layout ?: return 0
+      val line = resolved.getLineForVertical(y.toInt())
+      return resolved.getOffsetForHorizontal(line, x)
+    }
+  }
+
+  companion object {
+    /**
+     * Gap between the text baseline and the underline, in dp. Clears descenders
+     * (g, y, p) at body sizes without the line detaching from the word.
+     */
+    private const val UNDERLINE_BASELINE_OFFSET_DP = 3f
+
+    /**
+     * The view that currently holds a text selection, if any.
+     *
+     * Selection dismissal is inherently CROSS-VIEW and the previous attempt treated it
+     * as per-view, which is why tapping away never worked. Every paragraph is its own
+     * VMTextView: the selection lives in paragraph A, the dismissing tap lands on
+     * paragraph B, and B correctly reports that it holds no selection. The touch trace
+     * showed exactly that — `hadSelOnDown=false sel=593..593` on the dismiss tap while
+     * another view held 643..644.
+     *
+     * A weak reference so a recycled paragraph cannot be kept alive by this.
+     */
+    private var selectionOwner: java.lang.ref.WeakReference<AppCompatTextView>? = null
+
+    /** Clear whichever view holds a selection. Returns true if one was cleared. */
+    fun clearActiveSelection(except: AppCompatTextView? = null): Boolean {
+      val owner = selectionOwner?.get() ?: return false
+      if (except != null && owner === except) return false
+      val text = owner.text
+      if (text is android.text.Spannable && owner.selectionEnd > owner.selectionStart) {
+        android.text.Selection.setSelection(text, owner.selectionStart)
+        selectionOwner = null
+        return true
+      }
+      selectionOwner = null
+      return false
+    }
+
+    /** Whether `view` is the registered owner. */
+    fun hasSelectionOwner(view: AppCompatTextView): Boolean = selectionOwner?.get() === view
+
+    /** Record which view owns the current selection. */
+    fun setSelectionOwner(view: AppCompatTextView?) {
+      selectionOwner = if (view == null) null else java.lang.ref.WeakReference(view)
+    }
+  }
+}

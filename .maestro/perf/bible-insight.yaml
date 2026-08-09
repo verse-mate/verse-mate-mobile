@@ -1,0 +1,64 @@
+appId: org.versemate.app
+name: Perf — bible-insight
+description: ONLY the Bible <-> Insight view toggle, so the retained frame window is homogeneous
+tags:
+  - perf
+---
+
+# The Bible <-> Insight toggle and nothing else.
+#
+# Companion to insight-subtabs.yaml, and split from the combined flow for the same reason: `gfxinfo`
+# retains only the LAST 120 frames, so a flow that mixes sub-tab switches with view toggles lets the
+# retained window land on a different interaction in each arm. See insight-subtabs.yaml for the
+# impossible-looking result that exposed it.
+#
+# This toggle is the more expensive of the two: it animates container opacity continuously, whereas a
+# sub-tab switch snaps. Measuring them separately is the only way to tell which one the operator is
+# actually seeing drop frames — the combined flow could never answer that.
+
+- runFlow: shared/reset-to-reader.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-old-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-genesis"
+    direction: DOWN
+- tapOn:
+    id: "book-item-genesis"
+- waitForAnimationToEnd
+- tapOn:
+    id: "chapter-1"
+- extendedWaitUntil:
+    visible:
+      text: "Genesis 1"
+    timeout: 30000
+
+# Warm both sides once so the retained window measures SWITCHING rather than first mount.
+- tapOn:
+    id: "commentary-view-toggle"
+- extendedWaitUntil:
+    visible:
+      id: "chapter-content-tabs"
+    timeout: 30000
+- waitForAnimationToEnd
+- tapOn:
+    id: "bible-view-toggle"
+- waitForAnimationToEnd
+
+- repeat:
+    times: 8
+    commands:
+      - tapOn:
+          id: "commentary-view-toggle"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "bible-view-toggle"
+      - waitForAnimationToEnd

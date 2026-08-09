@@ -1,0 +1,10 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["VMTextModule"],
+    "podspecPath": "./ios/VMText.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.versematetext.VMTextModule"]
+  }
+}

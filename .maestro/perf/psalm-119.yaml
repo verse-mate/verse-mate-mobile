@@ -1,0 +1,52 @@
+appId: org.versemate.app
+name: Perf — psalm-119
+description: Psalm 119 — the longest chapter in the Bible (176 verses), worst case
+tags:
+  - perf
+---
+
+# Psalm 119 — the longest chapter in the Bible (176 verses), worst case
+#
+# Navigation uses LITERAL selectors, not env interpolation. Maestro did not
+# substitute ${VAR} inside `id:` and still reported each tap as COMPLETED, so
+# every scenario silently measured Genesis 1. Verified after each run by reading
+# the book/chapter metadata off the reader.mount.bible spans.
+
+# setup-WARM, not setup.yaml: clearState runs `pm clear`, which wipes the Expo
+# dev client's saved Metro URL — the app then boots into the dev-launcher and no
+# JS runs at all. A warm launch also avoids re-downloading ~30MB of offline
+# commentaries, which would dominate every measurement.
+- runFlow: shared/reset-to-reader.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-old-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-psalms"
+    direction: DOWN
+- tapOn:
+    id: "book-item-psalms"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "chapter-119"
+    direction: DOWN
+- tapOn:
+    id: "chapter-119"
+
+# Assert we actually arrived. Without this the workout would run against whatever
+# chapter happened to be open and the numbers would be silently wrong — which is
+# exactly what happened before.
+- extendedWaitUntil:
+    visible:
+      text: "Psalms 119"
+    timeout: 30000
+
+- runFlow: shared/reader-workout.yaml

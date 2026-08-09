@@ -47,6 +47,10 @@ import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ChapterContentTabs } from '@/components/bible/ChapterContentTabs';
 import { ChapterPage } from '@/components/bible/ChapterPage';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
+import {
+  GestureChapterPager,
+  type GestureChapterPagerRef,
+} from '@/components/bible/GestureChapterPager';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { OfflineIndicator } from '@/components/bible/OfflineIndicator';
 import { ProgressBar } from '@/components/bible/ProgressBar';
@@ -71,12 +75,14 @@ import {
 } from '@/hooks/bible';
 import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
 import { useFABVisibility } from '@/hooks/bible/use-fab-visibility';
+import { useGesturePager } from '@/hooks/bible/use-gesture-pager';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import { perfAdd } from '@/lib/perf';
 import {
   useBibleChapter,
   usePrefetchNextChapter,
@@ -85,6 +91,21 @@ import {
 } from '@/src/api';
 import { getHeaderSpecs, spacing } from '@/theme/tokens';
 import { isContentTabType } from '@/types/bible';
+
+/**
+ * Minimum gap between chapter-change haptics, in ms.
+ *
+ * Raised from 400ms because the operator reported the buzz coinciding with a visible
+ * stall during fast swiping — the screen pausing, then the haptic, then the header
+ * catching up, then swiping possible again. `Haptics.impactAsync` is a native call on
+ * the JS thread, so during a run it lands in the middle of exactly the work that must
+ * not be interrupted. 900ms is longer than the gap between flicks in a run, so a run
+ * buzzes once at most, while a single deliberate swipe still always buzzes.
+ */
+const CHAPTER_HAPTIC_MIN_GAP_MS = 900;
+
+/** How long the reader must settle before the position is persisted, in ms. */
+const SAVE_LAST_READ_DEBOUNCE_MS = 900;
 
 /**
  * View mode type for Bible reading interface
@@ -171,6 +192,61 @@ export default function ChapterScreen() {
     }
   };
 
+  const { useGesturePager: useGesturePagerArm } = useGesturePager();
+
+  /**
+   * Explicit "something other than the pager moved us" signal.
+   *
+   * The pager cannot be allowed to react to bookId/chapterNumber directly: the route lags
+   * a swipe, so its own echoes look like external navigations and drag the reader
+   * backwards. Inferring the difference — a dispatched-key set, then a time-bounded echo
+   * window — got closer each time and never got it right, because a heuristic cannot know
+   * something the screen already knows for certain.
+   *
+   * So the screen states it. This counter is bumped ONLY by the chapter picker, the
+   * prev/next buttons and deep links; the pager watches the counter and ignores the
+   * chapter props entirely. One writer, one reader, no guessing.
+   */
+  /**
+   * Handle on the gesture pager, so the chapter buttons can ask IT to move.
+   *
+   * The buttons computed their target from the route's chapter, which lags — tapping faster
+   * than the route commits aimed from a stale position and the pager then followed that
+   * stale target backwards. Delegating keeps one source of position for taps and swipes.
+   */
+  const gesturePagerRef = useRef<GestureChapterPagerRef>(null);
+
+  const [externalNav, setExternalNav] = useState<{
+    seq: number;
+    bookId: number;
+    chapterNumber: number;
+  } | null>(null);
+  const navigateExternally = useCallback(
+    (nextBookId: number, nextChapter: number) => {
+      // The TARGET travels with the signal.
+      //
+      // A bare counter raced the props and produced the chapter-nav button bug: the pager
+      // is given deferredBookId/deferredChapterNumber, which lag by design, while the
+      // counter is urgent — so the pager woke up and read the chapter it was ALREADY on.
+      // Measured: tapping Next moved the header to Genesis 2 while the page stayed on
+      // Genesis 1, and a Prev tap from that stale position moved the page FORWARD.
+      if (__DEV__) {
+        // Paired with the pager's [VMNAV] lines: this is what the ROUTE was asked for, so a divergence
+        // between the ask and what the pager renders is visible in one grep rather than deduced.
+        console.log(
+          `[VMNAV] request {"to":"${nextBookId}:${nextChapter}","from":"${bookId}:${chapterNumber}","deferred":"${deferredBookId}:${deferredChapterNumber}"}`
+        );
+      }
+      setExternalNav((prev) => ({
+        seq: (prev?.seq ?? 0) + 1,
+        bookId: nextBookId,
+        chapterNumber: nextChapter,
+      }));
+      navigateToChapter(nextBookId, nextChapter);
+    },
+    [navigateToChapter, bookId, chapterNumber, deferredBookId, deferredChapterNumber]
+  );
+
   // Get active tab from persistence
   const { activeTab, setActiveTab } = useActiveTab();
 
@@ -217,13 +293,27 @@ export default function ChapterScreen() {
   // content opacity swap.
   const tabsWrapperStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      // Cap is generous (tabs row is ~50-60dp); the inner content sets the
-      // actual rendered height, the cap just gates the collapse animation.
-      maxHeight: interpolate(toggleProgress.value, [0, 1], [0, 120]),
-      opacity: toggleProgress.value,
-    };
+    // OPACITY ONLY — `maxHeight` is set below from React state instead of interpolated here.
+    //
+    // maxHeight is a LAYOUT property. Interpolating it meant every frame of the 250ms cross-fade
+    // resized this wrapper and therefore relayouted the whole pane beneath it. That is a large part of
+    // why this toggle is the expensive interaction on the reader: p50 13.6ms with 107 of 119 frames
+    // over the 8.3ms budget, against p50 8.4ms and 62/120 for a sub-tab switch, which does not resize
+    // anything.
+    //
+    // Snapping the height and fading only the opacity keeps the animation the operator wants while
+    // paying for exactly ONE relayout instead of ~30. Opacity is a compositing property, so the fade
+    // itself costs no layout at all.
+    return { opacity: toggleProgress.value };
   });
+
+  /**
+   * The tabs row's height, snapped rather than animated — see `tabsWrapperStyle`.
+   *
+   * Generous cap (the row is ~50-60dp); the inner content sets the real height and this only gates
+   * the collapse.
+   */
+  const tabsMaxHeight = activeView === 'explanations' ? 120 : 0;
 
   // Track chapter reading duration (Time-Based Analytics)
   // Hook fires CHAPTER_READING_DURATION event on unmount with AppState awareness
@@ -471,6 +561,15 @@ export default function ChapterScreen() {
     [activeTab, setActiveTab, activeTabProgress]
   );
 
+  const lastChapterHapticRef = useRef(0);
+  const saveLastReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (saveLastReadTimerRef.current) clearTimeout(saveLastReadTimerRef.current);
+    },
+    []
+  );
+
   /**
    * Handle page change from SimpleChapterPager (V3)
    *
@@ -486,16 +585,41 @@ export default function ChapterScreen() {
       // Update state via hook (V3: single source of truth)
       navigateToChapter(newBookId, newChapterNumber);
 
-      // Haptic feedback for chapter change
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      // Haptic feedback for chapter change.
+      //
+      // Coalesced during a fast run. Every chapter change used to fire a Medium
+      // impact, so flicking through twenty chapters queued twenty vibrations — and
+      // the operator reported the residual pause as feeling "in sync with the
+      // haptic feedback". A single swipe is unchanged; only a rapid burst is
+      // thinned.
+      const now = Date.now();
+      perfAdd('nav.chapterChange', 1);
+      if (now - lastChapterHapticRef.current > CHAPTER_HAPTIC_MIN_GAP_MS) {
+        lastChapterHapticRef.current = now;
+        // Counted so "double haptic" can be attributed. If this fires once per
+        // swipe then the second buzz is Android's selection haptic, not ours.
+        perfAdd('haptic.chapterChange', 1);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
 
-      // Save reading position - only for authenticated users
+      // Save reading position - only for authenticated users.
+      //
+      // Debounced, because this is a NETWORK WRITE and it was firing once per
+      // chapter change: a twenty-chapter swipe run sent twenty requests, each with
+      // mutation state changes that re-render the screen. Only the chapter the
+      // reader actually stops on is worth persisting, so the write is deferred
+      // until the swiping stops.
       if (user?.id) {
-        saveLastRead({
-          user_id: user.id,
-          book_id: newBookId,
-          chapter_number: newChapterNumber,
-        });
+        if (saveLastReadTimerRef.current) clearTimeout(saveLastReadTimerRef.current);
+        const userId = user.id;
+        saveLastReadTimerRef.current = setTimeout(() => {
+          saveLastReadTimerRef.current = null;
+          saveLastRead({
+            user_id: userId,
+            book_id: newBookId,
+            chapter_number: newChapterNumber,
+          });
+        }, SAVE_LAST_READ_DEBOUNCE_MS);
       }
 
       // Prefetch is handled automatically by the hooks' internal useEffect
@@ -509,17 +633,21 @@ export default function ChapterScreen() {
    * V3 Linear mode: At Genesis 1, this does nothing (canGoPrevious is false)
    */
   const handlePrevious = useCallback(() => {
-    if (!canGoPrevious || !prevChapter) return;
-
     // Reset FAB visibility timer so arrows stay visible during rapid navigation
     showButtons();
 
     // Haptic feedback for button press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Update state via hook (V3: single source of truth)
-    navigateToChapter(prevChapter.bookId, prevChapter.chapterNumber);
-  }, [canGoPrevious, prevChapter, navigateToChapter, showButtons]);
+    // Ask the pager to step, so rapid taps advance from where it actually is rather than
+    // from a route that has not caught up.
+    if (useGesturePagerArm && gesturePagerRef.current) {
+      gesturePagerRef.current.goPrevious();
+      return;
+    }
+    if (!canGoPrevious || !prevChapter) return;
+    navigateExternally(prevChapter.bookId, prevChapter.chapterNumber);
+  }, [canGoPrevious, prevChapter, navigateExternally, showButtons, useGesturePagerArm]);
 
   /**
    * Navigate to next chapter
@@ -527,17 +655,19 @@ export default function ChapterScreen() {
    * V3 Linear mode: At Revelation 22, this does nothing (canGoNext is false)
    */
   const handleNext = useCallback(() => {
-    if (!canGoNext || !nextChapter) return;
-
     // Reset FAB visibility timer so arrows stay visible during rapid navigation
     showButtons();
 
     // Haptic feedback for button press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Update state via hook (V3: single source of truth)
-    navigateToChapter(nextChapter.bookId, nextChapter.chapterNumber);
-  }, [canGoNext, nextChapter, navigateToChapter, showButtons]);
+    if (useGesturePagerArm && gesturePagerRef.current) {
+      gesturePagerRef.current.goNext();
+      return;
+    }
+    if (!canGoNext || !nextChapter) return;
+    navigateExternally(nextChapter.bookId, nextChapter.chapterNumber);
+  }, [canGoNext, nextChapter, navigateExternally, showButtons, useGesturePagerArm]);
 
   // Web keyboard shortcuts: arrow keys for chapter navigation, Escape to close modal
   useKeyboardShortcuts({
@@ -638,7 +768,7 @@ export default function ChapterScreen() {
           onSelectChapter={(selectedBookId, chapterNum) => {
             setIsNavigationModalOpen(false);
             setActiveView('bible');
-            navigateToChapter(selectedBookId, chapterNum);
+            navigateExternally(selectedBookId, chapterNum);
           }}
           onSelectTopic={(topicId, category) => {
             setIsNavigationModalOpen(false);
@@ -685,7 +815,7 @@ export default function ChapterScreen() {
           onSelectChapter={(selectedBookId, chapterNum) => {
             setIsNavigationModalOpen(false);
             setActiveView('bible');
-            navigateToChapter(selectedBookId, chapterNum);
+            navigateExternally(selectedBookId, chapterNum);
           }}
           onSelectTopic={(topicId, category) => {
             setIsNavigationModalOpen(false);
@@ -779,7 +909,7 @@ export default function ChapterScreen() {
                 frame as the Bible/Insight tap — no waiting for React. */}
             <Animated.View
               testID="content-tabs-wrapper"
-              style={[styles.tabsWrapper, tabsWrapperStyle]}
+              style={[styles.tabsWrapper, { maxHeight: tabsMaxHeight }, tabsWrapperStyle]}
               pointerEvents={activeView === 'explanations' ? 'auto' : 'none'}
             >
               <ChapterContentTabs
@@ -798,14 +928,36 @@ export default function ChapterScreen() {
                 absolutely positioned against the content area only — the toggle
                 header + content tabs above stay visible and interactive. */}
             <View style={styles.pagerWrapper}>
-              <SimpleChapterPager
-                bookId={deferredBookId}
-                chapterNumber={deferredChapterNumber}
-                bookName={bookName}
-                booksMetadata={booksMetadata}
-                onChapterChange={handlePageChange}
-                renderChapterPage={renderChapterPage}
-              />
+              {useGesturePagerArm ? (
+                /* Gesture-driven paging. Owns the horizontal offset as a shared
+                   value, so a new flick interrupts the running settle instead of
+                   being refused — the failure ViewPager2 could not be talked out
+                   of. Off by default until measured against the path below. */
+                <GestureChapterPager
+                  ref={gesturePagerRef}
+                  bookId={deferredBookId}
+                  chapterNumber={deferredChapterNumber}
+                  // LIVE route values, for the pager's initial position only. The screen remounts on
+                  // navigation, so externalNav is null on mount and the seed is the only thing that
+                  // decides where it opens — a deferred value there opens the previous chapter.
+                  seedBookId={bookId}
+                  seedChapterNumber={chapterNumber}
+                  externalNav={externalNav}
+                  bookName={bookName}
+                  booksMetadata={booksMetadata}
+                  onChapterChange={handlePageChange}
+                  renderChapterPage={renderChapterPage}
+                />
+              ) : (
+                <SimpleChapterPager
+                  bookId={deferredBookId}
+                  chapterNumber={deferredChapterNumber}
+                  bookName={bookName}
+                  booksMetadata={booksMetadata}
+                  onChapterChange={handlePageChange}
+                  renderChapterPage={renderChapterPage}
+                />
+              )}
               {/* Both view and inner-tab switches are now driven by
                   sharedValues on the UI thread (toggleProgress +
                   activeTabProgress in ChapterPage), so no skeleton
@@ -840,7 +992,7 @@ export default function ChapterScreen() {
             // Always default to Bible text view when switching books via modal
             setActiveView('bible');
             // V3: Update state via hook (single source of truth)
-            navigateToChapter(selectedBookId, chapterNum);
+            navigateExternally(selectedBookId, chapterNum);
           }}
           onSelectTopic={(topicId, category) => {
             setIsNavigationModalOpen(false);

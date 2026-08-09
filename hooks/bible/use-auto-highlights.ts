@@ -24,6 +24,14 @@ import {
 } from '@/lib/api/auto-highlights';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
+/**
+ * Shared "no auto-highlights" value.
+ *
+ * Frozen so a caller cannot mutate the singleton, and shared so the identity is
+ * stable across renders — the whole point of it existing.
+ */
+const EMPTY_AUTO_HIGHLIGHTS = Object.freeze([]) as unknown as AutoHighlight[];
+
 interface UseAutoHighlightsParams {
   /** Book ID */
   bookId?: number;
@@ -185,7 +193,12 @@ export function useAutoHighlights({
   const error = (preferencesError || highlightsError) as Error | null;
 
   return {
-    autoHighlights: autoHighlightsData || [],
+    // `|| []` allocated a NEW empty array on every render whenever the query had
+    // no data, so every consumer saw a changed identity and re-rendered. The
+    // re-render probe attributed 40 ChapterReader renders to exactly this, and
+    // every one of those renders is a React commit Fabric has to diff. A shared
+    // frozen constant makes "no highlights" a stable value.
+    autoHighlights: autoHighlightsData || EMPTY_AUTO_HIGHLIGHTS,
     isLoading,
     error,
   };

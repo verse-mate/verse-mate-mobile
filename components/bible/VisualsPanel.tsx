@@ -476,9 +476,19 @@ export function VisualsPanel({
           card uses the `thumb` URL (typically identical to `full` for us
           today, but kept distinct in the registry for future-proofing). */}
       <View style={styles.grid}>
-        {cards.map((card) => (
+        {cards.map((card, cardIndex) => (
           <Pressable
-            key={card.id}
+            // Index-suffixed because `card.id` is NOT unique: the upstream @versemate/visuals registry
+            // ships 8 duplicated ids (precept-book-luketime, precept-chart, bp-poster, ...), which React
+            // reports as "Encountered two children with the same key" — 15 times in one session — and
+            // then "children may be duplicated and/or omitted". Duplicate keys do not just log: they
+            // break reconciliation, so React can remount a card instead of updating it.
+            //
+            // The registry should be deduped upstream (a duplicate id likely means the same visual is
+            // listed twice, which is a content bug as well as a key one). Suffixing here stops the
+            // consumer from being broken by data it does not control, and index is stable within this
+            // list because `cards` is derived, not reordered.
+            key={`${card.id}-${cardIndex}`}
             onPress={() => setOpenCardId(card.id)}
             style={styles.cardWrapper}
             accessibilityRole="button"

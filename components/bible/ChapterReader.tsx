@@ -21,17 +21,19 @@
  * @see Task Group 3: Share Button and UI Integration
  */
 
-import type { AlignedToken, LexEntry } from '@versemate/lexicon';
+import { type AlignedToken, type LexEntry, lookupLemma } from '@versemate/lexicon';
 import { getRedLetterVerses } from '@versemate/red-letter';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  type LayoutChangeEvent,
   type NativeSyntheticEvent,
   StyleSheet,
   Text,
   type TextLayoutEventData,
+  type TextStyle,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import Markdown from 'react-native-markdown-display';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightedText } from '@/components/bible/HighlightedText';
@@ -45,8 +47,17 @@ import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityCo
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
+import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
+import { Markdown } from '@/lib/markdown/Markdown';
+import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
+import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
+import { ParagraphText } from '@/lib/text/ParagraphText';
+import type { CompileTheme } from '@/lib/text/types';
+import { useParagraphLayout } from '@/lib/text/use-paragraph-layout';
+import type { TextLineLayout } from '@/modules/versemate-text';
 import {
   fontSizes,
   fontWeights,
@@ -65,6 +76,38 @@ import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 
 // TODO: This will be replaced by a user setting
 const PARAGRAPH_VIEW_ENABLED = true;
+
+/**
+ * Lexicon underline appearance, shared with the legacy renderer's constants in
+ * HighlightedText. Fractional thickness is meaningful here because the native
+ * path DRAWS the line rather than asking for a system underline.
+ */
+/**
+ * How far beyond the viewport a paragraph group still renders for real, in px.
+ *
+ * About one screen. Generous on purpose: an exact-height placeholder makes being
+ * early almost free, whereas being late means the user scrolls into blank space.
+ */
+const GROUP_WINDOW_BUFFER_PX = 600;
+
+/**
+ * The most recent paragraph width measured by any reader, in whole dp.
+ *
+ * Module scope because the value has to outlive a single ChapterReader: the pager
+ * mounts a new one per chapter, and each would otherwise start at 0 and render
+ * the whole chapter through the legacy per-word path first. See the long note on
+ * `paragraphWidth` below for what that cost.
+ *
+ * 0 until the first real layout — never a guess.
+ */
+let lastMeasuredParagraphWidth = 0;
+
+const LEX_UNDERLINE_COLOR = 'rgba(176,154,109,0.55)';
+const LEX_UNDERLINE_THEME_COLOR = 'rgba(199,176,116,0.75)';
+const LEX_UNDERLINE_THICKNESS = 1;
+
+/** Tap/selection wash, matching HighlightedText's selectionStyles. */
+const SELECTION_COLOR = '#3390FF40';
 
 /**
  * Convert a number to Unicode superscript characters
@@ -151,6 +194,18 @@ function calculateBreakPoints(verses: { verseNumber: number; text: string }[]): 
   }
 
   return breakAfter;
+}
+
+/**
+ * Stable key for a section, used to look up its memoised paragraph groups.
+ *
+ * Matches the Fragment key in the render path so the two cannot drift apart.
+ */
+function sectionKeyOf(section: { startVerse?: number; subtitle?: string | null }): string {
+  // `startVerse` is optional on ChapterSection, and the render path's Fragment key
+  // interpolates it the same way — so an undefined must stringify identically here
+  // or the memo lookup misses and every paragraph recompiles.
+  return `section-${section.startVerse}-${section.subtitle || 'no-subtitle'}`;
 }
 
 interface ChapterReaderProps {
@@ -314,7 +369,54 @@ export function ChapterReader({
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
   const { fontSize: userFontSize } = useFontSize();
-  const styles = createStyles(colors, explanationsOnly, userFontSize);
+  /**
+   * Memoised: `createStyles` calls `StyleSheet.create`, and it was running on EVERY render.
+   *
+   * Two costs, one of them non-obvious. The allocation itself is minor. The real one is identity: a
+   * fresh `styles` object every render means every child receiving `styles.something` sees a new prop,
+   * so no consumer can ever be memoised against it — the churn propagates outward from the heaviest
+   * component on the screen.
+   *
+   * Found by widening the render attribution: `render.insight.by.styles` came back 52. That reading is
+   * circular as CAUSATION (a derived value always differs, so it cannot explain why a render happened)
+   * but it is a straight fact about waste, and the fix is the same either way.
+   */
+  const styles = useMemo(
+    () => createStyles(colors, explanationsOnly, userFontSize),
+    [colors, explanationsOnly, userFontSize]
+  );
+
+  // Dev-only. This is the mount whose cost the whole native-text project exists
+  // to remove — instrumented so the before/after is measured, not asserted.
+  usePerfMountSpan(
+    explanationsOnly ? 'reader.mount.explanations' : 'reader.mount.bible',
+    `${chapter.bookId}:${chapter.chapterNumber}:${explanationsOnly}`,
+    {
+      book: chapter.bookId,
+      chapter: chapter.chapterNumber,
+      sections: chapter.sections?.length ?? 0,
+      verses: chapter.sections?.reduce((n, s) => n + s.verses.length, 0) ?? 0,
+    }
+  );
+
+  /**
+   * Render-only cost, closed just before this component returns.
+   *
+   * `reader.mount.*` spans render through the post-commit effect, so it bundles
+   * three unrelated costs: building the element tree (JS), reconciling it
+   * (React), and creating the native views (UI thread hop). It has sat at
+   * 400-800ms through every change so far, and no amount of making the text
+   * layer cheaper has moved it — which only makes sense if most of it is not the
+   * element tree at all.
+   *
+   * `reader.render.bible` isolates the first of the three. Read the pair:
+   * render ≈ mount means the cost is our JS, and render ≪ mount means the cost
+   * is commit plus view creation, where the fix is fewer views rather than
+   * faster code.
+   */
+  const endRenderSpan = perfRenderSpan(
+    explanationsOnly ? 'reader.render.explanations' : 'reader.render.bible'
+  );
 
   // Red-letter (words of Jesus): render whole verses Jesus speaks in red when
   // the "Jesus's Words" toggle is on. Local, translation-independent dataset
@@ -415,6 +517,314 @@ export function ChapterReader({
     >
   >(new Map());
 
+  // --- Native text renderer -------------------------------------------------
+  // Runtime-switched so ONE build serves both arms of the Phase 4 A/B; see
+  // hooks/bible/use-native-text.ts.
+  const { useNativeText: useNativeTextRenderer } = useNativeText();
+  const { showUnderlines: showLexUnderlines } = useLexiconUnderlines();
+
+  // Which inputs actually drive this component's re-renders. `reader.render.bible`
+  // fires ~113 times in a 45-second session, and every render is a React commit
+  // Fabric has to diff — at the measured per-commit cost that accounts for most of
+  // `completeRoot`, the largest single frame in the CPU profile. A span says a
+  // render happened; only this says why, which is the difference between fixing
+  // the cause and memoising something at random.
+  // The list below is deliberately WIDER than "things that should change the render".
+  //
+  // A first-visit capture reported `render.insight.by.nothing-tracked` 33 times: the heaviest subtree
+  // on the screen re-rendering 33 times with no attributable cause. "nothing-tracked" does not mean
+  // nothing changed — it means whatever changed was not being watched, so the counter answered a
+  // question nobody asked. Callback identity is the usual culprit (a parent that rebuilds handlers each
+  // render re-renders every child regardless of whether any DATA moved), and none of the handlers were
+  // in the list; neither was the measured paragraph width, which is local state that changes on layout.
+  //
+  // Watching them costs one Object.is per render each and turns 33 unattributed renders into a name.
+  useWhyRender(explanationsOnly ? 'render.insight' : 'render.bible', {
+    visibleYRange,
+    chapter,
+    chapterHighlights,
+    autoHighlights,
+    explanation,
+    activeTab,
+    alignment,
+    showLexUnderlines,
+    useNativeTextRenderer,
+    userFontSize,
+    mode,
+    // Identity-churn candidates: props and local state whose VALUE rarely changes but whose identity
+    // may. Only things actually in scope here — the first attempt listed `notes`, `theme`, `style` and
+    // four handlers that this component never receives, which threw
+    // "Property 'notes' doesn't exist" straight into the error boundary. A diagnostic that crashes the
+    // screen it is diagnosing is worse than the missing information.
+    // NOT paragraphWidth: it is declared ~70 lines below this call, so referencing it here is a
+    // temporal-dead-zone ReferenceError. Attribution has to live where the values already exist.
+    bibleVersion,
+    bibleLanguage,
+    filteredHighlights,
+    filteredAutoHighlights,
+    onContentLayout,
+    onByLineSectionRegister,
+    onOpenNotes,
+    styles,
+  });
+
+  /**
+   * Width a paragraph will be laid out at, in dp.
+   *
+   * MEASURED, not derived from the window. The reader's insets come from a chain
+   * of ancestors (ChapterPage's reader container, the ScrollView's content
+   * container, section padding), and deriving the width from
+   * `useWindowDimensions()` minus an assumed padding is how text ends up measured
+   * at one width and drawn at another — which clips it. A wrong assumption here
+   * is invisible in code review and obvious only on a device, so it is not worth
+   * making.
+   *
+   * The claim that used to be here — that only the first chapter of a session
+   * pays the unknown-width frame, because the reader stays mounted across swipes
+   * — was wrong, and expensively so. Every chapter gets its OWN ChapterReader
+   * (one per pager page), so every mount started at width 0 and rendered the
+   * whole chapter through the legacy per-word renderer before re-rendering it
+   * natively. The labelled counter caught it: 9,113 of 9,113 legacy text nodes in
+   * a six-swipe capture came from `bible.paragraphFallback`, none from Insight or
+   * Topics. Fabric created every one of those nodes and then threw them away,
+   * which is what `completeRoot` (1262ms, the largest single cost in the profile)
+   * and `createTextInstance` were paying for.
+   *
+   * Two things stop it, without giving up the measured-not-assumed guarantee:
+   *
+   *  1. The last measured width is remembered at module scope and used as the
+   *     initial value. Every reader in the pager is laid out at the same width,
+   *     so this is a real measurement rather than an assumption — just one taken
+   *     a moment earlier. `onLayout` still corrects it in the same single frame
+   *     as before if it ever differs (rotation, split view).
+   *  2. When the width genuinely is unknown (the very first reader of a session)
+   *     the native path renders exact-height placeholders rather than falling
+   *     back to per-word text. One frame without glyphs costs nothing; nine
+   *     thousand throwaway shadow nodes cost a visible stutter.
+   */
+  // Window height, used as the mount-time viewport for paragraph windowing before
+  // the first scroll event exists.
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+
+  /**
+   * Rough height to reserve for a group while the real width is still unknown.
+   *
+   * This DOES assume a width, which the note above rules out — and the
+   * distinction matters: an assumed width used for text layout measures at one
+   * width and draws at another, which clips glyphs. Here nothing is laid out or
+   * drawn; the number only stops the chapter collapsing to zero height for the
+   * single frame before `onLayout`. Being a line or two out for one frame is
+   * invisible, and the estimate is replaced by a real measurement immediately.
+   */
+  const estimatedGroupHeight = (group: { verseNumber: number; text: string }[]): number => {
+    const chars = group.reduce((n, v) => n + v.text.length + String(v.verseNumber).length + 2, 0);
+    const calibration = defaultCalibration(
+      userFontSize,
+      Math.max(windowWidth - 32, 1),
+      userFontSize * 2.0
+    );
+    return estimateHeight(chars, calibration);
+  };
+
+  const [paragraphWidth, setParagraphWidth] = useState(lastMeasuredParagraphWidth);
+  const handleContainerLayout = (event: LayoutChangeEvent) => {
+    const next = event.nativeEvent.layout.width;
+    // Round to whole dp: a fractional width churns the native measurement cache
+    // (its key includes the width) without changing a single line break.
+    const rounded = Math.round(next);
+    if (rounded > 0 && rounded !== paragraphWidth) {
+      lastMeasuredParagraphWidth = rounded;
+      setParagraphWidth(rounded);
+    }
+  };
+
+  /** Colors the compiler cannot derive, resolved from the active theme. */
+  const nativeTextTheme = useMemo<CompileTheme>(
+    () => ({
+      mode,
+      lexUnderlineColor: LEX_UNDERLINE_COLOR,
+      lexUnderlineThemeColor: LEX_UNDERLINE_THEME_COLOR,
+      lexUnderlineThickness: LEX_UNDERLINE_THICKNESS,
+      // Real dots at last — this is the decoration RN cannot express on Android
+      // (textDecorationStyle is a no-op there), and the reason the module exists.
+      lexUnderlineStyle: 'dotted',
+      redLetterColor: redLetterStyle.color,
+      selectionColor: SELECTION_COLOR,
+    }),
+    [mode, redLetterStyle.color]
+  );
+
+  /**
+   * Paragraph groups per section, memoised on the chapter.
+   *
+   * These were computed inside an IIFE in the render body, so every `group` array
+   * was a fresh reference on every render — which invalidated `ParagraphText`'s
+   * compile memo every time. A capture showed `paragraph.compile` running 1250
+   * times in a window with 8 chapter mounts, against ~35 groups per mount: a ~4.5x
+   * waste, and worse, ~4.5x the React work to reconcile it.
+   *
+   * `calculateBreakPoints` depends only on the verses, so the grouping is stable
+   * for a given chapter and belongs in a memo keyed on it.
+   */
+  const sectionGroups = useMemo(() => {
+    const bySection = new Map<string, ChapterContent['sections'][number]['verses'][]>();
+    for (const section of chapter.sections ?? []) {
+      const breakPoints = new Set(calculateBreakPoints(section.verses));
+      const groups: (typeof section.verses)[] = [];
+      let current: typeof section.verses = [];
+      section.verses.forEach((verse, index) => {
+        current.push(verse);
+        if (breakPoints.has(verse.verseNumber) || index === section.verses.length - 1) {
+          groups.push(current);
+          current = [];
+        }
+      });
+      bySection.set(sectionKeyOf(section), groups);
+    }
+    return bySection;
+  }, [chapter.sections]);
+
+  /**
+   * Every paragraph group across every section, flattened, with a stable flat index.
+   *
+   * Flattened because `useParagraphLayout` is a hook and cannot be called inside a
+   * `.map()` over sections — and because offsets have to accumulate across section
+   * boundaries to be meaningful.
+   */
+  const flatGroups = useMemo(() => {
+    const out: { key: string; verses: ChapterContent['sections'][number]['verses'] }[] = [];
+    for (const section of chapter.sections ?? []) {
+      for (const group of sectionGroups.get(sectionKeyOf(section)) ?? []) {
+        out.push({ key: `${sectionKeyOf(section)}:${group[0]?.verseNumber}`, verses: group });
+      }
+    }
+    return out;
+  }, [chapter.sections, sectionGroups]);
+
+  const flatIndexByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    flatGroups.forEach((g, i) => {
+      map.set(g.key, i);
+    });
+    return map;
+  }, [flatGroups]);
+
+  /** Compile inputs shared by every group. Memoised so the layout hook is stable. */
+  /**
+   * Content signatures for the highlight arrays.
+   *
+   * These exist because array IDENTITY churns far more often than array CONTENT.
+   * A real 19-chapter swipe session measured `render.bible.by.autoHighlights` at
+   * 117 of 224 reader renders — roughly six identity changes per chapter change,
+   * as the query key settles and the data flips between "none" and a result. Each
+   * one invalidated `paragraphShared`, which invalidated the whole paragraph
+   * layout memo, which recompiled and re-measured the visible window:
+   * `paragraph.compile` ran 334 times and `layout.paragraphs` 243 times for 19
+   * chapters. That recompile storm is what sits inside the 438ms `swipe.settle`
+   * the user feels as a pause after each swipe.
+   *
+   * The signature covers exactly the fields the compiler reads, so identical
+   * content produces an identical string no matter how many new arrays arrive.
+   * Cheap: a handful of highlights per chapter, joined once per identity change,
+   * versus a full recompile and native re-measure.
+   */
+  const highlightsSignature = useMemo(
+    () =>
+      chapterHighlights
+        .map(
+          (h) =>
+            `${h.highlight_id}:${h.color}:${h.start_verse}:${h.end_verse}:${h.start_char}:${h.end_char}`
+        )
+        .join('|'),
+    [chapterHighlights]
+  );
+  const autoHighlightsSignature = useMemo(
+    () =>
+      autoHighlights
+        .map((a) => `${a.auto_highlight_id}:${a.theme_color}:${a.start_verse}:${a.end_verse}`)
+        .join('|'),
+    [autoHighlights]
+  );
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the signatures stand in for the arrays on purpose — see above
+  const paragraphShared = useMemo(
+    () => ({
+      highlights: chapterHighlights,
+      autoHighlights,
+      alignment,
+      redLetterVerses,
+      showLexUnderlines,
+      theme: nativeTextTheme,
+    }),
+    [
+      // Signatures, not the arrays. When content is unchanged the captured arrays
+      // are stale but equal, so the compiled output is identical — and when
+      // content does change the signature changes and the fresh arrays are read.
+      highlightsSignature,
+      autoHighlightsSignature,
+      alignment,
+      redLetterVerses,
+      showLexUnderlines,
+      nativeTextTheme,
+    ]
+  );
+
+  /**
+   * Heights and offsets for every group, known during the FIRST render.
+   *
+   * Only computed on the native path — it is what makes windowing possible at mount
+   * rather than only on later scrolls.
+   */
+  const paragraphGroupsForLayout = useMemo(
+    () => (useNativeTextRenderer ? flatGroups.map((g) => g.verses) : []),
+    [useNativeTextRenderer, flatGroups]
+  );
+
+  /**
+   * Scroll position expressed relative to the first paragraph group.
+   *
+   * The chapter title and section headers sit above it by some amount H. Before any
+   * position has been recorded H is unknown, and 0 is the safe assumption: H >= 0
+   * always pushes paragraphs further down, so assuming 0 over-estimates what is
+   * visible and never under-estimates it.
+   */
+  const firstGroupY = sectionLayouts.current[flatGroups[0]?.verses[0]?.verseNumber ?? -1]?.y ?? 0;
+  const paragraphScrollY = (visibleYRange?.startY ?? 0) - firstGroupY;
+  const paragraphViewportHeight = visibleYRange
+    ? visibleYRange.endY - visibleYRange.startY
+    : windowHeight;
+
+  const paragraphLayouts = useParagraphLayout({
+    groups: paragraphGroupsForLayout,
+    width: paragraphWidth,
+    style: styles.verseTextParagraph as TextStyle,
+    gap: spacing.md,
+    scrollY: paragraphScrollY,
+    viewportHeight: paragraphViewportHeight,
+    bufferPx: GROUP_WINDOW_BUFFER_PX,
+    shared: paragraphShared,
+  });
+
+  /**
+   * Store native line geometry in the same shape the RN `onTextLayout` path uses,
+   * so the lexicon popover's positioning code is untouched by the swap.
+   */
+  const handleNativeTextLayout = (groupKey: string, lines: TextLineLayout[]) => {
+    paragraphLineLayoutsRef.current.set(
+      groupKey,
+      lines.map((line) => ({
+        // The legacy path recorded each line's text; positioning only uses the
+        // geometry, and native reports offsets instead, which is strictly more
+        // precise than re-deriving them from a text slice.
+        text: '',
+        y: line.y,
+        height: line.height,
+        width: line.width,
+        startCharOffset: line.start,
+      }))
+    );
+  };
+
   /**
    * Handle layout of a verse/paragraph
    * Stores both Y position (for scroll-to) and height (for visibility calculation)
@@ -506,6 +916,22 @@ export function ChapterReader({
 
   /**
    * Tap on a lexicon-covered word in the verse text — open the popover.
+   *
+   * Opens IMMEDIATELY with whatever entry the chapter already has, then upgrades it.
+   *
+   * The chapter's alignment is loaded with `{ lite: true }`, so its lexicon carries the fields needed
+   * to render a chapter — `lemma`, `translit`, `strongs`, `pos`, `basicGloss`, `loaded` — but not the
+   * prose (`notes`, `semanticRange`, `related`), which is 12.1MB of the 18.7MB lemma file and the whole
+   * reason a chapter open used to block the JS thread for ~2s.
+   *
+   * A word tap is the right moment to pay for that: user-initiated, rare, already asynchronous, and by
+   * then the file is usually long since idle-cached. Opening first and filling in second is also what
+   * the popover already does for non-English versions, where `apiLang` resolves the real card from the
+   * backend — so a progressive fill is the established behaviour here, not a new one.
+   *
+   * Guarded on the tapped lemma still being the active one when the lookup resolves: a reader can tap
+   * a second word while the first is loading, and applying a stale result would show the wrong
+   * definition under the right heading — worse than showing none.
    */
   const handleLexiconWordPress = ({
     surface,
@@ -519,6 +945,21 @@ export function ChapterReader({
     isTheme: boolean;
   }) => {
     setLexiconActive({ surface, token, entry, isTheme });
+
+    // Already has the prose (a HAND_LEXICON entry, or the full path) — nothing to fetch.
+    if (entry.notes || entry.semanticRange || entry.related) return;
+
+    lookupLemma(token.lemma)
+      .then((full) => {
+        if (!full) return;
+        setLexiconActive((current) =>
+          current && current.token.lemma === token.lemma ? { ...current, entry: full } : current
+        );
+      })
+      .catch(() => {
+        // The popover is already open and rendering the light entry; a failed upgrade leaves the
+        // reader with a gloss instead of a blank card, which is the right degradation.
+      });
   };
 
   /**
@@ -541,8 +982,12 @@ export function ChapterReader({
     paragraphLineLayoutsRef.current.set(groupKey, lineInfo);
   };
 
-  return (
-    <View style={styles.container} collapsable={false}>
+  // Bound to a variable rather than returned directly so the render span closes
+  // AFTER the element tree exists — mapping the chapter's groups into elements is
+  // part of render cost, and closing before the `return` would omit exactly the
+  // work being measured.
+  const tree = (
+    <View style={styles.container} collapsable={false} onLayout={handleContainerLayout}>
       {/* Chapter Title Row with Bookmark, Notes, and Share buttons - Only show in Bible view */}
       {!explanationsOnly && (
         <View style={styles.titleRow} collapsable={false}>
@@ -595,20 +1040,82 @@ export function ChapterReader({
             {/* Verses with Highlighting */}
             {PARAGRAPH_VIEW_ENABLED ? (
               (() => {
-                const breakPoints = new Set(calculateBreakPoints(section.verses));
-                const groups: (typeof section.verses)[] = [];
-                let currentGroup: typeof section.verses = [];
-
-                section.verses.forEach((verse, index) => {
-                  currentGroup.push(verse);
-                  if (breakPoints.has(verse.verseNumber) || index === section.verses.length - 1) {
-                    groups.push([...currentGroup]);
-                    currentGroup = [];
-                  }
-                });
+                // Memoised above so each `group` keeps a stable identity across
+                // renders — ParagraphText's compile memo depends on it.
+                const groups = sectionGroups.get(sectionKeyOf(section)) ?? [];
 
                 return groups.map((group, groupIndex) => {
                   const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
+
+                  // Native renderer selected but the width is not measured yet —
+                  // only possible for the first reader of a session, since the
+                  // width is remembered at module scope. Hold the space for one
+                  // frame rather than rendering the legacy per-word tree that is
+                  // about to be discarded: that fallback was creating every one of
+                  // the 9,113 throwaway text nodes a six-swipe capture counted.
+                  if (useNativeTextRenderer && paragraphWidth === 0) {
+                    return (
+                      <View
+                        key={groupKey}
+                        testID={`verse-group-${group[0].verseNumber}`}
+                        style={{ height: estimatedGroupHeight(group) }}
+                      />
+                    );
+                  }
+
+                  // Native path: the whole group becomes ONE view. This replaces
+                  // the nested structure below — a paragraph <Text>, a <Text> per
+                  // verse, four more per verse for the superscript number and its
+                  // highlight background, and one or two per WORD inside
+                  // HighlightedText. That is 160-290 shadow nodes for a five-verse
+                  // group, which Android re-flattens into a single Spannable on
+                  // every commit. See docs/native-text-rendering-plan.md.
+                  if (useNativeTextRenderer && paragraphWidth > 0) {
+                    const groupLayout =
+                      paragraphLayouts[
+                        flatIndexByKey.get(`${sectionKeyOf(section)}:${group[0].verseNumber}`) ?? -1
+                      ];
+                    return (
+                      <View
+                        key={groupKey}
+                        testID={`verse-group-${group[0].verseNumber}`}
+                        onLayout={(e) =>
+                          handleVerseLayout(
+                            group[0].verseNumber,
+                            e.nativeEvent.layout.y,
+                            e.nativeEvent.layout.height
+                          )
+                        }
+                      >
+                        <ParagraphText
+                          alignment={alignment}
+                          autoHighlights={autoHighlights}
+                          // Compiled, measured and windowed by useParagraphLayout.
+                          // Passing all three down means the paragraph is compiled
+                          // and measured ONCE — the hook already had to do both to
+                          // place it — and that a group outside the window renders
+                          // an exact-height placeholder with no native views at all.
+                          compiled={groupLayout?.compiled ?? undefined}
+                          height={groupLayout?.height}
+                          highlights={chapterHighlights}
+                          isVisible={groupLayout?.visible ?? true}
+                          onAutoHighlightPress={handleAutoHighlightPress}
+                          onHighlightTap={handleHighlightTap}
+                          onLexiconWordPress={handleLexiconWordPress}
+                          onTextLayout={(lines) => handleNativeTextLayout(groupKey, lines)}
+                          onVerseTap={handleVerseTap}
+                          redLetterVerses={redLetterVerses}
+                          showLexUnderlines={showLexUnderlines}
+                          style={styles.verseTextParagraph}
+                          theme={nativeTextTheme}
+                          verses={group}
+                          width={paragraphWidth}
+                        />
+                        {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}
+                      </View>
+                    );
+                  }
+
                   return (
                     <View
                       key={groupKey}
@@ -714,6 +1221,9 @@ export function ChapterReader({
                                 </Text>
                               </Text>
                               <HighlightedText
+                                perfSurface={
+                                  explanationsOnly ? 'insight.verse' : 'bible.paragraphFallback'
+                                }
                                 text={verse.text}
                                 verseNumber={verse.verseNumber}
                                 highlights={chapterHighlights}
@@ -750,6 +1260,7 @@ export function ChapterReader({
                       {verse.verseNumber}
                     </Text>
                     <HighlightedText
+                      perfSurface={explanationsOnly ? 'insight.verseRow' : 'bible.verseRow'}
                       text={verse.text}
                       verseNumber={verse.verseNumber}
                       highlights={chapterHighlights}
@@ -896,6 +1407,9 @@ export function ChapterReader({
       )}
     </View>
   );
+
+  endRenderSpan();
+  return tree;
 }
 
 const createStyles = (

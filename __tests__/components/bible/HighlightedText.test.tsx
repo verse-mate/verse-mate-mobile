@@ -77,6 +77,25 @@ describe('HighlightedText', () => {
     expect(getByText('In the beginning God created the heavens and the earth.')).toBeTruthy();
   });
 
+  it('keeps the space after a highlight that ends on a word boundary', () => {
+    // Regression: the token regex /(\S+)(\s*)/g captures trailing whitespace
+    // only, so a segment BEGINNING with whitespace lost it on reassembly. A
+    // highlight ending at a word boundary puts end_char immediately before a
+    // space, which is what selecting whole words produces — so highlighting
+    // "beginning God" made the verse render "Godcreated".
+    const text = 'In the beginning God created the heavens and the earth.';
+    const { root } = render(
+      <HighlightedText
+        text={text}
+        verseNumber={1}
+        highlights={[{ ...mockHighlight, start_char: 7, end_char: 20 }]}
+        isVisible
+      />
+    );
+
+    expect(extractText(root.props.children)).toBe(text);
+  });
+
   it('should have selectable={true} on root Text for native text selection', () => {
     const { root } = render(
       <HighlightedText

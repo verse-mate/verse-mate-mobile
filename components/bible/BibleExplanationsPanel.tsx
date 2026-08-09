@@ -26,7 +26,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
@@ -34,8 +33,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
 import { useFontSize } from '@/hooks/bible/use-font-size';
+import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { useBibleByLine, useBibleSummary } from '@/src/api';
 import {
   fontSizes,

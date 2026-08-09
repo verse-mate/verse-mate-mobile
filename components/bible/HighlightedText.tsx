@@ -36,6 +36,7 @@ import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
+import { perfAdd } from '@/lib/perf';
 import type { AutoHighlight } from '@/types/auto-highlights';
 
 /**
@@ -153,6 +154,16 @@ export interface HighlightedTextProps extends TextProps {
     entry: LexEntry;
     isTheme: boolean;
   }) => void;
+  /**
+   * Which surface this instance belongs to, for the dev-only node counter.
+   *
+   * With the Bible paragraphs converted, a five-figure `textNodes` count on the
+   * native arm has at least three possible sources — the Insight subtree, the
+   * Topics screens, or the Bible path silently falling back to this renderer
+   * when `paragraphWidth` is still 0. Those need completely different fixes, and
+   * a single undifferentiated counter cannot tell them apart.
+   */
+  perfSurface?: string;
 }
 
 /**
@@ -296,6 +307,7 @@ export function HighlightedText({
   selectedWord: externalSelectedWord,
   style,
   isVisible = true,
+  perfSurface = 'unlabelled',
   ...textProps
 }: HighlightedTextProps) {
   // When the caller wires up the lexicon, the gesture model flips:
@@ -603,6 +615,7 @@ export function HighlightedText({
    */
   const handleVerseTap = () => {
     if (!onVerseTap) return;
+    perfAdd(`legacy.verseTap.${perfSurface}`, 1);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Mark the whole verse as selected for the duration of the debounce window
     // so the user sees a clear tap target before the insight tooltip opens.
@@ -692,6 +705,12 @@ export function HighlightedText({
       const cleanWord = result.word.replace(/[.,;:!?"']+$/, '').replace(/^[.,;:!?"']+/, '');
       if (!cleanWord) return;
 
+      // The native touch trace proved VMTextView receives NOTHING during a drag, so
+      // the word selection and the second haptic cannot be coming from there. This is
+      // the other candidate: a JS long-press selection with its own Medium haptic,
+      // living in the legacy renderer. Counted with its surface so a slow drag says
+      // which component is responsible instead of which one seems likely.
+      perfAdd(`legacy.wordLongPress.${perfSurface}`, 1);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Calculate absolute character positions in full verse text
@@ -935,6 +954,22 @@ export function HighlightedText({
     };
 
     const elements: ReactNode[] = [];
+
+    // Re-emit any whitespace at the START of the segment.
+    //
+    // `tokenizeText` matches /(\S+)(\s*)/g, which captures each word plus its
+    // TRAILING whitespace — leading whitespace is matched by nothing and so was
+    // silently dropped when the tokens were reassembled. Segments only begin
+    // with whitespace when a highlight boundary lands there, which is the normal
+    // case: selecting whole words puts `end_char` immediately before a space. The
+    // visible result was two words running together — highlight "beginning God"
+    // in Genesis 1:1 and the verse rendered "Godcreated".
+    //
+    // Found by the compiler/renderer parity harness in __tests__/lib/text.
+    if (tokens.length > 0 && tokens[0].startChar > 0) {
+      elements.push(segment.text.slice(0, tokens[0].startChar));
+    }
+
     let idx = 0;
     while (idx < tokens.length) {
       const token = tokens[idx];
@@ -1105,6 +1140,13 @@ export function HighlightedText({
       );
       idx++;
     }
+
+    // Dev-only. The premise of the native-text work is that per-token <Text>
+    // nodes dominate the render cost, so count them: `elements` is one node per
+    // word (two for a lexicon hit), plus this wrapper. Absolute numbers are
+    // only meaningful compared against another run of the same flow.
+    perfAdd('textNodes', elements.length + 1);
+    perfAdd(`textNodes.${perfSurface}`, elements.length + 1);
 
     return (
       <Text key={segment.key} style={segmentStyle} suppressHighlighting={true}>

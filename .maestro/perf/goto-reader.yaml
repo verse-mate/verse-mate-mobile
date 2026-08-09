@@ -1,0 +1,75 @@
+appId: org.versemate.app
+name: Perf — goto-reader
+description: Land on Genesis 1 in the reader from ANY screen, so a capture can start from a known state
+tags:
+  - perf
+---
+
+# Navigation only, and deliberately NOT `shared/reset-to-reader.yaml`.
+#
+# That flow runs `shared/setup-warm.yaml`, which asserts `chapter-selector-button` immediately after
+# launching. The app restores its last route, so after working on Topics it comes back on the TOPICS screen
+# where that selector does not exist — and the flow fails at step one against a perfectly healthy app.
+# Observed exactly that: "Assert that id: chapter-selector-button is visible... FAILED" with the reader
+# working fine. Both screens' selectors open the SAME navigation modal, so tapping whichever is present is
+# strictly more robust.
+#
+# Also no `launchApp`: on a dev-client build the default activity is DevLauncherActivity, so `launchApp`
+# parks on the "Development servers" screen where no testID resolves. The caller launches the app (deep link
+# for dev client, LAUNCHER intent for release) and gates on `[VMPERF] monitor started` before running this.
+
+- tapOn:
+    text: "Skip"
+    optional: true
+
+# A real wait for a shared anchor. `runFlow: when: visible:` is an INSTANT check with no wait, so without
+# this the selector conditionals below evaluate against an unrendered screen and neither fires.
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu-button"
+    timeout: 60000
+
+- runFlow:
+    when:
+      visible:
+        id: "chapter-selector-button"
+    commands:
+      - tapOn:
+          id: "chapter-selector-button"
+- runFlow:
+    when:
+      visible:
+        id: "topic-selector-button"
+    commands:
+      - tapOn:
+          id: "topic-selector-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 20000
+
+# The modal opens on whichever tab was last used, so select Old Testament explicitly.
+- tapOn:
+    id: "tab-old-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-genesis"
+    direction: DOWN
+- tapOn:
+    id: "book-item-genesis"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "chapter-1"
+    direction: DOWN
+- tapOn:
+    id: "chapter-1"
+
+# Genesis 1 — 31 verses, the everyday case, and the chapter the study baseline was measured on.
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 45000
+- waitForAnimationToEnd

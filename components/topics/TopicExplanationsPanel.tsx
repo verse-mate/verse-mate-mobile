@@ -20,14 +20,12 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
-import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useToast } from '@/contexts/ToastContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { useTopicById } from '@/src/api';
 import {
   fontSizes,
@@ -39,8 +37,6 @@ import {
 } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
 import { ShareButton } from '../bible/ShareButton';
-
-const markdownRules: RenderRules = {};
 
 /**
  * Clean up byline explanation markdown to remove redundant verse references.
@@ -116,6 +112,20 @@ export interface TopicExplanationsPanelProps {
   /** Callback when menu button is pressed */
   onMenuPress?: () => void;
 
+  /**
+   * Ask the SCREEN to show a word definition.
+   *
+   * This panel must not render `WordDefinitionTooltip` itself. It lives inside a `PagerView` page, whose
+   * host is not a `UIViewController` child, so on iOS presenting an RN `<Modal>` from here fails with
+   *
+   *   Presenting view controller <RCTFabricModalHostViewController> from detached view controller
+   *
+   * and the sheet silently never appears. Android has no such rule — its Modals are plain views — which is
+   * why this only ever broke on one platform. The screen root already proves the working shape with
+   * `onVersePress` -> `TopicVerseTooltip`; this is the same bubble-up for word definitions.
+   */
+  onWordDefine?: (word: string, verseNumber: number) => void;
+
   /** Test ID for testing */
   testID?: string;
 }
@@ -132,45 +142,47 @@ export function TopicExplanationsPanel({
   onTabChange,
   isTabPending = false,
   onMenuPress,
+  onWordDefine,
   testID = 'topic-explanations-panel',
 }: TopicExplanationsPanelProps) {
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = createStyles(specs, colors);
   const insets = useSafeAreaInsets();
-  const { showToast } = useToast();
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Word definition tooltip state (long-press dictionary lookup on markdown text)
-  const [wordToDefine, setWordToDefine] = useState<{
-    word: string;
-    verseNumber: number;
-  } | null>(null);
-  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
+  // Word definitions are OWNED BY THE SCREEN, not by this panel — see `onWordDefine` on the props type for
+  // why (an RN <Modal> cannot present from inside a PagerView page on iOS).
+  const handleWordSelect = useCallback(
+    (selection: WordSelection, clearSelection: () => void) => {
+      onWordDefine?.(selection.word, selection.verseNumber);
+      clearSelection();
+    },
+    [onWordDefine]
+  );
 
-  const handleWordSelect = useCallback((selection: WordSelection, clearSelection: () => void) => {
-    setWordToDefine({ word: selection.word, verseNumber: selection.verseNumber });
-    setWordDefinitionVisible(true);
-    clearSelection();
-  }, []);
-
-  const handleWordDefinitionClose = useCallback(() => {
-    setWordDefinitionVisible(false);
-    setWordToDefine(null);
-  }, []);
-
-  const handleWordDefinitionCopy = useCallback(() => {
-    showToast('Copied to clipboard');
-  }, [showToast]);
+  /**
+   * A word tapped in NATIVELY-rendered markdown.
+   *
+   * Same destination as `handleWordSelect`, reached without a view per word: the native text view reports
+   * the tapped character offset and `wordAtOffset` turns that into the word. `verseNumber` is 0 because
+   * topic markdown is prose, not verses — which is exactly what the old per-word rule passed too.
+   */
+  const handleMarkdownWordPress = useCallback(
+    (word: string) => {
+      onWordDefine?.(word, 0);
+    },
+    [onWordDefine]
+  );
 
   // Custom markdown rule that wraps each text leaf with HighlightedText so
   // long-press triggers the dictionary tooltip across Summary/By Line/Detailed.
   const dictionaryMarkdownRules: RenderRules = useMemo(
     () => ({
-      ...markdownRules,
       text: (node, _children, _parent, styles, inheritedStyles = {}) => (
         <HighlightedText
+          perfSurface="topics.explanations"
           key={node.key}
           text={node.content}
           verseNumber={0}
@@ -257,7 +269,11 @@ export function TopicExplanationsPanel({
   const summaryMarkdown = useMemo(
     () =>
       typeof summaryContent === 'string' ? (
-        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+        <Markdown
+          style={markdownStyles}
+          fallbackRules={dictionaryMarkdownRules}
+          onWordPress={handleMarkdownWordPress}
+        >
           {summaryContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
         </Markdown>
       ) : null,
@@ -266,7 +282,11 @@ export function TopicExplanationsPanel({
   const bylineMarkdown = useMemo(
     () =>
       typeof bylineContent === 'string' ? (
-        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+        <Markdown
+          style={markdownStyles}
+          fallbackRules={dictionaryMarkdownRules}
+          onWordPress={handleMarkdownWordPress}
+        >
           {bylineContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
         </Markdown>
       ) : null,
@@ -275,7 +295,11 @@ export function TopicExplanationsPanel({
   const detailedMarkdown = useMemo(
     () =>
       typeof detailedContent === 'string' ? (
-        <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+        <Markdown
+          style={markdownStyles}
+          fallbackRules={dictionaryMarkdownRules}
+          onWordPress={handleMarkdownWordPress}
+        >
           {detailedContent.replace(/#{1,6}\s*Summary\s*\n/gi, '\n')}
         </Markdown>
       ) : null,
@@ -468,18 +492,7 @@ export function TopicExplanationsPanel({
         )}
       </View>
 
-      {/* Word Definition Tooltip — dictionary lookup on long-press */}
-      {wordToDefine && (
-        <WordDefinitionTooltip
-          visible={wordDefinitionVisible}
-          word={wordToDefine.word}
-          bookName={topicName}
-          chapterNumber={0}
-          verseNumber={wordToDefine.verseNumber}
-          onClose={handleWordDefinitionClose}
-          onCopy={handleWordDefinitionCopy}
-        />
-      )}
+      {/* No WordDefinitionTooltip here on purpose — the screen renders it. See `onWordDefine`. */}
     </View>
   );
 }

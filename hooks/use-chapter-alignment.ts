@@ -25,10 +25,21 @@
 
 import { type ChapterAlignment, loadAlignmentFor } from '@versemate/lexicon';
 import { useEffect, useState } from 'react';
+import { InteractionManager } from 'react-native';
 import { useOfflineContext } from '@/contexts/OfflineContext';
+import { perfAdd, perfSpan } from '@/lib/perf';
 import { fetchTaggedChapterAlignment } from '@/services/api-chapter-alignment';
 
 const ENGLISH_VERSION_KEYS = new Set(['NASB1995', 'KJV']);
+
+/**
+ * How many English alignment loads have happened this process.
+ *
+ * Module scope, not a ref: the point is to identify the ONE call that pays the whole-lexicon parse,
+ * and that cost is per-process, not per-component. A ref would restart the count on every remount and
+ * mislabel a warm call as the first.
+ */
+let alignmentCalls = 0;
 
 export function isEnglishVersion(versionKey: string | null | undefined): boolean {
   if (!versionKey) return true;
@@ -50,8 +61,59 @@ export function useChapterAlignment(
     const load = async () => {
       // English path — unchanged, no network.
       if (isEnglishVersion(versionKey)) {
-        const a = await loadAlignmentFor(bookId, chapterNumber);
-        if (!cancelled) setAlignment(a);
+        // Instrumented because the three worst JS blocks in the swipe capture had
+        // NOTHING of ours open during them — so the cost is in an uninstrumented
+        // path, and this is the heaviest candidate. `loadAlignmentFor` rebuilds
+        // two whole-lexicon structures (an 18,100-entry object spread, then an
+        // Object.entries pass over it) on every chapter that is not already in
+        // its module-level cache, none of which depends on the chapter.
+        // FIRST call gets its own span name, because the two costs inside are completely
+        // different and lumping them made the number useless.
+        //
+        // `loadAlignmentFor` awaits `loadGeneratedLexicon()`, an `import()` of an 18MB
+        // `_lemmas.json`, which happens exactly ONCE per process — plus per-chapter work that
+        // happens every time. Reported as one span, `data.alignment` showed mean 1902.6ms over 7
+        // calls and was read (by me) as "13.3s of cost, the biggest item in the app". It is not:
+        // the same report says the JS thread was blocked 5197ms for the WHOLE session, and a span
+        // cannot burn more CPU than the thread was ever blocked. Most of that total is the span
+        // sitting open across an `await`.
+        //
+        // What IS real is one ~2s block, seen as `worst 1991.2ms` / `1946.1ms` / `2162.7ms` /
+        // `2206.7ms` across four independent captures. Splitting the span settles whether that
+        // block is the one-time parse: if `.first` is ~2s and `data.alignment` is small, it is, and
+        // the lexicon work is justified. If both are large, the premise is wrong and the per-chapter
+        // path needs the attention instead.
+        const isFirstAlignment = alignmentCalls === 0;
+        alignmentCalls += 1;
+        const endSpan = perfSpan(isFirstAlignment ? 'data.alignment.first' : 'data.alignment', {
+          book: bookId,
+          chapter: chapterNumber,
+        });
+        try {
+          // `lite` skips the 18.7MB `_lemmas.json` and uses a 1.15MB columnar projection instead —
+          // 16x smaller. That file is what made this call a ~2s block of the JS thread; 12.1MB of it
+          // is `notes` + `related` + `semanticRange`, which are only read when a reader taps a word.
+          // `ChapterReader`'s tap handler upgrades to the full entry via `lookupLemma` at that point.
+          //
+          // The light lexicon still answers everything a chapter needs: whether a lemma has an entry
+          // (which gates the underline), its Strong's number (homograph disambiguation), and
+          // `translit`/`basicGloss`/`loaded` for accessibility labels and the context-sensitive marker.
+          // Per-step attribution, because `data.alignment.first` sums six different things — the light
+          // lexicon import, the Strong's map build, the chapter JSON import, aliases, contextual, and
+          // the per-verse merge. That single number allowed FOUR wrong diagnoses of the ~2s block on
+          // device (the 18.7MB file size, the 18,100 entry materialisation, a lazy Proxy that made it
+          // 8x worse, and chapter-scoping), each of which changed one part and left the block intact.
+          //
+          // Recorded as accumulating counters rather than spans: these are already durations, and a
+          // counter per step is exactly the "which one owns the time" table that was missing.
+          const a = await loadAlignmentFor(bookId, chapterNumber, {
+            lite: true,
+            onTiming: (step, ms) => perfAdd(`lex.${step}`, Math.round(ms)),
+          });
+          if (!cancelled) setAlignment(a);
+        } finally {
+          endSpan();
+        }
         return;
       }
 
@@ -80,10 +142,23 @@ export function useChapterAlignment(
       }
     };
 
-    load();
+    // Deferred until interactions settle, so it cannot block first paint.
+    //
+    // Instrumenting startup showed the worst JS block in every capture — ~2s in the first two
+    // seconds — is not startup work at all: offline init is ~213ms and the DB open 196ms,
+    // while the block belongs to this call. It parses a 17.8MB, 18,100-entry lexicon file,
+    // measured at 652ms on a Raspberry Pi 5 and worse on a phone.
+    //
+    // Underlines are decoration: they can arrive a moment after the text without anything
+    // being wrong, and the reader's null-alignment path already renders plain text. A stalled
+    // first paint is far more costly than a late underline.
+    const handle = InteractionManager.runAfterInteractions(() => {
+      if (!cancelled) load();
+    });
 
     return () => {
       cancelled = true;
+      handle.cancel();
     };
   }, [bookId, chapterNumber, versionKey, isOnline]);
 

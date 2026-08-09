@@ -85,3 +85,10 @@ crash_logs
 
 .agent-os/**/*
 modules/*/android/build/
+
+# Perf capture artifacts (raw logcat + reassembled reports). Machine-generated;
+# committed baselines live in docs/ instead.
+reports/perf/
+
+# Maestro QA screenshots (decoration-qa.yaml) — artifacts of a local run, not source.
+qa-0*.png

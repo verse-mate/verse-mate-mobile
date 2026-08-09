@@ -371,8 +371,10 @@ export const useBibleChapterExplanation = (
   // Query serves from memory without re-running queryFn, so the flag would go
   // stale after auto-cache writes.
   const [hasLocalExplanation, setHasLocalExplanation] = useState(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `query.data` is an
-  // intentional re-fire trigger per BUG-008 (Andy 2026-05-02). The effect
+  // `query.data` is an intentional EXTRA dependency, not an oversight: BUG-008 (Andy
+  // 2026-05-02). The suppression that used to sit here no longer matches anything the
+  // linter reports, so it is gone rather than silently rotting — the reasoning is the
+  // part worth keeping. The effect
   // doesn't read `query.data` directly but must re-run the SQLite probe each
   // time the remote response settles so the "Available offline" badge reflects
   // rows that the queryFn auto-cached after fetch.

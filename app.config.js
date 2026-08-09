@@ -157,6 +157,12 @@ const config = {
     // Force modular headers for just those two pods (the targeted fix
     // CocoaPods itself recommends) instead of flipping use_modular_headers!
     // globally, which would risk breaking other pods.
+    // iOS build #100 and #101 both died verifying PostHog's emitted Swift module interface against
+    // iPhoneOS26.0.sdk ("underlying Objective-C module 'PostHog' not found"). Same PostHog version and an
+    // empty lockfile diff versus the build that passed hours earlier, and our own VMText module appears
+    // 40 times in the log with zero errors — so this is a toolchain/pod interaction, not our code.
+    // The plugin disables that self-check for the PostHog target only.
+    './plugins/posthog-swiftinterface-fix.js',
     [
       'expo-build-properties',
       {

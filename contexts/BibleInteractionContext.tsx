@@ -20,7 +20,7 @@ import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { type HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useMemo, useRef, useState } from 'react';
 
 interface BibleInteractionContextType {
   // Data
@@ -207,9 +207,15 @@ export function BibleInteractionProvider({
     }
   };
 
-  const value = {
-    chapterHighlights,
-    autoHighlights,
+  /**
+   * Latest implementations of every action, refreshed on each render.
+   *
+   * None of these are stable on their own: the three mutations come from
+   * `useHighlights`, which has no `useCallback` anywhere, and the five triggers
+   * are declared inline. So a `useMemo` over them as dependencies would rebuild
+   * on every render and achieve nothing.
+   */
+  const latestActions = useRef({
     addHighlight,
     updateHighlightColor,
     deleteHighlight,
@@ -217,8 +223,64 @@ export function BibleInteractionProvider({
     openAutoHighlightTooltip,
     openHighlightSelection,
     openHighlightEditMenu,
-    closeAll
+    closeAll,
+  });
+  latestActions.current = {
+    addHighlight,
+    updateHighlightColor,
+    deleteHighlight,
+    openVerseTooltip,
+    openAutoHighlightTooltip,
+    openHighlightSelection,
+    openHighlightEditMenu,
+    closeAll,
   };
+
+  /**
+   * Stable action facade — created once, always delegating to the latest impl.
+   *
+   * Every call forwards its arguments and RETURNS the inner result, which
+   * matters because callers `await` the mutations.
+   */
+  const actions = useMemo(
+    () => ({
+      addHighlight: (data: any) => latestActions.current.addHighlight(data),
+      updateHighlightColor: (id: number, color: HighlightColor) =>
+        latestActions.current.updateHighlightColor(id, color),
+      deleteHighlight: (id: number) => latestActions.current.deleteHighlight(id),
+      openVerseTooltip: (
+        verseNumber: number | null,
+        highlightGroup: HighlightGroup | null,
+        verseText?: string
+      ) => latestActions.current.openVerseTooltip(verseNumber, highlightGroup, verseText),
+      openAutoHighlightTooltip: (autoHighlight: AutoHighlight) =>
+        latestActions.current.openAutoHighlightTooltip(autoHighlight),
+      openHighlightSelection: (range: VerseRange, text: string) =>
+        latestActions.current.openHighlightSelection(range, text),
+      openHighlightEditMenu: (id: number, color: HighlightColor) =>
+        latestActions.current.openHighlightEditMenu(id, color),
+      closeAll: () => latestActions.current.closeAll(),
+    }),
+    []
+  );
+
+  /**
+   * The context value now changes only when the DATA changes.
+   *
+   * Before this, `value` was a fresh object literal on every render of the
+   * provider — and the provider re-renders on any of its five pieces of modal
+   * state, plus whenever its query hooks re-render. Every consumer re-rendered
+   * each time, whether or not anything it reads had moved. The re-render probe
+   * measured it: `render.page.by.bibleInteraction` fired 83 times in a
+   * 45-second swipe session, which is what produced the ~100 ChapterReader
+   * renders attributed to `nothing-tracked`. Each of those is a React commit
+   * Fabric has to diff against the whole live tree, and that diff
+   * (`completeRoot`) is the single largest cost in the CPU profile.
+   */
+  const value = useMemo(
+    () => ({ chapterHighlights, autoHighlights, ...actions }),
+    [chapterHighlights, autoHighlights, actions]
+  );
 
   return (
     <BibleInteractionContext.Provider value={value}>

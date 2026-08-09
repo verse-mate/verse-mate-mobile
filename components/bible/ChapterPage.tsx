@@ -33,8 +33,10 @@ import Animated, {
   Easing,
   FadeIn,
   FadeOut,
+  runOnJS,
   type SharedValue,
   useAnimatedRef,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -55,12 +57,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { TextVisibilityContext, type VisibleYRange } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import {
+  BOTTOM_THRESHOLD,
+  SCROLL_VELOCITY_THRESHOLD as FAB_SCROLL_VELOCITY_THRESHOLD,
+} from '@/hooks/bible/use-fab-visibility';
 import type { Highlight } from '@/hooks/bible/use-highlights';
+import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useNotes } from '@/hooks/bible/use-notes';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
+import { perfAdd, usePerfMountSpan, useWhyRender, watchFrames } from '@/lib/perf';
+import { useStableList } from '@/lib/perf/use-stable-list';
 import { useBibleByLine, useBibleChapter, useBibleSummary } from '@/src/api';
 import { animations, type getColors, spacing } from '@/theme/tokens';
 import type { AutoHighlight } from '@/types/auto-highlights';
@@ -164,32 +172,106 @@ function TabContent({
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const styles = createStyles(colors, insets.bottom); // Use local createStyles for TabContent
+  // Memoised for the same reason as ChapterReader's: a fresh StyleSheet each render defeats
+  // memoisation in every child that receives one of its entries.
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
   const { isOffline } = useOfflineStatus();
 
-  // Progressive reveal for byline verse sections. Two discrete bumps
-  // instead of a continuous setInterval so the ramp finishes in ~500ms
-  // and then stops generating re-renders — a perpetual setInterval was
-  // making the Bible/Insight toggle feel hitchy because the setState
-  // every 200ms was competing with the toggle's React work. Long
-  // chapters still parse progressively (5 sections → 30 sections →
-  // everything) so first paint is fast.
-  const [bylineMax, setBylineMax] = useState(5);
-  useEffect(() => {
-    if (activeTab !== 'byline') return;
-    const t1 = setTimeout(() => setBylineMax(30), 200);
-    const t2 = setTimeout(() => setBylineMax(Number.POSITIVE_INFINITY), 500);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [activeTab]);
+  /**
+   * Progressive reveal for byline verse sections, ramped ONE frame at a time.
+   *
+   * ## What this replaces, and why
+   *
+   * This was two discrete bumps — 5 sections, then 30 at 200ms, then everything at 500ms — chosen
+   * over a `setInterval` because the perpetual timer's re-renders competed with the toggle's React
+   * work. The reasoning was right about the timer and wrong about the bumps, and an atrace capture
+   * finally showed why (`scripts/perf/capture-atrace.sh`, written up in `docs/perf-next-session.md`).
+   *
+   * Inside the frame phase `framestats` calls `animation`, three Bible↔Insight toggles spent 119.4ms
+   * creating **228 native text views** — and they arrived in exactly **two commits, 120 then 108,
+   * 250ms apart**. Two commits, two timers, 200ms and 500ms: the bumps ARE the burst. `30 → ∞` is
+   * the worst of them, mounting every remaining section at once — 146 more sections on Psalm 119.
+   * The worst single frame in that capture was 46.70ms, about five and a half frames at 120Hz.
+   *
+   * So the fix is not fewer, larger steps but many small ones, paced to real frames. Each section is
+   * its own `<Markdown>`, so a step's cost scales with the sections it adds: at the measured ~0.52ms
+   * per view creation, four sections per frame stays inside the 8.34ms budget with room for the
+   * traversal and draw that share it.
+   *
+   * `requestAnimationFrame`, not `setTimeout`: it paces to actual frames, so the step size means
+   * what it says. A timer chain runs several times per frame under load and coalesces straight back
+   * into the big commit this exists to avoid. The ramp still STOPS — at `POSITIVE_INFINITY` the
+   * effect returns early and schedules nothing, which is what the original was protecting.
+   *
+   * `BYLINE_MAX_SECTIONS` ends the ramp without needing the section count here (it lives in
+   * `ChapterReader`, which does the slicing); 200 clears the longest chapter in the Bible, Psalm 119
+   * at 176 verses.
+   */
+  const [bylineMax, setBylineMax] = useState(BYLINE_INITIAL_SECTIONS);
 
+  /**
+   * Restart the ramp for a new chapter, not just a new tab.
+   *
+   * Keyed on the chapter too because `bylineMax` reaching `Infinity` is sticky: without this, the
+   * next chapter inherits "reveal everything" and mounts every section in one commit — the storm
+   * returns on ordinary navigation, which is the other place the capture found views landing in a
+   * single frame.
+   */
+  useEffect(() => {
+    setBylineMax(BYLINE_INITIAL_SECTIONS);
+  }, [activeTab, chapter?.bookId, chapter?.chapterNumber]);
+
+  useEffect(() => {
+    if (activeTab !== 'byline' || !Number.isFinite(bylineMax)) return;
+    const handle = requestAnimationFrame(() => {
+      setBylineMax((current) => {
+        const next = current + BYLINE_SECTIONS_PER_FRAME;
+        return next >= BYLINE_MAX_SECTIONS ? Number.POSITIVE_INFINITY : next;
+      });
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [activeTab, bylineMax]);
+
+  // Determine content for the reader
+  const rawExplanationContent = content && 'content' in content ? content : undefined;
+
+  /**
+   * Identity-stable explanation, so the reader re-renders only when it truly changes.
+   *
+   * Measured across twelve tab switches: `render.insight.by.explanation` fired 51 times —
+   * far more than the switches justify — because the object arrives fresh from the query
+   * layer even when nothing about it has changed, and every arrival re-renders the Insight
+   * subtree and re-parses its markdown.
+   *
+   * Same fix as the highlight arrays: hold the previous object while a content signature
+   * matches. Pre-warming the tabs was tried first and changed nothing (mean 59ms -> 63ms),
+   * which is what ruled mounting out and pointed here — the cost is re-rendering, not
+   * creating.
+   */
+  const explanationSignature = rawExplanationContent
+    ? `${rawExplanationContent.explanationId ?? ''}:${rawExplanationContent.languageCode ?? ''}:${
+        typeof rawExplanationContent.content === 'string' ? rawExplanationContent.content.length : 0
+      }`
+    : '';
+  const stableExplanationRef = useRef<{ signature: string; value: typeof rawExplanationContent }>({
+    signature: explanationSignature,
+    value: rawExplanationContent,
+  });
+  if (stableExplanationRef.current.signature !== explanationSignature) {
+    stableExplanationRef.current = {
+      signature: explanationSignature,
+      value: rawExplanationContent,
+    };
+  }
+  const explanationContent = stableExplanationRef.current.value;
+
+  // Bail out AFTER every hook. This sat above the `useRef` above and was a real crash path,
+  // not a lint preference: a page going from visible to hidden ran one fewer hook than its
+  // previous render, which is exactly the "rendered fewer hooks than expected" invariant.
+  // The pager hides pages constantly, so it was only a matter of which swipe hit it.
   const isHidden = !visible;
   if (isHidden && !shouldRenderHidden) return null;
 
-  // Determine content for the reader
-  const explanationContent = content && 'content' in content ? content : undefined;
   // Defend against `content.content` being undefined/null at render time —
   // happens when the explanations API hasn't returned a body yet (loading
   // state) or the field is genuinely missing on a chapter. Without the guard,
@@ -308,6 +390,111 @@ function TabContent({
  * All props are DYNAMIC - they update when the sliding window shifts.
  * The key is set by the parent based on window position, not content.
  */
+/**
+ * How often the scroll worklet pushes the visible Y range to JS, in ms.
+ *
+ * Matches the debounce the old per-frame JS handler used. Tokenization only needs
+ * a coarse window, so this is a throttle rather than a debounce now — the previous
+ * version allocated and cancelled a timeout on every scroll frame to achieve the
+ * same effect.
+ */
+const VISIBILITY_PUSH_INTERVAL_MS = 150;
+
+/**
+ * How long to record frames after a view switch starts, in ms.
+ *
+ * Longer than the 180ms toggle animation on purpose: a stall that lands just after
+ * the animation finishes is still felt as part of the switch.
+ */
+/**
+ * The pill's animation duration, mirrored from the screen's `withTiming` call, plus the margin
+ * the Insight mount waits beyond it.
+ */
+/** Every Insight tab, in the order they are pre-warmed. */
+/**
+ * Which tabs are worth mounting BEFORE the reader asks for them.
+ *
+ * The full set is summary / byline / study / visuals; only the first two are prewarmed.
+ *
+ * Not all of them, and the exclusions are measured rather than guessed. atrace bucketed every native view
+ * creation during a first visit to each tab:
+ *
+ *     after tab-byline:  57 RCTView  104 VMText   4 RCTText
+ *     after tab-study:   51 RCTView    0 VMText  66 RCTText   <- ~117 views, and the 47.39ms frame
+ *
+ * Study is the heaviest tab in the reader by a wide margin — 36 distinct `<Text>` sites, several inside
+ * `.map()`s over cards — and its 47ms mount is about 5.7 dropped frames at 120Hz, i.e. one clearly
+ * visible stutter. (Its card BODIES are already lazy; those 117 views are headers and chrome.)
+ *
+ * Prewarming it is actively harmful to how the app feels. The prewarm fires ~250ms apart after the reader
+ * opens Insight, so Study mounts while they are reading Summary or By Line — an UNPROMPTED hitch with no
+ * action attached to it, which is the worst kind: a stutter tied to a tap reads as "that was heavy", one
+ * that arrives on its own reads as "this app is janky".
+ *
+ * So the cheap tabs prewarm and the heavy ones mount when actually opened. That does not make Study's
+ * mount cheaper — it moves the cost onto a deliberate tap, where it is expected. Reducing it needs fewer
+ * views, which is a separate change.
+ *
+ * MEASURED, matched A/B on one device (same flow `bible-view-toggle:1000 next-chapter-button:2500` then
+ * `commentary-view-toggle:6500`, both arms health-gated), bucketing every native view creation by 0.5s
+ * with the tap at ~0.4s:
+ *
+ *     lean:      0.5s: 4   1.0s: 197   1.5s: 141     total 342,  RCTText 12
+ *     all four:  0.5s: 4   1.0s: 445   1.5s:  83     total 532,  RCTText 86
+ *
+ * 445 creations in ONE 500ms bucket becomes 197 — the worst mounting burst more than halved — and
+ * Study's 84 RCTText views are simply absent. Frame-level max differed by one frame in the other
+ * direction (33.67 vs 26.35ms) and is NOT claimed: max on a single run is the noisiest statistic there
+ * is, and the view-count effect is what this change controls.
+ *
+ * `visuals` is excluded for the same reason plus a stronger one: it is gated on `bookHasVisuals` and
+ * carries WebViews (`createViewUnsafe(RNCWebView)` showed up at 9.18ms EACH in an earlier capture), so
+ * prewarming it spends the most for the least likely visit.
+ */
+const PREWARMED_TABS: ContentTabType[] = ['summary', 'byline'];
+
+/**
+ * Byline reveal ramp. See the effect in `TabContent` for the capture these come from.
+ *
+ * Sized from measurement: atrace put native text-view creation at ~0.52ms each, and each byline
+ * section is its own `<Markdown>`, so four sections per frame stays inside the 120Hz budget of
+ * 8.34ms with room for the traversal and draw sharing the frame. The initial 5 is unchanged — it is
+ * what makes first paint fast. 200 ends the ramp without the section count, which lives in
+ * `ChapterReader`; Psalm 119, the longest chapter, has 176 verses.
+ */
+const BYLINE_INITIAL_SECTIONS = 5;
+const BYLINE_SECTIONS_PER_FRAME = 4;
+const BYLINE_MAX_SECTIONS = 200;
+
+/**
+ * Same ramp for an offscreen BUFFER page's Bible sections. Only buffers ramp — see the effect.
+ *
+ * Shares the byline sizing because the unit is the same: sections whose text becomes native views at
+ * the measured ~0.52ms each, against a 120Hz budget of 8.34ms.
+ */
+const BIBLE_SECTIONS_PER_FRAME = 4;
+const BIBLE_MAX_SECTIONS = 200;
+
+/**
+ * Gap between one prewarmed tab and the next, in ms.
+ *
+ * The effect below says "one tab per idle window", and it did not achieve that:
+ * `runAfterInteractions` fires immediately when nothing is happening, and the effect re-runs on
+ * every `visitedTabs` change, so the remaining tabs chained back-to-back. atrace caught the result —
+ * 228 native text views created in two consecutive commits, worst `animation` frame 46.70ms.
+ *
+ * NativeMarkdown now ramps its blocks at 8 per frame, so one tab takes roughly
+ * `blocks / 8` frames — ~14 frames, ~117ms at 120Hz for a typical Insight document. A gap
+ * comfortably longer than that keeps two tabs' ramps from overlapping and re-coalescing into the
+ * big commit both changes exist to avoid.
+ */
+const PREWARM_TAB_GAP_MS = 250;
+
+const VIEW_SWITCH_ANIM_MS = 180;
+const VIEW_SWITCH_MOUNT_MARGIN_MS = 40;
+
+const VIEW_SWITCH_FRAME_WINDOW_MS = 500;
+
 export interface ChapterPageProps {
   /** Book ID (1-66) - DYNAMIC prop, updates on window shift */
   bookId: number;
@@ -403,7 +590,7 @@ export function ChapterPage({
 }: ChapterPageProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const styles = createStyles(colors, insets.bottom); // Use local createStyles for ChapterPage
+  const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
 
   // Use Reanimated ref for the animated ScrollView
   const animatedScrollRef = useAnimatedRef<Animated.ScrollView>();
@@ -462,24 +649,157 @@ export function ChapterPage({
   const viewportHeightRef = useRef<number>(0);
 
   // Get highlights from the provider (single source of truth — avoids duplicate queries)
-  const { chapterHighlights, autoHighlights } = useBibleInteraction();
+  const bibleInteraction = useBibleInteraction();
+  const { chapterHighlights: routeHighlights, autoHighlights: routeAutoHighlights } =
+    bibleInteraction;
+
+  /**
+   * Highlights belonging to THIS page's chapter, not the route's.
+   *
+   * The interaction context is keyed to the route, and the route lags a swipe. So every
+   * page was handed the previous chapter's highlights: swipe from a chapter with verse 1
+   * highlighted and the next chapter showed verse 1 highlighted too, until the route
+   * caught up and it vanished. Filtering by the page's own chapter makes the highlight a
+   * property of the chapter rather than of whatever the router last committed, so it
+   * cannot bleed regardless of how far behind the route runs.
+   */
+  //
+  // Wrapped in useStableList because the filter alone made things WORSE: it produces a new
+  // array on every render of every page, and the source arrays churn identity constantly,
+  // so consumers re-rendered even when the filtered contents were identical. Measured after
+  // adding the filter: reader.render.bible 889 renders and paragraph.compile 999 calls for
+  // ~20 chapter changes, with 157 renders attributed to chapterHighlights and 142 to
+  // autoHighlights. The signature keeps the correctness and drops the churn.
+  const chapterHighlights = useStableList(
+    useMemo(
+      () =>
+        routeHighlights.filter((h) => h.book_id === bookId && h.chapter_number === chapterNumber),
+      [routeHighlights, bookId, chapterNumber]
+    ),
+    (h) =>
+      `${h.highlight_id}:${h.color}:${h.start_verse}:${h.end_verse}:${h.start_char}:${h.end_char}`
+  );
+  const autoHighlights = useStableList(
+    useMemo(
+      () =>
+        routeAutoHighlights.filter(
+          (h) => h.book_id === bookId && h.chapter_number === chapterNumber
+        ),
+      [routeAutoHighlights, bookId, chapterNumber]
+    ),
+    (h) => `${h.auto_highlight_id}:${h.theme_color}:${h.start_verse}:${h.end_verse}`
+  );
 
   // Pre-warmed flag: once the chapter has settled on Bible view, mount
   // the Insight subtree in the background so the Bible → Insight toggle
   // becomes a style flip (instant) instead of a 500-700ms first-mount
   // hit. The mount is scheduled via InteractionManager.runAfterInteractions
-  // so it doesn't run during the chapter-swipe animation. Sticky once true
-  // for the lifetime of this ChapterPage — there's no benefit to
-  // unmounting after a toggle back to Bible.
+  // so it doesn't run during the chapter-swipe animation.
+  //
+  // NOT sticky any more. It used to stay true for the ChapterPage's lifetime on
+  // the grounds that there is no benefit to unmounting — which is true for the
+  // toggle, and false for everything else. A Hermes CPU profile of six swipes
+  // put `[Host Function] completeRoot` at 1344ms of self time, the single
+  // largest cost in the whole run, reached through `updateHostContainer`. That
+  // is Fabric committing the root's child set, and in Fabric's persistent tree
+  // model EVERY commit pays a diff against the whole live tree. So the cost of
+  // an Insight subtree is not only its mount: it is added to every subsequent
+  // commit for as long as it stays mounted.
+  //
+  // Each page the reader passes through kept its own Insight subtree alive, so
+  // swiping accumulated them — matching the report that rapid swiping through
+  // many chapters degrades rather than staying flat. Dropping it when the page
+  // stops being current bounds the live tree to one.
+  /** Latest `isPreloading`, read by effects that must not re-run when it flips. */
+  const isPreloadingRef = useRef(isPreloading);
+  isPreloadingRef.current = isPreloading;
+
+  /** False until the first render has passed, so the mount run is not measured. */
+  const viewSwitchWatchArmedRef = useRef(false);
+  /** Same, for the inner-tab frame watch. */
+  const tabWatchArmedRef = useRef(false);
+
   const [insightPrewarmed, setInsightPrewarmed] = useState(false);
+
+  /**
+   * Whether a toggle-driven Insight mount is allowed to happen yet.
+   *
+   * The pill animates on the UI thread, and creating the Insight subtree's views is also UI
+   * thread work — so mounting it in the same commit as the toggle put both on the same thread
+   * at the same moment. Measured over seven deliberate toggles: 2 dropped frames with a worst
+   * frame of 103ms in a 180ms animation, and `reader.mount.explanations` firing six times.
+   *
+   * There is no reason for the two to be coupled. The mount waits until the animation is over,
+   * so the pill gets the thread to itself and the content arrives as it finishes. When the idle
+   * prewarm has already run — the common case for a chapter the reader has sat on — this
+   * changes nothing, because the subtree is mounted before the tap.
+   */
+  const [insightMountAllowed, setInsightMountAllowed] = useState(false);
+
+  /**
+   * Whether a buffer page may build its real content yet.
+   *
+   * Rendering buffer chapters is what makes a swipe land on text instead of a
+   * skeleton, but doing it in the same commit as the navigation just moves the
+   * stall: measurement put `reader.render.bible` at 2.9ms against a
+   * `reader.mount.bible` of 352ms, so the cost is not our JS — it is React
+   * commit plus native view creation, and it lands squarely on the gesture.
+   *
+   * So the neighbour is built in idle time instead. After a chapter change there
+   * is normally a second or more before the next swipe, which is ample; if the
+   * user out-runs that, they see the skeleton they saw before this change and
+   * nothing is worse than it was.
+   *
+   * The active page never waits — it sets this true on the spot.
+   */
+  const [bufferContentReady, setBufferContentReady] = useState(!isPreloading);
+  useEffect(() => {
+    if (!isPreloading) {
+      setBufferContentReady(true);
+      return;
+    }
+    const handle = InteractionManager.runAfterInteractions(() => {
+      setBufferContentReady(true);
+    });
+    return () => {
+      handle.cancel();
+    };
+    // bookId/chapterNumber are included so a recycled page re-defers for its new
+    // chapter rather than inheriting the previous one's ready flag.
+  }, [isPreloading, bookId, chapterNumber]);
 
   const { deleteNote, isDeletingNote } = useNotes();
 
-  // Schedule the Insight subtree mount in idle time after the chapter
-  // becomes available. Runs only for the active page (not buffer pages)
-  // and only once per ChapterPage lifetime.
+  // A toggle to Insight mounts only after the pill animation has finished, so the two never
+  // share a frame.
+  //
+  // Deliberately NOT reset when leaving Insight. Resetting it made the subtree unmount on the
+  // way back to Bible and remount on the next toggle — measured as reader.mount.explanations
+  // firing once per toggle, which is the very cost the deferral exists to keep away from the
+  // animation. Staying mounted for as long as the page is current is what the prewarm already
+  // intends; the page-level release when it stops being current still bounds the live tree.
   useEffect(() => {
-    if (isPreloading || insightPrewarmed) return;
+    if (activeView !== 'explanations') return;
+    if (insightPrewarmed || insightMountAllowed) return;
+    const timer = setTimeout(
+      () => setInsightMountAllowed(true),
+      VIEW_SWITCH_ANIM_MS + VIEW_SWITCH_MOUNT_MARGIN_MS
+    );
+    return () => clearTimeout(timer);
+  }, [activeView, insightPrewarmed, insightMountAllowed]);
+
+  // Schedule the Insight subtree mount in idle time after the chapter
+  // becomes available. Runs only for the active page (not buffer pages).
+  useEffect(() => {
+    if (isPreloading) {
+      // Released as soon as this page is no longer the current one, so at most
+      // one Insight subtree is ever in the tree Fabric has to diff. Guarded on
+      // the current value so a buffer page that never prewarmed does not
+      // schedule a pointless state update on every render.
+      setInsightPrewarmed((was) => (was ? false : was));
+      return;
+    }
+    if (insightPrewarmed) return;
     // Fire as soon as the chapter-swipe interaction finishes — no extra
     // delay. The toggleProgress-driven visibility flip below only works
     // when the Insight subtree is mounted, so we want this to flip as
@@ -509,20 +829,75 @@ export function ChapterPage({
   // setInterval — the perpetual interval was causing a regression
   // where the Bible/Insight toggle felt hitchy (setState every 200ms
   // competed with the toggle's React work). Resets on chapter change.
+  /**
+   * Whether the native renderer (and therefore paragraph windowing) is active.
+   *
+   * Read here so the progressive-reveal staging below can stand down: windowing
+   * already limits work to the visible paragraphs, and the staging's re-renders land
+   * on top of the view-switch animation.
+   */
+  const { useNativeText: nativeTextOn } = useNativeText();
+
   const [bibleSectionsMax, setBibleSectionsMax] = useState(3);
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on chapter change
   useEffect(() => {
     setBibleSectionsMax(3);
   }, [bookId, chapterNumber]);
   useEffect(() => {
+    // The CURRENT page mounts whole and immediately — it is what the reader is looking at, and a
+    // chapter that visibly fills in top-down is a worse artifact than one mount.
+    //
+    // A BUFFER page is offscreen, so its mount can be spread across frames, and that is where the
+    // cost actually is. With the gesture pager, moving to the next chapter PROMOTES a buffer that is
+    // already built and then builds a new neighbour — so the views created during a navigation mostly
+    // belong to a page nobody is looking at. atrace measured 54 native view creations inside a single
+    // `animation` frame during exactly that (`reports/perf/atrace/byline-ramp.txt`).
+    //
+    // Promotion stays safe: this effect re-runs with `isPreloading` false and sets INFINITY, so a page
+    // still ramping completes in one commit, exactly as it does today. That is what the original
+    // comment here was protecting — "a page left capped at 3 sections would render three and then
+    // visibly jump when it became current" — and it still holds, because nothing is left capped.
+    if (nativeTextOn) {
+      if (!isPreloading) setBibleSectionsMax(Number.POSITIVE_INFINITY);
+      return;
+    }
     if (isPreloading) return;
+    // Legacy path only: progressive reveal, because it has no windowing to limit the
+    // work. Its two re-renders land at 200ms and 500ms, straddling the 180ms
+    // view-switch animation, which is a plausible cause of the animation stutter the
+    // operator reports — one more reason the native path does without it.
     const t1 = setTimeout(() => setBibleSectionsMax(20), 200);
     const t2 = setTimeout(() => setBibleSectionsMax(Number.POSITIVE_INFINITY), 500);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [isPreloading, bookId, chapterNumber]);
+  }, [isPreloading, bookId, chapterNumber, nativeTextOn]);
+
+  /**
+   * Build an offscreen buffer page's sections a few per frame.
+   *
+   * Paired with the effect above: that one decides *whether* a page ramps (buffers do, the current
+   * page does not), this one does the stepping. Same shape and same reasoning as the byline ramp —
+   * `requestAnimationFrame` so the step size is paced to real frames, and the ramp terminates at
+   * `POSITIVE_INFINITY` rather than rescheduling forever.
+   *
+   * Known limitation, measured rather than assumed: React coalesces several rAF-driven `setState`s
+   * into ONE commit whenever the JS thread is blocked, and the one-time 18MB lexicon parse blocks it
+   * for ~2s. So this reduces the worst commit without guaranteeing `BIBLE_SECTIONS_PER_FRAME` views
+   * per frame, and the result has to be read off a capture, not inferred from the constant.
+   */
+  useEffect(() => {
+    if (!nativeTextOn || !isPreloading) return;
+    if (!Number.isFinite(bibleSectionsMax)) return;
+    const handle = requestAnimationFrame(() => {
+      setBibleSectionsMax((current) => {
+        const next = current + BIBLE_SECTIONS_PER_FRAME;
+        return next >= BIBLE_MAX_SECTIONS ? Number.POSITIVE_INFINITY : next;
+      });
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [nativeTextOn, isPreloading, bibleSectionsMax]);
 
   // Track explanation tab content heights for scroll syncing
   const tabContentHeightsRef = useRef<
@@ -633,6 +1008,13 @@ export function ChapterPage({
   const handleTouchStart = (event: GestureResponderEvent) => {
     touchStartTime.current = Date.now();
     touchStartY.current = event.nativeEvent.pageY;
+    // Every gesture that reaches the reader's own ScrollView. Compared against
+    // pager.dragStart this localises a lost swipe: if the reader sees a gesture
+    // the pager never registered as a drag, the swipe was lost to gesture
+    // arbitration between the two — which is what the operator's observation
+    // suggests, since the VERTICAL scroll indicator flashes at the moment of the
+    // block.
+    perfAdd('reader.touchStart', 1);
   };
 
   /**
@@ -667,6 +1049,24 @@ export function ChapterPage({
   }
   const displayChapter = chapter || lastChapterRef.current;
 
+  // 104 of the reader's ~186 renders were attributed to `nothing-tracked`, meaning
+  // no input the reader itself watches had changed — so the trigger is this
+  // parent re-rendering and handing down fresh props. Probing here rather than
+  // memoising on instinct: `bibleInteraction` is included because a context value
+  // object rebuilt each render re-renders every consumer regardless of whether
+  // the data inside it moved, and that is indistinguishable from the outside.
+  useWhyRender('render.page', {
+    bibleInteraction,
+    chapterHighlights,
+    autoHighlights,
+    displayChapter,
+    activeView,
+    activeTab,
+    isPreloading,
+    bookId,
+    chapterNumber,
+  });
+
   // Track which explanation tabs have been visited so we only fetch on demand
   const [visitedTabs, setVisitedTabs] = useState<Set<ContentTabType>>(() => new Set([activeTab]));
 
@@ -687,16 +1087,72 @@ export function ChapterPage({
     });
   }, [activeTab]);
 
-  // Eagerly pre-fetch the byline explanation a moment after the chapter
-  // settles so the first tap on the By Line tab finds the data already
-  // cached (no fetch lag, no skeleton). Summary is fetched on mount
-  // because activeTab starts as 'summary'; Study + Visuals are bundled
-  // (no fetch). The 1500ms delay lets the chapter render / scroll into
-  // place before we add another API call to the queue. Skipped for
-  // buffer pages to avoid prefetching for chapters the user may never
-  // actually open.
+  /**
+   * Pre-visit the remaining Insight tabs in idle time.
+   *
+   * Measured over twelve tab switches: mean 59ms, but p95 321ms and max 482ms, with
+   * `reader.mount.explanations` firing five times. The slow switches are exactly the ones that
+   * have to MOUNT a tab; a switch to an already-mounted tab is an opacity flip driven by a
+   * shared value and costs nothing.
+   *
+   * Which is the same reason swiping is smooth: the next chapter is already rendered before
+   * the gesture starts. The operator made the point directly — if a chapter change can be
+   * smooth while also loading a lexicon, a tab switch has no excuse. So the tabs get the same
+   * treatment the buffer chapters got: built during idle, one at a time, so the work lands
+   * between interactions instead of inside one.
+   *
+   * Only for the current page, and only once Insight is mounted at all — a buffer page has no
+   * business building four tabs.
+   */
   useEffect(() => {
     if (isPreloading) return;
+    if (!insightPrewarmed && !insightMountAllowed) return;
+    if (PREWARMED_TABS.every((tab) => visitedTabs.has(tab))) return;
+
+    const next = PREWARMED_TABS.find((tab) => !visitedTabs.has(tab));
+    if (!next) return;
+
+    // One tab per idle window rather than all of them at once: each is a real subtree, and
+    // mounting four in a single commit would recreate the stall this is meant to remove.
+    //
+    // The explicit gap is load-bearing. `runAfterInteractions` resolves immediately when no
+    // interaction is in flight, and this effect re-runs on every `visitedTabs` change, so on its own
+    // it chained all remaining tabs into consecutive frames — measured as a single 228-view burst
+    // rather than the intended one-at-a-time. See PREWARM_TAB_GAP_MS.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      timer = setTimeout(() => {
+        setVisitedTabs((prev) => {
+          if (prev.has(next)) return prev;
+          const updated = new Set(prev);
+          updated.add(next);
+          return updated;
+        });
+        perfAdd('insight.tabPrewarmed', 1);
+      }, PREWARM_TAB_GAP_MS);
+    });
+    return () => {
+      handle.cancel();
+      if (timer) clearTimeout(timer);
+    };
+  }, [isPreloading, insightPrewarmed, insightMountAllowed, visitedTabs]);
+
+  // Eagerly pre-fetch the byline explanation so the first tap on the By Line tab finds the data
+  // already cached (no fetch lag, no skeleton). Summary is fetched on mount because activeTab starts
+  // as 'summary'; Study + Visuals are bundled (no fetch). Skipped for buffer pages to avoid prefetching
+  // chapters the user may never open.
+  //
+  // OPENING INSIGHT SHORTENS THE WAIT. The delay used to be a flat 1500ms from chapter load, chosen to
+  // let the chapter render before adding an API call to the queue — sound while the reader is on the
+  // Bible view. But tapping the Insight toggle is a much stronger signal than a timer: the user is
+  // about to browse tabs. Measured, a first tab visit costs `tab.switch` up to 584ms because the tap
+  // beat the timer and paid the whole fetch.
+  //
+  // So the wait is short once Insight is open and unchanged otherwise: the chapter still gets its quiet
+  // window when nobody is looking at explanations, and the tab is warm by the time a hand reaches it.
+  useEffect(() => {
+    if (isPreloading) return;
+    const delay = activeView === 'explanations' ? 150 : 1500;
     const t = setTimeout(() => {
       setVisitedTabs((prev) => {
         if (prev.has('byline')) return prev;
@@ -704,9 +1160,9 @@ export function ChapterPage({
         next.add('byline');
         return next;
       });
-    }, 1500);
+    }, delay);
     return () => clearTimeout(t);
-  }, [isPreloading, bookId, chapterNumber]);
+  }, [isPreloading, bookId, chapterNumber, activeView]);
 
   // Fetch explanations lazily — only enable for the active tab or previously visited tabs
   const {
@@ -828,6 +1284,123 @@ export function ChapterPage({
   /**
    * Handle scroll events - calculate velocity, detect bottom, and update visible range
    */
+  /**
+   * Latest `onScroll` prop, in a ref, read ONLY from the JS thread.
+   *
+   * The ref must never be touched inside the worklet. Doing that serialises the ref
+   * OBJECT into the worklet, and the next render's `onScrollRef.current = onScroll`
+   * then fights it:
+   *
+   *   [Worklets] Tried to modify key `current` of an object which has been already
+   *   passed to a worklet.
+   *
+   * which logged on every render and left the callback path unreliable. The worklet
+   * instead calls `notifyScrollTransition` — a stable function — via runOnJS, and the
+   * ref is read there, on the JS thread, where mutating it is fine.
+   */
+  const onScrollRef = useRef(onScroll);
+  onScrollRef.current = onScroll;
+
+  /**
+   * Stable JS-thread entry point for the scroll worklet.
+   *
+   * Stable identity matters: `runOnJS` captures whatever it is given, so a function
+   * recreated each render would be re-serialised each render.
+   */
+  const notifyScrollTransition = useCallback((velocity: number, isAtBottom: boolean) => {
+    onScrollRef.current?.(velocity, isAtBottom);
+  }, []);
+
+  /**
+   * Push the visible Y range to JS. Called from the scroll worklet at most every
+   * VISIBILITY_PUSH_INTERVAL_MS.
+   *
+   * Sets the ref synchronously (consumers that read it get the freshest value) and
+   * the state for consumers that need to re-render. The old code set state behind a
+   * per-frame debounce timer, which meant allocating and cancelling a timeout 60
+   * times a second to achieve the same throttle.
+   */
+  const pushVisibleRange = useCallback(
+    (scrollY: number, viewportHeight: number, _contentHeight: number) => {
+      viewportHeightRef.current = viewportHeight;
+      const range: VisibleYRange = { startY: scrollY, endY: scrollY + viewportHeight };
+      visibleYRangeRef.current = range;
+      currentScrollYRef.current = scrollY;
+      setVisibleYRange(range);
+    },
+    []
+  );
+
+  /**
+   * UI-thread scroll handler for the Bible view.
+   *
+   * ## Why this exists
+   *
+   * `handleScroll` below is a plain JS callback on `onScroll` with
+   * `scrollEventThrottle={16}`, so it ran ~60x/second ON THE JS THREAD for the
+   * whole duration of every scroll. Each call allocated a `setTimeout`, and it
+   * called into `useFABVisibility`, which calls `setVisible()` — a React state
+   * update, i.e. a re-render of the chapter screen, mid-scroll.
+   *
+   * With the JS thread already busy ~25% of a reading session, those events queue.
+   * The device reported "High input latency: 4916" and a p99 frame of 42ms against
+   * an 8.3ms budget, while the JS-side numbers looked fine — which is why the
+   * JS-thread monitor alone was not enough to find this.
+   *
+   * This worklet runs on the UI thread and crosses to JS only on a state
+   * TRANSITION: when the FAB should change visibility, or at most every 150ms for
+   * the text-visibility range. Scrolling itself costs zero JS.
+   */
+  const lastScrollYSv = useSharedValue(0);
+  const lastScrollTimeSv = useSharedValue(0);
+  const fabVisibleSv = useSharedValue(true);
+  const lastVisibilityPushSv = useSharedValue(0);
+
+  const animatedScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      'worklet';
+      const y = event.contentOffset.y;
+      const viewportHeight = event.layoutMeasurement.height;
+      const scrollableHeight = event.contentSize.height - viewportHeight;
+      // `performance.now()` is not available in a worklet; the scroll event's own
+      // clock is monotonic and is what velocity should be measured against anyway.
+      const now = Date.now();
+
+      const timeDelta = now - lastScrollTimeSv.value;
+      const scrollDelta = y - lastScrollYSv.value;
+      const velocity = timeDelta > 0 ? (scrollDelta / timeDelta) * 1000 : 0;
+      lastScrollYSv.value = y;
+      lastScrollTimeSv.value = now;
+
+      const isAtBottom = scrollableHeight - y <= BOTTOM_THRESHOLD;
+
+      // FAB decision, made here so the common case (no change) never touches JS.
+      let nextFabVisible = fabVisibleSv.value;
+      if (isAtBottom) nextFabVisible = true;
+      else if (velocity < -FAB_SCROLL_VELOCITY_THRESHOLD) nextFabVisible = true;
+      else if (velocity > FAB_SCROLL_VELOCITY_THRESHOLD) nextFabVisible = false;
+
+      if (nextFabVisible !== fabVisibleSv.value) {
+        fabVisibleSv.value = nextFabVisible;
+        // Hand over the velocity that caused the transition so the JS side's existing
+        // threshold logic reaches the same conclusion.
+        runOnJS(notifyScrollTransition)(velocity, isAtBottom);
+      } else if (isAtBottom && !fabVisibleSv.value) {
+        // Reaching the bottom must always show the FAB, even without a velocity
+        // spike — a slow drag to the end would otherwise leave it hidden.
+        fabVisibleSv.value = true;
+        runOnJS(notifyScrollTransition)(velocity, true);
+      }
+
+      // Text-visibility range, throttled. Tokenization only needs a coarse window,
+      // and pushing it every frame was the other half of the per-frame JS cost.
+      if (now - lastVisibilityPushSv.value >= VISIBILITY_PUSH_INTERVAL_MS) {
+        lastVisibilityPushSv.value = now;
+        runOnJS(pushVisibleRange)(y, viewportHeight, event.contentSize.height);
+      }
+    },
+  });
+
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     // Update current scroll ref for distance calculation
     currentScrollYRef.current = event.nativeEvent.contentOffset.y;
@@ -1028,7 +1601,74 @@ export function ChapterPage({
   // overlapping at the same bounds. Opacity decides which is visible.
   // Falls back to a local sharedValue mirroring activeView when no parent
   // sharedValue is provided (tests, BibleContentPanel split-view path).
+  // Dev-only. `view.switch` covers the Bible<->Insight toggle: the span opens
+  // when `activeView` changes and closes once React has committed the new view,
+  // so it measures the reconciliation latency the prewarm hack exists to hide.
+  usePerfMountSpan('view.switch', `${bookId}:${chapterNumber}:${activeView}`, {
+    to: activeView,
+    book: bookId,
+    chapter: chapterNumber,
+    prewarmed: insightPrewarmed,
+  });
+
+  /**
+   * Inner Insight tab switches, measured on their own.
+   *
+   * Never instrumented before, which was a real gap: the operator reports lag when switching
+   * Insight tabs, where no lexicon and no chapter change are involved at all. That rules the
+   * lexicon out as the sole cause and points at something shared by every switch, and nothing
+   * could see it because swipes, the pill, startup and the lexicon were each measured while
+   * this was not.
+   */
+  usePerfMountSpan('tab.switch', `${bookId}:${chapterNumber}:${activeTab}`, {
+    to: activeTab,
+    book: bookId,
+    chapter: chapterNumber,
+  });
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the tab change itself
+  useEffect(() => {
+    if (!tabWatchArmedRef.current) {
+      tabWatchArmedRef.current = true;
+      return;
+    }
+    if (isPreloadingRef.current) return;
+    return watchFrames('anim.tabSwitch', VIEW_SWITCH_FRAME_WINDOW_MS);
+  }, [activeTab]);
+
   const localToggleProgress = useSharedValue(activeView === 'bible' ? 0 : 1);
+
+  /**
+   * Dev-only. Record frame cadence across the view-switch animation.
+   *
+   * The switch itself is instant but the animation is reported as stuttering, and
+   * neither existing instrument can see that: the JS heartbeat watches the wrong
+   * thread, and gfxinfo averages a 300ms animation into a 60-second session. This
+   * scopes a frame recording to exactly this interaction.
+   *
+   * Window is deliberately longer than the 180ms animation, so a stall that lands
+   * just after it still shows up.
+   */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the view change itself
+  useEffect(() => {
+    // Skip the mount run, and skip buffer pages. An effect keyed on [activeView]
+    // also fires on mount, and three ChapterPages mount per chapter change — so
+    // this was recording 21 windows in a session with no view switches at all,
+    // reporting chapter-change cost as pill-animation jank. The operator asked
+    // specifically about the pill; the metric has to answer that question and not
+    // a different one.
+    if (!viewSwitchWatchArmedRef.current) {
+      viewSwitchWatchArmedRef.current = true;
+      return;
+    }
+    // Read through a ref rather than a dependency: `isPreloading` flips on every
+    // chapter change, so listing it re-ran this effect 23 times in a session with
+    // no view switches at all — the exact pollution the mount guard above was
+    // meant to remove.
+    if (isPreloadingRef.current) return;
+    return watchFrames('anim.viewSwitch', VIEW_SWITCH_FRAME_WINDOW_MS);
+  }, [activeView]);
+
   useEffect(() => {
     if (toggleProgress) return;
     localToggleProgress.value = withTiming(activeView === 'bible' ? 0 : 1, {
@@ -1037,19 +1677,27 @@ export function ChapterPage({
     });
   }, [activeView, localToggleProgress, toggleProgress]);
   const effectiveProgress = toggleProgress ?? localToggleProgress;
+  /**
+   * Visibility is opacity ONLY — deliberately no animated `zIndex`.
+   *
+   * `zIndex` was animated alongside opacity on both containers and all four tabs. Opacity is a cheap
+   * per-view property, but changing `zIndex` REORDERS the parent's children, which is a structural
+   * mutation: Fabric emits it as mount operations applied in the Choreographer callback — the
+   * `animation` phase that `framestats` shows dominating every slow frame on this screen. It fired on
+   * every view switch and every tab switch, for every pane, to reorder views that are invisible
+   * anyway.
+   *
+   * Static declaration order is sufficient because an inactive pane is already `opacity: 0` and
+   * `pointerEvents: 'none'`: draw order only matters between things you can see, and only one pane is
+   * ever visible. Insight is declared after Bible, so it naturally composites on top when shown.
+   */
   const insightContainerStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      opacity: effectiveProgress.value,
-      zIndex: effectiveProgress.value > 0.5 ? 1 : 0,
-    };
+    return { opacity: effectiveProgress.value };
   });
   const bibleContainerStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      opacity: 1 - effectiveProgress.value,
-      zIndex: effectiveProgress.value > 0.5 ? 0 : 1,
-    };
+    return { opacity: 1 - effectiveProgress.value };
   });
 
   // Inner-tab visibility — driven by activeTabProgress (string sharedValue
@@ -1066,22 +1714,22 @@ export function ChapterPage({
   const summaryTabStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'summary';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    return { opacity: match ? 1 : 0 };
   });
   const bylineTabStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'byline';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    return { opacity: match ? 1 : 0 };
   });
   const studyTabStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'study';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    return { opacity: match ? 1 : 0 };
   });
   const visualsTabStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'visuals';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    return { opacity: match ? 1 : 0 };
   });
 
   return (
@@ -1091,7 +1739,7 @@ export function ChapterPage({
               pages so swipes-while-on-Insight have content ready), OR
            2. We've pre-warmed it after chapter settle (insightPrewarmed),
               so the Bible -> Insight toggle is an instant style flip. */}
-      {(activeView === 'explanations' || insightPrewarmed) && (
+      {(insightPrewarmed || insightMountAllowed) && (
         <Animated.View
           style={[styles.container, styles.absoluteFill, insightContainerStyle]}
           collapsable={false}
@@ -1233,15 +1881,32 @@ export function ChapterPage({
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={true}
         testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
+        onScroll={animatedScrollHandler}
+        // 1 rather than 16: a Reanimated handler runs on the UI thread, so there is
+        // no reason to throttle it — throttling only ever existed to reduce JS
+        // bridge traffic, and there is none now.
+        scrollEventThrottle={1}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
       >
         <TextVisibilityContext.Provider value={textVisibilityContextValue}>
           <View style={styles.readerContainer} collapsable={false}>
-            {displayChapter && !isPreloading ? (
+            {/* Buffer chapters render REAL CONTENT on the native path.
+                 `isPreloading` is true for the pager's prev/next pages, and gating
+                 them to a SkeletonLoader is why swiping never felt instant: the
+                 pager slides to a skeleton, and only after onPageSelected -> JS ->
+                 navigation -> re-render does the chapter actually mount, compile,
+                 measure and create its views. That work is also why swipe cost
+                 tracked chapter length.
+                 MyBible's pager has the adjacent chapter already rendered, so its
+                 swipe is pure native motion with nothing to build — measured at 0
+                 missed vsyncs and a 9ms p99 on this same phone.
+                 The gate existed because mounting a full chapter cost 500-700ms
+                 (May 2026). Windowing removes that reason: a buffer chapter renders
+                 only its top screenful, since its own visibleYRange is null at
+                 scroll 0 and windowing falls back to the window height. */}
+            {displayChapter && (!isPreloading || (nativeTextOn && bufferContentReady)) ? (
               <ChapterReader
                 chapter={displayChapter}
                 activeTab={activeTab}
