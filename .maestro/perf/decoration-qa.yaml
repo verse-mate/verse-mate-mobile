@@ -1,0 +1,94 @@
+appId: org.versemate.app
+name: QA — native text decoration + interaction
+description: Exercise lexicon underlines, verse tap and text selection on the native renderer, with screenshots
+tags:
+  - perf
+  - qa
+---
+
+# Decoration and interaction QA for the native text renderer.
+#
+# ## Why this is a flow and not a checklist
+#
+# The native renderer replaced one React `Text` per styled run with a single native view carrying
+# spans, and everything that used to be a separate node — a lexicon underline, a highlight background,
+# a verse-number superscript, a tap target — is now a character range inside one view. That is exactly
+# the class of change where rendering can look right and INTERACTION can be silently broken: a tap
+# resolves to a character offset now, not to a node, so an off-by-one in the range compiler shows up as
+# "tapping this word opens the wrong definition" rather than as an error.
+#
+# Screenshots are the point. Each step names what a human (or an agent reading the PNG) should verify,
+# because the flow itself cannot assert that an underline is gold, dotted and under the right word.
+#
+# Deliberately NOT asserting on verse text: `assertVisible: text: "In the beginning"` never passed on
+# the native arm, because a native TextView does not expose its text to the accessibility tree the way
+# RN's <Text> does. That is a property of the renderer, not a failure, and asserting on it made a
+# working build look broken.
+
+- runFlow: shared/reset-to-reader.yaml
+
+- tapOn:
+    id: "chapter-selector-button"
+- extendedWaitUntil:
+    visible:
+      id: "bible-navigation-modal"
+    timeout: 10000
+- tapOn:
+    id: "tab-new-testament"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "book-item-john"
+    direction: DOWN
+- tapOn:
+    id: "book-item-john"
+- waitForAnimationToEnd
+- tapOn:
+    id: "chapter-1"
+- extendedWaitUntil:
+    visible:
+      text: "John 1"
+    timeout: 30000
+- waitForAnimationToEnd
+
+# 1. Baseline render. Verify: verse numbers are superscript and smaller than body text; lexicon words
+#    carry a dotted underline; nothing is clipped at the bottom of a paragraph (a measurement that is
+#    short by a fraction of a point clips the final descender).
+- takeScreenshot: qa-01-chapter-render
+
+# 2. Lexicon tap. Verify: the popover opens, and it describes the word actually tapped. A range
+#    off-by-one surfaces here and nowhere else.
+- tapOn:
+    point: 50%, 42%
+- waitForAnimationToEnd
+- takeScreenshot: qa-02-after-tap
+
+- pressKey: Back
+- waitForAnimationToEnd
+
+# 3. Long-press selection. Verify: selection handles appear, the highlighted span matches what was
+#    pressed, and the system Copy menu is offered. Selection is the reason the Android view uses
+#    setTextIsSelectable and the iOS port uses a selectable UITextView.
+- longPressOn:
+    point: 50%, 48%
+- waitForAnimationToEnd
+- takeScreenshot: qa-03-selection
+
+# 4. Tap away. Verify: the selection clears rather than moving to the tapped word. This specific
+#    behaviour was broken twice — a tap away was treated as a long press and started a NEW selection.
+- tapOn:
+    point: 50%, 80%
+- waitForAnimationToEnd
+- takeScreenshot: qa-04-after-tap-away
+
+# 5. Insight view, so the markdown path is captured too. Verify: headings are larger and bold, bold and
+#    italic runs render as such (italic silently did nothing until fontStyle was put on the wire), and
+#    list markers align with their text.
+- tapOn:
+    id: "commentary-view-toggle"
+- extendedWaitUntil:
+    visible:
+      id: "chapter-content-tabs"
+    timeout: 30000
+- waitForAnimationToEnd
+- takeScreenshot: qa-05-insight-markdown

@@ -1,0 +1,41 @@
+appId: org.versemate.app
+name: Perf — turn the native text renderer ON
+description: >
+  Flips the runtime flag via the dev Settings toggle, then returns to the reader.
+  Used to switch A/B arms without rebuilding, so one build serves both.
+tags:
+  - perf
+---
+
+- runFlow: shared/reset-to-reader.yaml
+- tapOn:
+    id: "hamburger-menu-button"
+- extendedWaitUntil:
+    visible:
+      id: "hamburger-menu"
+    timeout: 10000
+- tapOn:
+    id: "menu-item-settings"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "native-text-toggle"
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: "native-text-toggle"
+- waitForAnimationToEnd
+
+# Back to the reader so the next capture starts where a user would be.
+- pressKey: Back
+- extendedWaitUntil:
+    visible:
+      id: "chapter-selector-button"
+    timeout: 30000
+- waitForAnimationToEnd
+
+# NOT asserting on verse text here. `assertVisible: text: "In the beginning"` never
+# passed in either arm — the native TextView does not expose verse text to the
+# accessibility tree the way RN's <Text> does, so the assertion failed even when
+# rendering was perfect, and a failed flip flow looked like a failed flip. The
+# capture script verifies the arm from the app's own reported flag instead.

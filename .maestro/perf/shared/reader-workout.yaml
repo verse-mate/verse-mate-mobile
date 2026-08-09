@@ -1,0 +1,101 @@
+appId: org.versemate.app
+name: Reader perf workout
+description: >
+  Interaction sequence shared by every perf scenario. Assumes the reader is
+  ALREADY on the target chapter — each scenario navigates there itself, with
+  literal selectors.
+---
+
+# Reader perf workout
+#
+# Every step maps to a specific reported symptom, so the capture measures
+# complaints rather than generic activity:
+#
+#   scroll down/up        -> "scrolling gets laggier", frame drops
+#   swipe next + scroll   -> "teleports you back up", the two post-swipe hiccups
+#   swipe back            -> reverse-direction slot reuse
+#   Insight <-> Bible     -> "the UI doesn't switch to Insight instantly"
+#   tap a verse           -> "opening a verse insight takes time to load"
+#
+# NO env variables and no navigation here. Maestro silently did not interpolate
+# `${VAR}` in `id:` selectors — it logged the literal `${BOOK_SLUG}` and reported
+# the tap as COMPLETED anyway, so three scenarios all measured Genesis 1 while
+# every step looked green. Literal selectors per scenario cost a little
+# duplication and remove that whole failure mode.
+#
+# Deliberately no content assertions beyond each scenario's navigation. An
+# assertion failing mid-flow aborts the run and truncates the capture, costing the
+# measurement. Correctness is the regression suite's job; this produces load.
+
+- waitForAnimationToEnd
+
+# --- scroll: within-chapter jank -------------------------------------------
+- swipe:
+    direction: UP
+    duration: 400
+- swipe:
+    direction: UP
+    duration: 400
+- swipe:
+    direction: UP
+    duration: 400
+- swipe:
+    direction: DOWN
+    duration: 400
+- swipe:
+    direction: DOWN
+    duration: 400
+- waitForAnimationToEnd
+
+# --- swipe to next chapter, then scroll immediately ------------------------
+# Scrolling right after the swipe is the trigger for the teleport-back-to-top
+# and the two hiccups, so it has to happen inside the same settle window rather
+# than after waitForAnimationToEnd.
+- swipe:
+    start: 85%, 50%
+    end: 15%, 50%
+    duration: 250
+- swipe:
+    direction: UP
+    duration: 400
+- swipe:
+    direction: UP
+    duration: 400
+- waitForAnimationToEnd
+
+# --- swipe back -------------------------------------------------------------
+- swipe:
+    start: 15%, 50%
+    end: 85%, 50%
+    duration: 250
+- waitForAnimationToEnd
+
+# --- Bible <-> Insight switch ----------------------------------------------
+- tapOn:
+    id: "commentary-view-toggle"
+- waitForAnimationToEnd
+- tapOn:
+    id: "bible-view-toggle"
+- waitForAnimationToEnd
+- tapOn:
+    id: "commentary-view-toggle"
+- waitForAnimationToEnd
+- tapOn:
+    id: "bible-view-toggle"
+- waitForAnimationToEnd
+
+# --- verse insight tooltip --------------------------------------------------
+# Tapping plain verse text opens the Verse Insight sheet. Wrapped in `when` so a
+# layout where the tap lands on a lexicon word (opening the lexicon popover
+# instead) degrades the measurement rather than aborting the run.
+- tapOn:
+    point: 50%, 45%
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "verse-mate-tooltip"
+    commands:
+      - waitForAnimationToEnd
+- pressKey: Back
+- waitForAnimationToEnd

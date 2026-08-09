@@ -56,7 +56,11 @@ import {
 } from 'react';
 import { StyleSheet, View } from 'react-native';
 import PagerView from '@/components/common/PagerView';
-import { useChapterNavigation } from '@/hooks/bible/use-chapter-navigation';
+import {
+  computeChapterNavigation,
+  useChapterNavigation,
+} from '@/hooks/bible/use-chapter-navigation';
+import { perfAdd, perfSpan } from '@/lib/perf';
 import type { TestamentBook } from '@/src/api';
 
 /**
@@ -88,6 +92,16 @@ export interface SimpleChapterPagerRef {
 /**
  * Page position constants (used when all 3 pages exist)
  */
+/**
+ * Ceiling on how long a dev-only `swipe.settle` span may stay open, in ms.
+ *
+ * A settled swipe that is going to navigate does so well within this. Anything
+ * longer means the gesture produced no chapter change, so the span is closed as
+ * abandoned rather than left to accumulate — it previously stayed open until the
+ * next real navigation and reported a 19-second "swipe latency".
+ */
+const SWIPE_SPAN_TIMEOUT_MS = 3000;
+
 const PAGE_CURRENT_MIDDLE = 1; // Current page when prev exists
 
 /**
@@ -121,6 +135,39 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     // Track the previous chapter key to detect navigation
     const prevChapterKey = useRef(`${bookId}-${chapterNumber}`);
 
+    /**
+     * Where the PAGER believes it is, which can be ahead of what React has
+     * committed.
+     *
+     * Props are the committed chapter, and committing takes ~520ms
+     * (`swipe.settle`). Resolving a swipe's target from props therefore made every
+     * swipe that landed inside that window aim at a chapter the user had already
+     * left, so a fast run collapsed to a single step and then looked jammed. This
+     * advances the instant a swipe settles, so six quick swipes resolve to six
+     * consecutive chapters.
+     *
+     * Re-synced from props whenever a committed chapter change arrives, so an
+     * external navigation (the dropdown, a deep link) is authoritative and any
+     * drift is corrected rather than accumulated.
+     */
+    const virtualRef = useRef({ bookId, chapterNumber });
+
+    /**
+     * Chapter keys dispatched by a swipe but not yet seen in props, oldest first.
+     *
+     * Needed because a committed chapter change is NOT automatically a reason to
+     * re-sync the virtual position. Swipe twice quickly from Genesis 3: the pager
+     * dispatches Genesis 4 then Genesis 5, and Genesis 4 commits FIRST. Re-syncing
+     * on that commit would drag the virtual position back to 4 and make a third
+     * swipe re-target 5 — the same duplicate-navigation bug in a new place.
+     *
+     * So props only reset the virtual position once React has caught up with the
+     * newest dispatch. A committed chapter that is NOT in this queue came from
+     * somewhere else (the dropdown, a deep link, restored reading position); that
+     * is authoritative and resets everything immediately.
+     */
+    const dispatchedQueueRef = useRef<string[]>([]);
+
     // Pending navigation target — set by onPageSelected, processed when pager reaches idle
     const pendingNavRef = useRef<{ bookId: number; chapterNumber: number } | null>(null);
 
@@ -145,6 +192,72 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
 
     useEffect(() => clearPendingTimer, []);
 
+    // Dev-only swipe timing. Opened in handlePageSelected, closed here once the
+    // resulting chapter change has committed. Held in a ref because it spans a
+    // native callback and a later render.
+    //
+    // Cleanup closes the span for both cases that end a swipe: the deps
+    // changing (the new chapter committed — cleanup runs after that commit) and
+    // unmount (the user left the reader mid-settle). Either way the span never
+    // stays open, which matters because an open span is attributed to every
+    // JS block that follows it.
+    const swipeSpanRef = useRef<(() => void) | null>(null);
+    /** Phase span: pager settle -> navigation actually dispatched. */
+    const swipeNavSpanRef = useRef<(() => void) | null>(null);
+    /**
+     * Close `swipe.pendingNav` at the instant the navigation is dispatched.
+     *
+     * This has to be called at every dispatch site. The first version closed it
+     * nowhere, so it was only ever ended by the *next* swipe reopening it — which
+     * silently turned the metric into "time between swipes" and reported a 4.5s
+     * mean swipe on a device that was idle for four of those seconds. A phase span
+     * with no close is worse than no span, because it reads as a plausible number.
+     */
+    const endPendingNavSpan = () => {
+      swipeNavSpanRef.current?.();
+      swipeNavSpanRef.current = null;
+    };
+    /**
+     * Open span for the programmatic recenter, closed on the next `idle`.
+     *
+     * The remaining complaint is a small mandatory pause after every swipe at a
+     * fast pace, and with the JS thread only ~8% busy it is unlikely to be our
+     * work. The standing suspect is this recenter: after each chapter change the
+     * pager snaps back to its centre page with `setPageWithoutAnimation`, and
+     * ViewPager2 does not accept user drags while a programmatic scroll is in
+     * flight. If that is it, the gesture never reaches JS at all — which is why no
+     * existing counter can see it, and why it has to be timed directly rather than
+     * inferred.
+     */
+    /** Whether a page change has happened since the current drag began. */
+    const pagedSinceDragRef = useRef(true);
+
+    const recenterSpanRef = useRef<(() => void) | null>(null);
+    const endRecenterSpan = () => {
+      recenterSpanRef.current?.();
+      recenterSpanRef.current = null;
+    };
+
+    const swipeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clearSwipeTimeout = () => {
+      if (swipeTimeoutRef.current !== null) {
+        clearTimeout(swipeTimeoutRef.current);
+        swipeTimeoutRef.current = null;
+      }
+    };
+    // biome-ignore lint/correctness/useExhaustiveDependencies: bookId/chapterNumber are the trigger for the cleanup, not values read inside it
+    useEffect(() => {
+      return () => {
+        clearSwipeTimeout();
+        swipeSpanRef.current?.();
+        swipeSpanRef.current = null;
+        endRecenterSpan();
+        // A swipe that ends by leaving the reader still has to close its phase
+        // span, or it is attributed to every JS block for the rest of the session.
+        endPendingNavSpan();
+      };
+    }, [bookId, chapterNumber]);
+
     // While a programmatic setPageWithoutAnimation is settling, the native
     // ViewPager fires `onPageSelected` for intermediate positions. Without
     // this guard, the very first reposition lands on position=0 (the prev
@@ -162,8 +275,43 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
     // clearing on first match.
     const programmaticTargetRef = useRef<number | null>(null);
     const programmaticTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    /**
+     * Whether the user has physically dragged since the last programmatic seek.
+     *
+     * This is what makes the guard above discriminate instead of blanket-swallow,
+     * and it is the fix for "you cannot fast-swipe".
+     *
+     * The guard's job is to reject the trailing `onPageSelected` events ViewPager
+     * emits for up to ~400ms after a `setPageWithoutAnimation`. It did that by
+     * dropping EVERY page-selected event in that window — including real swipes.
+     * Since the window is armed right after each chapter change, and the change
+     * itself takes ~520ms (`swipe.settle`), there was close to a one-second dead
+     * zone after every swipe in which the user's input was silently discarded.
+     * That is exactly the reported behaviour: swiping fast stops advancing, the
+     * header sits a chapter behind, and it only recovers once you stop and let it
+     * settle.
+     *
+     * A trailing programmatic event is never preceded by a drag; a real swipe
+     * always is. So the drag flag separates the two cleanly, and no real input has
+     * to be thrown away to keep the rewind protection.
+     */
+    const draggedSinceSeekRef = useRef(false);
+    /** True between a drag starting and the pager coming to rest. */
+    const isDraggingRef = useRef(false);
+
     const armProgrammaticGuard = (targetIndex: number) => {
       programmaticTargetRef.current = targetIndex;
+      // Do NOT clear the drag flag while the user is mid-drag.
+      //
+      // This is what was still eating fast swipes. The recenter is triggered by
+      // the PREVIOUS swipe's navigation committing, which at a fast cadence lands
+      // in the middle of the NEXT drag. Clearing the flag there made that
+      // in-flight drag's page-selected event look like a trailing artifact of the
+      // seek, so it was swallowed: eleven drags produced six navigations and
+      // exactly five swallows. It presented as a hard block rather than a lag
+      // because the input genuinely went nowhere.
+      if (!isDraggingRef.current) draggedSinceSeekRef.current = false;
       if (programmaticTimerRef.current) clearTimeout(programmaticTimerRef.current);
       // 400ms covers the worst-case trailing-event window observed in
       // logs (~5 spurious events over ~250ms). Errs generous because
@@ -193,12 +341,27 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       const currentKey = `${bookId}-${chapterNumber}`;
       if (prevChapterKey.current === currentKey) return;
       prevChapterKey.current = currentKey;
+      const queue = dispatchedQueueRef.current;
+      const at = queue.indexOf(currentKey);
+      if (at === -1) {
+        // Not one of ours: an external navigation wins outright.
+        queue.length = 0;
+        virtualRef.current = { bookId, chapterNumber };
+      } else {
+        // Drop everything up to and including the chapter that just committed.
+        queue.splice(0, at + 1);
+        // Only when nothing is still in flight does the committed chapter also
+        // describe where the pager is.
+        if (queue.length === 0) virtualRef.current = { bookId, chapterNumber };
+      }
       const targetIndex = canGoPrevious ? PAGE_CURRENT_MIDDLE : 0;
       // Suppress pageSelected handling for the full reposition window —
       // see armProgrammaticGuard. The guard auto-clears on a timer so
       // the trailing onPageSelected events ViewPager emits after the
       // seek finishes don't get treated as user swipes.
       armProgrammaticGuard(targetIndex);
+      endRecenterSpan();
+      recenterSpanRef.current = perfSpan('pager.recenter', { to: targetIndex });
       pagerRef.current?.setPageWithoutAnimation(targetIndex);
     }, [bookId, chapterNumber, canGoPrevious]);
 
@@ -228,8 +391,55 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * Navigation is deferred until the pager reaches idle state via onPageScrollStateChanged.
      * This prevents rapid-swipe race conditions where a second swipe fires before reposition.
      */
+    /**
+     * Dev-only. Open the swipe-latency span, but ONLY for a settle that is going
+     * to navigate.
+     *
+     * Two earlier versions of this were wrong in ways that produced numbers rather
+     * than errors, which is worse:
+     *
+     *  - closing only on a chapter change left the span open until the NEXT
+     *    navigation whenever a gesture settled without moving, reporting a 19s
+     *    "swipe latency";
+     *  - opening on every `onPageSelected` counted the spurious trailing events
+     *    ViewPager emits after a settle (see armProgrammaticGuard). Those never
+     *    navigate, so they all ran to the timeout and dragged the mean toward the
+     *    ceiling — both arms sat at the 3s cap and the comparison said nothing.
+     *
+     * Opening it where the pending nav is recorded means one span per real
+     * navigation. The timeout stays as a backstop for a nav that never commits.
+     */
+    const beginSwipeSpan = () => {
+      swipeSpanRef.current?.();
+      clearSwipeTimeout();
+      // Phase 1 of the swipe: the pager has settled on a new page and a navigation
+      // is pending, but React has not been told yet. Long here means the pager
+      // itself is slow to report; long in swipe.commit means the new chapter is slow
+      // to build. Splitting them is the difference between "the gesture is
+      // sluggish" and "the content is slow", which feel identical to a user.
+      endPendingNavSpan();
+      swipeNavSpanRef.current = perfSpan('swipe.pendingNav', { from: currentKeyRef.current });
+      swipeSpanRef.current = perfSpan('swipe.settle', { from: currentKeyRef.current });
+      swipeTimeoutRef.current = setTimeout(() => {
+        // Closed as abandoned, so a recorded duration is a known ceiling rather
+        // than an arbitrary one.
+        swipeSpanRef.current?.();
+        swipeSpanRef.current = null;
+        endPendingNavSpan();
+        swipeTimeoutRef.current = null;
+      }, SWIPE_SPAN_TIMEOUT_MS);
+    };
+
     const handlePageSelected = (event: { nativeEvent: { position: number } }) => {
       const newPosition = event.nativeEvent.position;
+      pagedSinceDragRef.current = true;
+      // Every page-selected event, by the position reported. This closes the
+      // accounting that three dead theories could not: a run of ten drags
+      // produced ten drags, zero snap-backs and only five navigations, and the
+      // five that passed the guard resolved to nothing — which only happens when
+      // the pager reports the CENTRE index. Bucketing by position says whether the
+      // pager is advancing and we are dropping it, or never advancing at all.
+      perfAdd(`pager.selected.p${newPosition}`, 1);
 
       // Swallow ALL page-selected events while a programmatic reposition
       // is in flight (guard cleared by timer in armProgrammaticGuard).
@@ -237,38 +447,58 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       // the seek; clearing on first-match wasn't enough (caused phantom
       // rewind to prev chapter). The user-swipe path doesn't arm the
       // guard, so its events flow through normally.
+      // Swallow ONLY the trailing events of a programmatic seek: guard armed and
+      // the user has not dragged since. A real swipe inside the guard window is
+      // let through, which is what makes fast swiping possible at all.
       if (programmaticTargetRef.current !== null) {
-        return;
+        if (!draggedSinceSeekRef.current && !isDraggingRef.current) {
+          perfAdd('swipe.trailingSwallowed', 1);
+          return;
+        }
+        // Counted so the fix is provable rather than asserted: every one of these
+        // is a swipe the previous blanket guard would have thrown away.
+        perfAdd('swipe.rescuedDuringGuard', 1);
       }
 
-      if (canGoPrevious && canGoNext) {
+      // Targets are resolved from the VIRTUAL position, not from props.
+      //
+      // Props describe the chapter React has committed. A swipe that arrives
+      // while the previous chapter change is still in flight would resolve its
+      // target from that stale chapter and navigate to somewhere the user has
+      // already been — so a fast run of swipes collapsed into one step and then
+      // appeared to jam. The virtual position advances the moment a swipe
+      // settles, so N fast swipes resolve to N consecutive chapters.
+      const virtual = virtualRef.current;
+      const virtualNav = computeChapterNavigation(
+        virtual.bookId,
+        virtual.chapterNumber,
+        booksMetadata,
+        false
+      );
+      const goTo = (target: { bookId: number; chapterNumber: number }) => {
+        beginSwipeSpan();
+        virtualRef.current = target;
+        pendingNavRef.current = target;
+        dispatchedQueueRef.current.push(`${target.bookId}-${target.chapterNumber}`);
+        perfAdd('swipe.navResolved', 1);
+      };
+
+      if (virtualNav.canGoPrevious && virtualNav.canGoNext) {
         // 3 pages: [prev, current, next]
-        if (newPosition === 0 && prevChapter) {
-          pendingNavRef.current = {
-            bookId: prevChapter.bookId,
-            chapterNumber: prevChapter.chapterNumber,
-          };
-        } else if (newPosition === 2 && nextChapter) {
-          pendingNavRef.current = {
-            bookId: nextChapter.bookId,
-            chapterNumber: nextChapter.chapterNumber,
-          };
+        if (newPosition === 0 && virtualNav.prevChapter) {
+          goTo(virtualNav.prevChapter);
+        } else if (newPosition === 2 && virtualNav.nextChapter) {
+          goTo(virtualNav.nextChapter);
         }
-      } else if (!canGoPrevious && canGoNext) {
+      } else if (!virtualNav.canGoPrevious && virtualNav.canGoNext) {
         // 2 pages at start: [current, next]
-        if (newPosition === 1 && nextChapter) {
-          pendingNavRef.current = {
-            bookId: nextChapter.bookId,
-            chapterNumber: nextChapter.chapterNumber,
-          };
+        if (newPosition === 1 && virtualNav.nextChapter) {
+          goTo(virtualNav.nextChapter);
         }
-      } else if (canGoPrevious && !canGoNext) {
+      } else if (virtualNav.canGoPrevious && !virtualNav.canGoNext) {
         // 2 pages at end: [prev, current]
-        if (newPosition === 0 && prevChapter) {
-          pendingNavRef.current = {
-            bookId: prevChapter.bookId,
-            chapterNumber: prevChapter.chapterNumber,
-          };
+        if (newPosition === 0 && virtualNav.prevChapter) {
+          goTo(virtualNav.prevChapter);
         }
       }
 
@@ -281,6 +511,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
           if (!pendingNavRef.current) return;
           const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
           pendingNavRef.current = null;
+          endPendingNavSpan();
           onChapterChangeRef.current(navBookId, navChapter);
         }, 500);
       }
@@ -293,10 +524,46 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      */
     const handlePageScrollStateChanged = (event: { nativeEvent: { pageScrollState: string } }) => {
       const state = event.nativeEvent.pageScrollState;
+      // A drag can only come from the user — `setPageWithoutAnimation` never
+      // produces one. This is the signal the guard uses to tell a real swipe from
+      // the trailing events of its own seek.
+      if (state === 'dragging') {
+        draggedSinceSeekRef.current = true;
+        isDraggingRef.current = true;
+        // A drag begins: nothing has paged yet.
+        pagedSinceDragRef.current = false;
+        // How many gestures the PAGER actually sees. Compared against
+        // reader.touchStart (every gesture that reached the reader's ScrollView)
+        // this says whether missing swipes are lost to gesture arbitration rather
+        // than to timing — the recenter turned out to cost 3.2ms, so the standing
+        // "the pager is busy repositioning" explanation is dead.
+        perfAdd('pager.dragStart', 1);
+      }
+      // The recenter is over once the pager reports idle — that is the moment it
+      // starts accepting drags again.
+      if (state === 'idle') {
+        isDraggingRef.current = false;
+        endRecenterSpan();
+        // A drag that reached idle without ever paging was SNAPPED BACK by
+        // ViewPager2 to the page it started on. Ten synthetic swipes at a 260ms
+        // cadence produced ten drags but only five navigations, and neither the
+        // recenter (2.8ms) nor gesture arbitration (pager saw all ten) explains
+        // the gap. This counts the remaining candidate directly: a drag that
+        // began while the pager was still settling from the previous one, which
+        // ViewPager2 resolves by returning to the current page.
+        if (draggedSinceSeekRef.current && !pagedSinceDragRef.current) {
+          perfAdd('swipe.snappedBack', 1);
+        }
+        pagedSinceDragRef.current = true;
+      }
       if (state === 'idle' && pendingNavRef.current) {
         clearPendingTimer();
         const { bookId: navBookId, chapterNumber: navChapter } = pendingNavRef.current;
         pendingNavRef.current = null;
+        // The pager has stopped moving and the nav is going out now: this is the
+        // exact boundary between "the gesture layer was slow" and "the content was
+        // slow to build", which is the whole reason the swipe is two spans.
+        endPendingNavSpan();
         onChapterChange(navBookId, navChapter);
       }
     };

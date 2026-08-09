@@ -1,0 +1,494 @@
+/**
+ * Render markdown as ONE native text view per block.
+ *
+ * ## Why
+ *
+ * `react-native-markdown-display` emits a React `Text` per inline run and a `View` per block, so a
+ * screenful of explanation is dozens of views. On Fabric each is a mount operation dispatched
+ * inside the Choreographer callback — the phase `framestats` labels `animation` — and across 25
+ * captures the slow-frame count tracked that phase alone (0.9ms to 28.8ms, 3/119 to 51/119 slow
+ * frames) while measure/layout stayed at 0.2-0.6ms. The panel is 120Hz, so the budget is 8.3ms.
+ *
+ * This is the same trick the Bible reader already uses for verses: collapse many styled text
+ * nodes into one native view carrying spans. `lib/text/compile-markdown` does the parsing, purely
+ * and testably; this file only decides geometry and handles taps.
+ *
+ * ## Falling back is the default, not the exception
+ *
+ * The React renderer is used whenever the native path cannot be exact: no native module (web,
+ * Expo Go, Jest), width not yet measured, or a document containing something with no span
+ * equivalent (tables, images, strikethrough). Partial native rendering is never attempted —
+ * silently dropping a table to win frames would be a correctness regression dressed as a
+ * performance one.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type LayoutChangeEvent, Linking, type TextStyle, View } from 'react-native';
+import type { RenderRules } from 'react-native-markdown-display';
+import { useNativeText } from '@/hooks/bible/use-native-text';
+import { getSharedParser, type MarkdownProps, ReactMarkdown } from '@/lib/markdown/ReactMarkdown';
+import { perfCount } from '@/lib/perf/monitor';
+import {
+  compileMarkdown,
+  DEFAULT_MARKDOWN_STYLE,
+  type MarkdownBlock,
+  type MarkdownStyleConfig,
+} from '@/lib/text/compile-markdown';
+import { wordAtOffset } from '@/lib/text/word-at-offset';
+import {
+  isNativeTextAvailable,
+  measureTextHeights,
+  type TextRange,
+  VMText,
+} from '@/modules/versemate-text';
+
+/**
+ * Last measured content width, kept at module scope.
+ *
+ * Width is only knowable after a layout pass, and rendering nothing on the first frame makes a tab
+ * switch flash empty. Every instance of this component is the same column in the same reader, so
+ * the previous width is a correct opening bid — corrected on the very next layout if it is not.
+ */
+let lastContentWidth = 0;
+
+/**
+ * Blocks mounted per frame.
+ *
+ * ## This was reverted once, on evidence from the wrong flow
+ *
+ * The first A/B ran `insight-tabs.yaml`, which WARMS every tab before measuring, so it was structurally
+ * blind to the only case this helps: a FIRST visit, where the subtree mounts. `tab.switch` did not move,
+ * `markdown.native` read 1, and both were misread as "the ramp has nothing to act on" — when the 1 meant
+ * Summary renders as a single document, i.e. exactly what a block ramp spreads.
+ *
+ * Re-measured on a flow that provably contains a mount (`next-chapter-button:6500`, which the atrace
+ * captures show creating 100+ views), same binary, one constant changed, both arms health-gated:
+ *
+ *                              ramp ON      ramp OFF
+ *     frames over 8.34ms    11/508 (2.2%)  21/493 (4.3%)
+ *     animation p95              3.92ms        8.13ms
+ *     VMText created in-phase       113           ~240
+ *     creation self time         68.1ms        ~170ms
+ *     animation max             39.33ms       41.39ms
+ *
+ * Over-budget frames and p95 both halve, and in-phase view creation drops 53%. Note what does NOT
+ * change: total work, and the worst single frame (39 vs 41ms). The ramp moves creations OUT of the
+ * critical path; it does not make them cheaper. So the frequency of hitches drops while the worst hitch
+ * remains — which matches the operator still seeing occasional stutter after this landed.
+ *
+ * Lesson worth keeping: an A/B on a flow that warms the thing you are measuring cannot detect a
+ * first-mount fix. Check that the capture window contains the work before trusting a null result.
+ *
+ * Sized from measurement, not taste: atrace put `createViewUnsafe(ViewManagerAdapter_VMText)` at
+ * ~0.52ms per view, so 8 x 0.52 = ~4.2ms against a 120Hz budget of 8.34ms — about half the frame,
+ * leaving the traversal and draw that share it. Raising this trades frame headroom for a shorter
+ * ramp; lowering it does the reverse.
+ */
+const BLOCKS_PER_FRAME = 8;
+
+/** Vertical rhythm, in dp. Deliberately data rather than a stylesheet so blocks stay one view. */
+const GAP_PARAGRAPH = 12;
+const GAP_HEADING_TOP = 18;
+const GAP_HEADING_BOTTOM = 8;
+const GAP_LIST_ITEM = 6;
+const INDENT_PER_DEPTH = 14;
+const QUOTE_BORDER_WIDTH = 3;
+const QUOTE_PADDING = 10;
+const CODE_PADDING = 10;
+const RULE_HEIGHT = 1;
+
+/**
+ * Every prop the React renderer takes, plus the two this adds.
+ *
+ * Accepting the whole surface is what makes this a drop-in replacement: a caller that needs a
+ * library feature this cannot express keeps working, because the props are forwarded verbatim to
+ * the fallback rather than dropped.
+ */
+export type NativeMarkdownProps = MarkdownProps & {
+  /** Markdown source. */
+  children: string;
+  /** Colours for links, code backgrounds and heading scales. */
+  markdownStyle?: Partial<MarkdownStyleConfig>;
+  /**
+   * Override the renderer choice. Omitted, it follows the SAME stored preference as the verse
+   * renderer, which is what makes this a drop-in replacement for `<Markdown>` — no caller has to
+   * thread a flag down, and one toggle still moves everything.
+   */
+  enabled?: boolean;
+  /**
+   * A word was tapped. Resolved from the native `charOffset`, so this costs ZERO extra views.
+   *
+   * Topics needs every word tappable for a dictionary lookup, and it used to buy that with a
+   * `<HighlightedText>` per markdown text node, which tokenizes per word and emits a `<Text>` per
+   * segment — 7453 `RCTText` views in a four-tab-switch capture. `VMText` reports the character offset
+   * of a tap precisely so a caller can answer "what was tapped" without a node per unit, so one native
+   * view per block is enough.
+   */
+  onWordPress?: (word: string, blockIndex: number) => void;
+  /**
+   * Render rules applied ONLY when the React fallback renders, and deliberately NOT counted as custom
+   * rendering.
+   *
+   * `rules` forces the React path for every caller, always — that is correct, because a span list cannot
+   * express an arbitrary component. But a caller whose rules exist purely to reproduce something the
+   * native path does natively (Topics' tappable words) would then be stuck on the slow renderer forever.
+   * This prop keeps the behaviour where there is no native module — web, Expo Go, Jest — without holding
+   * the native path hostage to it.
+   */
+  fallbackRules?: RenderRules;
+  testID?: string;
+};
+
+export function NativeMarkdown({
+  children,
+  markdownStyle,
+  enabled,
+  onWordPress,
+  fallbackRules,
+  testID,
+  ...markdownProps
+}: NativeMarkdownProps) {
+  const [contentWidth, setContentWidth] = useState(lastContentWidth);
+  const { useNativeText: preferNative } = useNativeText();
+
+  const { style, rules, renderer, onLinkPress } = markdownProps;
+  const body = (style as Record<string, TextStyle> | undefined)?.body ?? {};
+  const fontSize = typeof body.fontSize === 'number' ? body.fontSize : 16;
+  const lineHeight = typeof body.lineHeight === 'number' ? body.lineHeight : fontSize * 1.5;
+  const color = typeof body.color === 'string' ? body.color : '#000000';
+
+  const styleConfig = useMemo<MarkdownStyleConfig>(
+    () => ({ ...DEFAULT_MARKDOWN_STYLE, ...markdownStyle }),
+    [markdownStyle]
+  );
+
+  /**
+   * Custom render rules keep a caller on the React path, always.
+   *
+   * `rules` and `renderer` mean "draw these node types MY way" — Topics uses them for verse-number
+   * superscripts and tappable references. A span list cannot express an arbitrary component, so
+   * rendering natively here would silently drop the caller's own markup. This was caught by the
+   * type-checker rather than by a screenshot, which is the only reason it is not a shipped bug.
+   */
+  const hasCustomRendering = rules !== undefined || renderer !== undefined;
+  const native = (enabled ?? preferNative) && !hasCustomRendering && isNativeTextAvailable();
+
+  const compiled = useMemo(() => {
+    if (!native) return null;
+    return compileMarkdown(children, getSharedParser(), styleConfig);
+  }, [native, children, styleConfig]);
+
+  /**
+   * Heights for every block, in ONE native call.
+   *
+   * Batched for the same reason the reader batches paragraph measurement: a document is many
+   * blocks mounted together, and this turns N JSI crossings into one. A null result means native
+   * measurement is unavailable, which is a fallback condition rather than something to paper over
+   * with an estimate — a wrong height clips text.
+   */
+  const measured = useMemo(() => {
+    if (!compiled?.supported || contentWidth <= 0 || compiled.blocks.length === 0) return null;
+    const requests = compiled.blocks.map((block) => ({
+      text: block.text,
+      // The bridge shape requires `interactive` to be present; TextRange leaves it optional.
+      // Normalising here rather than in the compiler keeps the compiler free of transport concerns.
+      ranges: block.ranges.map((range) => ({ ...range, interactive: range.interactive === true })),
+      width: Math.max(1, contentWidth - insetFor(block)),
+      fontSize: sizeFor(block, fontSize),
+      lineHeight: block.kind === 'code' ? fontSize * 1.35 : lineHeight,
+    }));
+    return measureTextHeights(requests);
+  }, [compiled, contentWidth, fontSize, lineHeight]);
+
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    const width = Math.round(event.nativeEvent.layout.width);
+    if (width > 0 && width !== lastContentWidth) lastContentWidth = width;
+    if (width > 0) setContentWidth((current) => (current === width ? current : width));
+  }, []);
+
+  /** Open the href carried in the tapped range's `tag`. */
+  /**
+   * Resolve which word a tap landed on, from the block's own text.
+   *
+   * A tap on whitespace resolves to nothing and is dropped rather than snapped to a neighbour — opening a
+   * definition for a word the reader did not touch is worse than opening none.
+   */
+  const handleBlockPress = useCallback(
+    (blockIndex: number, charOffset: number) => {
+      if (!onWordPress) return;
+      const text = compiled?.blocks[blockIndex]?.text;
+      if (!text) return;
+      const { word } = wordAtOffset(text, charOffset);
+      if (word) onWordPress(word, blockIndex);
+    },
+    [compiled, onWordPress]
+  );
+
+  const handleRangeTap = useCallback(
+    (blockIndex: number, rangeIndex: number) => {
+      const range = compiledRange(compiled?.blocks[blockIndex]?.ranges, rangeIndex);
+      const href = range?.tag?.startsWith('link:') ? range.tag.slice('link:'.length) : null;
+      if (!href) return;
+      // A caller's own handler wins, and may veto by returning false — same contract the library
+      // documents, so link behaviour does not change with the renderer.
+      if (onLinkPress && onLinkPress(href) === false) return;
+      Linking.openURL(href).catch(() => undefined);
+    },
+    [compiled, onLinkPress]
+  );
+
+  const usable = compiled?.supported === true && measured !== null;
+  const blockCount = compiled?.blocks.length ?? 0;
+
+  /**
+   * Mount blocks a few per frame instead of all in one commit.
+   *
+   * ## The measurement that motivates this
+   *
+   * An atrace capture over three Bible<->Insight toggles (`scripts/perf/atrace-slices.ts`) attributed
+   * the `animation` phase — the phase every finding in this work has pointed at — for the first time:
+   *
+   *     self(ms)  count  slice
+   *      119.4     228   SurfaceMountingManager::createViewUnsafe(ViewManagerAdapter_VMText)
+   *
+   * 228 native text views created, ~0.52ms each, and **all 228 landed in a single burst spanning two
+   * commits** (120 then 108). The worst `animation` frame in that capture was 46.70ms — five and a
+   * half frames' worth at 120Hz, which is the visible stutter.
+   *
+   * Two details make it worse than a slow first paint. The burst arrives ~1.1s AFTER the toggle,
+   * because it is the idle tab prewarm, not the tap — so the stall lands while the reader is already
+   * reading. And the 2nd and 3rd toggles created almost nothing, confirming the steady-state toggle
+   * is already cheap and that mounting is the entire cost.
+   *
+   * ## Why per-frame chunks
+   *
+   * Nothing about a hidden prewarm needs to complete in one frame; only the total needs to finish
+   * before the user taps. Fabric mounts one commit per frame, so N blocks per commit is a direct
+   * lever on the per-frame cost:
+   *
+   *     8 blocks x ~0.52ms = ~4.2ms  <  8.34ms budget (120Hz)
+   *
+   * leaving room for the traversal and draw that share the frame. A cold *visible* tab now reveals
+   * top-down over a few frames rather than freezing — strictly better than a 46ms stall, and the
+   * common case is the hidden prewarm where it is invisible.
+   *
+   * Driven by `requestAnimationFrame` rather than a timer on purpose: it paces to actual frames, so
+   * the chunk size means what it says. A `setTimeout(0)` chain would run several times per frame
+   * under load and coalesce back into one big commit — the exact thing being fixed.
+   */
+  const [mountLimit, setMountLimit] = useState(BLOCKS_PER_FRAME);
+
+  // A different document restarts the ramp. Keyed on the compiled result rather than on `children`
+  // so a re-render with identical text does not re-mount what is already there.
+  useEffect(() => {
+    setMountLimit(BLOCKS_PER_FRAME);
+  }, [compiled]);
+
+  useEffect(() => {
+    if (!usable || mountLimit >= blockCount) return;
+    const handle = requestAnimationFrame(() => {
+      setMountLimit((current) => Math.min(blockCount, current + BLOCKS_PER_FRAME));
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [usable, mountLimit, blockCount]);
+
+  const visibleBlocks = useMemo(
+    () => (usable ? (compiled?.blocks ?? []).slice(0, mountLimit) : []),
+    [usable, compiled, mountLimit]
+  );
+
+  /**
+   * Record which path was taken, in an EFFECT rather than during render.
+   *
+   * Counted at all because the A/B is meaningless if the native arm quietly fell back — that is
+   * precisely how an earlier renderer comparison produced a "result" from two identical arms. And
+   * counted in an effect because a render that React discards under concurrent rendering would
+   * otherwise inflate the number being used to judge the experiment.
+   */
+  const reason = usable ? null : fallbackReason(compiled, measured, hasCustomRendering);
+  useEffect(() => {
+    if (!native) return;
+    perfCount(reason === null ? 'markdown.native' : `markdown.fallback.${reason}`, 1);
+  }, [native, reason]);
+
+  if (!usable) {
+    // `onLayout` stays on the wrapper so a fallback caused only by an unknown width resolves
+    // itself on the next frame instead of being permanent.
+    return (
+      <View onLayout={handleLayout} testID={testID}>
+        <ReactMarkdown {...markdownProps} rules={rules ?? fallbackRules}>
+          {children}
+        </ReactMarkdown>
+      </View>
+    );
+  }
+
+  return (
+    <View onLayout={handleLayout} testID={testID}>
+      {visibleBlocks.map((block, index) => (
+        <BlockView
+          // Index is a legitimate key here: blocks are positional and a document has no stable
+          // per-block identity to key on. A changed document re-renders wholly regardless.
+          key={`${block.kind}-${index}`}
+          block={block}
+          blockIndex={index}
+          color={color}
+          contentWidth={contentWidth}
+          fontSize={fontSize}
+          height={measured[index]}
+          lineHeight={lineHeight}
+          onBlockPress={onWordPress ? handleBlockPress : undefined}
+          onRangeTap={handleRangeTap}
+          styleConfig={styleConfig}
+        />
+      ))}
+    </View>
+  );
+}
+
+/** One block. Kept separate so the interactive/decorated cases do not clutter the common one. */
+function BlockView({
+  block,
+  blockIndex,
+  color,
+  contentWidth,
+  fontSize,
+  height,
+  lineHeight,
+  onBlockPress,
+  onRangeTap,
+  styleConfig,
+}: {
+  block: MarkdownBlock;
+  blockIndex: number;
+  color: string;
+  contentWidth: number;
+  fontSize: number;
+  height: number;
+  lineHeight: number;
+  onBlockPress?: (blockIndex: number, charOffset: number) => void;
+  onRangeTap: (blockIndex: number, rangeIndex: number) => void;
+  styleConfig: MarkdownStyleConfig;
+}) {
+  const inset = insetFor(block);
+  const width = Math.max(1, contentWidth - inset);
+
+  if (block.kind === 'rule') {
+    return (
+      <View
+        style={{
+          height: RULE_HEIGHT,
+          backgroundColor: color,
+          opacity: 0.2,
+          marginVertical: GAP_PARAGRAPH,
+        }}
+      />
+    );
+  }
+
+  const text = (
+    <VMText
+      height={height}
+      onPress={onBlockPress ? (e) => onBlockPress(blockIndex, e.charOffset) : undefined}
+      onRangeTap={(rangeIndex) => onRangeTap(blockIndex, rangeIndex)}
+      ranges={block.ranges}
+      style={{
+        color,
+        fontSize: sizeFor(block, fontSize),
+        lineHeight: block.kind === 'code' ? fontSize * 1.35 : lineHeight,
+      }}
+      text={block.text}
+      width={width}
+    />
+  );
+
+  // A quote needs a rule down its left edge and code needs a filled box; neither can be a span, so
+  // these two kinds pay for one wrapper view each. Every other kind stays at exactly one view.
+  if (block.kind === 'blockquote') {
+    return (
+      <View
+        style={{
+          borderLeftColor: color,
+          borderLeftWidth: QUOTE_BORDER_WIDTH,
+          marginBottom: GAP_PARAGRAPH,
+          marginLeft: inset - QUOTE_PADDING - QUOTE_BORDER_WIDTH,
+          opacity: 0.85,
+          paddingLeft: QUOTE_PADDING,
+        }}
+      >
+        {text}
+      </View>
+    );
+  }
+
+  if (block.kind === 'code') {
+    return (
+      <View
+        style={{
+          backgroundColor: styleConfig.codeBackgroundColor,
+          borderRadius: 6,
+          marginBottom: GAP_PARAGRAPH,
+          padding: CODE_PADDING,
+        }}
+      >
+        {text}
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={{
+        marginBottom: block.kind === 'listItem' ? GAP_LIST_ITEM : GAP_PARAGRAPH,
+        marginLeft: inset,
+        marginTop: block.kind === 'heading' ? GAP_HEADING_TOP : 0,
+        ...(block.kind === 'heading' ? { marginBottom: GAP_HEADING_BOTTOM } : null),
+      }}
+    >
+      {text}
+    </View>
+  );
+}
+
+/** Left inset in dp for a block at its nesting depth. */
+function insetFor(block: MarkdownBlock): number {
+  if (block.kind === 'blockquote') {
+    return Math.max(1, block.depth) * INDENT_PER_DEPTH + QUOTE_PADDING + QUOTE_BORDER_WIDTH;
+  }
+  if (block.kind === 'listItem') return block.depth * INDENT_PER_DEPTH;
+  return 0;
+}
+
+/**
+ * Base size for a block.
+ *
+ * Headings get their scale here AND as a whole-block range in the compiler. That is not redundant:
+ * the view-level size is what measurement and line height are computed from, while the range is
+ * what lets a link or code span inside a heading layer on top correctly.
+ */
+function sizeFor(block: MarkdownBlock, fontSize: number): number {
+  if (block.kind === 'code') return fontSize * 0.92;
+  return fontSize;
+}
+
+/** Safe lookup, because a stale tap can arrive after the document changed. */
+function compiledRange(ranges: TextRange[] | undefined, index: number): TextRange | undefined {
+  return ranges && index >= 0 && index < ranges.length ? ranges[index] : undefined;
+}
+
+/** Why the React renderer was used, for the perf report. */
+function fallbackReason(
+  compiled: ReturnType<typeof compileMarkdown> | null,
+  measured: number[] | null,
+  hasCustomRendering: boolean
+): string {
+  // Distinguished from 'no-native' because it is a permanent, intended property of the call site
+  // rather than a platform limitation — seeing it in a report is not a problem to investigate.
+  if (hasCustomRendering) return 'custom-rules';
+  if (!compiled) return 'no-native';
+  if (!compiled.supported) return compiled.unsupportedReason ?? 'unsupported';
+  if (measured === null) return 'unmeasured';
+  return 'unknown';
+}
+
+export default NativeMarkdown;

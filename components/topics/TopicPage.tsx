@@ -21,7 +21,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GestureResponderEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { FlatList, InteractionManager, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
-import Markdown from 'react-native-markdown-display';
 import Animated, {
   Easing,
   type SharedValue,
@@ -33,11 +32,10 @@ import { BottomLogo } from '@/components/bible/BottomLogo';
 import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
 import { ShareButton } from '@/components/bible/ShareButton';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
-import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useToast } from '@/contexts/ToastContext';
 import { BOTTOM_THRESHOLD } from '@/hooks/bible/use-fab-visibility';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { useTopicById, useTopicReferences } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, lineHeights, spacing } from '@/theme/tokens';
 import type { ContentTabType } from '@/types/bible';
@@ -151,7 +149,6 @@ function formatVerseNumbers(text: string): string {
 /**
  * Custom markdown renderers for special formatting
  */
-const markdownRules: RenderRules = {};
 
 /**
  * Props for TopicPage component
@@ -192,6 +189,16 @@ export interface TopicPageProps {
   onShare?: () => void;
   /** Callback when a verse is pressed */
   onVersePress?: (verseData: VersePress) => void;
+
+  /**
+   * Ask the SCREEN to show a word definition.
+   *
+   * Mirrors `onVersePress`. A TopicPage IS a PagerView page, so an RN <Modal> rendered here cannot present
+   * on iOS — UIKit rejects it with "Presenting view controller <RCTFabricModalHostViewController> from
+   * detached view controller" and the sheet silently never appears. Android is unaffected (its Modals are
+   * plain views), which is why the bug was invisible on one platform.
+   */
+  onWordDefine?: (word: string, verseNumber: number) => void;
 }
 
 /**
@@ -228,6 +235,7 @@ export function TopicPage({
   onTap,
   onShare,
   onVersePress,
+  onWordDefine,
 }: TopicPageProps) {
   const { colors } = useTheme();
   // Memoise the StyleSheet objects so they're stable across renders. The
@@ -235,41 +243,42 @@ export function TopicPage({
   // which breaks any Markdown component's prop-equality check downstream
   // and forces it to re-parse the entire markdown string on every render.
   const { styles, markdownStyles } = useMemo(() => createStyles(colors), [colors]);
-  const { showToast } = useToast();
 
   // TODO: Implement Bible version selection in Settings page
   // For now, hardcoded to NASB1995 (backend default)
   const bibleVersion = 'NASB1995';
 
   // Word definition tooltip state (long-press dictionary lookup)
-  const [wordToDefine, setWordToDefine] = useState<{
-    word: string;
-    verseNumber: number;
-  } | null>(null);
-  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
+  // Word definitions are OWNED BY THE SCREEN — see `onWordDefine` on the props type.
+  const handleWordSelect = useCallback(
+    (selection: WordSelection, clearSelection: () => void) => {
+      onWordDefine?.(selection.word, selection.verseNumber);
+      clearSelection();
+    },
+    [onWordDefine]
+  );
 
-  const handleWordSelect = useCallback((selection: WordSelection, clearSelection: () => void) => {
-    setWordToDefine({ word: selection.word, verseNumber: selection.verseNumber });
-    setWordDefinitionVisible(true);
-    clearSelection();
-  }, []);
-
-  const handleWordDefinitionClose = useCallback(() => {
-    setWordDefinitionVisible(false);
-    setWordToDefine(null);
-  }, []);
-
-  const handleWordDefinitionCopy = useCallback(() => {
-    showToast('Copied to clipboard');
-  }, [showToast]);
+  /**
+   * A word tapped in NATIVELY-rendered markdown.
+   *
+   * Same destination as `handleWordSelect`, reached without a view per word: the native text view reports
+   * the tapped character offset and `wordAtOffset` turns that into the word. `verseNumber` is 0 because
+   * topic markdown is prose, not verses — which is exactly what the old per-word rule passed too.
+   */
+  const handleMarkdownWordPress = useCallback(
+    (word: string) => {
+      onWordDefine?.(word, 0);
+    },
+    [onWordDefine]
+  );
 
   // Markdown text rule that wraps text nodes with HighlightedText for word
   // long-press dictionary lookup (used in the Explanations view markdown).
   const dictionaryMarkdownRules: RenderRules = useMemo(
     () => ({
-      ...markdownRules,
       text: (node, _children, _parent, styles, inheritedStyles = {}) => (
         <HighlightedText
+          perfSurface="topics.markdown"
           key={node.key}
           text={node.content}
           verseNumber={0}
@@ -524,7 +533,11 @@ export function TopicPage({
   // component, same rules, same styles per section.
   const renderMarkdownSection = useCallback(
     ({ item }: { item: { key: string; body: string } }) => (
-      <Markdown style={markdownStyles} rules={dictionaryMarkdownRules}>
+      <Markdown
+        style={markdownStyles}
+        fallbackRules={dictionaryMarkdownRules}
+        onWordPress={handleMarkdownWordPress}
+      >
         {item.body}
       </Markdown>
     ),
@@ -643,7 +656,7 @@ export function TopicPage({
               ) : null}
 
               <View style={styles.referencesContainer}>
-                <Markdown style={markdownStyles} rules={markdownRules}>
+                <Markdown style={markdownStyles}>
                   {
                     // First format verse numbers, THEN process newlines
                     formatVerseNumbers(displayReferences.content)
@@ -813,18 +826,7 @@ export function TopicPage({
         </Animated.View>
       )}
 
-      {/* Word Definition Tooltip — dictionary lookup on long-press */}
-      {wordToDefine && (
-        <WordDefinitionTooltip
-          visible={wordDefinitionVisible}
-          word={wordToDefine.word}
-          bookName={topic?.name || ''}
-          chapterNumber={0}
-          verseNumber={wordToDefine.verseNumber}
-          onClose={handleWordDefinitionClose}
-          onCopy={handleWordDefinitionCopy}
-        />
-      )}
+      {/* No WordDefinitionTooltip here on purpose — the screen renders it. See `onWordDefine`. */}
     </View>
   );
 }

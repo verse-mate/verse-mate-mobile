@@ -65,6 +65,18 @@
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "94126503648-htsubrfo04f7ef34ig58lsiscj9kbmo6.apps.googleusercontent.com"
       }
     },
+    "preview-perf": {
+      "extends": "preview",
+      "env": {
+        "EXPO_PUBLIC_PERF": "1"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "autoIncrement": false,
+      "distribution": "internal"
+    },
     "production": {
       "distribution": "store",
       "channel": "production",
@@ -85,6 +97,15 @@
         "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY": "true",
         "EXPO_PUBLIC_APPLE_SSO_ENABLED": "false"
+      }
+    },
+    "sim-release": {
+      "extends": "preview-perf",
+      "developmentClient": false,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Release"
       }
     }
   },

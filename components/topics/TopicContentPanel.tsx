@@ -17,17 +17,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import type { RenderRules } from 'react-native-markdown-display';
-import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomLogo } from '@/components/bible/BottomLogo';
 import { FloatingActionButtons } from '@/components/bible/FloatingActionButtons';
 import type { WordSelection } from '@/components/bible/HighlightedText';
-import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { TopicText, type VersePress } from '@/components/topics/TopicText';
 import { ReadingProgressBar } from '@/components/ui/ReadingProgressBar';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useToast } from '@/contexts/ToastContext';
+import { Markdown } from '@/lib/markdown/Markdown';
 import { useTopicReferences } from '@/src/api';
 import {
   fontSizes,
@@ -73,8 +70,6 @@ function formatVerseNumbers(text: string): string {
   });
 }
 
-const markdownRules: RenderRules = {};
-
 /**
  * Props for TopicContentPanel
  */
@@ -115,6 +110,15 @@ export interface TopicContentPanelProps {
   /** Callback when a verse is pressed */
   onVersePress?: (verseData: VersePress) => void;
 
+  /**
+   * Ask the SCREEN to show a word definition.
+   *
+   * Not rendered here: this panel sits inside a `PagerView` page, and on iOS an RN <Modal> presented from
+   * there is rejected by UIKit — "Presenting view controller <RCTFabricModalHostViewController> from
+   * detached view controller" — and never appears. Mirrors `onVersePress` above.
+   */
+  onWordDefine?: (word: string, verseNumber: number) => void;
+
   /** Whether floating controls should be visible */
   visible?: boolean;
 
@@ -140,6 +144,7 @@ export function TopicContentPanel({
   onScroll,
   onTap,
   onVersePress,
+  onWordDefine,
   visible = true,
   testID = 'topic-content-panel',
 }: TopicContentPanelProps) {
@@ -147,7 +152,6 @@ export function TopicContentPanel({
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
   const { styles, markdownStyles } = createStyles(specs, colors);
   const insets = useSafeAreaInsets();
-  const { showToast } = useToast();
 
   // Reading progress state
   const [progress, setProgress] = useState(0);
@@ -157,27 +161,14 @@ export function TopicContentPanel({
   const lastScrollY = useRef(0);
   const lastScrollTime = useRef(0);
 
-  // Word definition tooltip state (long-press dictionary lookup)
-  const [wordToDefine, setWordToDefine] = useState<{
-    word: string;
-    verseNumber: number;
-  } | null>(null);
-  const [wordDefinitionVisible, setWordDefinitionVisible] = useState(false);
-
-  const handleWordSelect = useCallback((selection: WordSelection, clearSelection: () => void) => {
-    setWordToDefine({ word: selection.word, verseNumber: selection.verseNumber });
-    setWordDefinitionVisible(true);
-    clearSelection();
-  }, []);
-
-  const handleWordDefinitionClose = useCallback(() => {
-    setWordDefinitionVisible(false);
-    setWordToDefine(null);
-  }, []);
-
-  const handleWordDefinitionCopy = useCallback(() => {
-    showToast('Copied to clipboard');
-  }, [showToast]);
+  // Word definitions are OWNED BY THE SCREEN — see `onWordDefine` on the props type.
+  const handleWordSelect = useCallback(
+    (selection: WordSelection, clearSelection: () => void) => {
+      onWordDefine?.(selection.word, selection.verseNumber);
+      clearSelection();
+    },
+    [onWordDefine]
+  );
 
   // Fetch references for this topic
   const { data: references } = useTopicReferences(topicId);
@@ -285,7 +276,7 @@ export function TopicContentPanel({
 
                 {/* References Content */}
                 <View style={styles.referencesContainer}>
-                  <Markdown style={markdownStyles} rules={markdownRules}>
+                  <Markdown style={markdownStyles}>
                     {formatVerseNumbers(contentString)
                       .replace(/\n\n/g, '___PARAGRAPH___')
                       .replace(/\n/g, ' ')
@@ -328,18 +319,7 @@ export function TopicContentPanel({
         visible={visible}
       />
 
-      {/* Word Definition Tooltip — dictionary lookup on long-press */}
-      {wordToDefine && (
-        <WordDefinitionTooltip
-          visible={wordDefinitionVisible}
-          word={wordToDefine.word}
-          bookName={topicName}
-          chapterNumber={0}
-          verseNumber={wordToDefine.verseNumber}
-          onClose={handleWordDefinitionClose}
-          onCopy={handleWordDefinitionCopy}
-        />
-      )}
+      {/* No WordDefinitionTooltip here on purpose — the screen renders it. See `onWordDefine`. */}
     </View>
   );
 }

@@ -86,13 +86,26 @@ export interface ChapterNavigation {
  * // => { nextChapter: { bookId: 1, chapterNumber: 1 }, canGoNext: true }
  * ```
  */
-export function useChapterNavigation(
+/**
+ * Pure prev/next resolution for an arbitrary chapter.
+ *
+ * Extracted from the hook so a caller can resolve navigation for a chapter it is
+ * not currently rendering. `SimpleChapterPager` needs exactly that: while a
+ * chapter change is still in flight its props still describe the OLD chapter, so
+ * a second fast swipe computed its target from stale values and re-navigated to
+ * the chapter it had already left. That is the reported "swipe too fast and it
+ * stops advancing, with the header a chapter behind".
+ *
+ * The hook below is now a thin memo over this, so there is one implementation and
+ * the two cannot drift.
+ */
+export function computeChapterNavigation(
   bookId: number,
   chapterNumber: number,
   booksMetadata: TestamentBook[] | undefined,
   circular: boolean = false
 ): ChapterNavigation {
-  return useMemo(() => {
+  {
     // Handle undefined or empty metadata
     if (!booksMetadata || booksMetadata.length === 0) {
       return {
@@ -194,5 +207,54 @@ export function useChapterNavigation(
       canGoNext,
       canGoPrevious,
     };
-  }, [bookId, chapterNumber, booksMetadata, circular]);
+  }
+}
+
+export function useChapterNavigation(
+  bookId: number,
+  chapterNumber: number,
+  booksMetadata: TestamentBook[] | undefined,
+  circular: boolean = false
+): ChapterNavigation {
+  return useMemo(
+    () => computeChapterNavigation(bookId, chapterNumber, booksMetadata, circular),
+    [bookId, chapterNumber, booksMetadata, circular]
+  );
+}
+
+/**
+ * Absolute ordinal of a chapter across the whole Bible, and the total count.
+ *
+ * Exists so a caller can know how far it may travel WITHOUT consulting React state.
+ * `GestureChapterPager` published its drag bounds as "the current index ± what
+ * resolves", derived from a state value that lags during a fast run — so a third quick
+ * flick found itself already at a stale maximum and was refused. Measured:
+ * flickCancelled 6 against flickPaged 4, more gestures rejected than accepted. Bounds
+ * computed from here cannot go stale, because they do not depend on where the reader
+ * currently is.
+ *
+ * Returns null when the chapter is not in the metadata.
+ */
+export function chapterOrdinal(
+  bookId: number,
+  chapterNumber: number,
+  booksMetadata: TestamentBook[] | undefined
+): { ordinal: number; total: number } | null {
+  if (!booksMetadata || booksMetadata.length === 0) return null;
+  // Book ids are 1..66 and the metadata may arrive in any order, so sum by id rather
+  // than by array position.
+  const byId = new Map(booksMetadata.map((b) => [b.id, b.chapterCount]));
+  let total = 0;
+  for (const count of byId.values()) total += count;
+
+  let ordinal = 0;
+  for (let id = 1; id < bookId; id++) {
+    const count = byId.get(id);
+    if (count === undefined) return null;
+    ordinal += count;
+  }
+  const currentBook = byId.get(bookId);
+  if (currentBook === undefined || chapterNumber < 1 || chapterNumber > currentBook) return null;
+  ordinal += chapterNumber - 1;
+  return { ordinal, total };
 }
