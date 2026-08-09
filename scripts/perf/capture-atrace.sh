@@ -179,8 +179,23 @@ echo "$MEASURED" | sed 's/^/  /'
 # Build ONE PowerShell payload for the traced window. Every tap and sleep has to happen inside a
 # single bridge call: a per-tap round trip would add ~1s of bridge latency between taps, and the
 # capture would describe the gaps rather than the interaction.
+# atrace categories: `gfx view app` alone were not enough. The worst first-visit Study frame measured
+# 70.10ms with only 4.25ms of NAMED work inside it — the other 65.85ms was unnamed self time in the
+# Choreographer animation callback, which means unattributable, not fast. Anything without an atrace marker
+# lands there, and with only those three categories that includes GC pauses (dalvik) and resource/asset
+# loading (res).
+#
+# `sched` and `binder_driver` are deliberately absent: `binder_driver` is not in this phone's
+# `atrace --list_categories`, and `sched` is kernel tracing that needs root on a production build.
+#
+# Buffer stays at 16MB. 32MB made atrace emit an EMPTY trace. Isolated on the device: `gfx view app` at
+# b16000 -> 475k chars, `gfx view app dalvik res` at b16000 -> 538k, b32000 -> nothing. It fails silently,
+# so the symptom is a missing trace file that looks like a broken script.
+#
+# NOTE TO SELF: these comments live HERE, in bash. Putting them inside the PS payload string below ships
+# them to PowerShell as part of the remote command and the capture silently returns BYTES=0.
 PS="\$a='$PC_ADB'; \$d='$DEVICE'
-& \$a -s \$d shell atrace --async_start -a $PKG -c -b 16000 gfx view app 2>&1 | Out-Null
+& \$a -s \$d shell atrace --async_start -a $PKG -c -b 16000 gfx view app dalvik res 2>&1 | Out-Null
 Start-Sleep -Milliseconds 400
 "
 while read -r x y ms; do
