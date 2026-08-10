@@ -147,7 +147,8 @@ export function TopicExplanationsPanel({
 }: TopicExplanationsPanelProps) {
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
-  const { styles, markdownStyles } = createStyles(specs, colors);
+  // useMemo: see TopicContentPanel — same rebuild-per-render on the Topics hot path.
+  const { styles, markdownStyles } = useMemo(() => createStyles(specs, colors), [specs, colors]);
   const insets = useSafeAreaInsets();
 
   const scrollViewRef = useRef<ScrollView>(null);

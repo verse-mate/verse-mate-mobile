@@ -11,7 +11,7 @@
  */
 
 import * as Haptics from 'expo-haptics';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { HighlightedText, type WordSelection } from '@/components/bible/HighlightedText';
 import { ShareButton } from '@/components/bible/ShareButton';
@@ -67,7 +67,33 @@ function toSuperscript(num: number): string {
     .join('');
 }
 
-export function TopicText({
+/**
+ * Memoised, and the memo is load-bearing.
+ *
+ * `TopicPage` re-renders on every `activeView` change — that is what flips Bible <-> Insight — and this
+ * subtree is rendered inline in its JSX, so every switch re-rendered the WHOLE references tree: parse
+ * output walked again, every verse row and its HighlightedText rebuilt. Measured on an emulator with a
+ * release+perf build, six view switches:
+ *
+ *              janky    p90     p95     p99
+ *   Bible      15.8%    28ms    53ms    61ms
+ *   Topics     23.9%   150ms   300ms   400ms
+ *
+ * p50 was the same on both (12-14ms), so this is not a uniformly slow screen — it is a burst of very
+ * expensive frames at each switch. Warm switches cost as much as the first, which ruled out one-time
+ * mount cost and pointed at re-render instead.
+ *
+ * Every prop here is stable across a view switch (`onShare`/`onVersePress` are useCallback'd in the screen,
+ * `onWordSelect` in TopicPage), so the memo actually bails out rather than just moving the compare cost.
+ *
+ * HONEST OUTCOME: this did NOT move the frame numbers (p90 150ms -> 133ms, p95 300ms -> 300ms, jank
+ * 23.9% -> 25.4% — all inside this harness's documented run-to-run noise). An atrace then showed the switch
+ * is not bound by React at all: 232.93ms of the worst 288ms frame was `Record View#draw()`, with
+ * `traversal` at 0.76ms. The change is kept because avoiding a full re-render of this subtree on every
+ * view switch is correct on its own terms, but it is NOT the fix for the switch cost, and recording it as
+ * one would misdirect whoever picks this up next.
+ */
+export const TopicText = memo(function TopicText({
   topicName,
   markdownContent,
   onShare,
@@ -75,7 +101,9 @@ export function TopicText({
   onWordSelect,
 }: TopicTextProps) {
   const { colors } = useTheme();
-  const styles = createStyles(colors);
+  // useMemo, not a bare call: createStyles builds a whole StyleSheet, and TopicPage already memoises the
+  // identical call. This one rebuilt it on every render.
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Parse the markdown content into structured data
   const parsedContent: ParsedTopicContent = useMemo(() => {
@@ -203,7 +231,7 @@ export function TopicText({
       ))}
     </View>
   );
-}
+});
 
 const createStyles = (colors: ReturnType<typeof getColors>) =>
   StyleSheet.create({
