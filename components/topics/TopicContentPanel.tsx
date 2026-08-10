@@ -150,7 +150,9 @@ export function TopicContentPanel({
 }: TopicContentPanelProps) {
   const { mode, colors } = useTheme();
   const specs = useMemo(() => getSplitViewSpecs(mode), [mode]);
-  const { styles, markdownStyles } = createStyles(specs, colors);
+  // useMemo: createStyles builds two StyleSheet objects, and this panel re-renders on every view/tab
+  // switch. Rebuilding them per render is pure waste on a measured-hot path.
+  const { styles, markdownStyles } = useMemo(() => createStyles(specs, colors), [specs, colors]);
   const insets = useSafeAreaInsets();
 
   // Reading progress state
