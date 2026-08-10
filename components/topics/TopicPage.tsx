@@ -483,19 +483,40 @@ export function TopicPage({
     });
   }, [activeView, localToggleProgress, toggleProgress]);
   const effectiveProgress = toggleProgress ?? localToggleProgress;
+  /**
+   * Visibility is opacity ONLY — deliberately no animated `zIndex`. Same fix ChapterPage already carries
+   * (see the note above its own container styles); Topics never got it, and that is the whole gap.
+   *
+   * Opacity is a cheap per-view property. Changing `zIndex` REORDERS the parent's children, which is a
+   * structural mutation: Fabric emits mount operations and Android re-runs measure/layout over the
+   * subtree. Measured on the operator's phone (release+perf, six Bible<->Insight switches):
+   *
+   *              janky    p50    p90    p95     p99
+   *   Bible      12.4%     9ms   20ms   27ms    34ms   (no animated zIndex)
+   *   Topics     24.1%     5ms   53ms  350ms  1150ms   (animated zIndex)
+   *
+   * atrace on the worst Topics frame, 1148ms, self time, app pid only:
+   *
+   *     769.41ms  traversal            <- measure + layout, from the child reorder
+   *     337.19ms  Record View#draw()
+   *      27.33ms  animation
+   *
+   * Two taps produced exactly two ~1148ms frames, one per switch. An emulator had blamed `Record
+   * View#draw()` instead and sent this in the wrong direction for a while — its software GPU inflates draw
+   * and hides layout. Measure this on the device.
+   *
+   * Static declaration order is sufficient: an inactive pane is `opacity: 0` and `pointerEvents: 'none'`,
+   * so draw order only matters between things you can actually see, and only one pane is ever visible.
+   * Insight is declared after Bible, so it composites on top when shown. The pointerEvents gates now live
+   * on Views (not ScrollViews), so correctness no longer leans on z-order at all.
+   */
   const insightContainerStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      opacity: effectiveProgress.value,
-      zIndex: effectiveProgress.value > 0.5 ? 1 : 0,
-    };
+    return { opacity: effectiveProgress.value };
   });
   const bibleContainerStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      opacity: 1 - effectiveProgress.value,
-      zIndex: effectiveProgress.value > 0.5 ? 0 : 1,
-    };
+    return { opacity: 1 - effectiveProgress.value };
   });
 
   // Pre-process + memoise each tab's rendered markdown JSX. Without this,
@@ -547,7 +568,7 @@ export function TopicPage({
 
   // Inner-tab visibility — driven by activeTabProgress. Each tab is now
   // its own absolute-positioned ScrollView (Bible pattern); only opacity
-  // and zIndex flip on the UI thread, no layout reflow. The previous
+  // on the UI thread, no layout reflow and no child reorder. The previous
   // maxHeight-collapse approach inside a shared ScrollView forced Yoga
   // to re-measure the entire markdown subtree on every tab switch and
   // was the root cause of the sloppy/teleport animations.
@@ -560,17 +581,20 @@ export function TopicPage({
   const summaryTabAnimStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'summary';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    // No zIndex — see the container styles above. Reordering children costs a layout pass.
+    return { opacity: match ? 1 : 0 };
   });
   const bylineTabAnimStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'byline';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    // No zIndex — see the container styles above. Reordering children costs a layout pass.
+    return { opacity: match ? 1 : 0 };
   });
   const detailedTabAnimStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'detailed';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    // No zIndex — see the container styles above. Reordering children costs a layout pass.
+    return { opacity: match ? 1 : 0 };
   });
 
   // Loading state - show skeleton ONLY on initial mount when no data exists
