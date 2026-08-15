@@ -311,7 +311,14 @@ export function VerseOfTheDayWidget({
           <FlexWidget style={{ flex: 1, width: "match_parent", marginTop: 8 }}>
             <TextWidget
               text={explanation ?? ""}
-              maxLines={14}
+              // Deliberately far beyond any panel: a measured 4×4 cell came in
+              // at 483dp, where ~14 lines of 13sp copy is about the whole
+              // panel — so a 14 ceiling was close enough to bind again on the
+              // tallest launchers and bring the blank rows back at a rarer
+              // size. The weighted box does the clipping; this only has to be
+              // high enough never to be the constraint, and costs nothing when
+              // the copy is shorter (the API's summaries run ~6 lines).
+              maxLines={40}
               truncate="END"
               style={{
                 fontSize: 13,

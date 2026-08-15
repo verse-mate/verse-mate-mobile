@@ -416,8 +416,13 @@ function RootLayoutInner() {
     // OS runs the widget's own update task only every few hours. No-ops when
     // today's verse is already cached or no widget is placed.
     const refreshWidgets = async () => {
-      const widgets = await import('@/widgets/widget-task-handler');
-      await widgets.refreshWidgets();
+      try {
+        const widgets = await import('@/widgets/widget-task-handler');
+        await widgets.refreshWidgets();
+      } catch {
+        // Best-effort, matching checkWidgetInstalled above: refreshWidgets
+        // swallows its own failures, so only the dynamic import can reject.
+      }
     };
 
     // Run on mount (covers cold start) and on each foreground transition.

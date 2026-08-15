@@ -283,6 +283,42 @@ describe('widget-task-handler', () => {
       expect(result.reference).toBe('John 3:16');
     });
 
+    // The cached payload is only reusable for the identity it was fetched
+    // under: the backend seeds its pick `${date}:${userId}` and renders it in
+    // the requested translation. Without this the failure path resurrects
+    // another identity's verse — the same mismatch this widget was fixed to
+    // stop, one layer down (add the widget logged out, then log in).
+    it.each([
+      ['the user logged in since', { pid: 'user-123', version: 'NASB1995' }],
+      ['the translation changed since', { pid: null, version: 'KJV' }],
+    ])('does not serve a cached verse when %s', async (_label, now) => {
+      // Cached while logged out, in NASB1995.
+      global.fetch = jest.fn().mockResolvedValue({
+        json: async () => ({
+          empty: false,
+          referenceText: 'John 3:16',
+          verses: [{ verseNumber: 16, text: 'For God so loved the world' }],
+          reference: { bookId: 43, chapterNumber: 3, verseStart: 16, verseEnd: null },
+          versionKey: 'NASB1995',
+        }),
+      }) as unknown as typeof fetch;
+      await fetchVerse();
+
+      if (now.pid) await AsyncStorage.setItem('widget-user-id', now.pid);
+      await AsyncStorage.setItem('bible-version', now.version);
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
+
+      const result = await fetchVerse();
+
+      expect(result.verses).toBeNull();
+      expect(result.fallbackText).toBe("Open VerseMate to see today's verse");
+
+      await AsyncStorage.removeItem('widget-user-id');
+      await AsyncStorage.removeItem('bible-version');
+    });
+
     // A device offline for days should show the honest "open the app" state
     // rather than last week's verse under a "VERSE OF THE DAY" header.
     it('ignores a cached verse older than yesterday', async () => {
