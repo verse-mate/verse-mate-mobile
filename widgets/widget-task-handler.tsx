@@ -127,10 +127,34 @@ export interface WidgetVerseData {
   explanation: string | null;
 }
 
+/**
+ * The full identity of a cached verse, not just when it was fetched.
+ *
+ * The backend seeds its pick `${date}:${userId}` and renders it in the
+ * requested translation, so a payload is only reusable for the SAME
+ * (date, pid, version). Keying on the date alone let a verse fetched under one
+ * identity be served under another — the exact mismatch this widget was fixed
+ * to stop, one layer down: add the widget logged out (global verse cached),
+ * then log in, and the widget kept serving the global verse while the daily
+ * push carried the personal one.
+ */
 interface VerseCache {
-  /** Local date the verse was fetched for, `YYYY-MM-DD`. */
+  /** Local date the verse was fetched on, `YYYY-MM-DD`. */
   date: string;
+  /** `widget-user-id` at fetch time; null when logged out (global verse). */
+  pid: string | null;
+  /** `bible_version` the payload was rendered in. */
+  version: string;
   data: WidgetVerseData;
+}
+
+/** Whether a cached payload was fetched under the identity in effect now. */
+function matchesIdentity(
+  cache: VerseCache,
+  pid: string | null,
+  version: string,
+): boolean {
+  return cache.pid === pid && cache.version === version;
 }
 
 /** Cached verse, or null when absent, unreadable, or older than yesterday. */
@@ -149,9 +173,9 @@ async function readCache(): Promise<VerseCache | null> {
   }
 }
 
-async function writeCache(date: string, data: WidgetVerseData): Promise<void> {
+async function writeCache(cache: VerseCache): Promise<void> {
   try {
-    await AsyncStorage.setItem(VERSE_CACHE_KEY, JSON.stringify({ date, data }));
+    await AsyncStorage.setItem(VERSE_CACHE_KEY, JSON.stringify(cache));
   } catch {
     // Best-effort: a failed cache write must never fail the render.
   }
@@ -159,6 +183,12 @@ async function writeCache(date: string, data: WidgetVerseData): Promise<void> {
 
 export async function fetchVerse(): Promise<WidgetVerseData> {
   const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "https://api.versemate.org";
+  // Declared out here so the catch can check the cache against the identity we
+  // were fetching for. If the throw beat the AsyncStorage reads these stay at
+  // their defaults, which simply fails the identity check — the conservative
+  // direction, since serving another user's verse is worse than the fallback.
+  let version = DEFAULT_VERSION;
+  let pid: string | null = null;
 
   try {
     // Read inside the try: in the headless widget task AsyncStorage can throw
@@ -166,9 +196,8 @@ export async function fetchVerse(): Promise<WidgetVerseData> {
     // the rendered fallback below — never bubble out of fetchVerse, which would
     // skip the widget render and leave a blank (transparent) widget.
     const today = localDate();
-    const version =
-      (await AsyncStorage.getItem(BIBLE_VERSION_KEY)) ?? DEFAULT_VERSION;
-    const pid = await AsyncStorage.getItem(USER_ID_KEY);
+    version = (await AsyncStorage.getItem(BIBLE_VERSION_KEY)) ?? DEFAULT_VERSION;
+    pid = await AsyncStorage.getItem(USER_ID_KEY);
     // No `date` param — deliberately. The endpoint defaults to its own
     // server-local today, which is exactly what the daily verse-of-the-day
     // push worker passes (`sendDailyVerse` → `todayServerLocal()`), and the
@@ -189,10 +218,13 @@ export async function fetchVerse(): Promise<WidgetVerseData> {
     const data = (await res.json()) as VerseResponse;
     if (data.empty || !data.verses?.length) {
       // Covers a genuinely empty pool AND every error shape (e.g. the API's
-      // `invalid_date` when the device's local date runs ahead of the server's).
-      // Yesterday's verse beats an empty widget; the message is the last resort.
+      // `invalid_date` when a client's date runs ahead of the server's).
+      // Yesterday's verse beats an empty widget — but only if it was fetched
+      // for the same user and translation, or the fallback would quietly
+      // resurrect another identity's verse. The message is the last resort.
+      const cache = await readCache();
       return (
-        (await readCache())?.data ?? {
+        (cache && matchesIdentity(cache, pid, version) ? cache.data : null) ?? {
           ...emptyState(data.fallbackMessage ?? FALLBACK_MESSAGE),
           deepLink: buildDeepLink(data.reference),
           noteDeepLink: buildDeepLink(data.reference, NOTE_TAB),
@@ -208,10 +240,14 @@ export async function fetchVerse(): Promise<WidgetVerseData> {
       versionLabel: data.versionKey ?? "",
       explanation: data.explanation ?? null,
     };
-    await writeCache(today, verse);
+    await writeCache({ date: today, pid, version, data: verse });
     return verse;
   } catch {
-    return (await readCache())?.data ?? emptyState(FALLBACK_MESSAGE);
+    const cache = await readCache();
+    return (
+      (cache && matchesIdentity(cache, pid, version) ? cache.data : null) ??
+      emptyState(FALLBACK_MESSAGE)
+    );
   }
 }
 
@@ -237,13 +273,25 @@ const WIDGET_NAMES = ["VerseOfTheDay", NOTE_WIDGET_NAME];
  * the OS runs the widget's own update task only every few hours, so a widget
  * left empty by a failed fetch had no way to recover on demand.
  *
- * No-ops once today's verse is already cached (so a normal launch costs one
- * AsyncStorage read, not a network call) and when no widget is on the home
- * screen. Best-effort throughout — never let a widget failure surface in the app.
+ * No-ops when no widget is on the home screen, and when today's cached verse
+ * was fetched for the identity in effect right now — so a normal launch costs a
+ * couple of AsyncStorage reads rather than a network call. The identity half of
+ * that check is what makes the refresh useful rather than decorative: logging
+ * in, or switching translation, changes which verse the backend would return
+ * (it seeds its pick `${date}:${userId}`), and a date-only check would return
+ * early and leave the widget on the old one until the next OS tick.
+ *
+ * Best-effort throughout — never let a widget failure surface in the app.
  */
 export async function refreshWidgets(): Promise<void> {
   try {
-    if ((await readCache())?.date === localDate()) return;
+    const cache = await readCache();
+    if (cache?.date === localDate()) {
+      const version =
+        (await AsyncStorage.getItem(BIBLE_VERSION_KEY)) ?? DEFAULT_VERSION;
+      const pid = await AsyncStorage.getItem(USER_ID_KEY);
+      if (matchesIdentity(cache, pid, version)) return;
+    }
 
     const { getWidgetInfo, requestWidgetUpdate } = await import(
       "react-native-android-widget"
