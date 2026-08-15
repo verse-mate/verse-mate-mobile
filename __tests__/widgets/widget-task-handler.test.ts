@@ -211,6 +211,23 @@ describe('widget-task-handler', () => {
       await AsyncStorage.removeItem('widget-user-id');
     });
 
+    // The widget and the daily push must land on the same verse. The pick is
+    // seeded (date, userId) and persisted, so they agree only while both use
+    // the SAME date — and the push worker uses the server's. Omitting the param
+    // makes the endpoint default to that same server-local today. Sending the
+    // device's date instead also 400s outright ("date must be today or
+    // yesterday") for any device in a UTC+ zone, which renders an empty widget.
+    it('never sends a date, so the server clock decides — same as the daily push', async () => {
+      const fetchMock = jest.fn().mockResolvedValue({
+        json: async () => ({ empty: true, fallbackMessage: 'x' }),
+      }) as unknown as typeof fetch;
+      global.fetch = fetchMock;
+
+      await fetchVerse();
+
+      expect((fetchMock as unknown as jest.Mock).mock.calls[0][0]).not.toContain('date=');
+    });
+
     it('returns the fallback message when the verse pool is empty', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         json: async () => ({ empty: true, fallbackMessage: 'No verse today' }),

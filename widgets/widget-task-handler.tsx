@@ -90,6 +90,10 @@ export function pickWidgetSize(widgetName: string): WidgetSize {
   return widgetName === NOTE_WIDGET_NAME ? "expanded" : "compact";
 }
 
+/**
+ * Device-local date, used ONLY as the cache's freshness clock — never sent to
+ * the API. See the request in `fetchVerse` for why the `date` param is omitted.
+ */
 function localDate(): string {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
@@ -165,7 +169,21 @@ export async function fetchVerse(): Promise<WidgetVerseData> {
     const version =
       (await AsyncStorage.getItem(BIBLE_VERSION_KEY)) ?? DEFAULT_VERSION;
     const pid = await AsyncStorage.getItem(USER_ID_KEY);
-    let url = `${apiBase}/bible/verse-of-the-day?date=${today}&bible_version=${version}`;
+    // No `date` param — deliberately. The endpoint defaults to its own
+    // server-local today, which is exactly what the daily verse-of-the-day
+    // push worker passes (`sendDailyVerse` → `todayServerLocal()`), and the
+    // pick is persisted per (date, userId) — so widget and notification
+    // resolve to the same row instead of two clocks racing.
+    //
+    // Sending the DEVICE's local date (the old behavior) broke both ways: the
+    // API only accepts today or yesterday server-local, so a device in a UTC+
+    // zone requests a date that is still tomorrow to the server and gets a
+    // 400 back — the widget then renders empty. It also meant a device whose
+    // date lagged the server's showed yesterday's verse while the push carried
+    // today's. Local-midnight rollover is the thing given up here; matching the
+    // notification is worth more, and closing the gap the other way needs
+    // per-user timezones in the push worker (a documented backend limitation).
+    let url = `${apiBase}/bible/verse-of-the-day?bible_version=${version}`;
     if (pid) url += `&pid=${encodeURIComponent(pid)}`;
     const res = await fetch(url);
     const data = (await res.json()) as VerseResponse;
