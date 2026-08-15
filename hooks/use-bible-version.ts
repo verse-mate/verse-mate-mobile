@@ -31,6 +31,38 @@ function notifyBibleVersionChanged(): void {
   for (const fn of listeners) fn();
 }
 
+/** Set once the server has been told this install's stored translation. */
+const VERSION_BACKFILL_KEY = 'preferred-bible-version-backfilled';
+
+/**
+ * Push this install's stored translation to the server once, for users who
+ * chose it before GH-281 added the server-side sync.
+ *
+ * `setBibleVersion` only syncs *on change*, so anyone who picked a translation
+ * earlier and never touched it again still has the column default (NASB1995)
+ * server-side. The daily verse-of-the-day push reads that column, so they get
+ * the right verse rendered in the wrong translation — the widget sends
+ * `bible_version` explicitly and is unaffected, which is what makes the
+ * mismatch look arbitrary.
+ *
+ * Called when a session settles as logged in. Flag-guarded so it costs one
+ * request per install rather than one per launch; best-effort, never surfaced.
+ */
+export async function backfillPreferredBibleVersion(): Promise<void> {
+  try {
+    if (await AsyncStorage.getItem(VERSION_BACKFILL_KEY)) return;
+    const version = await AsyncStorage.getItem(BIBLE_VERSION_KEY);
+    // Nothing stored means the user never chose one — the server default
+    // already matches, and writing it would claim a preference they never set.
+    if (!version) return;
+    if (await syncPreferredBibleVersion(version)) {
+      await AsyncStorage.setItem(VERSION_BACKFILL_KEY, 'true');
+    }
+  } catch {
+    // Best-effort; retried next launch since the flag stays unset.
+  }
+}
+
 /**
  * Reset the module-level cache. Test-only — Jest's AsyncStorage.clear()
  * doesn't touch this module's state, so without an explicit reset the
