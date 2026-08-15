@@ -33,6 +33,12 @@ jest.mock('react-native-android-widget', () => ({
 const originalFetch = global.fetch;
 
 describe('widget-task-handler', () => {
+  // fetchVerse persists every successful payload; drop it between tests so the
+  // fallback assertions below exercise the no-cache path.
+  beforeEach(async () => {
+    await AsyncStorage.removeItem('widget-verse-cache');
+  });
+
   afterEach(() => {
     global.fetch = originalFetch;
     jest.clearAllMocks();
@@ -230,6 +236,54 @@ describe('widget-task-handler', () => {
       expect(result.fallbackText).toBe("Open VerseMate to see today's verse");
       expect(result.reference).toBe('');
       expect(parseChapterShareUrl(result.deepLink)).toEqual({ bookId: 1, chapterNumber: 1 });
+    });
+
+    // The reported "sometimes it doesn't load any content": the OS reruns the
+    // widget task only every few hours, so before this a single failed fetch
+    // left the widget empty until the next tick.
+    it.each([
+      ['fetch throws', () => jest.fn().mockRejectedValue(new Error('network down'))],
+      [
+        'the API errors out (e.g. invalid_date)',
+        () => jest.fn().mockResolvedValue({ json: async () => ({ error: 'invalid_date' }) }),
+      ],
+    ])('serves the last good verse when %s', async (_label, makeFetch) => {
+      global.fetch = jest.fn().mockResolvedValue({
+        json: async () => ({
+          empty: false,
+          referenceText: 'John 3:16',
+          verses: [{ verseNumber: 16, text: 'For God so loved the world' }],
+          reference: { bookId: 43, chapterNumber: 3, verseStart: 16, verseEnd: null },
+          versionKey: 'NASB1995',
+        }),
+      }) as unknown as typeof fetch;
+      await fetchVerse();
+
+      global.fetch = makeFetch() as unknown as typeof fetch;
+      const result = await fetchVerse();
+
+      expect(result.verses).toEqual([{ verseNumber: 16, text: 'For God so loved the world' }]);
+      expect(result.reference).toBe('John 3:16');
+    });
+
+    // A device offline for days should show the honest "open the app" state
+    // rather than last week's verse under a "VERSE OF THE DAY" header.
+    it('ignores a cached verse older than yesterday', async () => {
+      await AsyncStorage.setItem(
+        'widget-verse-cache',
+        JSON.stringify({
+          date: '2020-01-01',
+          data: { verses: [{ verseNumber: 1, text: 'stale' }], reference: 'Gen 1:1' },
+        })
+      );
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
+
+      const result = await fetchVerse();
+
+      expect(result.verses).toBeNull();
+      expect(result.fallbackText).toBe("Open VerseMate to see today's verse");
     });
   });
 });

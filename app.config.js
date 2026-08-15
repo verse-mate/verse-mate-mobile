@@ -237,7 +237,7 @@ const config = {
             targetCellWidth: 4,
             targetCellHeight: 2,
             resizeMode: 'horizontal',
-            updatePeriodMillis: 86400000, // ~daily; OS-throttled periodic refresh
+            updatePeriodMillis: 21600000, // 6h: rolls the verse over near midnight, and retries a failed fetch within hours instead of a day
           },
           {
             name: 'VerseOfTheDayNote',
@@ -248,7 +248,7 @@ const config = {
             targetCellWidth: 4,
             targetCellHeight: 4,
             resizeMode: 'horizontal',
-            updatePeriodMillis: 86400000,
+            updatePeriodMillis: 21600000,
           },
         ],
       },

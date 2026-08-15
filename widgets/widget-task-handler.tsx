@@ -21,6 +21,13 @@ const DEFAULT_VERSION = "NASB1995";
 // (PD-7). Absent when logged out → the endpoint serves the global verse.
 const USER_ID_KEY = "widget-user-id";
 const FALLBACK_MESSAGE = "Open VerseMate to see today's verse";
+/**
+ * Last successfully fetched verse. The OS only runs the widget's update task
+ * every few hours, so without this a single failed fetch (offline at boot, API
+ * hiccup, a `date` the API rejects) left the widget showing FALLBACK_MESSAGE
+ * until the next tick — the reported "sometimes it doesn't load any content".
+ */
+const VERSE_CACHE_KEY = "widget-verse-cache";
 
 /**
  * Base for the tap deep link — the app's custom scheme (versemate://), NOT the
@@ -116,6 +123,36 @@ export interface WidgetVerseData {
   explanation: string | null;
 }
 
+interface VerseCache {
+  /** Local date the verse was fetched for, `YYYY-MM-DD`. */
+  date: string;
+  data: WidgetVerseData;
+}
+
+/** Cached verse, or null when absent, unreadable, or older than yesterday. */
+async function readCache(): Promise<VerseCache | null> {
+  try {
+    const raw = await AsyncStorage.getItem(VERSE_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw) as VerseCache;
+    // Same window the API itself serves ("date must be today or yesterday"),
+    // so a device that has been offline for days shows the honest "open the
+    // app" state rather than a stale verse under a "VERSE OF THE DAY" header.
+    const ageDays = (Date.parse(localDate()) - Date.parse(cache.date)) / 86_400_000;
+    return ageDays >= 0 && ageDays <= 1 ? cache : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCache(date: string, data: WidgetVerseData): Promise<void> {
+  try {
+    await AsyncStorage.setItem(VERSE_CACHE_KEY, JSON.stringify({ date, data }));
+  } catch {
+    // Best-effort: a failed cache write must never fail the render.
+  }
+}
+
 export async function fetchVerse(): Promise<WidgetVerseData> {
   const apiBase = process.env.EXPO_PUBLIC_API_URL ?? "https://api.versemate.org";
 
@@ -124,21 +161,27 @@ export async function fetchVerse(): Promise<WidgetVerseData> {
     // if its native module isn't ready yet. A throw here must fall through to
     // the rendered fallback below — never bubble out of fetchVerse, which would
     // skip the widget render and leave a blank (transparent) widget.
+    const today = localDate();
     const version =
       (await AsyncStorage.getItem(BIBLE_VERSION_KEY)) ?? DEFAULT_VERSION;
     const pid = await AsyncStorage.getItem(USER_ID_KEY);
-    let url = `${apiBase}/bible/verse-of-the-day?date=${localDate()}&bible_version=${version}`;
+    let url = `${apiBase}/bible/verse-of-the-day?date=${today}&bible_version=${version}`;
     if (pid) url += `&pid=${encodeURIComponent(pid)}`;
     const res = await fetch(url);
     const data = (await res.json()) as VerseResponse;
     if (data.empty || !data.verses?.length) {
-      return {
-        ...emptyState(data.fallbackMessage ?? FALLBACK_MESSAGE),
-        deepLink: buildDeepLink(data.reference),
-        noteDeepLink: buildDeepLink(data.reference, NOTE_TAB),
-      };
+      // Covers a genuinely empty pool AND every error shape (e.g. the API's
+      // `invalid_date` when the device's local date runs ahead of the server's).
+      // Yesterday's verse beats an empty widget; the message is the last resort.
+      return (
+        (await readCache())?.data ?? {
+          ...emptyState(data.fallbackMessage ?? FALLBACK_MESSAGE),
+          deepLink: buildDeepLink(data.reference),
+          noteDeepLink: buildDeepLink(data.reference, NOTE_TAB),
+        }
+      );
     }
-    return {
+    const verse: WidgetVerseData = {
       verses: data.verses,
       reference: data.referenceText ?? "",
       deepLink: buildDeepLink(data.reference),
@@ -147,8 +190,10 @@ export async function fetchVerse(): Promise<WidgetVerseData> {
       versionLabel: data.versionKey ?? "",
       explanation: data.explanation ?? null,
     };
+    await writeCache(today, verse);
+    return verse;
   } catch {
-    return emptyState(FALLBACK_MESSAGE);
+    return (await readCache())?.data ?? emptyState(FALLBACK_MESSAGE);
   }
 }
 
@@ -163,6 +208,49 @@ function emptyState(fallbackText: string): WidgetVerseData {
     versionLabel: "",
     explanation: null,
   };
+}
+
+/** Both providers the app registers (app.config.js `react-native-android-widget`). */
+const WIDGET_NAMES = ["VerseOfTheDay", NOTE_WIDGET_NAME];
+
+/**
+ * Repaint every placed widget from the app process. Called on foreground so the
+ * fallback's own instruction — "Open VerseMate to see today's verse" — is true:
+ * the OS runs the widget's own update task only every few hours, so a widget
+ * left empty by a failed fetch had no way to recover on demand.
+ *
+ * No-ops once today's verse is already cached (so a normal launch costs one
+ * AsyncStorage read, not a network call) and when no widget is on the home
+ * screen. Best-effort throughout — never let a widget failure surface in the app.
+ */
+export async function refreshWidgets(): Promise<void> {
+  try {
+    if ((await readCache())?.date === localDate()) return;
+
+    const { getWidgetInfo, requestWidgetUpdate } = await import(
+      "react-native-android-widget"
+    );
+    const placed = await Promise.all(WIDGET_NAMES.map((name) => getWidgetInfo(name)));
+    if (placed.every((widgets) => widgets.length === 0)) return;
+
+    const data = await fetchVerse();
+    await Promise.all(
+      WIDGET_NAMES.map((widgetName) =>
+        requestWidgetUpdate({
+          widgetName,
+          renderWidget: (info) => {
+            const size = pickWidgetSize(info.widgetName);
+            return {
+              light: <VerseOfTheDayWidget {...data} size={size} theme="light" />,
+              dark: <VerseOfTheDayWidget {...data} size={size} theme="dark" />,
+            };
+          },
+        }),
+      ),
+    );
+  } catch {
+    // Best-effort: widget module unavailable, no widgets placed, or draw failed.
+  }
 }
 
 export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
