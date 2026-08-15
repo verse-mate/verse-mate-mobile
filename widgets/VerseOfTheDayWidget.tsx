@@ -263,12 +263,12 @@ export function VerseOfTheDayWidget({
       </FlexWidget>
 
       {/* Note block — nested rounded surface, deep-links to the explanation tab.
-          Deliberately FLAT: label, copy and link are direct siblings spaced with
-          margins. An earlier version wrapped them in an inner column and used
-          `flex: 1` + `justifyContent: "space-between"` + `flexGap`; RemoteViews
-          did not resolve that nesting, and on-device it clipped the explanation
-          mid-sentence and dropped the link entirely. Margins are predictable
-          where nested flex weights are not. */}
+          Label, copy and link are direct siblings spaced with explicit margins;
+          an earlier version used `justifyContent: "space-between"` + `flexGap`
+          here, which the library implements by injecting invisible weighted
+          spacers — on-device that clipped the explanation mid-sentence and
+          dropped the link entirely. Margins for spacing, one weighted child
+          (below) for the growth. */}
       {showNote ? (
         <FlexWidget
           style={{
@@ -294,17 +294,32 @@ export function VerseOfTheDayWidget({
               color: palette.panelLabel,
             }}
           />
-          <TextWidget
-            text={explanation ?? ""}
-            maxLines={5}
-            truncate="END"
-            style={{
-              fontSize: 13,
-              color: palette.explanation,
-              fontFamily: "serif",
-              marginTop: 8,
-            }}
-          />
+          {/* The explanation sits in its own weighted box so it uses ALL the
+              room the panel has left instead of a fixed line count. A 4×4 cell
+              is far taller on One UI than on the Pixel launcher, so any constant
+              clamps the copy while the panel still has blank rows — the reported
+              "description cutoff but more space avail." `maxLines` is a ceiling
+              now, not the binding constraint.
+
+              The weight has to sit on a FlexWidget: `flex` maps to LinearLayout
+              weight in this library and is silently dropped from TextWidget
+              styles. `height: "match_parent"` on the text is NOT a substitute —
+              a vertical LinearLayout gives a MATCH_PARENT child every remaining
+              pixel before it measures later siblings, which is what dropped the
+              link in the earlier nested-flex attempt. Weight is resolved after
+              all children are measured, so the link keeps its row. */}
+          <FlexWidget style={{ flex: 1, width: "match_parent", marginTop: 8 }}>
+            <TextWidget
+              text={explanation ?? ""}
+              maxLines={14}
+              truncate="END"
+              style={{
+                fontSize: 13,
+                color: palette.explanation,
+                fontFamily: "serif",
+              }}
+            />
+          </FlexWidget>
           <TextWidget
             text="Read the full note →"
             maxLines={1}
