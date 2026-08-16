@@ -411,10 +411,28 @@ function RootLayoutInner() {
       }
     };
 
+    // Repaint a widget left empty by a failed background fetch. The fallback
+    // tells the user to open the app, so opening it must actually fix it — the
+    // OS runs the widget's own update task only every few hours. No-ops when
+    // today's verse is already cached or no widget is placed.
+    const refreshWidgets = async () => {
+      try {
+        const widgets = await import('@/widgets/widget-task-handler');
+        await widgets.refreshWidgets();
+      } catch {
+        // Best-effort, matching checkWidgetInstalled above: refreshWidgets
+        // swallows its own failures, so only the dynamic import can reject.
+      }
+    };
+
     // Run on mount (covers cold start) and on each foreground transition.
     checkWidgetInstalled();
+    refreshWidgets();
     const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state === 'active') checkWidgetInstalled();
+      if (state === 'active') {
+        checkWidgetInstalled();
+        refreshWidgets();
+      }
     });
 
     return () => subscription.remove();

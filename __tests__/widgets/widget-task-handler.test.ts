@@ -33,6 +33,12 @@ jest.mock('react-native-android-widget', () => ({
 const originalFetch = global.fetch;
 
 describe('widget-task-handler', () => {
+  // fetchVerse persists every successful payload; drop it between tests so the
+  // fallback assertions below exercise the no-cache path.
+  beforeEach(async () => {
+    await AsyncStorage.removeItem('widget-verse-cache');
+  });
+
   afterEach(() => {
     global.fetch = originalFetch;
     jest.clearAllMocks();
@@ -205,6 +211,23 @@ describe('widget-task-handler', () => {
       await AsyncStorage.removeItem('widget-user-id');
     });
 
+    // The widget and the daily push must land on the same verse. The pick is
+    // seeded (date, userId) and persisted, so they agree only while both use
+    // the SAME date — and the push worker uses the server's. Omitting the param
+    // makes the endpoint default to that same server-local today. Sending the
+    // device's date instead also 400s outright ("date must be today or
+    // yesterday") for any device in a UTC+ zone, which renders an empty widget.
+    it('never sends a date, so the server clock decides — same as the daily push', async () => {
+      const fetchMock = jest.fn().mockResolvedValue({
+        json: async () => ({ empty: true, fallbackMessage: 'x' }),
+      }) as unknown as typeof fetch;
+      global.fetch = fetchMock;
+
+      await fetchVerse();
+
+      expect((fetchMock as unknown as jest.Mock).mock.calls[0][0]).not.toContain('date=');
+    });
+
     it('returns the fallback message when the verse pool is empty', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         json: async () => ({ empty: true, fallbackMessage: 'No verse today' }),
@@ -230,6 +253,90 @@ describe('widget-task-handler', () => {
       expect(result.fallbackText).toBe("Open VerseMate to see today's verse");
       expect(result.reference).toBe('');
       expect(parseChapterShareUrl(result.deepLink)).toEqual({ bookId: 1, chapterNumber: 1 });
+    });
+
+    // The reported "sometimes it doesn't load any content": the OS reruns the
+    // widget task only every few hours, so before this a single failed fetch
+    // left the widget empty until the next tick.
+    it.each([
+      ['fetch throws', () => jest.fn().mockRejectedValue(new Error('network down'))],
+      [
+        'the API errors out (e.g. invalid_date)',
+        () => jest.fn().mockResolvedValue({ json: async () => ({ error: 'invalid_date' }) }),
+      ],
+    ])('serves the last good verse when %s', async (_label, makeFetch) => {
+      global.fetch = jest.fn().mockResolvedValue({
+        json: async () => ({
+          empty: false,
+          referenceText: 'John 3:16',
+          verses: [{ verseNumber: 16, text: 'For God so loved the world' }],
+          reference: { bookId: 43, chapterNumber: 3, verseStart: 16, verseEnd: null },
+          versionKey: 'NASB1995',
+        }),
+      }) as unknown as typeof fetch;
+      await fetchVerse();
+
+      global.fetch = makeFetch() as unknown as typeof fetch;
+      const result = await fetchVerse();
+
+      expect(result.verses).toEqual([{ verseNumber: 16, text: 'For God so loved the world' }]);
+      expect(result.reference).toBe('John 3:16');
+    });
+
+    // The cached payload is only reusable for the identity it was fetched
+    // under: the backend seeds its pick `${date}:${userId}` and renders it in
+    // the requested translation. Without this the failure path resurrects
+    // another identity's verse — the same mismatch this widget was fixed to
+    // stop, one layer down (add the widget logged out, then log in).
+    it.each([
+      ['the user logged in since', { pid: 'user-123', version: 'NASB1995' }],
+      ['the translation changed since', { pid: null, version: 'KJV' }],
+    ])('does not serve a cached verse when %s', async (_label, now) => {
+      // Cached while logged out, in NASB1995.
+      global.fetch = jest.fn().mockResolvedValue({
+        json: async () => ({
+          empty: false,
+          referenceText: 'John 3:16',
+          verses: [{ verseNumber: 16, text: 'For God so loved the world' }],
+          reference: { bookId: 43, chapterNumber: 3, verseStart: 16, verseEnd: null },
+          versionKey: 'NASB1995',
+        }),
+      }) as unknown as typeof fetch;
+      await fetchVerse();
+
+      if (now.pid) await AsyncStorage.setItem('widget-user-id', now.pid);
+      await AsyncStorage.setItem('bible-version', now.version);
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
+
+      const result = await fetchVerse();
+
+      expect(result.verses).toBeNull();
+      expect(result.fallbackText).toBe("Open VerseMate to see today's verse");
+
+      await AsyncStorage.removeItem('widget-user-id');
+      await AsyncStorage.removeItem('bible-version');
+    });
+
+    // A device offline for days should show the honest "open the app" state
+    // rather than last week's verse under a "VERSE OF THE DAY" header.
+    it('ignores a cached verse older than yesterday', async () => {
+      await AsyncStorage.setItem(
+        'widget-verse-cache',
+        JSON.stringify({
+          date: '2020-01-01',
+          data: { verses: [{ verseNumber: 1, text: 'stale' }], reference: 'Gen 1:1' },
+        })
+      );
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
+
+      const result = await fetchVerse();
+
+      expect(result.verses).toBeNull();
+      expect(result.fallbackText).toBe("Open VerseMate to see today's verse");
     });
   });
 });
