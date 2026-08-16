@@ -7,7 +7,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { act } from 'react-test-renderer';
-import { resetCachedVersion, useBibleVersion } from '@/hooks/use-bible-version';
+import {
+  backfillPreferredBibleVersion,
+  resetCachedVersion,
+  useBibleVersion,
+} from '@/hooks/use-bible-version';
+import { syncPreferredBibleVersion } from '@/lib/notifications/push-api';
+
+jest.mock('@/lib/notifications/push-api', () => ({
+  syncPreferredBibleVersion: jest.fn().mockResolvedValue(true),
+}));
+
+const mockSync = syncPreferredBibleVersion as jest.MockedFunction<typeof syncPreferredBibleVersion>;
 
 describe('useBibleVersion', () => {
   beforeEach(async () => {
@@ -125,5 +136,50 @@ describe('useBibleVersion', () => {
     });
 
     expect(result2.current.bibleVersion).toBe('NKJV');
+  });
+});
+
+// The daily verse-of-the-day push renders in `user.preferred_bible_version`,
+// which setBibleVersion only writes on change — so a translation chosen before
+// that sync existed never reached the server, and the push arrives in NASB1995
+// while the widget (which sends bible_version explicitly) shows the real one.
+describe('backfillPreferredBibleVersion', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    resetCachedVersion();
+    jest.clearAllMocks();
+  });
+
+  it('pushes the stored translation to the server once per install', async () => {
+    mockSync.mockResolvedValue(true);
+    await AsyncStorage.setItem('bible-version', 'KJV');
+
+    await backfillPreferredBibleVersion();
+    await backfillPreferredBibleVersion();
+
+    expect(mockSync).toHaveBeenCalledTimes(1);
+    expect(mockSync).toHaveBeenCalledWith('KJV');
+  });
+
+  it('retries on the next launch when the sync fails', async () => {
+    mockSync.mockResolvedValue(false);
+    await AsyncStorage.setItem('bible-version', 'KJV');
+
+    await backfillPreferredBibleVersion();
+    await backfillPreferredBibleVersion();
+
+    // Flag stays unset on failure, so a flaky launch doesn't strand the user
+    // on a translation the server never heard about.
+    expect(mockSync).toHaveBeenCalledTimes(2);
+  });
+
+  it('stays silent when the user never chose a translation', async () => {
+    mockSync.mockResolvedValue(true);
+
+    await backfillPreferredBibleVersion();
+
+    // The server default already matches; writing would claim a preference
+    // the user never expressed.
+    expect(mockSync).not.toHaveBeenCalled();
   });
 });
