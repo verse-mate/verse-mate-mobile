@@ -25,9 +25,9 @@ env:
 # is reached via the home → Bible → Genesis → chapter 1 path.
 - runFlow:
     when:
-      visible: 'Get Started'
+      visible: 'Start reading'
     commands:
-      - tapOn: 'Get Started'
+      - tapOn: 'Start reading'
 
 # Open the chapter selector and ensure we're on Genesis 1
 - runFlow:
