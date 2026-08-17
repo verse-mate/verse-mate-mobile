@@ -95,6 +95,20 @@ describe('VerseOfTheDayWidget', () => {
     );
     // Two tap zones: the verse block → chapter, the note block → summary tab.
     expect(clickUrls(tree)).toEqual(expect.arrayContaining([BASE.deepLink, BASE.noteDeepLink]));
+
+    // The explanation must sit inside a weighted box so it grows into whatever
+    // height the launcher actually gave the widget instead of clamping to a
+    // constant. `flex` becomes `weight` only on a FlexWidget — TextWidget styles
+    // drop it silently — so a "simplification" that moves the text back out
+    // reintroduces the reported blank rows with every test still green.
+    const box = flatten(tree).find(
+      (n) =>
+        (n.props as { weight?: number }).weight === 1 &&
+        (n.children ?? []).some((c) =>
+          (c.props as { text?: string }).text?.startsWith('David pictures')
+        )
+    );
+    expect(box).toBeDefined();
   });
 
   it('falls back to a verse-only expanded layout when no explanation is served', () => {
