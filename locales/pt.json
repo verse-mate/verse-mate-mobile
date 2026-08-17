@@ -5,7 +5,6 @@
     "version": "1.0.0",
     "note": "Translated from en.json. Per spec feat-mobile-ui-i18n (D-016)."
   },
-
   "auth": {
     "login": {
       "title": "Entrar",
@@ -38,14 +37,12 @@
       "network_error": "Erro de rede. Verifique sua conexão."
     }
   },
-
   "onboarding": {
     "skip": "Pular",
     "next": "Próximo",
     "get_started": "Começar",
     "login": "Entrar"
   },
-
   "settings": {
     "title": "Configurações",
     "account": "Conta",
@@ -89,7 +86,6 @@
       "save_language": "Falha ao salvar a preferência de idioma"
     }
   },
-
   "chapter_reader": {
     "loading": "Carregando capítulo…",
     "error": "Não foi possível carregar este capítulo. Toque para tentar novamente.",
@@ -101,7 +97,6 @@
     "no_translation_available": "Exibindo em inglês (tradução não disponível)",
     "offline_indicator": "Offline — exibindo conteúdo em cache"
   },
-
   "bookmarks": {
     "title": "Favoritos",
     "empty": "Ainda sem favoritos. Toque no ícone de favorito durante a leitura.",
@@ -111,7 +106,6 @@
     "login_subtitle": "Entre para salvar e acessar seus capítulos bíblicos favoritos",
     "remove_confirm": "Remover este favorito?"
   },
-
   "highlights": {
     "title": "Destaques",
     "empty": "Ainda sem destaques. Pressione um versículo e escolha uma cor.",
@@ -121,7 +115,6 @@
     "my_highlights": "Meus destaques",
     "remove_confirm": "Remover este destaque?"
   },
-
   "notes": {
     "title": "Notas",
     "empty": "Ainda sem notas. Toque em um versículo para adicionar uma.",
@@ -136,7 +129,6 @@
     "cancel": "Cancelar",
     "placeholder": "Escreva sua nota…"
   },
-
   "sharing": {
     "chapter": {
       "title": "{{book}} {{chapter}}",
@@ -151,7 +143,6 @@
       "body": "Uma nota que fiz sobre {{book}} {{chapter}}:\n\n\"{{content}}\"\n\n{{url}}"
     }
   },
-
   "common": {
     "ok": "OK",
     "cancel": "Cancelar",
@@ -167,7 +158,6 @@
     "error_title": "Erro",
     "unknown_error": "Erro desconhecido"
   },
-
   "names_of_god": {
     "title": "Nomes de Deus",
     "testament_ot": "Antigo Testamento",
@@ -190,5 +180,11 @@
     "filter_all": "Todos",
     "names_count": "{{count}} nomes",
     "no_results": "Nenhum nome corresponde à sua pesquisa."
+  },
+  "widget": {
+    "eyebrow": "VERSÍCULO DO DIA",
+    "why": "POR QUE IMPORTA",
+    "readNote": "Ler a nota completa →",
+    "fallback": "Abra o VerseMate para ver o versículo de hoje"
   }
 }
