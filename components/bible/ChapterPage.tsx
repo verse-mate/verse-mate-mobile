@@ -1875,24 +1875,38 @@ export function ChapterPage({
       {/* Bible reading view (no explanations) — always rendered, opacity
           flipped by toggleProgress on the UI thread. Always absolute-fill
           so it overlaps the Insight container at the same bounds. */}
-      <Animated.ScrollView
-        ref={animatedScrollRef}
-        style={[styles.container, styles.absoluteFill, bibleContainerStyle]}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={true}
-        testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
-        onScroll={animatedScrollHandler}
-        // 1 rather than 16: a Reanimated handler runs on the UI thread, so there is
-        // no reason to throttle it — throttling only ever existed to reduce JS
-        // bridge traffic, and there is none now.
-        scrollEventThrottle={1}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+      {/* The pointerEvents gate lives on this WRAPPER VIEW, not on the ScrollView inside it.
+          `pointerEvents` is only honoured by Android views that implement RN's ReactPointerEventsView;
+          ReactScrollView does not, so `pointerEvents="none"` on a ScrollView is silently IGNORED. This pane
+          is absoluteFill and declared LAST, so it composites on top of the Insight pane — and it was
+          swallowing every touch in the content area while Insight was showing. Proved on an emulator with a
+          debug build: tapping a Study card logged
+          `BIBLE ScrollView RECEIVED touch y=491 while activeView= explanations`,
+          and no touch event of any kind reached the Study panel's own subtree. Symptom in build 105: Study
+          cards and Expand All could not be tapped at all, and taps opened Bible-view surfaces (the verse
+          Insight sheet, the lexicon popover) instead.
+          A View DOES honour pointerEvents and gates its whole subtree, so the gate belongs here. */}
+      <Animated.View
+        style={[styles.absoluteFill, bibleContainerStyle]}
         pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
       >
-        <TextVisibilityContext.Provider value={textVisibilityContextValue}>
-          <View style={styles.readerContainer} collapsable={false}>
-            {/* Buffer chapters render REAL CONTENT on the native path.
+        <Animated.ScrollView
+          ref={animatedScrollRef}
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={true}
+          testID={`chapter-page-scroll-${bookId}-${chapterNumber}-bible`}
+          onScroll={animatedScrollHandler}
+          // 1 rather than 16: a Reanimated handler runs on the UI thread, so there is
+          // no reason to throttle it — throttling only ever existed to reduce JS
+          // bridge traffic, and there is none now.
+          scrollEventThrottle={1}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <TextVisibilityContext.Provider value={textVisibilityContextValue}>
+            <View style={styles.readerContainer} collapsable={false}>
+              {/* Buffer chapters render REAL CONTENT on the native path.
                  `isPreloading` is true for the pager's prev/next pages, and gating
                  them to a SkeletonLoader is why swiping never felt instant: the
                  pager slides to a skeleton, and only after onPageSelected -> JS ->
@@ -1906,34 +1920,35 @@ export function ChapterPage({
                  (May 2026). Windowing removes that reason: a buffer chapter renders
                  only its top screenful, since its own visibleYRange is null at
                  scroll 0 and windowing falls back to the window height. */}
-            {displayChapter && (!isPreloading || (nativeTextOn && bufferContentReady)) ? (
-              <ChapterReader
-                chapter={displayChapter}
-                activeTab={activeTab}
-                explanationsOnly={false}
-                hideChapterTitle={hideChapterTitle}
-                onContentLayout={handleContentLayout}
-                onOpenNotes={handleOpenNotes}
-                filteredHighlights={chapterHighlights}
-                filteredAutoHighlights={autoHighlights}
-                maxBibleSections={bibleSectionsMax}
-                bibleVersion={bibleVersion}
-                bibleLanguage={bibleLanguage}
-              />
-            ) : (
-              // Buffer pages render this skeleton; the active page shows
-              // it briefly while chapter data loads. Removing the
-              // `!isPreloading` gate (tried in 2415153) caused regressions
-              // — putting it back. Distinct testID from chapter-screen-
-              // level skeleton so integration tests waiting for testID=
-              // "skeleton-loader" to disappear don't trip on the 2 buffer
-              // placeholders that are always visible in the 3-page pager.
-              <SkeletonLoader testID="chapter-page-skeleton-buffer" />
-            )}
-          </View>
-        </TextVisibilityContext.Provider>
-        <BottomLogo />
-      </Animated.ScrollView>
+              {displayChapter && (!isPreloading || (nativeTextOn && bufferContentReady)) ? (
+                <ChapterReader
+                  chapter={displayChapter}
+                  activeTab={activeTab}
+                  explanationsOnly={false}
+                  hideChapterTitle={hideChapterTitle}
+                  onContentLayout={handleContentLayout}
+                  onOpenNotes={handleOpenNotes}
+                  filteredHighlights={chapterHighlights}
+                  filteredAutoHighlights={autoHighlights}
+                  maxBibleSections={bibleSectionsMax}
+                  bibleVersion={bibleVersion}
+                  bibleLanguage={bibleLanguage}
+                />
+              ) : (
+                // Buffer pages render this skeleton; the active page shows
+                // it briefly while chapter data loads. Removing the
+                // `!isPreloading` gate (tried in 2415153) caused regressions
+                // — putting it back. Distinct testID from chapter-screen-
+                // level skeleton so integration tests waiting for testID=
+                // "skeleton-loader" to disappear don't trip on the 2 buffer
+                // placeholders that are always visible in the 3-page pager.
+                <SkeletonLoader testID="chapter-page-skeleton-buffer" />
+              )}
+            </View>
+          </TextVisibilityContext.Provider>
+          <BottomLogo />
+        </Animated.ScrollView>
+      </Animated.View>
 
       {/* Note Modals - Rendered OUTSIDE ScrollView */}
       {/*

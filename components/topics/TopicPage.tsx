@@ -483,19 +483,40 @@ export function TopicPage({
     });
   }, [activeView, localToggleProgress, toggleProgress]);
   const effectiveProgress = toggleProgress ?? localToggleProgress;
+  /**
+   * Visibility is opacity ONLY — deliberately no animated `zIndex`. Same fix ChapterPage already carries
+   * (see the note above its own container styles); Topics never got it, and that is the whole gap.
+   *
+   * Opacity is a cheap per-view property. Changing `zIndex` REORDERS the parent's children, which is a
+   * structural mutation: Fabric emits mount operations and Android re-runs measure/layout over the
+   * subtree. Measured on the operator's phone (release+perf, six Bible<->Insight switches):
+   *
+   *              janky    p50    p90    p95     p99
+   *   Bible      12.4%     9ms   20ms   27ms    34ms   (no animated zIndex)
+   *   Topics     24.1%     5ms   53ms  350ms  1150ms   (animated zIndex)
+   *
+   * atrace on the worst Topics frame, 1148ms, self time, app pid only:
+   *
+   *     769.41ms  traversal            <- measure + layout, from the child reorder
+   *     337.19ms  Record View#draw()
+   *      27.33ms  animation
+   *
+   * Two taps produced exactly two ~1148ms frames, one per switch. An emulator had blamed `Record
+   * View#draw()` instead and sent this in the wrong direction for a while — its software GPU inflates draw
+   * and hides layout. Measure this on the device.
+   *
+   * Static declaration order is sufficient: an inactive pane is `opacity: 0` and `pointerEvents: 'none'`,
+   * so draw order only matters between things you can actually see, and only one pane is ever visible.
+   * Insight is declared after Bible, so it composites on top when shown. The pointerEvents gates now live
+   * on Views (not ScrollViews), so correctness no longer leans on z-order at all.
+   */
   const insightContainerStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      opacity: effectiveProgress.value,
-      zIndex: effectiveProgress.value > 0.5 ? 1 : 0,
-    };
+    return { opacity: effectiveProgress.value };
   });
   const bibleContainerStyle = useAnimatedStyle(() => {
     'worklet';
-    return {
-      opacity: 1 - effectiveProgress.value,
-      zIndex: effectiveProgress.value > 0.5 ? 0 : 1,
-    };
+    return { opacity: 1 - effectiveProgress.value };
   });
 
   // Pre-process + memoise each tab's rendered markdown JSX. Without this,
@@ -547,7 +568,7 @@ export function TopicPage({
 
   // Inner-tab visibility — driven by activeTabProgress. Each tab is now
   // its own absolute-positioned ScrollView (Bible pattern); only opacity
-  // and zIndex flip on the UI thread, no layout reflow. The previous
+  // on the UI thread, no layout reflow and no child reorder. The previous
   // maxHeight-collapse approach inside a shared ScrollView forced Yoga
   // to re-measure the entire markdown subtree on every tab switch and
   // was the root cause of the sloppy/teleport animations.
@@ -560,17 +581,20 @@ export function TopicPage({
   const summaryTabAnimStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'summary';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    // No zIndex — see the container styles above. Reordering children costs a layout pass.
+    return { opacity: match ? 1 : 0 };
   });
   const bylineTabAnimStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'byline';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    // No zIndex — see the container styles above. Reordering children costs a layout pass.
+    return { opacity: match ? 1 : 0 };
   });
   const detailedTabAnimStyle = useAnimatedStyle(() => {
     'worklet';
     const match = effectiveTabProgress.value === 'detailed';
-    return { opacity: match ? 1 : 0, zIndex: match ? 1 : 0 };
+    // No zIndex — see the container styles above. Reordering children costs a layout pass.
+    return { opacity: match ? 1 : 0 };
   });
 
   // Loading state - show skeleton ONLY on initial mount when no data exists
@@ -610,32 +634,74 @@ export function TopicPage({
       {/* Bible References View — opacity flipped by toggleProgress on
           the UI thread. Always absolute-fill so it overlaps the Insight
           container at the same bounds; opacity decides which is visible. */}
-      <Animated.ScrollView
-        ref={bibleScrollRef as React.Ref<Animated.ScrollView>}
-        style={[styles.container, styles.absoluteFill, bibleContainerStyle]}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={true}
-        testID={`topic-page-scroll-${topicId}-bible`}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+      {/* pointerEvents gate on the WRAPPER VIEW, not the ScrollView — ReactScrollView does not implement
+          RN's ReactPointerEventsView on Android, so `pointerEvents` on a ScrollView is silently ignored.
+          Here the Bible pane is declared FIRST, so draw order happens to hide the problem (the Insight
+          container composites on top and takes the touches). That is luck, not design: the identical
+          construct in ChapterPage — where this pane is declared LAST — swallowed every touch in the reader
+          and made the Study cards untappable in build 105. Gating on a View makes it correct by
+          construction instead of by declaration order. */}
+      <Animated.View
+        style={[styles.absoluteFill, bibleContainerStyle]}
         pointerEvents={activeView === 'bible' ? 'auto' : 'none'}
       >
-        {displayReferences &&
-        typeof displayReferences === 'object' &&
-        'content' in displayReferences &&
-        typeof displayReferences.content === 'string' ? (
-          // Use TopicText if content has structured format (## subtitles)
-          // Otherwise fall back to existing Markdown renderer
-          displayReferences.content.includes('## ') ? (
-            <TopicText
-              topicName={topic?.name || ''}
-              markdownContent={displayReferences.content}
-              onShare={onShare}
-              onVersePress={onVersePress}
-              onWordSelect={handleWordSelect}
-            />
+        <Animated.ScrollView
+          ref={bibleScrollRef as React.Ref<Animated.ScrollView>}
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={true}
+          testID={`topic-page-scroll-${topicId}-bible`}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {displayReferences &&
+          typeof displayReferences === 'object' &&
+          'content' in displayReferences &&
+          typeof displayReferences.content === 'string' ? (
+            // Use TopicText if content has structured format (## subtitles)
+            // Otherwise fall back to existing Markdown renderer
+            displayReferences.content.includes('## ') ? (
+              <TopicText
+                topicName={topic?.name || ''}
+                markdownContent={displayReferences.content}
+                onShare={onShare}
+                onVersePress={onVersePress}
+                onWordSelect={handleWordSelect}
+              />
+            ) : (
+              <>
+                {/* Topic Title Row with Share button */}
+                <View style={styles.titleRow}>
+                  <Text style={styles.topicTitle} accessibilityRole="header">
+                    {topic?.name}
+                  </Text>
+                  {onShare && (
+                    <View style={styles.iconButtons}>
+                      <ShareButton onShare={onShare} />
+                    </View>
+                  )}
+                </View>
+
+                {/* Topic Description */}
+                {topicDescription ? (
+                  <Text style={styles.topicDescription}>{topicDescription}</Text>
+                ) : null}
+
+                <View style={styles.referencesContainer}>
+                  <Markdown style={markdownStyles}>
+                    {
+                      // First format verse numbers, THEN process newlines
+                      formatVerseNumbers(displayReferences.content)
+                        .replace(/\n\n/g, '___PARAGRAPH___')
+                        .replace(/\n/g, ' ')
+                        .replace(/___PARAGRAPH___/g, '\n\n')
+                    }
+                  </Markdown>
+                </View>
+              </>
+            )
           ) : (
             <>
               {/* Topic Title Row with Share button */}
@@ -655,45 +721,14 @@ export function TopicPage({
                 <Text style={styles.topicDescription}>{topicDescription}</Text>
               ) : null}
 
-              <View style={styles.referencesContainer}>
-                <Markdown style={markdownStyles}>
-                  {
-                    // First format verse numbers, THEN process newlines
-                    formatVerseNumbers(displayReferences.content)
-                      .replace(/\n\n/g, '___PARAGRAPH___')
-                      .replace(/\n/g, ' ')
-                      .replace(/___PARAGRAPH___/g, '\n\n')
-                  }
-                </Markdown>
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No Bible references available for this topic.</Text>
               </View>
             </>
-          )
-        ) : (
-          <>
-            {/* Topic Title Row with Share button */}
-            <View style={styles.titleRow}>
-              <Text style={styles.topicTitle} accessibilityRole="header">
-                {topic?.name}
-              </Text>
-              {onShare && (
-                <View style={styles.iconButtons}>
-                  <ShareButton onShare={onShare} />
-                </View>
-              )}
-            </View>
-
-            {/* Topic Description */}
-            {topicDescription ? (
-              <Text style={styles.topicDescription}>{topicDescription}</Text>
-            ) : null}
-
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No Bible references available for this topic.</Text>
-            </View>
-          </>
-        )}
-        <BottomLogo />
-      </Animated.ScrollView>
+          )}
+          <BottomLogo />
+        </Animated.ScrollView>
+      </Animated.View>
 
       {/* Explanations View — opacity flipped by toggleProgress on the UI
           thread. Always absolute-fill, overlapping Bible at the same
