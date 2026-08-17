@@ -46,7 +46,10 @@ private let versionKeyDefaultsKey = "preferred_bible_version"
 // the App Group; sent as `pid` so the widget shows the user's personal verse
 // (PD-7). Empty/absent when logged out → the endpoint serves the global verse.
 private let userIdDefaultsKey = "widget_user_id"
-private let cacheKey = "votd_last_response"
+// v2: the cached payload now carries the identity it was fetched under (see
+// CachedVerse). A fresh key rather than a migration — the old value decodes to
+// nothing, which simply looks like a cold cache for one refresh.
+private let cacheKey = "votd_last_response_v2"
 private let apiBaseURL = "https://api.versemate.org"
 // KNOWN PROD-ONLY CONSTANT (GH-265 / L-003): the iOS widget extension is a
 // separate process and cannot read the JS `EXPO_PUBLIC_WEB_URL` at runtime, so
@@ -102,6 +105,8 @@ private func personalizationId() -> String? {
   return (id?.isEmpty == false) ? id : nil
 }
 
+/// Device-local date, used ONLY as the cache's staleness clock — never sent to
+/// the API. See `fetchVerseOfTheDay` for why the `date` param is omitted.
 private func localDateString() -> String {
   let f = DateFormatter()
   f.dateFormat = "yyyy-MM-dd"
@@ -110,40 +115,88 @@ private func localDateString() -> String {
   return f.string(from: Date())
 }
 
-private func cacheResponse(_ data: Data) {
+/// A cached payload plus the identity it was fetched under.
+///
+/// The backend seeds its pick `${date}:${userId}` and renders it in the
+/// requested translation, so a payload is only reusable for the same
+/// (pid, version). Caching the bare response let a verse fetched under one
+/// identity be served under another: add the widget logged out (global verse
+/// cached), then sign in, and every fallback kept serving the global verse
+/// while the daily push carried the personal one.
+private struct CachedVerse: Codable {
+  /// Device-local date at fetch time; caps how stale a fallback may be.
+  let fetchedOn: String
+  let pid: String?
+  let version: String
+  let response: VerseOfTheDay
+}
+
+private func cacheResponse(_ response: VerseOfTheDay, pid: String?, version: String) {
+  let entry = CachedVerse(
+    fetchedOn: localDateString(), pid: pid, version: version, response: response)
+  guard let data = try? JSONEncoder().encode(entry) else { return }
   sharedDefaults()?.set(data, forKey: cacheKey)
 }
 
+/// The last good verse, but only when it was fetched for the identity in effect
+/// now and is no older than yesterday — the same window the API itself serves.
+/// A device offline for days shows the branded fallback rather than a stale
+/// verse under a "VERSE OF THE DAY" header.
 private func cachedResponse() -> VerseOfTheDay? {
-  guard let data = sharedDefaults()?.data(forKey: cacheKey) else { return nil }
-  return try? JSONDecoder().decode(VerseOfTheDay.self, from: data)
+  guard let data = sharedDefaults()?.data(forKey: cacheKey),
+    let entry = try? JSONDecoder().decode(CachedVerse.self, from: data),
+    entry.pid == personalizationId(),
+    entry.version == preferredVersion()
+  else { return nil }
+
+  let f = DateFormatter()
+  f.dateFormat = "yyyy-MM-dd"
+  f.calendar = Calendar.current
+  f.timeZone = TimeZone.current
+  guard let fetchedOn = f.date(from: entry.fetchedOn),
+    let today = f.date(from: localDateString())
+  else { return nil }
+  let ageDays = today.timeIntervalSince(fetchedOn) / 86_400
+  return (ageDays >= 0 && ageDays <= 1) ? entry.response : nil
 }
 
-private func fetchVerseOfTheDay(completion: @escaping (VerseOfTheDay?) -> Void) {
+/// Fetch today's verse. `fresh` is false when the payload came from the cache
+/// (or is nil), which is what decides how soon the timeline retries.
+private func fetchVerseOfTheDay(
+  completion: @escaping (VerseOfTheDay?, _ fresh: Bool) -> Void
+) {
   let version = preferredVersion()
-  let date = localDateString()
+  let pid = personalizationId()
   guard
     var components = URLComponents(string: "\(apiBaseURL)/bible/verse-of-the-day")
-  else { completion(cachedResponse()); return }
-  var items = [
-    URLQueryItem(name: "date", value: date),
-    URLQueryItem(name: "bible_version", value: version),
-  ]
-  if let pid = personalizationId() {
+  else { completion(cachedResponse(), false); return }
+  // No `date` param — deliberately. The endpoint defaults to its own
+  // server-local today, which is exactly what the daily verse-of-the-day push
+  // worker passes, and the backend persists its pick per (date, userId) — so
+  // the widget and the notification resolve to the same row instead of two
+  // clocks racing. Sending the DEVICE's date (the old behavior) also 400s
+  // outright for anyone in a UTC+ zone, because the API accepts only today or
+  // yesterday server-local and their "today" is still the server's tomorrow —
+  // which rendered an empty widget. Android dropped this in #369; this is the
+  // same fix on the iOS side.
+  var items = [URLQueryItem(name: "bible_version", value: version)]
+  if let pid = pid {
     items.append(URLQueryItem(name: "pid", value: pid))
   }
   components.queryItems = items
-  guard let url = components.url else { completion(cachedResponse()); return }
+  guard let url = components.url else { completion(cachedResponse(), false); return }
 
   let task = URLSession.shared.dataTask(with: url) { data, _, _ in
     guard let data = data,
       let decoded = try? JSONDecoder().decode(VerseOfTheDay.self, from: data)
     else {
-      completion(cachedResponse())  // stale-cache fallback
+      // Covers transport failure AND every error shape: the API's error bodies
+      // carry no `empty`, so decoding fails and lands here.
+      completion(cachedResponse(), false)
       return
     }
-    if !decoded.empty { cacheResponse(data) }
-    completion(decoded)
+    if !decoded.empty { cacheResponse(decoded, pid: pid, version: version) }
+    completion(decoded, true)
   }
   task.resume()
 }
@@ -177,16 +230,15 @@ struct Provider: TimelineProvider {
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<VerseEntry>) -> Void) {
-    fetchVerseOfTheDay { verse in
+    fetchVerseOfTheDay { verse, fresh in
       let entry = VerseEntry(date: Date(), verse: verse)
-      // Refresh at the next local midnight.
-      let nextMidnight =
-        Calendar.current.nextDate(
-          after: Date(),
-          matching: DateComponents(hour: 0, minute: 1),
-          matchingPolicy: .nextTime
-        ) ?? Date().addingTimeInterval(3600)
-      completion(Timeline(entries: [entry], policy: .after(nextMidnight)))
+      // Local midnight is the wrong clock now that the verse rolls over on the
+      // server's, and it was also the only retry: a fetch that failed at 09:00
+      // left the widget on its fallback for the rest of the day. Poll a few
+      // times daily instead (matching the 6h Android provider), and retry soon
+      // after a failure so a moment without network doesn't cost a day.
+      let next = Date().addingTimeInterval(fresh ? 6 * 3600 : 30 * 60)
+      completion(Timeline(entries: [entry], policy: .after(next)))
     }
   }
 }

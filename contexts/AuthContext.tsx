@@ -16,6 +16,7 @@ import {
 } from '@/lib/auth/token-storage';
 import { clearTokenCache } from '@/lib/api/client-interceptors';
 import { analytics, AnalyticsEvent } from '@/lib/analytics';
+import { backfillPreferredBibleVersion } from '@/hooks/use-bible-version';
 import { syncWidgetUserId } from '@/hooks/use-shared-widget-prefs';
 import { unregisterPushOnLogout } from '@/lib/notifications/push-registration';
 import {
@@ -221,10 +222,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Mirror the user's id into the widget container so the home-screen widget
   // shows this user's personal verse (PD-7); cleared on logout. Memoize the id
   // so the effect deps are a primitive (Biome react-hooks rule).
+  //
+  // Gated on `isLoading`: `user` is null on mount too, and writing that through
+  // would clear the stored id on EVERY cold start, before restoreSession has
+  // had a chance to resolve. The widget runs in its own headless process and
+  // reads this key directly — a fetch landing in that window sends no `pid`, so
+  // the backend serves the anonymous GLOBAL verse while the daily push (which
+  // always has a real user id) serves the PERSONAL one. The pick is seeded
+  // `${date}:${userId}`, so those are different verses by construction, not a
+  // rounding error. Only a settled null — a genuinely logged-out user — clears.
   const widgetUserId = user?.id ?? null;
   useEffect(() => {
+    if (isLoading) return;
     void syncWidgetUserId(widgetUserId);
-  }, [widgetUserId]);
+    // Same alignment problem one layer over: the daily push renders in
+    // `user.preferred_bible_version`, which is only written on change, so a
+    // translation chosen before that sync existed never reached the server.
+    if (widgetUserId) void backfillPreferredBibleVersion();
+  }, [widgetUserId, isLoading]);
 
   /**
    * Fetch user session from backend and cache the result for offline use.
