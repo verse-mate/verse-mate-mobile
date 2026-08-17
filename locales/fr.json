@@ -5,7 +5,6 @@
     "version": "1.0.0",
     "note": "Translated from en.json. Per spec feat-mobile-ui-i18n (D-016)."
   },
-
   "auth": {
     "login": {
       "title": "Connexion",
@@ -38,14 +37,12 @@
       "network_error": "Erreur réseau. Vérifiez votre connexion."
     }
   },
-
   "onboarding": {
     "skip": "Passer",
     "next": "Suivant",
     "get_started": "Commencer",
     "login": "Se connecter"
   },
-
   "settings": {
     "title": "Paramètres",
     "account": "Compte",
@@ -89,7 +86,6 @@
       "save_language": "Échec de l'enregistrement de la préférence de langue"
     }
   },
-
   "chapter_reader": {
     "loading": "Chargement du chapitre…",
     "error": "Impossible de charger ce chapitre. Appuyez pour réessayer.",
@@ -101,7 +97,6 @@
     "no_translation_available": "Affichage en anglais (aucune traduction disponible)",
     "offline_indicator": "Hors ligne — affichage du contenu mis en cache"
   },
-
   "bookmarks": {
     "title": "Signets",
     "empty": "Aucun signet pour l'instant. Appuyez sur l'icône de signet pendant la lecture.",
@@ -111,7 +106,6 @@
     "login_subtitle": "Connectez-vous pour sauvegarder et accéder à vos chapitres bibliques favoris",
     "remove_confirm": "Supprimer ce signet ?"
   },
-
   "highlights": {
     "title": "Surlignages",
     "empty": "Aucun surlignage pour l'instant. Appuyez longuement sur un verset et choisissez une couleur.",
@@ -121,7 +115,6 @@
     "my_highlights": "Mes surlignages",
     "remove_confirm": "Supprimer ce surlignage ?"
   },
-
   "notes": {
     "title": "Notes",
     "empty": "Aucune note pour l'instant. Appuyez sur un verset pour en ajouter une.",
@@ -136,7 +129,6 @@
     "cancel": "Annuler",
     "placeholder": "Rédigez votre note…"
   },
-
   "sharing": {
     "chapter": {
       "title": "{{book}} {{chapter}}",
@@ -151,7 +143,6 @@
       "body": "Une note que j'ai faite sur {{book}} {{chapter}} :\n\n\"{{content}}\"\n\n{{url}}"
     }
   },
-
   "common": {
     "ok": "OK",
     "cancel": "Annuler",
@@ -167,7 +158,6 @@
     "error_title": "Erreur",
     "unknown_error": "Erreur inconnue"
   },
-
   "names_of_god": {
     "title": "Noms de Dieu",
     "testament_ot": "Ancien Testament",
@@ -190,5 +180,11 @@
     "filter_all": "Tous",
     "names_count": "{{count}} noms",
     "no_results": "Aucun nom ne correspond à votre recherche."
+  },
+  "widget": {
+    "eyebrow": "VERSET DU JOUR",
+    "why": "POURQUOI C'EST IMPORTANT",
+    "readNote": "Lire la note complète →",
+    "fallback": "Ouvre VerseMate pour voir le verset du jour"
   }
 }

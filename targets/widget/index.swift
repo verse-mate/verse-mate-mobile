@@ -50,6 +50,10 @@ private let userIdDefaultsKey = "widget_user_id"
 // CachedVerse). A fresh key rather than a migration — the old value decodes to
 // nothing, which simply looks like a cold cache for one refresh.
 private let cacheKey = "votd_last_response_v2"
+// Pre-resolved widget chrome, mirrored by the app (hooks/use-shared-widget-prefs.ts).
+// This extension is a separate process and cannot reach the JS locale catalogs,
+// so the app resolves them and writes the result here.
+private let stringsDefaultsKey = "widget_strings"
 private let apiBaseURL = "https://api.versemate.org"
 // KNOWN PROD-ONLY CONSTANT (GH-265 / L-003): the iOS widget extension is a
 // separate process and cannot read the JS `EXPO_PUBLIC_WEB_URL` at runtime, so
@@ -107,6 +111,24 @@ private func personalizationId() -> String? {
 
 /// Device-local date, used ONLY as the cache's staleness clock — never sent to
 /// the API. See `fetchVerseOfTheDay` for why the `date` param is omitted.
+/// Localised chrome. English is the floor: the key is absent until the app has
+/// run at least once, which is the same limitation that already applies to the
+/// preferred translation and the personalization id.
+struct WidgetStrings: Codable {
+  var eyebrow: String = "VERSE OF THE DAY"
+  var why: String = "WHY IT MATTERS"
+  var readNote: String = "Read the full note →"
+  var fallback: String = "Open VerseMate to see today's verse"
+}
+
+private func widgetStrings() -> WidgetStrings {
+  guard let raw = sharedDefaults()?.string(forKey: stringsDefaultsKey),
+    let data = raw.data(using: .utf8),
+    let decoded = try? JSONDecoder().decode(WidgetStrings.self, from: data)
+  else { return WidgetStrings() }
+  return decoded
+}
+
 private func localDateString() -> String {
   let f = DateFormatter()
   f.dateFormat = "yyyy-MM-dd"
@@ -359,6 +381,16 @@ struct VerseOfTheDayWidgetView: View {
   let entry: VerseEntry
 
   private var palette: Palette { colorScheme == .dark ? .dark : .light }
+  /// Localised chrome, read fresh so a language change picked up by the next
+  /// timeline reload takes effect without any extra plumbing.
+  private var strings: WidgetStrings { widgetStrings() }
+
+  /// What VoiceOver reads. The widget is a SwiftUI view rather than a bitmap
+  /// here, so the default would be the concatenated subviews — but the reading
+  /// order across the two zones is not obvious, so state it explicitly.
+  private var accessibilitySummary: String {
+    isFallback ? verseText : "\(strings.eyebrow). \(verseText) \(reference)"
+  }
 
   private var isFallback: Bool {
     guard let v = entry.verse, v.empty == false, let verses = v.verses else { return true }
@@ -367,7 +399,7 @@ struct VerseOfTheDayWidgetView: View {
 
   private var verseText: String {
     guard let v = entry.verse, v.empty == false, let verses = v.verses, !verses.isEmpty else {
-      return entry.verse?.fallbackMessage ?? "Open VerseMate to see today's verse"
+      return entry.verse?.fallbackMessage ?? strings.fallback
     }
     return verses.map { $0.text }.joined(separator: " ")
   }
@@ -405,6 +437,10 @@ struct VerseOfTheDayWidgetView: View {
       // for its own region with a Link (design: "Android allows a few regions,
       // iOS uses Link").
       .widgetURL(chapterURL)
+      // One coherent announcement instead of VoiceOver walking the eyebrow,
+      // verse, reference and wordmark as four unrelated fragments.
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(accessibilitySummary)
   }
 
   @ViewBuilder
@@ -461,7 +497,7 @@ struct VerseOfTheDayWidgetView: View {
 
       VStack(alignment: .leading, spacing: 0) {
         HStack {
-          Eyebrow(text: "VERSE OF THE DAY", color: palette.eyebrow)
+          Eyebrow(text: strings.eyebrow, color: palette.eyebrow)
           Spacer()
           Text(versionLabel)
             .font(.system(size: 10))
@@ -512,7 +548,7 @@ struct VerseOfTheDayWidgetView: View {
   private var verseZone: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        Eyebrow(text: "VERSE OF THE DAY", color: palette.largeEyebrow)
+        Eyebrow(text: strings.eyebrow, color: palette.largeEyebrow)
         Spacer()
         Text(dateAndVersion)
           .font(.system(size: 10))
@@ -521,7 +557,11 @@ struct VerseOfTheDayWidgetView: View {
       }
       Text(verseText)
         // Without the note zone the verse owns the freed rows.
-        .lineLimit(explanation == nil ? 12 : 4)
+        // Raised with the server cap (220 -> 800). systemLarge is a fixed
+        // 364x382pt, so unlike Android these can be exact constants — SwiftUI
+        // ellipsizes cleanly at a line limit, so over-allocating only ever
+        // truncates, never clips mid-glyph.
+        .lineLimit(explanation == nil ? 14 : 5)
         .font(serif(17))
         .truncationMode(.tail)
         .foregroundColor(palette.verseText)
@@ -548,10 +588,11 @@ struct VerseOfTheDayWidgetView: View {
 
   private func noteZone(_ explanation: String) -> some View {
     VStack(alignment: .leading, spacing: 8) {
-      Eyebrow(text: "WHY IT MATTERS", color: palette.eyebrow)
+      Eyebrow(text: strings.why, color: palette.eyebrow)
       Text(explanation)
         .font(serif(13, .light))
-        .lineLimit(6)
+        // Was 6 against a 220-char server clamp; real summaries run to 606.
+        .lineLimit(9)
         .truncationMode(.tail)
         .foregroundColor(palette.explanation)
       Spacer(minLength: 0)
@@ -560,7 +601,7 @@ struct VerseOfTheDayWidgetView: View {
           .fill(palette.footerHairline)
           .frame(height: 1)
         HStack {
-          Text("Read the full note →")
+          Text(strings.readNote)
             .font(.system(size: 11, weight: .medium))
             .foregroundColor(palette.gold)
             .lineLimit(1)
