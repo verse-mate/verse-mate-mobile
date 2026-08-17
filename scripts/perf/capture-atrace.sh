@@ -138,16 +138,21 @@ PY
 # landscape capture cannot be compared to a portrait one. This lives inside the capture script and not in
 # the caller because the drift is time-dependent: a caller locked portrait, the window manager confirmed
 # `cur=1080x2340`, and by the time this script ran minutes later the phone was back in landscape and
-# produced a whole set of unusable numbers. `accelerometer_rotation` had flipped 0 -> 1 on its own — this is
-# the operator's daily-driver phone, so auto-rotate gets re-enabled outside our control. The only reliable
-# window is the one right before tracing.
+# produced a whole set of unusable numbers. The only reliable window is the one right before tracing.
+#
+# `accelerometer_rotation` was flipping 0 -> 1 between the caller and here, and this comment used to blame
+# the phone for it ("auto-rotate gets re-enabled outside our control"). That was wrong: Maestro's Android
+# driver is UIAutomator, whose teardown calls `unfreezeRotation()` == `accelerometer_rotation 1`. Our own nav
+# flow was turning it on. See rotation-guard.sh, which now forces it back off on every exit path.
 #
 # EXPECTED_GEOMETRY is asserted again AFTER the trace, at the bottom of this script. That second check is
 # the one that matters: it makes a wrong-geometry capture impossible to read as a result.
 EXPECTED_GEOMETRY='1080x2340'
 step "Locking portrait ($EXPECTED_GEOMETRY) — orientation changes what is being measured"
-adb_sh 'shell settings put system accelerometer_rotation 0' >/dev/null 2>&1 || true
-adb_sh 'shell settings put system user_rotation 0' >/dev/null 2>&1 || true
+# shellcheck source=scripts/perf/rotation-guard.sh
+. "$(dirname "${BASH_SOURCE[0]}")/rotation-guard.sh"
+rotation_guard_install   # auto-rotate OFF on every exit path, including die/Ctrl-C/timeout
+rotation_force 0
 sleep 2
 CUR="$(adb_sh "shell dumpsys window displays" | grep -o 'cur=[0-9]*x[0-9]*' | head -1)"
 echo "  window manager reports: ${CUR:-unknown}"

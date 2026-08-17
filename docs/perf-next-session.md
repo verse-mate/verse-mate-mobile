@@ -1416,3 +1416,81 @@ worst phase for the Topics baseline) only AFTER being filtered to the app proces
 pid. Unfiltered, it attributed SurfaceFlinger's `captureScreenshot` / `composeSurfaces` / `RegionSampling`
 to the app's worst frame and counted 251 phases where the app had 238. Any future per-frame analysis must
 filter by pid first.
+
+---
+
+## Topics: the switch stall was animated `zIndex` (2026-08-10, on device)
+
+The operator reported Topics as "very laggy when switching between bible and insight" while saying the Bible
+reader now felt fine. Both were true, and the cause was a one-line difference.
+
+**`ChapterPage` stopped animating `zIndex` months ago and documents why. `TopicPage` never got the change** —
+it animated `zIndex` alongside opacity on both view containers and all three inner tabs. Opacity is a cheap
+per-view property; `zIndex` reorders the parent's children, which is a structural mutation, so Android
+re-runs measure/layout over the subtree.
+
+Phone (release+perf APK), six Bible↔Insight switches per run:
+
+| | janky | p50 | p90 | p95 | p99 |
+| --- | --- | --- | --- | --- | --- |
+| Bible reader | 12.4% | 9ms | 20ms | 27ms | 34ms |
+| Topics before | 24.1% | 5ms | 53ms | 350ms | **1150ms** |
+| Topics after | 22.5% | 6ms | 61ms | 97ms | **113ms** |
+| Topics after (rerun) | 24.3% | – | 65ms | 97ms | **121ms** |
+
+**p99 1150ms → ~117ms (10×), p95 350ms → 97ms.** Note the jank *percentage* barely moved — judge this class
+of fix on p95/p99. The frames that made it feel broken were the 350–1150ms ones; p50 was never the problem.
+
+atrace of the worst frame before the fix (self time, app pid only):
+
+    769.41ms  traversal            <- measure + layout, from the child reorder
+    337.19ms  Record View#draw()
+     27.33ms  animation
+
+After: worst frame across two switches is **16ms**, and `traversal` no longer appears at all. Topics inner-tab
+switching also came out healthy afterwards: 4.4% janky, p99 32ms, zero Missed Vsync.
+
+### ⚠️ The emulator sent this in the wrong direction first
+
+Identical code and capture, two devices:
+
+| | worst frame | dominant slice |
+| --- | --- | --- |
+| Emulator (swiftshader) | 288ms | `Record View#draw()` **232ms**, `traversal` 0.76ms |
+| Phone (real GPU) | 1148ms | **`traversal` 769ms**, `Record View#draw()` 337ms |
+
+A software GPU inflates draw and buries layout. **Attribute frame cost on the device.** The emulator is still
+excellent for behaviour and logs — a debug build there found a touch bug in minutes — but not for deciding
+what to optimise.
+
+### Three negative results, so nobody re-runs them
+
+1. **`React.memo` on `TopicText` + memoising `createStyles`** in TopicText / TopicContentPanel /
+   TopicExplanationsPanel: p90 150→133ms, p95 300→300ms, jank 23.9→25.4%. Inside noise. **Kept** anyway
+   (avoiding a full re-render per switch is correct on its own terms) but it is not the fix.
+2. **`renderToHardwareTextureAndroid` gated to the 180ms fade**: p90 150ms, p95 300ms, p99 350ms. Nothing.
+   **Reverted** — state and a timer for no gain.
+3. **Gating the Insight prewarm to the current page** (so buffer pages never mount an Insight subtree, cutting
+   resident subtrees from 3 to 1): topic-swipe p99 400ms and 600ms across two runs vs 550ms before. No
+   movement. **Reverted**, also because an earlier session made that prewarm sticky deliberately to kill a
+   "byline loads, flickers, loads again" flicker.
+
+### What is left on Topics
+
+**Topic-to-topic swipe still has one ~550ms frame** (p90 8ms, p95 10–19ms, so it is a single stall, not
+general slowness). atrace of it, self time:
+
+    429.71ms  animation      <- Fabric mount operations
+    205.21ms  traversal      <- measure + layout
+     79.65ms  Record View#draw()
+     + GC compaction slices
+
+That is a new topic page being mounted. Negative result 3 shows it is *not* the Insight subtree, so it is the
+Bible-references subtree — and **correction to item 7 above: Topics does NOT use the legacy per-word
+renderer.** A uiautomator dump shows a whole chapter arriving as **one text node** (all 31 verses of Genesis 1
+in a single `text=`). So the cost is concentrated in a few enormous `StaticLayout` measurements rather than
+spread over thousands of views.
+
+That makes the next step routing Topics' references through the native text path (one pre-measured view per
+paragraph), which is the same lever that fixed the reader. It is a real change, not a tweak — measure the
+swipe frame before and after, on the device.

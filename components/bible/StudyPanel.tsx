@@ -1416,10 +1416,29 @@ const createStyles = (colors: Colors) =>
 
     // Bullets — POSTURE / EYES / WILL pattern: gold pill in a fixed-width
     // left margin column, body text wraps to the right (web parity).
+    //
+    // This row deliberately does NOT use `alignItems: 'baseline'` the way `listRow` and `appRow` do. That is
+    // not a style preference — baseline alignment is BROKEN for this particular row, and it shipped broken
+    // in build 105.
+    //
+    // Yoga has no baseline function for a plain node, so when asked for one it recurses into the node's FIRST
+    // CHILD until it finds a node that provides one. RN's text nodes do provide a baseline (their first
+    // line's), which is why `listRow` and `appRow` still align correctly — their bodies are plain <Text>.
+    // This row's body is <Markdown>, which now renders through NativeMarkdown into the native VMText view: a
+    // measured LEAF with no children and no baseline function. Yoga's fallback for that case is the node's
+    // MEASURED HEIGHT, so the row's baseline became the BOTTOM of the whole paragraph and the pill sank with
+    // it. Reported from the store build: "the pills like posture eyes or will are at the bottom of the
+    // paragraph to the left of it instead of the top to the left of it."
+    //
+    // A native baseline function on VMText would be the general fix, but Expo module views share a generic
+    // shadow node we do not control, so there is nowhere to implement it without dropping to a hand-written
+    // Fabric component. Instead the pill is given the body's exact FIRST LINE BOX as its height and centers
+    // its own text inside it — visually where baseline alignment used to put it, and without the magic
+    // offset `listRow`'s comment warns about, because the height is the same token expression the markdown
+    // body uses for its `lineHeight`. The two cannot drift apart.
     bulletItem: {
       flexDirection: 'row',
-      // See `listRow` for the rationale behind baseline alignment.
-      alignItems: 'baseline',
+      alignItems: 'flex-start',
       gap: spacing.sm,
       paddingVertical: spacing.sm,
       borderBottomWidth: 1,
@@ -1427,8 +1446,10 @@ const createStyles = (colors: Colors) =>
     },
     bulletTag: {
       width: 88,
+      // Matches createMarkdownStyles().body.lineHeight exactly — see the note on bulletItem.
+      height: fontSizes.bodySmall * lineHeights.body,
+      justifyContent: 'center',
       paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
       borderRadius: 999,
       backgroundColor: colors.gold,
     },

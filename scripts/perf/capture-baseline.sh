@@ -148,6 +148,13 @@ required."
 
 step "Device: $DEVICE"
 
+# Auto-rotate hygiene. Must come after DEVICE is known (adb_sh needs it) and before ANY Maestro flow runs:
+# Maestro's UIAutomator teardown re-enables auto-rotate, and this is the operator's daily-driver phone where
+# it is deliberately off. See scripts/perf/rotation-guard.sh.
+# shellcheck source=scripts/perf/rotation-guard.sh
+. "$(dirname "${BASH_SOURCE[0]}")/rotation-guard.sh"
+rotation_guard_install
+
 # --- 2. verify it is a debug build ------------------------------------------
 
 step 'Verifying the installed build is debuggable'
