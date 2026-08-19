@@ -5,7 +5,6 @@
     "version": "1.0.0",
     "note": "Translated from en.json. Per spec feat-mobile-ui-i18n (D-016)."
   },
-
   "auth": {
     "login": {
       "title": "Anmelden",
@@ -38,14 +37,12 @@
       "network_error": "Netzwerkfehler. Überprüfe deine Verbindung."
     }
   },
-
   "onboarding": {
     "skip": "Überspringen",
     "next": "Weiter",
     "get_started": "Loslegen",
     "login": "Anmelden"
   },
-
   "settings": {
     "title": "Einstellungen",
     "account": "Konto",
@@ -89,7 +86,6 @@
       "save_language": "Spracheinstellung konnte nicht gespeichert werden"
     }
   },
-
   "chapter_reader": {
     "loading": "Kapitel wird geladen…",
     "error": "Dieses Kapitel konnte nicht geladen werden. Tippe zum Wiederholen.",
@@ -101,7 +97,6 @@
     "no_translation_available": "Englisch wird angezeigt (keine Übersetzung verfügbar)",
     "offline_indicator": "Offline — zwischengespeicherte Inhalte werden angezeigt"
   },
-
   "bookmarks": {
     "title": "Lesezeichen",
     "empty": "Noch keine Lesezeichen. Tippe beim Lesen auf das Lesezeichen-Symbol.",
@@ -111,7 +106,6 @@
     "login_subtitle": "Melde dich an, um deine Lieblings-Bibelkapitel zu speichern und abzurufen",
     "remove_confirm": "Dieses Lesezeichen entfernen?"
   },
-
   "highlights": {
     "title": "Markierungen",
     "empty": "Noch keine Markierungen. Halte einen Vers gedrückt und wähle eine Farbe.",
@@ -121,7 +115,6 @@
     "my_highlights": "Meine Markierungen",
     "remove_confirm": "Diese Markierung entfernen?"
   },
-
   "notes": {
     "title": "Notizen",
     "empty": "Noch keine Notizen. Tippe auf einen Vers, um eine hinzuzufügen.",
@@ -136,7 +129,6 @@
     "cancel": "Abbrechen",
     "placeholder": "Notiz schreiben…"
   },
-
   "sharing": {
     "chapter": {
       "title": "{{book}} {{chapter}}",
@@ -151,7 +143,6 @@
       "body": "Eine Notiz, die ich zu {{book}} {{chapter}} gemacht habe:\n\n\"{{content}}\"\n\n{{url}}"
     }
   },
-
   "common": {
     "ok": "OK",
     "cancel": "Abbrechen",
@@ -167,7 +158,6 @@
     "error_title": "Fehler",
     "unknown_error": "Unbekannter Fehler"
   },
-
   "names_of_god": {
     "title": "Namen Gottes",
     "testament_ot": "Altes Testament",
@@ -190,5 +180,11 @@
     "filter_all": "Alle",
     "names_count": "{{count}} Namen",
     "no_results": "Kein Name entspricht deiner Suche."
+  },
+  "widget": {
+    "eyebrow": "VERS DES TAGES",
+    "why": "WARUM ES WICHTIG IST",
+    "readNote": "Ganze Notiz lesen →",
+    "fallback": "Öffne VerseMate für den heutigen Vers"
   }
 }

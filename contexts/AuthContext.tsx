@@ -17,7 +17,7 @@ import {
 import { clearTokenCache } from '@/lib/api/client-interceptors';
 import { analytics, AnalyticsEvent } from '@/lib/analytics';
 import { backfillPreferredBibleVersion } from '@/hooks/use-bible-version';
-import { syncWidgetUserId } from '@/hooks/use-shared-widget-prefs';
+import { syncWidgetStrings, syncWidgetUserId } from '@/hooks/use-shared-widget-prefs';
 import { unregisterPushOnLogout } from '@/lib/notifications/push-registration';
 import {
   getAuthSession,
@@ -239,6 +239,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // `user.preferred_bible_version`, which is only written on change, so a
     // translation chosen before that sync existed never reached the server.
     if (widgetUserId) void backfillPreferredBibleVersion();
+    // Mirror the resolved widget chrome for iOS, whose widget process cannot
+    // reach the JS locale catalogs. Android reads them directly.
+    void AsyncStorage.getItem('@versemate:preferred_language').then(syncWidgetStrings);
   }, [widgetUserId, isLoading]);
 
   /**

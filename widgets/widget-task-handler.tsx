@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking } from "react-native";
 import type { WidgetTaskHandlerProps } from "react-native-android-widget";
 import { VerseOfTheDayWidget, type WidgetSize } from "./VerseOfTheDayWidget";
+import { LANGUAGE_KEY, widgetStrings } from "./widget-strings";
 
 const BIBLE_VERSION_KEY = "bible-version";
 const DEFAULT_VERSION = "NASB1995";
@@ -64,6 +65,8 @@ interface VerseResponse {
    * expanded size falls back to a verse-only composition until then.
    */
   explanation?: string | null;
+  /** Topic tags, e.g. ["faith","hope"]. Shown only on the largest cells. */
+  tags?: string[];
 }
 
 /**
@@ -123,8 +126,10 @@ export interface WidgetVerseData {
   noteDeepLink: string;
   /** Translation label for the expanded header; empty when unknown. */
   versionLabel: string;
-  /** "Why it matters" summary; null until the API serves one. */
+  /** "Why it matters" summary; no longer server-clamped (GH-265 follow-up). */
   explanation: string | null;
+  /** Topic tags from the API; empty when absent. */
+  tags: string[];
 }
 
 /**
@@ -239,6 +244,7 @@ export async function fetchVerse(): Promise<WidgetVerseData> {
       fallbackText: FALLBACK_MESSAGE,
       versionLabel: data.versionKey ?? "",
       explanation: data.explanation ?? null,
+      tags: data.tags ?? [],
     };
     await writeCache({ date: today, pid, version, data: verse });
     return verse;
@@ -261,7 +267,21 @@ function emptyState(fallbackText: string): WidgetVerseData {
     fallbackText,
     versionLabel: "",
     explanation: null,
+    tags: [],
   };
+}
+
+/**
+ * Localised chrome for the current user. Read from the same AsyncStorage key the
+ * app's i18n resolver uses; English when absent (widget placed before the app
+ * ever ran), which matches how version and pid already behave.
+ */
+async function currentStrings() {
+  try {
+    return widgetStrings(await AsyncStorage.getItem(LANGUAGE_KEY));
+  } catch {
+    return widgetStrings(null);
+  }
 }
 
 /** Both providers the app registers (app.config.js `react-native-android-widget`). */
@@ -300,15 +320,19 @@ export async function refreshWidgets(): Promise<void> {
     if (placed.every((widgets) => widgets.length === 0)) return;
 
     const data = await fetchVerse();
+    const strings = await currentStrings();
     await Promise.all(
       WIDGET_NAMES.map((widgetName) =>
         requestWidgetUpdate({
           widgetName,
           renderWidget: (info) => {
             const size = pickWidgetSize(info.widgetName);
+            // info.height is the MEASURED cell — the whole layout budget keys
+            // off it. See widget-layout.ts.
+            const shared = { ...data, size, height: info.height, strings };
             return {
-              light: <VerseOfTheDayWidget {...data} size={size} theme="light" />,
-              dark: <VerseOfTheDayWidget {...data} size={size} theme="dark" />,
+              light: <VerseOfTheDayWidget {...shared} theme="light" />,
+              dark: <VerseOfTheDayWidget {...shared} theme="dark" />,
             };
           },
         }),
@@ -330,17 +354,27 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
       // light + dark variant so the widget matches the launcher's theme.
       // Which provider was placed picks the composition (design 2B: 4×2 vs 4×4).
       const size = pickWidgetSize(props.widgetInfo.widgetName);
+      const height = props.widgetInfo.height;
       try {
         const data = await fetchVerse();
+        const strings = await currentStrings();
+        const shared = { ...data, size, height, strings };
         props.renderWidget({
-          light: <VerseOfTheDayWidget {...data} size={size} theme="light" />,
-          dark: <VerseOfTheDayWidget {...data} size={size} theme="dark" />,
+          light: <VerseOfTheDayWidget {...shared} theme="light" />,
+          dark: <VerseOfTheDayWidget {...shared} theme="dark" />,
         });
       } catch {
-        const fallback = emptyState(FALLBACK_MESSAGE);
+        // The catch path must not depend on anything that can throw again —
+        // English chrome is the safe floor here.
+        const fallback = {
+          ...emptyState(FALLBACK_MESSAGE),
+          size,
+          height,
+          strings: widgetStrings(null),
+        };
         props.renderWidget({
-          light: <VerseOfTheDayWidget {...fallback} size={size} theme="light" />,
-          dark: <VerseOfTheDayWidget {...fallback} size={size} theme="dark" />,
+          light: <VerseOfTheDayWidget {...fallback} theme="light" />,
+          dark: <VerseOfTheDayWidget {...fallback} theme="dark" />,
         });
       }
       break;

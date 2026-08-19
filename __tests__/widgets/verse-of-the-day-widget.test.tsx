@@ -12,6 +12,8 @@
  */
 import { buildWidgetTree } from 'react-native-android-widget/src/api/build-widget-tree';
 import { VerseOfTheDayWidget } from '@/widgets/VerseOfTheDayWidget';
+import { planLayout } from '@/widgets/widget-layout';
+import { widgetStrings } from '@/widgets/widget-strings';
 
 const VERSES = [
   { verseNumber: 14, text: 'I am fearfully and wonderfully made; wonderful are Your works.' },
@@ -24,6 +26,9 @@ const BASE = {
   noteDeepLink: 'versemate:///bible/19/139?verseStart=14&src=widget&tab=summary',
   fallbackText: "Open VerseMate to see today's verse",
   versionLabel: 'NASB1995',
+  // Measured 4x4 on a Pixel emulator — the layout budget keys off this.
+  height: 483,
+  strings: widgetStrings('en'),
 } as const;
 
 /** Collect every node of a built tree, depth-first. */
@@ -63,13 +68,20 @@ describe('VerseOfTheDayWidget', () => {
     ).not.toThrow();
   });
 
-  it('clamps the compact verse to 3 lines and pins the reference row', () => {
+  // Was "clamps to 3 lines". The constant is gone on purpose: a fixed clamp is
+  // what left the compact widget with a gap on cells taller than the 148dp it
+  // was drawn for (~200dp measured on an S22 Ultra).
+  it('sizes the compact verse from the measured cell, and pins the reference row', () => {
     const tree = buildWidgetTree(<VerseOfTheDayWidget {...BASE} size="compact" theme="dark" />);
 
+    const expected = planLayout({ height: BASE.height, size: 'compact', hasNote: false });
     const verse = flatten(tree).find(
-      (n) => n.type === 'TextWidget' && (n.props as { maxLines?: number }).maxLines === 3
+      (n) =>
+        n.type === 'TextWidget' &&
+        (n.props as { maxLines?: number }).maxLines === expected.verseMaxLines
     );
     expect(verse).toBeDefined();
+    expect(expected.verseMaxLines).toBeGreaterThan(3);
     expect(texts(tree)).toEqual(expect.arrayContaining(['Psalm 139:14', '✦ VerseMate']));
     // Design: progressive disclosure — no note copy at this size.
     expect(texts(tree)).not.toContain('WHY IT MATTERS');
@@ -96,19 +108,15 @@ describe('VerseOfTheDayWidget', () => {
     // Two tap zones: the verse block → chapter, the note block → summary tab.
     expect(clickUrls(tree)).toEqual(expect.arrayContaining([BASE.deepLink, BASE.noteDeepLink]));
 
-    // The explanation must sit inside a weighted box so it grows into whatever
-    // height the launcher actually gave the widget instead of clamping to a
-    // constant. `flex` becomes `weight` only on a FlexWidget — TextWidget styles
-    // drop it silently — so a "simplification" that moves the text back out
-    // reintroduces the reported blank rows with every test still green.
-    const box = flatten(tree).find(
-      (n) =>
-        (n.props as { weight?: number }).weight === 1 &&
-        (n.children ?? []).some((c) =>
-          (c.props as { text?: string }).text?.startsWith('David pictures')
-        )
+    // The explanation's line count must come from the MEASURED cell, not a
+    // constant. A constant is what left blank rows on tall launchers; a
+    // container bound is what clipped the last line mid-glyph. Reintroducing
+    // either fails here.
+    const expected = planLayout({ height: BASE.height, size: 'expanded', hasNote: true });
+    const note = flatten(tree).find((n) =>
+      (n.props as { text?: string }).text?.startsWith('David pictures')
     );
-    expect(box).toBeDefined();
+    expect((note?.props as { maxLines?: number }).maxLines).toBe(expected.noteMaxLines);
   });
 
   it('falls back to a verse-only expanded layout when no explanation is served', () => {
@@ -116,13 +124,57 @@ describe('VerseOfTheDayWidget', () => {
       <VerseOfTheDayWidget {...BASE} size="expanded" theme="dark" explanation={null} />
     );
 
-    // No empty panel, and the verse takes the freed rows.
+    // No empty panel, and the verse takes the freed rows (AMB-001).
     expect(texts(tree)).not.toContain('WHY IT MATTERS');
     expect(texts(tree)).not.toContain('Read the full note →');
+    const noNote = planLayout({ height: BASE.height, size: 'expanded', hasNote: false });
+    const withNote = planLayout({ height: BASE.height, size: 'expanded', hasNote: true });
+    expect(noNote.verseMaxLines).toBeGreaterThan(withNote.verseMaxLines);
     const verse = flatten(tree).find(
-      (n) => n.type === 'TextWidget' && (n.props as { maxLines?: number }).maxLines === 9
+      (n) =>
+        n.type === 'TextWidget' &&
+        (n.props as { maxLines?: number }).maxLines === noNote.verseMaxLines
     );
     expect(verse).toBeDefined();
+  });
+
+  // The widget paints into a bitmap, so every word is pixels — without a
+  // content description TalkBack announces "VerseMate, image" and the verse is
+  // unreadable. This has never worked; it is not a regression guard but a
+  // first-time one.
+  it.each(['compact', 'expanded'] as const)('labels the %s widget for screen readers', (size) => {
+    const tree = buildWidgetTree(
+      <VerseOfTheDayWidget {...BASE} size={size} theme="light" explanation="Why it matters." />
+    );
+
+    const label = (tree.props as { accessibilityLabel?: string }).accessibilityLabel ?? '';
+    expect(label).toContain('fearfully and wonderfully made');
+    expect(label).toContain('Psalm 139:14');
+  });
+
+  // Content localised long before the frame did — a Portuguese reader got a
+  // Portuguese verse in an English shell.
+  it('renders chrome in the stored language', () => {
+    const tree = buildWidgetTree(
+      <VerseOfTheDayWidget
+        {...BASE}
+        strings={widgetStrings('pt-BR')}
+        size="expanded"
+        theme="light"
+        explanation="Por que importa."
+      />
+    );
+
+    expect(texts(tree)).toEqual(expect.arrayContaining(['VERSÍCULO DO DIA', 'POR QUE IMPORTA']));
+    expect(texts(tree)).not.toContain('VERSE OF THE DAY');
+  });
+
+  it('falls back to English when no language is stored', () => {
+    const tree = buildWidgetTree(
+      <VerseOfTheDayWidget {...BASE} strings={widgetStrings(null)} size="expanded" theme="light" />
+    );
+
+    expect(texts(tree)).toContain('VERSE OF THE DAY');
   });
 
   it('shows the fallback message with no reference when the pool is empty', () => {

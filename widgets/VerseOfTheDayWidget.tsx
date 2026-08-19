@@ -17,6 +17,8 @@
  * so every day's verse occupies the same slots regardless of length.
  */
 import { FlexWidget, TextWidget } from "react-native-android-widget";
+import { planLayout } from "./widget-layout";
+import type { WidgetStrings } from "./widget-strings";
 
 export interface VerseData {
   verseNumber: number;
@@ -40,11 +42,23 @@ export interface VerseOfTheDayWidgetProps {
   /** Which composition to paint, derived from the host cell size. */
   size?: WidgetSize;
   /**
-   * Short "why it matters" summary (≤220 chars per the design). Only the
-   * `expanded` size has room for it; when absent that size paints a verse-only
-   * composition rather than an empty panel.
+   * Short "why it matters" summary. Only the `expanded` size has room for it;
+   * when absent that size paints a verse-only composition rather than an empty
+   * panel. No longer server-clamped to 220 chars — the client decides what fits
+   * from `height` (GH-265 UX follow-up).
    */
   explanation?: string | null;
+  /**
+   * MEASURED cell height in dp (`props.widgetInfo.height`). Drives every line
+   * count below. Trustworthy only while the providers stay `resizeMode:
+   * "horizontal"` — min and max height are equal there, so the reported max IS
+   * the cell. Re-enabling vertical resize silently invalidates all of it.
+   */
+  height: number;
+  /** Localised chrome; see widget-strings.ts for why this is not i18next. */
+  strings: WidgetStrings;
+  /** Topic tags from the API, e.g. ["faith","hope"]. Shown only on large cells. */
+  tags?: string[];
   /** Deep link for the explanation tab; used by the note block's tap zone. */
   noteDeepLink?: string;
   /** Translation label shown in the expanded header, e.g. "NASB1995". */
@@ -140,6 +154,42 @@ function footerRow(reference: string, palette: Palette, referenceSize: number) {
   );
 }
 
+/**
+ * Topic chips for the largest cells only — the last rung of the content ladder.
+ *
+ * A PLAIN FUNCTION for the same reason as footerRow: anything rendered through
+ * buildWidgetTree that is a React component gets instrumented with useMemoCache,
+ * which throws with no React dispatcher and silently paints the fallback tree.
+ */
+function tagRow(tags: string[], palette: Palette) {
+  return (
+    <FlexWidget
+      style={{
+        flexDirection: "row",
+        width: "match_parent",
+        flexGap: 6,
+        marginTop: 10,
+      }}
+    >
+      {tags.slice(0, 3).map((tag) => (
+        <TextWidget
+          key={tag}
+          text={tag}
+          maxLines={1}
+          style={{
+            fontSize: 10,
+            color: palette.eyebrow,
+            backgroundColor: palette.panel,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: 10,
+          }}
+        />
+      ))}
+    </FlexWidget>
+  );
+}
+
 export function VerseOfTheDayWidget({
   verses,
   reference,
@@ -150,6 +200,9 @@ export function VerseOfTheDayWidget({
   explanation,
   noteDeepLink,
   versionLabel,
+  height,
+  strings,
+  tags,
 }: VerseOfTheDayWidgetProps) {
   // React Compiler (app.config.js `experiments.reactCompiler`) instruments this
   // component with a `useMemoCache` call. react-native-android-widget renders
@@ -171,6 +224,18 @@ export function VerseOfTheDayWidget({
   // size paints a verse-only composition instead of an empty surface.
   const showNote = size === "expanded" && !isFallback && !!explanation;
 
+  // Line counts come from the MEASURED cell, never from the text — see
+  // widget-layout.ts for why counting characters is the wrong instrument.
+  const plan = planLayout({ height, size, hasNote: showNote });
+  const showTags = plan.showTags && !isFallback && !!tags?.length;
+
+  // Screen readers see a bitmap in an ImageView — every word here is painted
+  // pixels, so without this the widget announces as "VerseMate, image" and the
+  // verse is simply unreadable. The library maps this to setContentDescription.
+  const a11y = isFallback
+    ? fallbackText
+    : `${strings.eyebrow}. ${bodyText} ${reference}`;
+
   const surface = {
     height: "match_parent",
     width: "match_parent",
@@ -187,16 +252,23 @@ export function VerseOfTheDayWidget({
       <FlexWidget
         style={{
           ...surface,
-          justifyContent: isFallback ? "center" : "space-between",
+          // Centred, not space-between. A pinned footer on a cell taller than
+          // the design (measured ~200dp against 148dp) parks the verse at the
+          // top and the reference at the bottom with a hole between them —
+          // half of the original bug report. Centring lets the layout engine
+          // distribute slack around the real rendered heights, which is the
+          // only way to do it without measuring text.
+          justifyContent: "center",
           paddingVertical: 16,
           paddingHorizontal: 18,
         }}
         clickAction="OPEN_VERSE"
         clickActionData={{ url: deepLink }}
+        accessibilityLabel={a11y}
       >
         <TextWidget
           text={bodyText}
-          maxLines={3}
+          maxLines={plan.verseMaxLines}
           truncate="END"
           style={{ fontSize: 15, color: palette.verseText, fontFamily: "serif" }}
         />
@@ -208,7 +280,17 @@ export function VerseOfTheDayWidget({
   }
 
   return (
-    <FlexWidget style={surface}>
+    <FlexWidget
+      style={{
+        ...surface,
+        // Same reasoning as compact: blocks hug their real content and the root
+        // centres them, so leftover space becomes symmetric framing rather than
+        // a hole. The median summary is 234 chars against ~11 lines of room, so
+        // "content shorter than the cell" is the common case, not the edge.
+        justifyContent: "center",
+      }}
+      accessibilityLabel={a11y}
+    >
       {/* Verse block — its own tap zone, deep-links to the chapter. */}
       <FlexWidget
         style={{
@@ -218,8 +300,6 @@ export function VerseOfTheDayWidget({
           paddingTop: 18,
           paddingHorizontal: 18,
           paddingBottom: 14,
-          // Without the note panel this block owns the whole surface.
-          ...(showNote ? {} : { flex: 1 }),
         }}
         clickAction="OPEN_VERSE"
         clickActionData={{ url: deepLink }}
@@ -233,7 +313,7 @@ export function VerseOfTheDayWidget({
           }}
         >
           <TextWidget
-            text="VERSE OF THE DAY"
+            text={strings.eyebrow}
             maxLines={1}
             style={{
               fontSize: 9,
@@ -251,8 +331,9 @@ export function VerseOfTheDayWidget({
 
         <TextWidget
           text={bodyText}
-          // Without the note panel the verse takes the freed rows.
-          maxLines={showNote ? 4 : 9}
+          // From the measured cell, not a constant. With no note to promote
+          // into the slack, the budget hands those rows to the verse instead.
+          maxLines={plan.verseMaxLines}
           truncate="END"
           style={{ fontSize: 16, color: palette.verseText, fontFamily: "serif" }}
         />
@@ -272,7 +353,9 @@ export function VerseOfTheDayWidget({
       {showNote ? (
         <FlexWidget
           style={{
-            flex: 1,
+            // Hugs its content rather than stretching. Stretching is what left
+            // a gap between the summary and the read-more link; the root's
+            // centring now absorbs slack for the whole card at once.
             width: "match_parent",
             flexDirection: "column",
             marginHorizontal: 12,
@@ -285,7 +368,7 @@ export function VerseOfTheDayWidget({
           clickActionData={{ url: noteDeepLink ?? deepLink }}
         >
           <TextWidget
-            text="WHY IT MATTERS"
+            text={strings.why}
             maxLines={1}
             style={{
               fontSize: 9,
@@ -294,41 +377,24 @@ export function VerseOfTheDayWidget({
               color: palette.panelLabel,
             }}
           />
-          {/* The explanation sits in its own weighted box so it uses ALL the
-              room the panel has left instead of a fixed line count. A 4×4 cell
-              is far taller on One UI than on the Pixel launcher, so any constant
-              clamps the copy while the panel still has blank rows — the reported
-              "description cutoff but more space avail." `maxLines` is a ceiling
-              now, not the binding constraint.
-
-              The weight has to sit on a FlexWidget: `flex` maps to LinearLayout
-              weight in this library and is silently dropped from TextWidget
-              styles. `height: "match_parent"` on the text is NOT a substitute —
-              a vertical LinearLayout gives a MATCH_PARENT child every remaining
-              pixel before it measures later siblings, which is what dropped the
-              link in the earlier nested-flex attempt. Weight is resolved after
-              all children are measured, so the link keeps its row. */}
-          <FlexWidget style={{ flex: 1, width: "match_parent", marginTop: 8 }}>
-            <TextWidget
-              text={explanation ?? ""}
-              // Deliberately far beyond any panel: a measured 4×4 cell came in
-              // at 483dp, where ~14 lines of 13sp copy is about the whole
-              // panel — so a 14 ceiling was close enough to bind again on the
-              // tallest launchers and bring the blank rows back at a rarer
-              // size. The weighted box does the clipping; this only has to be
-              // high enough never to be the constraint, and costs nothing when
-              // the copy is shorter (the API's summaries run ~6 lines).
-              maxLines={40}
-              truncate="END"
-              style={{
-                fontSize: 13,
-                color: palette.explanation,
-                fontFamily: "serif",
-              }}
-            />
-          </FlexWidget>
+          {/* Budgeted from the measured cell, so this ellipsizes cleanly at a
+              line count rather than being clipped mid-glyph by a container
+              bound — RemoteViews can only truncate at maxLines, never at a
+              height. The weighted box this replaces filled the space but cut
+              the last line in half. */}
           <TextWidget
-            text="Read the full note →"
+            text={explanation ?? ""}
+            maxLines={plan.noteMaxLines}
+            truncate="END"
+            style={{
+              fontSize: 13,
+              color: palette.explanation,
+              fontFamily: "serif",
+              marginTop: 8,
+            }}
+          />
+          <TextWidget
+            text={strings.readNote}
             maxLines={1}
             style={{
               fontSize: 11,
@@ -337,6 +403,7 @@ export function VerseOfTheDayWidget({
               marginTop: 10,
             }}
           />
+          {showTags && tags ? tagRow(tags, palette) : null}
         </FlexWidget>
       ) : null}
     </FlexWidget>
