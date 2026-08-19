@@ -5,7 +5,6 @@
     "version": "1.0.0",
     "note": "Source-of-truth catalog. Per spec feat-mobile-ui-i18n (D-016). Engineer-edited; other locales translated from this."
   },
-
   "auth": {
     "login": {
       "title": "Sign In",
@@ -38,14 +37,12 @@
       "network_error": "Network error. Check your connection."
     }
   },
-
   "onboarding": {
     "skip": "Skip",
     "next": "Next",
     "get_started": "Get Started",
     "login": "Log In"
   },
-
   "settings": {
     "title": "Settings",
     "account": "Account",
@@ -89,7 +86,6 @@
       "save_language": "Failed to save language preference"
     }
   },
-
   "chapter_reader": {
     "loading": "Loading chapter…",
     "error": "Couldn't load this chapter. Tap to retry.",
@@ -101,7 +97,6 @@
     "no_translation_available": "Showing English (no translation available)",
     "offline_indicator": "Offline — showing cached content"
   },
-
   "bookmarks": {
     "title": "Bookmarks",
     "empty": "No bookmarks yet. Tap the bookmark icon while reading.",
@@ -111,7 +106,6 @@
     "login_subtitle": "Sign in to save and access your favorite Bible chapters",
     "remove_confirm": "Remove this bookmark?"
   },
-
   "highlights": {
     "title": "Highlights",
     "empty": "No highlights yet. Long-press a verse and pick a color.",
@@ -121,7 +115,6 @@
     "my_highlights": "My Highlights",
     "remove_confirm": "Remove this highlight?"
   },
-
   "notes": {
     "title": "Notes",
     "empty": "No notes yet. Tap a verse to add one.",
@@ -136,7 +129,6 @@
     "cancel": "Cancel",
     "placeholder": "Write your note…"
   },
-
   "sharing": {
     "chapter": {
       "title": "{{book}} {{chapter}}",
@@ -151,7 +143,6 @@
       "body": "A note I made on {{book}} {{chapter}}:\n\n\"{{content}}\"\n\n{{url}}"
     }
   },
-
   "common": {
     "ok": "OK",
     "cancel": "Cancel",
@@ -167,7 +158,6 @@
     "error_title": "Error",
     "unknown_error": "Unknown error"
   },
-
   "names_of_god": {
     "title": "Names of God",
     "testament_ot": "Old Testament",
@@ -190,5 +180,11 @@
     "filter_all": "All",
     "names_count": "{{count}} names",
     "no_results": "No names match your search."
+  },
+  "widget": {
+    "eyebrow": "VERSE OF THE DAY",
+    "why": "WHY IT MATTERS",
+    "readNote": "Read the full note →",
+    "fallback": "Open VerseMate to see today's verse"
   }
 }
