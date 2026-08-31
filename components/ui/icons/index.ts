@@ -1,6 +1,7 @@
 export * from './IconBookmarkFilled';
 export * from './IconBookmarkOutline';
 export * from './IconCopy';
+export * from './IconCross';
 export * from './IconDocument';
 export * from './IconEdit';
 export * from './IconHeart';

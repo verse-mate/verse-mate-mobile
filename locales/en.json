@@ -186,5 +186,61 @@
     "why": "WHY IT MATTERS",
     "readNote": "Read the full note →",
     "fallback": "Open VerseMate to see today's verse"
+  },
+  "jesus": {
+    "hub": {
+      "title": "Jesus",
+      "intro": "Everything He said and did, gathered from the four Gospels.",
+      "life": "Follow His Life",
+      "lifeBlurb": "From the hidden years to the resurrection, in order.",
+      "studies": "Popular studies",
+      "empty": "Nothing here yet."
+    },
+    "browse": {
+      "empty": "Nothing here yet.",
+      "truncated": "Showing the first results."
+    },
+    "life": {
+      "title": "Follow His Life",
+      "empty": "Nothing here yet."
+    },
+    "collection": {
+      "empty": "Nothing here yet."
+    },
+    "event": {
+      "story": "Story",
+      "said": "Said",
+      "did": "Did",
+      "compare": "Compare",
+      "insight": "Insight",
+      "missing": "Couldn't load this event.",
+      "where": "Where: {{location}}",
+      "accounts": "Accounts",
+      "saysAboutHimself": "What He says about Himself",
+      "demonstrates": "What He shows",
+      "othersSay": "What others say",
+      "narratorSays": "What the Gospel says",
+      "reactions": "How people reacted",
+      "people": "Who was there",
+      "notRecorded": "Does not record it",
+      "noCompare": "No comparison available.",
+      "adds": "Only here: {{adds}}",
+      "quoted": "“{{text}}”"
+    },
+    "insight": {
+      "overview": "Overview",
+      "compare": "Compare",
+      "insights": "Insights",
+      "application": "Application"
+    },
+    "passage": {
+      "heading": "In the life of Jesus",
+      "more": "{{count}} more in this chapter"
+    },
+    "confidence": {
+      "probable": "probable",
+      "disputed": "disputed",
+      "unknown": "uncertain"
+    }
   }
 }

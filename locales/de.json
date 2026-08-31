@@ -186,5 +186,61 @@
     "why": "WARUM ES WICHTIG IST",
     "readNote": "Ganze Notiz lesen →",
     "fallback": "Öffne VerseMate für den heutigen Vers"
+  },
+  "jesus": {
+    "hub": {
+      "title": "Jesus",
+      "intro": "Alles, was Er sagte und tat, aus den vier Evangelien gesammelt.",
+      "life": "Seinem Leben folgen",
+      "lifeBlurb": "Von den verborgenen Jahren bis zur Auferstehung, der Reihe nach.",
+      "studies": "Beliebte Studien",
+      "empty": "Hier ist noch nichts."
+    },
+    "browse": {
+      "empty": "Hier ist noch nichts.",
+      "truncated": "Die ersten Ergebnisse werden angezeigt."
+    },
+    "life": {
+      "title": "Seinem Leben folgen",
+      "empty": "Hier ist noch nichts."
+    },
+    "collection": {
+      "empty": "Hier ist noch nichts."
+    },
+    "event": {
+      "story": "Bericht",
+      "said": "Gesagt",
+      "did": "Getan",
+      "compare": "Vergleichen",
+      "insight": "Einblick",
+      "missing": "Dieses Ereignis konnte nicht geladen werden.",
+      "where": "Wo: {{location}}",
+      "accounts": "Berichte",
+      "saysAboutHimself": "Was Er über sich sagt",
+      "demonstrates": "Was Er zeigt",
+      "othersSay": "Was andere sagen",
+      "narratorSays": "Was das Evangelium sagt",
+      "reactions": "Wie die Menschen reagierten",
+      "people": "Wer dabei war",
+      "notRecorded": "Berichtet es nicht",
+      "noCompare": "Kein Vergleich verfügbar.",
+      "adds": "Nur hier: {{adds}}",
+      "quoted": "„{{text}}“"
+    },
+    "insight": {
+      "overview": "Überblick",
+      "compare": "Vergleich",
+      "insights": "Einblicke",
+      "application": "Anwendung"
+    },
+    "passage": {
+      "heading": "Im Leben Jesu",
+      "more": "{{count}} weitere in diesem Kapitel"
+    },
+    "confidence": {
+      "probable": "wahrscheinlich",
+      "disputed": "umstritten",
+      "unknown": "ungewiss"
+    }
   }
 }

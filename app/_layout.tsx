@@ -56,6 +56,7 @@ import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { ExpoAudioEngine } from '@/lib/audio/expoAudioEngine';
 import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
+import { resolveJesusDeepLink } from '@/lib/jesus/deep-link';
 import { installPerfSession, perfSpan } from '@/lib/perf';
 import { UpgradePromptScreen } from '@/src/screens/UpgradePromptScreen';
 import { checkVersionPolicy } from '@/src/services/versionPolicy';
@@ -234,6 +235,15 @@ function RootLayoutInner() {
         if (namesOfGodMatch) {
           const nameId = namesOfGodMatch[1];
           router.replace(`/names-of-god/${nameId}`);
+          return;
+        }
+
+        // Handle Jesus deep links: the hub, /jesus/life, and the three
+        // slug-bearing sections. The matching lives in lib/jesus/deep-link so
+        // the routing table can be tested without mounting the root layout.
+        const jesusRoute = resolveJesusDeepLink(url);
+        if (jesusRoute) {
+          router.replace(jesusRoute as never);
           return;
         }
 
@@ -588,6 +598,12 @@ function RootLayoutInner() {
           />
           <Stack.Screen
             name="names-of-god"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="jesus"
             options={{
               headerShown: false,
             }}

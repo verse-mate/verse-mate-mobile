@@ -186,5 +186,61 @@
     "why": "POR QUÉ IMPORTA",
     "readNote": "Leer la nota completa →",
     "fallback": "Abre VerseMate para ver el versículo de hoy"
+  },
+  "jesus": {
+    "hub": {
+      "title": "Jesús",
+      "intro": "Todo lo que dijo e hizo, reunido de los cuatro Evangelios.",
+      "life": "Sigue su vida",
+      "lifeBlurb": "Desde los años ocultos hasta la resurrección, en orden.",
+      "studies": "Estudios populares",
+      "empty": "Aún no hay nada aquí."
+    },
+    "browse": {
+      "empty": "Aún no hay nada aquí.",
+      "truncated": "Mostrando los primeros resultados."
+    },
+    "life": {
+      "title": "Sigue su vida",
+      "empty": "Aún no hay nada aquí."
+    },
+    "collection": {
+      "empty": "Aún no hay nada aquí."
+    },
+    "event": {
+      "story": "Relato",
+      "said": "Dijo",
+      "did": "Hizo",
+      "compare": "Comparar",
+      "insight": "Reflexión",
+      "missing": "No se pudo cargar este evento.",
+      "where": "Dónde: {{location}}",
+      "accounts": "Relatos",
+      "saysAboutHimself": "Lo que dice de sí mismo",
+      "demonstrates": "Lo que muestra",
+      "othersSay": "Lo que dicen otros",
+      "narratorSays": "Lo que dice el Evangelio",
+      "reactions": "Cómo reaccionaron",
+      "people": "Quiénes estaban",
+      "notRecorded": "No lo relata",
+      "noCompare": "No hay comparación disponible.",
+      "adds": "Solo aquí: {{adds}}",
+      "quoted": "«{{text}}»"
+    },
+    "insight": {
+      "overview": "Resumen",
+      "compare": "Comparación",
+      "insights": "Reflexiones",
+      "application": "Aplicación"
+    },
+    "passage": {
+      "heading": "En la vida de Jesús",
+      "more": "{{count}} más en este capítulo"
+    },
+    "confidence": {
+      "probable": "probable",
+      "disputed": "en disputa",
+      "unknown": "incierto"
+    }
   }
 }
