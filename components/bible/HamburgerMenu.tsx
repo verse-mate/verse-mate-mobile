@@ -56,6 +56,7 @@ import type { SvgProps } from 'react-native-svg';
 import { Avatar } from '@/components/ui/Avatar';
 import {
   IconBookmarkFilled,
+  IconCross,
   IconDocument,
   IconHeart,
   IconHelp,
@@ -86,6 +87,7 @@ interface MenuItem {
   action?:
     | 'auth'
     | 'logout'
+    | 'jesus'
     | 'bookmarks'
     | 'notes'
     | 'highlights'
@@ -97,6 +99,7 @@ interface MenuItem {
 }
 
 const regularMenuItems: MenuItem[] = [
+  { id: 'jesus', label: 'Life of Jesus', icon: IconCross, action: 'jesus' },
   { id: 'bookmarks', label: 'Bookmarks', icon: IconBookmarkFilled, action: 'bookmarks' },
   { id: 'notes', label: 'Notes', icon: IconDocument, action: 'notes' },
   { id: 'highlights', label: 'Highlights', icon: IconHighlight, action: 'highlights' },
@@ -191,7 +194,10 @@ export function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const handleItemPress = async (item: MenuItem) => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (item.action === 'bookmarks') {
+    if (item.action === 'jesus') {
+      onClose();
+      router.push('/jesus');
+    } else if (item.action === 'bookmarks') {
       onClose();
       router.push('/bookmarks');
     } else if (item.action === 'notes') {
