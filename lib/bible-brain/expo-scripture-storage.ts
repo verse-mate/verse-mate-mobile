@@ -9,6 +9,22 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import type { ScriptureStoragePort } from './scripture-storage';
 
+/**
+ * Module-level singleton.
+ *
+ * Hooks must not build a fresh port per render: the port is a dependency of
+ * every callback they return, so a new object each render makes those callbacks
+ * unstable, and any effect depending on them re-runs forever. That showed up as
+ * an out-of-memory crash rather than as a visible loop, so it is worth being
+ * explicit about.
+ */
+let singleton: ScriptureStoragePort | null = null;
+
+export function getExpoScriptureStorage(): ScriptureStoragePort {
+  if (!singleton) singleton = createExpoScriptureStorage();
+  return singleton;
+}
+
 export function createExpoScriptureStorage(): ScriptureStoragePort {
   return {
     get rootUri() {

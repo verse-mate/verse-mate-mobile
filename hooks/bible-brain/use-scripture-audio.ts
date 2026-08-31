@@ -6,10 +6,10 @@
  * a plane. When there is no local copy we mint a fresh signed streaming URL —
  * those expire in under a day, so one is requested per play rather than cached.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { type ScriptureAudioTrack, useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { fetchChapterAudio } from '@/lib/bible-brain/api';
-import { createExpoScriptureStorage } from '@/lib/bible-brain/expo-scripture-storage';
+import { getExpoScriptureStorage } from '@/lib/bible-brain/expo-scripture-storage';
 import {
   type ChapterRef,
   resolveScriptureAudioUrl,
@@ -33,9 +33,19 @@ export interface UseScriptureAudioResult {
 }
 
 export function useScriptureAudio(
-  storage: ScriptureStoragePort = createExpoScriptureStorage()
+  /** Injectable for tests; defaults to the shared expo-backed port. */
+  storageOverride?: ScriptureStoragePort
 ): UseScriptureAudioResult {
+  // Memoized so the callbacks below keep a stable identity across renders.
+  const storage = useMemo(() => storageOverride ?? getExpoScriptureStorage(), [storageOverride]);
+  // Held in a ref rather than listed as a dependency. The player context value
+  // is rebuilt on every playback tick (~4x/second), and its `load`/`play`
+  // callbacks depend on the provider's whole props object, so depending on
+  // either would churn `playChapter`'s identity constantly and defeat memoized
+  // consumers. Same ref pattern the provider itself uses for currentTrack.
   const player = useAudioPlayer();
+  const playerRef = useRef(player);
+  playerRef.current = player;
   const [isPreparing, setIsPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,15 +79,15 @@ export function useScriptureAudio(
           version_name: args.versionName,
           is_offline: isOffline,
         };
-        await player.load(track);
-        await player.play();
+        await playerRef.current.load(track);
+        await playerRef.current.play();
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
         setIsPreparing(false);
       }
     },
-    [player, storage]
+    [storage]
   );
 
   return { playChapter, isPreparing, error };

@@ -25,7 +25,6 @@ jest.mock('@/lib/audio/audioApi', () => ({
   saveProgress: jest.fn().mockResolvedValue(undefined),
 }));
 
- 
 const audioApi = require('@/lib/audio/audioApi') as {
   fetchProgress: jest.Mock;
   saveProgress: jest.Mock;

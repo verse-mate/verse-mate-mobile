@@ -6,9 +6,9 @@
  * turns out not to be licensed mid-run is reported in `notLicensed` rather than
  * failing the batch, because the user can still stream it.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { resolveChapterDownloadUrl } from '@/lib/bible-brain/api';
-import { createExpoScriptureStorage } from '@/lib/bible-brain/expo-scripture-storage';
+import { getExpoScriptureStorage } from '@/lib/bible-brain/expo-scripture-storage';
 import {
   type ChapterRef,
   type DownloadOutcome,
@@ -49,8 +49,11 @@ export interface UseScriptureDownloadResult extends DownloadState {
 }
 
 export function useScriptureDownload(
-  storage: ScriptureStoragePort = createExpoScriptureStorage()
+  /** Injectable for tests; defaults to the shared expo-backed port. */
+  storageOverride?: ScriptureStoragePort
 ): UseScriptureDownloadResult {
+  // Memoized so the callbacks below keep a stable identity across renders.
+  const storage = useMemo(() => storageOverride ?? getExpoScriptureStorage(), [storageOverride]);
   const [state, setState] = useState<DownloadState>(idleState);
 
   const download = useCallback(

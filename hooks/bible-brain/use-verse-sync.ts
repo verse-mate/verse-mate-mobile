@@ -31,6 +31,9 @@ export interface UseVerseSyncResult {
 
 export function useVerseSync(): UseVerseSyncResult {
   const player = useAudioPlayer();
+  // Depend on the memoized action, not the context value, which is rebuilt on
+  // every playback tick.
+  const { seek } = player;
   const track = player.currentTrack;
   const scripture = isScriptureTrack(track) ? track : null;
 
@@ -63,9 +66,9 @@ export function useVerseSync(): UseVerseSyncResult {
     async (verse: number) => {
       const seconds = seekSecondsForVerse(timestamps, verse);
       if (seconds === null) return;
-      await player.seek(seconds);
+      await seek(seconds);
     },
-    [timestamps, player]
+    [timestamps, seek]
   );
 
   return {
