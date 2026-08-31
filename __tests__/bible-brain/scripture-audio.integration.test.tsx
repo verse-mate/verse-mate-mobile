@@ -19,7 +19,11 @@ import { useScriptureAudio } from '@/hooks/bible-brain/use-scripture-audio';
 import { useScriptureDownload } from '@/hooks/bible-brain/use-scripture-download';
 import { useVerseSync } from '@/hooks/bible-brain/use-verse-sync';
 import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
-import { chapterFileUri, type ScriptureStoragePort } from '@/lib/bible-brain/scripture-storage';
+import {
+  chapterFileUri,
+  type DownloadOutcome,
+  type ScriptureStoragePort,
+} from '@/lib/bible-brain/scripture-storage';
 import { MOCK_SIGNED_AUDIO_URL } from '../mocks/handlers/bible-brain.handlers';
 
 const ROOT = 'file:///documents';
@@ -199,7 +203,7 @@ describe('download honours the Bible Brain licence', () => {
     const { Wrapper, hook } = harness(port);
     const { result } = renderHook(hook, { wrapper: Wrapper });
 
-    let outcome: Awaited<ReturnType<typeof result.current.download.download>> = null;
+    let outcome: DownloadOutcome | null = null;
     await act(async () => {
       outcome = await result.current.download.download([
         { filesetId: 'ENGESVN1DA', book: 'JHN', chapter: 3 },
@@ -217,12 +221,15 @@ describe('download honours the Bible Brain licence', () => {
     const { Wrapper, hook } = harness(port);
     const { result } = renderHook(hook, { wrapper: Wrapper });
 
-    let outcome: Awaited<ReturnType<typeof result.current.download.download>> = null;
+    let captured: DownloadOutcome | null = null;
     await act(async () => {
-      outcome = await result.current.download.download([
+      captured = await result.current.download.download([
         { filesetId: 'ENGNLHN1DA', book: 'JHN', chapter: 3 },
       ]);
     });
+    // Re-widened deliberately: control-flow analysis cannot see the assignment
+    // inside the async act() callback, so it narrows `captured` back to null.
+    const outcome = captured as DownloadOutcome | null;
 
     expect(outcome).toMatchObject({ downloaded: 0, failed: [] });
     expect(outcome?.notLicensed).toHaveLength(1);
