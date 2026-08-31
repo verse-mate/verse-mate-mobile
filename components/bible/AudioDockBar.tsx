@@ -11,7 +11,7 @@ import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nextSpeed, SPEED_OPTIONS } from '@/components/bible/AudioInlineEntry';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import { trackDisplayLabel, useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { useTheme } from '@/contexts/ThemeContext';
 
 const TAB_BAR_OFFSET = 60;
@@ -39,6 +39,7 @@ export function AudioDockBar() {
   const progress =
     player.durationSeconds > 0 ? Math.min(1, player.elapsedSeconds / player.durationSeconds) : 0;
 
+  const label = trackDisplayLabel(track);
   const isPlaying = state === 'playing';
   const isBuffering = state === 'loading';
 
@@ -46,12 +47,12 @@ export function AudioDockBar() {
     <View accessibilityRole="toolbar" accessibilityLabel="Audio player" style={styles.container}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Open full audio player. Chapter ${track.chapter_number}, ${track.explanation_type}`}
+        accessibilityLabel={`Open full audio player. ${label.primary}, ${label.secondary}`}
         style={styles.body}
         onPress={() => player.openFullScreen()}
       >
         <Text style={styles.title} numberOfLines={1}>
-          {track.explanation_type} · Chapter {track.chapter_number}
+          {label.primary} · {label.secondary}
         </Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />

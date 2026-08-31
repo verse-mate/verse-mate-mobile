@@ -23,18 +23,73 @@ import {
 const SPEED_STORAGE_KEY = "vm_audio_speed";
 const VALID_SPEEDS = [0.5, 1, 1.25, 1.5, 2];
 
-export interface AudioTrack {
-  audio_id: string;
-  explanation_id: number;
+/** Fields every playable track carries, regardless of what it is. */
+interface AudioTrackBase {
   url: string;
   duration_seconds: number;
-  voice: string;
   language_code: string;
-  explanation_type: string;
   book_id: number;
   chapter_number: number;
-  tts_provider: string;
   source_href: string;
+}
+
+/** TTS narration of an AI explanation — the original audio feature. */
+export interface ExplanationAudioTrack extends AudioTrackBase {
+  kind: "explanation";
+  audio_id: string;
+  explanation_id: number;
+  voice: string;
+  explanation_type: string;
+  tts_provider: string;
+}
+
+/**
+ * Narrated scripture from Bible Brain. Deliberately a separate member of the
+ * union rather than an explanation track with a synthetic `explanation_id`:
+ * useAudioProgress persists resume positions keyed on explanation_id, and a
+ * fake id there would write progress against a row that does not exist.
+ */
+export interface ScriptureAudioTrack extends AudioTrackBase {
+  kind: "scripture";
+  /** Bible Brain fileset, e.g. `ENGESVN1DA`. */
+  fileset_id: string;
+  /** USFM book code the fileset is addressed by, e.g. `JHN`. */
+  book_usfm: string;
+  /** Bible id for display + copyright lookup, e.g. `ENGESV`. */
+  version_abbr: string;
+  version_name: string;
+  /** True when the url is a local `file://` from a completed download. */
+  is_offline: boolean;
+}
+
+export type AudioTrack = ExplanationAudioTrack | ScriptureAudioTrack;
+
+/** Narrowing helper so UI branches read cleanly. */
+export function isScriptureTrack(
+  track: AudioTrack | null,
+): track is ScriptureAudioTrack {
+  return track?.kind === "scripture";
+}
+
+/**
+ * Two-line label for whatever is loaded. Shared by the dock bar and the
+ * full-screen player so the two never drift apart, and so adding a third track
+ * kind means editing one place.
+ */
+export function trackDisplayLabel(track: AudioTrack): {
+  primary: string;
+  secondary: string;
+} {
+  if (track.kind === "scripture") {
+    return {
+      primary: track.version_name || track.version_abbr,
+      secondary: `${track.book_usfm} ${track.chapter_number}`,
+    };
+  }
+  return {
+    primary: track.explanation_type,
+    secondary: `Chapter ${track.chapter_number}`,
+  };
 }
 
 export type AudioPlaybackState =

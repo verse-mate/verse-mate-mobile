@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import { trackDisplayLabel, useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { trackAudioSeek, trackAudioSpeedChanged } from '@/lib/analytics/audio-events';
 import type { ResumeProgress } from '@/lib/audio/audioApi';
@@ -39,6 +39,23 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
   const player = useAudioPlayer();
   const track = player.currentTrack;
   const isOpen = player.fullScreenOpen;
+  const label = track ? trackDisplayLabel(track) : null;
+  /**
+   * Audio analytics events are keyed on an explanation id. Scripture narration
+   * (Bible Brain) has no explanation row, so these events are emitted only for
+   * explanation playback rather than invented for scripture.
+   */
+  const explanationId = track?.kind === 'explanation' ? track.explanation_id : null;
+  const seekAnalytics = (args: Omit<Parameters<typeof trackAudioSeek>[0], 'explanationId'>) => {
+    if (explanationId === null) return;
+    trackAudioSeek({ explanationId, ...args });
+  };
+  const speedAnalytics = (
+    args: Omit<Parameters<typeof trackAudioSpeedChanged>[0], 'explanationId'>
+  ) => {
+    if (explanationId === null) return;
+    trackAudioSpeedChanged({ explanationId, ...args });
+  };
 
   return (
     <Modal
@@ -60,8 +77,8 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
             </Pressable>
           </View>
           <View style={styles.titleBlock}>
-            <Text style={styles.type}>{track.explanation_type}</Text>
-            <Text style={styles.chapter}>Chapter {track.chapter_number}</Text>
+            <Text style={styles.type}>{label?.primary ?? ''}</Text>
+            <Text style={styles.chapter}>{label?.secondary ?? ''}</Text>
           </View>
 
           <Slider
@@ -75,8 +92,7 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
             onSlidingComplete={(to) => {
               const from = player.elapsedSeconds;
               player.seek(to);
-              trackAudioSeek({
-                explanationId: track.explanation_id,
+              seekAnalytics({
                 fromSeconds: from,
                 toSeconds: to,
                 direction: to >= from ? 'forward' : 'backward',
@@ -93,8 +109,7 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
               onPress={() => {
                 const from = player.elapsedSeconds;
                 player.seekRelative(-15).then(() => {
-                  trackAudioSeek({
-                    explanationId: track.explanation_id,
+                  seekAnalytics({
                     fromSeconds: from,
                     toSeconds: Math.max(0, from - 15),
                     direction: 'backward',
@@ -123,8 +138,7 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
               onPress={() => {
                 const from = player.elapsedSeconds;
                 player.seekRelative(15).then(() => {
-                  trackAudioSeek({
-                    explanationId: track.explanation_id,
+                  seekAnalytics({
                     fromSeconds: from,
                     toSeconds: Math.min(player.durationSeconds, from + 15),
                     direction: 'forward',
@@ -182,8 +196,7 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
                     const from = player.speed;
                     if (from === s) return;
                     player.setSpeed(s);
-                    trackAudioSpeedChanged({
-                      explanationId: track.explanation_id,
+                    speedAnalytics({
                       fromSpeed: from,
                       toSpeed: s,
                     });

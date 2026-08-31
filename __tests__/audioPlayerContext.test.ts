@@ -19,6 +19,7 @@ import {
 } from '../contexts/AudioPlayerContext';
 
 const sample: AudioTrack = {
+  kind: 'explanation',
   audio_id: 'a-1',
   explanation_id: 42,
   url: 'https://cdn.test/audio.mp3',
