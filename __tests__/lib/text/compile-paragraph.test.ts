@@ -92,9 +92,59 @@ describe('compileParagraph — text assembly', () => {
     expect(out.text).toBe('1 In the beginning God created.');
 
     const [number] = taggedRanges(out, 'verse-number:');
-    expect(number.covers).toBe('1');
+    // Covers the digits AND the non-breaking space after them, so the space is
+    // part of the tap target. It deliberately stops short of the joining space
+    // BEFORE the number: see the boundary test below.
+    expect(number.covers).toBe('1\u00a0');
     expect(number.fontScale).toBeLessThan(1);
     expect(number.baselineShift).toBeGreaterThan(0);
+  });
+
+  it('makes the verse number the verse insight target', () => {
+    const out = compile();
+    const [number] = taggedRanges(out, 'verse-number:');
+
+    expect(number.interactive).toBe(true);
+    expect(out.targets[number.index]).toEqual({ kind: 'verseNumber', verseNumber: 1 });
+  });
+
+  it('leaves the joining space before a number outside its range', () => {
+    // Android resolves a tap to the NEAREST insertion point, so a tap on the
+    // right half of the previous verse's last glyph lands on the joining space.
+    // If the range covered that space, such a tap would open the FOLLOWING
+    // verse's insight. It covers nothing there, so the tap falls through.
+    const out = compile({
+      verses: [
+        { verseNumber: 1, text: 'First verse.' },
+        { verseNumber: 2, text: 'Second verse.' },
+      ],
+    });
+    const second = taggedRanges(out, 'verse-number:').find((r) => r.covers.startsWith('2'));
+    if (!second) throw new Error('no range for verse 2');
+
+    expect(out.text[second.start - 1]).toBe(' ');
+    expect(out.targets[second.index]).toEqual({ kind: 'verseNumber', verseNumber: 2 });
+  });
+
+  it('gives a narrow number enough slop to reach the target floor, and a wide one none', () => {
+    // The slop grows a hit rectangle, never a glyph, so nothing about the
+    // rendered text changes with it. A single digit at the smallest reading
+    // size is the case that needs the most; a three-digit number in Psalm 119
+    // already clears the floor on its own.
+    const narrow = compile({
+      verses: [{ verseNumber: 1, text: 'x' }],
+      theme: { ...THEME, baseFontSize: 13 },
+    });
+    const wide = compile({
+      verses: [{ verseNumber: 176, text: 'x' }],
+      theme: { ...THEME, baseFontSize: 26 },
+    });
+
+    const [narrowNumber] = taggedRanges(narrow, 'verse-number:');
+    const [wideNumber] = taggedRanges(wide, 'verse-number:');
+
+    expect(narrowNumber.hitSlop).toBeGreaterThan(0);
+    expect(wideNumber.hitSlop ?? 0).toBe(0);
   });
 
   it('separates the verse number from the text with a non-breaking space', () => {
@@ -129,7 +179,8 @@ describe('compileParagraph — text assembly', () => {
   it('handles multi-digit verse numbers', () => {
     const out = compile({ verses: [{ verseNumber: 176, text: 'Let my cry come.' }] });
     expect(out.text).toBe('176 Let my cry come.');
-    expect(taggedRanges(out, 'verse-number:')[0].covers).toBe('176');
+    // The range covers the trailing non-breaking space as well as the digits.
+    expect(taggedRanges(out, 'verse-number:')[0].covers).toBe('176\u00a0');
     expect(out.verses[0].textStart).toBe(4);
   });
 

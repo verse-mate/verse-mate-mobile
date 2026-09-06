@@ -71,6 +71,24 @@ export interface TextRange {
   baselineShift?: number;
 
   /**
+   * Extra tappable margin around this range, in dp, on each side.
+   *
+   * Grows a hit RECTANGLE, never a glyph: the text, its metrics, its
+   * measurement and the string a reader copies are all unaffected. Exists
+   * because a verse number is 6-17dp of glyph and needs a target several times
+   * that, and because every mechanism that widens the glyphs instead is worse.
+   * `fontScale` on the trailing space would have been the obvious one, but it
+   * is metric-affecting vertically on both platforms (a `RelativeSizeSpan` on
+   * Android, a scaled `UIFont` on iOS), so the scale needed to reach the floor
+   * makes the line several times taller.
+   *
+   * The views clamp the rectangle to the neighbouring glyph runs, so a slop
+   * larger than the surrounding whitespace simply stops there rather than
+   * stealing a neighbour's taps.
+   */
+  hitSlop?: number;
+
+  /**
    * When true, taps inside this range fire `onRangeTap` with the range's index
    * instead of falling through to `onPress`. Ranges that are purely decorative
    * (a highlight background, a red-letter color) leave this unset so a tap on

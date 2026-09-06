@@ -75,12 +75,35 @@ const AUTO_HIGHLIGHT_OPACITY = 0.2;
  */
 export const VERSE_NUMBER_TARGET_MIN_DP = 24;
 
-/** Superscript verse numbers: 70% size, raised by a third of the base size. */
-const VERSE_NUMBER_SCALE = 0.7;
+/** Superscript verse numbers: raised by a third of the base size. */
+const VERSE_NUMBER_SCALE = 0.85;
 const VERSE_NUMBER_BASELINE_SHIFT = 0.33;
 
 /** Non-breaking space after a verse number, so it never wraps away from its verse. */
 const NBSP = ' ';
+
+/**
+ * Rough advance width of a digit, as a fraction of the font size.
+ *
+ * Only ever used to size a tap rectangle, never to lay anything out, so an
+ * estimate is the right precision: being a couple of dp out moves the edge of a
+ * touch target that is already clamped to its neighbours.
+ */
+const DIGIT_ADVANCE_EM = 0.55;
+
+/**
+ * Slop needed on each side of a verse number for its target to clear the floor.
+ *
+ * Returns 0 once the digits are wide enough on their own, which is why a
+ * three-digit number in Psalm 119 gets none. Sized in dp rather than as a
+ * multiple of the font, so the rectangle is the same width at every reading
+ * size instead of growing with it.
+ */
+function verseNumberSlop(digitCount: number, baseFontSize: number): number {
+  const digitsWidth = digitCount * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
+  const shortfall = VERSE_NUMBER_TARGET_MIN_DP - digitsWidth;
+  return shortfall > 0 ? Math.round((shortfall / 2) * 10) / 10 : 0;
+}
 
 interface Emitted {
   layer: number;
@@ -127,17 +150,25 @@ export function compileParagraph(input: ParagraphInput): CompiledParagraph {
     if (includeVerseNumbers) {
       const label = String(verse.verseNumber);
       parts.push(label, NBSP);
+      const slop = verseNumberSlop(label.length, theme.baseFontSize);
       emitted.push({
         layer: RANGE_LAYER.verseNumber,
         range: {
           start: cursor,
-          end: cursor + label.length,
+          // Covers the trailing non-breaking space too, so it is part of the
+          // target. The joining space BEFORE the number is deliberately left
+          // out: Android resolves a tap to the nearest insertion point, so a
+          // tap on the right half of the previous verse's last glyph lands
+          // there, and a range covering it would open the wrong verse.
+          end: cursor + label.length + NBSP.length,
           fontScale: VERSE_NUMBER_SCALE,
           baselineShift: VERSE_NUMBER_BASELINE_SHIFT,
           color: theme.verseNumberColor,
+          interactive: true,
+          hitSlop: slop > 0 ? slop : undefined,
           tag: `verse-number:${verse.verseNumber}`,
         },
-        target: null,
+        target: { kind: 'verseNumber', verseNumber: verse.verseNumber },
       });
       cursor += label.length + NBSP.length;
       textStart = cursor;
