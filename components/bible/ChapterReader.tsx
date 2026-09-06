@@ -1497,13 +1497,18 @@ const createStyles = (
       // Gold, because this is now the only way into a verse's insight and has
       // to read as something you can press rather than as a footnote mark.
       color: colors.gold,
-      // Padding, not margin: it grows the tap box without moving the glyphs.
-      // Bounded by the paragraph's half-leading so the box cannot reach the
-      // line above or below and start taking their taps. The paragraph sets
-      // lineHeight to 2x the font size, and this renders at 0.85x, so there is
-      // (2 - 0.85) / 2 of leading on each side to spend.
-      paddingVertical: (userFontSize * (2.0 - 0.85)) / 2,
-      paddingHorizontal: VERSE_NUMBER_TARGET_MIN_DP / 4,
+      // Horizontal padding only, and padding rather than margin so the glyphs
+      // do not move. A third of the floor on each side takes a single digit's
+      // ~9dp box to just over the 24dp minimum; a two-digit number clears it on
+      // glyphs alone.
+      //
+      // There is deliberately NO vertical padding. Measured in the browser, it
+      // did not stay inside the paragraph's leading: the box went to 56.7dp
+      // against a 36dp line box, overlapping the lines above and below and
+      // visibly loosening the whole paragraph. The line box already gives 36dp
+      // of vertical target, well past the floor, so the padding bought nothing
+      // and cost reading density.
+      paddingHorizontal: VERSE_NUMBER_TARGET_MIN_DP / 3,
       // Web-only, and this renderer is web-only in production: raises the digits
       // the way the native path does with a baseline shift.
       // `super` is not in React Native's TextStyle union (it is a web value),
