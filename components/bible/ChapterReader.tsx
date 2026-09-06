@@ -894,7 +894,7 @@ export function ChapterReader({
         typeof group.highlights[0]?.selected_text === 'string'
           ? group.highlights[0].selected_text
           : undefined;
-      openVerseTooltip(null, group, text);
+      openVerseTooltip(null, group, text, 'highlight');
     } else {
       // Fallback
       const highlight = chapterHighlights.find((h) => h.highlight_id === highlightId);
