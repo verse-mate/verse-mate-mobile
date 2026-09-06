@@ -9,7 +9,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { Alert } from 'react-native';
 import { ChapterReader } from '@/components/bible/ChapterReader';
@@ -133,14 +133,29 @@ describe('ChapterReader - Highlight Integration', () => {
       // badly to a screen reader, and being pre-shrunk cannot express a size.
       // The number is also the verse insight's only trigger now, so it carries
       // a button role and a label naming its verse.
-      const { getByTestId } = renderChapterReader();
+      const { getByTestId, getByText } = renderChapterReader();
 
       for (const verse of [1, 2, 3]) {
         const number = getByTestId(`verse-number-${verse}`);
         expect(number).toBeTruthy();
         expect(number.props.accessibilityRole).toBe('button');
         expect(number.props.accessibilityLabel).toBe(`Verse ${verse} insight`);
+        // Pin the GLYPH, not just the affordance. Without this, reverting to
+        // toSuperscript() leaves the test green, which is what the previous
+        // version of it did after the assertion on '¹' was dropped.
+        expect(getByText(String(verse))).toBeTruthy();
       }
+    });
+
+    it('should open the verse insight when the number is pressed', async () => {
+      // The reason the whole change exists, and it had no automated test on the
+      // renderer that ships to web: deleting the number's onPress left every
+      // other test green.
+      const { getByTestId } = renderChapterReader();
+
+      fireEvent.press(getByTestId('verse-number-2'));
+
+      expect(await screen.findByText('Verse Insight')).toBeTruthy();
     });
   });
 

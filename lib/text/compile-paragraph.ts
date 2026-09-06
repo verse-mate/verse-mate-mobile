@@ -98,11 +98,18 @@ const DIGIT_ADVANCE_EM = 0.55;
  * three-digit number in Psalm 119 gets none. Sized in dp rather than as a
  * multiple of the font, so the rectangle is the same width at every reading
  * size instead of growing with it.
+ *
+ * Exported because the web renderer needs the same number as element padding.
+ * A fixed padding there measured 23.2dp at the smallest reading size, under the
+ * floor, because the glyphs shrink with the font while a constant does not.
  */
-function verseNumberSlop(digitCount: number, baseFontSize: number): number {
+export function verseNumberSlop(digitCount: number, baseFontSize: number): number {
   const digitsWidth = digitCount * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
   const shortfall = VERSE_NUMBER_TARGET_MIN_DP - digitsWidth;
-  return shortfall > 0 ? Math.round((shortfall / 2) * 10) / 10 : 0;
+  // Rounded UP, to a tenth of a dp. Rounding to nearest undershot the floor by
+  // up to 0.05dp, which a test asserting the arithmetic caught and a test
+  // asserting `slop > 0` would not have.
+  return shortfall > 0 ? Math.ceil((shortfall / 2) * 10) / 10 : 0;
 }
 
 interface Emitted {

@@ -126,6 +126,42 @@ describe('compileParagraph — text assembly', () => {
     expect(out.targets[second.index]).toEqual({ kind: 'verseNumber', verseNumber: 2 });
   });
 
+  it('orders the layers so the more specific decoration wins a tap', () => {
+    // Not a tautology against RANGE_LAYER: this pins the ORDER itself, which
+    // both native views depend on. They resolve a tap by taking the LAST
+    // matching interactive range, so "lexicon above highlight" is what makes a
+    // lexicon word inside a highlight open the word card. Swap these two
+    // constants and the layering test below still passes while both platforms
+    // silently open the wrong panel.
+    expect(RANGE_LAYER.lexicon).toBeGreaterThan(RANGE_LAYER.highlight);
+    expect(RANGE_LAYER.lexicon).toBeGreaterThan(RANGE_LAYER.autoHighlight);
+    expect(RANGE_LAYER.highlight).toBeGreaterThan(RANGE_LAYER.autoHighlight);
+    expect(RANGE_LAYER.selection).toBeGreaterThan(RANGE_LAYER.lexicon);
+  });
+
+  it('sizes the slop so the target clears 24dp at every reading size', () => {
+    // Asserts the ARITHMETIC, not just that some slop was emitted. The previous
+    // version of this checked `hitSlop > 0`, which 0.1 would have satisfied.
+    // 13 and 26 are the real bounds from use-font-size.
+    const DIGIT_ADVANCE_EM = 0.55;
+    const VERSE_NUMBER_SCALE = 0.85;
+
+    for (const baseFontSize of [13, 16, 18, 22, 26]) {
+      for (const verseNumber of [1, 42, 176]) {
+        const out = compile({
+          verses: [{ verseNumber, text: 'x' }],
+          theme: { ...THEME, baseFontSize },
+        });
+        const [number] = taggedRanges(out, 'verse-number:');
+        const digits = String(verseNumber).length;
+        const glyphWidth = digits * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
+        const target = glyphWidth + 2 * (number.hitSlop ?? 0);
+
+        expect(target).toBeGreaterThanOrEqual(24);
+      }
+    }
+  });
+
   it('gives a narrow number enough slop to reach the target floor, and a wide one none', () => {
     // The slop grows a hit rectangle, never a glyph, so nothing about the
     // rendered text changes with it. A single digit at the smallest reading
