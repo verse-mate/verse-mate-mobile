@@ -9,7 +9,10 @@
  * - Character-level precision highlighting
  * - Multiple non-overlapping highlights per verse
  * - Single tap on highlighted text shows tooltip
- * - Single tap on plain text shows verse insight
+ * - Single tap on plain text does nothing UNLESS the caller wires `onVerseTap`.
+ *   The Bible reader no longer does: the verse insight moved onto the verse
+ *   number, and plain text belongs to native text selection. Topics still wires
+ *   it, for its own navigate-to-verse action.
  * - Long-press with coordinate-based word detection opens dictionary lookup
  * - Theme-aware highlight colors (brighter in dark mode)
  *
@@ -1182,7 +1185,12 @@ export function HighlightedText({
             const autoHighlight = segment.autoHighlight;
             onPressHandler = () => handleAutoHighlightPress(autoHighlight);
           } else {
-            onPressHandler = handleVerseTap;
+            // Undefined, not a handler that declines. The Bible reader no longer
+            // passes `onVerseTap` at all (the verse number carries the insight
+            // now), and an attached handler would be a click listener on every
+            // word span in the chapter. Topics still passes it, for its own
+            // navigate-to-verse action, and keeps its handler.
+            onPressHandler = onVerseTap ? handleVerseTap : undefined;
           }
 
           return renderTokenizedSegment(segment, segmentStyle, onPressHandler);
@@ -1276,7 +1284,7 @@ export function HighlightedText({
           return (
             <Text
               key={segment.key}
-              onPress={handleVerseTap}
+              onPress={onVerseTap ? handleVerseTap : undefined}
               onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
               suppressHighlighting={true}
             >
@@ -1290,7 +1298,7 @@ export function HighlightedText({
         return (
           <Text
             key={segment.key}
-            onPress={handleVerseTap}
+            onPress={onVerseTap ? handleVerseTap : undefined}
             onLongPress={(e) => detectWordFromLongPress(segment.text, segment.startChar, e)}
             suppressHighlighting={true}
           >

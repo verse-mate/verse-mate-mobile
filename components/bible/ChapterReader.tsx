@@ -53,6 +53,7 @@ import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
+import { VERSE_NUMBER_TARGET_MIN_DP } from '@/lib/text/compile-paragraph';
 import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
 import { ParagraphText } from '@/lib/text/ParagraphText';
 import type { CompileTheme } from '@/lib/text/types';
@@ -1185,7 +1186,14 @@ export function ChapterReader({
 
                           return (
                             <Text key={verse.verseNumber}>
-                              <Text style={styles.verseNumberSuperscript}>
+                              <Text
+                                style={styles.verseNumberSuperscript}
+                                onPress={() => handleVerseTap(verse.verseNumber)}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Verse ${verse.verseNumber} insight`}
+                                testID={`verse-number-${verse.verseNumber}`}
+                                suppressHighlighting={true}
+                              >
                                 {verseIndex > 0 && (
                                   <>
                                     <Text
@@ -1215,7 +1223,7 @@ export function ChapterReader({
                                     }
                                   }
                                 >
-                                  {toSuperscript(verse.verseNumber)}
+                                  {verse.verseNumber}
                                 </Text>
                                 <Text
                                   style={
@@ -1237,7 +1245,9 @@ export function ChapterReader({
                                 autoHighlights={autoHighlights}
                                 onHighlightTap={handleHighlightTap}
                                 onAutoHighlightPress={handleAutoHighlightPress}
-                                onVerseTap={handleVerseTap}
+                                // Deliberately no onVerseTap: the verse number
+                                // above carries the insight now, and plain text
+                                // belongs to native text selection.
                                 alignment={alignment}
                                 onLexiconWordPress={handleLexiconWordPress}
                                 style={
@@ -1478,10 +1488,29 @@ const createStyles = (
       marginTop: -4,
     },
     verseNumberSuperscript: {
-      fontSize: fontSizes.bodyLarge,
+      // Real digits at 0.85 of body size, raised, rather than the Unicode
+      // superscript characters this used to draw. Those are not selectable as
+      // numbers, break copy and paste, and read badly to a screen reader, and
+      // being pre-shrunk they cannot express a size at all.
+      fontSize: userFontSize * 0.85,
       fontWeight: fontWeights.bold,
-      color: colors.textTertiary,
-    },
+      // Gold, because this is now the only way into a verse's insight and has
+      // to read as something you can press rather than as a footnote mark.
+      color: colors.gold,
+      // Padding, not margin: it grows the tap box without moving the glyphs.
+      // Bounded by the paragraph's half-leading so the box cannot reach the
+      // line above or below and start taking their taps. The paragraph sets
+      // lineHeight to 2x the font size, and this renders at 0.85x, so there is
+      // (2 - 0.85) / 2 of leading on each side to spend.
+      paddingVertical: (userFontSize * (2.0 - 0.85)) / 2,
+      paddingHorizontal: VERSE_NUMBER_TARGET_MIN_DP / 4,
+      // Web-only, and this renderer is web-only in production: raises the digits
+      // the way the native path does with a baseline shift.
+      // `super` is not in React Native's TextStyle union (it is a web value),
+      // and this renderer only ships on web, where react-native-web passes it
+      // straight through to CSS.
+      verticalAlign: 'super',
+    } as unknown as TextStyle,
     verseText: {
       fontSize: userFontSize,
       fontWeight: fontWeights.regular,

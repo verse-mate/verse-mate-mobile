@@ -127,11 +127,20 @@ describe('ChapterReader - Highlight Integration', () => {
       expect(getByText('The Creation')).toBeTruthy();
     });
 
-    it('should render verse numbers', () => {
-      const { getByText } = renderChapterReader();
-      expect(getByText('¹')).toBeTruthy();
-      expect(getByText('²')).toBeTruthy();
-      expect(getByText('³')).toBeTruthy();
+    it('should render verse numbers as real digits, and as buttons', () => {
+      // Real digits rather than the Unicode superscript characters this used to
+      // draw: those are not selectable as numbers, break copy and paste, read
+      // badly to a screen reader, and being pre-shrunk cannot express a size.
+      // The number is also the verse insight's only trigger now, so it carries
+      // a button role and a label naming its verse.
+      const { getByTestId } = renderChapterReader();
+
+      for (const verse of [1, 2, 3]) {
+        const number = getByTestId(`verse-number-${verse}`);
+        expect(number).toBeTruthy();
+        expect(number.props.accessibilityRole).toBe('button');
+        expect(number.props.accessibilityLabel).toBe(`Verse ${verse} insight`);
+      }
     });
   });
 
