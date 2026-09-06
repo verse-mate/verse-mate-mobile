@@ -601,6 +601,11 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
         val range = spec.ranges[i]
         if (!range.interactive || range.hitSlopDp <= 0f) continue
         if (range.start >= range.end) continue
+        // Bounded against the text, matching the iOS twin. The render path
+        // CLAMPS an oversized range when it builds the spannable, so a spec that
+        // arrives ahead of the layout it describes draws fine and would then
+        // feed an out-of-range offset straight to getPrimaryHorizontal.
+        if (range.end > text.length) continue
 
         val line = resolved.getLineForOffset(range.start)
         // `end` is exclusive, so ask about the last character INSIDE the range.

@@ -471,7 +471,14 @@ final class VMTextView: ExpoView {
       // Left may grow into whatever sits before the range, but no further than the preceding
       // glyph's own trailing edge — or the line fragment's left edge when the range starts the line.
       var leftBound = lineRect.minX
-      if range.start > effective.location {
+      // `effective` is a GLYPH range; `range.start` is a character offset. They
+      // diverge as soon as the font forms a ligature, and fi/fl are everywhere
+      // in English scripture ("first", "flesh", "fill"). Comparing the two
+      // directly made a line-initial number look mid-line, which put leftBound
+      // on the previous line and left the rectangle unsatisfiable.
+      let effectiveChars = layoutManager.characterRange(
+        forGlyphRange: effective, actualGlyphRange: nil)
+      if range.start > effectiveChars.location {
         let beforeRange = NSRange(location: range.start - 1, length: 1)
         let beforeGlyphs = layoutManager.glyphRange(
           forCharacterRange: beforeRange, actualCharacterRange: nil)
