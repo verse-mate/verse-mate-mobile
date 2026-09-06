@@ -32,6 +32,8 @@ export interface NativeTextRange {
   fontScale?: number;
   baselineShift?: number;
   interactive: boolean;
+  /** Extra tappable dp on each side. Grows a hit rectangle, never a glyph. */
+  hitSlop?: number;
 }
 
 export interface NativeVMTextProps {

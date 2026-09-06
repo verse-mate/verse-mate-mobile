@@ -650,11 +650,15 @@ export function ChapterReader({
       lexUnderlineStyle: 'dotted',
       redLetterColor: redLetterStyle.color,
       selectionColor: SELECTION_COLOR,
-      // The compiler sizes the gap after a verse number in dp, so it needs the
+      // Gold, so the number reads as a control rather than a footnote mark. It
+      // is the only way into a verse's insight now that plain text is inert,
+      // so it has to look like something you can press.
+      verseNumberColor: colors.gold,
+      // The compiler sizes a verse number's tap slop in dp, so it needs the
       // size the paragraph is actually rendered at.
       baseFontSize: userFontSize,
     }),
-    [mode, redLetterStyle.color, userFontSize]
+    [mode, redLetterStyle.color, userFontSize, colors.gold]
   );
 
   /**

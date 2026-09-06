@@ -26,6 +26,9 @@ struct VMRange: Hashable {
   /// Baseline offset as a multiple of the base font size; positive raises.
   let baselineShift: CGFloat
   let interactive: Bool
+  /// Extra tappable points on each side, for a target whose glyphs are too small to hit.
+  /// 0 means no rectangle at all, not a rectangle of width 0. Hit-testing only, never layout.
+  var hitSlopPt: CGFloat = 0
 }
 
 /**
@@ -163,7 +166,8 @@ func vmParseColor(_ value: String?) -> UIColor? {
  Format: ranges separated by `|`, fields by `~`, in this fixed order:
 
    start ~ end ~ underlineStyle ~ underlineColor ~ underlineThickness ~
-   backgroundColor ~ color ~ fontWeight ~ fontScale ~ baselineShift ~ interactive ~ fontStyle
+   backgroundColor ~ color ~ fontWeight ~ fontScale ~ baselineShift ~ interactive ~ fontStyle ~
+   hitSlop
 
  Byte-identical to `decodeRanges` in VMTextModule.kt, and that is the point: both platforms decode
  what `encodeRanges` in src/VMText.tsx produces, so a field appended for one must be readable by the
@@ -195,7 +199,9 @@ func vmDecodeRanges(_ encoded: String) -> [VMRange] {
         fontStyle: field(11),
         fontScale: CGFloat(Double(f[8]) ?? 1),
         baselineShift: CGFloat(Double(f[9]) ?? 0),
-        interactive: f[10] == "1"
+        interactive: f[10] == "1",
+        // Index 12: absent on chunks written before hitSlop existed.
+        hitSlopPt: CGFloat(Double(field(12) ?? "") ?? 0)
       )
     )
   }
