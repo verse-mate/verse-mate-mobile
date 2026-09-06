@@ -76,7 +76,6 @@ import {
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 
 // TODO: This will be replaced by a user setting
-const PARAGRAPH_VIEW_ENABLED = true;
 
 /**
  * Lexicon underline appearance, shared with the legacy renderer's constants in
@@ -109,30 +108,6 @@ const LEX_UNDERLINE_THICKNESS = 1;
 
 /** Tap/selection wash, matching HighlightedText's selectionStyles. */
 const SELECTION_COLOR = '#3390FF40';
-
-/**
- * Convert a number to Unicode superscript characters
- */
-function toSuperscript(num: number): string {
-  const superscriptMap: Record<string, string> = {
-    '0': '⁰',
-    '1': '¹',
-    '2': '²',
-    '3': '³',
-    '4': '⁴',
-    '5': '⁵',
-    '6': '⁶',
-    '7': '⁷',
-    '8': '⁸',
-    '9': '⁹',
-  };
-
-  return num
-    .toString()
-    .split('')
-    .map((digit) => superscriptMap[digit] || digit)
-    .join('');
-}
 
 /**
  * Check if a verse text starts with a Biblical transition word
@@ -905,14 +880,13 @@ export function ChapterReader({
   };
 
   /**
-   * Handle tap on plain text
-   * Shows verse insight tooltip via context
+   * Handle a tap on a verse number, which is the only way into a verse insight.
    */
   const handleVerseTap = (verseNumber: number) => {
     const verse = chapter.sections
       .flatMap((section) => section.verses)
       .find((v) => v.verseNumber === verseNumber);
-    openVerseTooltip(verseNumber, null, verse?.text);
+    openVerseTooltip(verseNumber, null, verse?.text, 'verse_number');
   };
 
   /**
@@ -1046,84 +1020,42 @@ export function ChapterReader({
               {section.startVerse}-{section.endVerse}
             </Text>
             {/* Verses with Highlighting */}
-            {PARAGRAPH_VIEW_ENABLED ? (
-              (() => {
-                // Memoised above so each `group` keeps a stable identity across
-                // renders — ParagraphText's compile memo depends on it.
-                const groups = sectionGroups.get(sectionKeyOf(section)) ?? [];
+            {(() => {
+              // Memoised above so each `group` keeps a stable identity across
+              // renders — ParagraphText's compile memo depends on it.
+              const groups = sectionGroups.get(sectionKeyOf(section)) ?? [];
 
-                return groups.map((group, groupIndex) => {
-                  const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
+              return groups.map((group, groupIndex) => {
+                const groupKey = `group-${group[0].verseNumber}-${group[group.length - 1].verseNumber}`;
 
-                  // Native renderer selected but the width is not measured yet —
-                  // only possible for the first reader of a session, since the
-                  // width is remembered at module scope. Hold the space for one
-                  // frame rather than rendering the legacy per-word tree that is
-                  // about to be discarded: that fallback was creating every one of
-                  // the 9,113 throwaway text nodes a six-swipe capture counted.
-                  if (useNativeTextRenderer && paragraphWidth === 0) {
-                    return (
-                      <View
-                        key={groupKey}
-                        testID={`verse-group-${group[0].verseNumber}`}
-                        style={{ height: estimatedGroupHeight(group) }}
-                      />
-                    );
-                  }
+                // Native renderer selected but the width is not measured yet —
+                // only possible for the first reader of a session, since the
+                // width is remembered at module scope. Hold the space for one
+                // frame rather than rendering the legacy per-word tree that is
+                // about to be discarded: that fallback was creating every one of
+                // the 9,113 throwaway text nodes a six-swipe capture counted.
+                if (useNativeTextRenderer && paragraphWidth === 0) {
+                  return (
+                    <View
+                      key={groupKey}
+                      testID={`verse-group-${group[0].verseNumber}`}
+                      style={{ height: estimatedGroupHeight(group) }}
+                    />
+                  );
+                }
 
-                  // Native path: the whole group becomes ONE view. This replaces
-                  // the nested structure below — a paragraph <Text>, a <Text> per
-                  // verse, four more per verse for the superscript number and its
-                  // highlight background, and one or two per WORD inside
-                  // HighlightedText. That is 160-290 shadow nodes for a five-verse
-                  // group, which Android re-flattens into a single Spannable on
-                  // every commit. See docs/native-text-rendering-plan.md.
-                  if (useNativeTextRenderer && paragraphWidth > 0) {
-                    const groupLayout =
-                      paragraphLayouts[
-                        flatIndexByKey.get(`${sectionKeyOf(section)}:${group[0].verseNumber}`) ?? -1
-                      ];
-                    return (
-                      <View
-                        key={groupKey}
-                        testID={`verse-group-${group[0].verseNumber}`}
-                        onLayout={(e) =>
-                          handleVerseLayout(
-                            group[0].verseNumber,
-                            e.nativeEvent.layout.y,
-                            e.nativeEvent.layout.height
-                          )
-                        }
-                      >
-                        <ParagraphText
-                          alignment={alignment}
-                          autoHighlights={autoHighlights}
-                          // Compiled, measured and windowed by useParagraphLayout.
-                          // Passing all three down means the paragraph is compiled
-                          // and measured ONCE — the hook already had to do both to
-                          // place it — and that a group outside the window renders
-                          // an exact-height placeholder with no native views at all.
-                          compiled={groupLayout?.compiled ?? undefined}
-                          height={groupLayout?.height}
-                          highlights={chapterHighlights}
-                          isVisible={groupLayout?.visible ?? true}
-                          onAutoHighlightPress={handleAutoHighlightPress}
-                          onHighlightTap={handleHighlightTap}
-                          onLexiconWordPress={handleLexiconWordPress}
-                          onTextLayout={(lines) => handleNativeTextLayout(groupKey, lines)}
-                          onVerseTap={handleVerseTap}
-                          redLetterVerses={redLetterVerses}
-                          showLexUnderlines={showLexUnderlines}
-                          style={styles.verseTextParagraph}
-                          theme={nativeTextTheme}
-                          verses={group}
-                          width={paragraphWidth}
-                        />
-                        {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}
-                      </View>
-                    );
-                  }
-
+                // Native path: the whole group becomes ONE view. This replaces
+                // the nested structure below — a paragraph <Text>, a <Text> per
+                // verse, four more per verse for the superscript number and its
+                // highlight background, and one or two per WORD inside
+                // HighlightedText. That is 160-290 shadow nodes for a five-verse
+                // group, which Android re-flattens into a single Spannable on
+                // every commit. See docs/native-text-rendering-plan.md.
+                if (useNativeTextRenderer && paragraphWidth > 0) {
+                  const groupLayout =
+                    paragraphLayouts[
+                      flatIndexByKey.get(`${sectionKeyOf(section)}:${group[0].verseNumber}`) ?? -1
+                    ];
                   return (
                     <View
                       key={groupKey}
@@ -1136,168 +1068,177 @@ export function ChapterReader({
                         )
                       }
                     >
-                      <Text
+                      <ParagraphText
+                        alignment={alignment}
+                        autoHighlights={autoHighlights}
+                        // Compiled, measured and windowed by useParagraphLayout.
+                        // Passing all three down means the paragraph is compiled
+                        // and measured ONCE — the hook already had to do both to
+                        // place it — and that a group outside the window renders
+                        // an exact-height placeholder with no native views at all.
+                        compiled={groupLayout?.compiled ?? undefined}
+                        height={groupLayout?.height}
+                        highlights={chapterHighlights}
+                        isVisible={groupLayout?.visible ?? true}
+                        onAutoHighlightPress={handleAutoHighlightPress}
+                        onHighlightTap={handleHighlightTap}
+                        onLexiconWordPress={handleLexiconWordPress}
+                        onTextLayout={(lines) => handleNativeTextLayout(groupKey, lines)}
+                        onVerseTap={handleVerseTap}
+                        redLetterVerses={redLetterVerses}
+                        showLexUnderlines={showLexUnderlines}
                         style={styles.verseTextParagraph}
-                        selectable={true}
-                        onTextLayout={(e) => handleTextLayout(groupKey, e)}
-                      >
-                        {group.map((verse, verseIndex) => {
-                          let currBackgroundColor: string | undefined;
-                          const startHighlight = getStartHighlight(
-                            verse.verseNumber,
+                        theme={nativeTextTheme}
+                        verses={group}
+                        width={paragraphWidth}
+                      />
+                      {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}
+                    </View>
+                  );
+                }
+
+                return (
+                  <View
+                    key={groupKey}
+                    testID={`verse-group-${group[0].verseNumber}`}
+                    onLayout={(e) =>
+                      handleVerseLayout(
+                        group[0].verseNumber,
+                        e.nativeEvent.layout.y,
+                        e.nativeEvent.layout.height
+                      )
+                    }
+                  >
+                    <Text
+                      style={styles.verseTextParagraph}
+                      selectable={true}
+                      onTextLayout={(e) => handleTextLayout(groupKey, e)}
+                    >
+                      {group.map((verse, verseIndex) => {
+                        let currBackgroundColor: string | undefined;
+                        const startHighlight = getStartHighlight(
+                          verse.verseNumber,
+                          chapterHighlights,
+                          autoHighlights
+                        );
+
+                        if (startHighlight) {
+                          const baseColor = getHighlightColor(
+                            startHighlight.color as HighlightColor,
+                            mode
+                          );
+                          const opacity = startHighlight.isAuto ? 0.2 : 0.35;
+                          const opacityHex = Math.round(opacity * 255)
+                            .toString(16)
+                            .padStart(2, '0');
+                          currBackgroundColor = baseColor + opacityHex;
+                        }
+
+                        let prevBackgroundColor: string | undefined;
+                        if (verseIndex > 0) {
+                          const prevVerse = group[verseIndex - 1];
+                          const endHighlight = getEndHighlight(
+                            prevVerse.verseNumber,
+                            prevVerse.text.length,
                             chapterHighlights,
                             autoHighlights
                           );
 
-                          if (startHighlight) {
+                          if (endHighlight) {
                             const baseColor = getHighlightColor(
-                              startHighlight.color as HighlightColor,
+                              endHighlight.color as HighlightColor,
                               mode
                             );
-                            const opacity = startHighlight.isAuto ? 0.2 : 0.35;
+                            const opacity = endHighlight.isAuto ? 0.2 : 0.35;
                             const opacityHex = Math.round(opacity * 255)
                               .toString(16)
                               .padStart(2, '0');
-                            currBackgroundColor = baseColor + opacityHex;
+                            prevBackgroundColor = baseColor + opacityHex;
                           }
+                        }
 
-                          let prevBackgroundColor: string | undefined;
-                          if (verseIndex > 0) {
-                            const prevVerse = group[verseIndex - 1];
-                            const endHighlight = getEndHighlight(
-                              prevVerse.verseNumber,
-                              prevVerse.text.length,
-                              chapterHighlights,
-                              autoHighlights
-                            );
-
-                            if (endHighlight) {
-                              const baseColor = getHighlightColor(
-                                endHighlight.color as HighlightColor,
-                                mode
-                              );
-                              const opacity = endHighlight.isAuto ? 0.2 : 0.35;
-                              const opacityHex = Math.round(opacity * 255)
-                                .toString(16)
-                                .padStart(2, '0');
-                              prevBackgroundColor = baseColor + opacityHex;
-                            }
-                          }
-
-                          return (
-                            <Text key={verse.verseNumber}>
+                        return (
+                          <Text key={verse.verseNumber}>
+                            <Text
+                              style={styles.verseNumberSuperscript}
+                              onPress={() => handleVerseTap(verse.verseNumber)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Verse ${verse.verseNumber} insight`}
+                              testID={`verse-number-${verse.verseNumber}`}
+                              suppressHighlighting={true}
+                            >
+                              {verseIndex > 0 && (
+                                <>
+                                  <Text
+                                    style={
+                                      prevBackgroundColor && {
+                                        backgroundColor: prevBackgroundColor,
+                                      }
+                                    }
+                                  >
+                                    {' '}
+                                  </Text>
+                                  <Text
+                                    style={
+                                      currBackgroundColor && {
+                                        backgroundColor: currBackgroundColor,
+                                      }
+                                    }
+                                  >
+                                    {' '}
+                                  </Text>
+                                </>
+                              )}
                               <Text
-                                style={styles.verseNumberSuperscript}
-                                onPress={() => handleVerseTap(verse.verseNumber)}
-                                accessibilityRole="button"
-                                accessibilityLabel={`Verse ${verse.verseNumber} insight`}
-                                testID={`verse-number-${verse.verseNumber}`}
-                                suppressHighlighting={true}
-                              >
-                                {verseIndex > 0 && (
-                                  <>
-                                    <Text
-                                      style={
-                                        prevBackgroundColor && {
-                                          backgroundColor: prevBackgroundColor,
-                                        }
-                                      }
-                                    >
-                                      {' '}
-                                    </Text>
-                                    <Text
-                                      style={
-                                        currBackgroundColor && {
-                                          backgroundColor: currBackgroundColor,
-                                        }
-                                      }
-                                    >
-                                      {' '}
-                                    </Text>
-                                  </>
-                                )}
-                                <Text
-                                  style={
-                                    currBackgroundColor && {
-                                      backgroundColor: currBackgroundColor,
-                                    }
-                                  }
-                                >
-                                  {verse.verseNumber}
-                                </Text>
-                                <Text
-                                  style={
-                                    currBackgroundColor && {
-                                      backgroundColor: currBackgroundColor,
-                                    }
-                                  }
-                                >
-                                  {' '}
-                                </Text>
-                              </Text>
-                              <HighlightedText
-                                perfSurface={
-                                  explanationsOnly ? 'insight.verse' : 'bible.paragraphFallback'
-                                }
-                                text={verse.text}
-                                verseNumber={verse.verseNumber}
-                                highlights={chapterHighlights}
-                                autoHighlights={autoHighlights}
-                                onHighlightTap={handleHighlightTap}
-                                onAutoHighlightPress={handleAutoHighlightPress}
-                                // Deliberately no onVerseTap: the verse number
-                                // above carries the insight now, and plain text
-                                // belongs to native text selection.
-                                alignment={alignment}
-                                onLexiconWordPress={handleLexiconWordPress}
                                 style={
-                                  redLetterVerses.has(verse.verseNumber)
-                                    ? [styles.verseTextInline, redLetterStyle]
-                                    : styles.verseTextInline
+                                  currBackgroundColor && {
+                                    backgroundColor: currBackgroundColor,
+                                  }
                                 }
-                                isVisible={isVerseVisible(group[0].verseNumber)}
-                              />
+                              >
+                                {verse.verseNumber}
+                              </Text>
+                              <Text
+                                style={
+                                  currBackgroundColor && {
+                                    backgroundColor: currBackgroundColor,
+                                  }
+                                }
+                              >
+                                {' '}
+                              </Text>
                             </Text>
-                          );
-                        })}
-                      </Text>
-                      {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}
-                    </View>
-                  );
-                });
-              })()
-            ) : (
-              <View style={styles.versesContainer}>
-                {section.verses.map((verse) => (
-                  <View key={verse.verseNumber} style={styles.verseRow}>
-                    <Text
-                      style={styles.verseNumber}
-                      accessibilityLabel={`Verse ${verse.verseNumber}`}
-                    >
-                      {verse.verseNumber}
+                            <HighlightedText
+                              perfSurface={
+                                explanationsOnly ? 'insight.verse' : 'bible.paragraphFallback'
+                              }
+                              text={verse.text}
+                              verseNumber={verse.verseNumber}
+                              highlights={chapterHighlights}
+                              autoHighlights={autoHighlights}
+                              onHighlightTap={handleHighlightTap}
+                              onAutoHighlightPress={handleAutoHighlightPress}
+                              // Deliberately no onVerseTap: the verse number
+                              // above carries the insight now, and plain text
+                              // belongs to native text selection.
+                              alignment={alignment}
+                              onLexiconWordPress={handleLexiconWordPress}
+                              style={
+                                redLetterVerses.has(verse.verseNumber)
+                                  ? [styles.verseTextInline, redLetterStyle]
+                                  : styles.verseTextInline
+                              }
+                              isVisible={isVerseVisible(group[0].verseNumber)}
+                            />
+                          </Text>
+                        );
+                      })}
                     </Text>
-                    <HighlightedText
-                      perfSurface={explanationsOnly ? 'insight.verseRow' : 'bible.verseRow'}
-                      text={verse.text}
-                      verseNumber={verse.verseNumber}
-                      highlights={chapterHighlights}
-                      autoHighlights={autoHighlights}
-                      onHighlightTap={handleHighlightTap}
-                      onAutoHighlightPress={handleAutoHighlightPress}
-                      onVerseTap={handleVerseTap}
-                      alignment={alignment}
-                      onLexiconWordPress={handleLexiconWordPress}
-                      style={
-                        redLetterVerses.has(verse.verseNumber)
-                          ? [styles.verseText, redLetterStyle]
-                          : styles.verseText
-                      }
-                      isVisible={true}
-                    />
+                    {groupIndex < groups.length - 1 && <View style={{ height: spacing.md }} />}
                   </View>
-                ))}
-              </View>
-            )}
+                );
+              });
+            })()}
             <View style={{ height: spacing.xxxl }} />
           </Fragment>
         ))}
@@ -1471,22 +1412,6 @@ const createStyles = (
       color: colors.textTertiary,
       marginBottom: spacing.md,
     },
-    versesContainer: {
-      flexDirection: 'column',
-    },
-    verseRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      marginBottom: spacing.md,
-    },
-    verseNumber: {
-      fontSize: fontSizes.caption,
-      fontWeight: fontWeights.bold,
-      lineHeight: fontSizes.bodyLarge * lineHeights.body,
-      color: colors.textTertiary,
-      marginRight: spacing.xs,
-      marginTop: -4,
-    },
     verseNumberSuperscript: {
       // Real digits at 0.85 of body size, raised, rather than the Unicode
       // superscript characters this used to draw. Those are not selectable as
@@ -1519,12 +1444,6 @@ const createStyles = (
       // straight through to CSS.
       verticalAlign: 'super',
     } as unknown as TextStyle,
-    verseText: {
-      fontSize: userFontSize,
-      fontWeight: fontWeights.regular,
-      lineHeight: userFontSize * 2.0,
-      color: colors.textPrimary,
-    },
     verseTextInline: {
       fontSize: userFontSize,
       fontWeight: fontWeights.regular,

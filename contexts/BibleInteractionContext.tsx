@@ -34,7 +34,7 @@ interface BibleInteractionContextType {
   deleteHighlight: (id: number) => Promise<void>;
   
   // Interaction Triggers
-  openVerseTooltip: (verseNumber: number | null, highlightGroup: HighlightGroup | null, verseText?: string, source?: VersemateTooltipSource) => void;
+  openVerseTooltip: (verseNumber: number | null, highlightGroup: HighlightGroup | null, verseText: string | undefined, source: VersemateTooltipSource) => void;
   openAutoHighlightTooltip: (autoHighlight: AutoHighlight) => void;
   openHighlightSelection: (range: VerseRange, text: string) => void;
   openHighlightEditMenu: (id: number, color: HighlightColor) => void;
@@ -106,8 +106,10 @@ export function BibleInteractionProvider({
   const openVerseTooltip = (
     verseNumber: number | null,
     highlightGroup: HighlightGroup | null,
-    verseText?: string,
-    source: VersemateTooltipSource = 'verse_number'
+    verseText: string | undefined,
+    // No default. A default is how a new opener silently reports as an old one,
+    // which is the entire reason this field exists.
+    source: VersemateTooltipSource
   ) => {
     // Close AutoHighlightTooltip if open
     setAutoHighlightState(prev => ({ ...prev, visible: false }));
@@ -262,8 +264,8 @@ export function BibleInteractionProvider({
       openVerseTooltip: (
         verseNumber: number | null,
         highlightGroup: HighlightGroup | null,
-        verseText?: string,
-        source?: VersemateTooltipSource
+        verseText: string | undefined,
+        source: VersemateTooltipSource
       ) =>
         latestActions.current.openVerseTooltip(verseNumber, highlightGroup, verseText, source),
       openAutoHighlightTooltip: (autoHighlight: AutoHighlight) =>

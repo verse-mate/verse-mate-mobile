@@ -39,9 +39,12 @@ struct VMRangeRecord: Record {
       fontWeight: fontWeight,
       fontStyle: fontStyle,
       fontScale: CGFloat(fontScale ?? 1),
-      hitSlopPt: CGFloat(hitSlop ?? 0),
       baselineShift: CGFloat(baselineShift ?? 0),
-      interactive: interactive
+      interactive: interactive,
+      // Last, matching the declaration order in VMRange. Swift's memberwise
+      // initializer is positional even with labels, so an out-of-order argument
+      // is a build error, not a warning.
+      hitSlopPt: CGFloat(hitSlop ?? 0)
     )
   }
 }
