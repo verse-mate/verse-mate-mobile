@@ -60,6 +60,21 @@ const HIGHLIGHT_OPACITY = 0.35;
 /** Auto-highlights are lighter so they read as suggestions, not user intent. */
 const AUTO_HIGHLIGHT_OPACITY = 0.2;
 
+/**
+ * Minimum width of a verse number's tap target, in dp.
+ *
+ * Below the 44pt/48dp the platforms recommend for a standalone control, and
+ * deliberately so: a control set inside running text cannot reach those
+ * horizontally without a gap wide enough to comb white channels down the
+ * paragraph. This is what is achievable without damaging the reading page, and
+ * the full line height carries the vertical axis.
+ *
+ * Exported because both renderers size against it: the compiler turns it into a
+ * `fontScale` on the space after the number, and the web renderer turns it into
+ * element padding. One number, two mechanisms, no drift.
+ */
+export const VERSE_NUMBER_TARGET_MIN_DP = 24;
+
 /** Superscript verse numbers: 70% size, raised by a third of the base size. */
 const VERSE_NUMBER_SCALE = 0.7;
 const VERSE_NUMBER_BASELINE_SHIFT = 0.33;

@@ -25,6 +25,7 @@ const THEME: CompileTheme = {
   lexUnderlineStyle: 'dotted',
   redLetterColor: '#c1121f',
   selectionColor: '#3390FF40',
+  baseFontSize: 18,
 };
 
 function compile(overrides: Partial<ParagraphInput> = {}): CompiledParagraph {
