@@ -20,6 +20,7 @@ const THEME: CompileTheme = {
   lexUnderlineStyle: 'dotted',
   redLetterColor: '#c1121f',
   selectionColor: '#3390FF40',
+  baseFontSize: 18,
 };
 
 /** `count` paragraph groups of five verses each, roughly Bible-sized. */

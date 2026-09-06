@@ -650,8 +650,11 @@ export function ChapterReader({
       lexUnderlineStyle: 'dotted',
       redLetterColor: redLetterStyle.color,
       selectionColor: SELECTION_COLOR,
+      // The compiler sizes the gap after a verse number in dp, so it needs the
+      // size the paragraph is actually rendered at.
+      baseFontSize: userFontSize,
     }),
-    [mode, redLetterStyle.color]
+    [mode, redLetterStyle.color, userFontSize]
   );
 
   /**
