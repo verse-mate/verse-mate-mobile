@@ -172,22 +172,27 @@ describe('ParagraphText tap routing', () => {
 });
 
 describe('ParagraphText verse resolution', () => {
-  it('resolves a plain tap to the verse containing the offset', () => {
-    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+  it('routes a verse-number range tap to onVerseTap for that verse', () => {
+    const input = { verses: VERSES, theme: THEME };
     const tree = renderParagraph();
 
-    getPress(tree)({ charOffset: compiled.verses[1].textStart + 3, x: 0, y: 0 });
-    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2);
+    getRangeTap(tree)(indexOfTag('verse-number:1', input), 0);
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(1);
 
     tree.handlers.onVerseTap.mockClear();
-    getPress(tree)({ charOffset: 3, x: 0, y: 0 });
-    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(1);
+    getRangeTap(tree)(indexOfTag('verse-number:2', input), 0);
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2);
   });
 
-  it('does not fire for an empty paragraph', () => {
-    const tree = renderParagraph({ verses: [] });
-    getPress(tree)({ charOffset: 0, x: 0, y: 0 });
-    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
+  it('wires no plain-press handler at all, so a tap on plain text does nothing', () => {
+    // This used to resolve any character offset to a verse and open its
+    // insight, which is why a tap anywhere in a verse opened one. The verse
+    // number is the only trigger now, and the absence of the handler is the
+    // mechanism: a handler that declined would be one edit away from firing
+    // again.
+    renderParagraph();
+
+    expect(capturedPress).toBeUndefined();
   });
 });
 
