@@ -38,6 +38,14 @@ data class VMRange(
   /** Baseline offset as a multiple of the base font size; positive raises. */
   val baselineShift: Float,
   val interactive: Boolean,
+  /**
+   * Extra tappable dp on each side of this range, for a target whose glyphs are
+   * too small to hit. 0 means no rectangle at all, not a rectangle of width 0.
+   *
+   * Affects hit-testing only, never layout, so it is deliberately harmless to
+   * the measurement cache key this class doubles as.
+   */
+  val hitSlopDp: Float = 0f,
 )
 
 /**

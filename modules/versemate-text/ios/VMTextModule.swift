@@ -22,6 +22,8 @@ struct VMRangeRecord: Record {
   @Field var fontWeight: String?
   @Field var fontStyle: String?
   @Field var fontScale: Double?
+  /// Extra tappable points on each side. Grows a hit rectangle, never a glyph.
+  @Field var hitSlop: Double?
   @Field var baselineShift: Double?
   @Field var interactive: Bool = false
 
@@ -37,6 +39,7 @@ struct VMRangeRecord: Record {
       fontWeight: fontWeight,
       fontStyle: fontStyle,
       fontScale: CGFloat(fontScale ?? 1),
+      hitSlopPt: CGFloat(hitSlop ?? 0),
       baselineShift: CGFloat(baselineShift ?? 0),
       interactive: interactive
     )
