@@ -53,7 +53,7 @@ import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
-import { VERSE_NUMBER_TARGET_MIN_DP } from '@/lib/text/compile-paragraph';
+import { verseNumberSlop } from '@/lib/text/compile-paragraph';
 import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
 import { ParagraphText } from '@/lib/text/ParagraphText';
 import type { CompileTheme } from '@/lib/text/types';
@@ -1497,10 +1497,13 @@ const createStyles = (
       // Gold, because this is now the only way into a verse's insight and has
       // to read as something you can press rather than as a footnote mark.
       color: colors.gold,
-      // Horizontal padding only, and padding rather than margin so the glyphs
-      // do not move. A third of the floor on each side takes a single digit's
-      // ~9dp box to just over the 24dp minimum; a two-digit number clears it on
-      // glyphs alone.
+      // Horizontal padding only, and padding rather than margin so the glyphs do
+      // not move. The SAME function the compiler uses to size the native hit
+      // rectangle, so the two renderers cannot drift, and sized for a
+      // single-digit number: that is the narrowest case, so padding for it
+      // clears the floor for every number. A fixed padding measured 23.2dp at
+      // the smallest reading size, under the floor, because glyphs shrink with
+      // the font while a constant does not.
       //
       // There is deliberately NO vertical padding. Measured in the browser, it
       // did not stay inside the paragraph's leading: the box went to 56.7dp
@@ -1508,7 +1511,7 @@ const createStyles = (
       // visibly loosening the whole paragraph. The line box already gives 36dp
       // of vertical target, well past the floor, so the padding bought nothing
       // and cost reading density.
-      paddingHorizontal: VERSE_NUMBER_TARGET_MIN_DP / 3,
+      paddingHorizontal: verseNumberSlop(1, userFontSize),
       // Web-only, and this renderer is web-only in production: raises the digits
       // the way the native path does with a baseline shift.
       // `super` is not in React Native's TextStyle union (it is a web value),

@@ -603,7 +603,12 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
         if (range.start >= range.end) continue
 
         val line = resolved.getLineForOffset(range.start)
-        if (resolved.getLineForOffset(range.end) != line) continue
+        // `end` is exclusive, so ask about the last character INSIDE the range.
+        // A verse number's range ends on its trailing space, and when that space
+        // is the last thing on a line `getLineForOffset(end)` reports the next
+        // line, which silently dropped the slop on exactly the wrapped lines
+        // that need it most.
+        if (resolved.getLineForOffset(range.end - 1) != line) continue
 
         val top = resolved.getLineTop(line).toFloat()
         val bottom = resolved.getLineBottom(line).toFloat()

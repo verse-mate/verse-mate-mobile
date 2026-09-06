@@ -188,21 +188,40 @@ describe('hitSlop', () => {
 
   it('is absent, not zero, when the range does not carry one', () => {
     // Zero and absent must stay distinguishable: a range with no slop gets no
-    // rectangle at all, rather than a rectangle of width zero.
+    // rectangle at all, rather than a rectangle of width zero. The encoder has
+    // to emit an EMPTY field for absent, not "0" — asserted on the wire, since
+    // both decoders map an empty field and a missing field to the same null and
+    // so cannot tell the two apart on their own.
     const encoded = encodeRangesForTest([{ start: 0, end: 3 }]);
 
+    expect(encoded.split('~')[12]).toBe('');
     expect(decodeLikeKotlin(encoded)[0].hitSlop).toBeNull();
     expect(decodeLikeSwift(encoded)[0].hitSlop).toBeNull();
   });
 
-  it('leaves a legacy 12-field chunk decoding exactly as before', () => {
-    // The field is appended, so a chunk written by an older bundle is short by
-    // one and every earlier field must still land in its own slot.
-    const legacy = '3~11~dotted~#b09a6d~1~#ffcc0059~#c1121f~bold~0.7~0.35~1~italic';
+  it('leaves a chunk written before hitSlop existed decoding exactly as before', () => {
+    // A real backward-compatibility check has to compare against what the OLD
+    // encoder produced, so the legacy chunk here is the current encoding with
+    // its last field removed. Asserting a hand-written literal against the
+    // test's own mirrors, as an earlier version of this did, could not fail for
+    // any change to the encoder or to either decoder.
+    const current = encodeRangesForTest([
+      {
+        start: 3,
+        end: 11,
+        underline: { style: 'dotted', color: '#b09a6d', thickness: 1 },
+        fontStyle: 'italic',
+        fontScale: 0.7,
+        baselineShift: 0.35,
+        interactive: true,
+      },
+    ]);
+    const legacy = current.split('~').slice(0, 12).join('~');
 
     for (const decoded of [decodeLikeKotlin(legacy)[0], decodeLikeSwift(legacy)[0]]) {
       expect(decoded.fontStyle).toBe('italic');
       expect(decoded.fontScale).toBe(0.7);
+      expect(decoded.baselineShift).toBe(0.35);
       expect(decoded.interactive).toBe(true);
       expect(decoded.hitSlop).toBeNull();
     }

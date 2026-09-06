@@ -192,6 +192,10 @@ describe('ParagraphText verse resolution', () => {
     // again.
     renderParagraph();
 
+    // capturedRangeTap first: it proves VMText was actually rendered, so the
+    // assertion below is about the prop being absent rather than about the
+    // component never having mounted.
+    expect(capturedRangeTap).toBeDefined();
     expect(capturedPress).toBeUndefined();
   });
 });

@@ -527,6 +527,34 @@ describe('HighlightedText without a verse-tap callback', () => {
     expect(pressable).toBeUndefined();
   });
 
+  it('attaches none in the off-window branch with a selection either', () => {
+    // The off-window branch writes the handler in TWO places: once for a segment
+    // carrying the current word selection, once for a plain one. The test below
+    // only reaches the second.
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[]}
+        isVisible={false}
+        selectedWord={{
+          word: 'beginning',
+          startChar: 7,
+          endChar: 16,
+          pageX: 0,
+          pageY: 0,
+          verseNumber: 1,
+        }}
+      />
+    );
+
+    const pressable = root
+      .findAllByType(Text)
+      .find((el: ReactTestInstance) => el.props.onPress !== undefined);
+
+    expect(pressable).toBeUndefined();
+  });
+
   it('attaches none in the off-window branch either', () => {
     // isVisible={false} renders whole segments rather than per-word tokens, and
     // that branch wrote the handler literally in two places. A verse scrolled
