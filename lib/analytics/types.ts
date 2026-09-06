@@ -177,10 +177,29 @@ export interface TopicSharedProperties {
 /**
  * AI Explanation Event Properties
  */
+/**
+ * How the reader reached the verse insight.
+ *
+ * Required, not optional, so a new way of opening the tooltip is a type error
+ * rather than a silent gap in the data. Historical volume for this event mixes
+ * every source, because none of them reported one before; only data from the
+ * release that introduced this field can be split.
+ */
+export type VersemateTooltipSource =
+  /** Tapped the verse number in the Bible reader. */
+  | 'verse_number'
+  /** Tapped a highlight, opening the tooltip for its group. */
+  | 'highlight'
+  /** Followed a deep link or a jump, which scrolls to the verse and opens it. */
+  | 'scroll_to_verse'
+  /** Tapped a verse inside a topic. */
+  | 'topic_verse';
+
 export interface VersemateTooltipOpenedProperties {
   bookId: number;
   chapterNumber: number;
   verseNumber: number;
+  source: VersemateTooltipSource;
 }
 
 export interface AutoHighlightTooltipViewedProperties {

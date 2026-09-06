@@ -137,12 +137,16 @@ describe('User Properties and Chapter Views Analytics', () => {
         bookId: 43,
         chapterNumber: 3,
         verseNumber: 16,
+        source: 'verse_number',
       });
 
       expect(analytics.track).toHaveBeenCalledWith(AnalyticsEvent.VERSEMATE_TOOLTIP_OPENED, {
         bookId: 43,
         chapterNumber: 3,
         verseNumber: 16,
+        // Required, so a new way of opening the tooltip is a type error rather
+        // than a silent gap in the data.
+        source: 'verse_number',
       });
     });
 

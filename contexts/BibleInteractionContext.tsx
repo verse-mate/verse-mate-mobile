@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAutoHighlights } from '@/hooks/bible/use-auto-highlights';
 import { type Highlight, useHighlights } from '@/hooks/bible/use-highlights';
+import type { VersemateTooltipSource } from '@/lib/analytics/types';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { type HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
@@ -33,7 +34,7 @@ interface BibleInteractionContextType {
   deleteHighlight: (id: number) => Promise<void>;
   
   // Interaction Triggers
-  openVerseTooltip: (verseNumber: number | null, highlightGroup: HighlightGroup | null, verseText?: string) => void;
+  openVerseTooltip: (verseNumber: number | null, highlightGroup: HighlightGroup | null, verseText?: string, source?: VersemateTooltipSource) => void;
   openAutoHighlightTooltip: (autoHighlight: AutoHighlight) => void;
   openHighlightSelection: (range: VerseRange, text: string) => void;
   openHighlightEditMenu: (id: number, color: HighlightColor) => void;
@@ -75,7 +76,8 @@ export function BibleInteractionProvider({
     verseNumber: number | null;
     highlightGroup: HighlightGroup | null;
     verseText?: string;
-  }>({ visible: false, verseNumber: null, highlightGroup: null });
+    source: VersemateTooltipSource;
+  }>({ visible: false, verseNumber: null, highlightGroup: null, source: 'verse_number' });
 
   const [autoHighlightState, setAutoHighlightState] = useState<{
     visible: boolean;
@@ -101,10 +103,15 @@ export function BibleInteractionProvider({
   }>({ visible: false, verseNumber: null });
 
   // Actions
-  const openVerseTooltip = (verseNumber: number | null, highlightGroup: HighlightGroup | null, verseText?: string) => {
+  const openVerseTooltip = (
+    verseNumber: number | null,
+    highlightGroup: HighlightGroup | null,
+    verseText?: string,
+    source: VersemateTooltipSource = 'verse_number'
+  ) => {
     // Close AutoHighlightTooltip if open
     setAutoHighlightState(prev => ({ ...prev, visible: false }));
-    setVerseTooltipState({ visible: true, verseNumber, highlightGroup, verseText });
+    setVerseTooltipState({ visible: true, verseNumber, highlightGroup, verseText, source });
   };
 
   const openAutoHighlightTooltip = (autoHighlight: AutoHighlight) => {
@@ -248,11 +255,17 @@ export function BibleInteractionProvider({
       updateHighlightColor: (id: number, color: HighlightColor) =>
         latestActions.current.updateHighlightColor(id, color),
       deleteHighlight: (id: number) => latestActions.current.deleteHighlight(id),
+      // Every parameter has to be forwarded explicitly here. This facade is what
+      // consumers actually hold, and a three-argument function is assignable to a
+      // four-argument type, so a forgotten parameter type-checks clean and drops
+      // the value on the floor.
       openVerseTooltip: (
         verseNumber: number | null,
         highlightGroup: HighlightGroup | null,
-        verseText?: string
-      ) => latestActions.current.openVerseTooltip(verseNumber, highlightGroup, verseText),
+        verseText?: string,
+        source?: VersemateTooltipSource
+      ) =>
+        latestActions.current.openVerseTooltip(verseNumber, highlightGroup, verseText, source),
       openAutoHighlightTooltip: (autoHighlight: AutoHighlight) =>
         latestActions.current.openAutoHighlightTooltip(autoHighlight),
       openHighlightSelection: (range: VerseRange, text: string) =>
@@ -291,6 +304,7 @@ export function BibleInteractionProvider({
       <VerseMateTooltip
         key={`tooltip-${!!user}`}
         visible={verseTooltipState.visible}
+        source={verseTooltipState.source}
         verseNumber={verseTooltipState.verseNumber}
         highlightGroup={verseTooltipState.highlightGroup}
         bookId={bookId}
