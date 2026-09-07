@@ -83,32 +83,50 @@ const VERSE_NUMBER_BASELINE_SHIFT = 0.33;
 const NBSP = ' ';
 
 /**
- * Rough advance width of a digit, as a fraction of the font size.
+ * Rough advance widths, as a fraction of the font size, for the app's sans.
  *
- * Only ever used to size a tap rectangle, never to lay anything out, so an
- * estimate is the right precision: being a couple of dp out moves the edge of a
- * touch target that is already clamped to its neighbours.
+ * Estimates, and that is the right precision here: they size a touch target, and
+ * a couple of dp either way moves its edge by less than a finger can aim.
  */
 const DIGIT_ADVANCE_EM = 0.55;
+const SPACE_ADVANCE_EM = 0.25;
 
 /**
- * Slop needed on each side of a verse number for its target to clear the floor.
+ * How much wider the space after a verse number has to be for the number's tap
+ * target to clear the floor, as a multiplier on that space's advance.
  *
- * Returns 0 once the digits are wide enough on their own, which is why a
- * three-digit number in Psalm 119 gets none. Sized in dp rather than as a
- * multiple of the font, so the rectangle is the same width at every reading
- * size instead of growing with it.
+ * The target is the number's digits plus that space, so widening the space
+ * widens the target, and the platform's own offset lookup honours it with no
+ * hit-testing code. Returns 0 once the digits are wide enough on their own,
+ * which is why a three-digit number in Psalm 119 gets none.
  *
- * Exported because the web renderer needs the same number as element padding.
+ * Exported because the web renderer needs the same number, as element padding.
  * A fixed padding there measured 23.2dp at the smallest reading size, under the
- * floor, because the glyphs shrink with the font while a constant does not.
+ * floor, because glyphs shrink with the font while a constant does not.
  */
-export function verseNumberSlop(digitCount: number, baseFontSize: number): number {
+export function verseNumberGapScale(digitCount: number, baseFontSize: number): number {
+  const digitsWidth = digitCount * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
+  const spaceWidth = SPACE_ADVANCE_EM * baseFontSize;
+  const needed = VERSE_NUMBER_TARGET_MIN_DP - digitsWidth;
+  if (needed <= spaceWidth) return 1;
+  // Rounded UP, to a hundredth. Rounding to nearest undershot the floor, which
+  // a test asserting the arithmetic caught and one asserting `> 0` did not.
+  return Math.ceil((needed / spaceWidth) * 100) / 100;
+}
+
+/**
+ * The same floor, as dp of padding per side, for the web renderer.
+ *
+ * Not derived from the native multiplier, because the geometry differs: native
+ * widens the space NEXT TO the digits and the platform's offset lookup covers
+ * both, while on web the number is its own element and its box is the digits
+ * plus its own padding. Deriving one from the other measured 20.5dp, under the
+ * floor. Both compute from `VERSE_NUMBER_TARGET_MIN_DP`, which is the thing that
+ * must not drift.
+ */
+export function verseNumberGapPaddingDp(digitCount: number, baseFontSize: number): number {
   const digitsWidth = digitCount * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
   const shortfall = VERSE_NUMBER_TARGET_MIN_DP - digitsWidth;
-  // Rounded UP, to a tenth of a dp. Rounding to nearest undershot the floor by
-  // up to 0.05dp, which a test asserting the arithmetic caught and a test
-  // asserting `slop > 0` would not have.
   return shortfall > 0 ? Math.ceil((shortfall / 2) * 10) / 10 : 0;
 }
 
@@ -157,23 +175,39 @@ export function compileParagraph(input: ParagraphInput): CompiledParagraph {
     if (includeVerseNumbers) {
       const label = String(verse.verseNumber);
       parts.push(label, NBSP);
-      const slop = verseNumberSlop(label.length, theme.baseFontSize);
+      const gapScale = verseNumberGapScale(label.length, theme.baseFontSize);
+      const digitsEnd = cursor + label.length;
+      // The digits carry the styling and the target.
       emitted.push({
         layer: RANGE_LAYER.verseNumber,
         range: {
           start: cursor,
-          // Covers the trailing non-breaking space too, so it is part of the
-          // target. The joining space BEFORE the number is deliberately left
-          // out: Android resolves a tap to the nearest insertion point, so a
-          // tap on the right half of the previous verse's last glyph lands
-          // there, and a range covering it would open the wrong verse.
-          end: cursor + label.length + NBSP.length,
+          end: digitsEnd,
           fontScale: VERSE_NUMBER_SCALE,
           baselineShift: VERSE_NUMBER_BASELINE_SHIFT,
           color: theme.verseNumberColor,
           interactive: true,
-          hitSlop: slop > 0 ? slop : undefined,
           tag: `verse-number:${verse.verseNumber}`,
+        },
+        target: { kind: 'verseNumber', verseNumber: verse.verseNumber },
+      });
+      // The space after them carries the extra advance, and the same target, so
+      // the two together are one tap target at least as wide as the floor. The
+      // advance is on the SPACE alone: applied to the digits it would stretch
+      // the glyphs on Android and add a gap between them on iOS.
+      //
+      // The joining space BEFORE the number is deliberately in neither range.
+      // Android resolves a tap to the nearest insertion point, so a tap on the
+      // right half of the previous verse's last glyph lands there, and a range
+      // covering it would open the wrong verse.
+      emitted.push({
+        layer: RANGE_LAYER.verseNumber,
+        range: {
+          start: digitsEnd,
+          end: digitsEnd + NBSP.length,
+          advanceScale: gapScale > 1 ? gapScale : undefined,
+          interactive: true,
+          tag: `verse-number-gap:${verse.verseNumber}`,
         },
         target: { kind: 'verseNumber', verseNumber: verse.verseNumber },
       });

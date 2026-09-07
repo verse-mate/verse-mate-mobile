@@ -35,7 +35,7 @@ function decodeLikeKotlin(encoded: string) {
       // getOrNull(11) in Kotlin: absent on chunks written before fontStyle existed.
       fontStyle: f[11] || null,
       // getOrNull(12): absent on chunks written before hitSlop existed.
-      hitSlop: f[12] === undefined || f[12] === '' ? null : Number.parseFloat(f[12]),
+      advanceScale: f[12] === undefined || f[12] === '' ? null : Number.parseFloat(f[12]),
     }));
 }
 
@@ -68,7 +68,7 @@ function decodeLikeSwift(encoded: string) {
       baselineShift: f[9] === '' ? null : Number.parseFloat(f[9]),
       interactive: f[10] === '1',
       fontStyle: f[11] || null,
-      hitSlop: f[12] === undefined || f[12] === '' ? null : Number.parseFloat(f[12]),
+      advanceScale: f[12] === undefined || f[12] === '' ? null : Number.parseFloat(f[12]),
     }));
 }
 
@@ -93,7 +93,7 @@ describe('encodeRanges', () => {
     };
     const [decoded] = decodeLikeKotlin(encodeRangesForTest([range]));
     expect(decoded).toEqual({
-      hitSlop: null,
+      advanceScale: null,
       start: 3,
       end: 11,
       underlineStyle: 'dotted',
@@ -178,12 +178,14 @@ describe('encodeRanges', () => {
   });
 });
 
-describe('hitSlop', () => {
+describe('advanceScale', () => {
   it('round-trips through both decoders', () => {
-    const encoded = encodeRangesForTest([{ start: 0, end: 3, interactive: true, hitSlop: 8.5 }]);
+    const encoded = encodeRangesForTest([
+      { start: 0, end: 3, interactive: true, advanceScale: 2.5 },
+    ]);
 
-    expect(decodeLikeKotlin(encoded)[0].hitSlop).toBe(8.5);
-    expect(decodeLikeSwift(encoded)[0].hitSlop).toBe(8.5);
+    expect(decodeLikeKotlin(encoded)[0].advanceScale).toBe(2.5);
+    expect(decodeLikeSwift(encoded)[0].advanceScale).toBe(2.5);
   });
 
   it('is absent, not zero, when the range does not carry one', () => {
@@ -195,8 +197,8 @@ describe('hitSlop', () => {
     const encoded = encodeRangesForTest([{ start: 0, end: 3 }]);
 
     expect(encoded.split('~')[12]).toBe('');
-    expect(decodeLikeKotlin(encoded)[0].hitSlop).toBeNull();
-    expect(decodeLikeSwift(encoded)[0].hitSlop).toBeNull();
+    expect(decodeLikeKotlin(encoded)[0].advanceScale).toBeNull();
+    expect(decodeLikeSwift(encoded)[0].advanceScale).toBeNull();
   });
 
   it('leaves a chunk written before hitSlop existed decoding exactly as before', () => {
@@ -223,7 +225,7 @@ describe('hitSlop', () => {
       expect(decoded.fontScale).toBe(0.7);
       expect(decoded.baselineShift).toBe(0.35);
       expect(decoded.interactive).toBe(true);
-      expect(decoded.hitSlop).toBeNull();
+      expect(decoded.advanceScale).toBeNull();
     }
   });
 });

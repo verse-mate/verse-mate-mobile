@@ -92,10 +92,9 @@ describe('compileParagraph — text assembly', () => {
     expect(out.text).toBe('1 In the beginning God created.');
 
     const [number] = taggedRanges(out, 'verse-number:');
-    // Covers the digits AND the non-breaking space after them, so the space is
-    // part of the tap target. It deliberately stops short of the joining space
-    // BEFORE the number: see the boundary test below.
-    expect(number.covers).toBe('1\u00a0');
+    // The digits only. The space after them is its own range, carrying the
+    // widened advance that makes the pair reach the tap-target floor.
+    expect(number.covers).toBe('1');
     expect(number.fontScale).toBeLessThan(1);
     expect(number.baselineShift).toBeGreaterThan(0);
   });
@@ -139,11 +138,12 @@ describe('compileParagraph — text assembly', () => {
     expect(RANGE_LAYER.selection).toBeGreaterThan(RANGE_LAYER.lexicon);
   });
 
-  it('sizes the slop so the target clears 24dp at every reading size', () => {
-    // Asserts the ARITHMETIC, not just that some slop was emitted. The previous
-    // version of this checked `hitSlop > 0`, which 0.1 would have satisfied.
+  it('widens the gap so the target clears 24dp at every reading size', () => {
+    // Asserts the ARITHMETIC, not just that some widening was emitted. An
+    // earlier version checked only `> 0`, which 0.1 would have satisfied.
     // 13 and 26 are the real bounds from use-font-size.
     const DIGIT_ADVANCE_EM = 0.55;
+    const SPACE_ADVANCE_EM = 0.25;
     const VERSE_NUMBER_SCALE = 0.85;
 
     for (const baseFontSize of [13, 16, 18, 22, 26]) {
@@ -152,12 +152,18 @@ describe('compileParagraph — text assembly', () => {
           verses: [{ verseNumber, text: 'x' }],
           theme: { ...THEME, baseFontSize },
         });
-        const [number] = taggedRanges(out, 'verse-number:');
+        const [digitsRange] = taggedRanges(out, 'verse-number:');
+        const [gapRange] = taggedRanges(out, 'verse-number-gap:');
         const digits = String(verseNumber).length;
         const glyphWidth = digits * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
-        const target = glyphWidth + 2 * (number.hitSlop ?? 0);
+        const spaceWidth = SPACE_ADVANCE_EM * baseFontSize * (gapRange.advanceScale ?? 1);
 
-        expect(target).toBeGreaterThanOrEqual(24);
+        // The target is the digits plus the space after them, both interactive
+        // and both pointing at the same verse. No hit-testing code involved:
+        // the platform's own offset lookup covers exactly this width.
+        expect(digitsRange.interactive).toBe(true);
+        expect(gapRange.interactive).toBe(true);
+        expect(glyphWidth + spaceWidth).toBeGreaterThanOrEqual(24);
       }
     }
   });
@@ -176,11 +182,8 @@ describe('compileParagraph — text assembly', () => {
       theme: { ...THEME, baseFontSize: 26 },
     });
 
-    const [narrowNumber] = taggedRanges(narrow, 'verse-number:');
-    const [wideNumber] = taggedRanges(wide, 'verse-number:');
-
-    expect(narrowNumber.hitSlop).toBeGreaterThan(0);
-    expect(wideNumber.hitSlop ?? 0).toBe(0);
+    expect(taggedRanges(narrow, 'verse-number-gap:')[0].advanceScale).toBeGreaterThan(1);
+    expect(taggedRanges(wide, 'verse-number-gap:')[0].advanceScale ?? 1).toBe(1);
   });
 
   it('separates the verse number from the text with a non-breaking space', () => {
@@ -215,8 +218,7 @@ describe('compileParagraph — text assembly', () => {
   it('handles multi-digit verse numbers', () => {
     const out = compile({ verses: [{ verseNumber: 176, text: 'Let my cry come.' }] });
     expect(out.text).toBe('176 Let my cry come.');
-    // The range covers the trailing non-breaking space as well as the digits.
-    expect(taggedRanges(out, 'verse-number:')[0].covers).toBe('176\u00a0');
+    expect(taggedRanges(out, 'verse-number:')[0].covers).toBe('176');
     expect(out.verses[0].textStart).toBe(4);
   });
 
@@ -520,7 +522,7 @@ describe('compileParagraph — layering', () => {
       if (tag.startsWith('auto-highlight:')) return RANGE_LAYER.autoHighlight;
       if (tag.startsWith('highlight:')) return RANGE_LAYER.highlight;
       if (tag.startsWith('red-letter:')) return RANGE_LAYER.redLetter;
-      if (tag.startsWith('verse-number:')) return RANGE_LAYER.verseNumber;
+      if (tag.startsWith('verse-number')) return RANGE_LAYER.verseNumber;
       if (tag.startsWith('lexicon:')) return RANGE_LAYER.lexicon;
       return RANGE_LAYER.selection;
     };

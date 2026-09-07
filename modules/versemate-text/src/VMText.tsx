@@ -94,7 +94,7 @@ function encodeRanges(ranges: TextRange[] | undefined): string {
         // makes every later field decode as its neighbour's value, which shows up as wrong
         // colours rather than as an error.
         range.fontStyle ?? '',
-        range.hitSlop ?? '',
+        range.advanceScale ?? '',
       ].join('~')
     );
   }

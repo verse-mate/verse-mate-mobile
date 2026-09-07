@@ -410,14 +410,6 @@ final class VMTextView: ExpoView {
 
     let point = recognizer.location(in: textView)
 
-    // A range carrying a hit slop is tested as a RECTANGLE first, because its glyphs are too small
-    // to hit reliably: a verse number is 6-17pt wide. Checked before the offset lookup, which snaps
-    // to the nearest glyph and would resolve a near-miss to a neighbour instead.
-    if let slopIndex = slopHit(at: point) {
-      onRangeTap(["index": slopIndex, "charOffset": spec.ranges[slopIndex].start])
-      return
-    }
-
     let offset = characterOffset(at: point)
     guard offset >= 0 else { return }
 
@@ -433,63 +425,6 @@ final class VMTextView: ExpoView {
       }
     }
     onPress(["charOffset": offset, "x": point.x, "y": point.y])
-  }
-
-  /// Topmost interactive range whose padded rectangle contains the point, or nil.
-  ///
-  /// The rectangle is the range's own glyph run, grown vertically to the whole line fragment and
-  /// horizontally by its slop, then CLAMPED so it reaches neither the following glyph run nor the
-  /// preceding one. The clamp is why a wide slop is safe to ask for: it takes whatever whitespace is
-  /// going and stops at a neighbour's glyphs rather than stealing their taps.
-  ///
-  /// The vertical extent is taken from the line fragment deliberately. Unlike Android, which snaps y
-  /// to a line before resolving x, `glyphIndex(for:in:)` finds the nearest glyph in two dimensions,
-  /// so a tap in the leading above a verse number would otherwise land on the line above.
-  private func slopHit(at point: CGPoint) -> Int? {
-    let layoutManager = textView.layoutManager
-    let container = textView.textContainer
-    layoutManager.ensureLayout(for: container)
-    guard layoutManager.numberOfGlyphs > 0 else { return nil }
-
-    let length = (textView.text as NSString?)?.length ?? 0
-
-    for (index, range) in spec.ranges.enumerated().reversed() where range.interactive {
-      guard range.hitSlopPt > 0, range.start < range.end, range.end <= length else { continue }
-
-      let charRange = NSRange(location: range.start, length: range.end - range.start)
-      let glyphRange = layoutManager.glyphRange(forCharacterRange: charRange, actualCharacterRange: nil)
-      var effective = NSRange(location: 0, length: 0)
-      let lineRect = layoutManager.lineFragmentRect(
-        forGlyphAt: glyphRange.location, effectiveRange: &effective)
-      // A range that wraps across lines is skipped. A verse number cannot wrap away from its own
-      // trailing space, which is exactly why that space is non-breaking.
-      guard NSMaxRange(glyphRange) <= NSMaxRange(effective) else { continue }
-
-      let bounds = layoutManager.boundingRect(forGlyphRange: glyphRange, in: container)
-      guard point.y >= lineRect.minY, point.y <= lineRect.maxY else { continue }
-
-      // Left may grow into whatever sits before the range, but no further than the preceding
-      // glyph's own trailing edge — or the line fragment's left edge when the range starts the line.
-      var leftBound = lineRect.minX
-      // `effective` is a GLYPH range; `range.start` is a character offset. They
-      // diverge as soon as the font forms a ligature, and fi/fl are everywhere
-      // in English scripture ("first", "flesh", "fill"). Comparing the two
-      // directly made a line-initial number look mid-line, which put leftBound
-      // on the previous line and left the rectangle unsatisfiable.
-      let effectiveChars = layoutManager.characterRange(
-        forGlyphRange: effective, actualGlyphRange: nil)
-      if range.start > effectiveChars.location {
-        let beforeRange = NSRange(location: range.start - 1, length: 1)
-        let beforeGlyphs = layoutManager.glyphRange(
-          forCharacterRange: beforeRange, actualCharacterRange: nil)
-        leftBound = layoutManager.boundingRect(forGlyphRange: beforeGlyphs, in: container).minX
-      }
-      let left = max(bounds.minX - range.hitSlopPt, leftBound)
-      // Right cannot grow at all without covering the next glyph.
-      guard point.x >= left, point.x <= bounds.maxX else { continue }
-      return index
-    }
-    return nil
   }
 
   /// Nearest character offset to a point, or -1 when the point is outside the text.
