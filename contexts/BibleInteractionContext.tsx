@@ -77,7 +77,7 @@ export function BibleInteractionProvider({
     highlightGroup: HighlightGroup | null;
     verseText?: string;
     source: VersemateTooltipSource;
-  }>({ visible: false, verseNumber: null, highlightGroup: null, source: 'verse_number' });
+  }>({ visible: false, verseNumber: null, highlightGroup: null, source: 'unknown' });
 
   const [autoHighlightState, setAutoHighlightState] = useState<{
     visible: boolean;

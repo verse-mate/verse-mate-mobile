@@ -157,20 +157,29 @@ describe('compileParagraph — text assembly', () => {
         const digits = String(verseNumber).length;
         const glyphWidth = digits * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
         const spaceWidth = SPACE_ADVANCE_EM * baseFontSize * (gapRange.advanceScale ?? 1);
-        const joinSpaceWidth = SPACE_ADVANCE_EM * baseFontSize;
-
         expect(digitsRange.interactive).toBe(true);
         expect(gapRange.interactive).toBe(true);
 
-        // Both platforms resolve a tap to the character it falls INSIDE, so the
-        // whole widened space belongs to the number on each. Android needed a
-        // fix to get there: getOffsetForHorizontal returns the nearest caret,
-        // whose boundaries sit mid-advance, so half the widened space used to
-        // resolve to the verse's first character. Modelled explicitly rather
-        // than by restating the production formula, which is what let that
-        // 16-22dp shortfall through unnoticed.
+        // What this DOES check: the compiler emits a widening large enough that
+        // a renderer resolving a tap to the character it falls inside gives the
+        // number a target of at least 24dp. That is the contract the compiler
+        // owns, and it is the only half of the story reachable from Jest.
         expect(glyphWidth + spaceWidth).toBeGreaterThanOrEqual(24);
-        expect(joinSpaceWidth).toBeGreaterThan(0);
+
+        // What this CANNOT check, stated so nobody mistakes the above for it:
+        // whether each platform actually partitions the advance that way.
+        // `charOffsetAt` is Kotlin and the iOS equivalent is Swift; no Jest test
+        // reaches either, and this repo has no native test target. Android in
+        // particular only became correct here by a fix to that Kotlin, and it
+        // is verified on a device, not by this file. Where widening is needed at
+        // all, the caret partition Android used to have would have left the
+        // number short of the floor, which is the shape of the bug that fix
+        // closed. A three-digit number needs no widening and was never short.
+        if ((gapRange.advanceScale ?? 1) > 1) {
+          const caretPartition =
+            (SPACE_ADVANCE_EM * baseFontSize) / 2 + glyphWidth + spaceWidth / 2;
+          expect(caretPartition).toBeLessThan(24);
+        }
       }
     }
   });

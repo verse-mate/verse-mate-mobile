@@ -297,11 +297,14 @@ extension VMTextSpec {
         // line height is untouched. The range this lands on is a single space, so one addition.
         // Expressed against the base letter spacing already applied to the whole string, hence
         // the sum rather than a replacement.
-        // Measured, not estimated. The font is in hand here, and an estimate that
-        // is even slightly narrow than the real space puts the target under the
-        // floor: the arithmetic that sizes advanceScale leaves no slack.
+        // Measured, not estimated, so that advanceScale MEANS the same thing on
+        // both platforms. Android applies ScaleXSpan(s), which yields n*s for a
+        // real advance n. Adding estimate*(s-1) to n instead, as an earlier
+        // version did, gives a different width whenever the real space is not
+        // exactly the 0.25em the JS scale was computed against.
         let baseFont = vmFont(family: fontFamily, size: fontSizePt, bold: baseBold, italic: false)
-        let natural = (" " as NSString).size(withAttributes: [.font: baseFont]).width
+        // U+00A0, the character actually in the string, not a plain U+0020.
+        let natural = ("\u{00A0}" as NSString).size(withAttributes: [.font: baseFont]).width
         attributed.addAttribute(
           .kern,
           value: letterSpacingPt + natural * (range.advanceScale - 1),
