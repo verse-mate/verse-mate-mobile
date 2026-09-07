@@ -193,10 +193,11 @@ export function compileParagraph(input: ParagraphInput): CompiledParagraph {
       // advance is on the SPACE alone: applied to the digits it would stretch
       // the glyphs on Android and add a gap between them on iOS.
       //
-      // The joining space BEFORE the number is deliberately in neither range.
-      // Android resolves a tap to the nearest insertion point, so a tap on the
-      // right half of the previous verse's last glyph lands there, and a range
-      // covering it would open the wrong verse.
+      // The joining space BEFORE the number is deliberately in neither range,
+      // so a tap that lands in it matches nothing and does nothing. Both
+      // renderers now resolve a tap to the character it falls inside, so that
+      // space belongs to itself: covering it here would hand the gap between two
+      // verses to the later one, which is a target the reader cannot see.
       emitted.push({
         layer: RANGE_LAYER.verseNumber,
         range: {

@@ -595,7 +595,18 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       val line = resolved.getLineForVertical(y.toInt())
       val offset = resolved.getOffsetForHorizontal(line, x)
       // Step back when the caret we landed on sits to the RIGHT of the tap.
-      if (offset > resolved.getLineStart(line) && resolved.getPrimaryHorizontal(offset) > x) {
+      //
+      // LTR only, deliberately. In an RTL run the caret for offset i sits at the
+      // RIGHT edge of glyph i, so this comparison is true exactly when the tap
+      // already landed inside that glyph, and stepping back would move one
+      // character the wrong way. No RTL text reaches this view today (the reader
+      // renders the five LTR locales; the only RTL in the app is the lexicon
+      // card's Hebrew, which is a plain RN Text), but a Hebrew interlinear would
+      // hit it, so the guard is here rather than the assumption being silent.
+      if (resolved.getParagraphDirection(line) == Layout.DIR_LEFT_TO_RIGHT &&
+        offset > resolved.getLineStart(line) &&
+        resolved.getPrimaryHorizontal(offset) > x
+      ) {
         return offset - 1
       }
       return offset

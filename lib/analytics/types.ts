@@ -193,7 +193,10 @@ export type VersemateTooltipSource =
   /** Followed a deep link or a jump, which scrolls to the verse and opens it. */
   | 'scroll_to_verse'
   /** Tapped a verse inside a topic. */
-  | 'topic_verse';
+  | 'topic_verse'
+  /** Seed value only. A real open always sets one of the above, so this
+   *  appearing in the data means a new path was added without one. */
+  | 'unknown';
 
 export interface VersemateTooltipOpenedProperties {
   bookId: number;

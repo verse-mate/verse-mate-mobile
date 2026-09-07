@@ -75,8 +75,6 @@ import {
 } from '@/utils/bible/groupConsecutiveHighlights';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 
-// TODO: This will be replaced by a user setting
-
 /**
  * Lexicon underline appearance, shared with the legacy renderer's constants in
  * HighlightedText. Fractional thickness is meaningful here because the native
