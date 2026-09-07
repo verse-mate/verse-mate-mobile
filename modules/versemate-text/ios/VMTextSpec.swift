@@ -9,10 +9,6 @@ import UIKit
  the same unit `NSAttributedString` indexes by, so no conversion is needed here either. (Swift's
  native `String.Index` is NOT that unit, which is why everything below works in `NSRange`.)
  */
-/// Rough advance width of a space, as a fraction of the font size. Mirrors SPACE_ADVANCE_EM in
-/// lib/text/compile-paragraph.ts, which is where the multiplier that uses it is computed.
-let VM_SPACE_ADVANCE_EM: CGFloat = 0.25
-
 struct VMRange: Hashable {
   let start: Int
   let end: Int
@@ -207,7 +203,7 @@ func vmDecodeRanges(_ encoded: String) -> [VMRange] {
         fontScale: CGFloat(Double(f[8]) ?? 1),
         baselineShift: CGFloat(Double(f[9]) ?? 0),
         interactive: f[10] == "1",
-        // Index 12: absent on chunks written before hitSlop existed.
+        // Index 12: absent on chunks written before advanceScale existed.
         advanceScale: CGFloat(Double(field(12) ?? "") ?? 1)
       )
     )
@@ -301,7 +297,11 @@ extension VMTextSpec {
         // line height is untouched. The range this lands on is a single space, so one addition.
         // Expressed against the base letter spacing already applied to the whole string, hence
         // the sum rather than a replacement.
-        let natural = fontSizePt * VM_SPACE_ADVANCE_EM
+        // Measured, not estimated. The font is in hand here, and an estimate that
+        // is even slightly narrow than the real space puts the target under the
+        // floor: the arithmetic that sizes advanceScale leaves no slack.
+        let baseFont = vmFont(family: fontFamily, size: fontSizePt, bold: baseBold, italic: false)
+        let natural = (" " as NSString).size(withAttributes: [.font: baseFont]).width
         attributed.addAttribute(
           .kern,
           value: letterSpacingPt + natural * (range.advanceScale - 1),

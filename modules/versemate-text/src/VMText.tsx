@@ -94,6 +94,10 @@ function encodeRanges(ranges: TextRange[] | undefined): string {
         // makes every later field decode as its neighbour's value, which shows up as wrong
         // colours rather than as an error.
         range.fontStyle ?? '',
+        // Slot 12 was briefly a `hitSlop` on this branch and is reused here rather
+        // than appended. Safe only because that field never reached main and the
+        // app version moves with this change, so no published bundle can carry
+        // the old meaning into a new binary. The slot is NOT free in general.
         range.advanceScale ?? '',
       ].join('~')
     );

@@ -1423,8 +1423,9 @@ const createStyles = (
       // to read as something you can press rather than as a footnote mark.
       color: colors.gold,
       // Horizontal padding only, and padding rather than margin so the glyphs do
-      // not move. Derived from the SAME widening the compiler sends native, so
-      // the two renderers cannot drift, and sized for a
+      // not move. Computed from the same VERSE_NUMBER_TARGET_MIN_DP the native
+      // side sizes against, but NOT from its multiplier: the geometries differ,
+      // and deriving one from the other measured 20.5dp. Sized for a
       // single-digit number: that is the narrowest case, so padding for it
       // clears the floor for every number. A fixed padding measured 23.2dp at
       // the smallest reading size, under the floor, because glyphs shrink with

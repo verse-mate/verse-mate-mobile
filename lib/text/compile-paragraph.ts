@@ -69,9 +69,9 @@ const AUTO_HIGHLIGHT_OPACITY = 0.2;
  * paragraph. This is what is achievable without damaging the reading page, and
  * the full line height carries the vertical axis.
  *
- * Exported because both renderers size against it: the compiler turns it into a
- * `fontScale` on the space after the number, and the web renderer turns it into
- * element padding. One number, two mechanisms, no drift.
+ * Exported because both renderers size against it, each with its own mechanism:
+ * the compiler widens the advance of the space after the number, and the web
+ * renderer uses element padding. One number, two geometries, no drift.
  */
 export const VERSE_NUMBER_TARGET_MIN_DP = 24;
 
@@ -100,9 +100,6 @@ const SPACE_ADVANCE_EM = 0.25;
  * hit-testing code. Returns 0 once the digits are wide enough on their own,
  * which is why a three-digit number in Psalm 119 gets none.
  *
- * Exported because the web renderer needs the same number, as element padding.
- * A fixed padding there measured 23.2dp at the smallest reading size, under the
- * floor, because glyphs shrink with the font while a constant does not.
  */
 export function verseNumberGapScale(digitCount: number, baseFontSize: number): number {
   const digitsWidth = digitCount * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
