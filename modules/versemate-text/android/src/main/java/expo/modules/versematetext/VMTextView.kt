@@ -53,7 +53,12 @@ import expo.modules.kotlin.views.ExpoView
 @SuppressLint("ViewConstructor")
 class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
 
-  private val onPress by EventDispatcher<Map<String, Any?>>()
+  // NOT `onPress`. Expo maps a view event `onPress` to `topPress`, which React
+  // Native already registers as a bubbling event for Pressability, and the view
+  // config registry rejects the same name being both: "Event cannot be both
+  // direct and bubbling: topPress". That threw the moment the first VMText
+  // rendered, so the reader crashed into its error boundary on iOS.
+  private val onTextPress by EventDispatcher<Map<String, Any?>>()
   private val onRangeTap by EventDispatcher<Map<String, Any?>>()
   private val onTextLayout by EventDispatcher<Map<String, Any?>>()
   private val onSelectionChange by EventDispatcher<Map<String, Any?>>()
@@ -564,7 +569,7 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       if (hitIndex >= 0) {
         this@VMTextView.onRangeTap(mapOf("index" to hitIndex, "charOffset" to offset))
       } else {
-        this@VMTextView.onPress(
+        this@VMTextView.onTextPress(
           mapOf("charOffset" to offset, "x" to (x / density), "y" to (y / density))
         )
       }

@@ -149,7 +149,7 @@ class VMTextModule : Module() {
     }
 
     View(VMTextView::class) {
-      Events("onPress", "onRangeTap", "onTextLayout", "onSelectionChange")
+      Events("onTextPress", "onRangeTap", "onTextLayout", "onSelectionChange")
 
       // Props arrive individually from the bridge, so each setter folds its value
       // into the pending spec and the view rebuilds its layout once, lazily, on

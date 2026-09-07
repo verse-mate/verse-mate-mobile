@@ -84,7 +84,12 @@ final class VMTextView: ExpoView {
   private var lastSelStart = Int.min
   private var lastSelEnd = Int.min
 
-  private let onPress = EventDispatcher()
+  /// NOT `onPress`. Expo maps a view event `onPress` to `topPress`, which React
+  /// Native already registers as a bubbling event for Pressability, and the view
+  /// config registry rejects the same name being both: "Event cannot be both
+  /// direct and bubbling: topPress". That threw the moment the first VMText
+  /// rendered, so the reader crashed into its error boundary on iOS.
+  private let onTextPress = EventDispatcher()
   private let onRangeTap = EventDispatcher()
   private let onTextLayout = EventDispatcher()
   private let onSelectionChange = EventDispatcher()
@@ -424,7 +429,7 @@ final class VMTextView: ExpoView {
         return
       }
     }
-    onPress(["charOffset": offset, "x": point.x, "y": point.y])
+    onTextPress(["charOffset": offset, "x": point.x, "y": point.y])
   }
 
   /// Nearest character offset to a point, or -1 when the point is outside the text.
