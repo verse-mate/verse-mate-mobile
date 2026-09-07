@@ -22,8 +22,8 @@ struct VMRangeRecord: Record {
   @Field var fontWeight: String?
   @Field var fontStyle: String?
   @Field var fontScale: Double?
-  /// Extra tappable points on each side. Grows a hit rectangle, never a glyph.
-  @Field var hitSlop: Double?
+  /// Multiplier on horizontal advance. Horizontal-only, so line metrics are untouched.
+  @Field var advanceScale: Double?
   @Field var baselineShift: Double?
   @Field var interactive: Bool = false
 
@@ -44,7 +44,7 @@ struct VMRangeRecord: Record {
       // Last, matching the declaration order in VMRange. Swift's memberwise
       // initializer is positional even with labels, so an out-of-order argument
       // is a build error, not a warning.
-      hitSlopPt: CGFloat(hitSlop ?? 0)
+      advanceScale: CGFloat(advanceScale ?? 1)
     )
   }
 }

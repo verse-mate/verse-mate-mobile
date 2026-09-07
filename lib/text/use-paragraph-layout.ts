@@ -159,6 +159,7 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
           ranges: c.ranges
             .filter(
               (r) =>
+                r.advanceScale !== undefined ||
                 r.fontScale !== undefined ||
                 r.baselineShift !== undefined ||
                 r.fontWeight !== undefined
@@ -168,6 +169,7 @@ export function useParagraphLayout(options: UseParagraphLayoutOptions): Paragrap
               end: r.end,
               fontWeight: r.fontWeight,
               fontScale: r.fontScale,
+              advanceScale: r.advanceScale,
               baselineShift: r.baselineShift,
               interactive: false,
             })),

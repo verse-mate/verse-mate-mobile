@@ -9,6 +9,10 @@ import UIKit
  the same unit `NSAttributedString` indexes by, so no conversion is needed here either. (Swift's
  native `String.Index` is NOT that unit, which is why everything below works in `NSRange`.)
  */
+/// Rough advance width of a space, as a fraction of the font size. Mirrors SPACE_ADVANCE_EM in
+/// lib/text/compile-paragraph.ts, which is where the multiplier that uses it is computed.
+let VM_SPACE_ADVANCE_EM: CGFloat = 0.25
+
 struct VMRange: Hashable {
   let start: Int
   let end: Int
@@ -26,9 +30,12 @@ struct VMRange: Hashable {
   /// Baseline offset as a multiple of the base font size; positive raises.
   let baselineShift: CGFloat
   let interactive: Bool
-  /// Extra tappable points on each side, for a target whose glyphs are too small to hit.
-  /// 0 means no rectangle at all, not a rectangle of width 0. Hit-testing only, never layout.
-  var hitSlopPt: CGFloat = 0
+  /// Multiplier on this range's horizontal advance. 1 means none.
+  ///
+  /// Applied with `.kern`, which is horizontal-only, so it widens the space the characters occupy
+  /// without touching the line's height. It DOES affect layout, which is why it belongs in the cache
+  /// key this struct doubles as.
+  var advanceScale: CGFloat = 1
 }
 
 /**
@@ -167,7 +174,7 @@ func vmParseColor(_ value: String?) -> UIColor? {
 
    start ~ end ~ underlineStyle ~ underlineColor ~ underlineThickness ~
    backgroundColor ~ color ~ fontWeight ~ fontScale ~ baselineShift ~ interactive ~ fontStyle ~
-   hitSlop
+   advanceScale
 
  Byte-identical to `decodeRanges` in VMTextModule.kt, and that is the point: both platforms decode
  what `encodeRanges` in src/VMText.tsx produces, so a field appended for one must be readable by the
@@ -201,7 +208,7 @@ func vmDecodeRanges(_ encoded: String) -> [VMRange] {
         baselineShift: CGFloat(Double(f[9]) ?? 0),
         interactive: f[10] == "1",
         // Index 12: absent on chunks written before hitSlop existed.
-        hitSlopPt: CGFloat(Double(field(12) ?? "") ?? 0)
+        advanceScale: CGFloat(Double(field(12) ?? "") ?? 1)
       )
     )
   }
@@ -285,6 +292,19 @@ extension VMTextSpec {
         attributed.addAttribute(
           .baselineOffset,
           value: fontSizePt * range.baselineShift,
+          range: nsRange
+        )
+      }
+
+      if range.advanceScale > 1 {
+        // `.kern` adds points AFTER each character in the range, and is horizontal-only, so the
+        // line height is untouched. The range this lands on is a single space, so one addition.
+        // Expressed against the base letter spacing already applied to the whole string, hence
+        // the sum rather than a replacement.
+        let natural = fontSizePt * VM_SPACE_ADVANCE_EM
+        attributed.addAttribute(
+          .kern,
+          value: letterSpacingPt + natural * (range.advanceScale - 1),
           range: nsRange
         )
       }

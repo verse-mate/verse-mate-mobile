@@ -11,6 +11,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.LineHeightSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.RelativeSizeSpan
+import android.text.style.ScaleXSpan
 import android.text.style.StyleSpan
 import android.graphics.Typeface
 
@@ -39,13 +40,13 @@ data class VMRange(
   val baselineShift: Float,
   val interactive: Boolean,
   /**
-   * Extra tappable dp on each side of this range, for a target whose glyphs are
-   * too small to hit. 0 means no rectangle at all, not a rectangle of width 0.
+   * Multiplier on this range's horizontal advance. 1 means none.
    *
-   * Affects hit-testing only, never layout, so it is deliberately harmless to
-   * the measurement cache key this class doubles as.
+   * Drawn with ScaleXSpan, which is horizontal-only, so it widens the space the
+   * characters occupy without touching the line's height. It DOES affect layout,
+   * which is exactly why it belongs in the cache key this class doubles as.
    */
-  val hitSlopDp: Float = 0f,
+  val advanceScale: Float = 1f,
 )
 
 /**
@@ -199,6 +200,11 @@ fun VMTextSpec.buildSpannable(): Spannable {
     val typefaceStyle = typefaceStyleFor(range.fontWeight, range.fontStyle)
     if (typefaceStyle != Typeface.NORMAL) {
       spannable.setSpan(StyleSpan(typefaceStyle), start, end, flag)
+    }
+    if (range.advanceScale > 1f) {
+      // Horizontal-only: ScaleXSpan stretches the advance, never the line height.
+      // Applied to a SPACE, so there is no glyph to distort.
+      spannable.setSpan(ScaleXSpan(range.advanceScale), start, end, flag)
     }
     if (range.fontScale != 1f && range.fontScale > 0f) {
       spannable.setSpan(RelativeSizeSpan(range.fontScale), start, end, flag)

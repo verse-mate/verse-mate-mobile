@@ -175,7 +175,13 @@ export function ParagraphText(props: ParagraphTextProps) {
     const metricRangesFlat = metricRanges
       .filter(
         (r) =>
-          r.fontScale !== undefined || r.baselineShift !== undefined || r.fontWeight !== undefined
+          r.fontScale !== undefined ||
+          r.baselineShift !== undefined ||
+          r.fontWeight !== undefined ||
+          // Widens an advance, so it changes line breaking. Omitting it here
+          // measures the paragraph short while the view pins that height, which
+          // clips text.
+          r.advanceScale !== undefined
       )
       // Flattened to the bridge shape, same as the view prop. Measurement only
       // reads the metric fields, but sending the public nested shape here would
@@ -186,6 +192,7 @@ export function ParagraphText(props: ParagraphTextProps) {
         fontWeight: r.fontWeight,
         fontScale: r.fontScale,
         baselineShift: r.baselineShift,
+        advanceScale: r.advanceScale,
         interactive: false,
       }));
     const endMeasure = perfSpan('paragraph.measure');

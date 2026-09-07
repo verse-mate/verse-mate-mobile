@@ -555,18 +555,6 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
     }
 
     private fun dispatchTap(x: Float, y: Float) {
-      // A range carrying a hit slop is tested as a RECTANGLE first, because its
-      // glyphs are too small to hit reliably: a verse number is 6-17dp wide.
-      // Checked before the offset lookup, since that lookup snaps to the nearest
-      // insertion point and would resolve a near-miss to a neighbour instead.
-      val slopIndex = slopHitAt(x, y)
-      if (slopIndex >= 0) {
-        this@VMTextView.onRangeTap(
-          mapOf("index" to slopIndex, "charOffset" to spec.ranges[slopIndex].start)
-        )
-        return
-      }
-
       val offset = charOffsetAt(x, y)
       // Later ranges paint over earlier ones, so the topmost interactive range at
       // this offset is the one the user sees and therefore the one they meant.
@@ -580,60 +568,6 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
           mapOf("charOffset" to offset, "x" to (x / density), "y" to (y / density))
         )
       }
-    }
-
-    /**
-     * Topmost interactive range whose padded rectangle contains the point, or -1.
-     *
-     * The rectangle is the range's own glyph run, grown vertically to the whole
-     * line and horizontally by its slop, then CLAMPED so it reaches neither the
-     * following glyph run nor the preceding one. The clamp is why a wide slop is
-     * safe to ask for: it takes whatever whitespace is going and stops at a
-     * neighbour's glyphs rather than stealing their taps.
-     *
-     * Ranges that wrap across a line are skipped. A verse number cannot wrap
-     * away from its own trailing space (that space is non-breaking, which is why
-     * it is non-breaking), so this only ever skips something that has no slop.
-     */
-    private fun slopHitAt(x: Float, y: Float): Int {
-      val resolved = layout ?: return -1
-      for (i in spec.ranges.indices.reversed()) {
-        val range = spec.ranges[i]
-        if (!range.interactive || range.hitSlopDp <= 0f) continue
-        if (range.start >= range.end) continue
-        // Bounded against the text, matching the iOS twin. The render path
-        // CLAMPS an oversized range when it builds the spannable, so a spec that
-        // arrives ahead of the layout it describes draws fine and would then
-        // feed an out-of-range offset straight to getPrimaryHorizontal.
-        if (range.end > text.length) continue
-
-        val line = resolved.getLineForOffset(range.start)
-        // `end` is exclusive, so ask about the last character INSIDE the range.
-        // A verse number's range ends on its trailing space, and when that space
-        // is the last thing on a line `getLineForOffset(end)` reports the next
-        // line, which silently dropped the slop on exactly the wrapped lines
-        // that need it most.
-        if (resolved.getLineForOffset(range.end - 1) != line) continue
-
-        val top = resolved.getLineTop(line).toFloat()
-        val bottom = resolved.getLineBottom(line).toFloat()
-        if (y < top || y > bottom) continue
-
-        val slopPx = range.hitSlopDp * density
-        val lineStart = resolved.getLineStart(line)
-        // Left may grow into whatever sits before the range, but no further than
-        // the preceding character's own left edge — or the line's left edge when
-        // the range starts the line, where the margin belongs to nobody.
-        val leftBound =
-          if (range.start > lineStart) resolved.getPrimaryHorizontal(range.start - 1)
-          else resolved.getLineLeft(line)
-        val left = maxOf(resolved.getPrimaryHorizontal(range.start) - slopPx, leftBound)
-        // Right cannot grow at all without covering the next glyph, so the
-        // range's own right edge is the bound.
-        val right = resolved.getPrimaryHorizontal(range.end)
-        if (x in left..right) return i
-      }
-      return -1
     }
 
     /** Character offset nearest a point, or 0 before the first layout. */

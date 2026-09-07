@@ -21,8 +21,8 @@ class RangeRecord : Record {
   @Field var fontScale: Double? = null
   @Field var baselineShift: Double? = null
   @Field var interactive: Boolean = false
-  /** Extra tappable dp on each side. Grows a hit rectangle, never a glyph. */
-  @Field var hitSlop: Double? = null
+  /** Multiplier on horizontal advance. Horizontal-only, so line metrics are untouched. */
+  @Field var advanceScale: Double? = null
 }
 
 /** JS-facing shape of a measurement request. */
@@ -56,7 +56,7 @@ class MeasureRequest : Record {
  *
  *   start ~ end ~ underlineStyle ~ underlineColor ~ underlineThickness ~
  *   backgroundColor ~ color ~ fontWeight ~ fontScale ~ baselineShift ~ interactive ~ fontStyle ~
- *   hitSlop
+ *   advanceScale
  *
  * The trailing fields are read with getOrNull, so a JS bundle that predates them still decodes.
  * Field order here is the contract with `encodeRanges` in src/VMText.tsx: append only, never
@@ -89,8 +89,8 @@ private fun decodeRanges(encoded: String?): List<RangeRecord> {
         baselineShift = f[9].toDoubleOrNull()
         interactive = f[10] == "1"
         fontStyle = f.getOrNull(11)?.ifEmpty { null }
-        // getOrNull(12): absent on chunks written before hitSlop existed.
-        hitSlop = f.getOrNull(12)?.toDoubleOrNull()
+        // getOrNull(12): absent on chunks written before advanceScale existed.
+        advanceScale = f.getOrNull(12)?.toDoubleOrNull()
       }
     )
   }
@@ -259,7 +259,7 @@ private fun RangeRecord.toRange(density: Float): VMRange = VMRange(
   fontWeight = fontWeight,
   fontStyle = fontStyle,
   fontScale = (fontScale ?: 1.0).toFloat(),
-  hitSlopDp = (hitSlop ?: 0.0).toFloat(),
+  advanceScale = (advanceScale ?: 1.0).toFloat(),
   baselineShift = (baselineShift ?: 0.0).toFloat(),
   interactive = interactive,
 )

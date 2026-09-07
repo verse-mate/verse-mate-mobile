@@ -71,22 +71,30 @@ export interface TextRange {
   baselineShift?: number;
 
   /**
-   * Extra tappable margin around this range, in dp, on each side.
+   * Multiplier on this range's horizontal advance. 1 (or absent) means none.
    *
-   * Grows a hit RECTANGLE, never a glyph: the text, its metrics, its
-   * measurement and the string a reader copies are all unaffected. Exists
-   * because a verse number is 6-17dp of glyph and needs a target several times
-   * that, and because every mechanism that widens the glyphs instead is worse.
-   * `fontScale` on the trailing space would have been the obvious one, but it
-   * is metric-affecting vertically on both platforms (a `RelativeSizeSpan` on
-   * Android, a scaled `UIFont` on iOS), so the scale needed to reach the floor
-   * makes the line several times taller.
+   * Widens the space the characters occupy WITHOUT touching line metrics:
+   * `ScaleXSpan` on Android and `.kern` on iOS are both horizontal-only. The
+   * platform's own offset lookup then honours the larger target, so this needs
+   * no hit-testing code at all.
    *
-   * The views clamp the rectangle to the neighbouring glyph runs, so a slop
-   * larger than the surrounding whitespace simply stops there rather than
-   * stealing a neighbour's taps.
+   * It exists because a verse number is 6-17dp of glyph and needs a target of
+   * at least 24dp, and the two obvious alternatives are both worse. `fontScale`
+   * on the trailing space is metric-affecting VERTICALLY, so the scale needed to
+   * reach the floor renders that space at ~69pt and makes its line five times
+   * taller. A hit rectangle around the glyphs cannot reach the floor either: it
+   * has to be clamped to the neighbouring glyph runs or it steals their taps,
+   * and the whitespace inside that clamp is only about a quarter of the font
+   * size, which left the real target at 12-22dp.
+   *
+   * A multiplier rather than a width so no density conversion is needed on
+   * either side of the bridge.
+   *
+   * This DOES change layout: the gap after a verse number is genuinely wider.
+   * That makes it metric-affecting horizontally, so it must be included in the
+   * measurement request, or the paragraph measures short and the view clips.
    */
-  hitSlop?: number;
+  advanceScale?: number;
 
   /**
    * When true, taps inside this range fire `onRangeTap` with the range's index
