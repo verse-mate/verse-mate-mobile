@@ -204,7 +204,10 @@ export function VMText(props: VMTextProps) {
     color: typeof flat?.color === 'string' ? flat.color : undefined,
     style: buildLayoutStyle(flat, width, height),
     testID,
-    onPress: onPress ? handlePress : undefined,
+    // The NATIVE event is onTextPress; the public prop stays onPress. Naming
+    // the native one onPress made Expo map it to topPress, which React Native
+    // already registers as bubbling, and the view config registry threw.
+    onTextPress: onPress ? handlePress : undefined,
     onRangeTap: onRangeTap ? handleRangeTap : undefined,
     onTextLayout: onTextLayout ? handleTextLayout : undefined,
     // Always attached so the dev-only selection counters see every event, not

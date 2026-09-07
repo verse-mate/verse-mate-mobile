@@ -177,7 +177,7 @@ public class VMTextModule: Module {
     }
 
     View(VMTextView.self) {
-      Events("onPress", "onRangeTap", "onTextLayout", "onSelectionChange")
+      Events("onTextPress", "onRangeTap", "onTextLayout", "onSelectionChange")
 
       Prop("text") { (view: VMTextView, value: String?) in
         view.updateSpec { $0.text = value ?? "" }

@@ -54,7 +54,8 @@ export interface NativeVMTextProps {
   color?: string;
   style?: unknown;
   testID?: string;
-  onPress?: (event: { nativeEvent: { charOffset: number; x: number; y: number } }) => void;
+  /** Named onTextPress, not onPress: `onPress` collides with React Native's bubbling topPress. */
+  onTextPress?: (event: { nativeEvent: { charOffset: number; x: number; y: number } }) => void;
   onRangeTap?: (event: { nativeEvent: { index: number; charOffset: number } }) => void;
   onSelectionChange?: (event: { nativeEvent: { start: number; end: number } }) => void;
   onTextLayout?: (event: {
