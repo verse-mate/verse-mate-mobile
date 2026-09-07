@@ -433,8 +433,22 @@ final class VMTextView: ExpoView {
     let container = textView.textContainer
     layoutManager.ensureLayout(for: container)
 
+    // Snap y to its line BEFORE resolving x, which is what Android does with
+    // getLineForVertical + getOffsetForHorizontal. Without this, `glyphIndex(for:in:)` finds the
+    // nearest glyph in TWO dimensions, so a tap in the leading above a short glyph resolves to the
+    // line above. That matters most for a verse number, whose target is only as tall as its line
+    // unless the whole line band maps to it.
+    var resolved = point
+    let allGlyphs = NSRange(location: 0, length: layoutManager.numberOfGlyphs)
+    layoutManager.enumerateLineFragments(forGlyphRange: allGlyphs) { rect, _, _, _, stop in
+      if point.y >= rect.minY, point.y <= rect.maxY {
+        resolved.y = rect.midY
+        stop.pointee = true
+      }
+    }
+
     var fraction: CGFloat = 0
-    let glyphIndex = layoutManager.glyphIndex(for: point, in: container, fractionOfDistanceThroughGlyph: &fraction)
+    let glyphIndex = layoutManager.glyphIndex(for: resolved, in: container, fractionOfDistanceThroughGlyph: &fraction)
     guard layoutManager.numberOfGlyphs > 0 else { return -1 }
     let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
     // `glyphIndex(for:)` clamps to the nearest glyph rather than failing, so a tap past the last line
