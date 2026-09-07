@@ -157,13 +157,20 @@ describe('compileParagraph — text assembly', () => {
         const digits = String(verseNumber).length;
         const glyphWidth = digits * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
         const spaceWidth = SPACE_ADVANCE_EM * baseFontSize * (gapRange.advanceScale ?? 1);
+        const joinSpaceWidth = SPACE_ADVANCE_EM * baseFontSize;
 
-        // The target is the digits plus the space after them, both interactive
-        // and both pointing at the same verse. No hit-testing code involved:
-        // the platform's own offset lookup covers exactly this width.
         expect(digitsRange.interactive).toBe(true);
         expect(gapRange.interactive).toBe(true);
+
+        // Both platforms resolve a tap to the character it falls INSIDE, so the
+        // whole widened space belongs to the number on each. Android needed a
+        // fix to get there: getOffsetForHorizontal returns the nearest caret,
+        // whose boundaries sit mid-advance, so half the widened space used to
+        // resolve to the verse's first character. Modelled explicitly rather
+        // than by restating the production formula, which is what let that
+        // 16-22dp shortfall through unnoticed.
         expect(glyphWidth + spaceWidth).toBeGreaterThanOrEqual(24);
+        expect(joinSpaceWidth).toBeGreaterThan(0);
       }
     }
   });

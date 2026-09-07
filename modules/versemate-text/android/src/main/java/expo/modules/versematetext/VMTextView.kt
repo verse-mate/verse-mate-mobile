@@ -570,11 +570,30 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       }
     }
 
-    /** Character offset nearest a point, or 0 before the first layout. */
+    /**
+     * Character the point falls INSIDE, or 0 before the first layout.
+     *
+     * `getOffsetForHorizontal` returns the nearest INSERTION POINT, not the
+     * nearest character: its boundaries sit at the midpoint of each advance, so
+     * the right half of any glyph resolves past it to the following offset. iOS
+     * resolves to the containing glyph instead, so the two platforms disagreed
+     * about every boundary, and a range one character wide owned only half of
+     * each of its edge advances.
+     *
+     * That is not academic here. The verse number's gap range is a single
+     * character, so half the widened space resolved to the verse's FIRST
+     * character instead, and an auto-highlight or a lexicon match starting there
+     * would open on a tap that landed in apparent whitespace.
+     */
     private fun charOffsetAt(x: Float, y: Float): Int {
       val resolved = layout ?: return 0
       val line = resolved.getLineForVertical(y.toInt())
-      return resolved.getOffsetForHorizontal(line, x)
+      val offset = resolved.getOffsetForHorizontal(line, x)
+      // Step back when the caret we landed on sits to the RIGHT of the tap.
+      if (offset > resolved.getLineStart(line) && resolved.getPrimaryHorizontal(offset) > x) {
+        return offset - 1
+      }
+      return offset
     }
   }
 
