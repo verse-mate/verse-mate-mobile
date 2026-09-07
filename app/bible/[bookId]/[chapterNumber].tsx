@@ -57,6 +57,7 @@ import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { bookHasVisuals } from '@/components/bible/VisualsPanel';
+import { ScriptureListenBar } from '@/components/bible-brain/ScriptureListenBar';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { SplitView } from '@/components/ui/SplitView';
 import { useAuth } from '@/contexts/AuthContext';
@@ -920,6 +921,12 @@ export default function ChapterScreen() {
                 showVisuals={bookHasVisuals(bookId)}
               />
             </Animated.View>
+
+            {/* Narrated scripture (Bible Brain). Bible view only — the
+                Insight view has its own explanation-audio entry. */}
+            {activeView === 'bible' ? (
+              <ScriptureListenBar bookId={bookId} chapterNumber={chapterNumber} />
+            ) : null}
 
             {/* SimpleChapterPager - V3 3-page window with linear navigation.
                 Uses deferred chapter so the heavy pager re-render (pages-array swap +

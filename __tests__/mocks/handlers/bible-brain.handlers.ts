@@ -23,7 +23,35 @@ const DOWNLOADABLE_FILESETS = new Set([
   'ENGBERN1DA',
 ]);
 
+/**
+ * Filesets that genuinely have verse timestamps. Measured in production:
+ * EN1ESV's OT fileset `ENGESHO1DA` returns ZERO timestamps for Genesis even
+ * though the version reports `has_verse_timing: true` (its NT fileset has
+ * them). Timing is per fileset, not per version.
+ */
+const TIMED_FILESETS = new Set([
+  'ENGESVN1DA',
+  'ENGESVN1DA-opus16',
+  'ENGESVO1DA',
+  'ENGESHN1DA',
+  'ENGNLHN1DA',
+  'ENGNKJN1DA',
+]);
+
 export const mockScriptureVersions = [
+  {
+    abbr: 'EN1ESV',
+    name: 'English Standard Version® - Hear the Word Audio Bible',
+    language: 'English: USA',
+    iso: 'eng',
+    text_filesets: [],
+    audio_filesets: [
+      { id: 'ENGESHN1DA', type: 'audio', size: 'NT', offline_capable: true },
+      { id: 'ENGESHO1DA', type: 'audio', size: 'OT', offline_capable: true },
+    ],
+    has_verse_timing: true,
+    offline_capable: true,
+  },
   {
     abbr: 'ENGESV',
     name: 'English Standard Version®',
@@ -119,11 +147,13 @@ export const bibleBrainHandlers = [
   http.get(
     `${BIBLE_API_BASE_URL}/bible/brain/timestamps/:filesetId/:book/:chapter`,
     ({ params }) => {
+      const filesetId = String(params.filesetId);
       return HttpResponse.json({
-        fileset_id: params.filesetId,
+        fileset_id: filesetId,
         book_id: params.book,
         chapter: Number(params.chapter),
-        timestamps: mockJohn3Timestamps,
+        // Empty for an untimed fileset, exactly as production answers.
+        timestamps: TIMED_FILESETS.has(filesetId) ? mockJohn3Timestamps : [],
       });
     }
   ),

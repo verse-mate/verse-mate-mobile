@@ -93,8 +93,8 @@ describe('ScriptureVersionPicker', () => {
   it('marks versions that follow along with the audio', async () => {
     renderPicker();
     await waitFor(() => expect(screen.getByTestId('scripture-version-ENGESV')).toBeTruthy());
-    // ESV and NLT are timed; Berean is not.
-    expect(screen.getAllByText('follows along')).toHaveLength(2);
+    // EN1ESV, ESV and NLT are timed; Berean is not.
+    expect(screen.getAllByText('follows along')).toHaveLength(3);
   });
 
   it('excludes text-only versions entirely', async () => {

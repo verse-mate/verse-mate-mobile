@@ -13,9 +13,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useBookProgress, useRecentBooks } from '@/hooks/bible';
+import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -141,7 +143,11 @@ function renderWithProviders(component: React.ReactElement) {
             insets: { top: 47, left: 0, right: 0, bottom: 34 },
           }}
         >
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            {/* The reader hosts <ScriptureListenBar />, which reads the shared
+                audio player (provided by app/_layout.tsx in the real app). */}
+            <AudioPlayerProvider engine={new StubAudioEngine()}>{children}</AudioPlayerProvider>
+          </ToastProvider>
         </SafeAreaProvider>
       </ThemeProvider>
     </QueryClientProvider>

@@ -164,7 +164,8 @@ export function DottedUnderlineText(props: DottedUnderlineTextProps) {
     selectable,
     accessibilityLabel: accessibilityLabel ?? resolvedText,
     testID,
-    onPress,
+    // Native wire name differs from the public prop — see DottedUnderlineTextModule.ts.
+    onTextPress: onPress,
     onRangeTap: handleRangeTap,
     // Forward layout-related style only. We strip attributes that are also
     // forwarded as explicit props (color, fontSize, fontFamily, fontWeight,

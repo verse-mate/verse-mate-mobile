@@ -29,7 +29,7 @@ describe('useScriptureVersions', () => {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.versions).toHaveLength(4);
+    expect(result.current.versions).toHaveLength(5);
   });
 
   it('buckets downloadable versions separately from stream-only ones', async () => {
@@ -38,7 +38,11 @@ describe('useScriptureVersions', () => {
     });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.offlineCapable.map((v) => v.abbr)).toEqual(['ENGESV', 'ENGBER']);
+    expect(result.current.offlineCapable.map((v) => v.abbr)).toEqual([
+      'EN1ESV',
+      'ENGESV',
+      'ENGBER',
+    ]);
     // NLT is timed but may only be streamed — it must be offered, just not
     // as a download.
     expect(result.current.streamOnly.map((v) => v.abbr)).toEqual(['ENGNLH']);
@@ -60,7 +64,7 @@ describe('useScriptureVersions', () => {
     });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     // ENGBER is downloadable but untimed, so it must not appear here.
-    expect(result.current.bestForReader.map((v) => v.abbr)).toEqual(['ENGESV']);
+    expect(result.current.bestForReader.map((v) => v.abbr)).toEqual(['EN1ESV', 'ENGESV']);
   });
 
   it('returns empty buckets for a language with no content', async () => {
@@ -82,7 +86,13 @@ describe('useScriptureVersions', () => {
 });
 
 describe('pickAudioFileset', () => {
-  const esv = mockScriptureVersions[0];
+  // By abbr, not index — the fixture order is not part of the contract.
+  const byAbbr = (abbr: string) => {
+    const found = mockScriptureVersions.find((v) => v.abbr === abbr);
+    if (!found) throw new Error(`fixture missing ${abbr}`);
+    return found;
+  };
+  const esv = byAbbr('ENGESV');
 
   it('picks the NT fileset for a New Testament book', () => {
     expect(pickAudioFileset(esv, 'NT')).toBe('ENGESVN1DA');
@@ -97,8 +107,8 @@ describe('pickAudioFileset', () => {
   });
 
   it('returns null when the testament has no audio', () => {
-    const ntOnly = mockScriptureVersions[1];
-    expect(pickAudioFileset(ntOnly, 'OT')).toBeNull();
+    // NLT ships an NT fileset only.
+    expect(pickAudioFileset(byAbbr('ENGNLH'), 'OT')).toBeNull();
   });
 
   it('returns null for an undefined version', () => {
