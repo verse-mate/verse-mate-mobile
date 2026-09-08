@@ -22,6 +22,8 @@ struct VMRangeRecord: Record {
   @Field var fontWeight: String?
   @Field var fontStyle: String?
   @Field var fontScale: Double?
+  /// Multiplier on horizontal advance. Horizontal-only, so line metrics are untouched.
+  @Field var advanceScale: Double?
   @Field var baselineShift: Double?
   @Field var interactive: Bool = false
 
@@ -38,7 +40,11 @@ struct VMRangeRecord: Record {
       fontStyle: fontStyle,
       fontScale: CGFloat(fontScale ?? 1),
       baselineShift: CGFloat(baselineShift ?? 0),
-      interactive: interactive
+      interactive: interactive,
+      // Last, matching the declaration order in VMRange. Swift's memberwise
+      // initializer is positional even with labels, so an out-of-order argument
+      // is a build error, not a warning.
+      advanceScale: CGFloat(advanceScale ?? 1)
     )
   }
 }
@@ -171,7 +177,7 @@ public class VMTextModule: Module {
     }
 
     View(VMTextView.self) {
-      Events("onPress", "onRangeTap", "onTextLayout", "onSelectionChange")
+      Events("onTextPress", "onRangeTap", "onTextLayout", "onSelectionChange")
 
       Prop("text") { (view: VMTextView, value: String?) in
         view.updateSpec { $0.text = value ?? "" }

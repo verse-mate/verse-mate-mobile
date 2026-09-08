@@ -89,10 +89,16 @@ function encodeRanges(ranges: TextRange[] | undefined): string {
         range.fontScale ?? '',
         range.baselineShift ?? '',
         range.interactive ? '1' : '0',
-        // APPEND-ONLY. Field positions are the contract with `decodeRanges` in VMTextModule.kt;
-        // inserting a field instead of appending makes every later field decode as its
-        // neighbour's value, which shows up as wrong colours rather than as an error.
+        // APPEND-ONLY. Field positions are the contract with `decodeRanges` in VMTextModule.kt
+        // and `vmDecodeRanges` in VMTextSpec.swift; inserting a field instead of appending
+        // makes every later field decode as its neighbour's value, which shows up as wrong
+        // colours rather than as an error.
         range.fontStyle ?? '',
+        // Slot 12 was briefly a `hitSlop` on this branch and is reused here rather
+        // than appended. Safe only because that field never reached main and the
+        // app version moves with this change, so no published bundle can carry
+        // the old meaning into a new binary. The slot is NOT free in general.
+        range.advanceScale ?? '',
       ].join('~')
     );
   }
@@ -198,7 +204,10 @@ export function VMText(props: VMTextProps) {
     color: typeof flat?.color === 'string' ? flat.color : undefined,
     style: buildLayoutStyle(flat, width, height),
     testID,
-    onPress: onPress ? handlePress : undefined,
+    // The NATIVE event is onTextPress; the public prop stays onPress. Naming
+    // the native one onPress made Expo map it to topPress, which React Native
+    // already registers as bubbling, and the view config registry threw.
+    onTextPress: onPress ? handlePress : undefined,
     onRangeTap: onRangeTap ? handleRangeTap : undefined,
     onTextLayout: onTextLayout ? handleTextLayout : undefined,
     // Always attached so the dev-only selection counters see every event, not

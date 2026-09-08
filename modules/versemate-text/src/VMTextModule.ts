@@ -32,6 +32,8 @@ export interface NativeTextRange {
   fontScale?: number;
   baselineShift?: number;
   interactive: boolean;
+  /** Multiplier on horizontal advance. Horizontal-only, so line metrics are untouched. */
+  advanceScale?: number;
 }
 
 export interface NativeVMTextProps {
@@ -52,7 +54,8 @@ export interface NativeVMTextProps {
   color?: string;
   style?: unknown;
   testID?: string;
-  onPress?: (event: { nativeEvent: { charOffset: number; x: number; y: number } }) => void;
+  /** Named onTextPress, not onPress: `onPress` collides with React Native's bubbling topPress. */
+  onTextPress?: (event: { nativeEvent: { charOffset: number; x: number; y: number } }) => void;
   onRangeTap?: (event: { nativeEvent: { index: number; charOffset: number } }) => void;
   onSelectionChange?: (event: { nativeEvent: { start: number; end: number } }) => void;
   onTextLayout?: (event: {

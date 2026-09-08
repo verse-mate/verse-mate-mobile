@@ -51,6 +51,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
+import type { VersemateTooltipSource } from '@/lib/analytics/types';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { useBibleByLine } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
@@ -77,6 +78,14 @@ interface VerseMateTooltipProps {
   bookName: string;
   /** Whether modal is visible */
   visible: boolean;
+  /**
+   * How the reader got here.
+   *
+   * The tooltip fires the analytics event but has no way of knowing what opened
+   * it, so whoever opens it says. Required rather than defaulted, because a
+   * default is how a new opener silently reports as an old one.
+   */
+  source: VersemateTooltipSource;
   /** Callback to close modal */
   onClose: () => void;
   /** Callback when user wants to save as highlight (plain verse only) */
@@ -109,6 +118,7 @@ export function VerseMateTooltip({
   chapterNumber,
   bookName,
   visible,
+  source,
   onClose,
   onSaveAsHighlight,
   onRemoveHighlight,
@@ -297,6 +307,7 @@ export function VerseMateTooltip({
           bookId,
           chapterNumber,
           verseNumber: targetVerseNumber,
+          source,
         });
       }
     } else if (internalVisible) {

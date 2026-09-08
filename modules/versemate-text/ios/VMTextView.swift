@@ -84,7 +84,12 @@ final class VMTextView: ExpoView {
   private var lastSelStart = Int.min
   private var lastSelEnd = Int.min
 
-  private let onPress = EventDispatcher()
+  /// NOT `onPress`. Expo maps a view event `onPress` to `topPress`, which React
+  /// Native already registers as a bubbling event for Pressability, and the view
+  /// config registry rejects the same name being both: "Event cannot be both
+  /// direct and bubbling: topPress". That threw the moment the first VMText
+  /// rendered, so the reader crashed into its error boundary on iOS.
+  private let onTextPress = EventDispatcher()
   private let onRangeTap = EventDispatcher()
   private let onTextLayout = EventDispatcher()
   private let onSelectionChange = EventDispatcher()
@@ -409,19 +414,22 @@ final class VMTextView: ExpoView {
     }
 
     let point = recognizer.location(in: textView)
+
     let offset = characterOffset(at: point)
     guard offset >= 0 else { return }
 
-    // First interactive range containing the offset wins, in array order — the same precedence the
-    // JS side documents for overlapping ranges, so a lexicon word inside a highlight still opens the
-    // lexicon rather than the highlight.
-    for (index, range) in spec.ranges.enumerated() where range.interactive {
+    // LAST interactive range containing the offset wins. Ranges are emitted sorted by layer, so the
+    // last match is the highest layer and a lexicon word inside a highlight opens the lexicon, which
+    // is what the JS side documents and what Android has always done. This loop used to run forwards
+    // and return the FIRST match, which is the lowest layer, so the same tap opened the highlight
+    // here and the word card there.
+    for (index, range) in spec.ranges.enumerated().reversed() where range.interactive {
       if offset >= range.start, offset < range.end {
         onRangeTap(["index": index, "charOffset": offset])
         return
       }
     }
-    onPress(["charOffset": offset, "x": point.x, "y": point.y])
+    onTextPress(["charOffset": offset, "x": point.x, "y": point.y])
   }
 
   /// Nearest character offset to a point, or -1 when the point is outside the text.
@@ -430,8 +438,22 @@ final class VMTextView: ExpoView {
     let container = textView.textContainer
     layoutManager.ensureLayout(for: container)
 
+    // Snap y to its line BEFORE resolving x, which is what Android does with
+    // getLineForVertical + getOffsetForHorizontal. Without this, `glyphIndex(for:in:)` finds the
+    // nearest glyph in TWO dimensions, so a tap in the leading above a short glyph resolves to the
+    // line above. That matters most for a verse number, whose target is only as tall as its line
+    // unless the whole line band maps to it.
+    var resolved = point
+    let allGlyphs = NSRange(location: 0, length: layoutManager.numberOfGlyphs)
+    layoutManager.enumerateLineFragments(forGlyphRange: allGlyphs) { rect, _, _, _, stop in
+      if point.y >= rect.minY, point.y <= rect.maxY {
+        resolved.y = rect.midY
+        stop.pointee = true
+      }
+    }
+
     var fraction: CGFloat = 0
-    let glyphIndex = layoutManager.glyphIndex(for: point, in: container, fractionOfDistanceThroughGlyph: &fraction)
+    let glyphIndex = layoutManager.glyphIndex(for: resolved, in: container, fractionOfDistanceThroughGlyph: &fraction)
     guard layoutManager.numberOfGlyphs > 0 else { return -1 }
     let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
     // `glyphIndex(for:)` clamps to the nearest glyph rather than failing, so a tap past the last line

@@ -62,6 +62,7 @@ const THEME: CompileTheme = {
   lexUnderlineStyle: 'solid',
   redLetterColor: '#c1121f',
   selectionColor: '#3390FF40',
+  baseFontSize: 18,
 };
 
 /** Per-character decoration, as extracted from either source. */

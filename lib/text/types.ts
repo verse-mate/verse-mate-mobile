@@ -62,6 +62,19 @@ export interface CompileTheme {
   selectionColor: string;
   /** Verse-number superscript color, when it should differ from body text. */
   verseNumberColor?: string;
+  /**
+   * Body font size in dp, as the paragraph will actually be rendered.
+   *
+   * The compiler needs it for one thing only: sizing the gap after a verse
+   * number so the number's tap target clears `VERSE_NUMBER_TARGET_MIN_DP`. That
+   * gap is a width in dp, not a multiple of the font, so a value tuned at the
+   * smallest reading size does not comb the paragraph at the largest one, and
+   * the only way to express a dp width as a `fontScale` on a space is to know
+   * what the font size is.
+   *
+   * Passing it in rather than measuring keeps the compiler a pure function.
+   */
+  baseFontSize: number;
 }
 
 /** Everything needed to compile one paragraph. */
@@ -97,6 +110,7 @@ export type RangeTarget =
       entry: LexEntry;
       isTheme: boolean;
     }
+  | { kind: 'verseNumber'; verseNumber: number }
   | { kind: 'highlight'; verseNumber: number; highlightId: number }
   | { kind: 'autoHighlight'; verseNumber: number; autoHighlight: AutoHighlight };
 

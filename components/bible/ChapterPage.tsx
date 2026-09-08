@@ -2057,6 +2057,10 @@ export function ChapterPage({
           // Otherwise, treat as plain verse
           return (
             <VerseMateTooltip
+              // This mount is its own path: a deep link or a jump scrolls to the
+              // verse and opens the tooltip on a timer, never through the
+              // interaction context.
+              source="scroll_to_verse"
               verseNumber={matchingGroup ? null : targetVerse}
               highlightGroup={matchingGroup || null}
               bookId={bookId}

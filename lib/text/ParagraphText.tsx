@@ -32,7 +32,7 @@ import {
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { perfSpan } from '@/lib/perf';
-import { compileParagraph, verseAtOffset } from './compile-paragraph';
+import { compileParagraph } from './compile-paragraph';
 import type { CompiledParagraph, ParagraphInput } from './types';
 
 export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
@@ -66,8 +66,8 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
    */
   isVisible?: boolean;
   /**
-   * Native selection changed, in COMPILED text offsets. Use `verseAtOffset` to map
-   * a bound back to a verse.
+   * Native selection changed, in COMPILED text offsets. Use `verseAtOffset` from
+   * the compiler to map a bound back to a verse.
    *
    * The platform owns the selection visual, handles and Copy menu; this is for the
    * app's own affordances on top, e.g. the Define button.
@@ -175,7 +175,13 @@ export function ParagraphText(props: ParagraphTextProps) {
     const metricRangesFlat = metricRanges
       .filter(
         (r) =>
-          r.fontScale !== undefined || r.baselineShift !== undefined || r.fontWeight !== undefined
+          r.fontScale !== undefined ||
+          r.baselineShift !== undefined ||
+          r.fontWeight !== undefined ||
+          // Widens an advance, so it changes line breaking. Omitting it here
+          // measures the paragraph short while the view pins that height, which
+          // clips text.
+          r.advanceScale !== undefined
       )
       // Flattened to the bridge shape, same as the view prop. Measurement only
       // reads the metric fields, but sending the public nested shape here would
@@ -186,6 +192,7 @@ export function ParagraphText(props: ParagraphTextProps) {
         fontWeight: r.fontWeight,
         fontScale: r.fontScale,
         baselineShift: r.baselineShift,
+        advanceScale: r.advanceScale,
         interactive: false,
       }));
     const endMeasure = perfSpan('paragraph.measure');
@@ -220,6 +227,9 @@ export function ParagraphText(props: ParagraphTextProps) {
       const target = compiled.targets[index];
       if (!target) return;
       switch (target.kind) {
+        case 'verseNumber':
+          onVerseTap?.(target.verseNumber);
+          break;
         case 'lexicon':
           onLexiconWordPress?.({
             surface: target.surface,
@@ -236,18 +246,7 @@ export function ParagraphText(props: ParagraphTextProps) {
           break;
       }
     },
-    [compiled.targets, onLexiconWordPress, onHighlightTap, onAutoHighlightPress]
-  );
-
-  const handlePress = useCallback(
-    (event: { charOffset: number }) => {
-      if (!onVerseTap) return;
-      const verseNumber = verseAtOffset(compiled, event.charOffset);
-      // Null only for an empty paragraph; firing with a bogus verse number would
-      // open the wrong insight, so do nothing.
-      if (verseNumber !== null) onVerseTap(verseNumber);
-    },
-    [compiled, onVerseTap]
+    [compiled.targets, onVerseTap, onLexiconWordPress, onHighlightTap, onAutoHighlightPress]
   );
 
   // Off-window: no native views at all. A Psalm 119 mount creates ~35 paragraph
@@ -269,7 +268,6 @@ export function ParagraphText(props: ParagraphTextProps) {
   return (
     <VMText
       height={height ?? undefined}
-      onPress={onVerseTap ? handlePress : undefined}
       onRangeTap={handleRangeTap}
       onSelectionChange={onSelectionChange}
       onTextLayout={onTextLayout}

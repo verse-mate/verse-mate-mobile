@@ -53,7 +53,12 @@ import expo.modules.kotlin.views.ExpoView
 @SuppressLint("ViewConstructor")
 class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
 
-  private val onPress by EventDispatcher<Map<String, Any?>>()
+  // NOT `onPress`. Expo maps a view event `onPress` to `topPress`, which React
+  // Native already registers as a bubbling event for Pressability, and the view
+  // config registry rejects the same name being both: "Event cannot be both
+  // direct and bubbling: topPress". That threw the moment the first VMText
+  // rendered, so the reader crashed into its error boundary on iOS.
+  private val onTextPress by EventDispatcher<Map<String, Any?>>()
   private val onRangeTap by EventDispatcher<Map<String, Any?>>()
   private val onTextLayout by EventDispatcher<Map<String, Any?>>()
   private val onSelectionChange by EventDispatcher<Map<String, Any?>>()
@@ -564,17 +569,47 @@ class VMTextView(context: Context, appContext: AppContext) : ExpoView(context, a
       if (hitIndex >= 0) {
         this@VMTextView.onRangeTap(mapOf("index" to hitIndex, "charOffset" to offset))
       } else {
-        this@VMTextView.onPress(
+        this@VMTextView.onTextPress(
           mapOf("charOffset" to offset, "x" to (x / density), "y" to (y / density))
         )
       }
     }
 
-    /** Character offset nearest a point, or 0 before the first layout. */
+    /**
+     * Character the point falls INSIDE, or 0 before the first layout.
+     *
+     * `getOffsetForHorizontal` returns the nearest INSERTION POINT, not the
+     * nearest character: its boundaries sit at the midpoint of each advance, so
+     * the right half of any glyph resolves past it to the following offset. iOS
+     * resolves to the containing glyph instead, so the two platforms disagreed
+     * about every boundary, and a range one character wide owned only half of
+     * each of its edge advances.
+     *
+     * That is not academic here. The verse number's gap range is a single
+     * character, so half the widened space resolved to the verse's FIRST
+     * character instead, and an auto-highlight or a lexicon match starting there
+     * would open on a tap that landed in apparent whitespace.
+     */
     private fun charOffsetAt(x: Float, y: Float): Int {
       val resolved = layout ?: return 0
       val line = resolved.getLineForVertical(y.toInt())
-      return resolved.getOffsetForHorizontal(line, x)
+      val offset = resolved.getOffsetForHorizontal(line, x)
+      // Step back when the caret we landed on sits to the RIGHT of the tap.
+      //
+      // LTR only, deliberately. In an RTL run the caret for offset i sits at the
+      // RIGHT edge of glyph i, so this comparison is true exactly when the tap
+      // already landed inside that glyph, and stepping back would move one
+      // character the wrong way. No RTL text reaches this view today (the reader
+      // renders the five LTR locales; the only RTL in the app is the lexicon
+      // card's Hebrew, which is a plain RN Text), but a Hebrew interlinear would
+      // hit it, so the guard is here rather than the assumption being silent.
+      if (resolved.getParagraphDirection(line) == Layout.DIR_LEFT_TO_RIGHT &&
+        offset > resolved.getLineStart(line) &&
+        resolved.getPrimaryHorizontal(offset) > x
+      ) {
+        return offset - 1
+      }
+      return offset
     }
   }
 

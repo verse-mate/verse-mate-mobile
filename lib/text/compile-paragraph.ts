@@ -60,12 +60,72 @@ const HIGHLIGHT_OPACITY = 0.35;
 /** Auto-highlights are lighter so they read as suggestions, not user intent. */
 const AUTO_HIGHLIGHT_OPACITY = 0.2;
 
-/** Superscript verse numbers: 70% size, raised by a third of the base size. */
-const VERSE_NUMBER_SCALE = 0.7;
+/**
+ * Minimum width of a verse number's tap target, in dp.
+ *
+ * Below the 44pt/48dp the platforms recommend for a standalone control, and
+ * deliberately so: a control set inside running text cannot reach those
+ * horizontally without a gap wide enough to comb white channels down the
+ * paragraph. This is what is achievable without damaging the reading page, and
+ * the full line height carries the vertical axis.
+ *
+ * Exported because both renderers size against it, each with its own mechanism:
+ * the compiler widens the advance of the space after the number, and the web
+ * renderer uses element padding. One number, two geometries, no drift.
+ */
+export const VERSE_NUMBER_TARGET_MIN_DP = 24;
+
+/** Superscript verse numbers: raised by a third of the base size. */
+const VERSE_NUMBER_SCALE = 0.85;
 const VERSE_NUMBER_BASELINE_SHIFT = 0.33;
 
 /** Non-breaking space after a verse number, so it never wraps away from its verse. */
 const NBSP = ' ';
+
+/**
+ * Rough advance widths, as a fraction of the font size, for the app's sans.
+ *
+ * Estimates, and that is the right precision here: they size a touch target, and
+ * a couple of dp either way moves its edge by less than a finger can aim.
+ */
+const DIGIT_ADVANCE_EM = 0.55;
+const SPACE_ADVANCE_EM = 0.25;
+
+/**
+ * How much wider the space after a verse number has to be for the number's tap
+ * target to clear the floor, as a multiplier on that space's advance.
+ *
+ * The target is the number's digits plus that space, so widening the space
+ * widens the target, and the platform's own offset lookup honours it with no
+ * hit-testing code. Returns 0 once the digits are wide enough on their own,
+ * which is why a three-digit number in Psalm 119 gets none.
+ *
+ */
+export function verseNumberGapScale(digitCount: number, baseFontSize: number): number {
+  const digitsWidth = digitCount * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
+  const spaceWidth = SPACE_ADVANCE_EM * baseFontSize;
+  const needed = VERSE_NUMBER_TARGET_MIN_DP - digitsWidth;
+  if (needed <= spaceWidth) return 1;
+  // Rounded UP, to a hundredth. Rounding to nearest undershot the floor, which
+  // a test asserting the arithmetic caught and one asserting `> 0` did not.
+  return Math.ceil((needed / spaceWidth) * 100) / 100;
+}
+
+/**
+ * The same floor, as dp of padding per side, for the web renderer.
+ *
+ * Not derived from the native multiplier, because the geometry differs: native
+ * widens the space NEXT TO the digits and the platform's offset lookup covers
+ * both, while on web the number is its own element and its box is the digits
+ * plus its own padding. Deriving one from the other measured 20.5dp, under the
+ * floor. Both compute from `VERSE_NUMBER_TARGET_MIN_DP`, which is the thing that
+ * must not drift.
+ */
+export function verseNumberGapPaddingDp(digitCount: number, baseFontSize: number): number {
+  const digitsWidth = digitCount * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
+  const shortfall = VERSE_NUMBER_TARGET_MIN_DP - digitsWidth;
+  return shortfall > 0 ? Math.ceil((shortfall / 2) * 10) / 10 : 0;
+}
 
 interface Emitted {
   layer: number;
@@ -112,17 +172,42 @@ export function compileParagraph(input: ParagraphInput): CompiledParagraph {
     if (includeVerseNumbers) {
       const label = String(verse.verseNumber);
       parts.push(label, NBSP);
+      const gapScale = verseNumberGapScale(label.length, theme.baseFontSize);
+      const digitsEnd = cursor + label.length;
+      // The digits carry the styling and the target.
       emitted.push({
         layer: RANGE_LAYER.verseNumber,
         range: {
           start: cursor,
-          end: cursor + label.length,
+          end: digitsEnd,
           fontScale: VERSE_NUMBER_SCALE,
           baselineShift: VERSE_NUMBER_BASELINE_SHIFT,
           color: theme.verseNumberColor,
+          interactive: true,
           tag: `verse-number:${verse.verseNumber}`,
         },
-        target: null,
+        target: { kind: 'verseNumber', verseNumber: verse.verseNumber },
+      });
+      // The space after them carries the extra advance, and the same target, so
+      // the two together are one tap target at least as wide as the floor. The
+      // advance is on the SPACE alone: applied to the digits it would stretch
+      // the glyphs on Android and add a gap between them on iOS.
+      //
+      // The joining space BEFORE the number is deliberately in neither range,
+      // so a tap that lands in it matches nothing and does nothing. Both
+      // renderers now resolve a tap to the character it falls inside, so that
+      // space belongs to itself: covering it here would hand the gap between two
+      // verses to the later one, which is a target the reader cannot see.
+      emitted.push({
+        layer: RANGE_LAYER.verseNumber,
+        range: {
+          start: digitsEnd,
+          end: digitsEnd + NBSP.length,
+          advanceScale: gapScale > 1 ? gapScale : undefined,
+          interactive: true,
+          tag: `verse-number-gap:${verse.verseNumber}`,
+        },
+        target: { kind: 'verseNumber', verseNumber: verse.verseNumber },
       });
       cursor += label.length + NBSP.length;
       textStart = cursor;

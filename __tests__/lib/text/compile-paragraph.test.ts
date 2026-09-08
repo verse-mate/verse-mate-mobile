@@ -25,6 +25,7 @@ const THEME: CompileTheme = {
   lexUnderlineStyle: 'dotted',
   redLetterColor: '#c1121f',
   selectionColor: '#3390FF40',
+  baseFontSize: 18,
 };
 
 function compile(overrides: Partial<ParagraphInput> = {}): CompiledParagraph {
@@ -91,9 +92,114 @@ describe('compileParagraph — text assembly', () => {
     expect(out.text).toBe('1 In the beginning God created.');
 
     const [number] = taggedRanges(out, 'verse-number:');
+    // The digits only. The space after them is its own range, carrying the
+    // widened advance that makes the pair reach the tap-target floor.
     expect(number.covers).toBe('1');
     expect(number.fontScale).toBeLessThan(1);
     expect(number.baselineShift).toBeGreaterThan(0);
+  });
+
+  it('makes the verse number the verse insight target', () => {
+    const out = compile();
+    const [number] = taggedRanges(out, 'verse-number:');
+
+    expect(number.interactive).toBe(true);
+    expect(out.targets[number.index]).toEqual({ kind: 'verseNumber', verseNumber: 1 });
+  });
+
+  it('leaves the joining space before a number outside its range', () => {
+    // Android resolves a tap to the NEAREST insertion point, so a tap on the
+    // right half of the previous verse's last glyph lands on the joining space.
+    // If the range covered that space, such a tap would open the FOLLOWING
+    // verse's insight. It covers nothing there, so the tap falls through.
+    const out = compile({
+      verses: [
+        { verseNumber: 1, text: 'First verse.' },
+        { verseNumber: 2, text: 'Second verse.' },
+      ],
+    });
+    const second = taggedRanges(out, 'verse-number:').find((r) => r.covers.startsWith('2'));
+    if (!second) throw new Error('no range for verse 2');
+
+    expect(out.text[second.start - 1]).toBe(' ');
+    expect(out.targets[second.index]).toEqual({ kind: 'verseNumber', verseNumber: 2 });
+  });
+
+  it('orders the layers so the more specific decoration wins a tap', () => {
+    // Not a tautology against RANGE_LAYER: this pins the ORDER itself, which
+    // both native views depend on. They resolve a tap by taking the LAST
+    // matching interactive range, so "lexicon above highlight" is what makes a
+    // lexicon word inside a highlight open the word card. Swap these two
+    // constants and the layering test below still passes while both platforms
+    // silently open the wrong panel.
+    expect(RANGE_LAYER.lexicon).toBeGreaterThan(RANGE_LAYER.highlight);
+    expect(RANGE_LAYER.lexicon).toBeGreaterThan(RANGE_LAYER.autoHighlight);
+    expect(RANGE_LAYER.highlight).toBeGreaterThan(RANGE_LAYER.autoHighlight);
+    expect(RANGE_LAYER.selection).toBeGreaterThan(RANGE_LAYER.lexicon);
+  });
+
+  it('widens the gap so the target clears 24dp at every reading size', () => {
+    // Asserts the ARITHMETIC, not just that some widening was emitted. An
+    // earlier version checked only `> 0`, which 0.1 would have satisfied.
+    // 13 and 26 are the real bounds from use-font-size.
+    const DIGIT_ADVANCE_EM = 0.55;
+    const SPACE_ADVANCE_EM = 0.25;
+    const VERSE_NUMBER_SCALE = 0.85;
+
+    for (const baseFontSize of [13, 16, 18, 22, 26]) {
+      for (const verseNumber of [1, 42, 176]) {
+        const out = compile({
+          verses: [{ verseNumber, text: 'x' }],
+          theme: { ...THEME, baseFontSize },
+        });
+        const [digitsRange] = taggedRanges(out, 'verse-number:');
+        const [gapRange] = taggedRanges(out, 'verse-number-gap:');
+        const digits = String(verseNumber).length;
+        const glyphWidth = digits * DIGIT_ADVANCE_EM * VERSE_NUMBER_SCALE * baseFontSize;
+        const spaceWidth = SPACE_ADVANCE_EM * baseFontSize * (gapRange.advanceScale ?? 1);
+        expect(digitsRange.interactive).toBe(true);
+        expect(gapRange.interactive).toBe(true);
+
+        // What this DOES check: the compiler emits a widening large enough that
+        // a renderer resolving a tap to the character it falls inside gives the
+        // number a target of at least 24dp. That is the contract the compiler
+        // owns, and it is the only half of the story reachable from Jest.
+        expect(glyphWidth + spaceWidth).toBeGreaterThanOrEqual(24);
+
+        // What this CANNOT check, stated so nobody mistakes the above for it:
+        // whether each platform actually partitions the advance that way.
+        // `charOffsetAt` is Kotlin and the iOS equivalent is Swift; no Jest test
+        // reaches either, and this repo has no native test target. Android in
+        // particular only became correct here by a fix to that Kotlin, and it
+        // is verified on a device, not by this file. Where widening is needed at
+        // all, the caret partition Android used to have would have left the
+        // number short of the floor, which is the shape of the bug that fix
+        // closed. A three-digit number needs no widening and was never short.
+        if ((gapRange.advanceScale ?? 1) > 1) {
+          const caretPartition =
+            (SPACE_ADVANCE_EM * baseFontSize) / 2 + glyphWidth + spaceWidth / 2;
+          expect(caretPartition).toBeLessThan(24);
+        }
+      }
+    }
+  });
+
+  it('gives a narrow number enough slop to reach the target floor, and a wide one none', () => {
+    // The slop grows a hit rectangle, never a glyph, so nothing about the
+    // rendered text changes with it. A single digit at the smallest reading
+    // size is the case that needs the most; a three-digit number in Psalm 119
+    // already clears the floor on its own.
+    const narrow = compile({
+      verses: [{ verseNumber: 1, text: 'x' }],
+      theme: { ...THEME, baseFontSize: 13 },
+    });
+    const wide = compile({
+      verses: [{ verseNumber: 176, text: 'x' }],
+      theme: { ...THEME, baseFontSize: 26 },
+    });
+
+    expect(taggedRanges(narrow, 'verse-number-gap:')[0].advanceScale).toBeGreaterThan(1);
+    expect(taggedRanges(wide, 'verse-number-gap:')[0].advanceScale ?? 1).toBe(1);
   });
 
   it('separates the verse number from the text with a non-breaking space', () => {
@@ -432,7 +538,7 @@ describe('compileParagraph — layering', () => {
       if (tag.startsWith('auto-highlight:')) return RANGE_LAYER.autoHighlight;
       if (tag.startsWith('highlight:')) return RANGE_LAYER.highlight;
       if (tag.startsWith('red-letter:')) return RANGE_LAYER.redLetter;
-      if (tag.startsWith('verse-number:')) return RANGE_LAYER.verseNumber;
+      if (tag.startsWith('verse-number')) return RANGE_LAYER.verseNumber;
       if (tag.startsWith('lexicon:')) return RANGE_LAYER.lexicon;
       return RANGE_LAYER.selection;
     };
