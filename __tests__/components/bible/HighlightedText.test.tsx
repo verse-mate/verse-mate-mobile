@@ -315,6 +315,10 @@ describe('HighlightedText', () => {
     expect(greenSegment).toBeTruthy();
   });
 
+  // The two tests below pass onVerseTap, which is the TOPICS shape: that screen
+  // still wires a plain-text tap, to a different action (navigate to the verse).
+  // The Bible reader no longer passes the prop at all, which is covered
+  // separately below.
   it('should call onVerseTap with haptic feedback when plain text is tapped', async () => {
     jest.useFakeTimers();
     const mockOnVerseTap = jest.fn();
@@ -498,5 +502,76 @@ describe('HighlightedText', () => {
       .map((el: ReactTestInstance) => extractText(el.props.children))
       .join('');
     expect(highlightedTexts).toBe('the heavens and the earth.');
+  });
+});
+
+describe('HighlightedText without a verse-tap callback', () => {
+  // The Bible reader's shape after the verse insight moved onto the verse
+  // number. Suppression is conditional on the caller and lives here rather than
+  // at the call site, because this component is shared: removing the handler
+  // outright would have killed verse navigation on the Topics screens.
+  it('attaches no press handler to plain text, rather than one that declines', () => {
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[]}
+        isVisible={true}
+      />
+    );
+
+    const pressable = root
+      .findAllByType(Text)
+      .find((el: ReactTestInstance) => el.props.onPress !== undefined);
+
+    expect(pressable).toBeUndefined();
+  });
+
+  it('attaches none in the off-window branch with a selection either', () => {
+    // The off-window branch writes the handler in TWO places: once for a segment
+    // carrying the current word selection, once for a plain one. The test below
+    // only reaches the second.
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[]}
+        isVisible={false}
+        selectedWord={{
+          word: 'beginning',
+          startChar: 7,
+          endChar: 16,
+          pageX: 0,
+          pageY: 0,
+          verseNumber: 1,
+        }}
+      />
+    );
+
+    const pressable = root
+      .findAllByType(Text)
+      .find((el: ReactTestInstance) => el.props.onPress !== undefined);
+
+    expect(pressable).toBeUndefined();
+  });
+
+  it('attaches none in the off-window branch either', () => {
+    // isVisible={false} renders whole segments rather than per-word tokens, and
+    // that branch wrote the handler literally in two places. A verse scrolled
+    // out of the window is still on screen for a moment while it scrolls back.
+    const { root } = render(
+      <HighlightedText
+        text="In the beginning God created the heavens and the earth."
+        verseNumber={1}
+        highlights={[]}
+        isVisible={false}
+      />
+    );
+
+    const pressable = root
+      .findAllByType(Text)
+      .find((el: ReactTestInstance) => el.props.onPress !== undefined);
+
+    expect(pressable).toBeUndefined();
   });
 });

@@ -26,6 +26,12 @@ struct VMRange: Hashable {
   /// Baseline offset as a multiple of the base font size; positive raises.
   let baselineShift: CGFloat
   let interactive: Bool
+  /// Multiplier on this range's horizontal advance. 1 means none.
+  ///
+  /// Applied with `.kern`, which is horizontal-only, so it widens the space the characters occupy
+  /// without touching the line's height. It DOES affect layout, which is why it belongs in the cache
+  /// key this struct doubles as.
+  var advanceScale: CGFloat = 1
 }
 
 /**
@@ -163,7 +169,8 @@ func vmParseColor(_ value: String?) -> UIColor? {
  Format: ranges separated by `|`, fields by `~`, in this fixed order:
 
    start ~ end ~ underlineStyle ~ underlineColor ~ underlineThickness ~
-   backgroundColor ~ color ~ fontWeight ~ fontScale ~ baselineShift ~ interactive ~ fontStyle
+   backgroundColor ~ color ~ fontWeight ~ fontScale ~ baselineShift ~ interactive ~ fontStyle ~
+   advanceScale
 
  Byte-identical to `decodeRanges` in VMTextModule.kt, and that is the point: both platforms decode
  what `encodeRanges` in src/VMText.tsx produces, so a field appended for one must be readable by the
@@ -195,7 +202,9 @@ func vmDecodeRanges(_ encoded: String) -> [VMRange] {
         fontStyle: field(11),
         fontScale: CGFloat(Double(f[8]) ?? 1),
         baselineShift: CGFloat(Double(f[9]) ?? 0),
-        interactive: f[10] == "1"
+        interactive: f[10] == "1",
+        // Index 12: absent on chunks written before advanceScale existed.
+        advanceScale: CGFloat(Double(field(12) ?? "") ?? 1)
       )
     )
   }
@@ -279,6 +288,26 @@ extension VMTextSpec {
         attributed.addAttribute(
           .baselineOffset,
           value: fontSizePt * range.baselineShift,
+          range: nsRange
+        )
+      }
+
+      if range.advanceScale > 1 {
+        // `.kern` adds points AFTER each character in the range, and is horizontal-only, so the
+        // line height is untouched. The range this lands on is a single space, so one addition.
+        // Expressed against the base letter spacing already applied to the whole string, hence
+        // the sum rather than a replacement.
+        // Measured, not estimated, so that advanceScale MEANS the same thing on
+        // both platforms. Android applies ScaleXSpan(s), which yields n*s for a
+        // real advance n. Adding estimate*(s-1) to n instead, as an earlier
+        // version did, gives a different width whenever the real space is not
+        // exactly the 0.25em the JS scale was computed against.
+        let baseFont = vmFont(family: fontFamily, size: fontSizePt, bold: baseBold, italic: false)
+        // U+00A0, the character actually in the string, not a plain U+0020.
+        let natural = ("\u{00A0}" as NSString).size(withAttributes: [.font: baseFont]).width
+        attributed.addAttribute(
+          .kern,
+          value: letterSpacingPt + natural * (range.advanceScale - 1),
           range: nsRange
         )
       }

@@ -71,6 +71,32 @@ export interface TextRange {
   baselineShift?: number;
 
   /**
+   * Multiplier on this range's horizontal advance. 1 (or absent) means none.
+   *
+   * Widens the space the characters occupy WITHOUT touching line metrics:
+   * `ScaleXSpan` on Android and `.kern` on iOS are both horizontal-only. The
+   * platform's own offset lookup then honours the larger target, so this needs
+   * no hit-testing code at all.
+   *
+   * It exists because a verse number is 6-17dp of glyph and needs a target of
+   * at least 24dp, and the two obvious alternatives are both worse. `fontScale`
+   * on the trailing space is metric-affecting VERTICALLY, so the scale needed to
+   * reach the floor renders that space at ~69pt and makes its line five times
+   * taller. A hit rectangle around the glyphs cannot reach the floor either: it
+   * has to be clamped to the neighbouring glyph runs or it steals their taps,
+   * and the whitespace inside that clamp is only about a quarter of the font
+   * size, which left the real target at 12-22dp.
+   *
+   * A multiplier rather than a width so no density conversion is needed on
+   * either side of the bridge.
+   *
+   * This DOES change layout: the gap after a verse number is genuinely wider.
+   * That makes it metric-affecting horizontally, so it must be included in the
+   * measurement request, or the paragraph measures short and the view clips.
+   */
+  advanceScale?: number;
+
+  /**
    * When true, taps inside this range fire `onRangeTap` with the range's index
    * instead of falling through to `onPress`. Ranges that are purely decorative
    * (a highlight background, a red-letter color) leave this unset so a tap on

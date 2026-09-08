@@ -259,6 +259,7 @@ export function TopicVerseTooltip({
           bookId,
           chapterNumber,
           verseNumber,
+          source: 'topic_verse',
         });
       }
     } else if (internalVisible) {

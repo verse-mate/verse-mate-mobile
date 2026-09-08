@@ -11,6 +11,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.LineHeightSpan
 import android.text.style.MetricAffectingSpan
 import android.text.style.RelativeSizeSpan
+import android.text.style.ScaleXSpan
 import android.text.style.StyleSpan
 import android.graphics.Typeface
 
@@ -38,6 +39,14 @@ data class VMRange(
   /** Baseline offset as a multiple of the base font size; positive raises. */
   val baselineShift: Float,
   val interactive: Boolean,
+  /**
+   * Multiplier on this range's horizontal advance. 1 means none.
+   *
+   * Drawn with ScaleXSpan, which is horizontal-only, so it widens the space the
+   * characters occupy without touching the line's height. It DOES affect layout,
+   * which is exactly why it belongs in the cache key this class doubles as.
+   */
+  val advanceScale: Float = 1f,
 )
 
 /**
@@ -191,6 +200,11 @@ fun VMTextSpec.buildSpannable(): Spannable {
     val typefaceStyle = typefaceStyleFor(range.fontWeight, range.fontStyle)
     if (typefaceStyle != Typeface.NORMAL) {
       spannable.setSpan(StyleSpan(typefaceStyle), start, end, flag)
+    }
+    if (range.advanceScale > 1f) {
+      // Horizontal-only: ScaleXSpan stretches the advance, never the line height.
+      // Applied to a SPACE, so there is no glyph to distort.
+      spannable.setSpan(ScaleXSpan(range.advanceScale), start, end, flag)
     }
     if (range.fontScale != 1f && range.fontScale > 0f) {
       spannable.setSpan(RelativeSizeSpan(range.fontScale), start, end, flag)

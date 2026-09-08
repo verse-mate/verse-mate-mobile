@@ -34,6 +34,41 @@ function decodeLikeKotlin(encoded: string) {
       interactive: f[10] === '1',
       // getOrNull(11) in Kotlin: absent on chunks written before fontStyle existed.
       fontStyle: f[11] || null,
+      // getOrNull(12): absent on chunks written before hitSlop existed.
+      advanceScale: f[12] === undefined || f[12] === '' ? null : Number.parseFloat(f[12]),
+    }));
+}
+
+/**
+ * Mirrors vmDecodeRanges in VMTextSpec.swift, field for field.
+ *
+ * A second mirror rather than reusing the first, because the two decoders are
+ * separate hand-written implementations and the failure this guards against is
+ * exactly them drifting apart. Neither mirror constrains the native source: they
+ * pin the ENCODER's field order and the tolerance for short legacy chunks. The
+ * decoders themselves are checked on a device.
+ */
+function decodeLikeSwift(encoded: string) {
+  if (!encoded) return [];
+  return encoded
+    .split('|')
+    .filter((c) => c.length > 0)
+    .map((chunk) => chunk.split('~'))
+    .filter((f) => f.length >= 11)
+    .map((f) => ({
+      start: Number.parseInt(f[0], 10) || 0,
+      end: Number.parseInt(f[1], 10) || 0,
+      underlineStyle: f[2] || null,
+      underlineColor: f[3] || null,
+      underlineThickness: f[4] === '' ? null : Number.parseFloat(f[4]),
+      backgroundColor: f[5] || null,
+      color: f[6] || null,
+      fontWeight: f[7] || null,
+      fontScale: f[8] === '' ? null : Number.parseFloat(f[8]),
+      baselineShift: f[9] === '' ? null : Number.parseFloat(f[9]),
+      interactive: f[10] === '1',
+      fontStyle: f[11] || null,
+      advanceScale: f[12] === undefined || f[12] === '' ? null : Number.parseFloat(f[12]),
     }));
 }
 
@@ -58,6 +93,7 @@ describe('encodeRanges', () => {
     };
     const [decoded] = decodeLikeKotlin(encodeRangesForTest([range]));
     expect(decoded).toEqual({
+      advanceScale: null,
       start: 3,
       end: 11,
       underlineStyle: 'dotted',
@@ -111,7 +147,7 @@ describe('encodeRanges', () => {
     // 12 fields since fontStyle was appended. Update this number ONLY by appending: the position of
     // every field is the contract with decodeRanges in VMTextModule.kt, and inserting one instead
     // makes every later field decode as its neighbour's value — wrong colours rather than an error.
-    expect(encoded.split('~')).toHaveLength(12);
+    expect(encoded.split('~')).toHaveLength(13);
   });
 
   it('decodes a chunk written before fontStyle existed', () => {
@@ -139,5 +175,57 @@ describe('encodeRanges', () => {
     );
     expect(italicOnly.fontWeight).toBeNull();
     expect(italicOnly.fontStyle).toBe('italic');
+  });
+});
+
+describe('advanceScale', () => {
+  it('round-trips through both decoders', () => {
+    const encoded = encodeRangesForTest([
+      { start: 0, end: 3, interactive: true, advanceScale: 2.5 },
+    ]);
+
+    expect(decodeLikeKotlin(encoded)[0].advanceScale).toBe(2.5);
+    expect(decodeLikeSwift(encoded)[0].advanceScale).toBe(2.5);
+  });
+
+  it('is absent, not zero, when the range does not carry one', () => {
+    // Zero and absent must stay distinguishable: a range with no slop gets no
+    // rectangle at all, rather than a rectangle of width zero. The encoder has
+    // to emit an EMPTY field for absent, not "0" — asserted on the wire, since
+    // both decoders map an empty field and a missing field to the same null and
+    // so cannot tell the two apart on their own.
+    const encoded = encodeRangesForTest([{ start: 0, end: 3 }]);
+
+    expect(encoded.split('~')[12]).toBe('');
+    expect(decodeLikeKotlin(encoded)[0].advanceScale).toBeNull();
+    expect(decodeLikeSwift(encoded)[0].advanceScale).toBeNull();
+  });
+
+  it('leaves a chunk written before hitSlop existed decoding exactly as before', () => {
+    // A real backward-compatibility check has to compare against what the OLD
+    // encoder produced, so the legacy chunk here is the current encoding with
+    // its last field removed. Asserting a hand-written literal against the
+    // test's own mirrors, as an earlier version of this did, could not fail for
+    // any change to the encoder or to either decoder.
+    const current = encodeRangesForTest([
+      {
+        start: 3,
+        end: 11,
+        underline: { style: 'dotted', color: '#b09a6d', thickness: 1 },
+        fontStyle: 'italic',
+        fontScale: 0.7,
+        baselineShift: 0.35,
+        interactive: true,
+      },
+    ]);
+    const legacy = current.split('~').slice(0, 12).join('~');
+
+    for (const decoded of [decodeLikeKotlin(legacy)[0], decodeLikeSwift(legacy)[0]]) {
+      expect(decoded.fontStyle).toBe('italic');
+      expect(decoded.fontScale).toBe(0.7);
+      expect(decoded.baselineShift).toBe(0.35);
+      expect(decoded.interactive).toBe(true);
+      expect(decoded.advanceScale).toBeNull();
+    }
   });
 });
