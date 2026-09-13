@@ -33,7 +33,11 @@ public struct UnderlineRangeSpec {
  * because that's what RN sized the underlying view to.)
  */
 public final class DottedUnderlineTextView: ExpoView {
-  let onPress = EventDispatcher()
+  // `onTextPress`, not `onPress`: RN's base view config declares `topPress` as a
+  // BUBBLING event, while an Expo module event named `onPress` registers a DIRECT
+  // `topPress`. A config with both trips the __DEV__ invariant
+  // "Event cannot be both direct and bubbling: topPress".
+  let onTextPress = EventDispatcher()
   let onRangeTap = EventDispatcher()
 
   // Backing label; configured for selectable interaction below.
@@ -101,7 +105,7 @@ public final class DottedUnderlineTextView: ExpoView {
         }
       }
     }
-    onPress()
+    onTextPress()
   }
 
   /**

@@ -21,7 +21,7 @@ public class DottedUnderlineTextModule: Module {
     Name("DottedUnderlineText")
 
     View(DottedUnderlineTextView.self) {
-      Events("onPress", "onRangeTap")
+      Events("onTextPress", "onRangeTap")
 
       Prop("text") { (view: DottedUnderlineTextView, value: String?) in
         view.text = value ?? ""

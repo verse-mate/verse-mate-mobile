@@ -1,9 +1,26 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import type React from 'react';
 import ManageDownloadsScreen from '../../app/manage-downloads';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOfflineContext } from '../../contexts/OfflineContext';
 import { useTheme } from '../../contexts/ThemeContext';
+
+/**
+ * The screen now hosts <ScriptureAudioSection />, which fetches narrated Bible
+ * versions with react-query. The real app provides a QueryClient in
+ * app/_layout.tsx, so the test has to as well.
+ */
+function renderScreen() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ManageDownloadsScreen />
+    </QueryClientProvider>
+  );
+}
 
 // Mock dependencies
 jest.mock('react-native-safe-area-context', () => ({
@@ -69,7 +86,7 @@ describe('ManageDownloadsScreen', () => {
   });
 
   it('renders correctly with downloaded content', async () => {
-    render(<ManageDownloadsScreen />);
+    renderScreen();
 
     expect(screen.getByText('Manage Downloads')).toBeTruthy();
     expect(screen.getByText('NASB 1995')).toBeTruthy();
@@ -78,7 +95,7 @@ describe('ManageDownloadsScreen', () => {
   });
 
   it('calls downloadBibleVersion when a non-downloaded version is pressed', async () => {
-    render(<ManageDownloadsScreen />);
+    renderScreen();
 
     const kjvItem = screen.getByLabelText(/King James Version, Not Downloaded/);
     await act(async () => {
@@ -89,7 +106,7 @@ describe('ManageDownloadsScreen', () => {
   });
 
   it('shows confirmation modal when delete is pressed', async () => {
-    render(<ManageDownloadsScreen />);
+    renderScreen();
 
     const nasbItem = screen.getByLabelText(/NASB 1995, Downloaded/);
     await act(async () => {
@@ -100,7 +117,7 @@ describe('ManageDownloadsScreen', () => {
   });
 
   it('calls syncUserData when sync button is pressed', async () => {
-    render(<ManageDownloadsScreen />);
+    renderScreen();
 
     const syncButton = screen.getByTestId('sync-user-data-button');
     await act(async () => {

@@ -37,6 +37,7 @@ export class ExpoAudioEngine implements AudioEngine {
   private lastEmittedDuration = 0;
   private endedFired = false;
   private boot: Promise<void> | null = null;
+  private loadChain: Promise<void> = Promise.resolve();
 
   /** Lazy boot so unit tests that never call load() don't hit native. */
   private async ensureBoot(): Promise<void> {
@@ -63,10 +64,26 @@ export class ExpoAudioEngine implements AudioEngine {
     for (const l of this.listeners) l(ev);
   }
 
+  /**
+   * Silence and dispose the current player.
+   *
+   * The pause is not redundant: expo-audio's `remove()` only unregisters the
+   * shared object, and even `sharedObjectWillRelease` never touches the
+   * underlying AVPlayer — so a player that is dropped without being paused
+   * goes on producing sound until ARC and AVFoundation get round to it. That
+   * is what made closing the dock leave audio running, and what turned a few
+   * fast taps on the speaker into four overlapping copies of the same chapter
+   * a couple of hundred milliseconds apart.
+   */
   private teardownPlayer(): void {
     this.statusUnsub?.();
     this.statusUnsub = null;
     if (this.player) {
+      try {
+        this.player.pause();
+      } catch {
+        // Already released — nothing to silence.
+      }
       try {
         this.player.remove();
       } catch {
@@ -110,6 +127,18 @@ export class ExpoAudioEngine implements AudioEngine {
   }
 
   async load(track: AudioTrack): Promise<void> {
+    // Serialised: `load` awaits (the audio-mode boot), and two loads that
+    // interleave there each create a player while the other's teardown is
+    // still pending, leaving one of them orphaned and audible. Chaining makes
+    // the last caller win instead of both.
+    const run = this.loadChain.then(() => this.loadInternal(track));
+    // Swallowed here only so one failed load does not poison the chain for
+    // every later one; the caller still gets the rejection from `run`.
+    this.loadChain = run.catch(() => {});
+    return run;
+  }
+
+  private async loadInternal(track: AudioTrack): Promise<void> {
     await this.ensureBoot();
     this.teardownPlayer();
     this.currentTrack = track;

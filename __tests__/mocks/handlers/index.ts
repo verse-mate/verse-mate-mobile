@@ -12,6 +12,7 @@ import { authHandlers } from './auth';
 import { authSsoHandlers } from './auth-sso';
 import { autoHighlightsHandlers } from './auto-highlights';
 import { bibleHandlers } from './bible.handlers';
+import { bibleBrainHandlers } from './bible-brain.handlers';
 import { bookmarkHandlers } from './bookmarks.handlers';
 import { explanationHandlers } from './explanations';
 import { highlightHandlers } from './highlights.handlers';
@@ -40,6 +41,7 @@ export const handlers = [
   ...userPreferencesHandlers, // User preferences handlers
   ...topicsHandlers, // Topics API handlers
   ...versionPolicyHandlers, // Version policy handlers
+  ...bibleBrainHandlers,
   ...bibleHandlers,
 ];
 

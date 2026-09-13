@@ -65,7 +65,9 @@ class DottedUnderlineTextView(context: Context, appContext: AppContext) :
   // changes; opting into Android layout makes the inner TextView re-wrap.
   override val shouldUseAndroidLayout: Boolean = true
 
-  internal val onPress by EventDispatcher<Map<String, Any?>>()
+  // See DottedUnderlineTextView.swift: `onPress` collides with RN's base
+  // bubbling `topPress`.
+  internal val onTextPress by EventDispatcher<Map<String, Any?>>()
   internal val onRangeTap by EventDispatcher<Map<String, Any?>>()
 
   private val textView: InnerTextView = InnerTextView(context).apply {
@@ -407,7 +409,7 @@ class DottedUnderlineTextView(context: Context, appContext: AppContext) :
             }
             // Fall through to default behaviour, then forward outer onPress.
             val handled = super.onTouchEvent(event)
-            this@DottedUnderlineTextView.onPress(emptyMap())
+            this@DottedUnderlineTextView.onTextPress(emptyMap())
             return handled
           }
         }

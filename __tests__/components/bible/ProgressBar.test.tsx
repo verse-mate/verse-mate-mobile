@@ -11,6 +11,10 @@
 import { render, screen } from '@testing-library/react-native';
 import { ProgressBar } from '@/components/bible/ProgressBar';
 
+// The bar reports its height to the audio dock while its screen is focused,
+// which needs a navigator these tests do not have.
+jest.mock('expo-router', () => require('../../mocks/expo-router.mock').default);
+
 describe('ProgressBar', () => {
   it('renders without crashing', () => {
     render(<ProgressBar percentage={50} />);

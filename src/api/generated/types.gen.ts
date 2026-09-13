@@ -106,9 +106,7 @@ export type PostAuthChangePasswordResponses = {
 export type PostAuthChangePasswordResponse = PostAuthChangePasswordResponses[keyof PostAuthChangePasswordResponses];
 
 export type PostAuthLogoutData = {
-    body: {
-        refreshToken?: string;
-    };
+    body?: never;
     path?: never;
     query?: never;
     url: '/auth/logout';
@@ -296,7 +294,6 @@ export type PostAuthVerifyEmailResponses = {
      */
     200: {
         accessToken: string;
-        refreshToken?: string;
         verified: boolean;
     };
 };
@@ -524,7 +521,6 @@ export type PostAuthSignupResponses = {
      */
     200: {
         accessToken: string;
-        refreshToken?: string;
         verified: boolean;
     };
 };
@@ -579,66 +575,11 @@ export type PostAuthLoginResponses = {
      */
     200: {
         accessToken: string;
-        refreshToken?: string;
         verified: boolean;
     };
 };
 
 export type PostAuthLoginResponse = PostAuthLoginResponses[keyof PostAuthLoginResponses];
-
-export type PostAuthRefreshData = {
-    body: {
-        refreshToken: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/auth/refresh';
-};
-
-export type PostAuthRefreshErrors = {
-    /**
-     * Response for status 400
-     */
-    400: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 429
-     */
-    429: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-};
-
-export type PostAuthRefreshError = PostAuthRefreshErrors[keyof PostAuthRefreshErrors];
-
-export type PostAuthRefreshResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        accessToken: string;
-        refreshToken?: string;
-        verified: boolean;
-    };
-};
-
-export type PostAuthRefreshResponse = PostAuthRefreshResponses[keyof PostAuthRefreshResponses];
 
 export type PostAuthForgotPasswordData = {
     body: {
@@ -846,7 +787,6 @@ export type PostAuthSsoResponses = {
      */
     200: {
         accessToken: string;
-        refreshToken?: string;
         verified: boolean;
     };
 };
@@ -1235,6 +1175,56 @@ export type PostUserUpdateResponses = {
 
 export type PostUserUpdateResponse = PostUserUpdateResponses[keyof PostUserUpdateResponses];
 
+export type PostUserPreferredBibleVersionData = {
+    body: {
+        version: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/user/preferred-bible-version';
+};
+
+export type PostUserPreferredBibleVersionErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostUserPreferredBibleVersionError = PostUserPreferredBibleVersionErrors[keyof PostUserPreferredBibleVersionErrors];
+
+export type PostUserPreferredBibleVersionResponses = {
+    /**
+     * Response for status 200
+     */
+    200: boolean;
+};
+
+export type PostUserPreferredBibleVersionResponse = PostUserPreferredBibleVersionResponses[keyof PostUserPreferredBibleVersionResponses];
+
 export type GetUserRecentlyViewedBooksData = {
     body?: never;
     path?: never;
@@ -1478,6 +1468,64 @@ export type GetBibleLanguagesResponses = {
 
 export type GetBibleLanguagesResponse = GetBibleLanguagesResponses[keyof GetBibleLanguagesResponses];
 
+export type GetBibleVersionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/bible/versions';
+};
+
+export type GetBibleVersionsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleVersionsError = GetBibleVersionsErrors[keyof GetBibleVersionsErrors];
+
+export type GetBibleVersionsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        versions: {
+            version_key: string;
+            version_name: string;
+            language_code: string;
+            license: string | unknown;
+            license_url: string | unknown;
+            attribution: string | unknown;
+            testament_coverage: string;
+        }[];
+    };
+};
+
+export type GetBibleVersionsResponse = GetBibleVersionsResponses[keyof GetBibleVersionsResponses];
+
 export type GetBibleBookByBookIdByChapterNumberData = {
     body?: never;
     path: {
@@ -1485,7 +1533,9 @@ export type GetBibleBookByBookIdByChapterNumberData = {
         chapterNumber: string | string | number;
     };
     query?: {
+        bible_version?: string;
         versionKey?: string;
+        tagged?: string;
     };
     url: '/bible/book/{bookId}/{chapterNumber}';
 };
@@ -1545,6 +1595,12 @@ export type GetBibleBookByBookIdByChapterNumberResponses = {
                 verses: {
                     verseNumber: number;
                     text: string;
+                    tokens?: {
+                        text: string;
+                        strongs?: string;
+                        strongs_alt?: string[];
+                        confidence?: number;
+                    }[];
                 }[];
             }[];
         } | unknown;
@@ -1559,7 +1615,7 @@ export type GetBibleBookByBookIdByChapterNumberResponse = GetBibleBookByBookIdBy
 export type GetBibleBookByBookIdIntroductionData = {
     body?: never;
     path: {
-        bookId: string | string | number;
+        bookId: string | number;
     };
     query?: {
         languageCode?: string;
@@ -1670,8 +1726,13 @@ export type GetBibleBookExplanationByBookIdByChapterNumberData = {
         chapterNumber: string | string | number;
     };
     query?: {
+        bible_version?: string;
         versionKey?: string;
         explanationType?: string;
+        /**
+         * BCP-47 language code (e.g. 'es', 'pt-BR') for the AI commentary. Selects the active explanation in that language, falling back to English when no translation exists. Takes precedence over the bible version's language and the signed-in user's preferred_language.
+         */
+        lang?: string;
     };
     url: '/bible/book/explanation/{bookId}/{chapterNumber}';
 };
@@ -1729,7 +1790,10 @@ export type GetBibleBookExplanationByBookIdByChapterNumberResponse = GetBibleBoo
 export type GetBibleTestamentsData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        bible_version?: string;
+        versionKey?: string;
+    };
     url: '/bible/testaments';
 };
 
@@ -1785,8 +1849,8 @@ export type GetBibleTestamentsResponse = GetBibleTestamentsResponses[keyof GetBi
 export type GetBibleChapterIdByBookIdByChapterNumberData = {
     body?: never;
     path: {
-        bookId: string | string | number;
-        chapterNumber: string | string | number;
+        bookId: string | number;
+        chapterNumber: string | number;
     };
     query?: never;
     url: '/bible/chapter-id/{bookId}/{chapterNumber}';
@@ -1835,18 +1899,22 @@ export type GetBibleChapterIdByBookIdByChapterNumberResponses = {
 
 export type GetBibleChapterIdByBookIdByChapterNumberResponse = GetBibleChapterIdByBookIdByChapterNumberResponses[keyof GetBibleChapterIdByBookIdByChapterNumberResponses];
 
-export type PostBibleBookConversationsHistoryData = {
-    body: {
-        session: {
-            id: string;
-        };
+export type GetBibleStudyByBookIdByChapterNumberData = {
+    body?: never;
+    path: {
+        bookId: string | number;
+        chapterNumber: string | number;
     };
-    path?: never;
-    query?: never;
-    url: '/bible/book/conversations-history';
+    query?: {
+        /**
+         * BCP-47 language code (e.g. 'es-MX', 'ro-RO') for the inductive study. Selects the active translation in that language, falling back to the English baseline when no translation exists.
+         */
+        lang?: string;
+    };
+    url: '/bible/study/{bookId}/{chapterNumber}';
 };
 
-export type PostBibleBookConversationsHistoryErrors = {
+export type GetBibleStudyByBookIdByChapterNumberErrors = {
     /**
      * Response for status 400
      */
@@ -1876,109 +1944,37 @@ export type PostBibleBookConversationsHistoryErrors = {
     };
 };
 
-export type PostBibleBookConversationsHistoryError = PostBibleBookConversationsHistoryErrors[keyof PostBibleBookConversationsHistoryErrors];
+export type GetBibleStudyByBookIdByChapterNumberError = GetBibleStudyByBookIdByChapterNumberErrors[keyof GetBibleStudyByBookIdByChapterNumberErrors];
 
-export type PostBibleBookConversationsHistoryResponses = {
+export type GetBibleStudyByBookIdByChapterNumberResponses = {
     /**
      * Response for status 200
      */
     200: {
-        userChatHistory: {
-            today: {
-                conversation_id: number;
-                user_id: string;
-                title: string;
-                status: 'active' | 'inactive' | 'archived';
-                updated_at: string;
-                book: {
-                    book_id: number | unknown;
-                    name: string | unknown;
-                    testament: string | unknown;
-                    genre_id: number | unknown;
-                };
-                chapter_number: number | unknown;
-                messages: {
-                    message_id: number;
-                    content: string;
-                    role: 'user' | 'assistant';
-                }[];
-            }[];
-            yesterday: {
-                conversation_id: number;
-                user_id: string;
-                title: string;
-                status: 'active' | 'inactive' | 'archived';
-                updated_at: string;
-                book: {
-                    book_id: number | unknown;
-                    name: string | unknown;
-                    testament: string | unknown;
-                    genre_id: number | unknown;
-                };
-                chapter_number: number | unknown;
-                messages: {
-                    message_id: number;
-                    content: string;
-                    role: 'user' | 'assistant';
-                }[];
-            }[];
-            lastSevenDays: {
-                conversation_id: number;
-                user_id: string;
-                title: string;
-                status: 'active' | 'inactive' | 'archived';
-                updated_at: string;
-                book: {
-                    book_id: number | unknown;
-                    name: string | unknown;
-                    testament: string | unknown;
-                    genre_id: number | unknown;
-                };
-                chapter_number: number | unknown;
-                messages: {
-                    message_id: number;
-                    content: string;
-                    role: 'user' | 'assistant';
-                }[];
-            }[];
-            older: {
-                conversation_id: number;
-                user_id: string;
-                title: string;
-                status: 'active' | 'inactive' | 'archived';
-                updated_at: string;
-                book: {
-                    book_id: number | unknown;
-                    name: string | unknown;
-                    testament: string | unknown;
-                    genre_id: number | unknown;
-                };
-                chapter_number: number | unknown;
-                messages: {
-                    message_id: number;
-                    content: string;
-                    role: 'user' | 'assistant';
-                }[];
-            }[];
-        };
+        study: {
+            book_id: number;
+            chapter: number;
+            language_code: string;
+            content: unknown;
+        } | unknown;
     };
 };
 
-export type PostBibleBookConversationsHistoryResponse = PostBibleBookConversationsHistoryResponses[keyof PostBibleBookConversationsHistoryResponses];
+export type GetBibleStudyByBookIdByChapterNumberResponse = GetBibleStudyByBookIdByChapterNumberResponses[keyof GetBibleStudyByBookIdByChapterNumberResponses];
 
-export type PostBibleBookMessagesHistoryData = {
-    body: {
-        conversation_id: number;
-        session: {
-            id: string;
-        };
-    };
+export type GetBibleStudyLabelsData = {
+    body?: never;
     path?: never;
-    query?: never;
-    url: '/bible/book/messages-history';
+    query?: {
+        /**
+         * BCP-47 language code (e.g. 'pt-BR', 'ro-RO') for the inductive-study UI chrome labels. Family-matched; returns null for English/unknown languages so the client uses its bundled getStudyLabels fallback.
+         */
+        lang?: string;
+    };
+    url: '/bible/study-labels';
 };
 
-export type PostBibleBookMessagesHistoryErrors = {
+export type GetBibleStudyLabelsErrors = {
     /**
      * Response for status 400
      */
@@ -2008,138 +2004,21 @@ export type PostBibleBookMessagesHistoryErrors = {
     };
 };
 
-export type PostBibleBookMessagesHistoryError = PostBibleBookMessagesHistoryErrors[keyof PostBibleBookMessagesHistoryErrors];
+export type GetBibleStudyLabelsError = GetBibleStudyLabelsErrors[keyof GetBibleStudyLabelsErrors];
 
-export type PostBibleBookMessagesHistoryResponses = {
+export type GetBibleStudyLabelsResponses = {
     /**
      * Response for status 200
      */
     200: {
-        messagesHistory: {
-            message_id: number;
-            conversation_id: number;
-            role: 'user' | 'assistant';
-            content: string;
-            created_at: string;
-        }[];
+        language_code: string | unknown;
+        labels: {
+            [key: string]: unknown;
+        } | unknown;
     };
 };
 
-export type PostBibleBookMessagesHistoryResponse = PostBibleBookMessagesHistoryResponses[keyof PostBibleBookMessagesHistoryResponses];
-
-export type PostBibleBookConversationExistsData = {
-    body: {
-        user_id: string;
-        book_id: number;
-        chapter_number: number;
-    };
-    path?: never;
-    query?: never;
-    url: '/bible/book/conversation-exists';
-};
-
-export type PostBibleBookConversationExistsErrors = {
-    /**
-     * Response for status 400
-     */
-    400: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 429
-     */
-    429: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-};
-
-export type PostBibleBookConversationExistsError = PostBibleBookConversationExistsErrors[keyof PostBibleBookConversationExistsErrors];
-
-export type PostBibleBookConversationExistsResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        chatExists: boolean;
-    };
-};
-
-export type PostBibleBookConversationExistsResponse = PostBibleBookConversationExistsResponses[keyof PostBibleBookConversationExistsResponses];
-
-export type PostBibleBookNewConversationData = {
-    body: {
-        user_id: string;
-        book_id: number;
-        chapter_number: number;
-    } & {
-        content: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/bible/book/new-conversation';
-};
-
-export type PostBibleBookNewConversationErrors = {
-    /**
-     * Response for status 400
-     */
-    400: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 429
-     */
-    429: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-};
-
-export type PostBibleBookNewConversationError = PostBibleBookNewConversationErrors[keyof PostBibleBookNewConversationErrors];
-
-export type PostBibleBookNewConversationResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        newConversation: {
-            chat_id: number;
-            message: string;
-        };
-        generatedTitle: string;
-    };
-};
-
-export type PostBibleBookNewConversationResponse = PostBibleBookNewConversationResponses[keyof PostBibleBookNewConversationResponses];
+export type GetBibleStudyLabelsResponse = GetBibleStudyLabelsResponses[keyof GetBibleStudyLabelsResponses];
 
 export type PostBibleBookExplanationSaveRatingData = {
     body: {
@@ -2439,179 +2318,6 @@ export type PostBibleBookChapterLastReadResponses = {
 };
 
 export type PostBibleBookChapterLastReadResponse = PostBibleBookChapterLastReadResponses[keyof PostBibleBookChapterLastReadResponses];
-
-export type PostBibleBookAskVerseMateSaveUserMessageData = {
-    body: {
-        chat_id: number;
-        content: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/bible/book/ask-verse-mate/save-user-message';
-};
-
-export type PostBibleBookAskVerseMateSaveUserMessageErrors = {
-    /**
-     * Response for status 400
-     */
-    400: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 429
-     */
-    429: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-};
-
-export type PostBibleBookAskVerseMateSaveUserMessageError = PostBibleBookAskVerseMateSaveUserMessageErrors[keyof PostBibleBookAskVerseMateSaveUserMessageErrors];
-
-export type PostBibleBookAskVerseMateSaveUserMessageResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        result: {
-            message_id: number;
-            conversation_id: number;
-            role: 'user' | 'assistant';
-            content: string;
-            created_at: string;
-        };
-    };
-};
-
-export type PostBibleBookAskVerseMateSaveUserMessageResponse = PostBibleBookAskVerseMateSaveUserMessageResponses[keyof PostBibleBookAskVerseMateSaveUserMessageResponses];
-
-export type PostBibleBookAskVerseMateSaveAiMessageData = {
-    body: {
-        chat_id: number;
-        content: string;
-    } & {
-        book_id: number;
-        chapter_number: number;
-    };
-    path?: never;
-    query?: never;
-    url: '/bible/book/ask-verse-mate/save-ai-message';
-};
-
-export type PostBibleBookAskVerseMateSaveAiMessageErrors = {
-    /**
-     * Response for status 400
-     */
-    400: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 429
-     */
-    429: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-};
-
-export type PostBibleBookAskVerseMateSaveAiMessageError = PostBibleBookAskVerseMateSaveAiMessageErrors[keyof PostBibleBookAskVerseMateSaveAiMessageErrors];
-
-export type PostBibleBookAskVerseMateSaveAiMessageResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        result: {
-            message_id: number;
-            conversation_id: number;
-            role: 'user' | 'assistant';
-            content: string;
-            created_at: string;
-        };
-    };
-};
-
-export type PostBibleBookAskVerseMateSaveAiMessageResponse = PostBibleBookAskVerseMateSaveAiMessageResponses[keyof PostBibleBookAskVerseMateSaveAiMessageResponses];
-
-export type DeleteBibleBookDeleteChatByConversationIdData = {
-    body?: never;
-    path: {
-        conversation_id: string | number;
-    };
-    query?: never;
-    url: '/bible/book/delete-chat/{conversation_id}';
-};
-
-export type DeleteBibleBookDeleteChatByConversationIdErrors = {
-    /**
-     * Response for status 400
-     */
-    400: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 429
-     */
-    429: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-    /**
-     * Response for status 500
-     */
-    500: {
-        error: string;
-        message: string;
-        retryAfter?: number;
-        data?: unknown;
-    };
-};
-
-export type DeleteBibleBookDeleteChatByConversationIdError = DeleteBibleBookDeleteChatByConversationIdErrors[keyof DeleteBibleBookDeleteChatByConversationIdErrors];
-
-export type DeleteBibleBookDeleteChatByConversationIdResponses = {
-    /**
-     * Response for status 200
-     */
-    200: {
-        disabledChat: number;
-    };
-};
-
-export type DeleteBibleBookDeleteChatByConversationIdResponse = DeleteBibleBookDeleteChatByConversationIdResponses[keyof DeleteBibleBookDeleteChatByConversationIdResponses];
 
 export type GetBibleBookBookmarksByUserIdData = {
     body?: never;
@@ -3136,8 +2842,8 @@ export type GetBibleHighlightsByUserIdByBookIdByChapterNumberData = {
     body?: never;
     path: {
         user_id: string;
-        book_id: string | string | number;
-        chapter_number: string | string | number;
+        book_id: string | number;
+        chapter_number: string | number;
     };
     query?: never;
     url: '/bible/highlights/{user_id}/{book_id}/{chapter_number}';
@@ -3443,6 +3149,2548 @@ export type PatchBibleUserThemePreferencesByThemeIdData = {
     url: '/bible/user/theme-preferences/{theme_id}';
 };
 
+export type GetCoachMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/me';
+};
+
+export type GetCoachMeErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachMeError = GetCoachMeErrors[keyof GetCoachMeErrors];
+
+export type GetCoachMeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        isCoach: boolean;
+        isAdmin: boolean;
+        profile: {
+            id: string;
+            name: string;
+            email: string;
+            group: string;
+            coachName: string;
+        } | unknown;
+        zoomLink: string;
+        affiliatedChurch: string;
+        bibleCoach: string;
+        model: string;
+        clusters: {
+            name: string;
+            weight: number;
+        }[];
+        statusBands: {
+            min: number;
+            label: string;
+            emoji: string;
+        }[];
+    };
+};
+
+export type GetCoachMeResponse = GetCoachMeResponses[keyof GetCoachMeResponses];
+
+export type GetCoachReportsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/reports';
+};
+
+export type GetCoachReportsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachReportsError = GetCoachReportsErrors[keyof GetCoachReportsErrors];
+
+export type GetCoachReportsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        reports: {
+            id: string;
+            date: string;
+            dateLabel: string;
+            session: string;
+            topic: string;
+            duration: string;
+            attendees: number;
+            newcomers: number;
+            score: number;
+            base: number;
+            newcomerBonus: number;
+            sizeBonus: number;
+            status: string;
+            statusEmoji: string;
+            clusters: {
+                name: string;
+                weight: number;
+                scorePct: number | unknown;
+                contribution: number;
+            }[];
+            dimensions: {
+                n: number;
+                name: string;
+                score: number | unknown;
+                note?: string;
+            }[];
+            bigIdeas: string[];
+            feedback: {
+                headline: string;
+                strengths: string[];
+                improvements: string[];
+                recommendations: string[];
+                overview?: string[];
+                strengthsProse?: {
+                    title: string;
+                    paragraphs: string[];
+                }[];
+                improvementsProse?: {
+                    title: string;
+                    paragraphs: string[];
+                }[];
+                recommendationsProse?: {
+                    title: string;
+                    paragraphs: string[];
+                }[];
+            };
+            sections?: {
+                title: string;
+                paragraphs?: string[];
+                bullets?: string[];
+                moments?: {
+                    timestamp?: string;
+                    detail: string;
+                }[];
+            }[];
+            docUrl: string;
+            pdfUrl: string;
+            recordingUrl?: string;
+            notes?: {
+                id: string;
+                body: string;
+                createdAt: string;
+                emailed: boolean;
+            }[];
+        }[];
+    };
+};
+
+export type GetCoachReportsResponse = GetCoachReportsResponses[keyof GetCoachReportsResponses];
+
+export type GetCoachTrendsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/trends';
+};
+
+export type GetCoachTrendsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachTrendsError = GetCoachTrendsErrors[keyof GetCoachTrendsErrors];
+
+export type GetCoachTrendsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        scoreSeries: {
+            date: string;
+            dateLabel: string;
+            session: string;
+            score: number;
+            status: string;
+        }[];
+        clusterSeries: {
+            [key: string]: unknown;
+        }[];
+        dimensionSeries: {
+            [key: string]: unknown;
+        }[];
+        delta: {
+            score: number;
+            from: number;
+            to: number;
+            fromLabel: string;
+            toLabel: string;
+        } | unknown;
+    };
+};
+
+export type GetCoachTrendsResponse = GetCoachTrendsResponses[keyof GetCoachTrendsResponses];
+
+export type GetCoachMonthlySummaryData = {
+    body?: never;
+    path?: never;
+    query: {
+        month: string;
+    };
+    url: '/coach/monthly-summary';
+};
+
+export type GetCoachMonthlySummaryErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachMonthlySummaryError = GetCoachMonthlySummaryErrors[keyof GetCoachMonthlySummaryErrors];
+
+export type GetCoachMonthlySummaryResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        profile: {
+            id: string;
+            name: string;
+            group: string;
+        };
+        summary: {
+            month: string;
+            monthLabel: string;
+            priorMonthLabel: string;
+            leaderId: string;
+            leaderName: string;
+            group: string;
+            sessionsCount: number;
+            composite: number;
+            status: {
+                label: string;
+                emoji: string;
+            };
+            priorComposite: number | unknown;
+            delta: number | unknown;
+            clusterAvg: {
+                tc: number | unknown;
+                bm: number | unknown;
+                ep: number | unknown;
+                br: number | unknown;
+            };
+            glance: {
+                rows: {
+                    date: string;
+                    session: string;
+                    bm: number | unknown;
+                    tc: number | unknown;
+                    ep: number | unknown;
+                    br: number | unknown;
+                    composite: number;
+                    status: string;
+                }[];
+                avg: {
+                    bm: number | unknown;
+                    tc: number | unknown;
+                    ep: number | unknown;
+                    br: number | unknown;
+                    composite: number;
+                    status: string;
+                };
+            };
+            trajectory: {
+                date: string;
+                session: string;
+                composite: number;
+                status: string;
+                delta: number | unknown;
+            }[];
+            clusters: {
+                key: string;
+                name: string;
+                weight: number;
+                avgPct: number | unknown;
+                statusLabel: string;
+                strongestDim: {
+                    name: string;
+                    val: number;
+                } | unknown;
+                weakestDim: {
+                    name: string;
+                    val: number;
+                } | unknown;
+                insight: string;
+            }[];
+            strengths: {
+                text: string;
+                session: string;
+            }[];
+            growth: {
+                text: string;
+                session: string;
+            }[];
+            trends: string[];
+            conversationGuide: {
+                label: string;
+                q: string;
+            }[];
+            focus: {
+                clusterName: string;
+                clusterPct: number | unknown;
+                goals: string[];
+            };
+            sessions: {
+                date: string;
+                session: string;
+                composite: number;
+                status: string;
+                dimensions: {
+                    n: number;
+                    name: string;
+                    cluster: string;
+                    score: number | unknown;
+                    note: string;
+                }[];
+            }[];
+        } | unknown;
+        availableMonths: string[];
+    };
+};
+
+export type GetCoachMonthlySummaryResponse = GetCoachMonthlySummaryResponses[keyof GetCoachMonthlySummaryResponses];
+
+export type PutCoachZoomLinkData = {
+    body: {
+        zoomLink: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/zoom-link';
+};
+
+export type PutCoachZoomLinkErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachZoomLinkError = PutCoachZoomLinkErrors[keyof PutCoachZoomLinkErrors];
+
+export type PutCoachZoomLinkResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        zoomLink: string;
+    };
+};
+
+export type PutCoachZoomLinkResponse = PutCoachZoomLinkResponses[keyof PutCoachZoomLinkResponses];
+
+export type PutCoachAffiliatedChurchData = {
+    body: {
+        affiliatedChurch: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/affiliated-church';
+};
+
+export type PutCoachAffiliatedChurchErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAffiliatedChurchError = PutCoachAffiliatedChurchErrors[keyof PutCoachAffiliatedChurchErrors];
+
+export type PutCoachAffiliatedChurchResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        affiliatedChurch: string;
+    };
+};
+
+export type PutCoachAffiliatedChurchResponse = PutCoachAffiliatedChurchResponses[keyof PutCoachAffiliatedChurchResponses];
+
+export type PutCoachBibleCoachData = {
+    body: {
+        bibleCoach: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/bible-coach';
+};
+
+export type PutCoachBibleCoachErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachBibleCoachError = PutCoachBibleCoachErrors[keyof PutCoachBibleCoachErrors];
+
+export type PutCoachBibleCoachResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        bibleCoach: string;
+    };
+};
+
+export type PutCoachBibleCoachResponse = PutCoachBibleCoachResponses[keyof PutCoachBibleCoachResponses];
+
+export type GetCoachClassesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/classes';
+};
+
+export type GetCoachClassesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachClassesError = GetCoachClassesErrors[keyof GetCoachClassesErrors];
+
+export type GetCoachClassesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        classes: {
+            id: string;
+            name: string;
+            classDate: string | unknown;
+            recurrence: string;
+            zoomLink: string;
+        }[];
+    };
+};
+
+export type GetCoachClassesResponse = GetCoachClassesResponses[keyof GetCoachClassesResponses];
+
+export type PostCoachClassesData = {
+    body: {
+        name: string;
+        classDate: string;
+        recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
+        zoomLink: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/classes';
+};
+
+export type PostCoachClassesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachClassesError = PostCoachClassesErrors[keyof PostCoachClassesErrors];
+
+export type PostCoachClassesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        class: {
+            id: string;
+            name: string;
+            classDate: string | unknown;
+            recurrence: string;
+            zoomLink: string;
+        };
+    };
+};
+
+export type PostCoachClassesResponse = PostCoachClassesResponses[keyof PostCoachClassesResponses];
+
+export type DeleteCoachClassesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/classes/{id}';
+};
+
+export type DeleteCoachClassesByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteCoachClassesByIdError = DeleteCoachClassesByIdErrors[keyof DeleteCoachClassesByIdErrors];
+
+export type DeleteCoachClassesByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type DeleteCoachClassesByIdResponse = DeleteCoachClassesByIdResponses[keyof DeleteCoachClassesByIdResponses];
+
+export type PutCoachClassesByIdData = {
+    body: {
+        name: string;
+        classDate: string;
+        recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
+        zoomLink: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/classes/{id}';
+};
+
+export type PutCoachClassesByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachClassesByIdError = PutCoachClassesByIdErrors[keyof PutCoachClassesByIdErrors];
+
+export type PutCoachClassesByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        class: {
+            id: string;
+            name: string;
+            classDate: string | unknown;
+            recurrence: string;
+            zoomLink: string;
+        };
+    };
+};
+
+export type PutCoachClassesByIdResponse = PutCoachClassesByIdResponses[keyof PutCoachClassesByIdResponses];
+
+export type GetCoachAdminCoachesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/coaches';
+};
+
+export type GetCoachAdminCoachesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminCoachesError = GetCoachAdminCoachesErrors[keyof GetCoachAdminCoachesErrors];
+
+export type GetCoachAdminCoachesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        coaches: {
+            id: string;
+            name: string;
+            group: string;
+            coachName: string;
+            sessionCount: number;
+            latest: {
+                date: string;
+                dateLabel: string;
+                score: number;
+                status: string;
+                statusEmoji: string;
+            } | unknown;
+        }[];
+    };
+};
+
+export type GetCoachAdminCoachesResponse = GetCoachAdminCoachesResponses[keyof GetCoachAdminCoachesResponses];
+
+export type GetCoachAdminCoachesByIdReportsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/coaches/{id}/reports';
+};
+
+export type GetCoachAdminCoachesByIdReportsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminCoachesByIdReportsError = GetCoachAdminCoachesByIdReportsErrors[keyof GetCoachAdminCoachesByIdReportsErrors];
+
+export type GetCoachAdminCoachesByIdReportsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        profile: {
+            id: string;
+            name: string;
+            group: string;
+            coachName: string;
+        };
+        reports: {
+            id: string;
+            date: string;
+            dateLabel: string;
+            session: string;
+            topic: string;
+            duration: string;
+            attendees: number;
+            newcomers: number;
+            score: number;
+            base: number;
+            newcomerBonus: number;
+            sizeBonus: number;
+            status: string;
+            statusEmoji: string;
+            clusters: {
+                name: string;
+                weight: number;
+                scorePct: number | unknown;
+                contribution: number;
+            }[];
+            dimensions: {
+                n: number;
+                name: string;
+                score: number | unknown;
+                note?: string;
+            }[];
+            bigIdeas: string[];
+            feedback: {
+                headline: string;
+                strengths: string[];
+                improvements: string[];
+                recommendations: string[];
+                overview?: string[];
+                strengthsProse?: {
+                    title: string;
+                    paragraphs: string[];
+                }[];
+                improvementsProse?: {
+                    title: string;
+                    paragraphs: string[];
+                }[];
+                recommendationsProse?: {
+                    title: string;
+                    paragraphs: string[];
+                }[];
+            };
+            sections?: {
+                title: string;
+                paragraphs?: string[];
+                bullets?: string[];
+                moments?: {
+                    timestamp?: string;
+                    detail: string;
+                }[];
+            }[];
+            docUrl: string;
+            pdfUrl: string;
+            recordingUrl?: string;
+            notes?: {
+                id: string;
+                body: string;
+                createdAt: string;
+                emailed: boolean;
+            }[];
+        }[];
+    };
+};
+
+export type GetCoachAdminCoachesByIdReportsResponse = GetCoachAdminCoachesByIdReportsResponses[keyof GetCoachAdminCoachesByIdReportsResponses];
+
+export type GetCoachAdminCoachesByIdTrendsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/coaches/{id}/trends';
+};
+
+export type GetCoachAdminCoachesByIdTrendsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminCoachesByIdTrendsError = GetCoachAdminCoachesByIdTrendsErrors[keyof GetCoachAdminCoachesByIdTrendsErrors];
+
+export type GetCoachAdminCoachesByIdTrendsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        scoreSeries: {
+            date: string;
+            dateLabel: string;
+            session: string;
+            score: number;
+            status: string;
+        }[];
+        clusterSeries: {
+            [key: string]: unknown;
+        }[];
+        dimensionSeries: {
+            [key: string]: unknown;
+        }[];
+        delta: {
+            score: number;
+            from: number;
+            to: number;
+            fromLabel: string;
+            toLabel: string;
+        } | unknown;
+    };
+};
+
+export type GetCoachAdminCoachesByIdTrendsResponse = GetCoachAdminCoachesByIdTrendsResponses[keyof GetCoachAdminCoachesByIdTrendsResponses];
+
+export type GetCoachAdminCoachesByIdMonthlySummaryData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        month: string;
+    };
+    url: '/coach/admin/coaches/{id}/monthly-summary';
+};
+
+export type GetCoachAdminCoachesByIdMonthlySummaryErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminCoachesByIdMonthlySummaryError = GetCoachAdminCoachesByIdMonthlySummaryErrors[keyof GetCoachAdminCoachesByIdMonthlySummaryErrors];
+
+export type GetCoachAdminCoachesByIdMonthlySummaryResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        profile: {
+            id: string;
+            name: string;
+            group: string;
+        };
+        summary: {
+            month: string;
+            monthLabel: string;
+            priorMonthLabel: string;
+            leaderId: string;
+            leaderName: string;
+            group: string;
+            sessionsCount: number;
+            composite: number;
+            status: {
+                label: string;
+                emoji: string;
+            };
+            priorComposite: number | unknown;
+            delta: number | unknown;
+            clusterAvg: {
+                tc: number | unknown;
+                bm: number | unknown;
+                ep: number | unknown;
+                br: number | unknown;
+            };
+            glance: {
+                rows: {
+                    date: string;
+                    session: string;
+                    bm: number | unknown;
+                    tc: number | unknown;
+                    ep: number | unknown;
+                    br: number | unknown;
+                    composite: number;
+                    status: string;
+                }[];
+                avg: {
+                    bm: number | unknown;
+                    tc: number | unknown;
+                    ep: number | unknown;
+                    br: number | unknown;
+                    composite: number;
+                    status: string;
+                };
+            };
+            trajectory: {
+                date: string;
+                session: string;
+                composite: number;
+                status: string;
+                delta: number | unknown;
+            }[];
+            clusters: {
+                key: string;
+                name: string;
+                weight: number;
+                avgPct: number | unknown;
+                statusLabel: string;
+                strongestDim: {
+                    name: string;
+                    val: number;
+                } | unknown;
+                weakestDim: {
+                    name: string;
+                    val: number;
+                } | unknown;
+                insight: string;
+            }[];
+            strengths: {
+                text: string;
+                session: string;
+            }[];
+            growth: {
+                text: string;
+                session: string;
+            }[];
+            trends: string[];
+            conversationGuide: {
+                label: string;
+                q: string;
+            }[];
+            focus: {
+                clusterName: string;
+                clusterPct: number | unknown;
+                goals: string[];
+            };
+            sessions: {
+                date: string;
+                session: string;
+                composite: number;
+                status: string;
+                dimensions: {
+                    n: number;
+                    name: string;
+                    cluster: string;
+                    score: number | unknown;
+                    note: string;
+                }[];
+            }[];
+        } | unknown;
+        availableMonths: string[];
+    };
+};
+
+export type GetCoachAdminCoachesByIdMonthlySummaryResponse = GetCoachAdminCoachesByIdMonthlySummaryResponses[keyof GetCoachAdminCoachesByIdMonthlySummaryResponses];
+
+export type GetCoachAdminClassesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/classes';
+};
+
+export type GetCoachAdminClassesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminClassesError = GetCoachAdminClassesErrors[keyof GetCoachAdminClassesErrors];
+
+export type GetCoachAdminClassesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        classes: {
+            id: string;
+            name: string;
+            classDate: string | unknown;
+            recurrence: string;
+            zoomLink: string;
+            leader: {
+                id: string | unknown;
+                name: string;
+                email: string;
+            };
+        }[];
+    };
+};
+
+export type GetCoachAdminClassesResponse = GetCoachAdminClassesResponses[keyof GetCoachAdminClassesResponses];
+
+export type PostCoachAdminLeadersData = {
+    body: {
+        email: string;
+        name?: string;
+        group?: string;
+        coachName?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/admin/leaders';
+};
+
+export type PostCoachAdminLeadersErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLeadersError = PostCoachAdminLeadersErrors[keyof PostCoachAdminLeadersErrors];
+
+export type PostCoachAdminLeadersResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        coach: {
+            id: string;
+            name: string;
+            group: string;
+            coachName: string;
+            sessionCount: number;
+            latest: {
+                date: string;
+                dateLabel: string;
+                score: number;
+                status: string;
+                statusEmoji: string;
+            } | unknown;
+        };
+    };
+};
+
+export type PostCoachAdminLeadersResponse = PostCoachAdminLeadersResponses[keyof PostCoachAdminLeadersResponses];
+
+export type PutCoachAdminCoachesByIdReportsByReportIdRecordingData = {
+    body: {
+        recordingUrl: string;
+    };
+    path: {
+        id: string;
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/coaches/{id}/reports/{reportId}/recording';
+};
+
+export type PutCoachAdminCoachesByIdReportsByReportIdRecordingErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminCoachesByIdReportsByReportIdRecordingError = PutCoachAdminCoachesByIdReportsByReportIdRecordingErrors[keyof PutCoachAdminCoachesByIdReportsByReportIdRecordingErrors];
+
+export type PutCoachAdminCoachesByIdReportsByReportIdRecordingResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        recordingUrl: string;
+    };
+};
+
+export type PutCoachAdminCoachesByIdReportsByReportIdRecordingResponse = PutCoachAdminCoachesByIdReportsByReportIdRecordingResponses[keyof PutCoachAdminCoachesByIdReportsByReportIdRecordingResponses];
+
+export type PostCoachAdminCoachesByIdReportsByReportIdNotesData = {
+    body: {
+        body: string;
+    };
+    path: {
+        id: string;
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/coaches/{id}/reports/{reportId}/notes';
+};
+
+export type PostCoachAdminCoachesByIdReportsByReportIdNotesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminCoachesByIdReportsByReportIdNotesError = PostCoachAdminCoachesByIdReportsByReportIdNotesErrors[keyof PostCoachAdminCoachesByIdReportsByReportIdNotesErrors];
+
+export type PostCoachAdminCoachesByIdReportsByReportIdNotesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        note: {
+            id: string;
+            body: string;
+            createdAt: string;
+            emailed: boolean;
+        };
+    };
+};
+
+export type PostCoachAdminCoachesByIdReportsByReportIdNotesResponse = PostCoachAdminCoachesByIdReportsByReportIdNotesResponses[keyof PostCoachAdminCoachesByIdReportsByReportIdNotesResponses];
+
+export type GetCoachAdminMonthlyData = {
+    body?: never;
+    path?: never;
+    query: {
+        month: string;
+    };
+    url: '/coach/admin/monthly';
+};
+
+export type GetCoachAdminMonthlyErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminMonthlyError = GetCoachAdminMonthlyErrors[keyof GetCoachAdminMonthlyErrors];
+
+export type GetCoachAdminMonthlyResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        month: string;
+        monthLabel: string;
+        program: {
+            sessions: number;
+            activeLeaders: number;
+            newcomers: number;
+            avgScore: number | unknown;
+            clusters: {
+                name: string;
+                weight: number;
+                avg: number | unknown;
+            }[];
+            delta: number | unknown;
+        };
+        leaders: {
+            id: string;
+            name: string;
+            group: string;
+            sessions: number;
+            avgScore: number | unknown;
+            status: string;
+            statusEmoji: string;
+            dimensions: {
+                n: number;
+                name: string;
+                avg: number | unknown;
+            }[];
+            delta: number | unknown;
+        }[];
+        availableMonths: string[];
+        narrative: {
+            executiveSummary: string[];
+            trends: string[];
+        } | unknown;
+    };
+};
+
+export type GetCoachAdminMonthlyResponse = GetCoachAdminMonthlyResponses[keyof GetCoachAdminMonthlyResponses];
+
+export type GetBibleVerseOfTheDayData = {
+    body?: never;
+    path?: never;
+    query?: {
+        date?: string;
+        bible_version?: string;
+        pid?: string;
+    };
+    url: '/bible/verse-of-the-day';
+};
+
+export type GetBibleVerseOfTheDayErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleVerseOfTheDayError = GetBibleVerseOfTheDayErrors[keyof GetBibleVerseOfTheDayErrors];
+
+export type GetBibleVerseOfTheDayResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        empty: boolean;
+        reference: {
+            bookId: number;
+            chapterNumber: number;
+            verseStart: number;
+            verseEnd: number | unknown;
+        };
+        referenceText: string;
+        verses: {
+            verseNumber: number;
+            text: string;
+        }[];
+        tags: string[];
+        versionKey: string;
+        languageCode: string;
+        date: string;
+        explanation: string | unknown;
+    } | {
+        empty: boolean;
+        date: string;
+        fallbackMessage: string;
+    };
+};
+
+export type GetBibleVerseOfTheDayResponse = GetBibleVerseOfTheDayResponses[keyof GetBibleVerseOfTheDayResponses];
+
+export type DeleteNotificationsDeviceData = {
+    body: {
+        token: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/notifications/device';
+};
+
+export type DeleteNotificationsDeviceErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteNotificationsDeviceError = DeleteNotificationsDeviceErrors[keyof DeleteNotificationsDeviceErrors];
+
+export type DeleteNotificationsDeviceResponses = {
+    /**
+     * Response for status 200
+     */
+    200: boolean;
+};
+
+export type DeleteNotificationsDeviceResponse = DeleteNotificationsDeviceResponses[keyof DeleteNotificationsDeviceResponses];
+
+export type PutNotificationsDeviceData = {
+    body: {
+        token: string;
+        platform: 'ios' | 'android';
+    };
+    path?: never;
+    query?: never;
+    url: '/notifications/device';
+};
+
+export type PutNotificationsDeviceErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutNotificationsDeviceError = PutNotificationsDeviceErrors[keyof PutNotificationsDeviceErrors];
+
+export type PutNotificationsDeviceResponses = {
+    /**
+     * Response for status 200
+     */
+    200: boolean;
+};
+
+export type PutNotificationsDeviceResponse = PutNotificationsDeviceResponses[keyof PutNotificationsDeviceResponses];
+
+export type GetAdminNotificationsRecipientCountData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/notifications/recipient-count';
+};
+
+export type GetAdminNotificationsRecipientCountErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAdminNotificationsRecipientCountError = GetAdminNotificationsRecipientCountErrors[keyof GetAdminNotificationsRecipientCountErrors];
+
+export type GetAdminNotificationsRecipientCountResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        count: string | number;
+    };
+};
+
+export type GetAdminNotificationsRecipientCountResponse = GetAdminNotificationsRecipientCountResponses[keyof GetAdminNotificationsRecipientCountResponses];
+
+export type PostAdminNotificationsBroadcastData = {
+    body: {
+        title: string;
+        body: string;
+        deepLink?: string | unknown;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/notifications/broadcast';
+};
+
+export type PostAdminNotificationsBroadcastErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAdminNotificationsBroadcastError = PostAdminNotificationsBroadcastErrors[keyof PostAdminNotificationsBroadcastErrors];
+
+export type PostAdminNotificationsBroadcastResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        recipientCount: string | number;
+        pruned: string | number;
+    };
+};
+
+export type PostAdminNotificationsBroadcastResponse = PostAdminNotificationsBroadcastResponses[keyof PostAdminNotificationsBroadcastResponses];
+
+export type GetBibleExplanationAudioByExplanationIdData = {
+    body?: never;
+    path: {
+        explanationId: string | number;
+    };
+    query?: {
+        voice?: string;
+        language?: string;
+    };
+    url: '/bible/explanation/audio/{explanationId}';
+};
+
+export type GetBibleExplanationAudioByExplanationIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleExplanationAudioByExplanationIdError = GetBibleExplanationAudioByExplanationIdErrors[keyof GetBibleExplanationAudioByExplanationIdErrors];
+
+export type GetBibleExplanationAudioByExplanationIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        audio: {
+            url: string;
+            duration_seconds: number;
+            voice: string;
+            language_code: string;
+        };
+    };
+    /**
+     * Response for status 202
+     */
+    202: {
+        job: {
+            job_id: string;
+            estimated_ready_seconds: number;
+        };
+    };
+};
+
+export type GetBibleExplanationAudioByExplanationIdResponse = GetBibleExplanationAudioByExplanationIdResponses[keyof GetBibleExplanationAudioByExplanationIdResponses];
+
+export type GetBibleExplanationAudioJobsByJobIdData = {
+    body?: never;
+    path: {
+        jobId: string;
+    };
+    query?: never;
+    url: '/bible/explanation/audio/jobs/{jobId}';
+};
+
+export type GetBibleExplanationAudioJobsByJobIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleExplanationAudioJobsByJobIdError = GetBibleExplanationAudioJobsByJobIdErrors[keyof GetBibleExplanationAudioJobsByJobIdErrors];
+
+export type GetBibleExplanationAudioJobsByJobIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        job: {
+            job_id: string;
+            status: 'queued' | 'active' | 'completed' | 'failed';
+            audio?: {
+                url: string;
+                duration_seconds: number;
+                voice: string;
+                language_code: string;
+            };
+            error_code?: string;
+        };
+    };
+};
+
+export type GetBibleExplanationAudioJobsByJobIdResponse = GetBibleExplanationAudioJobsByJobIdResponses[keyof GetBibleExplanationAudioJobsByJobIdResponses];
+
+export type DeleteBibleExplanationAudioByExplanationIdProgressData = {
+    body?: never;
+    path: {
+        explanationId: string | number;
+    };
+    query?: never;
+    url: '/bible/explanation/audio/{explanationId}/progress';
+};
+
+export type DeleteBibleExplanationAudioByExplanationIdProgressErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteBibleExplanationAudioByExplanationIdProgressError = DeleteBibleExplanationAudioByExplanationIdProgressErrors[keyof DeleteBibleExplanationAudioByExplanationIdProgressErrors];
+
+export type DeleteBibleExplanationAudioByExplanationIdProgressResponses = {
+    /**
+     * Response for status 204
+     */
+    204: unknown;
+};
+
+export type GetBibleExplanationAudioByExplanationIdProgressData = {
+    body?: never;
+    path: {
+        explanationId: string | number;
+    };
+    query?: never;
+    url: '/bible/explanation/audio/{explanationId}/progress';
+};
+
+export type GetBibleExplanationAudioByExplanationIdProgressErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleExplanationAudioByExplanationIdProgressError = GetBibleExplanationAudioByExplanationIdProgressErrors[keyof GetBibleExplanationAudioByExplanationIdProgressErrors];
+
+export type GetBibleExplanationAudioByExplanationIdProgressResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        position_seconds: number;
+        duration_seconds: number;
+        updated_at: string;
+    };
+};
+
+export type GetBibleExplanationAudioByExplanationIdProgressResponse = GetBibleExplanationAudioByExplanationIdProgressResponses[keyof GetBibleExplanationAudioByExplanationIdProgressResponses];
+
+export type PostBibleExplanationAudioByExplanationIdProgressData = {
+    body: {
+        position_seconds: number;
+        duration_seconds: number;
+        reason: 'pause' | 'complete' | 'background' | 'navigation';
+    };
+    path: {
+        explanationId: string | number;
+    };
+    query?: never;
+    url: '/bible/explanation/audio/{explanationId}/progress';
+};
+
+export type PostBibleExplanationAudioByExplanationIdProgressErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostBibleExplanationAudioByExplanationIdProgressError = PostBibleExplanationAudioByExplanationIdProgressErrors[keyof PostBibleExplanationAudioByExplanationIdProgressErrors];
+
+export type PostBibleExplanationAudioByExplanationIdProgressResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        position_seconds: number;
+        duration_seconds: number;
+        updated_at: string;
+    };
+    /**
+     * Response for status 204
+     */
+    204: unknown;
+};
+
+export type PostBibleExplanationAudioByExplanationIdProgressResponse = PostBibleExplanationAudioByExplanationIdProgressResponses[keyof PostBibleExplanationAudioByExplanationIdProgressResponses];
+
+export type GetBibleBrainVersionsData = {
+    body?: never;
+    path?: never;
+    query: {
+        language: string;
+        include_offline?: string;
+    };
+    url: '/bible/brain/versions';
+};
+
+export type GetBibleBrainVersionsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleBrainVersionsError = GetBibleBrainVersionsErrors[keyof GetBibleBrainVersionsErrors];
+
+export type GetBibleBrainVersionsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        versions: {
+            abbr: string;
+            name: string;
+            language: string;
+            iso: string;
+            text_filesets: {
+                id: string;
+                type: string;
+                size: string;
+                offline_capable: boolean;
+            }[];
+            audio_filesets: {
+                id: string;
+                type: string;
+                size: string;
+                offline_capable: boolean;
+            }[];
+            has_verse_timing: boolean;
+            offline_capable: boolean;
+        }[];
+    };
+};
+
+export type GetBibleBrainVersionsResponse = GetBibleBrainVersionsResponses[keyof GetBibleBrainVersionsResponses];
+
+export type GetBibleBrainAudioByFilesetIdByBookByChapterData = {
+    body?: never;
+    path: {
+        filesetId: string;
+        book: string;
+        chapter: string | number;
+    };
+    query?: never;
+    url: '/bible/brain/audio/{filesetId}/{book}/{chapter}';
+};
+
+export type GetBibleBrainAudioByFilesetIdByBookByChapterErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleBrainAudioByFilesetIdByBookByChapterError = GetBibleBrainAudioByFilesetIdByBookByChapterErrors[keyof GetBibleBrainAudioByFilesetIdByBookByChapterErrors];
+
+export type GetBibleBrainAudioByFilesetIdByBookByChapterResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        audio: {
+            fileset_id: string;
+            book_id: string;
+            chapter: number;
+            url: string;
+            duration_seconds: number | unknown;
+            filesize_bytes: number | unknown;
+            offline_capable: boolean;
+            expires_in_seconds: number | unknown;
+        };
+    };
+};
+
+export type GetBibleBrainAudioByFilesetIdByBookByChapterResponse = GetBibleBrainAudioByFilesetIdByBookByChapterResponses[keyof GetBibleBrainAudioByFilesetIdByBookByChapterResponses];
+
+export type GetBibleBrainTimestampsByFilesetIdByBookByChapterData = {
+    body?: never;
+    path: {
+        filesetId: string;
+        book: string;
+        chapter: string | number;
+    };
+    query?: never;
+    url: '/bible/brain/timestamps/{filesetId}/{book}/{chapter}';
+};
+
+export type GetBibleBrainTimestampsByFilesetIdByBookByChapterErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleBrainTimestampsByFilesetIdByBookByChapterError = GetBibleBrainTimestampsByFilesetIdByBookByChapterErrors[keyof GetBibleBrainTimestampsByFilesetIdByBookByChapterErrors];
+
+export type GetBibleBrainTimestampsByFilesetIdByBookByChapterResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        fileset_id: string;
+        book_id: string;
+        chapter: number;
+        timestamps: {
+            verse: number;
+            seconds: number;
+        }[];
+    };
+};
+
+export type GetBibleBrainTimestampsByFilesetIdByBookByChapterResponse = GetBibleBrainTimestampsByFilesetIdByBookByChapterResponses[keyof GetBibleBrainTimestampsByFilesetIdByBookByChapterResponses];
+
+export type GetBibleBrainTextByFilesetIdByBookByChapterData = {
+    body?: never;
+    path: {
+        filesetId: string;
+        book: string;
+        chapter: string | number;
+    };
+    query?: {
+        verse_start?: string | number;
+        verse_end?: string | number;
+    };
+    url: '/bible/brain/text/{filesetId}/{book}/{chapter}';
+};
+
+export type GetBibleBrainTextByFilesetIdByBookByChapterErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleBrainTextByFilesetIdByBookByChapterError = GetBibleBrainTextByFilesetIdByBookByChapterErrors[keyof GetBibleBrainTextByFilesetIdByBookByChapterErrors];
+
+export type GetBibleBrainTextByFilesetIdByBookByChapterResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        fileset_id: string;
+        book_id: string;
+        chapter: number;
+        verses: {
+            verse: number;
+            text: string;
+        }[];
+    };
+};
+
+export type GetBibleBrainTextByFilesetIdByBookByChapterResponse = GetBibleBrainTextByFilesetIdByBookByChapterResponses[keyof GetBibleBrainTextByFilesetIdByBookByChapterResponses];
+
+export type GetBibleBrainCopyrightByBibleIdData = {
+    body?: never;
+    path: {
+        bibleId: string;
+    };
+    query?: never;
+    url: '/bible/brain/copyright/{bibleId}';
+};
+
+export type GetBibleBrainCopyrightByBibleIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleBrainCopyrightByBibleIdError = GetBibleBrainCopyrightByBibleIdErrors[keyof GetBibleBrainCopyrightByBibleIdErrors];
+
+export type GetBibleBrainCopyrightByBibleIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        bible_id: string;
+        filesets: {
+            fileset_id: string;
+            type: string;
+            copyright: string | unknown;
+        }[];
+    };
+};
+
+export type GetBibleBrainCopyrightByBibleIdResponse = GetBibleBrainCopyrightByBibleIdResponses[keyof GetBibleBrainCopyrightByBibleIdResponses];
+
+export type GetBibleBrainDownloadByFilesetIdByBookByChapterData = {
+    body?: never;
+    path: {
+        filesetId: string;
+        book: string;
+        chapter: string | number;
+    };
+    query?: never;
+    url: '/bible/brain/download/{filesetId}/{book}/{chapter}';
+};
+
+export type GetBibleBrainDownloadByFilesetIdByBookByChapterErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetBibleBrainDownloadByFilesetIdByBookByChapterError = GetBibleBrainDownloadByFilesetIdByBookByChapterErrors[keyof GetBibleBrainDownloadByFilesetIdByBookByChapterErrors];
+
+export type GetBibleBrainDownloadByFilesetIdByBookByChapterResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        fileset_id: string;
+        book_id: string;
+        chapter: number;
+        url: string;
+        filesize_bytes: number | unknown;
+        duration_seconds: number | unknown;
+    };
+};
+
+export type GetBibleBrainDownloadByFilesetIdByBookByChapterResponse = GetBibleBrainDownloadByFilesetIdByBookByChapterResponses[keyof GetBibleBrainDownloadByFilesetIdByBookByChapterResponses];
+
 export type GetTopicsCategoriesData = {
     body?: never;
     path?: never;
@@ -3647,6 +5895,1103 @@ export type PostTopicsParseReferencesResponses = {
 };
 
 export type PostTopicsParseReferencesResponse = PostTopicsParseReferencesResponses[keyof PostTopicsParseReferencesResponses];
+
+export type GetJesusOverviewData = {
+    body?: never;
+    path?: never;
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/overview';
+};
+
+export type GetJesusOverviewResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        total_entries: number;
+        sections: {
+            section: string;
+            label: string;
+            blurb: string;
+            sort_order: number;
+            entry_count: number;
+            kinds: {
+                kind: string;
+                slug: string;
+                label: string;
+                singular: string;
+                blurb: string;
+                entry_count: number;
+            }[];
+        }[];
+        periods: {
+            slug: string;
+            name: string;
+            subtitle: string | unknown;
+            description: string | unknown;
+            sort_order: number;
+            entry_count: number;
+        }[];
+        themes: {
+            slug: string;
+            name: string;
+            description: string | unknown;
+            sort_order: number;
+            entry_count: number;
+        }[];
+        collections: {
+            slug: string;
+            name: string;
+            subtitle: string | unknown;
+            description: string | unknown;
+            is_featured?: boolean;
+            sort_order: number;
+            entry_count: number;
+        }[];
+    };
+};
+
+export type GetJesusOverviewResponse = GetJesusOverviewResponses[keyof GetJesusOverviewResponses];
+
+export type GetJesusEntriesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        kind?: string;
+        section?: string;
+        theme?: string;
+        period?: string;
+        collection?: string;
+        book_id?: string | number;
+        q?: string;
+        limit?: string | number;
+        offset?: string | number;
+        bible_version?: string;
+    };
+    url: '/jesus/entries';
+};
+
+export type GetJesusEntriesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        entries: {
+            slug: string;
+            kind: string;
+            kind_slug: string;
+            kind_label: string;
+            section: string | unknown;
+            title: string;
+            summary: string | unknown;
+            quote: string | unknown;
+            quote_reference: string | unknown;
+            period_slug: string | unknown;
+            period_name: string | unknown;
+            is_translated: boolean;
+            references: {
+                book_id: number;
+                book_name: string;
+                chapter: number;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+                is_primary: boolean;
+                display: string;
+            }[];
+            themes: {
+                slug: string;
+                name: string;
+            }[];
+        }[];
+        total: number;
+        limit: number;
+        offset: number;
+    };
+};
+
+export type GetJesusEntriesResponse = GetJesusEntriesResponses[keyof GetJesusEntriesResponses];
+
+export type GetJesusEntriesBySlugData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/entries/{slug}';
+};
+
+export type GetJesusEntriesBySlugErrors = {
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+    };
+};
+
+export type GetJesusEntriesBySlugError = GetJesusEntriesBySlugErrors[keyof GetJesusEntriesBySlugErrors];
+
+export type GetJesusEntriesBySlugResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        entry: {
+            slug: string;
+            kind: string;
+            kind_slug: string;
+            kind_label: string;
+            section: string | unknown;
+            title: string;
+            summary: string | unknown;
+            quote: string | unknown;
+            quote_reference: string | unknown;
+            period_slug: string | unknown;
+            period_name: string | unknown;
+            is_translated: boolean;
+            references: {
+                book_id: number;
+                book_name: string;
+                chapter: number;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+                is_primary: boolean;
+                display: string;
+            }[];
+            themes: {
+                slug: string;
+                name: string;
+            }[];
+        } & {
+            harmony_key: string | unknown;
+            chronology_order: number | unknown;
+        };
+        passages: {
+            reference: string;
+            book_id: number;
+            book_name: string;
+            chapter: number;
+            verse_start: number | unknown;
+            verse_end: number | unknown;
+            is_primary: boolean;
+            verses: {
+                verse_number: number;
+                text: string;
+            }[];
+        }[];
+        explanation: {
+            summary: string;
+            byline: string;
+            detailed: string;
+        };
+        related: {
+            slug: string;
+            kind: string;
+            kind_slug: string;
+            kind_label: string;
+            section: string | unknown;
+            title: string;
+            summary: string | unknown;
+            quote: string | unknown;
+            quote_reference: string | unknown;
+            period_slug: string | unknown;
+            period_name: string | unknown;
+            is_translated: boolean;
+            references: {
+                book_id: number;
+                book_name: string;
+                chapter: number;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+                is_primary: boolean;
+                display: string;
+            }[];
+            themes: {
+                slug: string;
+                name: string;
+            }[];
+        }[];
+    };
+};
+
+export type GetJesusEntriesBySlugResponse = GetJesusEntriesBySlugResponses[keyof GetJesusEntriesBySlugResponses];
+
+export type GetJesusLifeData = {
+    body?: never;
+    path?: never;
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/life';
+};
+
+export type GetJesusLifeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        periods: ({
+            slug: string;
+            name: string;
+            subtitle: string | unknown;
+            description: string | unknown;
+            sort_order: number;
+            entry_count: number;
+        } & {
+            entries: {
+                slug: string;
+                kind: string;
+                kind_slug: string;
+                kind_label: string;
+                section: string | unknown;
+                title: string;
+                summary: string | unknown;
+                quote: string | unknown;
+                quote_reference: string | unknown;
+                period_slug: string | unknown;
+                period_name: string | unknown;
+                is_translated: boolean;
+                references: {
+                    book_id: number;
+                    book_name: string;
+                    chapter: number;
+                    verse_start: number | unknown;
+                    verse_end: number | unknown;
+                    is_primary: boolean;
+                    display: string;
+                }[];
+                themes: {
+                    slug: string;
+                    name: string;
+                }[];
+            }[];
+        })[];
+    };
+};
+
+export type GetJesusLifeResponse = GetJesusLifeResponses[keyof GetJesusLifeResponses];
+
+export type GetJesusThemesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/themes';
+};
+
+export type GetJesusThemesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        themes: {
+            slug: string;
+            name: string;
+            description: string | unknown;
+            sort_order: number;
+            entry_count: number;
+        }[];
+    };
+};
+
+export type GetJesusThemesResponse = GetJesusThemesResponses[keyof GetJesusThemesResponses];
+
+export type GetJesusCollectionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/collections';
+};
+
+export type GetJesusCollectionsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        collections: {
+            slug: string;
+            name: string;
+            subtitle: string | unknown;
+            description: string | unknown;
+            is_featured?: boolean;
+            sort_order: number;
+            entry_count: number;
+        }[];
+    };
+};
+
+export type GetJesusCollectionsResponse = GetJesusCollectionsResponses[keyof GetJesusCollectionsResponses];
+
+export type GetJesusCollectionsBySlugData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/collections/{slug}';
+};
+
+export type GetJesusCollectionsBySlugErrors = {
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+    };
+};
+
+export type GetJesusCollectionsBySlugError = GetJesusCollectionsBySlugErrors[keyof GetJesusCollectionsBySlugErrors];
+
+export type GetJesusCollectionsBySlugResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        collection: {
+            slug: string;
+            name: string;
+            subtitle: string | unknown;
+            description: string | unknown;
+            is_featured?: boolean;
+            sort_order: number;
+            entry_count: number;
+        };
+        entries: {
+            slug: string;
+            kind: string;
+            kind_slug: string;
+            kind_label: string;
+            section: string | unknown;
+            title: string;
+            summary: string | unknown;
+            quote: string | unknown;
+            quote_reference: string | unknown;
+            period_slug: string | unknown;
+            period_name: string | unknown;
+            is_translated: boolean;
+            references: {
+                book_id: number;
+                book_name: string;
+                chapter: number;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+                is_primary: boolean;
+                display: string;
+            }[];
+            themes: {
+                slug: string;
+                name: string;
+            }[];
+        }[];
+    };
+};
+
+export type GetJesusCollectionsBySlugResponse = GetJesusCollectionsBySlugResponses[keyof GetJesusCollectionsBySlugResponses];
+
+export type GetJesusForPassageData = {
+    body?: never;
+    path?: never;
+    query: {
+        book_id: string | number;
+        chapter: string | number;
+        verse?: string | number;
+        bible_version?: string;
+    };
+    url: '/jesus/for-passage';
+};
+
+export type GetJesusForPassageResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        events: {
+            slug: string;
+            title: string;
+            summary: string | unknown;
+            period_slug: string | unknown;
+            period_name: string | unknown;
+            sequence: number | unknown;
+            chronology_confidence: string;
+            parallel_confidence: string;
+            gospels: string[];
+            passages: {
+                book_id: number;
+                book_name: string;
+                chapter: number;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+                is_primary: boolean;
+                display: string;
+            }[];
+            facet_counts: {
+                words: number;
+                actions: number;
+                by_type: {
+                    [key: string]: unknown;
+                };
+            };
+            matched_facets: {
+                slug: string;
+                mode: string;
+                type: string;
+                type_slug: string;
+                type_label: string;
+                speaker: string | unknown;
+                actor: string | unknown;
+                title: string;
+                text: string | unknown;
+                summary: string | unknown;
+                provenance: number;
+                reference: string | unknown;
+                book_id: number | unknown;
+                chapter: number | unknown;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+            }[];
+            themes: {
+                slug: string;
+                name: string;
+            }[];
+        }[];
+    };
+};
+
+export type GetJesusForPassageResponse = GetJesusForPassageResponses[keyof GetJesusForPassageResponses];
+
+export type GetJesusEventsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        type?: string;
+        section?: string;
+        mode?: string;
+        theme?: string;
+        period?: string;
+        collection?: string;
+        person?: string;
+        book_id?: string | number;
+        q?: string;
+        limit?: string | number;
+        offset?: string | number;
+        bible_version?: string;
+    };
+    url: '/jesus/events';
+};
+
+export type GetJesusEventsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        events: {
+            slug: string;
+            title: string;
+            summary: string | unknown;
+            period_slug: string | unknown;
+            period_name: string | unknown;
+            sequence: number | unknown;
+            chronology_confidence: string;
+            parallel_confidence: string;
+            gospels: string[];
+            passages: {
+                book_id: number;
+                book_name: string;
+                chapter: number;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+                is_primary: boolean;
+                display: string;
+            }[];
+            facet_counts: {
+                words: number;
+                actions: number;
+                by_type: {
+                    [key: string]: unknown;
+                };
+            };
+            matched_facets: {
+                slug: string;
+                mode: string;
+                type: string;
+                type_slug: string;
+                type_label: string;
+                speaker: string | unknown;
+                actor: string | unknown;
+                title: string;
+                text: string | unknown;
+                summary: string | unknown;
+                provenance: number;
+                reference: string | unknown;
+                book_id: number | unknown;
+                chapter: number | unknown;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+            }[];
+            themes: {
+                slug: string;
+                name: string;
+            }[];
+        }[];
+        total: number;
+        limit: number;
+        offset: number;
+    };
+};
+
+export type GetJesusEventsResponse = GetJesusEventsResponses[keyof GetJesusEventsResponses];
+
+export type GetJesusEventsOverviewData = {
+    body?: never;
+    path?: never;
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/events/overview';
+};
+
+export type GetJesusEventsOverviewResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        total_events: number;
+        total_facets: number;
+        sections: unknown[];
+        periods: unknown[];
+        themes: unknown[];
+        collections: unknown[];
+    };
+};
+
+export type GetJesusEventsOverviewResponse = GetJesusEventsOverviewResponses[keyof GetJesusEventsOverviewResponses];
+
+export type GetJesusEventsBrowseByTypeData = {
+    body?: never;
+    path: {
+        type: string;
+    };
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/events/browse/{type}';
+};
+
+export type GetJesusEventsBrowseByTypeErrors = {
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+    };
+};
+
+export type GetJesusEventsBrowseByTypeError = GetJesusEventsBrowseByTypeErrors[keyof GetJesusEventsBrowseByTypeErrors];
+
+export type GetJesusEventsBrowseByTypeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        type: {
+            type: string;
+            mode: string;
+            slug: string;
+            label: string;
+            singular: string;
+            plural: string;
+            section: string;
+            blurb: string;
+            intro: string;
+            event_count: number;
+            facet_count: number;
+        };
+        topics: {
+            slug: string | unknown;
+            name: string;
+            description: string | unknown;
+            sort_order: number;
+            event_count: number;
+            facet_count: number;
+            gospels: string[];
+            points: {
+                slug: string;
+                title: string;
+                text: string | unknown;
+                summary: string | unknown;
+                reference: string | unknown;
+                provenance: number;
+            }[];
+            events: {
+                slug: string;
+                title: string;
+                summary: string | unknown;
+                period_slug: string | unknown;
+                period_name: string | unknown;
+                sequence: number | unknown;
+                chronology_confidence: string;
+                parallel_confidence: string;
+                gospels: string[];
+                passages: {
+                    book_id: number;
+                    book_name: string;
+                    chapter: number;
+                    verse_start: number | unknown;
+                    verse_end: number | unknown;
+                    is_primary: boolean;
+                    display: string;
+                }[];
+                facet_counts: {
+                    words: number;
+                    actions: number;
+                    by_type: {
+                        [key: string]: unknown;
+                    };
+                };
+                matched_facets: {
+                    slug: string;
+                    mode: string;
+                    type: string;
+                    type_slug: string;
+                    type_label: string;
+                    speaker: string | unknown;
+                    actor: string | unknown;
+                    title: string;
+                    text: string | unknown;
+                    summary: string | unknown;
+                    provenance: number;
+                    reference: string | unknown;
+                    book_id: number | unknown;
+                    chapter: number | unknown;
+                    verse_start: number | unknown;
+                    verse_end: number | unknown;
+                }[];
+                themes: {
+                    slug: string;
+                    name: string;
+                }[];
+            }[];
+            brief: string | unknown;
+            brief_provenance: number | unknown;
+        }[];
+        total_events: number;
+        truncated: boolean;
+    };
+};
+
+export type GetJesusEventsBrowseByTypeResponse = GetJesusEventsBrowseByTypeResponses[keyof GetJesusEventsBrowseByTypeResponses];
+
+export type GetJesusEventsLifeData = {
+    body?: never;
+    path?: never;
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/events/life';
+};
+
+export type GetJesusEventsLifeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        periods: unknown[];
+    };
+};
+
+export type GetJesusEventsLifeResponse = GetJesusEventsLifeResponses[keyof GetJesusEventsLifeResponses];
+
+export type GetJesusEventsCollectionsBySlugData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/events/collections/{slug}';
+};
+
+export type GetJesusEventsCollectionsBySlugErrors = {
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+    };
+};
+
+export type GetJesusEventsCollectionsBySlugError = GetJesusEventsCollectionsBySlugErrors[keyof GetJesusEventsCollectionsBySlugErrors];
+
+export type GetJesusEventsCollectionsBySlugResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        collection: unknown;
+        events: {
+            slug: string;
+            title: string;
+            summary: string | unknown;
+            period_slug: string | unknown;
+            period_name: string | unknown;
+            sequence: number | unknown;
+            chronology_confidence: string;
+            parallel_confidence: string;
+            gospels: string[];
+            passages: {
+                book_id: number;
+                book_name: string;
+                chapter: number;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+                is_primary: boolean;
+                display: string;
+            }[];
+            facet_counts: {
+                words: number;
+                actions: number;
+                by_type: {
+                    [key: string]: unknown;
+                };
+            };
+            matched_facets: {
+                slug: string;
+                mode: string;
+                type: string;
+                type_slug: string;
+                type_label: string;
+                speaker: string | unknown;
+                actor: string | unknown;
+                title: string;
+                text: string | unknown;
+                summary: string | unknown;
+                provenance: number;
+                reference: string | unknown;
+                book_id: number | unknown;
+                chapter: number | unknown;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+            }[];
+            themes: {
+                slug: string;
+                name: string;
+            }[];
+        }[];
+    };
+};
+
+export type GetJesusEventsCollectionsBySlugResponse = GetJesusEventsCollectionsBySlugResponses[keyof GetJesusEventsCollectionsBySlugResponses];
+
+export type GetJesusEventsBySlugCompareData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/events/{slug}/compare';
+};
+
+export type GetJesusEventsBySlugCompareErrors = {
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+    };
+};
+
+export type GetJesusEventsBySlugCompareError = GetJesusEventsBySlugCompareErrors[keyof GetJesusEventsBySlugCompareErrors];
+
+export type GetJesusEventsBySlugCompareResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        event: {
+            slug: string;
+            title: string;
+            summary: string | unknown;
+            period_slug: string | unknown;
+            period_name: string | unknown;
+            sequence: number | unknown;
+            chronology_confidence: string;
+            parallel_confidence: string;
+            gospels: string[];
+            passages: {
+                book_id: number;
+                book_name: string;
+                chapter: number;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+                is_primary: boolean;
+                display: string;
+            }[];
+            facet_counts: {
+                words: number;
+                actions: number;
+                by_type: {
+                    [key: string]: unknown;
+                };
+            };
+            matched_facets: {
+                slug: string;
+                mode: string;
+                type: string;
+                type_slug: string;
+                type_label: string;
+                speaker: string | unknown;
+                actor: string | unknown;
+                title: string;
+                text: string | unknown;
+                summary: string | unknown;
+                provenance: number;
+                reference: string | unknown;
+                book_id: number | unknown;
+                chapter: number | unknown;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+            }[];
+            themes: {
+                slug: string;
+                name: string;
+            }[];
+        };
+        accounts: unknown[];
+        shared_by: string[];
+        note: string;
+        note_provenance: number | unknown;
+        parallel_confidence: string;
+    };
+};
+
+export type GetJesusEventsBySlugCompareResponse = GetJesusEventsBySlugCompareResponses[keyof GetJesusEventsBySlugCompareResponses];
+
+export type GetJesusEventsBySlugData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: {
+        bible_version?: string;
+    };
+    url: '/jesus/events/{slug}';
+};
+
+export type GetJesusEventsBySlugErrors = {
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+    };
+};
+
+export type GetJesusEventsBySlugError = GetJesusEventsBySlugErrors[keyof GetJesusEventsBySlugErrors];
+
+export type GetJesusEventsBySlugResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        event: unknown;
+        words: {
+            slug: string;
+            mode: string;
+            type: string;
+            type_slug: string;
+            type_label: string;
+            speaker: string | unknown;
+            actor: string | unknown;
+            title: string;
+            text: string | unknown;
+            summary: string | unknown;
+            provenance: number;
+            reference: string | unknown;
+            book_id: number | unknown;
+            chapter: number | unknown;
+            verse_start: number | unknown;
+            verse_end: number | unknown;
+        }[];
+        actions: {
+            slug: string;
+            mode: string;
+            type: string;
+            type_slug: string;
+            type_label: string;
+            speaker: string | unknown;
+            actor: string | unknown;
+            title: string;
+            text: string | unknown;
+            summary: string | unknown;
+            provenance: number;
+            reference: string | unknown;
+            book_id: number | unknown;
+            chapter: number | unknown;
+            verse_start: number | unknown;
+            verse_end: number | unknown;
+        }[];
+        passages: unknown[];
+        reveals: {
+            says_about_himself: unknown[];
+            demonstrates: unknown[];
+            others_say: unknown[];
+            narrator_says: unknown[];
+        };
+        reactions: unknown[];
+        explanation: {
+            [key: string]: unknown;
+        };
+        related: {
+            slug: string;
+            title: string;
+            summary: string | unknown;
+            period_slug: string | unknown;
+            period_name: string | unknown;
+            sequence: number | unknown;
+            chronology_confidence: string;
+            parallel_confidence: string;
+            gospels: string[];
+            passages: {
+                book_id: number;
+                book_name: string;
+                chapter: number;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+                is_primary: boolean;
+                display: string;
+            }[];
+            facet_counts: {
+                words: number;
+                actions: number;
+                by_type: {
+                    [key: string]: unknown;
+                };
+            };
+            matched_facets: {
+                slug: string;
+                mode: string;
+                type: string;
+                type_slug: string;
+                type_label: string;
+                speaker: string | unknown;
+                actor: string | unknown;
+                title: string;
+                text: string | unknown;
+                summary: string | unknown;
+                provenance: number;
+                reference: string | unknown;
+                book_id: number | unknown;
+                chapter: number | unknown;
+                verse_start: number | unknown;
+                verse_end: number | unknown;
+            }[];
+            themes: {
+                slug: string;
+                name: string;
+            }[];
+        }[];
+    };
+};
+
+export type GetJesusEventsBySlugResponse = GetJesusEventsBySlugResponses[keyof GetJesusEventsBySlugResponses];
+
+export type GetLemmaByStrongsData = {
+    body?: never;
+    path: {
+        /**
+         * Strong's number, e.g. G2385 or H0001. Case-insensitive; gets canonicalized to 4-digit zero-padded form server-side.
+         */
+        strongs: string;
+    };
+    query?: {
+        /**
+         * ISO 639-1 language code (es, de, fr, ru, it, pt, ro, hi, tl, uk). Defaults to 'en'. Case-insensitive; a region suffix (es-MX) is stripped to its base code server-side. Falls back to English baseline if no translation exists for the requested language.
+         */
+        lang?: string;
+    };
+    url: '/lemma/{strongs}';
+};
+
+export type GetLemmaByStrongsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetLemmaByStrongsError = GetLemmaByStrongsErrors[keyof GetLemmaByStrongsErrors];
+
+export type GetLemmaByStrongsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        strongs: string;
+        lemma: string;
+        translit: string | unknown;
+        pronunciation: string | unknown;
+        nt_frequency: number | unknown;
+        ot_frequency: number | unknown;
+        loaded: boolean;
+        pos: string | unknown;
+        basic_gloss: string | unknown;
+        semantic_range: string[] | unknown;
+        notes: string | unknown;
+        related: {
+            translit: string;
+            note: string;
+        }[] | unknown;
+        language_code: string;
+        source: string | unknown;
+        is_translated: boolean;
+    };
+};
+
+export type GetLemmaByStrongsResponse = GetLemmaByStrongsResponses[keyof GetLemmaByStrongsResponses];
 
 export type GetSupportConversationsData = {
     body?: never;
@@ -4167,6 +7512,9 @@ export type PostAdminBatchExplanationsData = {
         explanationTypes: string[];
         skipExisting?: boolean;
         effort?: 'low' | 'medium' | 'high';
+        chapters?: number[];
+        maxOutputTokens?: number;
+        batchType?: string;
     };
     path?: never;
     query?: never;
@@ -4243,6 +7591,7 @@ export type PostAdminBatchRephraseData = {
         model: string;
         effort?: 'low' | 'medium' | 'high';
         bibleVersion: string;
+        maxOutputTokens?: number;
     };
     path?: never;
     query?: never;
@@ -4315,6 +7664,8 @@ export type PostAdminBatchTranslateData = {
         target_language_code: string;
         explanationTypes: string[];
         skipExisting?: boolean;
+        chapters?: number[];
+        maxOutputTokens?: number;
     };
     path?: never;
     query?: never;
@@ -4359,6 +7710,117 @@ export type PostAdminBatchTranslateResponses = {
      */
     200: unknown;
 };
+
+export type PostAdminBatchTranslateStudyData = {
+    body: {
+        type: 'book' | 'bible';
+        bookName?: string;
+        model: string;
+        effort?: 'low' | 'medium' | 'high';
+        target_language_code: string;
+        skipExisting?: boolean;
+        chapters?: number[];
+        maxOutputTokens?: number;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/batch-translate-study';
+};
+
+export type PostAdminBatchTranslateStudyErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAdminBatchTranslateStudyError = PostAdminBatchTranslateStudyErrors[keyof PostAdminBatchTranslateStudyErrors];
+
+export type PostAdminBatchTranslateStudyResponses = {
+    /**
+     * Response for status 200
+     */
+    200: unknown;
+};
+
+export type PostAdminBatchExplanationsImpactPreviewData = {
+    body: {
+        bookName: string;
+        explanationTypes: string[];
+        chapters?: number[];
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/batch-explanations/impact-preview';
+};
+
+export type PostAdminBatchExplanationsImpactPreviewErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAdminBatchExplanationsImpactPreviewError = PostAdminBatchExplanationsImpactPreviewErrors[keyof PostAdminBatchExplanationsImpactPreviewErrors];
+
+export type PostAdminBatchExplanationsImpactPreviewResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        language_code: string;
+        count: number;
+        language_name: string;
+    }[];
+};
+
+export type PostAdminBatchExplanationsImpactPreviewResponse = PostAdminBatchExplanationsImpactPreviewResponses[keyof PostAdminBatchExplanationsImpactPreviewResponses];
 
 export type DeleteAdminBatchByBatchJobIdData = {
     body?: never;
@@ -6003,12 +9465,14 @@ export type PostAdminPromptsPlaygroundData = {
     body: {
         system_prompt: string;
         user_prompt: string;
+        prompt_type: string;
         book_name: string;
         chapter_number: number;
         bible_version: string;
         model: string;
         effort: 'low' | 'medium' | 'high';
         send_chapter_context: boolean;
+        max_output_tokens?: number;
     };
     path?: never;
     query?: never;
@@ -6207,6 +9671,573 @@ export type PostAdminTopicsTranslateAllData = {
     url: '/admin/topics/translate-all';
 };
 
+export type PostAdminExplanationsAudioRegenerateData = {
+    body: {
+        explanationIds?: number[];
+        filters?: {
+            bookId?: number;
+            chapterNumber?: number;
+            type?: string;
+            versionKey?: string;
+            languageCode?: string;
+        };
+        voice?: string;
+        language?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/explanations/audio/regenerate';
+};
+
+export type PostAdminExplanationsAudioRegenerateResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        batch_id: string;
+        job_count: number;
+    };
+};
+
+export type PostAdminExplanationsAudioRegenerateResponse = PostAdminExplanationsAudioRegenerateResponses[keyof PostAdminExplanationsAudioRegenerateResponses];
+
+export type GetAdminExplanationsAudioData = {
+    body?: never;
+    path?: never;
+    query?: {
+        language?: string;
+        voice?: string;
+        isStale?: string;
+        chapterId?: string;
+        type?: string;
+        versionKey?: string;
+        limit?: string;
+        offset?: string;
+    };
+    url: '/admin/explanations/audio/';
+};
+
+export type GetAdminExplanationsAudioResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        rows: {
+            audio_id: string | unknown | null;
+            explanation_id: number;
+            chapter_id: number;
+            book_id: number;
+            chapter_number: number;
+            explanation_type: string;
+            language_code: string;
+            voice: string | unknown | null;
+            duration_seconds: number | unknown | null;
+            generated_at: string | unknown | null;
+            tts_provider: string | unknown | null;
+            tts_model: string | unknown | null;
+            content_hash: string | unknown | null;
+            storage_key: string | unknown | null;
+            status: 'current' | 'stale' | 'missing' | 'failed';
+        }[];
+        total: number;
+    };
+};
+
+export type GetAdminExplanationsAudioResponse = GetAdminExplanationsAudioResponses[keyof GetAdminExplanationsAudioResponses];
+
+export type DeleteAdminExplanationsAudioByAudioIdData = {
+    body?: never;
+    path: {
+        audioId: string;
+    };
+    query?: never;
+    url: '/admin/explanations/audio/{audioId}';
+};
+
+export type DeleteAdminExplanationsAudioByAudioIdResponses = {
+    /**
+     * Response for status 204
+     */
+    204: unknown;
+};
+
+export type GetAdminExplanationsAudioByAudioIdData = {
+    body?: never;
+    path: {
+        audioId: string;
+    };
+    query?: never;
+    url: '/admin/explanations/audio/{audioId}';
+};
+
+export type GetAdminExplanationsAudioByAudioIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        audio_id: string | unknown | null;
+        explanation_id: number;
+        chapter_id: number;
+        book_id: number;
+        chapter_number: number;
+        explanation_type: string;
+        language_code: string;
+        voice: string | unknown | null;
+        duration_seconds: number | unknown | null;
+        generated_at: string | unknown | null;
+        tts_provider: string | unknown | null;
+        tts_model: string | unknown | null;
+        content_hash: string | unknown | null;
+        storage_key: string | unknown | null;
+        status: 'current' | 'stale' | 'missing' | 'failed';
+    };
+};
+
+export type GetAdminExplanationsAudioByAudioIdResponse = GetAdminExplanationsAudioByAudioIdResponses[keyof GetAdminExplanationsAudioByAudioIdResponses];
+
+export type GetAdminDailyVersesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        tag?: string;
+        active?: string;
+        limit?: string;
+        offset?: string;
+    };
+    url: '/admin/daily-verses/';
+};
+
+export type GetAdminDailyVersesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAdminDailyVersesError = GetAdminDailyVersesErrors[keyof GetAdminDailyVersesErrors];
+
+export type GetAdminDailyVersesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        items: {
+            id: string;
+            book_id: number;
+            chapter_number: number;
+            verse_start: number;
+            verse_end: number | unknown;
+            note: string | unknown;
+            is_active: boolean;
+            created_at: string | unknown;
+            updated_at: string | unknown;
+            tags: {
+                id: string;
+                slug: string;
+                label: string;
+            }[];
+        }[];
+        total: number;
+    };
+};
+
+export type GetAdminDailyVersesResponse = GetAdminDailyVersesResponses[keyof GetAdminDailyVersesResponses];
+
+export type PostAdminDailyVersesData = {
+    body: {
+        book_id: string | number;
+        chapter_number: string | number;
+        verse_start: string | number;
+        verse_end?: string | number | unknown;
+        note?: string | unknown;
+        is_active?: boolean;
+        tag_ids?: string[];
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/daily-verses/';
+};
+
+export type PostAdminDailyVersesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAdminDailyVersesError = PostAdminDailyVersesErrors[keyof PostAdminDailyVersesErrors];
+
+export type PostAdminDailyVersesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        verse: {
+            id: string;
+            book_id: number;
+            chapter_number: number;
+            verse_start: number;
+            verse_end: number | unknown;
+            note: string | unknown;
+            is_active: boolean;
+            created_at: string | unknown;
+            updated_at: string | unknown;
+        };
+    };
+};
+
+export type PostAdminDailyVersesResponse = PostAdminDailyVersesResponses[keyof PostAdminDailyVersesResponses];
+
+export type GetAdminDailyVersesHistoryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: string;
+        offset?: string;
+    };
+    url: '/admin/daily-verses/history';
+};
+
+export type GetAdminDailyVersesHistoryErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAdminDailyVersesHistoryError = GetAdminDailyVersesHistoryErrors[keyof GetAdminDailyVersesHistoryErrors];
+
+export type GetAdminDailyVersesHistoryResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        history: {
+            id: string;
+            pick_date: string;
+            daily_verse_id: string;
+            user_id: string | unknown;
+            book_id: number;
+            chapter_number: number;
+            verse_start: number;
+            verse_end: number | unknown;
+        }[];
+    };
+};
+
+export type GetAdminDailyVersesHistoryResponse = GetAdminDailyVersesHistoryResponses[keyof GetAdminDailyVersesHistoryResponses];
+
+export type DeleteAdminDailyVersesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/daily-verses/{id}';
+};
+
+export type DeleteAdminDailyVersesByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteAdminDailyVersesByIdError = DeleteAdminDailyVersesByIdErrors[keyof DeleteAdminDailyVersesByIdErrors];
+
+export type DeleteAdminDailyVersesByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type DeleteAdminDailyVersesByIdResponse = DeleteAdminDailyVersesByIdResponses[keyof DeleteAdminDailyVersesByIdResponses];
+
+export type PutAdminDailyVersesByIdData = {
+    body: {
+        book_id?: string | number;
+        chapter_number?: string | number;
+        verse_start?: string | number;
+        verse_end?: string | number | unknown;
+        note?: string | unknown;
+        is_active?: boolean;
+        tag_ids?: string[];
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/daily-verses/{id}';
+};
+
+export type PutAdminDailyVersesByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutAdminDailyVersesByIdError = PutAdminDailyVersesByIdErrors[keyof PutAdminDailyVersesByIdErrors];
+
+export type PutAdminDailyVersesByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        verse: {
+            id: string;
+            book_id: number;
+            chapter_number: number;
+            verse_start: number;
+            verse_end: number | unknown;
+            note: string | unknown;
+            is_active: boolean;
+            created_at: string | unknown;
+            updated_at: string | unknown;
+        };
+    };
+};
+
+export type PutAdminDailyVersesByIdResponse = PutAdminDailyVersesByIdResponses[keyof PutAdminDailyVersesByIdResponses];
+
+export type GetAdminDailyVerseTagsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        active?: string;
+    };
+    url: '/admin/daily-verse-tags/';
+};
+
+export type GetAdminDailyVerseTagsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAdminDailyVerseTagsError = GetAdminDailyVerseTagsErrors[keyof GetAdminDailyVerseTagsErrors];
+
+export type GetAdminDailyVerseTagsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        tags: {
+            id: string;
+            slug: string;
+            label: string;
+            is_active: boolean;
+            created_at: string | unknown;
+            updated_at: string | unknown;
+        }[];
+    };
+};
+
+export type GetAdminDailyVerseTagsResponse = GetAdminDailyVerseTagsResponses[keyof GetAdminDailyVerseTagsResponses];
+
+export type PostAdminDailyVerseTagsData = {
+    body: {
+        slug: string;
+        label: string;
+        is_active?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/admin/daily-verse-tags/';
+};
+
+export type PostAdminDailyVerseTagsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAdminDailyVerseTagsError = PostAdminDailyVerseTagsErrors[keyof PostAdminDailyVerseTagsErrors];
+
+export type PostAdminDailyVerseTagsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        tag: {
+            id: string;
+            slug: string;
+            label: string;
+            is_active: boolean;
+            created_at: string | unknown;
+            updated_at: string | unknown;
+        };
+    };
+};
+
+export type PostAdminDailyVerseTagsResponse = PostAdminDailyVerseTagsResponses[keyof PostAdminDailyVerseTagsResponses];
+
 export type PostAdminBatchAutoHighlightsData = {
     body: {
         type: 'bible' | 'book';
@@ -6389,6 +10420,76 @@ export type PostAdminCommentaryGradeResponses = {
 
 export type PostAdminCommentaryGradeResponse = PostAdminCommentaryGradeResponses[keyof PostAdminCommentaryGradeResponses];
 
+export type GetOfflineManifestData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/offline/manifest';
+};
+
+export type GetOfflineManifestResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        bible_versions: {
+            key: string;
+            name: string;
+            language: string;
+            updated_at: string;
+            size_bytes: number;
+        }[];
+        commentary_languages: {
+            code: string;
+            name: string;
+            updated_at: string;
+            size_bytes: number;
+        }[];
+        topic_languages: {
+            code: string;
+            name: string;
+            updated_at: string;
+            size_bytes: number;
+        }[];
+    };
+};
+
+export type GetOfflineManifestResponse = GetOfflineManifestResponses[keyof GetOfflineManifestResponses];
+
+export type GetOfflineBibleByVersionKeyData = {
+    body?: never;
+    path: {
+        versionKey: string;
+    };
+    query?: never;
+    url: '/offline/bible/{versionKey}';
+};
+
+export type GetOfflineCommentariesByLanguageCodeData = {
+    body?: never;
+    path: {
+        languageCode: string;
+    };
+    query?: never;
+    url: '/offline/commentaries/{languageCode}';
+};
+
+export type GetOfflineTopicsByLanguageCodeData = {
+    body?: never;
+    path: {
+        languageCode: string;
+    };
+    query?: never;
+    url: '/offline/topics/{languageCode}';
+};
+
+export type GetOfflineUserDataData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/offline/user-data';
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -6555,3 +10656,21 @@ export type GetHealthAllResponses = {
 };
 
 export type GetHealthAllResponse = GetHealthAllResponses[keyof GetHealthAllResponses];
+
+export type GetApiVersionPolicyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/version-policy';
+};
+
+export type PostApiVersionPolicyData = {
+    body: {
+        minVersion: string;
+        version: string;
+        releaseNotes: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/version-policy';
+};

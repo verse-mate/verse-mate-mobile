@@ -1,0 +1,471 @@
+/**
+ * "Narrated Bible" on the Manage Downloads screen.
+ *
+ * Scoped to the language of the translation the user reads — there is no
+ * audio-language picker, the same way there isn't one in YouVersion. The
+ * voice matching their translation is marked so the default is legible rather
+ * than arbitrary, and the rest of that language's voices are offered below it.
+ *
+ * Downloads are per book: the New Testament alone is ~260 chapters at roughly
+ * 2MB each, which is not a sensible single tap on a phone.
+ */
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BIBLE_BOOKS } from '@/constants/bible-books';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useScriptureDownload } from '@/hooks/bible-brain/use-scripture-download';
+import { useScriptureForVersion } from '@/hooks/bible-brain/use-scripture-for-version';
+import { pickAudioFileset } from '@/hooks/bible-brain/use-scripture-versions';
+import type { ScriptureVersion } from '@/lib/bible-brain/api';
+import { isSameTranslation } from '@/lib/bible-brain/language';
+import { estimateChapterBytes } from '@/lib/bible-brain/scripture-storage';
+import { chaptersForBook, chaptersForTestament, usfmForBookId } from '@/lib/bible-brain/usfm-books';
+import { fontSizes, spacing } from '@/theme/tokens';
+import { ScriptureCopyright } from './ScriptureCopyright';
+
+/** Bible Brain chapters average ~4 minutes; used only for a pre-download hint. */
+const AVERAGE_CHAPTER_SECONDS = 240;
+
+const BULK_LABELS = {
+  NT: 'New Testament',
+  OT: 'Old Testament',
+  ALL: 'Whole Bible',
+} as const;
+
+/** Chapters in a testament, from the reader's own book metadata. */
+function bulkChapterCount(
+  filesets: { NT: string | null; OT: string | null },
+  testament: 'NT' | 'OT'
+): number {
+  const filesetId = filesets[testament];
+  if (!filesetId) return 0;
+  return chaptersForTestament(filesetId, testament).length;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+export function ScriptureAudioSection() {
+  const { colors } = useTheme();
+  const { showToast } = useToast();
+  const {
+    offlineCapable,
+    streamOnly,
+    isLoading,
+    language,
+    readingVersionKey,
+    unavailableForLanguage,
+  } = useScriptureForVersion();
+  const downloader = useScriptureDownload();
+
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [downloadedBooks, setDownloadedBooks] = useState<Set<number>>(new Set());
+  const [busyBookId, setBusyBookId] = useState<number | null>(null);
+  const [bulkScope, setBulkScope] = useState<'NT' | 'OT' | 'ALL' | null>(null);
+
+  const selected = useMemo(
+    () => offlineCapable.find((v) => v.abbr === expanded) ?? null,
+    [offlineCapable, expanded]
+  );
+  /**
+   * Bible Brain splits narration per testament (`…N1DA` / `…O1DA`), so a single
+   * fileset id cannot cover the whole book list — asking the NT fileset for
+   * Genesis is a 404. Resolve one per testament and pick by the book.
+   */
+  const selectedFilesets = useMemo(
+    () => ({
+      NT: selected ? pickAudioFileset(selected, 'NT') : null,
+      OT: selected ? pickAudioFileset(selected, 'OT') : null,
+    }),
+    [selected]
+  );
+  const ntFilesetId = selectedFilesets.NT;
+  const otFilesetId = selectedFilesets.OT;
+
+  // Re-read what is on disk whenever the selection changes or a run finishes,
+  // so the list reflects reality rather than optimistic state.
+  useEffect(() => {
+    if (!selected || (!ntFilesetId && !otFilesetId)) {
+      setDownloadedBooks(new Set());
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      (['NT', 'OT'] as const).map(async (testament) => {
+        const filesetId = testament === 'NT' ? ntFilesetId : otFilesetId;
+        if (!filesetId) return [testament, new Map<string, number>()] as const;
+        const chapters = await downloader.downloadedChapters(filesetId);
+        const byBook = new Map<string, number>();
+        for (const chapter of chapters) {
+          byBook.set(chapter.book, (byBook.get(chapter.book) ?? 0) + 1);
+        }
+        return [testament, byBook] as const;
+      })
+    ).then((entries) => {
+      if (cancelled) return;
+      const counts = new Map(entries);
+      const complete = new Set<number>();
+      for (const book of BIBLE_BOOKS) {
+        const usfm = usfmForBookId(book.id);
+        if (!usfm) continue;
+        if (counts.get(book.testament)?.get(usfm) === book.chapterCount) complete.add(book.id);
+      }
+      setDownloadedBooks(complete);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, ntFilesetId, otFilesetId, downloader.outcome, downloader.downloadedChapters]);
+
+  const handleDownloadBook = async (bookId: number, bookName: string, filesetId: string) => {
+    if (!selected) return;
+    setBusyBookId(bookId);
+    try {
+      const outcome = await downloader.download(chaptersForBook(filesetId, bookId));
+      if (!outcome) return;
+      if (outcome.notLicensed.length > 0 && outcome.downloaded === 0) {
+        showToast(`${selected.abbr} can only be streamed`);
+        return;
+      }
+      if (outcome.failed.length > 0) {
+        showToast(`${bookName}: ${outcome.failed.length} chapter(s) failed`);
+        return;
+      }
+      showToast(`${bookName} available offline`);
+    } finally {
+      setBusyBookId(null);
+    }
+  };
+
+  /**
+   * Whole-testament and whole-Bible downloads. Per-book was the only option,
+   * and "download the New Testament" meant 27 taps. Filesets are per testament
+   * (`…N1DA` / `…O1DA`), so the whole Bible is two runs, not one.
+   */
+  const handleDownloadBulk = async (scope: 'NT' | 'OT' | 'ALL') => {
+    if (!selected) return;
+    const parts: { testament: 'NT' | 'OT'; filesetId: string }[] = [];
+    for (const testament of scope === 'ALL' ? (['OT', 'NT'] as const) : [scope]) {
+      const filesetId = testament === 'NT' ? ntFilesetId : otFilesetId;
+      if (filesetId) parts.push({ testament, filesetId });
+    }
+    if (parts.length === 0) return;
+
+    setBulkScope(scope);
+    try {
+      let downloaded = 0;
+      let failed = 0;
+      let notLicensed = 0;
+      for (const part of parts) {
+        const outcome = await downloader.download(
+          chaptersForTestament(part.filesetId, part.testament)
+        );
+        if (!outcome) continue;
+        downloaded += outcome.downloaded;
+        failed += outcome.failed.length;
+        notLicensed += outcome.notLicensed.length;
+      }
+      if (downloaded === 0 && notLicensed > 0) {
+        showToast(`${selected.abbr} can only be streamed`);
+        return;
+      }
+      if (failed > 0) {
+        showToast(`${downloaded} chapters saved, ${failed} failed`);
+        return;
+      }
+      showToast(`${BULK_LABELS[scope]} available offline`);
+    } finally {
+      setBulkScope(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.stateBlock} testID="scripture-audio-loading">
+        <ActivityIndicator color={colors.gold} />
+      </View>
+    );
+  }
+
+  if (!language || unavailableForLanguage) {
+    return (
+      <View style={styles.stateBlock}>
+        <Text style={[styles.stateText, { color: colors.textSecondary }]}>
+          {language
+            ? 'No narrated audio is available for this language yet.'
+            : 'Narration is not offered for the language of your Bible version.'}
+        </Text>
+      </View>
+    );
+  }
+
+  const renderVersion = (version: ScriptureVersion, downloadable: boolean) => {
+    const isMatch = readingVersionKey ? isSameTranslation(version.abbr, readingVersionKey) : false;
+    const isOpen = expanded === version.abbr;
+    const filesets = {
+      NT: pickAudioFileset(version, 'NT'),
+      OT: pickAudioFileset(version, 'OT'),
+    };
+    const hasAnyFileset = Boolean(filesets.NT || filesets.OT);
+
+    return (
+      <View key={version.abbr}>
+        <Pressable
+          accessibilityRole={downloadable ? 'button' : 'text'}
+          accessibilityState={{ expanded: isOpen }}
+          // testID lives on the pressable, not the wrapper, so a tap in a test
+          // or a Maestro flow actually reaches the handler.
+          testID={`scripture-audio-version-${version.abbr}`}
+          disabled={!downloadable}
+          onPress={() => setExpanded(isOpen ? null : version.abbr)}
+          style={({ pressed }) => [
+            styles.versionRow,
+            { borderBottomColor: colors.divider },
+            pressed && downloadable && { opacity: 0.6 },
+          ]}
+        >
+          <View style={styles.versionInfo}>
+            <Text style={[styles.versionName, { color: colors.textPrimary }]} numberOfLines={2}>
+              {version.name}
+            </Text>
+            <View style={styles.badgeRow}>
+              {isMatch ? (
+                <View style={[styles.badge, { backgroundColor: colors.gold }]}>
+                  <Text style={styles.badgeTextOn}>your version</Text>
+                </View>
+              ) : null}
+              {version.has_verse_timing ? (
+                <Text style={[styles.meta, { color: colors.textSecondary }]}>follows along</Text>
+              ) : null}
+              <Text style={[styles.meta, { color: colors.textSecondary }]}>
+                {downloadable ? 'can be downloaded' : 'streaming only'}
+              </Text>
+            </View>
+          </View>
+          {downloadable ? (
+            <Ionicons
+              name={isOpen ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={colors.textSecondary}
+            />
+          ) : (
+            <Ionicons name="cloud-outline" size={18} color={colors.textTertiary} />
+          )}
+        </Pressable>
+
+        {isOpen && hasAnyFileset ? (
+          <View style={styles.bookPanel} testID={`scripture-audio-books-${version.abbr}`}>
+            <ScriptureCopyright bibleId={version.abbr} />
+
+            {/* Whole-testament shortcuts. 27 taps for a New Testament was not
+                a real option; the estimate is on the row because these run to
+                hundreds of megabytes. */}
+            {(
+              [
+                filesets.NT && filesets.OT ? ('ALL' as const) : null,
+                filesets.NT ? ('NT' as const) : null,
+                filesets.OT ? ('OT' as const) : null,
+              ].filter(Boolean) as ('NT' | 'OT' | 'ALL')[]
+            ).map((scope) => {
+              const chapters =
+                scope === 'ALL'
+                  ? bulkChapterCount(filesets, 'NT') + bulkChapterCount(filesets, 'OT')
+                  : bulkChapterCount(filesets, scope);
+              const sizingFileset =
+                (scope === 'OT' ? filesets.OT : filesets.NT) ?? filesets.OT ?? filesets.NT ?? '';
+              const estimate = formatBytes(
+                chapters * estimateChapterBytes(AVERAGE_CHAPTER_SECONDS, sizingFileset)
+              );
+              return (
+                <View key={scope} style={[styles.bulkRow, { borderBottomColor: colors.divider }]}>
+                  <View style={styles.bookInfo}>
+                    <Text style={[styles.bulkName, { color: colors.textPrimary }]}>
+                      {BULK_LABELS[scope]}
+                    </Text>
+                    <Text style={[styles.meta, { color: colors.textSecondary }]}>
+                      {chapters} chapters · ~{estimate}
+                    </Text>
+                  </View>
+                  {bulkScope === scope ? (
+                    <ActivityIndicator color={colors.gold} />
+                  ) : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Download ${BULK_LABELS[scope]} narration`}
+                      testID={`scripture-audio-download-all-${scope}`}
+                      hitSlop={8}
+                      disabled={bulkScope !== null || downloader.isDownloading}
+                      onPress={() => handleDownloadBulk(scope)}
+                    >
+                      <Ionicons name="cloud-download-outline" size={22} color={colors.gold} />
+                    </Pressable>
+                  )}
+                </View>
+              );
+            })}
+
+            {downloader.isDownloading && bulkScope ? (
+              <Text
+                testID="scripture-audio-bulk-progress"
+                style={[styles.meta, styles.bulkProgress, { color: colors.textSecondary }]}
+              >
+                {downloader.currentLabel ?? ''} ({downloader.completed}/{downloader.total})
+              </Text>
+            ) : null}
+            {BIBLE_BOOKS.map((book) => {
+              // A version narrated for the NT only must not offer Genesis.
+              const filesetId = filesets[book.testament];
+              if (!filesetId) return null;
+              const isDone = downloadedBooks.has(book.id);
+              const isBusy = busyBookId === book.id && downloader.isDownloading;
+              const estimate = formatBytes(
+                book.chapterCount * estimateChapterBytes(AVERAGE_CHAPTER_SECONDS, filesetId)
+              );
+              return (
+                <View key={book.id} style={[styles.bookRow, { borderBottomColor: colors.divider }]}>
+                  <View style={styles.bookInfo}>
+                    <Text style={[styles.bookName, { color: colors.textPrimary }]}>
+                      {book.name}
+                    </Text>
+                    <Text style={[styles.meta, { color: colors.textSecondary }]}>
+                      {book.chapterCount} chapters · ~{estimate}
+                    </Text>
+                  </View>
+                  {isBusy ? (
+                    <ActivityIndicator color={colors.gold} />
+                  ) : isDone ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${book.name} narration`}
+                      testID={`scripture-audio-delete-${book.id}`}
+                      hitSlop={8}
+                      onPress={async () => {
+                        await downloader.removeChapters(chaptersForBook(filesetId, book.id));
+                        setDownloadedBooks((prev) => {
+                          const next = new Set(prev);
+                          next.delete(book.id);
+                          return next;
+                        });
+                        showToast(`${book.name} narration removed`);
+                      }}
+                    >
+                      <Ionicons name="checkmark-circle" size={22} color={colors.gold} />
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Download ${book.name} narration`}
+                      testID={`scripture-audio-download-${book.id}`}
+                      hitSlop={8}
+                      onPress={() => handleDownloadBook(book.id, book.name, filesetId)}
+                    >
+                      <Ionicons name="download-outline" size={22} color={colors.gold} />
+                    </Pressable>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.container} testID="scripture-audio-section">
+      <Text style={[styles.hint, { color: colors.textSecondary }]}>
+        Listen to the Bible read aloud. Pick a voice, then download the books you want offline.
+      </Text>
+
+      {offlineCapable.map((v) => renderVersion(v, true))}
+
+      {streamOnly.length > 0 ? (
+        <View style={styles.streamBlock}>
+          <Text style={[styles.groupLabel, { color: colors.textTertiary }]}>Streaming only</Text>
+          {streamOnly.map((v) => renderVersion(v, false))}
+        </View>
+      ) : null}
+
+      {downloader.isDownloading ? (
+        <Text
+          testID="scripture-audio-progress"
+          style={[styles.progress, { color: colors.textSecondary }]}
+        >
+          Downloading {downloader.currentLabel ?? ''} ({downloader.completed}/{downloader.total})
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  // The screen's card gives horizontal padding; vertical was missing entirely,
+  // so the first row sat flush against the section heading.
+  container: { paddingVertical: spacing.sm },
+  stateBlock: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+  },
+  stateText: { fontSize: fontSizes.bodySmall, textAlign: 'center', lineHeight: 20 },
+  hint: {
+    fontSize: fontSizes.caption,
+    lineHeight: 18,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  versionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  versionInfo: { flex: 1, gap: spacing.xs },
+  versionName: { fontSize: fontSizes.body, lineHeight: 22 },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  badge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 999 },
+  badgeTextOn: { fontSize: fontSizes.caption, color: '#FFFFFF', fontWeight: '600' },
+  meta: { fontSize: fontSizes.caption },
+  bookPanel: { paddingBottom: spacing.sm },
+  bulkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  bulkName: { fontSize: fontSizes.bodySmall, fontWeight: '600' },
+  bulkProgress: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
+  bookRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingLeft: spacing.xl,
+    paddingRight: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  bookInfo: { flex: 1, gap: 2 },
+  bookName: { fontSize: fontSizes.bodySmall },
+  streamBlock: { paddingTop: spacing.md },
+  groupLabel: {
+    fontSize: fontSizes.caption,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  progress: {
+    fontSize: fontSizes.caption,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+  },
+});

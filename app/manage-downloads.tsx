@@ -28,6 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { SuccessModal } from '@/components/bible/SuccessModal';
+import { ScriptureAudioSection } from '@/components/bible-brain/ScriptureAudioSection';
 import { BibleVersionBookList } from '@/components/offline/BibleVersionBookList';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -672,6 +673,14 @@ export default function ManageDownloadsScreen() {
                 );
               })
             )}
+          </View>
+        </View>
+
+        {/* Narrated Bible (Bible Brain audio) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Narrated Bible</Text>
+          <View style={styles.downloadList}>
+            <ScriptureAudioSection />
           </View>
         </View>
 

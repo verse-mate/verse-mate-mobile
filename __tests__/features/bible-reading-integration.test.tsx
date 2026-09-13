@@ -13,11 +13,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import ChapterScreen from '@/app/bible/[bookId]/[chapterNumber]';
+import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useBookProgress, useChapterState } from '@/hooks/bible';
 import { useOfflineStatus } from '@/hooks/bible/use-offline-status';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
+import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -209,7 +211,11 @@ function renderWithSafeArea(component: React.ReactElement) {
             insets: { top: 47, left: 0, right: 0, bottom: 34 },
           }}
         >
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            {/* The reader hosts <ScriptureAudioButton />, which reads the shared
+                audio player (provided by app/_layout.tsx in the real app). */}
+            <AudioPlayerProvider engine={new StubAudioEngine()}>{children}</AudioPlayerProvider>
+          </ToastProvider>
         </SafeAreaProvider>
       </ThemeProvider>
     </QueryClientProvider>

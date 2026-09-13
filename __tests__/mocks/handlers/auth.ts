@@ -12,12 +12,23 @@ import { HttpResponse, http } from 'msw';
 import type {
   GetAuthSessionResponse,
   PostAuthLoginData,
-  PostAuthLoginResponse,
-  PostAuthRefreshData,
-  PostAuthRefreshResponse,
   PostAuthSignupData,
-  PostAuthSignupResponse,
 } from '../../../src/api';
+
+/**
+ * The backend eliminated refresh tokens — the access token is itself the
+ * persistent session token — so `/auth/refresh` is gone from the OpenAPI schema
+ * and the generated `PostAuthRefresh*` types no longer exist. These mocks still
+ * cover the route and the `refreshToken` field for tests that assert on legacy
+ * client behaviour, so the shapes are declared locally rather than imported.
+ */
+type PostAuthRefreshData = { body?: { refreshToken?: string } };
+type PostAuthRefreshResponse = {
+  accessToken: string;
+  refreshToken: string;
+  verified: boolean;
+};
+type LegacyAuthResponse = { accessToken: string; verified: boolean; refreshToken: string };
 
 // API Base URL - matches the generated SDK default
 const API_BASE_URL = 'http://localhost:4000';
@@ -111,7 +122,7 @@ export const postAuthSignupHandler = http.post(
     const refreshToken = `mock-refresh-token-${userId}`;
     validRefreshTokens.add(refreshToken);
 
-    const response: PostAuthSignupResponse = {
+    const response: LegacyAuthResponse = {
       accessToken,
       refreshToken,
       verified: false,
@@ -159,7 +170,7 @@ export const postAuthLoginHandler = http.post(`${API_BASE_URL}/auth/login`, asyn
   const refreshToken = `mock-refresh-token-${user.id}`;
   validRefreshTokens.add(refreshToken);
 
-  const response: PostAuthLoginResponse = {
+  const response: LegacyAuthResponse = {
     accessToken,
     refreshToken,
     verified: true,

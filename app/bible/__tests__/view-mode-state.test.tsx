@@ -13,9 +13,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { useLocalSearchParams } from 'expo-router';
 import type React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { useActiveTab, useActiveView, useBookProgress, useRecentBooks } from '@/hooks/bible';
+import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import {
   useBibleByLine,
   useBibleChapter,
@@ -31,6 +33,12 @@ import ChapterScreen from '../[bookId]/[chapterNumber]';
 // Mock expo-router
 jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(),
+  // The reading progress bar publishes its height on focus; without a
+  // navigator the real hook throws.
+  useFocusEffect: jest.fn((effect: () => undefined | (() => void)) => {
+    // biome-ignore lint/correctness/useHookAtTopLevel: this mock stands in for a hook
+    require('react').useEffect(effect, [effect]);
+  }),
   router: {
     push: jest.fn(),
     replace: jest.fn(),
@@ -141,7 +149,11 @@ function renderWithProviders(component: React.ReactElement) {
             insets: { top: 47, left: 0, right: 0, bottom: 34 },
           }}
         >
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            {/* The reader hosts <ScriptureListenBar />, which reads the shared
+                audio player (provided by app/_layout.tsx in the real app). */}
+            <AudioPlayerProvider engine={new StubAudioEngine()}>{children}</AudioPlayerProvider>
+          </ToastProvider>
         </SafeAreaProvider>
       </ThemeProvider>
     </QueryClientProvider>
