@@ -12,6 +12,7 @@ import { getExpoScriptureStorage } from '@/lib/bible-brain/expo-scripture-storag
 import {
   type ChapterRef,
   type DownloadOutcome,
+  deleteChapterDownloads,
   deleteFilesetDownloads,
   downloadChapters,
   filesetBytesOnDisk,
@@ -43,6 +44,8 @@ export interface UseScriptureDownloadResult extends DownloadState {
   download: (refs: ChapterRef[]) => Promise<DownloadOutcome | null>;
   /** Removes every downloaded chapter of a fileset. */
   removeFileset: (filesetId: string) => Promise<number>;
+  /** Removes just the given chapters — one book, not the whole testament. */
+  removeChapters: (refs: ChapterRef[]) => Promise<number>;
   downloadedChapters: (filesetId: string) => Promise<{ book: string; chapter: number }[]>;
   bytesOnDisk: (filesetId: string) => Promise<number>;
   reset: () => void;
@@ -99,6 +102,11 @@ export function useScriptureDownload(
     [storage]
   );
 
+  const removeChapters = useCallback(
+    (refs: ChapterRef[]) => deleteChapterDownloads(refs, storage),
+    [storage]
+  );
+
   const downloadedChapters = useCallback(
     (filesetId: string) => listDownloadedChapters(filesetId, storage),
     [storage]
@@ -115,6 +123,7 @@ export function useScriptureDownload(
     ...state,
     download,
     removeFileset,
+    removeChapters,
     downloadedChapters,
     bytesOnDisk,
     reset,

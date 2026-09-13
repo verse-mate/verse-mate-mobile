@@ -20,6 +20,7 @@ const mockDownload = jest.fn().mockResolvedValue({
 });
 const mockDownloadedChapters = jest.fn().mockResolvedValue([]);
 const mockRemoveFileset = jest.fn().mockResolvedValue(21);
+const mockRemoveChapters = jest.fn().mockResolvedValue(50);
 
 jest.mock('@/hooks/bible-brain/use-scripture-download', () => ({
   useScriptureDownload: () => ({
@@ -31,6 +32,7 @@ jest.mock('@/hooks/bible-brain/use-scripture-download', () => ({
     error: null,
     download: mockDownload,
     removeFileset: mockRemoveFileset,
+    removeChapters: mockRemoveChapters,
     downloadedChapters: mockDownloadedChapters,
     bytesOnDisk: jest.fn().mockResolvedValue(0),
     reset: jest.fn(),
@@ -59,6 +61,7 @@ beforeEach(() => {
   mockShowToast.mockClear();
   mockDownloadedChapters.mockClear();
   mockRemoveFileset.mockClear();
+  mockRemoveChapters.mockClear();
   mockVersion = 'KJV';
 });
 
@@ -131,6 +134,50 @@ describe('ScriptureAudioSection', () => {
     await waitFor(() => expect(screen.getByTestId('scripture-audio-download-43')).toBeTruthy());
     fireEvent.press(screen.getByTestId('scripture-audio-download-43'));
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith('John: 2 chapter(s) failed'));
+  });
+
+  it('downloads an Old Testament book from the OT fileset, not the NT one', async () => {
+    // Regression: the section used to resolve one fileset (`…N1DA`) for every
+    // book, so every OT download asked the New Testament fileset for Genesis
+    // and got a 404 back from Bible Brain.
+    render(<ScriptureAudioSection />, { wrapper });
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-version-ENGESV')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('scripture-audio-version-ENGESV'));
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-download-1')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('scripture-audio-download-1'));
+
+    await waitFor(() => expect(mockDownload).toHaveBeenCalledTimes(1));
+    const refs = mockDownload.mock.calls[0][0];
+    expect(refs).toHaveLength(50); // Genesis has 50 chapters
+    expect(refs[0]).toEqual({ filesetId: 'ENGESVO1DA', book: 'GEN', chapter: 1 });
+  });
+
+  it('offers only New Testament books for a version narrated for the NT alone', async () => {
+    render(<ScriptureAudioSection />, { wrapper });
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-version-ENGBER')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('scripture-audio-version-ENGBER'));
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-books-ENGBER')).toBeTruthy());
+    // John is there; Genesis must not be, since ENGBER has no OT fileset.
+    expect(screen.getByTestId('scripture-audio-download-43')).toBeTruthy();
+    expect(screen.queryByTestId('scripture-audio-download-1')).toBeNull();
+  });
+
+  it('removes one book without deleting the rest of the testament', async () => {
+    mockDownloadedChapters.mockResolvedValue(
+      Array.from({ length: 50 }, (_, i) => ({ book: 'GEN', chapter: i + 1 }))
+    );
+    render(<ScriptureAudioSection />, { wrapper });
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-version-ENGESV')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('scripture-audio-version-ENGESV'));
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-delete-1')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('scripture-audio-delete-1'));
+
+    await waitFor(() => expect(mockRemoveChapters).toHaveBeenCalledTimes(1));
+    expect(mockRemoveFileset).not.toHaveBeenCalled();
+    const refs = mockRemoveChapters.mock.calls[0][0];
+    expect(refs).toHaveLength(50);
+    expect(refs[0]).toEqual({ filesetId: 'ENGESVO1DA', book: 'GEN', chapter: 1 });
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith('Genesis narration removed'));
   });
 
   it('collapses the book list when the version is tapped again', async () => {

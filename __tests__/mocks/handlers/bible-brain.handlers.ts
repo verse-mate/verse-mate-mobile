@@ -144,7 +144,11 @@ export const mockAppBibleVersions = [
 ];
 
 export const bibleBrainHandlers = [
-  http.get(`${BIBLE_API_BASE_URL}/bible/versions`, () => HttpResponse.json(mockAppBibleVersions)),
+  // Production answers `{ versions: [...] }` — a bare array here let a real
+  // "appVersions.find is not a function" crash through to the device.
+  http.get(`${BIBLE_API_BASE_URL}/bible/versions`, () =>
+    HttpResponse.json({ versions: mockAppBibleVersions })
+  ),
 
   http.get(`${BIBLE_API_BASE_URL}/bible/brain/versions`, ({ request }) => {
     const language = new URL(request.url).searchParams.get('language');

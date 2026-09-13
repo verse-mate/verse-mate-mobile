@@ -8,6 +8,7 @@
 import {
   type ChapterRef,
   chapterFileUri,
+  deleteChapterDownloads,
   deleteFilesetDownloads,
   downloadChapters,
   estimateChapterBytes,
@@ -237,6 +238,27 @@ describe('bookkeeping', () => {
     expect(removed).toBe(1);
     expect(await listDownloadedChapters('ENGESVN1DA', storage)).toEqual([]);
     expect(await listDownloadedChapters('ENGKJVN1DA', storage)).toHaveLength(1);
+  });
+
+  it('deletes one book without touching the rest of the fileset', async () => {
+    const storage = makeStorage({
+      [`${ROOT}/scripture-audio/ENGESVO1DA/GEN-1.mp3`]: 1,
+      [`${ROOT}/scripture-audio/ENGESVO1DA/GEN-2.mp3`]: 1,
+      [`${ROOT}/scripture-audio/ENGESVO1DA/RUT-1.mp3`]: 1,
+    });
+    const removed = await deleteChapterDownloads(
+      [
+        { filesetId: 'ENGESVO1DA', book: 'GEN', chapter: 1 },
+        { filesetId: 'ENGESVO1DA', book: 'GEN', chapter: 2 },
+        // Never downloaded — must be skipped, not counted.
+        { filesetId: 'ENGESVO1DA', book: 'GEN', chapter: 3 },
+      ],
+      storage
+    );
+    expect(removed).toBe(2);
+    expect(await listDownloadedChapters('ENGESVO1DA', storage)).toEqual([
+      { book: 'RUT', chapter: 1 },
+    ]);
   });
 });
 

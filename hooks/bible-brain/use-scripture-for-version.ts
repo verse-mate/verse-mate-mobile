@@ -42,14 +42,20 @@ export function useScriptureForVersion(): ScriptureForVersionResult {
   const { data: appVersions, isLoading: catalogueLoading } = useQuery({
     queryKey: ['bible-versions-catalogue'],
     queryFn: async () => {
+      // The endpoint answers `{ versions: [...] }`, not a bare array.
       const response = await getBibleVersions();
-      return (response.data ?? []) as { version_key?: string; language_code?: string }[];
+      const payload = response.data as
+        | { versions?: { version_key?: string; language_code?: string }[] }
+        | undefined;
+      return payload?.versions ?? [];
     },
     staleTime: Number.POSITIVE_INFINITY,
   });
 
   const languageCode = useMemo(
-    () => (appVersions ?? []).find((v) => v.version_key === bibleVersion)?.language_code,
+    () =>
+      (Array.isArray(appVersions) ? appVersions : []).find((v) => v.version_key === bibleVersion)
+        ?.language_code,
     [appVersions, bibleVersion]
   );
 

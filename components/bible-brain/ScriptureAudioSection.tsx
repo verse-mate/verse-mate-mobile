@@ -21,7 +21,7 @@ import { pickAudioFileset } from '@/hooks/bible-brain/use-scripture-versions';
 import type { ScriptureVersion } from '@/lib/bible-brain/api';
 import { isSameTranslation } from '@/lib/bible-brain/language';
 import { estimateChapterBytes } from '@/lib/bible-brain/scripture-storage';
-import { chaptersForBook } from '@/lib/bible-brain/usfm-books';
+import { chaptersForBook, usfmForBookId } from '@/lib/bible-brain/usfm-books';
 import { fontSizes, spacing } from '@/theme/tokens';
 import { ScriptureCopyright } from './ScriptureCopyright';
 
@@ -55,40 +55,61 @@ export function ScriptureAudioSection() {
     () => offlineCapable.find((v) => v.abbr === expanded) ?? null,
     [offlineCapable, expanded]
   );
-  const selectedFilesetId = selected ? pickAudioFileset(selected, 'NT') : null;
+  /**
+   * Bible Brain splits narration per testament (`…N1DA` / `…O1DA`), so a single
+   * fileset id cannot cover the whole book list — asking the NT fileset for
+   * Genesis is a 404. Resolve one per testament and pick by the book.
+   */
+  const selectedFilesets = useMemo(
+    () => ({
+      NT: selected ? pickAudioFileset(selected, 'NT') : null,
+      OT: selected ? pickAudioFileset(selected, 'OT') : null,
+    }),
+    [selected]
+  );
+  const ntFilesetId = selectedFilesets.NT;
+  const otFilesetId = selectedFilesets.OT;
 
   // Re-read what is on disk whenever the selection changes or a run finishes,
   // so the list reflects reality rather than optimistic state.
   useEffect(() => {
-    if (!selected || !selectedFilesetId) {
+    if (!selected || (!ntFilesetId && !otFilesetId)) {
       setDownloadedBooks(new Set());
       return;
     }
     let cancelled = false;
-    downloader.downloadedChapters(selectedFilesetId).then((chapters) => {
+    Promise.all(
+      (['NT', 'OT'] as const).map(async (testament) => {
+        const filesetId = testament === 'NT' ? ntFilesetId : otFilesetId;
+        if (!filesetId) return [testament, new Map<string, number>()] as const;
+        const chapters = await downloader.downloadedChapters(filesetId);
+        const byBook = new Map<string, number>();
+        for (const chapter of chapters) {
+          byBook.set(chapter.book, (byBook.get(chapter.book) ?? 0) + 1);
+        }
+        return [testament, byBook] as const;
+      })
+    ).then((entries) => {
       if (cancelled) return;
-      const byBook = new Map<string, number>();
-      for (const chapter of chapters) {
-        byBook.set(chapter.book, (byBook.get(chapter.book) ?? 0) + 1);
-      }
+      const counts = new Map(entries);
       const complete = new Set<number>();
       for (const book of BIBLE_BOOKS) {
-        const refs = chaptersForBook(selectedFilesetId, book.id);
-        if (refs.length === 0) continue;
-        if (byBook.get(refs[0].book) === book.chapterCount) complete.add(book.id);
+        const usfm = usfmForBookId(book.id);
+        if (!usfm) continue;
+        if (counts.get(book.testament)?.get(usfm) === book.chapterCount) complete.add(book.id);
       }
       setDownloadedBooks(complete);
     });
     return () => {
       cancelled = true;
     };
-  }, [selected, selectedFilesetId, downloader.outcome, downloader.downloadedChapters]);
+  }, [selected, ntFilesetId, otFilesetId, downloader.outcome, downloader.downloadedChapters]);
 
-  const handleDownloadBook = async (bookId: number, bookName: string) => {
-    if (!selectedFilesetId || !selected) return;
+  const handleDownloadBook = async (bookId: number, bookName: string, filesetId: string) => {
+    if (!selected) return;
     setBusyBookId(bookId);
     try {
-      const outcome = await downloader.download(chaptersForBook(selectedFilesetId, bookId));
+      const outcome = await downloader.download(chaptersForBook(filesetId, bookId));
       if (!outcome) return;
       if (outcome.notLicensed.length > 0 && outcome.downloaded === 0) {
         showToast(`${selected.abbr} can only be streamed`);
@@ -127,7 +148,11 @@ export function ScriptureAudioSection() {
   const renderVersion = (version: ScriptureVersion, downloadable: boolean) => {
     const isMatch = readingVersionKey ? isSameTranslation(version.abbr, readingVersionKey) : false;
     const isOpen = expanded === version.abbr;
-    const filesetId = pickAudioFileset(version, 'NT');
+    const filesets = {
+      NT: pickAudioFileset(version, 'NT'),
+      OT: pickAudioFileset(version, 'OT'),
+    };
+    const hasAnyFileset = Boolean(filesets.NT || filesets.OT);
 
     return (
       <View key={version.abbr}>
@@ -174,10 +199,13 @@ export function ScriptureAudioSection() {
           )}
         </Pressable>
 
-        {isOpen && filesetId ? (
+        {isOpen && hasAnyFileset ? (
           <View style={styles.bookPanel} testID={`scripture-audio-books-${version.abbr}`}>
             <ScriptureCopyright bibleId={version.abbr} />
             {BIBLE_BOOKS.map((book) => {
+              // A version narrated for the NT only must not offer Genesis.
+              const filesetId = filesets[book.testament];
+              if (!filesetId) return null;
               const isDone = downloadedBooks.has(book.id);
               const isBusy = busyBookId === book.id && downloader.isDownloading;
               const estimate = formatBytes(
@@ -202,8 +230,13 @@ export function ScriptureAudioSection() {
                       testID={`scripture-audio-delete-${book.id}`}
                       hitSlop={8}
                       onPress={async () => {
-                        await downloader.removeFileset(filesetId);
-                        showToast(`${version.abbr} narration removed`);
+                        await downloader.removeChapters(chaptersForBook(filesetId, book.id));
+                        setDownloadedBooks((prev) => {
+                          const next = new Set(prev);
+                          next.delete(book.id);
+                          return next;
+                        });
+                        showToast(`${book.name} narration removed`);
                       }}
                     >
                       <Ionicons name="checkmark-circle" size={22} color={colors.gold} />
@@ -214,7 +247,7 @@ export function ScriptureAudioSection() {
                       accessibilityLabel={`Download ${book.name} narration`}
                       testID={`scripture-audio-download-${book.id}`}
                       hitSlop={8}
-                      onPress={() => handleDownloadBook(book.id, book.name)}
+                      onPress={() => handleDownloadBook(book.id, book.name, filesetId)}
                     >
                       <Ionicons name="download-outline" size={22} color={colors.gold} />
                     </Pressable>

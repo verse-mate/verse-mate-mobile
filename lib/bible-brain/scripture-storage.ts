@@ -213,6 +213,26 @@ export async function deleteFilesetDownloads(
 }
 
 /**
+ * Deletes a specific set of chapters. Used by the per-book control in the
+ * downloads screen — a fileset spans a whole testament, so removing "Genesis"
+ * must not take the other 38 books of the OT with it.
+ */
+export async function deleteChapterDownloads(
+  refs: readonly ChapterRef[],
+  storage: ScriptureStoragePort,
+): Promise<number> {
+  if (!storage.rootUri) return 0;
+  let removed = 0;
+  for (const ref of refs) {
+    const uri = chapterFileUri(storage.rootUri, ref);
+    if (!(await storage.exists(uri))) continue;
+    await storage.remove(uri);
+    removed += 1;
+  }
+  return removed;
+}
+
+/**
  * Pre-download size estimate. Bible Brain mp3s are a constant 64 kbps, so
  * bytes ≈ seconds × 8000; `-opus16` filesets are 16 kbps (×2000). Used for the
  * "~N MB" warning before the user commits to a download.
