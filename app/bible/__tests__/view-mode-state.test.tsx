@@ -33,6 +33,12 @@ import ChapterScreen from '../[bookId]/[chapterNumber]';
 // Mock expo-router
 jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(),
+  // The reading progress bar publishes its height on focus; without a
+  // navigator the real hook throws.
+  useFocusEffect: jest.fn((effect: () => undefined | (() => void)) => {
+    // biome-ignore lint/correctness/useHookAtTopLevel: this mock stands in for a hook
+    require('react').useEffect(effect, [effect]);
+  }),
   router: {
     push: jest.fn(),
     replace: jest.fn(),

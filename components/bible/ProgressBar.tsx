@@ -19,9 +19,10 @@
  * // Renders: 42% progress bar at bottom of screen
  */
 
-import { useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo } from 'react';
+import { type LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useReportBottomBarInset } from '@/contexts/BottomBarInsetContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { animations, getProgressBarSpecs } from '@/theme/tokens';
 
@@ -53,8 +54,16 @@ export function ProgressBar({ percentage }: ProgressBarProps) {
     width: `${fillWidth.value}%`,
   }));
 
+  // The audio dock sits directly on top of this bar; it needs the real height,
+  // which comes from the 10px label rather than the 6px track.
+  const reportInset = useReportBottomBarInset();
+  const handleLayout = useCallback(
+    (event: LayoutChangeEvent) => reportInset(event.nativeEvent.layout.height),
+    [reportInset]
+  );
+
   return (
-    <View style={styles.container} testID="progress-bar">
+    <View style={styles.container} onLayout={handleLayout} testID="progress-bar">
       {/* Track (background) */}
       <View style={styles.track}>
         {/* Fill (animated gold bar) */}

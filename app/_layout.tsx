@@ -36,6 +36,7 @@ import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { MobileAudioPlayerRoot } from '@/components/bible/MobileAudioPlayerRoot';
 import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { BottomBarInsetProvider } from '@/contexts/BottomBarInsetContext';
 import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
@@ -675,8 +676,10 @@ export default function RootLayout() {
                             });
                           }}
                         >
-                          <RootLayoutInner />
-                          <MobileAudioPlayerRoot />
+                          <BottomBarInsetProvider>
+                            <RootLayoutInner />
+                            <MobileAudioPlayerRoot />
+                          </BottomBarInsetProvider>
                         </AudioPlayerProvider>
                       </ToastProvider>
                     </OfflineProvider>

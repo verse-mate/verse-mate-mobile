@@ -16,6 +16,16 @@
  */
 
 const expoRouterMock = {
+  /**
+   * Real `useFocusEffect` needs a navigator; under test the screen is always
+   * the focused one, so run the effect like a plain useEffect. Components that
+   * publish state on focus (the reading progress bar reporting its height to
+   * the audio dock) depend on this firing.
+   */
+  useFocusEffect: jest.fn((effect: () => undefined | (() => void)) => {
+    // biome-ignore lint/correctness/useHookAtTopLevel: this mock stands in for a hook
+    require('react').useEffect(effect, [effect]);
+  }),
   useNavigation: jest.fn(() => ({
     setOptions: jest.fn(),
     goBack: jest.fn(),

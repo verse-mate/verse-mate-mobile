@@ -1147,6 +1147,14 @@ function ChapterHeader({
 
       {/* Action Icons */}
       <View style={styles.headerActions}>
+        {/* Narration toggle — sits to the LEFT of the Bible/Insight pill so the
+            controls that were already here (offline dot, menu) keep the
+            positions people reach for. Bible view only; the Insight view has
+            its own explanation-audio entry. Details live in the player dock. */}
+        {activeView === 'bible' && audioBookId ? (
+          <ScriptureAudioButton bookId={audioBookId} chapterNumber={chapterNumber} />
+        ) : null}
+
         {/* Bible/Commentary Toggle (Figma pill-style) */}
         <View style={styles.toggleContainer}>
           {/* Sliding indicator background */}
@@ -1174,12 +1182,6 @@ function ChapterHeader({
             <Animated.Text style={[styles.toggleText, insightTextStyle]}>Insight</Animated.Text>
           </Pressable>
         </View>
-
-        {/* Narration toggle — Bible view only; the Insight view has its own
-            explanation-audio entry. Details live in the player dock. */}
-        {activeView === 'bible' && audioBookId ? (
-          <ScriptureAudioButton bookId={audioBookId} chapterNumber={chapterNumber} />
-        ) : null}
 
         {/* Offline Indicator */}
         <OfflineIndicator />
