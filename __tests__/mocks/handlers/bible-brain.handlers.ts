@@ -121,6 +121,38 @@ export const mockScriptureVersions = [
   },
 ];
 
+/**
+ * Romanian, as production actually answers it. `RONCORN` is the ordinary
+ * Cornilescu 1924 — filesets `RONDCV…`, narrator Ioan Ciobotă — but Bible
+ * Brain catalogues its name in Cyrillic. The fixture keeps the provider's
+ * spelling so the correction is exercised rather than assumed.
+ */
+export const mockRomanianScriptureVersions = [
+  {
+    abbr: 'RONCORN',
+    name: 'Библия Думитру Корнилеску 1924',
+    language: 'Romanian',
+    iso: 'ron',
+    text_filesets: [],
+    audio_filesets: [
+      { id: 'RONDCVN1DA', type: 'audio', size: 'NT', offline_capable: false },
+      { id: 'RONDCVO1DA', type: 'audio', size: 'OT', offline_capable: false },
+    ],
+    has_verse_timing: true,
+    offline_capable: false,
+  },
+  {
+    abbr: 'RONRBS',
+    name: 'Cornilescu Revision of the 1924-1928 text',
+    language: 'Romanian',
+    iso: 'ron',
+    text_filesets: [],
+    audio_filesets: [{ id: 'RONRBSN1DA', type: 'audio', size: 'NT', offline_capable: false }],
+    has_verse_timing: false,
+    offline_capable: false,
+  },
+];
+
 /** ESV John 3, first six verses at their real offsets. */
 export const mockJohn3Timestamps = [
   { verse: 1, seconds: 2.78 },
@@ -157,6 +189,9 @@ export const bibleBrainHandlers = [
         { error: 'VALIDATION_ERROR', message: 'Invalid request data' },
         { status: 422 }
       );
+    }
+    if (language === 'ron') {
+      return HttpResponse.json({ versions: mockRomanianScriptureVersions });
     }
     if (language !== 'eng') return HttpResponse.json({ versions: [] });
     return HttpResponse.json({ versions: mockScriptureVersions });

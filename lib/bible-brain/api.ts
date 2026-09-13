@@ -16,6 +16,7 @@ import {
   getBibleBrainVersions,
 } from '@/src/api/generated/sdk.gen';
 import type { ChapterRef } from './scripture-storage';
+import { displayVersionName } from './version-names';
 import { normalizeTimestamps, type VerseTimestamp } from './verse-sync';
 
 export interface ScriptureFileset {
@@ -52,7 +53,14 @@ export async function fetchScriptureVersions(
   language: string,
 ): Promise<ScriptureVersion[]> {
   const response = await getBibleBrainVersions({ query: { language } });
-  return (response.data?.versions ?? []) as ScriptureVersion[];
+  const versions = (response.data?.versions ?? []) as ScriptureVersion[];
+  // Corrected at the boundary rather than in each view: the name reaches the
+  // voice picker, the downloads list, the dock and the full-screen player,
+  // and fixing it in one of those would have left the other three wrong.
+  return versions.map((version) => ({
+    ...version,
+    name: displayVersionName(version.abbr, version.name),
+  }));
 }
 
 /** Freshly signed streaming URL. The signature is short-lived — do not cache. */

@@ -102,4 +102,19 @@ describe('useScriptureForVersion', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.language).toBe('ron');
   });
+
+  it('shows the Romanian Cornilescu under its Romanian name, not in Cyrillic', async () => {
+    // Bible Brain catalogues RONCORN as `Библия Думитру Корнилеску 1924` —
+    // the Romanian title typed in the wrong alphabet. It reads as a different
+    // translation entirely to anyone who actually speaks Romanian.
+    mockVersion = 'VDC';
+    const { result } = renderHook(() => useScriptureForVersion(), { wrapper });
+    await waitFor(() => expect(result.current.preferred).not.toBeNull());
+    const cornilescu = result.current.versions.find((v) => v.abbr === 'RONCORN');
+    expect(cornilescu?.name).toBe('Biblia Dumitru Cornilescu 1924');
+    // Untouched entries keep whatever the provider says.
+    expect(result.current.versions.find((v) => v.abbr === 'RONRBS')?.name).toBe(
+      'Cornilescu Revision of the 1924-1928 text'
+    );
+  });
 });
