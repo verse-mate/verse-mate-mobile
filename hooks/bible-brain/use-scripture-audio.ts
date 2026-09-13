@@ -49,8 +49,19 @@ export function useScriptureAudio(
   const [isPreparing, setIsPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * True from the first tap until the track is loaded and playing. `isPreparing`
+   * is state and so lags a synchronous second tap by a render; a ref does not.
+   * Without it, tapping the speaker repeatedly starts one player per tap —
+   * `currentTrack` is still null while the signed URL is being fetched, so
+   * every caller thinks it is the first.
+   */
+  const inFlight = useRef(false);
+
   const playChapter = useCallback(
     async (args: PlayScriptureArgs) => {
+      if (inFlight.current) return;
+      inFlight.current = true;
       setIsPreparing(true);
       setError(null);
       try {
@@ -84,6 +95,7 @@ export function useScriptureAudio(
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
+        inFlight.current = false;
         setIsPreparing(false);
       }
     },

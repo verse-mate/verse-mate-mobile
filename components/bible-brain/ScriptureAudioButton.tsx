@@ -96,6 +96,9 @@ export function ScriptureAudioButton({ bookId, chapterNumber }: ScriptureAudioBu
   const isPlaying = isThisChapter && player.playbackState === 'playing';
 
   const onPress = async () => {
+    // A run is already on its way to the player; a second tap must not start
+    // a second one. The spinner says as much, but the tap still lands.
+    if (isPreparing) return;
     if (isPlaying) return player.pause();
     if (isThisChapter) return player.play();
     const pick = await resolveFileset();

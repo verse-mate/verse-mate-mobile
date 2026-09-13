@@ -146,6 +146,50 @@ describe('scripture playback', () => {
   });
 });
 
+describe('rapid taps', () => {
+  it('starts one player no matter how fast the button is tapped', async () => {
+    // The bug this pins: `currentTrack` is still null while the signed URL is
+    // being fetched, so every concurrent caller believed it was the first and
+    // started its own player — four overlapping copies of the same chapter a
+    // couple of hundred milliseconds apart.
+    const { port } = makeStorage();
+    const { engine, Wrapper, hook } = harness(port);
+    const loadSpy = jest.spyOn(engine, 'load');
+    const { result } = renderHook(hook, { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.all([
+        result.current.scripture.playChapter(ESV_JOHN_3),
+        result.current.scripture.playChapter(ESV_JOHN_3),
+        result.current.scripture.playChapter(ESV_JOHN_3),
+        result.current.scripture.playChapter(ESV_JOHN_3),
+      ]);
+    });
+
+    expect(loadSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.player.playbackState).toBe('playing');
+  });
+
+  it('accepts a new chapter once the first one has settled', async () => {
+    const { port } = makeStorage();
+    const { engine, Wrapper, hook } = harness(port);
+    const loadSpy = jest.spyOn(engine, 'load');
+    const { result } = renderHook(hook, { wrapper: Wrapper });
+
+    await act(async () => {
+      await result.current.scripture.playChapter(ESV_JOHN_3);
+    });
+    await act(async () => {
+      await result.current.scripture.playChapter({ ...ESV_JOHN_3, chapter: 4 });
+    });
+
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    const track = result.current.player.currentTrack;
+    if (!isScriptureTrack(track)) throw new Error('expected scripture track');
+    expect(track.chapter_number).toBe(4);
+  });
+});
+
 describe('verse sync', () => {
   it('advances the active verse as the audio plays', async () => {
     const { port } = makeStorage();
