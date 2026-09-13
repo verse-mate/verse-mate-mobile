@@ -14,6 +14,17 @@ import { fetchScriptureVersions, type ScriptureVersion } from '@/lib/bible-brain
 /** Cheap on the client, but the backend probes upstream — cache generously. */
 const VERSIONS_STALE_MS = 60 * 60 * 1000;
 
+/**
+ * One shared empty array for "no data yet".
+ *
+ * `query.data ?? []` looks harmless but mints a fresh array on every render
+ * while the query is loading or failed, and consumers memoize off it. A
+ * consumer that then sets state from an effect keyed on that array re-renders
+ * itself forever — and "failed" is the offline case, which is exactly when the
+ * narration UI is on screen.
+ */
+const NO_VERSIONS: ScriptureVersion[] = [];
+
 export interface UseScriptureVersionsResult {
   versions: ScriptureVersion[];
   /** Downloadable for offline listening. */
@@ -36,7 +47,7 @@ export function useScriptureVersions(language: string): UseScriptureVersionsResu
     enabled: Boolean(language),
   });
 
-  const versions = query.data ?? [];
+  const versions = query.data ?? NO_VERSIONS;
 
   const buckets = useMemo(() => {
     const offlineCapable: ScriptureVersion[] = [];

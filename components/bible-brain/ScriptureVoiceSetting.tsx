@@ -63,7 +63,13 @@ export function ScriptureVoiceSetting() {
       })
     ).then((hits) => {
       if (cancelled) return;
-      setDownloadedAbbrs(new Set(hits.filter((abbr): abbr is string => abbr !== null)));
+      const next = new Set(hits.filter((abbr): abbr is string => abbr !== null));
+      // Belt and braces against a render loop: a fresh Set is a new object
+      // every time, so setting it unconditionally re-renders even when
+      // nothing on disk has changed.
+      setDownloadedAbbrs((prev) =>
+        prev && prev.size === next.size && [...next].every((abbr) => prev.has(abbr)) ? prev : next
+      );
     });
     return () => {
       cancelled = true;
