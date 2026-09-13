@@ -152,12 +152,15 @@ function AudioInlineEntryImpl(props: AudioInlineEntryProps) {
     );
   }
 
-  const isThisTrack = player.currentTrack?.explanation_id === props.explanationId;
+  const current = player.currentTrack;
+  const isThisTrack =
+    current?.kind === 'explanation' && current.explanation_id === props.explanationId;
   const playingThis = isThisTrack && player.playbackState === 'playing';
 
   const startTrack = async () => {
     if (!isThisTrack) {
       const track: AudioTrack = {
+        kind: 'explanation',
         audio_id: `exp-${props.explanationId}`,
         explanation_id: props.explanationId as number,
         url: audio.url,

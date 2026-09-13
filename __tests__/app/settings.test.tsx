@@ -89,6 +89,20 @@ jest.mock('@/components/settings/AutoHighlightSettings', () => ({
   },
 }));
 
+// Mock the narration-voice control. It fetches the Bible Brain catalogue
+// through TanStack Query, and this suite mocks the whole generated SDK away —
+// leaving the query to hang against fake timers. Covered by its own suite.
+jest.mock('@/components/bible-brain/ScriptureVoiceSetting', () => ({
+  ScriptureVoiceSetting: () => {
+    const { View, Text } = require('react-native');
+    return (
+      <View testID="scripture-voice-setting">
+        <Text>Narration voice</Text>
+      </View>
+    );
+  },
+}));
+
 // Mock ThemeSelector component
 jest.mock('@/components/settings/ThemeSelector', () => ({
   ThemeSelector: () => {

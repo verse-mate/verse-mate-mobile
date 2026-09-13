@@ -36,7 +36,7 @@ export type NativeDottedUnderlineTextProps = {
   selectable?: boolean;
   accessibilityLabel?: string;
   testID?: string;
-  onPress?: () => void;
+  onTextPress?: () => void;
   onRangeTap?: (event: { nativeEvent: { index: number } }) => void;
   style?: unknown;
 };

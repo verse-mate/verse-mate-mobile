@@ -36,6 +36,7 @@ import { DeleteAccountFinalModal } from '@/components/account/DeleteAccountFinal
 import { DeleteAccountPasswordModal } from '@/components/account/DeleteAccountPasswordModal';
 import { DeleteAccountWarningModal } from '@/components/account/DeleteAccountWarningModal';
 import { Button } from '@/components/Button';
+import { ScriptureVoiceSetting } from '@/components/bible-brain/ScriptureVoiceSetting';
 import { FontSizeSelector } from '@/components/settings/FontSizeSelector';
 import { LexiconUnderlineToggle } from '@/components/settings/LexiconUnderlineToggle';
 import { NativeTextToggle } from '@/components/settings/NativeTextToggle';
@@ -899,6 +900,15 @@ export default function SettingsScreen() {
               </ScrollView>
             </View>
           )}
+
+          {/* Which voice reads the Bible aloud. Lives here rather than in
+              Manage Downloads because it is a preference, not a download —
+              the download screen was the only place the other voices were
+              visible at all, which made choosing one feel like a side effect
+              of downloading. */}
+          <View style={styles.narrationVoice}>
+            <ScriptureVoiceSetting />
+          </View>
         </View>
 
         {/* Font Size Section */}
@@ -1279,6 +1289,9 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
       fontSize: 16,
       fontWeight: '600',
       color: '#dc2626',
+    },
+    narrationVoice: {
+      marginTop: spacing.md,
     },
     manageDownloadsButton: {
       flexDirection: 'row',

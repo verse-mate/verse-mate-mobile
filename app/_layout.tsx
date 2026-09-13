@@ -36,6 +36,7 @@ import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { MobileAudioPlayerRoot } from '@/components/bible/MobileAudioPlayerRoot';
 import { AudioPlayerProvider } from '@/contexts/AudioPlayerContext';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { BottomBarInsetProvider } from '@/contexts/BottomBarInsetContext';
 import { DeviceInfoProvider } from '@/contexts/DeviceInfoContext';
 import { OfflineProvider } from '@/contexts/OfflineContext';
 import { ThemeProvider as CustomThemeProvider, useTheme } from '@/contexts/ThemeContext';
@@ -637,7 +638,14 @@ export default function RootLayout() {
                       <ToastProvider>
                         <AudioPlayerProvider
                           engine={audioEngine}
-                          onPlaybackStarted={(track, args) =>
+                          // These analytics events are keyed on an
+                          // explanation id, which scripture narration (Bible
+                          // Brain) does not have. Emitting them only for
+                          // explanation tracks keeps the existing funnels
+                          // clean; scripture playback needs its own events
+                          // before it can be reported.
+                          onPlaybackStarted={(track, args) => {
+                            if (track.kind !== 'explanation') return;
                             trackAudioPlaybackStarted({
                               explanationId: track.explanation_id,
                               explanationType: track.explanation_type,
@@ -648,26 +656,30 @@ export default function RootLayout() {
                               isResume: args.isResume,
                               resumePositionSeconds: args.resumePositionSeconds,
                               ttsProvider: track.tts_provider,
-                            })
-                          }
-                          onPlaybackPaused={(track, positionSeconds, reason) =>
+                            });
+                          }}
+                          onPlaybackPaused={(track, positionSeconds, reason) => {
+                            if (track.kind !== 'explanation') return;
                             trackAudioPlaybackPaused({
                               explanationId: track.explanation_id,
                               positionSeconds,
                               durationSeconds: track.duration_seconds,
                               reason,
-                            })
-                          }
-                          onPlaybackCompleted={(track) =>
+                            });
+                          }}
+                          onPlaybackCompleted={(track) => {
+                            if (track.kind !== 'explanation') return;
                             trackAudioPlaybackCompleted({
                               explanationId: track.explanation_id,
                               durationSeconds: track.duration_seconds,
                               completedBy: 'natural',
-                            })
-                          }
+                            });
+                          }}
                         >
-                          <RootLayoutInner />
-                          <MobileAudioPlayerRoot />
+                          <BottomBarInsetProvider>
+                            <RootLayoutInner />
+                            <MobileAudioPlayerRoot />
+                          </BottomBarInsetProvider>
                         </AudioPlayerProvider>
                       </ToastProvider>
                     </OfflineProvider>

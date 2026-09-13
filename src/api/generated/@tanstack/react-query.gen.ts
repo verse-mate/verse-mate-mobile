@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { deleteAdminBatchByBatchJobId, deleteAdminExplanationById, deleteAdminExplanationsBulk, deleteAdminExplanationsInactive, deleteAdminPromptsSystemById, deleteAdminPromptsUserById, deleteAdminTopicsById, deleteAuthAccount, deleteBibleBookBookmarkRemove, deleteBibleBookDeleteChatByConversationId, deleteBibleBookNoteRemove, deleteBibleHighlightByHighlightId, getAdminAutoHighlightSettingsDefaultEnabled, getAdminAutoHighlightSettingsDefaultRelevance, getAdminBatchByBatchJobId, getAdminBatchChildrenByParentId, getAdminBatchHistory, getAdminBatchSummaryByParentId, getAdminCommentaryGrades, getAdminExplanationByIdHistory, getAdminExplanationRegenerateByRegenerationIdComparison, getAdminExplanations, getAdminExplanationsLanguages, getAdminHighlightThemesAll, getAdminPromptsExplanationExisting, getAdminPromptsExplanationTypes, getAdminPromptsSystem, getAdminPromptsUser, getAdminStats, getAdminTopics, getAdminUsers, getAdminUserThemePreferencesByUserId, getAuthResetPasswordVerify, getAuthSession, getAuthSsoAppleCallback, getAuthSsoAppleRedirect, getAuthSsoGoogleCallback, getAuthSsoGoogleRedirect, getAuthUser, getBibleAutoHighlightsByBookIdByChapterNumber, getBibleBookBookmarksByUserId, getBibleBookByBookIdByChapterNumber, getBibleBookByBookIdIntroduction, getBibleBookExplanationByBookIdByChapterNumber, getBibleBookNotesByUserId, getBibleBooks, getBibleChapterIdByBookIdByChapterNumber, getBibleHighlightsByUserId, getBibleHighlightsByUserIdByBookIdByChapterNumber, getBibleHighlightThemes, getBibleLanguages, getBibleTestaments, getBibleUserThemePreferences, getHealth, getHealthAll, getHealthCache, getHealthDatabase, getSupportConversations, getSupportConversationsByIdMessages, getTopicsById, getTopicsByIdExplanation, getTopicsByIdReferences, getTopicsBySlug, getTopicsCategories, getTopicsSearch, getUser, getUserMe, getUserRecentlyViewedBooks, type Options, patchAdminAutoHighlightSettingsDefaultEnabled, patchAdminAutoHighlightSettingsDefaultRelevance, patchAdminHighlightThemesByThemeId, patchAdminUserByIdAdminStatus, patchAdminUserThemePreferencesByUserIdByThemeId, patchBibleUserThemePreferencesByThemeId, patchUserPreferences, postAdminBatchAutoHighlights, postAdminBatchesMonitorAll, postAdminBatchExplanations, postAdminBatchRephrase, postAdminBatchRetrieveErrorsByBatchId, postAdminBatchTopicDiscovery, postAdminBatchTopicExplanations, postAdminBatchTopicReferences, postAdminBatchTranslate, postAdminCommentaryGrade, postAdminExplanationRegenerate, postAdminExplanationRegenerateByRegenerationIdChoose, postAdminExplanationRegenerateByRegenerationIdGenerate, postAdminExplanationsRefreshLanguageStats, postAdminExplanationsSetActiveAsDefault, postAdminExplanationsSetDefaultsActive, postAdminExplanationsSetSpecificVersionActive, postAdminMonitorBibleBatchByParentId, postAdminPromptsPlayground, postAdminPromptsRestoreDefaults, postAdminPromptsSystem, postAdminPromptsUser, postAdminTopics, postAdminTopicsSortChronologically, postAdminTopicsTranslateAll, postAdminTopicsTranslateExplanations, postAdminTopicsTranslateNames, postAuthChangePassword, postAuthForgotPassword, postAuthLogin, postAuthLogout, postAuthLogoutAll, postAuthRefresh, postAuthResetPassword, postAuthSendEmailVerification, postAuthSignup, postAuthSso, postAuthSsoAppleCallback, postAuthVerifyEmail, postBibleBookAskVerseMateSaveAiMessage, postBibleBookAskVerseMateSaveUserMessage, postBibleBookBookmarkAdd, postBibleBookBookmarkRemove, postBibleBookByBookIdIntroductionMarkViewed, postBibleBookChapterLastRead, postBibleBookChapterSaveLastRead, postBibleBookConversationExists, postBibleBookConversationsHistory, postBibleBookExplanationRatings, postBibleBookExplanationSaveRating, postBibleBookMessagesHistory, postBibleBookNewConversation, postBibleBookNoteAdd, postBibleHighlightAdd, postSupportConversations, postSupportConversationsByIdMessages, postTopicsParseReferences, postUserRecentlyViewedBooksSync, postUserUpdate, postWebhooksSlack, putAdminPromptsSystemById, putAdminPromptsSystemByIdStatus, putAdminPromptsUserById, putAdminPromptsUserByIdStatus, putAdminTopicsById, putAuthProfile, putBibleBookExplanationUpdateRating, putBibleBookNoteUpdate, putBibleHighlightByHighlightId } from '../sdk.gen';
-import type { DeleteAdminBatchByBatchJobIdData, DeleteAdminBatchByBatchJobIdError, DeleteAdminBatchByBatchJobIdResponse, DeleteAdminExplanationByIdData, DeleteAdminExplanationByIdError, DeleteAdminExplanationsBulkData, DeleteAdminExplanationsBulkError, DeleteAdminExplanationsInactiveData, DeleteAdminExplanationsInactiveError, DeleteAdminPromptsSystemByIdData, DeleteAdminPromptsSystemByIdError, DeleteAdminPromptsUserByIdData, DeleteAdminPromptsUserByIdError, DeleteAdminTopicsByIdData, DeleteAuthAccountData, DeleteAuthAccountError, DeleteAuthAccountResponse, DeleteBibleBookBookmarkRemoveData, DeleteBibleBookBookmarkRemoveError, DeleteBibleBookBookmarkRemoveResponse, DeleteBibleBookDeleteChatByConversationIdData, DeleteBibleBookDeleteChatByConversationIdError, DeleteBibleBookDeleteChatByConversationIdResponse, DeleteBibleBookNoteRemoveData, DeleteBibleBookNoteRemoveError, DeleteBibleBookNoteRemoveResponse, DeleteBibleHighlightByHighlightIdData, DeleteBibleHighlightByHighlightIdError, DeleteBibleHighlightByHighlightIdResponse, GetAdminAutoHighlightSettingsDefaultEnabledData, GetAdminAutoHighlightSettingsDefaultRelevanceData, GetAdminBatchByBatchJobIdData, GetAdminBatchChildrenByParentIdData, GetAdminBatchHistoryData, GetAdminBatchHistoryError, GetAdminBatchSummaryByParentIdData, GetAdminCommentaryGradesData, GetAdminExplanationByIdHistoryData, GetAdminExplanationRegenerateByRegenerationIdComparisonData, GetAdminExplanationsData, GetAdminExplanationsError, GetAdminExplanationsLanguagesData, GetAdminHighlightThemesAllData, GetAdminPromptsExplanationExistingData, GetAdminPromptsExplanationTypesData, GetAdminPromptsSystemData, GetAdminPromptsUserData, GetAdminStatsData, GetAdminTopicsData, GetAdminUsersData, GetAdminUserThemePreferencesByUserIdData, GetAuthResetPasswordVerifyData, GetAuthSessionData, GetAuthSsoAppleCallbackData, GetAuthSsoAppleRedirectData, GetAuthSsoGoogleCallbackData, GetAuthSsoGoogleRedirectData, GetAuthUserData, GetBibleAutoHighlightsByBookIdByChapterNumberData, GetBibleBookBookmarksByUserIdData, GetBibleBookByBookIdByChapterNumberData, GetBibleBookByBookIdIntroductionData, GetBibleBookExplanationByBookIdByChapterNumberData, GetBibleBookNotesByUserIdData, GetBibleBooksData, GetBibleChapterIdByBookIdByChapterNumberData, GetBibleHighlightsByUserIdByBookIdByChapterNumberData, GetBibleHighlightsByUserIdData, GetBibleHighlightThemesData, GetBibleLanguagesData, GetBibleTestamentsData, GetBibleUserThemePreferencesData, GetHealthAllData, GetHealthCacheData, GetHealthData, GetHealthDatabaseData, GetSupportConversationsByIdMessagesData, GetSupportConversationsData, GetTopicsByIdData, GetTopicsByIdExplanationData, GetTopicsByIdReferencesData, GetTopicsBySlugData, GetTopicsCategoriesData, GetTopicsSearchData, GetUserData, GetUserMeData, GetUserRecentlyViewedBooksData, PatchAdminAutoHighlightSettingsDefaultEnabledData, PatchAdminAutoHighlightSettingsDefaultRelevanceData, PatchAdminHighlightThemesByThemeIdData, PatchAdminUserByIdAdminStatusData, PatchAdminUserByIdAdminStatusError, PatchAdminUserByIdAdminStatusResponse, PatchAdminUserThemePreferencesByUserIdByThemeIdData, PatchBibleUserThemePreferencesByThemeIdData, PatchUserPreferencesData, PatchUserPreferencesError, PatchUserPreferencesResponse, PostAdminBatchAutoHighlightsData, PostAdminBatchesMonitorAllData, PostAdminBatchesMonitorAllError, PostAdminBatchExplanationsData, PostAdminBatchExplanationsError, PostAdminBatchRephraseData, PostAdminBatchRephraseError, PostAdminBatchRetrieveErrorsByBatchIdData, PostAdminBatchRetrieveErrorsByBatchIdError, PostAdminBatchRetrieveErrorsByBatchIdResponse, PostAdminBatchTopicDiscoveryData, PostAdminBatchTopicExplanationsData, PostAdminBatchTopicReferencesData, PostAdminBatchTranslateData, PostAdminBatchTranslateError, PostAdminCommentaryGradeData, PostAdminCommentaryGradeError, PostAdminCommentaryGradeResponse, PostAdminExplanationRegenerateByRegenerationIdChooseData, PostAdminExplanationRegenerateByRegenerationIdChooseError, PostAdminExplanationRegenerateByRegenerationIdGenerateData, PostAdminExplanationRegenerateByRegenerationIdGenerateError, PostAdminExplanationRegenerateData, PostAdminExplanationRegenerateError, PostAdminExplanationsRefreshLanguageStatsData, PostAdminExplanationsRefreshLanguageStatsError, PostAdminExplanationsSetActiveAsDefaultData, PostAdminExplanationsSetActiveAsDefaultError, PostAdminExplanationsSetDefaultsActiveData, PostAdminExplanationsSetDefaultsActiveError, PostAdminExplanationsSetSpecificVersionActiveData, PostAdminExplanationsSetSpecificVersionActiveError, PostAdminMonitorBibleBatchByParentIdData, PostAdminMonitorBibleBatchByParentIdError, PostAdminPromptsPlaygroundData, PostAdminPromptsPlaygroundError, PostAdminPromptsRestoreDefaultsData, PostAdminPromptsRestoreDefaultsError, PostAdminPromptsSystemData, PostAdminPromptsSystemError, PostAdminPromptsUserData, PostAdminPromptsUserError, PostAdminTopicsData, PostAdminTopicsSortChronologicallyData, PostAdminTopicsTranslateAllData, PostAdminTopicsTranslateExplanationsData, PostAdminTopicsTranslateNamesData, PostAuthChangePasswordData, PostAuthChangePasswordError, PostAuthChangePasswordResponse, PostAuthForgotPasswordData, PostAuthForgotPasswordError, PostAuthForgotPasswordResponse, PostAuthLoginData, PostAuthLoginError, PostAuthLoginResponse, PostAuthLogoutAllData, PostAuthLogoutAllError, PostAuthLogoutAllResponse, PostAuthLogoutData, PostAuthLogoutError, PostAuthLogoutResponse, PostAuthRefreshData, PostAuthRefreshError, PostAuthRefreshResponse, PostAuthResetPasswordData, PostAuthResetPasswordError, PostAuthResetPasswordResponse, PostAuthSendEmailVerificationData, PostAuthSendEmailVerificationError, PostAuthSignupData, PostAuthSignupError, PostAuthSignupResponse, PostAuthSsoAppleCallbackData, PostAuthSsoAppleCallbackError, PostAuthSsoData, PostAuthSsoError, PostAuthSsoResponse, PostAuthVerifyEmailData, PostAuthVerifyEmailError, PostAuthVerifyEmailResponse, PostBibleBookAskVerseMateSaveAiMessageData, PostBibleBookAskVerseMateSaveAiMessageError, PostBibleBookAskVerseMateSaveAiMessageResponse, PostBibleBookAskVerseMateSaveUserMessageData, PostBibleBookAskVerseMateSaveUserMessageError, PostBibleBookAskVerseMateSaveUserMessageResponse, PostBibleBookBookmarkAddData, PostBibleBookBookmarkAddError, PostBibleBookBookmarkAddResponse, PostBibleBookBookmarkRemoveData, PostBibleBookBookmarkRemoveError, PostBibleBookBookmarkRemoveResponse, PostBibleBookByBookIdIntroductionMarkViewedData, PostBibleBookByBookIdIntroductionMarkViewedError, PostBibleBookByBookIdIntroductionMarkViewedResponse, PostBibleBookChapterLastReadData, PostBibleBookChapterLastReadError, PostBibleBookChapterLastReadResponse, PostBibleBookChapterSaveLastReadData, PostBibleBookChapterSaveLastReadError, PostBibleBookChapterSaveLastReadResponse, PostBibleBookConversationExistsData, PostBibleBookConversationExistsError, PostBibleBookConversationExistsResponse, PostBibleBookConversationsHistoryData, PostBibleBookConversationsHistoryError, PostBibleBookConversationsHistoryResponse, PostBibleBookExplanationRatingsData, PostBibleBookExplanationRatingsError, PostBibleBookExplanationRatingsResponse, PostBibleBookExplanationSaveRatingData, PostBibleBookExplanationSaveRatingError, PostBibleBookExplanationSaveRatingResponse, PostBibleBookMessagesHistoryData, PostBibleBookMessagesHistoryError, PostBibleBookMessagesHistoryResponse, PostBibleBookNewConversationData, PostBibleBookNewConversationError, PostBibleBookNewConversationResponse, PostBibleBookNoteAddData, PostBibleBookNoteAddError, PostBibleBookNoteAddResponse, PostBibleHighlightAddData, PostBibleHighlightAddError, PostBibleHighlightAddResponse, PostSupportConversationsByIdMessagesData, PostSupportConversationsByIdMessagesError, PostSupportConversationsByIdMessagesResponse, PostSupportConversationsData, PostSupportConversationsError, PostSupportConversationsResponse, PostTopicsParseReferencesData, PostTopicsParseReferencesResponse, PostUserRecentlyViewedBooksSyncData, PostUserRecentlyViewedBooksSyncError, PostUserRecentlyViewedBooksSyncResponse, PostUserUpdateData, PostUserUpdateError, PostUserUpdateResponse, PostWebhooksSlackData, PutAdminPromptsSystemByIdData, PutAdminPromptsSystemByIdError, PutAdminPromptsSystemByIdStatusData, PutAdminPromptsSystemByIdStatusError, PutAdminPromptsUserByIdData, PutAdminPromptsUserByIdError, PutAdminPromptsUserByIdStatusData, PutAdminPromptsUserByIdStatusError, PutAdminTopicsByIdData, PutAuthProfileData, PutAuthProfileError, PutAuthProfileResponse, PutBibleBookExplanationUpdateRatingData, PutBibleBookExplanationUpdateRatingError, PutBibleBookExplanationUpdateRatingResponse, PutBibleBookNoteUpdateData, PutBibleBookNoteUpdateError, PutBibleBookNoteUpdateResponse, PutBibleHighlightByHighlightIdData, PutBibleHighlightByHighlightIdError, PutBibleHighlightByHighlightIdResponse } from '../types.gen';
+import { deleteAdminBatchByBatchJobId, deleteAdminDailyVersesById, deleteAdminExplanationById, deleteAdminExplanationsAudioByAudioId, deleteAdminExplanationsBulk, deleteAdminExplanationsInactive, deleteAdminPromptsSystemById, deleteAdminPromptsUserById, deleteAdminTopicsById, deleteAuthAccount, deleteBibleBookBookmarkRemove, deleteBibleBookNoteRemove, deleteBibleExplanationAudioByExplanationIdProgress, deleteBibleHighlightByHighlightId, deleteCoachClassesById, deleteNotificationsDevice, getAdminAutoHighlightSettingsDefaultEnabled, getAdminAutoHighlightSettingsDefaultRelevance, getAdminBatchByBatchJobId, getAdminBatchChildrenByParentId, getAdminBatchHistory, getAdminBatchSummaryByParentId, getAdminCommentaryGrades, getAdminDailyVerses, getAdminDailyVersesHistory, getAdminDailyVerseTags, getAdminExplanationByIdHistory, getAdminExplanationRegenerateByRegenerationIdComparison, getAdminExplanations, getAdminExplanationsAudio, getAdminExplanationsAudioByAudioId, getAdminExplanationsLanguages, getAdminHighlightThemesAll, getAdminNotificationsRecipientCount, getAdminPromptsExplanationExisting, getAdminPromptsExplanationTypes, getAdminPromptsSystem, getAdminPromptsUser, getAdminStats, getAdminTopics, getAdminUsers, getAdminUserThemePreferencesByUserId, getApiVersionPolicy, getAuthResetPasswordVerify, getAuthSession, getAuthSsoAppleCallback, getAuthSsoAppleRedirect, getAuthSsoGoogleCallback, getAuthSsoGoogleRedirect, getAuthUser, getBibleAutoHighlightsByBookIdByChapterNumber, getBibleBookBookmarksByUserId, getBibleBookByBookIdByChapterNumber, getBibleBookByBookIdIntroduction, getBibleBookExplanationByBookIdByChapterNumber, getBibleBookNotesByUserId, getBibleBooks, getBibleBrainAudioByFilesetIdByBookByChapter, getBibleBrainCopyrightByBibleId, getBibleBrainDownloadByFilesetIdByBookByChapter, getBibleBrainTextByFilesetIdByBookByChapter, getBibleBrainTimestampsByFilesetIdByBookByChapter, getBibleBrainVersions, getBibleChapterIdByBookIdByChapterNumber, getBibleExplanationAudioByExplanationId, getBibleExplanationAudioByExplanationIdProgress, getBibleExplanationAudioJobsByJobId, getBibleHighlightsByUserId, getBibleHighlightsByUserIdByBookIdByChapterNumber, getBibleHighlightThemes, getBibleLanguages, getBibleStudyByBookIdByChapterNumber, getBibleStudyLabels, getBibleTestaments, getBibleUserThemePreferences, getBibleVerseOfTheDay, getBibleVersions, getCoachAdminClasses, getCoachAdminCoaches, getCoachAdminCoachesByIdMonthlySummary, getCoachAdminCoachesByIdReports, getCoachAdminCoachesByIdTrends, getCoachAdminMonthly, getCoachClasses, getCoachMe, getCoachMonthlySummary, getCoachReports, getCoachTrends, getHealth, getHealthAll, getHealthCache, getHealthDatabase, getJesusCollections, getJesusCollectionsBySlug, getJesusEntries, getJesusEntriesBySlug, getJesusEvents, getJesusEventsBrowseByType, getJesusEventsBySlug, getJesusEventsBySlugCompare, getJesusEventsCollectionsBySlug, getJesusEventsLife, getJesusEventsOverview, getJesusForPassage, getJesusLife, getJesusOverview, getJesusThemes, getLemmaByStrongs, getOfflineBibleByVersionKey, getOfflineCommentariesByLanguageCode, getOfflineManifest, getOfflineTopicsByLanguageCode, getOfflineUserData, getSupportConversations, getSupportConversationsByIdMessages, getTopicsById, getTopicsByIdExplanation, getTopicsByIdReferences, getTopicsBySlug, getTopicsCategories, getTopicsSearch, getUser, getUserMe, getUserRecentlyViewedBooks, type Options, patchAdminAutoHighlightSettingsDefaultEnabled, patchAdminAutoHighlightSettingsDefaultRelevance, patchAdminHighlightThemesByThemeId, patchAdminUserByIdAdminStatus, patchAdminUserThemePreferencesByUserIdByThemeId, patchBibleUserThemePreferencesByThemeId, patchUserPreferences, postAdminBatchAutoHighlights, postAdminBatchesMonitorAll, postAdminBatchExplanations, postAdminBatchExplanationsImpactPreview, postAdminBatchRephrase, postAdminBatchRetrieveErrorsByBatchId, postAdminBatchTopicDiscovery, postAdminBatchTopicExplanations, postAdminBatchTopicReferences, postAdminBatchTranslate, postAdminBatchTranslateStudy, postAdminCommentaryGrade, postAdminDailyVerses, postAdminDailyVerseTags, postAdminExplanationRegenerate, postAdminExplanationRegenerateByRegenerationIdChoose, postAdminExplanationRegenerateByRegenerationIdGenerate, postAdminExplanationsAudioRegenerate, postAdminExplanationsRefreshLanguageStats, postAdminExplanationsSetActiveAsDefault, postAdminExplanationsSetDefaultsActive, postAdminExplanationsSetSpecificVersionActive, postAdminMonitorBibleBatchByParentId, postAdminNotificationsBroadcast, postAdminPromptsPlayground, postAdminPromptsRestoreDefaults, postAdminPromptsSystem, postAdminPromptsUser, postAdminTopics, postAdminTopicsSortChronologically, postAdminTopicsTranslateAll, postAdminTopicsTranslateExplanations, postAdminTopicsTranslateNames, postApiVersionPolicy, postAuthChangePassword, postAuthForgotPassword, postAuthLogin, postAuthLogout, postAuthLogoutAll, postAuthResetPassword, postAuthSendEmailVerification, postAuthSignup, postAuthSso, postAuthSsoAppleCallback, postAuthVerifyEmail, postBibleBookBookmarkAdd, postBibleBookBookmarkRemove, postBibleBookByBookIdIntroductionMarkViewed, postBibleBookChapterLastRead, postBibleBookChapterSaveLastRead, postBibleBookExplanationRatings, postBibleBookExplanationSaveRating, postBibleBookNoteAdd, postBibleExplanationAudioByExplanationIdProgress, postBibleHighlightAdd, postCoachAdminCoachesByIdReportsByReportIdNotes, postCoachAdminLeaders, postCoachClasses, postSupportConversations, postSupportConversationsByIdMessages, postTopicsParseReferences, postUserPreferredBibleVersion, postUserRecentlyViewedBooksSync, postUserUpdate, postWebhooksSlack, putAdminDailyVersesById, putAdminPromptsSystemById, putAdminPromptsSystemByIdStatus, putAdminPromptsUserById, putAdminPromptsUserByIdStatus, putAdminTopicsById, putAuthProfile, putBibleBookExplanationUpdateRating, putBibleBookNoteUpdate, putBibleHighlightByHighlightId, putCoachAdminCoachesByIdReportsByReportIdRecording, putCoachAffiliatedChurch, putCoachBibleCoach, putCoachClassesById, putCoachZoomLink, putNotificationsDevice } from '../sdk.gen';
+import type { DeleteAdminBatchByBatchJobIdData, DeleteAdminBatchByBatchJobIdError, DeleteAdminBatchByBatchJobIdResponse, DeleteAdminDailyVersesByIdData, DeleteAdminDailyVersesByIdError, DeleteAdminDailyVersesByIdResponse, DeleteAdminExplanationByIdData, DeleteAdminExplanationByIdError, DeleteAdminExplanationsAudioByAudioIdData, DeleteAdminExplanationsBulkData, DeleteAdminExplanationsBulkError, DeleteAdminExplanationsInactiveData, DeleteAdminExplanationsInactiveError, DeleteAdminPromptsSystemByIdData, DeleteAdminPromptsSystemByIdError, DeleteAdminPromptsUserByIdData, DeleteAdminPromptsUserByIdError, DeleteAdminTopicsByIdData, DeleteAuthAccountData, DeleteAuthAccountError, DeleteAuthAccountResponse, DeleteBibleBookBookmarkRemoveData, DeleteBibleBookBookmarkRemoveError, DeleteBibleBookBookmarkRemoveResponse, DeleteBibleBookNoteRemoveData, DeleteBibleBookNoteRemoveError, DeleteBibleBookNoteRemoveResponse, DeleteBibleExplanationAudioByExplanationIdProgressData, DeleteBibleExplanationAudioByExplanationIdProgressError, DeleteBibleHighlightByHighlightIdData, DeleteBibleHighlightByHighlightIdError, DeleteBibleHighlightByHighlightIdResponse, DeleteCoachClassesByIdData, DeleteCoachClassesByIdError, DeleteCoachClassesByIdResponse, DeleteNotificationsDeviceData, DeleteNotificationsDeviceError, DeleteNotificationsDeviceResponse, GetAdminAutoHighlightSettingsDefaultEnabledData, GetAdminAutoHighlightSettingsDefaultRelevanceData, GetAdminBatchByBatchJobIdData, GetAdminBatchChildrenByParentIdData, GetAdminBatchHistoryData, GetAdminBatchHistoryError, GetAdminBatchSummaryByParentIdData, GetAdminCommentaryGradesData, GetAdminDailyVersesData, GetAdminDailyVersesError, GetAdminDailyVersesHistoryData, GetAdminDailyVersesHistoryError, GetAdminDailyVersesHistoryResponse, GetAdminDailyVersesResponse, GetAdminDailyVerseTagsData, GetAdminExplanationByIdHistoryData, GetAdminExplanationRegenerateByRegenerationIdComparisonData, GetAdminExplanationsAudioByAudioIdData, GetAdminExplanationsAudioData, GetAdminExplanationsAudioResponse, GetAdminExplanationsData, GetAdminExplanationsError, GetAdminExplanationsLanguagesData, GetAdminHighlightThemesAllData, GetAdminNotificationsRecipientCountData, GetAdminPromptsExplanationExistingData, GetAdminPromptsExplanationTypesData, GetAdminPromptsSystemData, GetAdminPromptsUserData, GetAdminStatsData, GetAdminTopicsData, GetAdminUsersData, GetAdminUserThemePreferencesByUserIdData, GetApiVersionPolicyData, GetAuthResetPasswordVerifyData, GetAuthSessionData, GetAuthSsoAppleCallbackData, GetAuthSsoAppleRedirectData, GetAuthSsoGoogleCallbackData, GetAuthSsoGoogleRedirectData, GetAuthUserData, GetBibleAutoHighlightsByBookIdByChapterNumberData, GetBibleBookBookmarksByUserIdData, GetBibleBookByBookIdByChapterNumberData, GetBibleBookByBookIdIntroductionData, GetBibleBookExplanationByBookIdByChapterNumberData, GetBibleBookNotesByUserIdData, GetBibleBooksData, GetBibleBrainAudioByFilesetIdByBookByChapterData, GetBibleBrainCopyrightByBibleIdData, GetBibleBrainDownloadByFilesetIdByBookByChapterData, GetBibleBrainTextByFilesetIdByBookByChapterData, GetBibleBrainTimestampsByFilesetIdByBookByChapterData, GetBibleBrainVersionsData, GetBibleChapterIdByBookIdByChapterNumberData, GetBibleExplanationAudioByExplanationIdData, GetBibleExplanationAudioByExplanationIdProgressData, GetBibleExplanationAudioJobsByJobIdData, GetBibleHighlightsByUserIdByBookIdByChapterNumberData, GetBibleHighlightsByUserIdData, GetBibleHighlightThemesData, GetBibleLanguagesData, GetBibleStudyByBookIdByChapterNumberData, GetBibleStudyLabelsData, GetBibleTestamentsData, GetBibleUserThemePreferencesData, GetBibleVerseOfTheDayData, GetBibleVersionsData, GetCoachAdminClassesData, GetCoachAdminCoachesByIdMonthlySummaryData, GetCoachAdminCoachesByIdReportsData, GetCoachAdminCoachesByIdTrendsData, GetCoachAdminCoachesData, GetCoachAdminMonthlyData, GetCoachClassesData, GetCoachMeData, GetCoachMonthlySummaryData, GetCoachReportsData, GetCoachTrendsData, GetHealthAllData, GetHealthCacheData, GetHealthData, GetHealthDatabaseData, GetJesusCollectionsBySlugData, GetJesusCollectionsData, GetJesusEntriesBySlugData, GetJesusEntriesData, GetJesusEntriesResponse, GetJesusEventsBrowseByTypeData, GetJesusEventsBySlugCompareData, GetJesusEventsBySlugData, GetJesusEventsCollectionsBySlugData, GetJesusEventsData, GetJesusEventsLifeData, GetJesusEventsOverviewData, GetJesusEventsResponse, GetJesusForPassageData, GetJesusLifeData, GetJesusOverviewData, GetJesusThemesData, GetLemmaByStrongsData, GetOfflineBibleByVersionKeyData, GetOfflineCommentariesByLanguageCodeData, GetOfflineManifestData, GetOfflineTopicsByLanguageCodeData, GetOfflineUserDataData, GetSupportConversationsByIdMessagesData, GetSupportConversationsData, GetTopicsByIdData, GetTopicsByIdExplanationData, GetTopicsByIdReferencesData, GetTopicsBySlugData, GetTopicsCategoriesData, GetTopicsSearchData, GetUserData, GetUserMeData, GetUserRecentlyViewedBooksData, PatchAdminAutoHighlightSettingsDefaultEnabledData, PatchAdminAutoHighlightSettingsDefaultRelevanceData, PatchAdminHighlightThemesByThemeIdData, PatchAdminUserByIdAdminStatusData, PatchAdminUserByIdAdminStatusError, PatchAdminUserByIdAdminStatusResponse, PatchAdminUserThemePreferencesByUserIdByThemeIdData, PatchBibleUserThemePreferencesByThemeIdData, PatchUserPreferencesData, PatchUserPreferencesError, PatchUserPreferencesResponse, PostAdminBatchAutoHighlightsData, PostAdminBatchesMonitorAllData, PostAdminBatchesMonitorAllError, PostAdminBatchExplanationsData, PostAdminBatchExplanationsError, PostAdminBatchExplanationsImpactPreviewData, PostAdminBatchExplanationsImpactPreviewError, PostAdminBatchExplanationsImpactPreviewResponse, PostAdminBatchRephraseData, PostAdminBatchRephraseError, PostAdminBatchRetrieveErrorsByBatchIdData, PostAdminBatchRetrieveErrorsByBatchIdError, PostAdminBatchRetrieveErrorsByBatchIdResponse, PostAdminBatchTopicDiscoveryData, PostAdminBatchTopicExplanationsData, PostAdminBatchTopicReferencesData, PostAdminBatchTranslateData, PostAdminBatchTranslateError, PostAdminBatchTranslateStudyData, PostAdminBatchTranslateStudyError, PostAdminCommentaryGradeData, PostAdminCommentaryGradeError, PostAdminCommentaryGradeResponse, PostAdminDailyVersesData, PostAdminDailyVersesError, PostAdminDailyVersesResponse, PostAdminDailyVerseTagsData, PostAdminDailyVerseTagsError, PostAdminDailyVerseTagsResponse, PostAdminExplanationRegenerateByRegenerationIdChooseData, PostAdminExplanationRegenerateByRegenerationIdChooseError, PostAdminExplanationRegenerateByRegenerationIdGenerateData, PostAdminExplanationRegenerateByRegenerationIdGenerateError, PostAdminExplanationRegenerateData, PostAdminExplanationRegenerateError, PostAdminExplanationsAudioRegenerateData, PostAdminExplanationsAudioRegenerateResponse, PostAdminExplanationsRefreshLanguageStatsData, PostAdminExplanationsRefreshLanguageStatsError, PostAdminExplanationsSetActiveAsDefaultData, PostAdminExplanationsSetActiveAsDefaultError, PostAdminExplanationsSetDefaultsActiveData, PostAdminExplanationsSetDefaultsActiveError, PostAdminExplanationsSetSpecificVersionActiveData, PostAdminExplanationsSetSpecificVersionActiveError, PostAdminMonitorBibleBatchByParentIdData, PostAdminMonitorBibleBatchByParentIdError, PostAdminNotificationsBroadcastData, PostAdminNotificationsBroadcastError, PostAdminNotificationsBroadcastResponse, PostAdminPromptsPlaygroundData, PostAdminPromptsPlaygroundError, PostAdminPromptsRestoreDefaultsData, PostAdminPromptsRestoreDefaultsError, PostAdminPromptsSystemData, PostAdminPromptsSystemError, PostAdminPromptsUserData, PostAdminPromptsUserError, PostAdminTopicsData, PostAdminTopicsSortChronologicallyData, PostAdminTopicsTranslateAllData, PostAdminTopicsTranslateExplanationsData, PostAdminTopicsTranslateNamesData, PostApiVersionPolicyData, PostAuthChangePasswordData, PostAuthChangePasswordError, PostAuthChangePasswordResponse, PostAuthForgotPasswordData, PostAuthForgotPasswordError, PostAuthForgotPasswordResponse, PostAuthLoginData, PostAuthLoginError, PostAuthLoginResponse, PostAuthLogoutAllData, PostAuthLogoutAllError, PostAuthLogoutAllResponse, PostAuthLogoutData, PostAuthLogoutError, PostAuthLogoutResponse, PostAuthResetPasswordData, PostAuthResetPasswordError, PostAuthResetPasswordResponse, PostAuthSendEmailVerificationData, PostAuthSendEmailVerificationError, PostAuthSignupData, PostAuthSignupError, PostAuthSignupResponse, PostAuthSsoAppleCallbackData, PostAuthSsoAppleCallbackError, PostAuthSsoData, PostAuthSsoError, PostAuthSsoResponse, PostAuthVerifyEmailData, PostAuthVerifyEmailError, PostAuthVerifyEmailResponse, PostBibleBookBookmarkAddData, PostBibleBookBookmarkAddError, PostBibleBookBookmarkAddResponse, PostBibleBookBookmarkRemoveData, PostBibleBookBookmarkRemoveError, PostBibleBookBookmarkRemoveResponse, PostBibleBookByBookIdIntroductionMarkViewedData, PostBibleBookByBookIdIntroductionMarkViewedError, PostBibleBookByBookIdIntroductionMarkViewedResponse, PostBibleBookChapterLastReadData, PostBibleBookChapterLastReadError, PostBibleBookChapterLastReadResponse, PostBibleBookChapterSaveLastReadData, PostBibleBookChapterSaveLastReadError, PostBibleBookChapterSaveLastReadResponse, PostBibleBookExplanationRatingsData, PostBibleBookExplanationRatingsError, PostBibleBookExplanationRatingsResponse, PostBibleBookExplanationSaveRatingData, PostBibleBookExplanationSaveRatingError, PostBibleBookExplanationSaveRatingResponse, PostBibleBookNoteAddData, PostBibleBookNoteAddError, PostBibleBookNoteAddResponse, PostBibleExplanationAudioByExplanationIdProgressData, PostBibleExplanationAudioByExplanationIdProgressError, PostBibleExplanationAudioByExplanationIdProgressResponse, PostBibleHighlightAddData, PostBibleHighlightAddError, PostBibleHighlightAddResponse, PostCoachAdminCoachesByIdReportsByReportIdNotesData, PostCoachAdminCoachesByIdReportsByReportIdNotesError, PostCoachAdminCoachesByIdReportsByReportIdNotesResponse, PostCoachAdminLeadersData, PostCoachAdminLeadersError, PostCoachAdminLeadersResponse, PostCoachClassesData, PostCoachClassesError, PostCoachClassesResponse, PostSupportConversationsByIdMessagesData, PostSupportConversationsByIdMessagesError, PostSupportConversationsByIdMessagesResponse, PostSupportConversationsData, PostSupportConversationsError, PostSupportConversationsResponse, PostTopicsParseReferencesData, PostTopicsParseReferencesResponse, PostUserPreferredBibleVersionData, PostUserPreferredBibleVersionError, PostUserPreferredBibleVersionResponse, PostUserRecentlyViewedBooksSyncData, PostUserRecentlyViewedBooksSyncError, PostUserRecentlyViewedBooksSyncResponse, PostUserUpdateData, PostUserUpdateError, PostUserUpdateResponse, PostWebhooksSlackData, PutAdminDailyVersesByIdData, PutAdminDailyVersesByIdError, PutAdminDailyVersesByIdResponse, PutAdminPromptsSystemByIdData, PutAdminPromptsSystemByIdError, PutAdminPromptsSystemByIdStatusData, PutAdminPromptsSystemByIdStatusError, PutAdminPromptsUserByIdData, PutAdminPromptsUserByIdError, PutAdminPromptsUserByIdStatusData, PutAdminPromptsUserByIdStatusError, PutAdminTopicsByIdData, PutAuthProfileData, PutAuthProfileError, PutAuthProfileResponse, PutBibleBookExplanationUpdateRatingData, PutBibleBookExplanationUpdateRatingError, PutBibleBookExplanationUpdateRatingResponse, PutBibleBookNoteUpdateData, PutBibleBookNoteUpdateError, PutBibleBookNoteUpdateResponse, PutBibleHighlightByHighlightIdData, PutBibleHighlightByHighlightIdError, PutBibleHighlightByHighlightIdResponse, PutCoachAdminCoachesByIdReportsByReportIdRecordingData, PutCoachAdminCoachesByIdReportsByReportIdRecordingError, PutCoachAdminCoachesByIdReportsByReportIdRecordingResponse, PutCoachAffiliatedChurchData, PutCoachAffiliatedChurchError, PutCoachAffiliatedChurchResponse, PutCoachBibleCoachData, PutCoachBibleCoachError, PutCoachBibleCoachResponse, PutCoachClassesByIdData, PutCoachClassesByIdError, PutCoachClassesByIdResponse, PutCoachZoomLinkData, PutCoachZoomLinkError, PutCoachZoomLinkResponse, PutNotificationsDeviceData, PutNotificationsDeviceError, PutNotificationsDeviceResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -191,20 +191,6 @@ export const postAuthLoginMutation = (options?: Partial<Options<PostAuthLoginDat
     const mutationOptions: UseMutationOptions<PostAuthLoginResponse, PostAuthLoginError, Options<PostAuthLoginData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await postAuthLogin({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const postAuthRefreshMutation = (options?: Partial<Options<PostAuthRefreshData>>): UseMutationOptions<PostAuthRefreshResponse, PostAuthRefreshError, Options<PostAuthRefreshData>> => {
-    const mutationOptions: UseMutationOptions<PostAuthRefreshResponse, PostAuthRefreshError, Options<PostAuthRefreshData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await postAuthRefresh({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -412,6 +398,24 @@ export const postUserUpdateMutation = (options?: Partial<Options<PostUserUpdateD
     return mutationOptions;
 };
 
+/**
+ * Set preferred Bible version
+ * Persists the user's preferred Bible version — the source of truth the daily verse-of-the-day notification renders in (GH-281).
+ */
+export const postUserPreferredBibleVersionMutation = (options?: Partial<Options<PostUserPreferredBibleVersionData>>): UseMutationOptions<PostUserPreferredBibleVersionResponse, PostUserPreferredBibleVersionError, Options<PostUserPreferredBibleVersionData>> => {
+    const mutationOptions: UseMutationOptions<PostUserPreferredBibleVersionResponse, PostUserPreferredBibleVersionError, Options<PostUserPreferredBibleVersionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postUserPreferredBibleVersion({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const getUserRecentlyViewedBooksQueryKey = (options?: Options<GetUserRecentlyViewedBooksData>) => createQueryKey('getUserRecentlyViewedBooks', options);
 
 /**
@@ -482,6 +486,23 @@ export const getBibleLanguagesOptions = (options?: Options<GetBibleLanguagesData
             return data;
         },
         queryKey: getBibleLanguagesQueryKey(options)
+    });
+};
+
+export const getBibleVersionsQueryKey = (options?: Options<GetBibleVersionsData>) => createQueryKey('getBibleVersions', options);
+
+export const getBibleVersionsOptions = (options?: Options<GetBibleVersionsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleVersions({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleVersionsQueryKey(options)
     });
 };
 
@@ -584,60 +605,38 @@ export const getBibleChapterIdByBookIdByChapterNumberOptions = (options: Options
     });
 };
 
-export const postBibleBookConversationsHistoryMutation = (options?: Partial<Options<PostBibleBookConversationsHistoryData>>): UseMutationOptions<PostBibleBookConversationsHistoryResponse, PostBibleBookConversationsHistoryError, Options<PostBibleBookConversationsHistoryData>> => {
-    const mutationOptions: UseMutationOptions<PostBibleBookConversationsHistoryResponse, PostBibleBookConversationsHistoryError, Options<PostBibleBookConversationsHistoryData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await postBibleBookConversationsHistory({
+export const getBibleStudyByBookIdByChapterNumberQueryKey = (options: Options<GetBibleStudyByBookIdByChapterNumberData>) => createQueryKey('getBibleStudyByBookIdByChapterNumber', options);
+
+export const getBibleStudyByBookIdByChapterNumberOptions = (options: Options<GetBibleStudyByBookIdByChapterNumberData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleStudyByBookIdByChapterNumber({
                 ...options,
-                ...fnOptions,
+                ...queryKey[0],
+                signal,
                 throwOnError: true
             });
             return data;
-        }
-    };
-    return mutationOptions;
+        },
+        queryKey: getBibleStudyByBookIdByChapterNumberQueryKey(options)
+    });
 };
 
-export const postBibleBookMessagesHistoryMutation = (options?: Partial<Options<PostBibleBookMessagesHistoryData>>): UseMutationOptions<PostBibleBookMessagesHistoryResponse, PostBibleBookMessagesHistoryError, Options<PostBibleBookMessagesHistoryData>> => {
-    const mutationOptions: UseMutationOptions<PostBibleBookMessagesHistoryResponse, PostBibleBookMessagesHistoryError, Options<PostBibleBookMessagesHistoryData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await postBibleBookMessagesHistory({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
+export const getBibleStudyLabelsQueryKey = (options?: Options<GetBibleStudyLabelsData>) => createQueryKey('getBibleStudyLabels', options);
 
-export const postBibleBookConversationExistsMutation = (options?: Partial<Options<PostBibleBookConversationExistsData>>): UseMutationOptions<PostBibleBookConversationExistsResponse, PostBibleBookConversationExistsError, Options<PostBibleBookConversationExistsData>> => {
-    const mutationOptions: UseMutationOptions<PostBibleBookConversationExistsResponse, PostBibleBookConversationExistsError, Options<PostBibleBookConversationExistsData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await postBibleBookConversationExists({
+export const getBibleStudyLabelsOptions = (options?: Options<GetBibleStudyLabelsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleStudyLabels({
                 ...options,
-                ...fnOptions,
+                ...queryKey[0],
+                signal,
                 throwOnError: true
             });
             return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const postBibleBookNewConversationMutation = (options?: Partial<Options<PostBibleBookNewConversationData>>): UseMutationOptions<PostBibleBookNewConversationResponse, PostBibleBookNewConversationError, Options<PostBibleBookNewConversationData>> => {
-    const mutationOptions: UseMutationOptions<PostBibleBookNewConversationResponse, PostBibleBookNewConversationError, Options<PostBibleBookNewConversationData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await postBibleBookNewConversation({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
+        },
+        queryKey: getBibleStudyLabelsQueryKey(options)
+    });
 };
 
 export const postBibleBookExplanationSaveRatingMutation = (options?: Partial<Options<PostBibleBookExplanationSaveRatingData>>): UseMutationOptions<PostBibleBookExplanationSaveRatingResponse, PostBibleBookExplanationSaveRatingError, Options<PostBibleBookExplanationSaveRatingData>> => {
@@ -700,48 +699,6 @@ export const postBibleBookChapterLastReadMutation = (options?: Partial<Options<P
     const mutationOptions: UseMutationOptions<PostBibleBookChapterLastReadResponse, PostBibleBookChapterLastReadError, Options<PostBibleBookChapterLastReadData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await postBibleBookChapterLastRead({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const postBibleBookAskVerseMateSaveUserMessageMutation = (options?: Partial<Options<PostBibleBookAskVerseMateSaveUserMessageData>>): UseMutationOptions<PostBibleBookAskVerseMateSaveUserMessageResponse, PostBibleBookAskVerseMateSaveUserMessageError, Options<PostBibleBookAskVerseMateSaveUserMessageData>> => {
-    const mutationOptions: UseMutationOptions<PostBibleBookAskVerseMateSaveUserMessageResponse, PostBibleBookAskVerseMateSaveUserMessageError, Options<PostBibleBookAskVerseMateSaveUserMessageData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await postBibleBookAskVerseMateSaveUserMessage({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const postBibleBookAskVerseMateSaveAiMessageMutation = (options?: Partial<Options<PostBibleBookAskVerseMateSaveAiMessageData>>): UseMutationOptions<PostBibleBookAskVerseMateSaveAiMessageResponse, PostBibleBookAskVerseMateSaveAiMessageError, Options<PostBibleBookAskVerseMateSaveAiMessageData>> => {
-    const mutationOptions: UseMutationOptions<PostBibleBookAskVerseMateSaveAiMessageResponse, PostBibleBookAskVerseMateSaveAiMessageError, Options<PostBibleBookAskVerseMateSaveAiMessageData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await postBibleBookAskVerseMateSaveAiMessage({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-export const deleteBibleBookDeleteChatByConversationIdMutation = (options?: Partial<Options<DeleteBibleBookDeleteChatByConversationIdData>>): UseMutationOptions<DeleteBibleBookDeleteChatByConversationIdResponse, DeleteBibleBookDeleteChatByConversationIdError, Options<DeleteBibleBookDeleteChatByConversationIdData>> => {
-    const mutationOptions: UseMutationOptions<DeleteBibleBookDeleteChatByConversationIdResponse, DeleteBibleBookDeleteChatByConversationIdError, Options<DeleteBibleBookDeleteChatByConversationIdData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await deleteBibleBookDeleteChatByConversationId({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -1011,6 +968,596 @@ export const patchBibleUserThemePreferencesByThemeIdMutation = (options?: Partia
     return mutationOptions;
 };
 
+export const getCoachMeQueryKey = (options?: Options<GetCoachMeData>) => createQueryKey('getCoachMe', options);
+
+export const getCoachMeOptions = (options?: Options<GetCoachMeData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachMe({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachMeQueryKey(options)
+    });
+};
+
+export const getCoachReportsQueryKey = (options?: Options<GetCoachReportsData>) => createQueryKey('getCoachReports', options);
+
+export const getCoachReportsOptions = (options?: Options<GetCoachReportsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachReports({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachReportsQueryKey(options)
+    });
+};
+
+export const getCoachTrendsQueryKey = (options?: Options<GetCoachTrendsData>) => createQueryKey('getCoachTrends', options);
+
+export const getCoachTrendsOptions = (options?: Options<GetCoachTrendsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachTrends({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachTrendsQueryKey(options)
+    });
+};
+
+export const getCoachMonthlySummaryQueryKey = (options: Options<GetCoachMonthlySummaryData>) => createQueryKey('getCoachMonthlySummary', options);
+
+export const getCoachMonthlySummaryOptions = (options: Options<GetCoachMonthlySummaryData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachMonthlySummary({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachMonthlySummaryQueryKey(options)
+    });
+};
+
+export const putCoachZoomLinkMutation = (options?: Partial<Options<PutCoachZoomLinkData>>): UseMutationOptions<PutCoachZoomLinkResponse, PutCoachZoomLinkError, Options<PutCoachZoomLinkData>> => {
+    const mutationOptions: UseMutationOptions<PutCoachZoomLinkResponse, PutCoachZoomLinkError, Options<PutCoachZoomLinkData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putCoachZoomLink({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const putCoachAffiliatedChurchMutation = (options?: Partial<Options<PutCoachAffiliatedChurchData>>): UseMutationOptions<PutCoachAffiliatedChurchResponse, PutCoachAffiliatedChurchError, Options<PutCoachAffiliatedChurchData>> => {
+    const mutationOptions: UseMutationOptions<PutCoachAffiliatedChurchResponse, PutCoachAffiliatedChurchError, Options<PutCoachAffiliatedChurchData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putCoachAffiliatedChurch({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const putCoachBibleCoachMutation = (options?: Partial<Options<PutCoachBibleCoachData>>): UseMutationOptions<PutCoachBibleCoachResponse, PutCoachBibleCoachError, Options<PutCoachBibleCoachData>> => {
+    const mutationOptions: UseMutationOptions<PutCoachBibleCoachResponse, PutCoachBibleCoachError, Options<PutCoachBibleCoachData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putCoachBibleCoach({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getCoachClassesQueryKey = (options?: Options<GetCoachClassesData>) => createQueryKey('getCoachClasses', options);
+
+export const getCoachClassesOptions = (options?: Options<GetCoachClassesData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachClasses({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachClassesQueryKey(options)
+    });
+};
+
+export const postCoachClassesMutation = (options?: Partial<Options<PostCoachClassesData>>): UseMutationOptions<PostCoachClassesResponse, PostCoachClassesError, Options<PostCoachClassesData>> => {
+    const mutationOptions: UseMutationOptions<PostCoachClassesResponse, PostCoachClassesError, Options<PostCoachClassesData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postCoachClasses({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const deleteCoachClassesByIdMutation = (options?: Partial<Options<DeleteCoachClassesByIdData>>): UseMutationOptions<DeleteCoachClassesByIdResponse, DeleteCoachClassesByIdError, Options<DeleteCoachClassesByIdData>> => {
+    const mutationOptions: UseMutationOptions<DeleteCoachClassesByIdResponse, DeleteCoachClassesByIdError, Options<DeleteCoachClassesByIdData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteCoachClassesById({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const putCoachClassesByIdMutation = (options?: Partial<Options<PutCoachClassesByIdData>>): UseMutationOptions<PutCoachClassesByIdResponse, PutCoachClassesByIdError, Options<PutCoachClassesByIdData>> => {
+    const mutationOptions: UseMutationOptions<PutCoachClassesByIdResponse, PutCoachClassesByIdError, Options<PutCoachClassesByIdData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putCoachClassesById({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getCoachAdminCoachesQueryKey = (options?: Options<GetCoachAdminCoachesData>) => createQueryKey('getCoachAdminCoaches', options);
+
+export const getCoachAdminCoachesOptions = (options?: Options<GetCoachAdminCoachesData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachAdminCoaches({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachAdminCoachesQueryKey(options)
+    });
+};
+
+export const getCoachAdminCoachesByIdReportsQueryKey = (options: Options<GetCoachAdminCoachesByIdReportsData>) => createQueryKey('getCoachAdminCoachesByIdReports', options);
+
+export const getCoachAdminCoachesByIdReportsOptions = (options: Options<GetCoachAdminCoachesByIdReportsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachAdminCoachesByIdReports({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachAdminCoachesByIdReportsQueryKey(options)
+    });
+};
+
+export const getCoachAdminCoachesByIdTrendsQueryKey = (options: Options<GetCoachAdminCoachesByIdTrendsData>) => createQueryKey('getCoachAdminCoachesByIdTrends', options);
+
+export const getCoachAdminCoachesByIdTrendsOptions = (options: Options<GetCoachAdminCoachesByIdTrendsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachAdminCoachesByIdTrends({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachAdminCoachesByIdTrendsQueryKey(options)
+    });
+};
+
+export const getCoachAdminCoachesByIdMonthlySummaryQueryKey = (options: Options<GetCoachAdminCoachesByIdMonthlySummaryData>) => createQueryKey('getCoachAdminCoachesByIdMonthlySummary', options);
+
+export const getCoachAdminCoachesByIdMonthlySummaryOptions = (options: Options<GetCoachAdminCoachesByIdMonthlySummaryData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachAdminCoachesByIdMonthlySummary({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachAdminCoachesByIdMonthlySummaryQueryKey(options)
+    });
+};
+
+export const getCoachAdminClassesQueryKey = (options?: Options<GetCoachAdminClassesData>) => createQueryKey('getCoachAdminClasses', options);
+
+export const getCoachAdminClassesOptions = (options?: Options<GetCoachAdminClassesData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachAdminClasses({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachAdminClassesQueryKey(options)
+    });
+};
+
+export const postCoachAdminLeadersMutation = (options?: Partial<Options<PostCoachAdminLeadersData>>): UseMutationOptions<PostCoachAdminLeadersResponse, PostCoachAdminLeadersError, Options<PostCoachAdminLeadersData>> => {
+    const mutationOptions: UseMutationOptions<PostCoachAdminLeadersResponse, PostCoachAdminLeadersError, Options<PostCoachAdminLeadersData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postCoachAdminLeaders({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const putCoachAdminCoachesByIdReportsByReportIdRecordingMutation = (options?: Partial<Options<PutCoachAdminCoachesByIdReportsByReportIdRecordingData>>): UseMutationOptions<PutCoachAdminCoachesByIdReportsByReportIdRecordingResponse, PutCoachAdminCoachesByIdReportsByReportIdRecordingError, Options<PutCoachAdminCoachesByIdReportsByReportIdRecordingData>> => {
+    const mutationOptions: UseMutationOptions<PutCoachAdminCoachesByIdReportsByReportIdRecordingResponse, PutCoachAdminCoachesByIdReportsByReportIdRecordingError, Options<PutCoachAdminCoachesByIdReportsByReportIdRecordingData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putCoachAdminCoachesByIdReportsByReportIdRecording({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const postCoachAdminCoachesByIdReportsByReportIdNotesMutation = (options?: Partial<Options<PostCoachAdminCoachesByIdReportsByReportIdNotesData>>): UseMutationOptions<PostCoachAdminCoachesByIdReportsByReportIdNotesResponse, PostCoachAdminCoachesByIdReportsByReportIdNotesError, Options<PostCoachAdminCoachesByIdReportsByReportIdNotesData>> => {
+    const mutationOptions: UseMutationOptions<PostCoachAdminCoachesByIdReportsByReportIdNotesResponse, PostCoachAdminCoachesByIdReportsByReportIdNotesError, Options<PostCoachAdminCoachesByIdReportsByReportIdNotesData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postCoachAdminCoachesByIdReportsByReportIdNotes({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getCoachAdminMonthlyQueryKey = (options: Options<GetCoachAdminMonthlyData>) => createQueryKey('getCoachAdminMonthly', options);
+
+export const getCoachAdminMonthlyOptions = (options: Options<GetCoachAdminMonthlyData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getCoachAdminMonthly({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getCoachAdminMonthlyQueryKey(options)
+    });
+};
+
+export const getBibleVerseOfTheDayQueryKey = (options?: Options<GetBibleVerseOfTheDayData>) => createQueryKey('getBibleVerseOfTheDay', options);
+
+/**
+ * Verse of the day
+ * Returns the curated verse for a date in the requested translation, with NASB1995 fallback. Returns { empty: true } when no verse is available.
+ */
+export const getBibleVerseOfTheDayOptions = (options?: Options<GetBibleVerseOfTheDayData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleVerseOfTheDay({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleVerseOfTheDayQueryKey(options)
+    });
+};
+
+/**
+ * Unregister push device token
+ * Soft-deletes this device's token (Settings toggle off or logout).
+ */
+export const deleteNotificationsDeviceMutation = (options?: Partial<Options<DeleteNotificationsDeviceData>>): UseMutationOptions<DeleteNotificationsDeviceResponse, DeleteNotificationsDeviceError, Options<DeleteNotificationsDeviceData>> => {
+    const mutationOptions: UseMutationOptions<DeleteNotificationsDeviceResponse, DeleteNotificationsDeviceError, Options<DeleteNotificationsDeviceData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteNotificationsDevice({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Register push device token
+ * Registers (or refreshes) this device's Expo push token for the authenticated user.
+ */
+export const putNotificationsDeviceMutation = (options?: Partial<Options<PutNotificationsDeviceData>>): UseMutationOptions<PutNotificationsDeviceResponse, PutNotificationsDeviceError, Options<PutNotificationsDeviceData>> => {
+    const mutationOptions: UseMutationOptions<PutNotificationsDeviceResponse, PutNotificationsDeviceError, Options<PutNotificationsDeviceData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putNotificationsDevice({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getAdminNotificationsRecipientCountQueryKey = (options?: Options<GetAdminNotificationsRecipientCountData>) => createQueryKey('getAdminNotificationsRecipientCount', options);
+
+/**
+ * Active push recipient count
+ * Number of active device tokens a broadcast would reach (preview before sending).
+ */
+export const getAdminNotificationsRecipientCountOptions = (options?: Options<GetAdminNotificationsRecipientCountData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getAdminNotificationsRecipientCount({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getAdminNotificationsRecipientCountQueryKey(options)
+    });
+};
+
+/**
+ * Broadcast a notification to all users
+ * Sends an ad-hoc push to every active device. deepLink must use the versemate:// scheme. Audited in notification_broadcasts.
+ */
+export const postAdminNotificationsBroadcastMutation = (options?: Partial<Options<PostAdminNotificationsBroadcastData>>): UseMutationOptions<PostAdminNotificationsBroadcastResponse, PostAdminNotificationsBroadcastError, Options<PostAdminNotificationsBroadcastData>> => {
+    const mutationOptions: UseMutationOptions<PostAdminNotificationsBroadcastResponse, PostAdminNotificationsBroadcastError, Options<PostAdminNotificationsBroadcastData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postAdminNotificationsBroadcast({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getBibleExplanationAudioByExplanationIdQueryKey = (options: Options<GetBibleExplanationAudioByExplanationIdData>) => createQueryKey('getBibleExplanationAudioByExplanationId', options);
+
+export const getBibleExplanationAudioByExplanationIdOptions = (options: Options<GetBibleExplanationAudioByExplanationIdData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleExplanationAudioByExplanationId({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleExplanationAudioByExplanationIdQueryKey(options)
+    });
+};
+
+export const getBibleExplanationAudioJobsByJobIdQueryKey = (options: Options<GetBibleExplanationAudioJobsByJobIdData>) => createQueryKey('getBibleExplanationAudioJobsByJobId', options);
+
+export const getBibleExplanationAudioJobsByJobIdOptions = (options: Options<GetBibleExplanationAudioJobsByJobIdData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleExplanationAudioJobsByJobId({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleExplanationAudioJobsByJobIdQueryKey(options)
+    });
+};
+
+export const deleteBibleExplanationAudioByExplanationIdProgressMutation = (options?: Partial<Options<DeleteBibleExplanationAudioByExplanationIdProgressData>>): UseMutationOptions<unknown, DeleteBibleExplanationAudioByExplanationIdProgressError, Options<DeleteBibleExplanationAudioByExplanationIdProgressData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DeleteBibleExplanationAudioByExplanationIdProgressError, Options<DeleteBibleExplanationAudioByExplanationIdProgressData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteBibleExplanationAudioByExplanationIdProgress({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getBibleExplanationAudioByExplanationIdProgressQueryKey = (options: Options<GetBibleExplanationAudioByExplanationIdProgressData>) => createQueryKey('getBibleExplanationAudioByExplanationIdProgress', options);
+
+export const getBibleExplanationAudioByExplanationIdProgressOptions = (options: Options<GetBibleExplanationAudioByExplanationIdProgressData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleExplanationAudioByExplanationIdProgress({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleExplanationAudioByExplanationIdProgressQueryKey(options)
+    });
+};
+
+export const postBibleExplanationAudioByExplanationIdProgressMutation = (options?: Partial<Options<PostBibleExplanationAudioByExplanationIdProgressData>>): UseMutationOptions<PostBibleExplanationAudioByExplanationIdProgressResponse, PostBibleExplanationAudioByExplanationIdProgressError, Options<PostBibleExplanationAudioByExplanationIdProgressData>> => {
+    const mutationOptions: UseMutationOptions<PostBibleExplanationAudioByExplanationIdProgressResponse, PostBibleExplanationAudioByExplanationIdProgressError, Options<PostBibleExplanationAudioByExplanationIdProgressData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postBibleExplanationAudioByExplanationIdProgress({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getBibleBrainVersionsQueryKey = (options: Options<GetBibleBrainVersionsData>) => createQueryKey('getBibleBrainVersions', options);
+
+export const getBibleBrainVersionsOptions = (options: Options<GetBibleBrainVersionsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleBrainVersions({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleBrainVersionsQueryKey(options)
+    });
+};
+
+export const getBibleBrainAudioByFilesetIdByBookByChapterQueryKey = (options: Options<GetBibleBrainAudioByFilesetIdByBookByChapterData>) => createQueryKey('getBibleBrainAudioByFilesetIdByBookByChapter', options);
+
+export const getBibleBrainAudioByFilesetIdByBookByChapterOptions = (options: Options<GetBibleBrainAudioByFilesetIdByBookByChapterData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleBrainAudioByFilesetIdByBookByChapter({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleBrainAudioByFilesetIdByBookByChapterQueryKey(options)
+    });
+};
+
+export const getBibleBrainTimestampsByFilesetIdByBookByChapterQueryKey = (options: Options<GetBibleBrainTimestampsByFilesetIdByBookByChapterData>) => createQueryKey('getBibleBrainTimestampsByFilesetIdByBookByChapter', options);
+
+export const getBibleBrainTimestampsByFilesetIdByBookByChapterOptions = (options: Options<GetBibleBrainTimestampsByFilesetIdByBookByChapterData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleBrainTimestampsByFilesetIdByBookByChapter({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleBrainTimestampsByFilesetIdByBookByChapterQueryKey(options)
+    });
+};
+
+export const getBibleBrainTextByFilesetIdByBookByChapterQueryKey = (options: Options<GetBibleBrainTextByFilesetIdByBookByChapterData>) => createQueryKey('getBibleBrainTextByFilesetIdByBookByChapter', options);
+
+export const getBibleBrainTextByFilesetIdByBookByChapterOptions = (options: Options<GetBibleBrainTextByFilesetIdByBookByChapterData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleBrainTextByFilesetIdByBookByChapter({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleBrainTextByFilesetIdByBookByChapterQueryKey(options)
+    });
+};
+
+export const getBibleBrainCopyrightByBibleIdQueryKey = (options: Options<GetBibleBrainCopyrightByBibleIdData>) => createQueryKey('getBibleBrainCopyrightByBibleId', options);
+
+export const getBibleBrainCopyrightByBibleIdOptions = (options: Options<GetBibleBrainCopyrightByBibleIdData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleBrainCopyrightByBibleId({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleBrainCopyrightByBibleIdQueryKey(options)
+    });
+};
+
+export const getBibleBrainDownloadByFilesetIdByBookByChapterQueryKey = (options: Options<GetBibleBrainDownloadByFilesetIdByBookByChapterData>) => createQueryKey('getBibleBrainDownloadByFilesetIdByBookByChapter', options);
+
+export const getBibleBrainDownloadByFilesetIdByBookByChapterOptions = (options: Options<GetBibleBrainDownloadByFilesetIdByBookByChapterData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getBibleBrainDownloadByFilesetIdByBookByChapter({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getBibleBrainDownloadByFilesetIdByBookByChapterQueryKey(options)
+    });
+};
+
 export const getTopicsCategoriesQueryKey = (options?: Options<GetTopicsCategoriesData>) => createQueryKey('getTopicsCategories', options);
 
 export const getTopicsCategoriesOptions = (options?: Options<GetTopicsCategoriesData>) => {
@@ -1129,6 +1676,429 @@ export const postTopicsParseReferencesMutation = (options?: Partial<Options<Post
         }
     };
     return mutationOptions;
+};
+
+export const getJesusOverviewQueryKey = (options?: Options<GetJesusOverviewData>) => createQueryKey('getJesusOverview', options);
+
+/**
+ * Jesus tab hub
+ * The full navigational skeleton — sections, kinds with counts, life periods, themes and featured studies. Clients render the hub from this payload instead of hardcoding the taxonomy.
+ */
+export const getJesusOverviewOptions = (options?: Options<GetJesusOverviewData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusOverview({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusOverviewQueryKey(options)
+    });
+};
+
+export const getJesusEntriesQueryKey = (options?: Options<GetJesusEntriesData>) => createQueryKey('getJesusEntries', options);
+
+/**
+ * Browse entries
+ * Paginated entry cards. All filters are AND-ed, so /jesus/entries?kind=question&theme=prayer is 'every question Jesus asked about prayer'.
+ */
+export const getJesusEntriesOptions = (options?: Options<GetJesusEntriesData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusEntries({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEntriesQueryKey(options)
+    });
+};
+
+const createInfiniteParams = <K extends Pick<QueryKey<Options>[0], 'body' | 'headers' | 'path' | 'query'>>(queryKey: QueryKey<Options>, page: K) => {
+    const params = {
+        ...queryKey[0]
+    };
+    if (page.body) {
+        params.body = {
+            ...queryKey[0].body as any,
+            ...page.body as any
+        };
+    }
+    if (page.headers) {
+        params.headers = {
+            ...queryKey[0].headers,
+            ...page.headers
+        };
+    }
+    if (page.path) {
+        params.path = {
+            ...queryKey[0].path as any,
+            ...page.path as any
+        };
+    }
+    if (page.query) {
+        params.query = {
+            ...queryKey[0].query as any,
+            ...page.query as any
+        };
+    }
+    return params as unknown as typeof page;
+};
+
+export const getJesusEntriesInfiniteQueryKey = (options?: Options<GetJesusEntriesData>): QueryKey<Options<GetJesusEntriesData>> => createQueryKey('getJesusEntries', options, true);
+
+/**
+ * Browse entries
+ * Paginated entry cards. All filters are AND-ed, so /jesus/entries?kind=question&theme=prayer is 'every question Jesus asked about prayer'.
+ */
+export const getJesusEntriesInfiniteOptions = (options?: Options<GetJesusEntriesData>) => {
+    return infiniteQueryOptions<GetJesusEntriesResponse, DefaultError, InfiniteData<GetJesusEntriesResponse>, QueryKey<Options<GetJesusEntriesData>>, string | number | Pick<QueryKey<Options<GetJesusEntriesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<GetJesusEntriesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await getJesusEntries({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEntriesInfiniteQueryKey(options)
+    });
+};
+
+export const getJesusEntriesBySlugQueryKey = (options: Options<GetJesusEntriesBySlugData>) => createQueryKey('getJesusEntriesBySlug', options);
+
+/**
+ * Entry detail
+ * One entry with its passages resolved into the requested Bible version, the three explanation variants, and related entries.
+ */
+export const getJesusEntriesBySlugOptions = (options: Options<GetJesusEntriesBySlugData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusEntriesBySlug({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEntriesBySlugQueryKey(options)
+    });
+};
+
+export const getJesusLifeQueryKey = (options?: Options<GetJesusLifeData>) => createQueryKey('getJesusLife', options);
+
+/**
+ * Follow His Life
+ * The chronological walk through the ministry, grouped by period. Empty periods are included so the timeline reads as a complete arc.
+ */
+export const getJesusLifeOptions = (options?: Options<GetJesusLifeData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusLife({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusLifeQueryKey(options)
+    });
+};
+
+export const getJesusThemesQueryKey = (options?: Options<GetJesusThemesData>) => createQueryKey('getJesusThemes', options);
+
+/**
+ * Explore by topic
+ */
+export const getJesusThemesOptions = (options?: Options<GetJesusThemesData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusThemes({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusThemesQueryKey(options)
+    });
+};
+
+export const getJesusCollectionsQueryKey = (options?: Options<GetJesusCollectionsData>) => createQueryKey('getJesusCollections', options);
+
+/**
+ * Popular studies
+ */
+export const getJesusCollectionsOptions = (options?: Options<GetJesusCollectionsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusCollections({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusCollectionsQueryKey(options)
+    });
+};
+
+export const getJesusCollectionsBySlugQueryKey = (options: Options<GetJesusCollectionsBySlugData>) => createQueryKey('getJesusCollectionsBySlug', options);
+
+/**
+ * One study, with its entries
+ */
+export const getJesusCollectionsBySlugOptions = (options: Options<GetJesusCollectionsBySlugData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusCollectionsBySlug({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusCollectionsBySlugQueryKey(options)
+    });
+};
+
+export const getJesusForPassageQueryKey = (options: Options<GetJesusForPassageData>) => createQueryKey('getJesusForPassage', options);
+
+/**
+ * Events covering a passage
+ * The bridge from ordinary reading — given a verse, the Gospel event(s) that cover it, with their parallel accounts. Called on the reader's hot path, so it returns compact cards only.
+ */
+export const getJesusForPassageOptions = (options: Options<GetJesusForPassageData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusForPassage({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusForPassageQueryKey(options)
+    });
+};
+
+export const getJesusEventsQueryKey = (options?: Options<GetJesusEventsData>) => createQueryKey('getJesusEvents', options);
+
+/**
+ * Browse events
+ * Every category is a view over the graph: ?type=questions is 'every question Jesus asked', ?section=actions is everything He did. Filters are AND-ed.
+ */
+export const getJesusEventsOptions = (options?: Options<GetJesusEventsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusEvents({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEventsQueryKey(options)
+    });
+};
+
+export const getJesusEventsInfiniteQueryKey = (options?: Options<GetJesusEventsData>): QueryKey<Options<GetJesusEventsData>> => createQueryKey('getJesusEvents', options, true);
+
+/**
+ * Browse events
+ * Every category is a view over the graph: ?type=questions is 'every question Jesus asked', ?section=actions is everything He did. Filters are AND-ed.
+ */
+export const getJesusEventsInfiniteOptions = (options?: Options<GetJesusEventsData>) => {
+    return infiniteQueryOptions<GetJesusEventsResponse, DefaultError, InfiniteData<GetJesusEventsResponse>, QueryKey<Options<GetJesusEventsData>>, string | number | Pick<QueryKey<Options<GetJesusEventsData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<GetJesusEventsData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await getJesusEvents({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEventsInfiniteQueryKey(options)
+    });
+};
+
+export const getJesusEventsOverviewQueryKey = (options?: Options<GetJesusEventsOverviewData>) => createQueryKey('getJesusEventsOverview', options);
+
+/**
+ * Hub skeleton (event graph)
+ * Sections, facet types with counts, periods, themes and featured studies. Clients render the hub from this rather than hardcoding the taxonomy.
+ */
+export const getJesusEventsOverviewOptions = (options?: Options<GetJesusEventsOverviewData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusEventsOverview({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEventsOverviewQueryKey(options)
+    });
+};
+
+export const getJesusEventsBrowseByTypeQueryKey = (options: Options<GetJesusEventsBrowseByTypeData>) => createQueryKey('getJesusEventsBrowseByType', options);
+
+/**
+ * One category, grouped by topic
+ * The same corpus as ?type= on /jesus/events, reorganised so a category leads with what He addresses rather than with an undifferentiated list: the category is introduced, each topic says what it is about and quotes what He says there, and the events follow. Returned whole rather than paged — topic headings computed over half a category would misdescribe it.
+ */
+export const getJesusEventsBrowseByTypeOptions = (options: Options<GetJesusEventsBrowseByTypeData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusEventsBrowseByType({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEventsBrowseByTypeQueryKey(options)
+    });
+};
+
+export const getJesusEventsLifeQueryKey = (options?: Options<GetJesusEventsLifeData>) => createQueryKey('getJesusEventsLife', options);
+
+/**
+ * Follow His Life (event graph)
+ * The chronological walk. Each event carries its own chronology confidence, since a harmonized sequence is a reconstruction rather than something scripture specifies.
+ */
+export const getJesusEventsLifeOptions = (options?: Options<GetJesusEventsLifeData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusEventsLife({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEventsLifeQueryKey(options)
+    });
+};
+
+export const getJesusEventsCollectionsBySlugQueryKey = (options: Options<GetJesusEventsCollectionsBySlugData>) => createQueryKey('getJesusEventsCollectionsBySlug', options);
+
+/**
+ * One study, as events
+ */
+export const getJesusEventsCollectionsBySlugOptions = (options: Options<GetJesusEventsCollectionsBySlugData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusEventsCollectionsBySlug({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEventsCollectionsBySlugQueryKey(options)
+    });
+};
+
+export const getJesusEventsBySlugCompareQueryKey = (options: Options<GetJesusEventsBySlugCompareData>) => createQueryKey('getJesusEventsBySlugCompare', options);
+
+/**
+ * Four-Gospel synopsis
+ * One column per Gospel, assembled from stored data — never generated by a model at request time. Accounts that do not record the event come back marked absent so the client can grey the column rather than hide it.
+ */
+export const getJesusEventsBySlugCompareOptions = (options: Options<GetJesusEventsBySlugCompareData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusEventsBySlugCompare({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEventsBySlugCompareQueryKey(options)
+    });
+};
+
+export const getJesusEventsBySlugQueryKey = (options: Options<GetJesusEventsBySlugData>) => createQueryKey('getJesusEventsBySlug', options);
+
+/**
+ * One event in full
+ * Words and actions split for the tabs, passages in the requested Bible version, what the event reveals by channel, reactions, and generated narrative. Also resolves a legacy entry slug, so old /jesus/entry/<slug> links keep working.
+ */
+export const getJesusEventsBySlugOptions = (options: Options<GetJesusEventsBySlugData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getJesusEventsBySlug({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getJesusEventsBySlugQueryKey(options)
+    });
+};
+
+export const getLemmaByStrongsQueryKey = (options: Options<GetLemmaByStrongsData>) => createQueryKey('getLemmaByStrongs', options);
+
+/**
+ * Get a lemma card (Strong's-keyed) in any supported language
+ * Returns the lemma metadata (Greek/Hebrew lemma, transliteration, frequency) plus the translatable cards (pos, basic_gloss, semantic_range, notes, related) in the requested language. English baseline on the `lemmas` row, non-English from `lemma_translations` with field-by-field fallback. 404 if Strong's number isn't in the loaded set.
+ */
+export const getLemmaByStrongsOptions = (options: Options<GetLemmaByStrongsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getLemmaByStrongs({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getLemmaByStrongsQueryKey(options)
+    });
 };
 
 export const getSupportConversationsQueryKey = (options?: Options<GetSupportConversationsData>) => createQueryKey('getSupportConversations', options);
@@ -1398,6 +2368,34 @@ export const postAdminBatchTranslateMutation = (options?: Partial<Options<PostAd
     return mutationOptions;
 };
 
+export const postAdminBatchTranslateStudyMutation = (options?: Partial<Options<PostAdminBatchTranslateStudyData>>): UseMutationOptions<unknown, PostAdminBatchTranslateStudyError, Options<PostAdminBatchTranslateStudyData>> => {
+    const mutationOptions: UseMutationOptions<unknown, PostAdminBatchTranslateStudyError, Options<PostAdminBatchTranslateStudyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postAdminBatchTranslateStudy({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const postAdminBatchExplanationsImpactPreviewMutation = (options?: Partial<Options<PostAdminBatchExplanationsImpactPreviewData>>): UseMutationOptions<PostAdminBatchExplanationsImpactPreviewResponse, PostAdminBatchExplanationsImpactPreviewError, Options<PostAdminBatchExplanationsImpactPreviewData>> => {
+    const mutationOptions: UseMutationOptions<PostAdminBatchExplanationsImpactPreviewResponse, PostAdminBatchExplanationsImpactPreviewError, Options<PostAdminBatchExplanationsImpactPreviewData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postAdminBatchExplanationsImpactPreview({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const deleteAdminBatchByBatchJobIdMutation = (options?: Partial<Options<DeleteAdminBatchByBatchJobIdData>>): UseMutationOptions<DeleteAdminBatchByBatchJobIdResponse, DeleteAdminBatchByBatchJobIdError, Options<DeleteAdminBatchByBatchJobIdData>> => {
     const mutationOptions: UseMutationOptions<DeleteAdminBatchByBatchJobIdResponse, DeleteAdminBatchByBatchJobIdError, Options<DeleteAdminBatchByBatchJobIdData>> = {
         mutationFn: async (fnOptions) => {
@@ -1444,37 +2442,6 @@ export const getAdminBatchHistoryOptions = (options?: Options<GetAdminBatchHisto
         },
         queryKey: getAdminBatchHistoryQueryKey(options)
     });
-};
-
-const createInfiniteParams = <K extends Pick<QueryKey<Options>[0], 'body' | 'headers' | 'path' | 'query'>>(queryKey: QueryKey<Options>, page: K) => {
-    const params = {
-        ...queryKey[0]
-    };
-    if (page.body) {
-        params.body = {
-            ...queryKey[0].body as any,
-            ...page.body as any
-        };
-    }
-    if (page.headers) {
-        params.headers = {
-            ...queryKey[0].headers,
-            ...page.headers
-        };
-    }
-    if (page.path) {
-        params.path = {
-            ...queryKey[0].path as any,
-            ...page.path as any
-        };
-    }
-    if (page.query) {
-        params.query = {
-            ...queryKey[0].query as any,
-            ...page.query as any
-        };
-    }
-    return params as unknown as typeof page;
 };
 
 export const getAdminBatchHistoryInfiniteQueryKey = (options?: Options<GetAdminBatchHistoryData>): QueryKey<Options<GetAdminBatchHistoryData>> => createQueryKey('getAdminBatchHistory', options, true);
@@ -2122,6 +3089,253 @@ export const postAdminTopicsTranslateAllMutation = (options?: Partial<Options<Po
     return mutationOptions;
 };
 
+export const postAdminExplanationsAudioRegenerateMutation = (options?: Partial<Options<PostAdminExplanationsAudioRegenerateData>>): UseMutationOptions<PostAdminExplanationsAudioRegenerateResponse, DefaultError, Options<PostAdminExplanationsAudioRegenerateData>> => {
+    const mutationOptions: UseMutationOptions<PostAdminExplanationsAudioRegenerateResponse, DefaultError, Options<PostAdminExplanationsAudioRegenerateData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postAdminExplanationsAudioRegenerate({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getAdminExplanationsAudioQueryKey = (options?: Options<GetAdminExplanationsAudioData>) => createQueryKey('getAdminExplanationsAudio', options);
+
+export const getAdminExplanationsAudioOptions = (options?: Options<GetAdminExplanationsAudioData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getAdminExplanationsAudio({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getAdminExplanationsAudioQueryKey(options)
+    });
+};
+
+export const getAdminExplanationsAudioInfiniteQueryKey = (options?: Options<GetAdminExplanationsAudioData>): QueryKey<Options<GetAdminExplanationsAudioData>> => createQueryKey('getAdminExplanationsAudio', options, true);
+
+export const getAdminExplanationsAudioInfiniteOptions = (options?: Options<GetAdminExplanationsAudioData>) => {
+    return infiniteQueryOptions<GetAdminExplanationsAudioResponse, DefaultError, InfiniteData<GetAdminExplanationsAudioResponse>, QueryKey<Options<GetAdminExplanationsAudioData>>, string | Pick<QueryKey<Options<GetAdminExplanationsAudioData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<GetAdminExplanationsAudioData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await getAdminExplanationsAudio({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getAdminExplanationsAudioInfiniteQueryKey(options)
+    });
+};
+
+export const deleteAdminExplanationsAudioByAudioIdMutation = (options?: Partial<Options<DeleteAdminExplanationsAudioByAudioIdData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteAdminExplanationsAudioByAudioIdData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<DeleteAdminExplanationsAudioByAudioIdData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteAdminExplanationsAudioByAudioId({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getAdminExplanationsAudioByAudioIdQueryKey = (options: Options<GetAdminExplanationsAudioByAudioIdData>) => createQueryKey('getAdminExplanationsAudioByAudioId', options);
+
+export const getAdminExplanationsAudioByAudioIdOptions = (options: Options<GetAdminExplanationsAudioByAudioIdData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getAdminExplanationsAudioByAudioId({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getAdminExplanationsAudioByAudioIdQueryKey(options)
+    });
+};
+
+export const getAdminDailyVersesQueryKey = (options?: Options<GetAdminDailyVersesData>) => createQueryKey('getAdminDailyVerses', options);
+
+export const getAdminDailyVersesOptions = (options?: Options<GetAdminDailyVersesData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getAdminDailyVerses({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getAdminDailyVersesQueryKey(options)
+    });
+};
+
+export const getAdminDailyVersesInfiniteQueryKey = (options?: Options<GetAdminDailyVersesData>): QueryKey<Options<GetAdminDailyVersesData>> => createQueryKey('getAdminDailyVerses', options, true);
+
+export const getAdminDailyVersesInfiniteOptions = (options?: Options<GetAdminDailyVersesData>) => {
+    return infiniteQueryOptions<GetAdminDailyVersesResponse, GetAdminDailyVersesError, InfiniteData<GetAdminDailyVersesResponse>, QueryKey<Options<GetAdminDailyVersesData>>, string | Pick<QueryKey<Options<GetAdminDailyVersesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<GetAdminDailyVersesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await getAdminDailyVerses({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getAdminDailyVersesInfiniteQueryKey(options)
+    });
+};
+
+export const postAdminDailyVersesMutation = (options?: Partial<Options<PostAdminDailyVersesData>>): UseMutationOptions<PostAdminDailyVersesResponse, PostAdminDailyVersesError, Options<PostAdminDailyVersesData>> => {
+    const mutationOptions: UseMutationOptions<PostAdminDailyVersesResponse, PostAdminDailyVersesError, Options<PostAdminDailyVersesData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postAdminDailyVerses({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getAdminDailyVersesHistoryQueryKey = (options?: Options<GetAdminDailyVersesHistoryData>) => createQueryKey('getAdminDailyVersesHistory', options);
+
+export const getAdminDailyVersesHistoryOptions = (options?: Options<GetAdminDailyVersesHistoryData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getAdminDailyVersesHistory({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getAdminDailyVersesHistoryQueryKey(options)
+    });
+};
+
+export const getAdminDailyVersesHistoryInfiniteQueryKey = (options?: Options<GetAdminDailyVersesHistoryData>): QueryKey<Options<GetAdminDailyVersesHistoryData>> => createQueryKey('getAdminDailyVersesHistory', options, true);
+
+export const getAdminDailyVersesHistoryInfiniteOptions = (options?: Options<GetAdminDailyVersesHistoryData>) => {
+    return infiniteQueryOptions<GetAdminDailyVersesHistoryResponse, GetAdminDailyVersesHistoryError, InfiniteData<GetAdminDailyVersesHistoryResponse>, QueryKey<Options<GetAdminDailyVersesHistoryData>>, string | Pick<QueryKey<Options<GetAdminDailyVersesHistoryData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<GetAdminDailyVersesHistoryData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await getAdminDailyVersesHistory({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getAdminDailyVersesHistoryInfiniteQueryKey(options)
+    });
+};
+
+export const deleteAdminDailyVersesByIdMutation = (options?: Partial<Options<DeleteAdminDailyVersesByIdData>>): UseMutationOptions<DeleteAdminDailyVersesByIdResponse, DeleteAdminDailyVersesByIdError, Options<DeleteAdminDailyVersesByIdData>> => {
+    const mutationOptions: UseMutationOptions<DeleteAdminDailyVersesByIdResponse, DeleteAdminDailyVersesByIdError, Options<DeleteAdminDailyVersesByIdData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteAdminDailyVersesById({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const putAdminDailyVersesByIdMutation = (options?: Partial<Options<PutAdminDailyVersesByIdData>>): UseMutationOptions<PutAdminDailyVersesByIdResponse, PutAdminDailyVersesByIdError, Options<PutAdminDailyVersesByIdData>> => {
+    const mutationOptions: UseMutationOptions<PutAdminDailyVersesByIdResponse, PutAdminDailyVersesByIdError, Options<PutAdminDailyVersesByIdData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putAdminDailyVersesById({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getAdminDailyVerseTagsQueryKey = (options?: Options<GetAdminDailyVerseTagsData>) => createQueryKey('getAdminDailyVerseTags', options);
+
+export const getAdminDailyVerseTagsOptions = (options?: Options<GetAdminDailyVerseTagsData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getAdminDailyVerseTags({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getAdminDailyVerseTagsQueryKey(options)
+    });
+};
+
+export const postAdminDailyVerseTagsMutation = (options?: Partial<Options<PostAdminDailyVerseTagsData>>): UseMutationOptions<PostAdminDailyVerseTagsResponse, PostAdminDailyVerseTagsError, Options<PostAdminDailyVerseTagsData>> => {
+    const mutationOptions: UseMutationOptions<PostAdminDailyVerseTagsResponse, PostAdminDailyVerseTagsError, Options<PostAdminDailyVerseTagsData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postAdminDailyVerseTags({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const postAdminBatchAutoHighlightsMutation = (options?: Partial<Options<PostAdminBatchAutoHighlightsData>>): UseMutationOptions<unknown, DefaultError, Options<PostAdminBatchAutoHighlightsData>> => {
     const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<PostAdminBatchAutoHighlightsData>> = {
         mutationFn: async (fnOptions) => {
@@ -2260,6 +3474,111 @@ export const postAdminCommentaryGradeMutation = (options?: Partial<Options<PostA
     return mutationOptions;
 };
 
+export const getOfflineManifestQueryKey = (options?: Options<GetOfflineManifestData>) => createQueryKey('getOfflineManifest', options);
+
+/**
+ * Get offline content manifest
+ * Returns available Bible versions, commentary languages, and topic languages with their last update timestamps and estimated sizes.
+ */
+export const getOfflineManifestOptions = (options?: Options<GetOfflineManifestData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getOfflineManifest({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getOfflineManifestQueryKey(options)
+    });
+};
+
+export const getOfflineBibleByVersionKeyQueryKey = (options: Options<GetOfflineBibleByVersionKeyData>) => createQueryKey('getOfflineBibleByVersionKey', options);
+
+/**
+ * Download Bible version data
+ * Returns all verses for a specific Bible version as gzip-compressed JSON. Supports If-Modified-Since header for conditional requests.
+ */
+export const getOfflineBibleByVersionKeyOptions = (options: Options<GetOfflineBibleByVersionKeyData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getOfflineBibleByVersionKey({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getOfflineBibleByVersionKeyQueryKey(options)
+    });
+};
+
+export const getOfflineCommentariesByLanguageCodeQueryKey = (options: Options<GetOfflineCommentariesByLanguageCodeData>) => createQueryKey('getOfflineCommentariesByLanguageCode', options);
+
+/**
+ * Download commentaries for a language
+ * Returns all active explanations/commentaries for a specific language as gzip-compressed JSON. Supports If-Modified-Since header for conditional requests.
+ */
+export const getOfflineCommentariesByLanguageCodeOptions = (options: Options<GetOfflineCommentariesByLanguageCodeData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getOfflineCommentariesByLanguageCode({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getOfflineCommentariesByLanguageCodeQueryKey(options)
+    });
+};
+
+export const getOfflineTopicsByLanguageCodeQueryKey = (options: Options<GetOfflineTopicsByLanguageCodeData>) => createQueryKey('getOfflineTopicsByLanguageCode', options);
+
+/**
+ * Download topics for a language
+ * Returns all topics and their references for a specific language as gzip-compressed JSON. Supports If-Modified-Since header for conditional requests.
+ */
+export const getOfflineTopicsByLanguageCodeOptions = (options: Options<GetOfflineTopicsByLanguageCodeData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getOfflineTopicsByLanguageCode({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getOfflineTopicsByLanguageCodeQueryKey(options)
+    });
+};
+
+export const getOfflineUserDataQueryKey = (options?: Options<GetOfflineUserDataData>) => createQueryKey('getOfflineUserData', options);
+
+/**
+ * Download user data
+ * Returns all notes, highlights, and bookmarks for the authenticated user as gzip-compressed JSON.
+ */
+export const getOfflineUserDataOptions = (options?: Options<GetOfflineUserDataData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getOfflineUserData({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getOfflineUserDataQueryKey(options)
+    });
+};
+
 export const getHealthQueryKey = (options?: Options<GetHealthData>) => createQueryKey('getHealth', options);
 
 export const getHealthOptions = (options?: Options<GetHealthData>) => {
@@ -2326,4 +3645,35 @@ export const getHealthAllOptions = (options?: Options<GetHealthAllData>) => {
         },
         queryKey: getHealthAllQueryKey(options)
     });
+};
+
+export const getApiVersionPolicyQueryKey = (options?: Options<GetApiVersionPolicyData>) => createQueryKey('getApiVersionPolicy', options);
+
+export const getApiVersionPolicyOptions = (options?: Options<GetApiVersionPolicyData>) => {
+    return queryOptions({
+        queryFn: async ({ queryKey, signal }) => {
+            const { data } = await getApiVersionPolicy({
+                ...options,
+                ...queryKey[0],
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: getApiVersionPolicyQueryKey(options)
+    });
+};
+
+export const postApiVersionPolicyMutation = (options?: Partial<Options<PostApiVersionPolicyData>>): UseMutationOptions<unknown, DefaultError, Options<PostApiVersionPolicyData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<PostApiVersionPolicyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postApiVersionPolicy({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
 };

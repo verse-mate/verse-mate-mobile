@@ -38,7 +38,13 @@ export interface UseAudioProgressResult {
 export function useAudioProgress(args: UseAudioProgressArgs = {}): UseAudioProgressResult {
   const { disabled = false } = args;
   const player = useAudioPlayer();
-  const track = player.currentTrack;
+  /**
+   * Resume positions are stored server-side against an explanation id, so this
+   * hook only applies to explanation narration. Scripture tracks (Bible Brain)
+   * have no explanation row — reporting progress for one would write against an
+   * id that does not exist — so they are treated exactly like "no track".
+   */
+  const track = player.currentTrack?.kind === 'explanation' ? player.currentTrack : null;
   const playbackState = player.playbackState;
 
   const [resumeProgress, setResumeProgress] = useState<ResumeProgress | null>(null);

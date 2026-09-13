@@ -41,7 +41,7 @@ class DottedUnderlineTextModule : Module() {
     Name("DottedUnderlineText")
 
     View(DottedUnderlineTextView::class) {
-      Events("onPress", "onRangeTap")
+      Events("onTextPress", "onRangeTap")
 
       Prop("text") { view: DottedUnderlineTextView, value: String? ->
         view.setText(value ?: "")

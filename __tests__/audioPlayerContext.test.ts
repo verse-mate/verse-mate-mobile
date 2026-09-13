@@ -19,6 +19,7 @@ import {
 } from '../contexts/AudioPlayerContext';
 
 const sample: AudioTrack = {
+  kind: 'explanation',
   audio_id: 'a-1',
   explanation_id: 42,
   url: 'https://cdn.test/audio.mp3',
@@ -47,7 +48,11 @@ describe('mobile audioReducer', () => {
       },
       { type: 'LOAD', track: sample }
     );
-    expect(next.currentTrack?.audio_id).toBe('a-1');
+    // `audio_id` is explanation-only now that AudioTrack is a union.
+    expect(next.currentTrack?.kind).toBe('explanation');
+    expect(next.currentTrack?.kind === 'explanation' ? next.currentTrack.audio_id : null).toBe(
+      'a-1'
+    );
     expect(next.playbackState).toBe('loading');
     expect(next.dockVisible).toBe(true);
   });

@@ -57,6 +57,7 @@ import { ProgressBar } from '@/components/bible/ProgressBar';
 import { SimpleChapterPager } from '@/components/bible/SimpleChapterPager';
 import { SkeletonLoader } from '@/components/bible/SkeletonLoader';
 import { bookHasVisuals } from '@/components/bible/VisualsPanel';
+import { ScriptureAudioButton } from '@/components/bible-brain/ScriptureAudioButton';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { SplitView } from '@/components/ui/SplitView';
 import { useAuth } from '@/contexts/AuthContext';
@@ -899,6 +900,7 @@ export default function ChapterScreen() {
                 setIsMenuOpen(true);
               }}
               bibleVersion={bibleVersion}
+              audioBookId={bookId}
             />
 
             {/* Content Tabs - Only visible in Explanations view. The
@@ -1042,9 +1044,12 @@ interface ChapterHeaderProps {
    * translation they're reading without opening the settings dropdown.
    */
   bibleVersion?: string;
+  /** Book id for the narration button; omitted where audio is not offered. */
+  audioBookId?: number;
 }
 
 function ChapterHeader({
+  audioBookId,
   bookName,
   chapterNumber,
   activeView,
@@ -1142,6 +1147,14 @@ function ChapterHeader({
 
       {/* Action Icons */}
       <View style={styles.headerActions}>
+        {/* Narration toggle — sits to the LEFT of the Bible/Insight pill so the
+            controls that were already here (offline dot, menu) keep the
+            positions people reach for. Bible view only; the Insight view has
+            its own explanation-audio entry. Details live in the player dock. */}
+        {activeView === 'bible' && audioBookId ? (
+          <ScriptureAudioButton bookId={audioBookId} chapterNumber={chapterNumber} />
+        ) : null}
+
         {/* Bible/Commentary Toggle (Figma pill-style) */}
         <View style={styles.toggleContainer}>
           {/* Sliding indicator background */}
