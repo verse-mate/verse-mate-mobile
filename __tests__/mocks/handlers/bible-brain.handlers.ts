@@ -34,6 +34,8 @@ const TIMED_FILESETS = new Set([
   'ENGESVN1DA-opus16',
   'ENGESVO1DA',
   'ENGESHN1DA',
+  'ENGKJVN1DA',
+  'ENGKJVO1DA',
   'ENGNLHN1DA',
   'ENGNKJN1DA',
 ]);
@@ -83,6 +85,19 @@ export const mockScriptureVersions = [
     offline_capable: false,
   },
   {
+    abbr: 'ENGKJV',
+    name: 'King James Version',
+    language: 'English: USA',
+    iso: 'eng',
+    text_filesets: [{ id: 'ENGKJV', type: 'text_plain', size: 'C', offline_capable: false }],
+    audio_filesets: [
+      { id: 'ENGKJVN1DA', type: 'audio', size: 'NT', offline_capable: true },
+      { id: 'ENGKJVO1DA', type: 'audio', size: 'OT', offline_capable: true },
+    ],
+    has_verse_timing: true,
+    offline_capable: true,
+  },
+  {
     abbr: 'ENGBER',
     name: 'English - Berean Standard',
     language: 'English: USA',
@@ -116,7 +131,21 @@ export const mockJohn3Timestamps = [
   { verse: 6, seconds: 47.88 },
 ];
 
+/** The app's own catalogue — this is what carries `language_code`. */
+export const mockAppBibleVersions = [
+  {
+    version_key: 'NASB1995',
+    version_name: 'New American Standard Bible 1995',
+    language_code: 'en-US',
+  },
+  { version_key: 'KJV', version_name: 'King James (Authorized) Version', language_code: 'en' },
+  { version_key: 'SCH51', version_name: 'Schlachter-Bibel 1951', language_code: 'de' },
+  { version_key: 'VDC', version_name: 'Biblia Cornilescu 1924', language_code: 'ro' },
+];
+
 export const bibleBrainHandlers = [
+  http.get(`${BIBLE_API_BASE_URL}/bible/versions`, () => HttpResponse.json(mockAppBibleVersions)),
+
   http.get(`${BIBLE_API_BASE_URL}/bible/brain/versions`, ({ request }) => {
     const language = new URL(request.url).searchParams.get('language');
     if (!language) {

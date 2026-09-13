@@ -37,6 +37,11 @@ jest.mock('@/hooks/bible-brain/use-scripture-download', () => ({
   }),
 }));
 
+let mockVersion = 'KJV';
+jest.mock('@/hooks/use-bible-version', () => ({
+  useBibleVersion: () => ({ bibleVersion: mockVersion, setBibleVersion: jest.fn() }),
+}));
+
 const mockShowToast = jest.fn();
 jest.mock('@/contexts/ToastContext', () => ({
   useToast: () => ({ showToast: mockShowToast }),
@@ -54,6 +59,7 @@ beforeEach(() => {
   mockShowToast.mockClear();
   mockDownloadedChapters.mockClear();
   mockRemoveFileset.mockClear();
+  mockVersion = 'KJV';
 });
 
 describe('ScriptureAudioSection', () => {
@@ -61,9 +67,9 @@ describe('ScriptureAudioSection', () => {
     render(<ScriptureAudioSection />, { wrapper });
     await waitFor(() => expect(screen.getByTestId('scripture-audio-version-ENGESV')).toBeTruthy());
     expect(screen.getByTestId('scripture-audio-version-ENGBER')).toBeTruthy();
-    // NLT is stream-only: named, but not a selectable download row.
-    expect(screen.queryByTestId('scripture-audio-version-ENGNLH')).toBeNull();
-    expect(screen.getByTestId('scripture-audio-streamonly-ENGNLH')).toBeTruthy();
+    // NLT is stream-only: listed, but with no download affordance.
+    expect(screen.getByText('streaming only')).toBeTruthy();
+    expect(screen.getByTestId('scripture-audio-version-ENGNLH')).toBeTruthy();
   });
 
   it('expands into a per-book list with the copyright notice', async () => {

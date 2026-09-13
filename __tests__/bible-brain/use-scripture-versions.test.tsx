@@ -29,7 +29,7 @@ describe('useScriptureVersions', () => {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.versions).toHaveLength(5);
+    expect(result.current.versions).toHaveLength(6);
   });
 
   it('buckets downloadable versions separately from stream-only ones', async () => {
@@ -41,6 +41,7 @@ describe('useScriptureVersions', () => {
     expect(result.current.offlineCapable.map((v) => v.abbr)).toEqual([
       'EN1ESV',
       'ENGESV',
+      'ENGKJV',
       'ENGBER',
     ]);
     // NLT is timed but may only be streamed — it must be offered, just not
@@ -64,7 +65,7 @@ describe('useScriptureVersions', () => {
     });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     // ENGBER is downloadable but untimed, so it must not appear here.
-    expect(result.current.bestForReader.map((v) => v.abbr)).toEqual(['EN1ESV', 'ENGESV']);
+    expect(result.current.bestForReader.map((v) => v.abbr)).toEqual(['EN1ESV', 'ENGESV', 'ENGKJV']);
   });
 
   it('returns empty buckets for a language with no content', async () => {

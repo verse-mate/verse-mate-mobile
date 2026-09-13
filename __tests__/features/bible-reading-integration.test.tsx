@@ -212,7 +212,7 @@ function renderWithSafeArea(component: React.ReactElement) {
           }}
         >
           <ToastProvider>
-            {/* The reader hosts <ScriptureListenBar />, which reads the shared
+            {/* The reader hosts <ScriptureAudioButton />, which reads the shared
                 audio player (provided by app/_layout.tsx in the real app). */}
             <AudioPlayerProvider engine={new StubAudioEngine()}>{children}</AudioPlayerProvider>
           </ToastProvider>

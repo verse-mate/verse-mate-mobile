@@ -11,10 +11,16 @@ import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nextSpeed, SPEED_OPTIONS } from '@/components/bible/AudioInlineEntry';
-import { trackDisplayLabel, useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import { isScriptureTrack, trackDisplayLabel, useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useVerseSync } from '@/hooks/bible-brain/use-verse-sync';
 
-const TAB_BAR_OFFSET = 60;
+/**
+ * The dock sits directly on top of the reader's 6px progress bar. It used to
+ * float 60px up, which read as "hovering in the middle of the text" rather
+ * than as a player anchored to the bottom of the screen.
+ */
+const PROGRESS_BAR_HEIGHT = 6;
 
 function formatSpeed(speed: number): string {
   return `${speed % 1 === 0 ? speed.toFixed(0) : speed}×`;
@@ -32,6 +38,9 @@ export function AudioDockBar() {
   const styles = useMemo(() => createStyles(colors, insets.bottom), [colors, insets.bottom]);
   const player = useAudioPlayer();
   const track = player.currentTrack;
+  // Follow-along readout lives here, not in the header — the header only
+  // toggles playback. Inert for explanation audio.
+  const { activeVerse } = useVerseSync();
   const state = player.playbackState;
 
   if (!track || !player.dockVisible) return null;
@@ -53,6 +62,7 @@ export function AudioDockBar() {
       >
         <Text style={styles.title} numberOfLines={1}>
           {label.primary} · {label.secondary}
+          {isScriptureTrack(track) && activeVerse !== null ? ` · v${activeVerse}` : ''}
         </Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
@@ -107,7 +117,7 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors'], bottomInset
       position: 'absolute',
       left: 0,
       right: 0,
-      bottom: bottomInset + TAB_BAR_OFFSET,
+      bottom: bottomInset + PROGRESS_BAR_HEIGHT,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
