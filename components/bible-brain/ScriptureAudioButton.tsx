@@ -20,7 +20,7 @@ import { filesetFor, useScriptureForVersion } from '@/hooks/bible-brain/use-scri
 import { pickAudioFileset } from '@/hooks/bible-brain/use-scripture-versions';
 import { fetchVerseTimestamps } from '@/lib/bible-brain/api';
 import { usfmForBookId } from '@/lib/bible-brain/usfm-books';
-import { spacing } from '@/theme/tokens';
+import { getHeaderSpecs, spacing } from '@/theme/tokens';
 
 export interface ScriptureAudioButtonProps {
   bookId: number;
@@ -28,7 +28,14 @@ export interface ScriptureAudioButtonProps {
 }
 
 export function ScriptureAudioButton({ bookId, chapterNumber }: ScriptureAudioButtonProps) {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
+  /**
+   * The reader header is black in BOTH themes, so the icon colour must come
+   * from the header's own spec, not from `colors.textPrimary` — that is black
+   * in light mode, which made the speaker invisible against the black bar.
+   * Same source the chevron and the hamburger beside it already use.
+   */
+  const headerIconColor = getHeaderSpecs(mode).iconColor;
   const player = useAudioPlayer();
   const { playChapter, isPreparing } = useScriptureAudio();
   const { preferred, versions, language } = useScriptureForVersion();
@@ -118,7 +125,7 @@ export function ScriptureAudioButton({ bookId, chapterNumber }: ScriptureAudioBu
         <Ionicons
           name={isPlaying ? 'volume-high' : 'volume-medium-outline'}
           size={22}
-          color={isPlaying ? colors.gold : colors.textPrimary}
+          color={isPlaying ? colors.gold : headerIconColor}
         />
       )}
     </Pressable>

@@ -68,9 +68,14 @@ export function AudioDockBar() {
         style={styles.body}
         onPress={() => player.openFullScreen()}
       >
+        {/* Reference and live verse first, version name last. One line is all
+            there is, and "English Standard Version®" is long enough to eat it
+            whole — which hid the verse readout entirely. The part that changes
+            as you listen is the part that must survive the truncation. */}
         <Text style={styles.title} numberOfLines={1}>
-          {label.primary} · {label.secondary}
-          {isScriptureTrack(track) && activeVerse !== null ? ` · v${activeVerse}` : ''}
+          {label.secondary}
+          {isScriptureTrack(track) && activeVerse !== null ? ` · v${activeVerse}` : ''} ·{' '}
+          <Text style={styles.titleSecondary}>{label.primary}</Text>
         </Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
@@ -154,6 +159,10 @@ function createStyles(
       color: colors.textPrimary,
       fontSize: 14,
       fontWeight: '600',
+    },
+    titleSecondary: {
+      color: colors.gray500,
+      fontWeight: '400',
     },
     progressTrack: {
       height: 3,
