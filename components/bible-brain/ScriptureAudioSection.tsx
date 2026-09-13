@@ -21,12 +21,28 @@ import { pickAudioFileset } from '@/hooks/bible-brain/use-scripture-versions';
 import type { ScriptureVersion } from '@/lib/bible-brain/api';
 import { isSameTranslation } from '@/lib/bible-brain/language';
 import { estimateChapterBytes } from '@/lib/bible-brain/scripture-storage';
-import { chaptersForBook, usfmForBookId } from '@/lib/bible-brain/usfm-books';
+import { chaptersForBook, chaptersForTestament, usfmForBookId } from '@/lib/bible-brain/usfm-books';
 import { fontSizes, spacing } from '@/theme/tokens';
 import { ScriptureCopyright } from './ScriptureCopyright';
 
 /** Bible Brain chapters average ~4 minutes; used only for a pre-download hint. */
 const AVERAGE_CHAPTER_SECONDS = 240;
+
+const BULK_LABELS = {
+  NT: 'New Testament',
+  OT: 'Old Testament',
+  ALL: 'Whole Bible',
+} as const;
+
+/** Chapters in a testament, from the reader's own book metadata. */
+function bulkChapterCount(
+  filesets: { NT: string | null; OT: string | null },
+  testament: 'NT' | 'OT'
+): number {
+  const filesetId = filesets[testament];
+  if (!filesetId) return 0;
+  return chaptersForTestament(filesetId, testament).length;
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -50,6 +66,7 @@ export function ScriptureAudioSection() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [downloadedBooks, setDownloadedBooks] = useState<Set<number>>(new Set());
   const [busyBookId, setBusyBookId] = useState<number | null>(null);
+  const [bulkScope, setBulkScope] = useState<'NT' | 'OT' | 'ALL' | null>(null);
 
   const selected = useMemo(
     () => offlineCapable.find((v) => v.abbr === expanded) ?? null,
@@ -122,6 +139,48 @@ export function ScriptureAudioSection() {
       showToast(`${bookName} available offline`);
     } finally {
       setBusyBookId(null);
+    }
+  };
+
+  /**
+   * Whole-testament and whole-Bible downloads. Per-book was the only option,
+   * and "download the New Testament" meant 27 taps. Filesets are per testament
+   * (`…N1DA` / `…O1DA`), so the whole Bible is two runs, not one.
+   */
+  const handleDownloadBulk = async (scope: 'NT' | 'OT' | 'ALL') => {
+    if (!selected) return;
+    const parts: { testament: 'NT' | 'OT'; filesetId: string }[] = [];
+    for (const testament of scope === 'ALL' ? (['OT', 'NT'] as const) : [scope]) {
+      const filesetId = testament === 'NT' ? ntFilesetId : otFilesetId;
+      if (filesetId) parts.push({ testament, filesetId });
+    }
+    if (parts.length === 0) return;
+
+    setBulkScope(scope);
+    try {
+      let downloaded = 0;
+      let failed = 0;
+      let notLicensed = 0;
+      for (const part of parts) {
+        const outcome = await downloader.download(
+          chaptersForTestament(part.filesetId, part.testament)
+        );
+        if (!outcome) continue;
+        downloaded += outcome.downloaded;
+        failed += outcome.failed.length;
+        notLicensed += outcome.notLicensed.length;
+      }
+      if (downloaded === 0 && notLicensed > 0) {
+        showToast(`${selected.abbr} can only be streamed`);
+        return;
+      }
+      if (failed > 0) {
+        showToast(`${downloaded} chapters saved, ${failed} failed`);
+        return;
+      }
+      showToast(`${BULK_LABELS[scope]} available offline`);
+    } finally {
+      setBulkScope(null);
     }
   };
 
@@ -202,6 +261,62 @@ export function ScriptureAudioSection() {
         {isOpen && hasAnyFileset ? (
           <View style={styles.bookPanel} testID={`scripture-audio-books-${version.abbr}`}>
             <ScriptureCopyright bibleId={version.abbr} />
+
+            {/* Whole-testament shortcuts. 27 taps for a New Testament was not
+                a real option; the estimate is on the row because these run to
+                hundreds of megabytes. */}
+            {(
+              [
+                filesets.NT && filesets.OT ? ('ALL' as const) : null,
+                filesets.NT ? ('NT' as const) : null,
+                filesets.OT ? ('OT' as const) : null,
+              ].filter(Boolean) as ('NT' | 'OT' | 'ALL')[]
+            ).map((scope) => {
+              const chapters =
+                scope === 'ALL'
+                  ? bulkChapterCount(filesets, 'NT') + bulkChapterCount(filesets, 'OT')
+                  : bulkChapterCount(filesets, scope);
+              const sizingFileset =
+                (scope === 'OT' ? filesets.OT : filesets.NT) ?? filesets.OT ?? filesets.NT ?? '';
+              const estimate = formatBytes(
+                chapters * estimateChapterBytes(AVERAGE_CHAPTER_SECONDS, sizingFileset)
+              );
+              return (
+                <View key={scope} style={[styles.bulkRow, { borderBottomColor: colors.divider }]}>
+                  <View style={styles.bookInfo}>
+                    <Text style={[styles.bulkName, { color: colors.textPrimary }]}>
+                      {BULK_LABELS[scope]}
+                    </Text>
+                    <Text style={[styles.meta, { color: colors.textSecondary }]}>
+                      {chapters} chapters · ~{estimate}
+                    </Text>
+                  </View>
+                  {bulkScope === scope ? (
+                    <ActivityIndicator color={colors.gold} />
+                  ) : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Download ${BULK_LABELS[scope]} narration`}
+                      testID={`scripture-audio-download-all-${scope}`}
+                      hitSlop={8}
+                      disabled={bulkScope !== null || downloader.isDownloading}
+                      onPress={() => handleDownloadBulk(scope)}
+                    >
+                      <Ionicons name="cloud-download-outline" size={22} color={colors.gold} />
+                    </Pressable>
+                  )}
+                </View>
+              );
+            })}
+
+            {downloader.isDownloading && bulkScope ? (
+              <Text
+                testID="scripture-audio-bulk-progress"
+                style={[styles.meta, styles.bulkProgress, { color: colors.textSecondary }]}
+              >
+                {downloader.currentLabel ?? ''} ({downloader.completed}/{downloader.total})
+              </Text>
+            ) : null}
             {BIBLE_BOOKS.map((book) => {
               // A version narrated for the NT only must not offer Genesis.
               const filesetId = filesets[book.testament];
@@ -319,6 +434,16 @@ const styles = StyleSheet.create({
   badgeTextOn: { fontSize: fontSizes.caption, color: '#FFFFFF', fontWeight: '600' },
   meta: { fontSize: fontSizes.caption },
   bookPanel: { paddingBottom: spacing.sm },
+  bulkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  bulkName: { fontSize: fontSizes.bodySmall, fontWeight: '600' },
+  bulkProgress: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
   bookRow: {
     flexDirection: 'row',
     alignItems: 'center',

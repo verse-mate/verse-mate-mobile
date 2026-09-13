@@ -38,7 +38,7 @@ export function ScriptureAudioButton({ bookId, chapterNumber }: ScriptureAudioBu
   const headerIconColor = getHeaderSpecs(mode).iconColor;
   const player = useAudioPlayer();
   const { playChapter, isPreparing } = useScriptureAudio();
-  const { preferred, versions, language } = useScriptureForVersion();
+  const { preferred, versions, language, chosenVoiceAbbr } = useScriptureForVersion();
 
   const book = getBookById(bookId);
   const usfm = usfmForBookId(bookId);
@@ -52,10 +52,17 @@ export function ScriptureAudioButton({ bookId, chapterNumber }: ScriptureAudioBu
   const timedCache = useRef(new Map<string, boolean>());
   const resolveFileset = useCallback(async () => {
     if (!usfm || !book) return null;
-    const ordered = [
-      ...(preferred ? [preferred] : []),
-      ...versions.filter((v) => v !== preferred && v.audio_filesets.length > 0),
-    ];
+    // Falling through to another voice is a convenience for the automatic
+    // pick, not something to do behind the back of someone who chose one:
+    // an explicit choice plays even where this chapter has no timing.
+    const ordered = chosenVoiceAbbr
+      ? preferred
+        ? [preferred]
+        : []
+      : [
+          ...(preferred ? [preferred] : []),
+          ...versions.filter((v) => v !== preferred && v.audio_filesets.length > 0),
+        ];
     for (const version of ordered) {
       const filesetId = pickAudioFileset(version, book.testament);
       if (!filesetId) continue;
@@ -79,7 +86,7 @@ export function ScriptureAudioButton({ bookId, chapterNumber }: ScriptureAudioBu
     // Nothing timed for this chapter — still play, just without follow-along.
     const fallback = filesetFor(preferred, book.testament);
     return preferred && fallback ? { version: preferred, filesetId: fallback } : null;
-  }, [preferred, versions, book, usfm, chapterNumber]);
+  }, [preferred, versions, book, usfm, chapterNumber, chosenVoiceAbbr]);
 
   if (!book || !usfm || !language || !preferred) return null;
 

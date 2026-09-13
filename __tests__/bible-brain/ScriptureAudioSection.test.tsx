@@ -180,6 +180,47 @@ describe('ScriptureAudioSection', () => {
     await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith('Genesis narration removed'));
   });
 
+  it("downloads a whole testament in one tap, from that testament's fileset", async () => {
+    render(<ScriptureAudioSection />, { wrapper });
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-version-ENGESV')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('scripture-audio-version-ENGESV'));
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-download-all-NT')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('scripture-audio-download-all-NT'));
+
+    await waitFor(() => expect(mockDownload).toHaveBeenCalledTimes(1));
+    const refs = mockDownload.mock.calls[0][0];
+    expect(refs).toHaveLength(260); // 27 NT books
+    expect(refs.every((r: { filesetId: string }) => r.filesetId === 'ENGESVN1DA')).toBe(true);
+    expect(refs[0]).toEqual({ filesetId: 'ENGESVN1DA', book: 'MAT', chapter: 1 });
+  });
+
+  it('downloads the whole Bible as one OT run and one NT run', async () => {
+    render(<ScriptureAudioSection />, { wrapper });
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-version-ENGESV')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('scripture-audio-version-ENGESV'));
+    await waitFor(() =>
+      expect(screen.getByTestId('scripture-audio-download-all-ALL')).toBeTruthy()
+    );
+    fireEvent.press(screen.getByTestId('scripture-audio-download-all-ALL'));
+
+    // Two runs, because a fileset covers one testament and no more.
+    await waitFor(() => expect(mockDownload).toHaveBeenCalledTimes(2));
+    expect(mockDownload.mock.calls[0][0][0].filesetId).toBe('ENGESVO1DA');
+    expect(mockDownload.mock.calls[1][0][0].filesetId).toBe('ENGESVN1DA');
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith('Whole Bible available offline')
+    );
+  });
+
+  it('offers no whole-Bible option for a version narrated for the NT alone', async () => {
+    render(<ScriptureAudioSection />, { wrapper });
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-version-ENGBER')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('scripture-audio-version-ENGBER'));
+    await waitFor(() => expect(screen.getByTestId('scripture-audio-download-all-NT')).toBeTruthy());
+    expect(screen.queryByTestId('scripture-audio-download-all-ALL')).toBeNull();
+    expect(screen.queryByTestId('scripture-audio-download-all-OT')).toBeNull();
+  });
+
   it('collapses the book list when the version is tapped again', async () => {
     render(<ScriptureAudioSection />, { wrapper });
     await waitFor(() => expect(screen.getByTestId('scripture-audio-version-ENGESV')).toBeTruthy());

@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
 import React, { type ReactNode } from 'react';
 import { useScriptureForVersion } from '@/hooks/bible-brain/use-scripture-for-version';
+import { resetCachedScriptureVoice } from '@/hooks/bible-brain/use-scripture-voice';
 
 jest.setTimeout(20_000);
 
@@ -14,6 +15,21 @@ let mockVersion = 'NASB1995';
 jest.mock('@/hooks/use-bible-version', () => ({
   useBibleVersion: () => ({ bibleVersion: mockVersion, setBibleVersion: jest.fn() }),
 }));
+
+let mockVoice: string | null = null;
+jest.mock('@/hooks/bible-brain/use-scripture-voice', () => ({
+  ...jest.requireActual('@/hooks/bible-brain/use-scripture-voice'),
+  useScriptureVoice: () => ({
+    voiceAbbr: mockVoice,
+    setVoiceAbbr: jest.fn(),
+    isLoading: false,
+  }),
+}));
+
+beforeEach(() => {
+  mockVoice = null;
+  resetCachedScriptureVoice();
+});
 
 function wrapper({ children }: { children: ReactNode }) {
   const queryClient = new QueryClient({
@@ -49,6 +65,26 @@ describe('useScriptureForVersion', () => {
     expect(result.current.preferredMatchesReading).toBe(false);
     expect(result.current.preferred?.has_verse_timing).toBe(true);
     expect(result.current.preferred?.offline_capable).toBe(true);
+  });
+
+  it('plays the voice the user chose, over the matching translation', async () => {
+    // Reading KJV would default to ENGKJV; an explicit ESV choice wins.
+    mockVersion = 'KJV';
+    mockVoice = 'ENGESV';
+    const { result } = renderHook(() => useScriptureForVersion(), { wrapper });
+    await waitFor(() => expect(result.current.preferred).not.toBeNull());
+    expect(result.current.preferred?.abbr).toBe('ENGESV');
+    expect(result.current.chosenVoiceAbbr).toBe('ENGESV');
+  });
+
+  it('ignores a chosen voice that is not narrated in this language', async () => {
+    // Switching the reader to a German translation must not leave it silent
+    // because an English voice is still stored.
+    mockVersion = 'KJV';
+    mockVoice = 'RONCORNILESCU';
+    const { result } = renderHook(() => useScriptureForVersion(), { wrapper });
+    await waitFor(() => expect(result.current.preferred).not.toBeNull());
+    expect(result.current.preferred?.abbr).toBe('ENGKJV');
   });
 
   it('reports German as having no narration rather than an empty list', async () => {

@@ -11,6 +11,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { pickAudioFileset, useScriptureVersions } from '@/hooks/bible-brain/use-scripture-versions';
+import { useScriptureVoice } from '@/hooks/bible-brain/use-scripture-voice';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import type { ScriptureVersion } from '@/lib/bible-brain/api';
 import { bibleBrainLanguage, isSameTranslation } from '@/lib/bible-brain/language';
@@ -23,8 +24,10 @@ export interface ScriptureForVersionResult {
   versions: ScriptureVersion[];
   offlineCapable: ScriptureVersion[];
   streamOnly: ScriptureVersion[];
-  /** The one to play unless the user overrides it. */
+  /** The one to play: the user's chosen voice, else the automatic pick. */
   preferred: ScriptureVersion | null;
+  /** The stored override, or null when the voice is picked automatically. */
+  chosenVoiceAbbr: string | null;
   /** True when `preferred` is the same translation the user is reading. */
   preferredMatchesReading: boolean;
   /** The app's version key being read, e.g. `NASB1995`. */
@@ -36,6 +39,7 @@ export interface ScriptureForVersionResult {
 
 export function useScriptureForVersion(): ScriptureForVersionResult {
   const { bibleVersion } = useBibleVersion();
+  const { voiceAbbr, isLoading: voiceLoading } = useScriptureVoice();
 
   // The app's own catalogue is what carries `language_code`; it is small and
   // effectively static, so it is cached for the session.
@@ -71,12 +75,18 @@ export function useScriptureForVersion(): ScriptureForVersionResult {
    * "no narration for this language" for a frame before the catalogue lands,
    * which flashes the unavailable state on every mount.
    */
-  const isLoading = catalogueLoading || versionsLoading;
+  const isLoading = catalogueLoading || versionsLoading || voiceLoading;
 
   const preferred = useMemo(() => {
     if (versions.length === 0) return null;
     const withAudio = versions.filter((v) => v.audio_filesets.length > 0);
     if (withAudio.length === 0) return null;
+
+    // 0. An explicit choice wins over everything. Ignored rather than honoured
+    //    when it is not narrated in this language — switching the reader from
+    //    an English to a Romanian translation must not leave it silent.
+    const chosen = voiceAbbr ? withAudio.find((v) => v.abbr === voiceAbbr) : undefined;
+    if (chosen) return chosen;
 
     // 1. The same translation, if it is narrated.
     const exact = bibleVersion
@@ -89,7 +99,7 @@ export function useScriptureForVersion(): ScriptureForVersionResult {
     const score = (v: ScriptureVersion) =>
       (v.has_verse_timing ? 2 : 0) + (v.offline_capable ? 1 : 0);
     return [...withAudio].sort((a, b) => score(b) - score(a))[0] ?? null;
-  }, [versions, bibleVersion]);
+  }, [versions, bibleVersion, voiceAbbr]);
 
   return {
     language,
@@ -97,6 +107,7 @@ export function useScriptureForVersion(): ScriptureForVersionResult {
     offlineCapable,
     streamOnly,
     preferred,
+    chosenVoiceAbbr: voiceAbbr,
     preferredMatchesReading: Boolean(
       preferred && bibleVersion && isSameTranslation(preferred.abbr, bibleVersion)
     ),
