@@ -51,12 +51,14 @@ export default function JesusBrowseScreen() {
   // screen read as "what this set is about" rather than as a directory.
   const sections = useMemo(() => {
     return (data?.topics ?? []).map((topic) => {
-      const quoted = new Set((topic.points ?? []).map((p) => p.slug));
+      // The points are the sayings this topic is built from — quotes, not
+      // links, exactly as on web. EVERY event then follows as a tappable card;
+      // web hides the duplicate quote on a card whose facet was already shown
+      // above rather than dropping the card. Filtering them out instead left
+      // topics whose events were all quoted with nothing to tap at all.
       const rows: Row[] = [
         ...(topic.points ?? []).map((point) => ({ kind: 'point' as const, point })),
-        ...(topic.events ?? [])
-          .filter((e) => !quoted.has(e.slug))
-          .map((event) => ({ kind: 'event' as const, event })),
+        ...(topic.events ?? []).map((event) => ({ kind: 'event' as const, event })),
       ];
       return { key: topic.slug ?? 'other', topic, data: rows };
     });
@@ -173,7 +175,16 @@ export default function JesusBrowseScreen() {
           renderItem={({ item }) =>
             item.kind === 'point' ? (
               <View style={styles.pointCard} testID={`jesus-point-${item.point.slug}`}>
-                <Text style={styles.pointText}>“{item.point.text}”</Text>
+                {/* A WORD facet leads with the saying; an ACTION facet has no
+                    quote at all and leads with the deed. Rendering the quote
+                    marks unconditionally put an empty “” above every miracle. */}
+                {item.point.text ? (
+                  <Text style={styles.pointText}>
+                    {t('jesus.event.quoted', '“{{text}}”', { text: item.point.text })}
+                  </Text>
+                ) : (
+                  <Text style={styles.pointTitle}>{item.point.title}</Text>
+                )}
                 {item.point.summary ? (
                   <Text style={styles.pointSummary}>{item.point.summary}</Text>
                 ) : null}
@@ -281,6 +292,11 @@ function createStyles(colors: Colors) {
       borderLeftColor: colors.gold,
     },
     pointText: { fontSize: fontSizes.body, color: colors.textPrimary, fontStyle: 'italic' },
+    pointTitle: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
     pointSummary: {
       fontSize: fontSizes.bodySmall,
       color: colors.textSecondary,
