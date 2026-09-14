@@ -119,7 +119,16 @@ export default function JesusHubScreen() {
                     accessibilityLabel={`${type.label}, ${type.facet_count}`}
                   >
                     <Text style={styles.tileCount}>{type.facet_count}</Text>
-                    <Text style={styles.tileLabel} numberOfLines={2}>
+                    {/* "Confrontations" is one word wider than a third of a
+                        phone, and RN breaks it mid-word rather than shrinking
+                        it, which reads as a rendering fault. Shrinking a little
+                        keeps the three-column grid and the whole word. */}
+                    <Text
+                      style={styles.tileLabel}
+                      numberOfLines={2}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
                       {type.label}
                     </Text>
                   </Pressable>

@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { uniqueGospels } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusForPassage } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
@@ -60,8 +61,8 @@ export function JesusPassageLink({
         >
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>{event.title}</Text>
-            {event.gospels?.length ? (
-              <Text style={styles.gospels}>{event.gospels.join(' · ')}</Text>
+            {uniqueGospels(event.gospels).length ? (
+              <Text style={styles.gospels}>{uniqueGospels(event.gospels).join(' · ')}</Text>
             ) : null}
           </View>
           <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />

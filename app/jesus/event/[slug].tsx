@@ -22,6 +22,7 @@ import {
   JesusPlaceholder,
   queryPhase,
   SectionHeading,
+  uniqueGospels,
 } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusCompare, useJesusEvent } from '@/hooks/jesus';
@@ -68,7 +69,7 @@ export default function JesusEventScreen() {
     ];
     if (data.words?.length) out.push({ key: 'said', label: t('jesus.event.said', 'Said') });
     if (data.actions?.length) out.push({ key: 'did', label: t('jesus.event.did', 'Did') });
-    if ((data.event?.gospels?.length ?? 0) > 1)
+    if (uniqueGospels(data.event?.gospels).length > 1)
       out.push({ key: 'compare', label: t('jesus.event.compare', 'Compare') });
     if (Object.keys(data.explanation ?? {}).length)
       out.push({ key: 'insight', label: t('jesus.event.insight', 'Insight') });
@@ -341,7 +342,14 @@ function createStyles(colors: Colors) {
       borderBottomColor: 'transparent',
     },
     tabActive: { borderBottomColor: colors.gold },
-    tabText: { fontSize: fontSizes.bodySmall, color: colors.textSecondary },
+    tabText: {
+      fontSize: fontSizes.bodySmall,
+      // Explicit, because the strip is a horizontal ScrollView that sizes to
+      // its content: without it the line box comes out shorter than the glyphs
+      // and iOS clips the descenders, so "Story" renders as "Storv".
+      lineHeight: Math.round(fontSizes.bodySmall * 1.4),
+      color: colors.textSecondary,
+    },
     tabTextActive: { color: colors.gold, fontWeight: fontWeights.semibold },
     metaRow: {
       flexDirection: 'row',
