@@ -80,6 +80,66 @@ describe('JesusBrowseScreen', () => {
     expect(router.push).toHaveBeenCalledWith('/jesus/event/event-storm-stilled');
   });
 
+  it('keeps every event tappable even when its saying is quoted above', () => {
+    // The points are quotes, not links. Dropping the events whose facet was
+    // already quoted left a topic with nothing to tap — web keeps the card and
+    // only hides the repeated quote on it.
+    mockBrowse.mockReturnValue({
+      isPending: false,
+      fetchStatus: 'idle',
+      data: {
+        type: { label: 'Miracles', plural: 'miracles' },
+        topics: [
+          {
+            slug: 'kingdom',
+            name: 'Kingdom',
+            description: null,
+            points: [{ slug: EVENT.slug, title: 'A saying', text: 'Why are you afraid?' }],
+            events: [EVENT],
+          },
+        ],
+        truncated: false,
+      },
+    });
+    render(<JesusBrowseScreen />);
+    fireEvent.press(screen.getByTestId(`jesus-event-${EVENT.slug}`));
+    expect(router.push).toHaveBeenCalledWith(`/jesus/event/${EVENT.slug}`);
+  });
+
+  it('leads an action facet with its deed, not an empty pair of quote marks', () => {
+    // A WORD facet carries `text` (the saying); an ACTION facet does not. The
+    // browse screen quoted it unconditionally, so every miracle card opened
+    // with a bare “” above its summary.
+    mockBrowse.mockReturnValue({
+      isPending: false,
+      fetchStatus: 'idle',
+      data: {
+        type: { label: 'Miracles', plural: 'miracles' },
+        topics: [
+          {
+            slug: 'kingdom',
+            name: 'Kingdom',
+            description: null,
+            events: [],
+            points: [
+              {
+                slug: 'water-into-wine',
+                title: 'Water into wine at Cana',
+                text: null,
+                summary: 'He turns six stone jars of water into the best wine.',
+                reference: 'John 2:1-11',
+              },
+            ],
+          },
+        ],
+        truncated: false,
+      },
+    });
+    render(<JesusBrowseScreen />);
+    expect(screen.getByText('Water into wine at Cana')).toBeTruthy();
+    expect(screen.queryByText('“”')).toBeNull();
+  });
+
   it('states an empty category rather than showing a blank list', () => {
     mockBrowse.mockReturnValue({
       isPending: false,
