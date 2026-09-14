@@ -241,6 +241,9 @@
       "probable": "probable",
       "disputed": "contesté",
       "unknown": "incertain"
+    },
+    "offline": {
+      "message": "Hors ligne — une connexion est nécessaire."
     }
   }
 }

@@ -241,6 +241,9 @@
       "probable": "wahrscheinlich",
       "disputed": "umstritten",
       "unknown": "ungewiss"
+    },
+    "offline": {
+      "message": "Offline — dafür wird eine Verbindung benötigt."
     }
   }
 }

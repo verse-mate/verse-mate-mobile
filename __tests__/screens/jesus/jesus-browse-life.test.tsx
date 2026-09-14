@@ -43,7 +43,8 @@ const EVENT = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockBrowse.mockReturnValue({
-    isLoading: false,
+    isPending: false,
+    fetchStatus: 'idle',
     data: {
       type: { label: 'Questions', intro: 'Jesus asked far more than He answered.' },
       topics: [
@@ -53,7 +54,8 @@ beforeEach(() => {
     },
   });
   mockLife.mockReturnValue({
-    isLoading: false,
+    isPending: false,
+    fetchStatus: 'idle',
     data: [
       {
         slug: 'galilean',
@@ -80,7 +82,8 @@ describe('JesusBrowseScreen', () => {
 
   it('states an empty category rather than showing a blank list', () => {
     mockBrowse.mockReturnValue({
-      isLoading: false,
+      isPending: false,
+      fetchStatus: 'idle',
       data: { type: {}, topics: [], truncated: false },
     });
     render(<JesusBrowseScreen />);
@@ -89,7 +92,8 @@ describe('JesusBrowseScreen', () => {
 
   it('says so when the server cut the category short', () => {
     mockBrowse.mockReturnValue({
-      isLoading: false,
+      isPending: false,
+      fetchStatus: 'idle',
       data: {
         type: { label: 'Questions' },
         topics: [{ slug: 'k', name: 'Kingdom', description: null, events: [EVENT] }],
@@ -109,7 +113,7 @@ describe('JesusLifeScreen', () => {
   });
 
   it('states an empty timeline rather than showing nothing', () => {
-    mockLife.mockReturnValue({ isLoading: false, data: [] });
+    mockLife.mockReturnValue({ isPending: false, fetchStatus: 'idle', data: [] });
     render(<JesusLifeScreen />);
     expect(screen.getByTestId('jesus-life-empty')).toBeTruthy();
   });
@@ -118,7 +122,8 @@ describe('JesusLifeScreen', () => {
     // A SectionList draws the header of an empty section regardless, so an
     // unfiltered period reads as a heading the app forgot to fill.
     mockLife.mockReturnValue({
-      isLoading: false,
+      isPending: false,
+      fetchStatus: 'idle',
       data: [
         { slug: 'hidden', name: 'The Hidden Years', subtitle: null, events: [] },
         { slug: 'galilee', name: 'The Galilean Ministry', subtitle: null, events: [EVENT] },
@@ -131,7 +136,8 @@ describe('JesusLifeScreen', () => {
 
   it('reports an all-empty timeline as empty, not as a list of bare headings', () => {
     mockLife.mockReturnValue({
-      isLoading: false,
+      isPending: false,
+      fetchStatus: 'idle',
       data: [{ slug: 'hidden', name: 'The Hidden Years', subtitle: null, events: [] }],
     });
     render(<JesusLifeScreen />);

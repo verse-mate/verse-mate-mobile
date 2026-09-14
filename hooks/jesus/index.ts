@@ -20,7 +20,12 @@ const STATIC = {
   staleTime: 60 * 60 * 1000, // an hour
   gcTime: 24 * 60 * 60 * 1000,
   refetchOnWindowFocus: false,
-  refetchOnReconnect: false,
+  // Deliberately true, where focus refetching is not. A query started while
+  // NetInfo said offline is PAUSED, not failed, and this is what gets the
+  // corpus onto the screen once the connection comes back rather than leaving
+  // the reader on a placeholder until they navigate away and return. The hour
+  // of stale time means a reconnect with data already in hand costs nothing.
+  refetchOnReconnect: true,
 } as const;
 
 /**

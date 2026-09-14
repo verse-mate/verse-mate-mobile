@@ -241,6 +241,9 @@
       "probable": "probable",
       "disputed": "disputed",
       "unknown": "uncertain"
+    },
+    "offline": {
+      "message": "You're offline — this needs a connection."
     }
   }
 }

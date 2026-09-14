@@ -18,6 +18,27 @@ import type { JesusConfidence, JesusEventCard } from '@/types/jesus';
 
 type Colors = ReturnType<typeof getColors>;
 
+/**
+ * What a Jesus query is actually doing, for screens to branch on.
+ *
+ * `isLoading` is NOT enough. React Query pauses a query when `onlineManager`
+ * reports offline — this app bridges that to NetInfo — and a paused query has
+ * `isLoading: false` with `data: undefined`, because it never started. A screen
+ * that branches on `isLoading` alone falls straight through to its empty state
+ * and tells the reader the corpus is empty when the truth is that the request
+ * was never made. That is the worst available answer: it is wrong, it looks
+ * authoritative, and it gives them nothing to act on.
+ */
+export type QueryPhase = 'loading' | 'offline' | 'ready';
+
+export function queryPhase(query: {
+  isPending: boolean;
+  fetchStatus: 'fetching' | 'paused' | 'idle';
+}): QueryPhase {
+  if (query.fetchStatus === 'paused') return 'offline';
+  return query.isPending ? 'loading' : 'ready';
+}
+
 /** A full-bleed centred state, used for loading and for "nothing here". */
 export function JesusPlaceholder({
   loading,

@@ -14,7 +14,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EventRow, JesusPlaceholder } from '@/components/jesus/JesusParts';
+import { EventRow, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusBrowse } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
@@ -28,7 +28,9 @@ export default function JesusBrowseScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { data, isLoading } = useJesusBrowse(type);
+  const browse = useJesusBrowse(type);
+  const { data } = browse;
+  const phase = queryPhase(browse);
 
   const sections = useMemo(
     () =>
@@ -64,7 +66,12 @@ export default function JesusBrowseScreen() {
         <View style={styles.backButton} />
       </View>
 
-      {isLoading ? (
+      {phase === 'offline' ? (
+        <JesusPlaceholder
+          message={t('jesus.offline.message', "You're offline — this needs a connection.")}
+          testID="jesus-browse-offline"
+        />
+      ) : phase === 'loading' ? (
         <JesusPlaceholder loading testID="jesus-browse-loading" />
       ) : !data || sections.length === 0 ? (
         <JesusPlaceholder

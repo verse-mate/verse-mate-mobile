@@ -52,12 +52,27 @@ const OVERVIEW = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockUseOverview.mockReturnValue({ data: OVERVIEW, isLoading: false });
+  mockUseOverview.mockReturnValue({ data: OVERVIEW, isPending: false, fetchStatus: 'idle' });
 });
 
 describe('JesusHubScreen', () => {
+  it('says it is offline rather than claiming the corpus is empty', () => {
+    // The bug this guards: a query React Query paused because NetInfo said
+    // offline reports isPending with fetchStatus 'paused' and no data. Read as
+    // "not loading, no data", the hub told the reader there was nothing here
+    // over a corpus of 207 events.
+    mockUseOverview.mockReturnValue({
+      data: undefined,
+      isPending: true,
+      fetchStatus: 'paused',
+    });
+    render(<JesusHubScreen />);
+    expect(screen.getByTestId('jesus-hub-offline')).toBeTruthy();
+    expect(screen.queryByTestId('jesus-hub-empty')).toBeNull();
+  });
+
   it('shows a spinner while the overview loads', () => {
-    mockUseOverview.mockReturnValue({ data: undefined, isLoading: true });
+    mockUseOverview.mockReturnValue({ data: undefined, isPending: true, fetchStatus: 'fetching' });
     render(<JesusHubScreen />);
     expect(screen.getByTestId('jesus-hub-loading')).toBeTruthy();
   });
@@ -94,7 +109,8 @@ describe('JesusHubScreen', () => {
   it('renders an empty state when the taxonomy is empty', () => {
     mockUseOverview.mockReturnValue({
       data: { ...OVERVIEW, sections: [], collections: [] },
-      isLoading: false,
+      isPending: false,
+      fetchStatus: 'idle',
     });
     render(<JesusHubScreen />);
     expect(screen.getByTestId('jesus-hub-empty')).toBeTruthy();

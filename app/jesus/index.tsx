@@ -14,7 +14,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { JesusPlaceholder, SectionHeading } from '@/components/jesus/JesusParts';
+import { JesusPlaceholder, queryPhase, SectionHeading } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusOverview } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
@@ -26,15 +26,25 @@ export default function JesusHubScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { data, isLoading } = useJesusOverview();
+  const overview = useJesusOverview();
+  const { data } = overview;
+  const phase = queryPhase(overview);
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
     else router.replace('/');
   };
 
-  if (isLoading) {
+  if (phase === 'loading') {
     return <JesusPlaceholder loading testID="jesus-hub-loading" />;
+  }
+  if (phase === 'offline') {
+    return (
+      <JesusPlaceholder
+        message={t('jesus.offline.message', "You're offline — this needs a connection.")}
+        testID="jesus-hub-offline"
+      />
+    );
   }
 
   // A category with nothing behind it is a dead end, so it is not offered —
