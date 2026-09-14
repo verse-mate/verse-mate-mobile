@@ -1,17 +1,17 @@
 /**
  * JesusEventScreen
  *
- * The behaviour worth pinning is which tabs appear. They are derived from what
- * the event carries, not shown as a fixed row: Compare is meaningless for a
- * single-account event and Insight is empty until generation has run for it.
- * A tab that opens onto "Nothing recorded yet" is the defect this avoids.
+ * The event wears the reader's chrome: a Bible / Insight toggle where Bible is
+ * the event's own scripture and Insight is the commentary, behind the same
+ * Summary / By-Line / Study / Compare pills a chapter uses.
  *
- * Also pinned: Compare is not requested until its tab is opened, and the Story
- * tab reads `event.passages` rather than the top-level `passages`, which this
- * endpoint returns empty.
+ * The tests pin the two things the first port got wrong — that the scripture is
+ * rendered at all (it comes down on the TOP-LEVEL `passages`, which that port
+ * recorded as empty), and that the tabs are the reader's four rather than an
+ * invented set.
  */
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import type React from 'react';
+import { router } from 'expo-router';
 import { translateFallback as mockTranslate } from '@/__tests__/mocks/i18n';
 import JesusEventScreen from '@/app/jesus/event/[slug]';
 
@@ -20,12 +20,24 @@ jest.mock('expo-router', () => ({
   Stack: { Screen: () => null },
   useLocalSearchParams: () => ({ slug: 'event-storm-stilled' }),
 }));
+
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
+
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: mockTranslate }),
 }));
+
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(),
+  ImpactFeedbackStyle: { Light: 'light' },
+}));
+
+jest.mock('@/components/bible/BibleNavigationModal', () => ({
+  BibleNavigationModal: () => null,
+}));
+jest.mock('@/components/bible/HamburgerMenu', () => ({ HamburgerMenu: () => null }));
 
 const mockEvent = jest.fn();
 const mockCompare = jest.fn();
@@ -40,27 +52,43 @@ const DETAIL = {
     title: 'Calming the storm',
     summary: 'Asleep in the stern through a squall.',
     period_name: 'The Galilean Ministry',
+    period_slug: 'galilean-ministry',
     chronology_confidence: 'probable',
     gospels: ['Matthew', 'Mark', 'Luke'],
     location: 'the sea',
+    approximate_date: 'AD 28',
     people: [{ person: 'His disciples', role: 'disciples' }],
-    passages: [{ display: 'Matthew 8:23-27' }, { display: 'Mark 4:35-41' }],
+    themes: [{ slug: 'faith', name: 'Faith' }],
+    passages: [{ display: 'Matthew 8:23-27' }],
   },
+  // The scripture lives HERE, not on event.passages.
+  passages: [
+    {
+      book_id: 40,
+      book_name: 'Matthew',
+      chapter: 8,
+      display: 'Matthew 8:23-27',
+      is_primary: true,
+      verse_start: 23,
+      verse_end: 27,
+      verses: [
+        { verse_number: 23, text: 'When He got into the boat, His disciples followed Him.' },
+        { verse_number: 24, text: 'And behold, there arose a great storm on the sea.' },
+      ],
+    },
+  ],
   words: [
-    { slug: 'w1', title: 'Rebuke of fear', text: 'Why are you afraid?', reference: 'Matthew 8:26' },
+    {
+      slug: 'w1',
+      title: 'Rebuke of fear',
+      text: 'Why are you afraid?',
+      reference: 'Matthew 8:26',
+      type_slug: 'questions',
+    },
   ],
   actions: [{ slug: 'a1', title: 'Rebukes wind and sea', text: null, reference: 'Mark 4:39' }],
-  // Empty on this endpoint — the real accounts are on `event.passages`.
-  passages: [],
-  reveals: {
-    says_about_himself: [],
-    demonstrates: [{ content: 'He rebukes the winds.', source_ref: 'Mark 4:39', provenance: 2 }],
-    others_say: [],
-    narrator_says: [],
-  },
-  reactions: [
-    { who: 'the disciples', what: 'They were afraid.', source_ref: 'Mark 4:41', provenance: 2 },
-  ],
+  reveals: { says_about_himself: [], demonstrates: [], others_say: [], narrator_says: [] },
+  reactions: [],
   explanation: { overview: 'They get into a boat.' },
   related: [],
 };
@@ -72,107 +100,75 @@ beforeEach(() => {
 });
 
 describe('JesusEventScreen', () => {
-  it('shows a spinner while loading', () => {
-    mockEvent.mockReturnValue({ data: undefined, isPending: true, fetchStatus: 'fetching' });
+  it('renders the scripture, not just the metadata', () => {
+    // The whole point of the rebuild: an event reads like a chapter.
     render(<JesusEventScreen />);
-    expect(screen.getByTestId('jesus-event-loading')).toBeTruthy();
+    expect(screen.getByText(/When He got into the boat/)).toBeTruthy();
+    expect(screen.getByText(/there arose a great storm/)).toBeTruthy();
   });
 
-  it('reports a failure instead of rendering a blank screen', () => {
-    mockEvent.mockReturnValue({ data: null, isPending: false, fetchStatus: 'idle' });
+  it('shows the reference pill for each account', () => {
     render(<JesusEventScreen />);
-    expect(screen.getByTestId('jesus-event-missing')).toBeTruthy();
+    expect(screen.getByTestId('jesus-passage-reference-Matthew 8:23-27')).toBeTruthy();
   });
 
-  it('quotes what he said on the Said tab', () => {
-    // The facet tabs render through their own component, which needs its own
-    // `t` — this is the case that caught it missing, since nothing else on the
-    // screen reaches that code path until the tab is opened.
+  it('opens the passage in the reader when its pill is tapped', () => {
     render(<JesusEventScreen />);
-    fireEvent.press(screen.getByTestId('jesus-tab-said'));
-    expect(screen.getByText('“Why are you afraid?”')).toBeTruthy();
-    expect(screen.getByText('Matthew 8:26')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('jesus-passage-reference-Matthew 8:23-27'));
+    expect(router.push).toHaveBeenCalledWith('/bible/40/8');
   });
 
-  it('renders the accounts from event.passages', () => {
+  it('wears the reader chrome rather than a back-arrow header', () => {
     render(<JesusEventScreen />);
-    expect(screen.getByText('Matthew 8:23-27')).toBeTruthy();
+    expect(screen.getByTestId('jesus-selector-button')).toBeTruthy();
+    expect(screen.getByTestId('jesus-view-bible')).toBeTruthy();
+    expect(screen.getByTestId('jesus-view-insight')).toBeTruthy();
   });
 
-  it('shows reveals and reactions on the story tab', () => {
+  it('hides the insight pills on the Bible side, as the reader does', () => {
     render(<JesusEventScreen />);
-    expect(screen.getByText('He rebukes the winds.')).toBeTruthy();
-    expect(screen.getByText('They were afraid.')).toBeTruthy();
+    expect(screen.queryByTestId('jesus-event-tabs')).toBeNull();
   });
 
-  it('offers Compare when more than one Gospel records the event', () => {
+  it('offers the reader’s own four tabs on the Insight side', () => {
     render(<JesusEventScreen />);
-    expect(screen.getByTestId('jesus-tab-compare')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('jesus-view-insight'));
+    for (const id of ['summary', 'byline', 'study', 'compare']) {
+      expect(screen.getByTestId(`jesus-event-tab-${id}`)).toBeTruthy();
+    }
   });
 
-  it('does not offer Compare when one Gospel simply tells it over several passages', () => {
-    // `gospels` is one entry per passage. Counted raw, John telling an event in
-    // three passages looks like three accounts and the screen offers to compare
-    // John against himself. This is the `nicodemus` payload.
-    mockEvent.mockReturnValue({
-      data: { ...DETAIL, event: { ...DETAIL.event, gospels: ['John', 'John', 'John'] } },
-      isPending: false,
-      fetchStatus: 'idle',
-    });
+  it('opens Insight on Summary', () => {
     render(<JesusEventScreen />);
-    expect(screen.queryByTestId('jesus-tab-compare')).toBeNull();
-  });
-
-  it('hides Compare for a single-account event', () => {
-    mockEvent.mockReturnValue({
-      data: { ...DETAIL, event: { ...DETAIL.event, gospels: ['John'] } },
-      isPending: false,
-      fetchStatus: 'idle',
-    });
-    render(<JesusEventScreen />);
-    expect(screen.queryByTestId('jesus-tab-compare')).toBeNull();
-  });
-
-  it('hides Insight when nothing has been generated', () => {
-    mockEvent.mockReturnValue({
-      data: { ...DETAIL, explanation: {} },
-      isPending: false,
-      fetchStatus: 'idle',
-    });
-    render(<JesusEventScreen />);
-    expect(screen.queryByTestId('jesus-tab-insight')).toBeNull();
+    fireEvent.press(screen.getByTestId('jesus-view-insight'));
+    expect(screen.getByTestId('jesus-event-panel-summary')).toBeTruthy();
+    expect(screen.getByText('They get into a boat.')).toBeTruthy();
   });
 
   it('does not request Compare until its tab is opened', () => {
     render(<JesusEventScreen />);
-    expect(mockCompare).toHaveBeenCalledWith('event-storm-stilled', false);
-    fireEvent.press(screen.getByTestId('jesus-tab-compare'));
-    expect(mockCompare).toHaveBeenLastCalledWith('event-storm-stilled', true);
+    fireEvent.press(screen.getByTestId('jesus-view-insight'));
+    expect(mockCompare).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByTestId('jesus-event-tab-compare'));
+    expect(mockCompare).toHaveBeenCalledWith('event-storm-stilled', true);
   });
 
-  it('shows what a Gospel uniquely adds on the Compare tab', () => {
-    mockCompare.mockReturnValue({
-      isPending: false,
-      fetchStatus: 'idle',
-      data: {
-        note: 'All three record it.',
-        accounts: [
-          {
-            gospel: 'Mark',
-            records_it: true,
-            passages: [
-              {
-                display: 'Mark 4:35-41',
-                unique_to_account: 'Asleep on the cushion.',
-                emphasis: 'vivid detail',
-              },
-            ],
-          },
-        ],
-      },
-    });
+  it('routes a theme pill to the theme screen', () => {
     render(<JesusEventScreen />);
-    fireEvent.press(screen.getByTestId('jesus-tab-compare'));
-    expect(screen.getByText(/Asleep on the cushion\./)).toBeTruthy();
+    fireEvent.press(screen.getByTestId('jesus-event-theme-faith'));
+    expect(router.push).toHaveBeenCalledWith('/jesus/theme/faith');
+  });
+
+  it('says it is offline rather than claiming the event is missing', () => {
+    mockEvent.mockReturnValue({ data: undefined, isPending: true, fetchStatus: 'paused' });
+    render(<JesusEventScreen />);
+    expect(screen.getByTestId('jesus-event-offline')).toBeTruthy();
+    expect(screen.queryByTestId('jesus-event-missing')).toBeNull();
+  });
+
+  it('reports a missing event', () => {
+    mockEvent.mockReturnValue({ data: null, isPending: false, fetchStatus: 'idle' });
+    render(<JesusEventScreen />);
+    expect(screen.getByTestId('jesus-event-missing')).toBeTruthy();
   });
 });

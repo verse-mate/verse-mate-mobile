@@ -22,10 +22,15 @@ import type {
   JesusBrowse,
   JesusCollectionSummary,
   JesusCompare,
+  JesusEntry,
+  JesusEntryList,
   JesusEventCard,
   JesusEventDetail,
   JesusEventLifePeriod,
   JesusEventOverview,
+  JesusEventPage,
+  JesusOverview,
+  JesusThemeSummary,
 } from '@/types/jesus';
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.versemate.org';
@@ -138,4 +143,63 @@ export async function fetchEventsForPassage(params: {
     bible_version: params.bibleVersion,
   });
   return data?.events ?? [];
+}
+
+// ─── The entries family ──────────────────────────────────────────────────────
+//
+// A second view of the same corpus, one row per facet rather than per event.
+// The book selector's Jesus tab and its search read from here, because someone
+// searching "born again" wants the saying, not the scene around it.
+
+/** Sections, periods, themes and studies with per-ENTRY counts. */
+export async function fetchEntriesOverview(bibleVersion?: string): Promise<JesusOverview | null> {
+  return get<JesusOverview>('/jesus/overview', { bible_version: bibleVersion });
+}
+
+/** Free-text search across His words and actions. */
+export async function searchEntries(
+  q: string,
+  limit = 50,
+  bibleVersion?: string
+): Promise<JesusEntry[]> {
+  const data = await get<JesusEntryList>('/jesus/entries', {
+    q,
+    limit,
+    bible_version: bibleVersion,
+  });
+  return data?.entries ?? [];
+}
+
+/** One facet on its own — what a search result opens. */
+export async function fetchEntry(slug: string, bibleVersion?: string): Promise<JesusEntry | null> {
+  return get<JesusEntry>(`/jesus/entries/${encodeURIComponent(slug)}`, {
+    bible_version: bibleVersion,
+  });
+}
+
+export async function fetchThemes(bibleVersion?: string): Promise<JesusThemeSummary[]> {
+  const data = await get<{ themes: JesusThemeSummary[] }>('/jesus/themes', {
+    bible_version: bibleVersion,
+  });
+  return data?.themes ?? [];
+}
+
+/**
+ * `/jesus/events` — the one paged list behind browse-by-kind, browse-by-theme
+ * and search. Exactly one of `type` / `theme` / `q` is meaningful per call;
+ * the endpoint accepts them together but the screens never do that.
+ */
+export async function fetchEvents(
+  params: { type?: string; theme?: string; q?: string; limit?: number; offset?: number },
+  bibleVersion?: string
+): Promise<JesusEventPage> {
+  const data = await get<JesusEventPage>('/jesus/events', {
+    type: params.type,
+    theme: params.theme,
+    q: params.q,
+    limit: params.limit ?? 30,
+    offset: params.offset ?? 0,
+    bible_version: bibleVersion,
+  });
+  return data ?? { events: [], total: 0, limit: params.limit ?? 30, offset: params.offset ?? 0 };
 }

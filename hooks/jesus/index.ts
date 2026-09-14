@@ -12,6 +12,7 @@
  * network on a connection the reader may not have.
  */
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import * as repo from '@/services/jesus-repository';
 
@@ -116,6 +117,84 @@ export function useJesusForPassage(params: {
         bibleVersion,
       }),
     enabled: Boolean(bookId && chapter),
+    ...STATIC,
+  });
+}
+
+// ─── Search and the entries family ───────────────────────────────────────────
+
+/**
+ * Debounced, because this runs on every keystroke in the hub's search box.
+ * 250ms matches the web client, so the two feel the same under a slow network.
+ */
+function useDebounced(value: string, ms = 250): string {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return debounced;
+}
+
+/** The hub's search: events matching a free-text term. */
+export function useJesusSearch(query: string) {
+  const bibleVersion = useVersion();
+  const term = useDebounced(query.trim());
+  return useQuery({
+    queryKey: ['jesus', 'search', term, bibleVersion],
+    queryFn: () => repo.fetchEvents({ q: term, limit: 50 }, bibleVersion),
+    enabled: term.length > 0,
+    // Search is the one query here that is not static content: it is keyed on
+    // what the reader typed, so caching it for an hour would pin stale results
+    // to a box they are still editing.
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** One page of events for a kind or a theme. */
+export function useJesusEvents(params: { type?: string; theme?: string }) {
+  const bibleVersion = useVersion();
+  const { type, theme } = params;
+  return useQuery({
+    queryKey: ['jesus', 'events', type ?? null, theme ?? null, bibleVersion],
+    queryFn: () => repo.fetchEvents({ type, theme, limit: 50 }, bibleVersion),
+    enabled: Boolean(type || theme),
+    ...STATIC,
+  });
+}
+
+/** The book selector's Jesus tab reads per-entry counts, not per-event ones. */
+export function useJesusEntriesOverview() {
+  const bibleVersion = useVersion();
+  return useQuery({
+    queryKey: ['jesus', 'entries-overview', bibleVersion],
+    queryFn: () => repo.fetchEntriesOverview(bibleVersion),
+    ...STATIC,
+  });
+}
+
+/** The selector's search — facets rather than events, same as web. */
+export function useJesusEntrySearch(query: string) {
+  const bibleVersion = useVersion();
+  const term = useDebounced(query.trim());
+  return useQuery({
+    queryKey: ['jesus', 'entry-search', term, bibleVersion],
+    queryFn: () => repo.searchEntries(term, 50, bibleVersion),
+    enabled: term.length > 0,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useJesusEntry(slug: string | undefined) {
+  const bibleVersion = useVersion();
+  return useQuery({
+    queryKey: ['jesus', 'entry', slug, bibleVersion],
+    queryFn: () => repo.fetchEntry(slug as string, bibleVersion),
+    enabled: Boolean(slug),
     ...STATIC,
   });
 }

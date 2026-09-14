@@ -194,11 +194,19 @@
       "life": "Suivre sa vie",
       "lifeBlurb": "Des années cachées à la résurrection, dans l'ordre.",
       "studies": "Études populaires",
-      "empty": "Rien ici pour l'instant."
+      "empty": "Rien ici pour l'instant.",
+      "eventCount": "{{count}} événements",
+      "searchPlaceholder": "Rechercher Ses paroles et Ses actes…",
+      "themes": "Explorer par thème",
+      "results": "Résultats",
+      "noResults": "Rien ne correspond à « {{query}} »",
+      "eventCountSuffix": " · {{count}} événements"
     },
     "browse": {
       "empty": "Rien ici pour l'instant.",
-      "truncated": "Affichage des premiers résultats."
+      "truncated": "Affichage des {{count}} premiers — cette catégorie dépasse une page.",
+      "stats": "{{events}} {{plural}} · {{topics}} thèmes",
+      "eventCount": "{{count}} événements"
     },
     "life": {
       "title": "Suivre sa vie",
@@ -225,7 +233,15 @@
       "notRecorded": "Ne le rapporte pas",
       "noCompare": "Aucune comparaison disponible.",
       "adds": "Ici seulement : {{adds}}",
-      "quoted": "« {{text}} »"
+      "quoted": "« {{text}} »",
+      "openInReader": "Ouvrir dans le lecteur pour voir ce passage.",
+      "summaryOf": "Résumé de {{title}}",
+      "bylineOf": "Ligne par ligne : {{title}}",
+      "studyOf": "Étude : {{title}}",
+      "compareOf": "Comparer : {{title}}",
+      "noByline": "Pas encore de lecture ligne par ligne pour cet événement.",
+      "related": "Événements liés",
+      "themes": "Thèmes"
     },
     "insight": {
       "overview": "Aperçu",
@@ -244,6 +260,27 @@
     },
     "offline": {
       "message": "Hors ligne — une connexion est nécessaire."
+    },
+    "tab": {
+      "summary": "Résumé",
+      "byline": "Ligne par ligne",
+      "study": "Étude",
+      "compare": "Comparer",
+      "openHub": "Ouvrir la section Jésus →"
+    },
+    "study": {
+      "when": "Quand",
+      "period": "Période",
+      "accounts": "Récits",
+      "people": "Personnes",
+      "questions": "Questions qu’Il pose ici"
+    },
+    "entry": {
+      "missing": "Cette entrée n’existe pas.",
+      "references": "Où cela se trouve"
+    },
+    "compare": {
+      "sharedBy": "Raconté par"
     }
   }
 }

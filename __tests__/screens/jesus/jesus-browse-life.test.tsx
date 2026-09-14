@@ -96,12 +96,12 @@ describe('JesusBrowseScreen', () => {
       fetchStatus: 'idle',
       data: {
         type: { label: 'Questions' },
-        topics: [{ slug: 'k', name: 'Kingdom', description: null, events: [EVENT] }],
+        topics: [{ slug: 'k', name: 'Kingdom', description: null, events: [EVENT], points: [] }],
         truncated: true,
       },
     });
     render(<JesusBrowseScreen />);
-    expect(screen.getByText('Showing the first results.')).toBeTruthy();
+    expect(screen.getByTestId('jesus-topic-truncated')).toBeTruthy();
   });
 });
 

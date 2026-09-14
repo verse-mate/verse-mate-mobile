@@ -385,3 +385,18 @@ export interface JesusBrowse {
   /** True when the category hit the server's ceiling and was cut short. */
   truncated: boolean;
 }
+
+/**
+ * `/jesus/events` — the one paged list behind browse-by-kind, browse-by-theme
+ * and search. The entries family's equivalent is `JesusEntryList` above; the
+ * two are NOT interchangeable (`total_events`/`types`/`facet_count` here
+ * against `total_entries`/`kinds`/`entry_count` there). Measured live:
+ * /jesus/events/overview reports 207 events, /jesus/overview reports 231
+ * entries, because an entry is one facet and an event is the scene around it.
+ */
+export interface JesusEventPage {
+  events: JesusEventCard[];
+  total: number;
+  limit: number;
+  offset: number;
+}

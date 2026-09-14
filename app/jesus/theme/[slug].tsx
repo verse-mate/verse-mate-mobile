@@ -1,11 +1,12 @@
 /**
- * JesusCollectionScreen — a curated study.
+ * JesusThemeScreen — every event under one theme.
  *
- * Route: /jesus/collection/[slug]
+ * Route: /jesus/theme/[slug]   e.g. /jesus/theme/kingdom
  *
- * A collection's event count can be lower than its member count: two entries in
- * one harmony cluster resolve to a single event. That is the event model
- * working, not members being dropped, so the count shown is the resolved one.
+ * The other half of verse-mate-web's `JesusListScreen`: where browse-by-kind
+ * groups into topics, a theme is a flat list off `GET /jesus/events?theme=`.
+ * Reached from the hub's Explore-by-Topic chips and from an event's own theme
+ * pills, which is the route that was missing entirely from the first port.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -13,22 +14,34 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EventRow, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
+import {
+  EventRow,
+  JesusPlaceholder,
+  queryPhase,
+  SectionHeading,
+} from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useJesusCollection } from '@/hooks/jesus';
+import { useJesusEvents, useJesusOverview } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 
 type Colors = ReturnType<typeof getColors>;
 
-export default function JesusCollectionScreen() {
+export default function JesusThemeScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const { colors } = useTheme();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const collection = useJesusCollection(slug);
-  const { data } = collection;
-  const phase = queryPhase(collection);
+
+  const list = useJesusEvents({ theme: slug });
+  const phase = queryPhase(list);
+  // The name and description live on the overview, not on the list response —
+  // the same place web reads them from.
+  const overview = useJesusOverview();
+  const theme = overview.data?.themes?.find((th) => th.slug === slug);
+
+  const events = list.data?.events ?? [];
+  const total = list.data?.total ?? 0;
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
@@ -42,14 +55,14 @@ export default function JesusCollectionScreen() {
         <Pressable
           onPress={handleBack}
           style={styles.backButton}
-          testID="jesus-collection-back"
+          testID="jesus-list-back-button"
           accessibilityRole="button"
           accessibilityLabel={t('common.back', 'Back')}
         >
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {data?.collection?.name ?? ''}
+        <Text style={styles.headerTitle} numberOfLines={1} testID="jesus-list-title">
+          {theme?.name ?? ''}
         </Text>
         <View style={styles.backButton} />
       </View>
@@ -57,29 +70,37 @@ export default function JesusCollectionScreen() {
       {phase === 'offline' ? (
         <JesusPlaceholder
           message={t('jesus.offline.message', "You're offline — this needs a connection.")}
-          testID="jesus-collection-offline"
+          testID="jesus-theme-offline"
         />
       ) : phase === 'loading' ? (
-        <JesusPlaceholder loading testID="jesus-collection-loading" />
-      ) : !data || (data.events?.length ?? 0) === 0 ? (
+        <JesusPlaceholder loading testID="jesus-theme-loading" />
+      ) : events.length === 0 ? (
         <JesusPlaceholder
-          message={t('jesus.collection.empty', 'Nothing here yet.')}
-          testID="jesus-collection-empty"
+          message={t('jesus.browse.empty', 'Nothing here yet.')}
+          testID="jesus-theme-empty"
         />
       ) : (
         <FlatList
-          data={data.events}
-          keyExtractor={(item, index) => `${item.slug}-${index}`}
-          testID="jesus-collection-list"
+          data={events}
+          keyExtractor={(e) => e.slug}
+          testID="jesus-entry-list"
+          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
           ListHeaderComponent={
-            data.collection?.description ? (
-              <Text style={styles.description}>{data.collection.description}</Text>
-            ) : null
+            <View>
+              {theme?.description ? (
+                <Text style={styles.description} testID="jesus-list-description">
+                  {theme.description}
+                </Text>
+              ) : null}
+              <SectionHeading
+                title={t('jesus.browse.eventCount', '{{count}} events', { count: total })}
+                count={total}
+              />
+            </View>
           }
           renderItem={({ item }) => (
             <EventRow event={item} onPress={(s) => router.push(`/jesus/event/${s}`)} />
           )}
-          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
         />
       )}
     </View>
@@ -105,11 +126,11 @@ function createStyles(colors: Colors) {
       color: colors.textPrimary,
     },
     description: {
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
       fontSize: fontSizes.body,
+      lineHeight: 22,
       color: colors.textSecondary,
-      lineHeight: 21,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
     },
   });
 }

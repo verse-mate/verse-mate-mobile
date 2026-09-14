@@ -1,22 +1,34 @@
 /**
- * JesusHubScreen — the entry point for the Jesus tab.
+ * JesusHubScreen — the landing screen of the Jesus tab.
  *
  * Route: /jesus
  *
- * Rendered from `GET /jesus/events/overview` rather than a hardcoded list, so a
- * taxonomy change on the backend reaches the app without a release. That is the
- * same decision the web hub makes, and it is why categories that are currently
- * empty simply do not appear.
+ * Rendered entirely from `GET /jesus/events/overview`: sections, types, counts,
+ * periods, themes and featured studies all come off the wire, so adding a type
+ * or renaming a section on the backend reaches this screen without a release.
+ * Mirrors verse-mate-web's `JesusHubScreen` — same order, same copy, same
+ * affordances.
+ *
+ * Searching swaps the browse layout for a flat result list, which is the same
+ * thing the Bible and Topics searches do, so the interaction is already
+ * familiar by the time a reader gets here.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { JesusPlaceholder, queryPhase, SectionHeading } from '@/components/jesus/JesusParts';
+import {
+  EventRow,
+  JesusNavCard,
+  JesusPill,
+  JesusPlaceholder,
+  queryPhase,
+  SectionHeading,
+} from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useJesusOverview } from '@/hooks/jesus';
+import { useJesusOverview, useJesusSearch } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
 
 type Colors = ReturnType<typeof getColors>;
@@ -26,34 +38,33 @@ export default function JesusHubScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
   const overview = useJesusOverview();
   const { data } = overview;
   const phase = queryPhase(overview);
+
+  const [query, setQuery] = useState('');
+  const search = useJesusSearch(query);
+  const searching = query.trim().length > 0;
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
     else router.replace('/');
   };
 
-  if (phase === 'loading') {
-    return <JesusPlaceholder loading testID="jesus-hub-loading" />;
-  }
-  if (phase === 'offline') {
-    return (
-      <JesusPlaceholder
-        message={t('jesus.offline.message', "You're offline — this needs a connection.")}
-        testID="jesus-hub-offline"
-      />
-    );
-  }
+  // The chronological way in is one row per period, so its count is the sum
+  // rather than a field of its own.
+  const lifeCount = (data?.periods ?? []).reduce((n, p) => n + (p.event_count ?? 0), 0);
 
-  // A category with nothing behind it is a dead end, so it is not offered —
-  // and the empty check has to use that same predicate, or a section whose
-  // types are all empty renders a heading with no tiles under it.
+  // A kind with nothing behind it is a dead end, so it is not offered — and the
+  // empty check uses the same predicate, or a section renders a heading with no
+  // rows under it.
   const sections = (data?.sections ?? [])
-    .map((s) => ({ ...s, types: (s.types ?? []).filter((t) => (t.facet_count ?? 0) > 0) }))
+    .map((s) => ({ ...s, types: (s.types ?? []).filter((ty) => (ty.facet_count ?? 0) > 0) }))
     .filter((s) => s.types.length > 0);
-  const hasContent = sections.length > 0 || (data?.collections?.length ?? 0) > 0;
+
+  const hasContent =
+    sections.length > 0 || (data?.themes?.length ?? 0) > 0 || (data?.collections?.length ?? 0) > 0;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -62,109 +73,179 @@ export default function JesusHubScreen() {
         <Pressable
           onPress={handleBack}
           style={styles.backButton}
-          testID="jesus-hub-back"
+          testID="jesus-back-button"
           accessibilityRole="button"
           accessibilityLabel={t('common.back', 'Back')}
         >
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={styles.headerTitle}>{t('jesus.hub.title', 'Jesus')}</Text>
+        <Text style={styles.headerTitle} testID="jesus-screen-title">
+          {t('jesus.hub.title', 'Jesus')}
+        </Text>
         <View style={styles.backButton} />
       </View>
 
-      {!hasContent ? (
-        <JesusPlaceholder
-          message={t('jesus.hub.empty', 'Nothing here yet.')}
-          testID="jesus-hub-empty"
-        />
-      ) : (
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
-          testID="jesus-hub-scroll"
-        >
-          <Text style={styles.intro}>
-            {t('jesus.hub.intro', 'Everything He said and did, gathered from the four Gospels.')}
-          </Text>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
+        testID="jesus-hub-scroll"
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.tagline} testID="jesus-hub-tagline">
+          {t('jesus.hub.intro', 'Explore His life, words, and actions')}
+          {data?.total_events ? (
+            <Text style={styles.taglineCount}>
+              {t('jesus.hub.eventCountSuffix', ' · {{count}} events', {
+                count: data.total_events,
+              })}
+            </Text>
+          ) : null}
+        </Text>
 
-          <Pressable
-            style={({ pressed }) => [styles.lifeCard, pressed && styles.pressed]}
-            onPress={() => router.push('/jesus/life')}
-            testID="jesus-hub-life"
-            accessibilityRole="button"
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.lifeTitle}>{t('jesus.hub.life', 'Follow His Life')}</Text>
-              <Text style={styles.lifeBlurb}>
-                {t('jesus.hub.lifeBlurb', 'From the hidden years to the resurrection, in order.')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.gold} />
-          </Pressable>
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={17} color={colors.textTertiary} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('jesus.hub.searchPlaceholder', 'Search His words and actions…')}
+            placeholderTextColor={colors.textTertiary}
+            style={styles.searchInput}
+            testID="jesus-search-input"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {query.length > 0 ? (
+            <Pressable onPress={() => setQuery('')} testID="jesus-search-clear" hitSlop={8}>
+              <Ionicons name="close-circle" size={17} color={colors.textTertiary} />
+            </Pressable>
+          ) : null}
+        </View>
 
-          {sections.map((section) => (
-            <View key={section.section}>
-              <SectionHeading
-                title={section.label ?? section.section}
-                testID={`jesus-section-${section.section}`}
+        {searching ? (
+          <SearchResults query={query} search={search} styles={styles} />
+        ) : phase === 'loading' ? (
+          <JesusPlaceholder loading testID="jesus-hub-loading" />
+        ) : phase === 'offline' ? (
+          <JesusPlaceholder
+            message={t('jesus.offline.message', "You're offline — this needs a connection.")}
+            testID="jesus-hub-offline"
+          />
+        ) : !hasContent ? (
+          <JesusPlaceholder
+            message={t('jesus.hub.empty', 'Nothing here yet.')}
+            testID="jesus-hub-empty"
+          />
+        ) : (
+          <>
+            <View style={{ marginTop: spacing.md }}>
+              <JesusNavCard
+                title={t('jesus.hub.life', 'Follow His Life')}
+                blurb={t('jesus.hub.lifeBlurb', 'A chronological journey through His ministry')}
+                count={lifeCount}
+                emphasis
+                icon={<Ionicons name="calendar-outline" size={20} color={colors.gold} />}
+                onPress={() => router.push('/jesus/life')}
+                testID="jesus-follow-his-life"
               />
-              {section.blurb ? <Text style={styles.sectionBlurb}>{section.blurb}</Text> : null}
-              <View style={styles.grid}>
+            </View>
+
+            {sections.map((section) => (
+              <View key={section.section}>
+                <SectionHeading
+                  title={section.label ?? section.section}
+                  count={section.facet_count}
+                  testID={`jesus-section-${section.section}`}
+                />
+                {section.blurb ? <Text style={styles.sectionBlurb}>{section.blurb}</Text> : null}
                 {section.types.map((type) => (
-                  <Pressable
+                  <JesusNavCard
                     key={type.slug}
-                    style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
+                    title={type.label}
+                    blurb={type.blurb}
+                    count={type.facet_count}
                     onPress={() => router.push(`/jesus/browse/${type.slug}`)}
-                    testID={`jesus-category-${type.slug}`}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${type.label}, ${type.facet_count}`}
-                  >
-                    <Text style={styles.tileCount}>{type.facet_count}</Text>
-                    {/* "Confrontations" is one word wider than a third of a
-                        phone, and RN breaks it mid-word rather than shrinking
-                        it, which reads as a rendering fault. Shrinking a little
-                        keeps the three-column grid and the whole word. */}
-                    <Text
-                      style={styles.tileLabel}
-                      numberOfLines={2}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.8}
-                    >
-                      {type.label}
-                    </Text>
-                  </Pressable>
+                    testID={`jesus-kind-${type.slug}`}
+                  />
                 ))}
               </View>
-            </View>
-          ))}
+            ))}
 
-          {(data?.collections?.length ?? 0) > 0 && (
-            <>
-              <SectionHeading
-                title={t('jesus.hub.studies', 'Popular studies')}
-                testID="jesus-section-collections"
-              />
-              {data?.collections.map((c) => (
-                <Pressable
-                  key={c.slug}
-                  style={({ pressed }) => [styles.collectionRow, pressed && styles.pressed]}
-                  onPress={() => router.push(`/jesus/collection/${c.slug}`)}
-                  testID={`jesus-collection-${c.slug}`}
-                  accessibilityRole="button"
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.collectionTitle}>{c.name}</Text>
-                    {c.subtitle ? (
-                      <Text style={styles.collectionSubtitle}>{c.subtitle}</Text>
-                    ) : null}
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-                </Pressable>
-              ))}
-            </>
-          )}
-        </ScrollView>
-      )}
+            {(data?.themes?.length ?? 0) > 0 ? (
+              <>
+                <SectionHeading title={t('jesus.hub.themes', 'Explore by Topic')} />
+                <View style={styles.pillRow} testID="jesus-theme-row">
+                  {data?.themes.map((theme) => (
+                    <JesusPill
+                      key={theme.slug}
+                      label={theme.name}
+                      count={theme.event_count}
+                      onPress={() => router.push(`/jesus/theme/${theme.slug}`)}
+                      testID={`jesus-theme-${theme.slug}`}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
+
+            {(data?.collections?.length ?? 0) > 0 ? (
+              <>
+                <SectionHeading title={t('jesus.hub.studies', 'Popular Studies')} />
+                <View testID="jesus-studies-list">
+                  {data?.collections.map((c) => (
+                    <JesusNavCard
+                      key={c.slug}
+                      title={c.name}
+                      blurb={c.subtitle}
+                      count={c.event_count}
+                      onPress={() => router.push(`/jesus/study/${c.slug}`)}
+                      testID={`jesus-study-${c.slug}`}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
+          </>
+        )}
+      </ScrollView>
     </View>
+  );
+}
+
+function SearchResults({
+  query,
+  search,
+  styles,
+}: {
+  query: string;
+  search: ReturnType<typeof useJesusSearch>;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const { t } = useTranslation();
+  const events = search.data?.events ?? [];
+
+  if (search.isPending) return <JesusPlaceholder loading testID="jesus-search-loading" />;
+  if (events.length === 0) {
+    return (
+      <JesusPlaceholder
+        message={t('jesus.hub.noResults', 'Nothing matches “{{query}}”', { query: query.trim() })}
+        testID="jesus-search-empty"
+      />
+    );
+  }
+
+  return (
+    <>
+      <SectionHeading title={t('jesus.hub.results', 'Results')} count={events.length} />
+      <View testID="jesus-search-results">
+        {events.map((event) => (
+          <EventRow
+            key={event.slug}
+            event={event}
+            onPress={(slug) => router.push(`/jesus/event/${slug}`)}
+          />
+        ))}
+      </View>
+      <Text style={styles.sectionBlurb} />
+    </>
   );
 }
 
@@ -184,69 +265,37 @@ function createStyles(colors: Colors) {
       fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
     },
-    intro: {
-      paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.md,
+    tagline: {
       fontSize: fontSizes.body,
       color: colors.textSecondary,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
     },
-    lifeCard: {
+    taglineCount: { color: colors.textTertiary },
+    searchBox: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: spacing.sm,
+      height: 44,
       marginHorizontal: spacing.lg,
-      marginTop: spacing.sm,
-      padding: spacing.lg,
-      borderRadius: radii.md,
-      borderWidth: 1,
-      borderColor: colors.gold,
-      gap: spacing.md,
-    },
-    lifeTitle: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
-    lifeBlurb: { fontSize: fontSizes.bodySmall, color: colors.textSecondary, marginTop: 2 },
-    sectionBlurb: {
-      paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.sm,
-      fontSize: fontSizes.bodySmall,
-      color: colors.textSecondary,
-    },
-    grid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      paddingHorizontal: spacing.lg,
-      gap: spacing.md,
-    },
-    tile: {
-      minWidth: 100,
-      flexGrow: 1,
-      flexBasis: '30%',
-      padding: spacing.md,
-      borderRadius: radii.md,
+      marginTop: spacing.md,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.full,
       backgroundColor: colors.backgroundSecondary,
     },
-    tileCount: {
-      fontSize: fontSizes.heading1,
-      fontWeight: fontWeights.bold,
-      color: colors.gold,
-    },
-    tileLabel: { fontSize: fontSizes.bodySmall, color: colors.textPrimary },
-    collectionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    searchInput: { flex: 1, fontSize: fontSizes.bodySmall, color: colors.textPrimary },
+    sectionBlurb: {
+      fontSize: fontSizes.bodySmall,
+      color: colors.textTertiary,
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.lg,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.divider,
+      marginBottom: spacing.sm,
     },
-    collectionTitle: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.medium,
-      color: colors.textPrimary,
+    pillRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
     },
-    collectionSubtitle: { fontSize: fontSizes.bodySmall, color: colors.textSecondary },
-    pressed: { opacity: 0.7 },
   });
 }

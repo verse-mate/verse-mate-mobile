@@ -194,11 +194,19 @@
       "life": "Seinem Leben folgen",
       "lifeBlurb": "Von den verborgenen Jahren bis zur Auferstehung, der Reihe nach.",
       "studies": "Beliebte Studien",
-      "empty": "Hier ist noch nichts."
+      "empty": "Hier ist noch nichts.",
+      "eventCount": "{{count}} Ereignisse",
+      "searchPlaceholder": "Seine Worte und Taten durchsuchen…",
+      "themes": "Nach Thema entdecken",
+      "results": "Ergebnisse",
+      "noResults": "Nichts passt zu „{{query}}“",
+      "eventCountSuffix": " · {{count}} Ereignisse"
     },
     "browse": {
       "empty": "Hier ist noch nichts.",
-      "truncated": "Die ersten Ergebnisse werden angezeigt."
+      "truncated": "Die ersten {{count}} werden gezeigt — diese Kategorie passt nicht auf eine Seite.",
+      "stats": "{{events}} {{plural}} · {{topics}} Themen",
+      "eventCount": "{{count}} Ereignisse"
     },
     "life": {
       "title": "Seinem Leben folgen",
@@ -225,7 +233,15 @@
       "notRecorded": "Berichtet es nicht",
       "noCompare": "Kein Vergleich verfügbar.",
       "adds": "Nur hier: {{adds}}",
-      "quoted": "„{{text}}“"
+      "quoted": "„{{text}}“",
+      "openInReader": "Im Leser öffnen, um diese Stelle zu lesen.",
+      "summaryOf": "Zusammenfassung von {{title}}",
+      "bylineOf": "Zeile für Zeile: {{title}}",
+      "studyOf": "Studium: {{title}}",
+      "compareOf": "Vergleich: {{title}}",
+      "noByline": "Für dieses Ereignis gibt es noch keine Lesung Zeile für Zeile.",
+      "related": "Verwandte Ereignisse",
+      "themes": "Themen"
     },
     "insight": {
       "overview": "Überblick",
@@ -244,6 +260,27 @@
     },
     "offline": {
       "message": "Offline — dafür wird eine Verbindung benötigt."
+    },
+    "tab": {
+      "summary": "Zusammenfassung",
+      "byline": "Zeile für Zeile",
+      "study": "Studium",
+      "compare": "Vergleichen",
+      "openHub": "Jesus-Bereich öffnen →"
+    },
+    "study": {
+      "when": "Wann",
+      "period": "Zeitraum",
+      "accounts": "Berichte",
+      "people": "Personen",
+      "questions": "Fragen, die Er hier stellt"
+    },
+    "entry": {
+      "missing": "Diesen Eintrag gibt es nicht.",
+      "references": "Wo es steht"
+    },
+    "compare": {
+      "sharedBy": "Erzählt von"
     }
   }
 }
