@@ -13,7 +13,7 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,6 +43,15 @@ export default function JesusEventScreen() {
 
   const { data, isLoading } = useJesusEvent(slug);
   const [tab, setTab] = useState<TabKey>('story');
+  const bodyRef = useRef<ScrollView>(null);
+
+  // The tabs share one scroll view, so without this a reader who is deep into
+  // Story taps Compare and lands part-way down a much shorter tab — sometimes
+  // past the end of it, which reads as a blank screen.
+  const selectTab = useCallback((key: TabKey) => {
+    setTab(key);
+    bodyRef.current?.scrollTo({ y: 0, animated: false });
+  }, []);
   const compare = useJesusCompare(slug, tab === 'compare');
 
   const tabs = useMemo(() => {
@@ -105,7 +114,7 @@ export default function JesusEventScreen() {
         {tabs.map((tb) => (
           <Pressable
             key={tb.key}
-            onPress={() => setTab(tb.key)}
+            onPress={() => selectTab(tb.key)}
             style={[styles.tab, tab === tb.key && styles.tabActive]}
             testID={`jesus-tab-${tb.key}`}
             accessibilityRole="tab"
@@ -117,6 +126,7 @@ export default function JesusEventScreen() {
       </ScrollView>
 
       <ScrollView
+        ref={bodyRef}
         contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
         testID="jesus-event-body"
       >
