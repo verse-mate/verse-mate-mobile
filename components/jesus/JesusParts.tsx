@@ -29,6 +29,19 @@ type Colors = ReturnType<typeof getColors>;
  * was never made. That is the worst available answer: it is wrong, it looks
  * authoritative, and it gives them nothing to act on.
  */
+/**
+ * The distinct Gospels that record an event.
+ *
+ * The API lists one entry per PASSAGE, so an event John tells across three
+ * passages comes back as `['John','John','John']`. Rendered raw that reads as
+ * "John · John · John", and counted raw it makes a single-account event look
+ * like it has three accounts — which is what decides whether the event screen
+ * offers a Compare tab at all. Both bugs are the same missing dedupe.
+ */
+export function uniqueGospels(gospels: string[] | undefined | null): string[] {
+  return gospels ? [...new Set(gospels)] : [];
+}
+
 export type QueryPhase = 'loading' | 'offline' | 'ready';
 
 export function queryPhase(query: {
@@ -146,8 +159,8 @@ export function EventRow({
             {event.summary}
           </Text>
         ) : null}
-        {event.gospels?.length ? (
-          <Text style={styles.rowGospels}>{event.gospels.join(' · ')}</Text>
+        {uniqueGospels(event.gospels).length ? (
+          <Text style={styles.rowGospels}>{uniqueGospels(event.gospels).join(' · ')}</Text>
         ) : null}
       </View>
       <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />

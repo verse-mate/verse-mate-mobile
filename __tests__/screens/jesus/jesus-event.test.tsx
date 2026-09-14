@@ -110,6 +110,19 @@ describe('JesusEventScreen', () => {
     expect(screen.getByTestId('jesus-tab-compare')).toBeTruthy();
   });
 
+  it('does not offer Compare when one Gospel simply tells it over several passages', () => {
+    // `gospels` is one entry per passage. Counted raw, John telling an event in
+    // three passages looks like three accounts and the screen offers to compare
+    // John against himself. This is the `nicodemus` payload.
+    mockEvent.mockReturnValue({
+      data: { ...DETAIL, event: { ...DETAIL.event, gospels: ['John', 'John', 'John'] } },
+      isPending: false,
+      fetchStatus: 'idle',
+    });
+    render(<JesusEventScreen />);
+    expect(screen.queryByTestId('jesus-tab-compare')).toBeNull();
+  });
+
   it('hides Compare for a single-account event', () => {
     mockEvent.mockReturnValue({
       data: { ...DETAIL, event: { ...DETAIL.event, gospels: ['John'] } },
