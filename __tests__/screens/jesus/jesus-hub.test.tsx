@@ -25,8 +25,10 @@ jest.mock('react-i18next', () => ({
 }));
 
 const mockUseOverview = jest.fn();
+const mockSearch = jest.fn();
 jest.mock('@/hooks/jesus', () => ({
   useJesusOverview: () => mockUseOverview(),
+  useJesusSearch: (q: string) => mockSearch(q),
 }));
 
 const OVERVIEW = {
@@ -53,6 +55,7 @@ const OVERVIEW = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUseOverview.mockReturnValue({ data: OVERVIEW, isPending: false, fetchStatus: 'idle' });
+  mockSearch.mockReturnValue({ data: undefined, isPending: false, fetchStatus: 'idle' });
 });
 
 describe('JesusHubScreen', () => {
@@ -79,31 +82,31 @@ describe('JesusHubScreen', () => {
 
   it('offers a category that has content', () => {
     render(<JesusHubScreen />);
-    expect(screen.getByTestId('jesus-category-questions')).toBeTruthy();
+    expect(screen.getByTestId('jesus-kind-questions')).toBeTruthy();
     expect(screen.getByText('292')).toBeTruthy();
   });
 
   it('does not offer a category with no content', () => {
     render(<JesusHubScreen />);
-    expect(screen.queryByTestId('jesus-category-prayers')).toBeNull();
+    expect(screen.queryByTestId('jesus-kind-prayers')).toBeNull();
   });
 
   it('routes to browse by the category slug', () => {
     render(<JesusHubScreen />);
-    fireEvent.press(screen.getByTestId('jesus-category-questions'));
+    fireEvent.press(screen.getByTestId('jesus-kind-questions'));
     expect(router.push).toHaveBeenCalledWith('/jesus/browse/questions');
   });
 
   it('routes to Follow His Life', () => {
     render(<JesusHubScreen />);
-    fireEvent.press(screen.getByTestId('jesus-hub-life'));
+    fireEvent.press(screen.getByTestId('jesus-follow-his-life'));
     expect(router.push).toHaveBeenCalledWith('/jesus/life');
   });
 
-  it('routes to a collection', () => {
+  it('routes to a study', () => {
     render(<JesusHubScreen />);
-    fireEvent.press(screen.getByTestId('jesus-collection-the-i-am-statements'));
-    expect(router.push).toHaveBeenCalledWith('/jesus/collection/the-i-am-statements');
+    fireEvent.press(screen.getByTestId('jesus-study-the-i-am-statements'));
+    expect(router.push).toHaveBeenCalledWith('/jesus/study/the-i-am-statements');
   });
 
   it('renders an empty state when the taxonomy is empty', () => {

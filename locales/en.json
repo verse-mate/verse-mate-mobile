@@ -194,11 +194,19 @@
       "life": "Follow His Life",
       "lifeBlurb": "From the hidden years to the resurrection, in order.",
       "studies": "Popular studies",
-      "empty": "Nothing here yet."
+      "empty": "Nothing here yet.",
+      "eventCount": "{{count}} events",
+      "searchPlaceholder": "Search His words and actions…",
+      "themes": "Explore by Topic",
+      "results": "Results",
+      "noResults": "Nothing matches “{{query}}”",
+      "eventCountSuffix": " · {{count}} events"
     },
     "browse": {
       "empty": "Nothing here yet.",
-      "truncated": "Showing the first results."
+      "truncated": "Showing the first {{count}} — this category is larger than one page.",
+      "stats": "{{events}} {{plural}} · {{topics}} topics",
+      "eventCount": "{{count}} events"
     },
     "life": {
       "title": "Follow His Life",
@@ -225,7 +233,15 @@
       "notRecorded": "Does not record it",
       "noCompare": "No comparison available.",
       "adds": "Only here: {{adds}}",
-      "quoted": "“{{text}}”"
+      "quoted": "“{{text}}”",
+      "openInReader": "Open in the reader to view this passage.",
+      "summaryOf": "Summary of {{title}}",
+      "bylineOf": "Line by line: {{title}}",
+      "studyOf": "Study: {{title}}",
+      "compareOf": "Compare: {{title}}",
+      "noByline": "No line-by-line reading for this event yet.",
+      "related": "Related events",
+      "themes": "Themes"
     },
     "insight": {
       "overview": "Overview",
@@ -244,6 +260,27 @@
     },
     "offline": {
       "message": "You're offline — this needs a connection."
+    },
+    "tab": {
+      "summary": "Summary",
+      "byline": "By-Line",
+      "study": "Study",
+      "compare": "Compare",
+      "openHub": "Open the Jesus tab →"
+    },
+    "study": {
+      "when": "When",
+      "period": "Period",
+      "accounts": "Accounts",
+      "people": "People",
+      "questions": "Questions He asks here"
+    },
+    "entry": {
+      "missing": "That entry doesn’t exist.",
+      "references": "Where it is"
+    },
+    "compare": {
+      "sharedBy": "Told by"
     }
   }
 }

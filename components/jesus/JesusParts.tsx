@@ -231,6 +231,126 @@ function createStyles(colors: Colors) {
       color: colors.textPrimary,
     },
     rowSummary: { fontSize: fontSizes.bodySmall, color: colors.textSecondary },
+    navCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.md,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+      borderRadius: radii.md,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    navCardEmphasis: { borderWidth: 1, borderColor: colors.gold },
+    navIcon: { width: 24, alignItems: 'center' },
+    navTitle: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.medium,
+      color: colors.textPrimary,
+    },
+    navBlurb: { fontSize: fontSizes.bodySmall, color: colors.textTertiary, marginTop: 2 },
+    navCount: { fontSize: fontSizes.bodySmall, color: colors.textTertiary },
+    pill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.full,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    pillActive: { backgroundColor: colors.gold },
+    pillText: { fontSize: fontSizes.bodySmall, color: colors.textPrimary },
+    pillTextActive: { color: colors.background, fontWeight: fontWeights.semibold },
+    pillCount: { fontSize: fontSizes.caption, color: colors.textTertiary },
     rowGospels: { fontSize: fontSizes.caption, color: colors.textTertiary },
   });
+}
+
+/**
+ * A browse row: title, blurb, count, chevron.
+ *
+ * This is the hub's and the list screens' one repeating unit — `JesusNavCard`
+ * on web. It replaced a three-column grid of bare counts, which dropped the
+ * blurb the taxonomy ships for every kind ("What He taught, and what it means")
+ * and made the hub a wall of numbers.
+ *
+ * `emphasis` is the gold-bordered treatment "Follow His Life" gets, so the one
+ * chronological way in reads as the hero rather than as another row.
+ */
+export function JesusNavCard({
+  title,
+  blurb,
+  count,
+  emphasis,
+  icon,
+  onPress,
+  testID,
+}: {
+  title: string;
+  blurb?: string | null;
+  count?: number;
+  emphasis?: boolean;
+  icon?: React.ReactNode;
+  onPress: () => void;
+  testID?: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return (
+    <Pressable
+      onPress={onPress}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={count === undefined ? title : `${title}, ${count}`}
+      style={({ pressed }) => [
+        styles.navCard,
+        emphasis && styles.navCardEmphasis,
+        pressed && styles.rowPressed,
+      ]}
+    >
+      {icon ? <View style={styles.navIcon}>{icon}</View> : null}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.navTitle}>{title}</Text>
+        {blurb ? <Text style={styles.navBlurb}>{blurb}</Text> : null}
+      </View>
+      {count !== undefined && count > 0 ? <Text style={styles.navCount}>{count}</Text> : null}
+      <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+    </Pressable>
+  );
+}
+
+/** A theme chip — "Kingdom 51" — as used by Explore by Topic. */
+export function JesusPill({
+  label,
+  count,
+  active,
+  onPress,
+  testID,
+}: {
+  label: string;
+  count?: number;
+  active?: boolean;
+  onPress: () => void;
+  testID?: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return (
+    <Pressable
+      onPress={onPress}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityState={{ selected: Boolean(active) }}
+      style={({ pressed }) => [
+        styles.pill,
+        active && styles.pillActive,
+        pressed && styles.rowPressed,
+      ]}
+    >
+      <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
+      {count !== undefined ? <Text style={styles.pillCount}>{count}</Text> : null}
+    </Pressable>
+  );
 }

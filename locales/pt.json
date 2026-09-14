@@ -194,11 +194,19 @@
       "life": "Siga a Sua vida",
       "lifeBlurb": "Dos anos ocultos à ressurreição, em ordem.",
       "studies": "Estudos populares",
-      "empty": "Ainda não há nada aqui."
+      "empty": "Ainda não há nada aqui.",
+      "eventCount": "{{count}} eventos",
+      "searchPlaceholder": "Pesquisar as Suas palavras e acções…",
+      "themes": "Explorar por tema",
+      "results": "Resultados",
+      "noResults": "Nada corresponde a “{{query}}”",
+      "eventCountSuffix": " · {{count}} eventos"
     },
     "browse": {
       "empty": "Ainda não há nada aqui.",
-      "truncated": "Mostrando os primeiros resultados."
+      "truncated": "A mostrar os primeiros {{count}} — esta categoria não cabe numa página.",
+      "stats": "{{events}} {{plural}} · {{topics}} temas",
+      "eventCount": "{{count}} eventos"
     },
     "life": {
       "title": "Siga a Sua vida",
@@ -225,7 +233,15 @@
       "notRecorded": "Não o relata",
       "noCompare": "Nenhuma comparação disponível.",
       "adds": "Só aqui: {{adds}}",
-      "quoted": "“{{text}}”"
+      "quoted": "“{{text}}”",
+      "openInReader": "Abrir no leitor para ver esta passagem.",
+      "summaryOf": "Resumo de {{title}}",
+      "bylineOf": "Linha a linha: {{title}}",
+      "studyOf": "Estudo: {{title}}",
+      "compareOf": "Comparar: {{title}}",
+      "noByline": "Ainda não há leitura linha a linha para este evento.",
+      "related": "Eventos relacionados",
+      "themes": "Temas"
     },
     "insight": {
       "overview": "Visão geral",
@@ -244,6 +260,27 @@
     },
     "offline": {
       "message": "Sem ligação — isto precisa de internet."
+    },
+    "tab": {
+      "summary": "Resumo",
+      "byline": "Linha a linha",
+      "study": "Estudo",
+      "compare": "Comparar",
+      "openHub": "Abrir a secção Jesus →"
+    },
+    "study": {
+      "when": "Quando",
+      "period": "Período",
+      "accounts": "Relatos",
+      "people": "Pessoas",
+      "questions": "Perguntas que faz aqui"
+    },
+    "entry": {
+      "missing": "Essa entrada não existe.",
+      "references": "Onde está"
+    },
+    "compare": {
+      "sharedBy": "Contado por"
     }
   }
 }
