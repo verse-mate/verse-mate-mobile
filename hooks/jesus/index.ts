@@ -50,18 +50,20 @@ export function useJesusOverview() {
 }
 
 export function useJesusBrowse(typeSlug: string | undefined) {
+  const bibleVersion = useVersion();
   return useQuery({
-    queryKey: ['jesus', 'browse', typeSlug],
-    queryFn: () => repo.fetchBrowse(typeSlug as string),
+    queryKey: ['jesus', 'browse', typeSlug, bibleVersion],
+    queryFn: () => repo.fetchBrowse(typeSlug as string, bibleVersion),
     enabled: Boolean(typeSlug),
     ...STATIC,
   });
 }
 
 export function useJesusEvent(slug: string | undefined) {
+  const bibleVersion = useVersion();
   return useQuery({
-    queryKey: ['jesus', 'event', slug],
-    queryFn: () => repo.fetchEvent(slug as string),
+    queryKey: ['jesus', 'event', slug, bibleVersion],
+    queryFn: () => repo.fetchEvent(slug as string, bibleVersion),
     enabled: Boolean(slug),
     ...STATIC,
   });
@@ -73,9 +75,10 @@ export function useJesusEvent(slug: string | undefined) {
  * should not wait on.
  */
 export function useJesusCompare(slug: string | undefined, enabled: boolean) {
+  const bibleVersion = useVersion();
   return useQuery({
-    queryKey: ['jesus', 'compare', slug],
-    queryFn: () => repo.fetchCompare(slug as string),
+    queryKey: ['jesus', 'compare', slug, bibleVersion],
+    queryFn: () => repo.fetchCompare(slug as string, bibleVersion),
     enabled: Boolean(slug) && enabled,
     ...STATIC,
   });
