@@ -1953,7 +1953,16 @@ export function ChapterPage({
               Gated on `!isPreloading` because the pager keeps three pages
               mounted: without it a single swipe would fire the lookup for the
               two buffer chapters as well as the one being read. */}
-          {!isPreloading && <JesusPassageLink bookId={bookId} chapter={chapterNumber} />}
+          {!isPreloading && (
+            // The chapter-nav buttons float over the scroll content (56px, 60px
+            // above the progress bar) and fade IN at the bottom — which is
+            // exactly where this block comes to rest, so without the clearance
+            // the left one sits on top of its heading. The logo below keeps the
+            // band, as it is narrow enough to sit between them.
+            <View style={{ marginBottom: 56 + 60 }}>
+              <JesusPassageLink bookId={bookId} chapter={chapterNumber} />
+            </View>
+          )}
           <BottomLogo />
         </Animated.ScrollView>
       </Animated.View>
