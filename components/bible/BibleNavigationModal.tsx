@@ -32,6 +32,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import {
@@ -139,6 +140,14 @@ function BibleNavigationModalComponent({
   // right tab when one is added; the previous chain silently parked anything
   // that was not OT or NT on the third stop.
   const TAB_ORDER: TabType[] = ['OT', 'NT', 'JESUS', 'TOPICS'];
+  // Four tabs do not fit "Old Testament" / "New Testament" on a narrow phone —
+  // they shrank to fit while "Jesus" and "Topics" stayed full size, so the row
+  // read as uneven and the long ones were barely legible. Web abbreviates below
+  // the same 420px for the same reason. The test ids stay constant either way.
+  const { width: windowWidth } = useWindowDimensions();
+  const roomForLongLabels = windowWidth >= 420;
+  const otLabel = roomForLongLabels ? 'Old Testament' : 'OT';
+  const ntLabel = roomForLongLabels ? 'New Testament' : 'NT';
   const [selectedTab, setSelectedTab] = useState<TabType>(getTestamentFromBookId(currentBookId));
 
   // Bible navigation state
@@ -624,7 +633,7 @@ function BibleNavigationModalComponent({
             adjustsFontSizeToFit={Platform.OS === 'ios'}
             minimumFontScale={0.8}
           >
-            Old Testament
+            {otLabel}
           </Text>
         </Pressable>
 
@@ -641,7 +650,7 @@ function BibleNavigationModalComponent({
             adjustsFontSizeToFit={Platform.OS === 'ios'}
             minimumFontScale={0.8}
           >
-            New Testament
+            {ntLabel}
           </Text>
         </Pressable>
 

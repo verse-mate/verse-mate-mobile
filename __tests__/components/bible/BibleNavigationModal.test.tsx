@@ -21,6 +21,15 @@ import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleTestaments, useTopicsSearch } from '@/src/api';
 
 // Mock dependencies
+// The testament labels abbreviate on a narrow window, so the width has to be
+// something a test can set. React Native's default test window is 750pt wide,
+// which keeps the long labels — the existing assertions stay valid.
+let mockWindowWidth = 750;
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => ({ width: mockWindowWidth, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 jest.mock('@/src/api');
 jest.mock('@/hooks/bible/use-recent-books');
 jest.mock('expo-haptics', () => ({
@@ -141,6 +150,30 @@ describe('BibleNavigationModal', () => {
     // Should show book list by default (not chapter grid)
     expect(screen.getAllByText('Genesis')[0]).toBeTruthy();
     expect(screen.getAllByText('Exodus')[0]).toBeTruthy();
+  });
+
+  it('abbreviates the testaments when four tabs will not fit', () => {
+    // Four tabs leave no room for "Old Testament" / "New Testament" on a phone:
+    // they shrank to fit while "Jesus" and "Topics" stayed full size, so the row
+    // read as uneven and the long ones were barely legible. Web abbreviates
+    // below the same 420px. The test ids do not change, so nothing that finds a
+    // tab by id has to care.
+    mockWindowWidth = 402; // iPhone 17 Pro
+    renderWithTheme(
+      <BibleNavigationModal
+        visible={true}
+        currentBookId={1}
+        currentChapter={1}
+        onClose={mockOnClose}
+        onSelectChapter={mockOnSelectChapter}
+      />
+    );
+
+    expect(screen.getAllByText('OT').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('NT').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Old Testament')).toBeNull();
+    expect(screen.getByTestId('tab-old-testament')).toBeTruthy();
+    mockWindowWidth = 750;
   });
 
   it('should display chapter grid when book is selected', async () => {
