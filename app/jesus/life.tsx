@@ -33,11 +33,16 @@ export default function JesusLifeScreen() {
 
   const sections = useMemo(
     () =>
-      (data ?? []).map((period) => ({
-        title: period.name,
-        subtitle: period.subtitle,
-        data: period.events ?? [],
-      })),
+      (data ?? [])
+        .map((period) => ({
+          title: period.name,
+          subtitle: period.subtitle,
+          data: period.events ?? [],
+        }))
+        // A SectionList still draws the header of an empty section, so a period
+        // with nothing catalogued in it would read as a heading the app forgot
+        // to fill. Dropping it keeps the timeline to what actually exists.
+        .filter((section) => section.data.length > 0),
     [data]
   );
 

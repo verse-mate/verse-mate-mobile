@@ -37,8 +37,13 @@ export default function JesusHubScreen() {
     return <JesusPlaceholder loading testID="jesus-hub-loading" />;
   }
 
-  const sections = data?.sections ?? [];
-  const hasContent = sections.some((s) => (s.types?.length ?? 0) > 0);
+  // A category with nothing behind it is a dead end, so it is not offered —
+  // and the empty check has to use that same predicate, or a section whose
+  // types are all empty renders a heading with no tiles under it.
+  const sections = (data?.sections ?? [])
+    .map((s) => ({ ...s, types: (s.types ?? []).filter((t) => (t.facet_count ?? 0) > 0) }))
+    .filter((s) => s.types.length > 0);
+  const hasContent = sections.length > 0 || (data?.collections?.length ?? 0) > 0;
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -94,25 +99,21 @@ export default function JesusHubScreen() {
               />
               {section.blurb ? <Text style={styles.sectionBlurb}>{section.blurb}</Text> : null}
               <View style={styles.grid}>
-                {(section.types ?? [])
-                  // A category with nothing behind it is a dead end, so it is
-                  // not offered. Six were empty before the corpus was filled.
-                  .filter((type) => (type.facet_count ?? 0) > 0)
-                  .map((type) => (
-                    <Pressable
-                      key={type.slug}
-                      style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-                      onPress={() => router.push(`/jesus/browse/${type.slug}`)}
-                      testID={`jesus-category-${type.slug}`}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${type.label}, ${type.facet_count}`}
-                    >
-                      <Text style={styles.tileCount}>{type.facet_count}</Text>
-                      <Text style={styles.tileLabel} numberOfLines={2}>
-                        {type.label}
-                      </Text>
-                    </Pressable>
-                  ))}
+                {section.types.map((type) => (
+                  <Pressable
+                    key={type.slug}
+                    style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
+                    onPress={() => router.push(`/jesus/browse/${type.slug}`)}
+                    testID={`jesus-category-${type.slug}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${type.label}, ${type.facet_count}`}
+                  >
+                    <Text style={styles.tileCount}>{type.facet_count}</Text>
+                    <Text style={styles.tileLabel} numberOfLines={2}>
+                      {type.label}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
             </View>
           ))}

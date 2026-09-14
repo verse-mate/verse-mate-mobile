@@ -113,4 +113,28 @@ describe('JesusLifeScreen', () => {
     render(<JesusLifeScreen />);
     expect(screen.getByTestId('jesus-life-empty')).toBeTruthy();
   });
+
+  it('drops a period with nothing catalogued in it', () => {
+    // A SectionList draws the header of an empty section regardless, so an
+    // unfiltered period reads as a heading the app forgot to fill.
+    mockLife.mockReturnValue({
+      isLoading: false,
+      data: [
+        { slug: 'hidden', name: 'The Hidden Years', subtitle: null, events: [] },
+        { slug: 'galilee', name: 'The Galilean Ministry', subtitle: null, events: [EVENT] },
+      ],
+    });
+    render(<JesusLifeScreen />);
+    expect(screen.queryByText('The Hidden Years')).toBeNull();
+    expect(screen.getByText('The Galilean Ministry')).toBeTruthy();
+  });
+
+  it('reports an all-empty timeline as empty, not as a list of bare headings', () => {
+    mockLife.mockReturnValue({
+      isLoading: false,
+      data: [{ slug: 'hidden', name: 'The Hidden Years', subtitle: null, events: [] }],
+    });
+    render(<JesusLifeScreen />);
+    expect(screen.getByTestId('jesus-life-empty')).toBeTruthy();
+  });
 });
