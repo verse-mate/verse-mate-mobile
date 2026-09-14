@@ -245,11 +245,17 @@ function createStyles(colors: Colors) {
       marginBottom: spacing.sm,
     },
     tabStrip: {
+      // An explicit height, not just flexGrow:0. A horizontal ScrollView sizes
+      // itself to content, and the content measurement comes out a couple of
+      // points short of the font's descenders — so "Summary" renders as
+      // "Summarv". lineHeight on the label alone did not fix it; the strip has
+      // to reserve the room.
       flexGrow: 0,
+      height: 44,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.divider,
     },
-    tabStripContent: { paddingHorizontal: spacing.md },
+    tabStripContent: { paddingHorizontal: spacing.md, alignItems: 'center' },
     tab: {
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,

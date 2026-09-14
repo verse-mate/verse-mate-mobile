@@ -88,18 +88,42 @@ export async function fetchEventOverview(bibleVersion?: string): Promise<JesusEv
 }
 
 /** One browse category — "questions", "parables" — grouped into topics. */
-export async function fetchBrowse(typeSlug: string): Promise<JesusBrowse | null> {
-  return get<JesusBrowse>(`/jesus/events/browse/${encodeURIComponent(typeSlug)}`);
+export async function fetchBrowse(
+  typeSlug: string,
+  bibleVersion?: string
+): Promise<JesusBrowse | null> {
+  return get<JesusBrowse>(`/jesus/events/browse/${encodeURIComponent(typeSlug)}`, {
+    bible_version: bibleVersion,
+  });
 }
 
 /** A single event with its facets, passages, reveals, reactions and prose. */
-export async function fetchEvent(slug: string): Promise<JesusEventDetail | null> {
-  return get<JesusEventDetail>(`/jesus/events/${encodeURIComponent(slug)}`);
+/**
+ * One event with its scripture.
+ *
+ * `bible_version` is NOT optional in practice: without it the backend returns
+ * `passages: []` — no references and no verse text — so the screen renders a
+ * title and nothing to read. Measured: no param -> 0 passages; NASB1995 -> 3
+ * passages with 5 verses in the first. Requesting it without a version is what
+ * made the first port conclude the array was empty and build a metadata screen.
+ */
+export async function fetchEvent(
+  slug: string,
+  bibleVersion?: string
+): Promise<JesusEventDetail | null> {
+  return get<JesusEventDetail>(`/jesus/events/${encodeURIComponent(slug)}`, {
+    bible_version: bibleVersion,
+  });
 }
 
 /** The Compare tab: which Gospels record this event, and what each adds. */
-export async function fetchCompare(slug: string): Promise<JesusCompare | null> {
-  return get<JesusCompare>(`/jesus/events/${encodeURIComponent(slug)}/compare`);
+export async function fetchCompare(
+  slug: string,
+  bibleVersion?: string
+): Promise<JesusCompare | null> {
+  return get<JesusCompare>(`/jesus/events/${encodeURIComponent(slug)}/compare`, {
+    bible_version: bibleVersion,
+  });
 }
 
 /**

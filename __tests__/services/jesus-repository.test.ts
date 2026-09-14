@@ -68,6 +68,27 @@ describe('jesus-repository', () => {
     expect(events[0].slug).toBe('event-storm-stilled');
   });
 
+  it('asks for a bible version on the event, or the scripture never arrives', async () => {
+    // Measured against prod: GET /jesus/events/:slug with NO bible_version
+    // returns `passages: []` — no references and no verse text — while
+    // NASB1995 returns 3 passages with 5 verses in the first. Omitting it is
+    // what made the first port believe that array was empty and build a screen
+    // with no scripture on it, so it is pinned rather than left to judgement.
+    authenticatedFetch.mockResolvedValue(ok({ event: {}, passages: [] }));
+    await repo.fetchEvent('event-storm-stilled', 'NASB1995');
+    expect(authenticatedFetch.mock.calls[0][0]).toContain('bible_version=NASB1995');
+  });
+
+  it('asks for a version on browse and compare too', async () => {
+    authenticatedFetch.mockResolvedValue(ok({}));
+    await repo.fetchBrowse('parables', 'NASB1995');
+    expect(authenticatedFetch.mock.calls[0][0]).toContain('bible_version=NASB1995');
+
+    authenticatedFetch.mockResolvedValue(ok({}));
+    await repo.fetchCompare('event-storm-stilled', 'NASB1995');
+    expect(authenticatedFetch.mock.calls[1][0]).toContain('bible_version=NASB1995');
+  });
+
   it("sends the reader's translation on the routes that quote scripture", async () => {
     // Without it the passage references come back in the default version while
     // the chapter above them is in another — wrong, and silently so.
