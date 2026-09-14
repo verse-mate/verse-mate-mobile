@@ -49,9 +49,17 @@ async function get<T>(
   const url = `${BASE_URL}${path}${qs ? `?${qs}` : ''}`;
   try {
     const res = await authenticatedFetch(url, { method: 'GET' });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Degrading to null is deliberate — a screen shows an empty state rather
+      // than an error boundary — but it must not also erase WHY. A silent
+      // catch here is what made a failing hub indistinguishable from an empty
+      // corpus while the API was serving 207 events.
+      console.warn(`[jesus] ${path} -> HTTP ${res.status}`);
+      return null;
+    }
     return (await res.json()) as T;
-  } catch {
+  } catch (error) {
+    console.warn(`[jesus] ${path} -> ${(error as Error)?.message ?? String(error)}`);
     return null;
   }
 }
