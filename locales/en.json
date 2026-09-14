@@ -206,7 +206,9 @@
       "empty": "Nothing here yet.",
       "truncated": "Showing the first {{count}} — this category is larger than one page.",
       "stats": "{{events}} {{plural}} · {{topics}} topics",
-      "eventCount": "{{count}} events"
+      "eventCount": "{{count}} events",
+      "whatHeSays": "What He says here",
+      "whatHeDoes": "What He does here"
     },
     "life": {
       "title": "Follow His Life",

@@ -206,7 +206,9 @@
       "empty": "Hier ist noch nichts.",
       "truncated": "Die ersten {{count}} werden gezeigt — diese Kategorie passt nicht auf eine Seite.",
       "stats": "{{events}} {{plural}} · {{topics}} Themen",
-      "eventCount": "{{count}} Ereignisse"
+      "eventCount": "{{count}} Ereignisse",
+      "whatHeSays": "Was Er hier sagt",
+      "whatHeDoes": "Was Er hier tut"
     },
     "life": {
       "title": "Seinem Leben folgen",

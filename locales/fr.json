@@ -206,7 +206,9 @@
       "empty": "Rien ici pour l'instant.",
       "truncated": "Affichage des {{count}} premiers — cette catégorie dépasse une page.",
       "stats": "{{events}} {{plural}} · {{topics}} thèmes",
-      "eventCount": "{{count}} événements"
+      "eventCount": "{{count}} événements",
+      "whatHeSays": "Ce qu’Il dit ici",
+      "whatHeDoes": "Ce qu’Il fait ici"
     },
     "life": {
       "title": "Suivre sa vie",
