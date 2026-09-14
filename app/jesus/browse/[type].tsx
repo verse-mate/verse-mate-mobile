@@ -27,7 +27,10 @@ import type { JesusEventCard, JesusTopicPoint } from '@/types/jesus';
 
 type Colors = ReturnType<typeof getColors>;
 
-type Row = { kind: 'point'; point: JesusTopicPoint } | { kind: 'event'; event: JesusEventCard };
+// The sayings are ONE block under a heading, not a card each: they are quotes
+// rather than links, and rendering them as individual cards made them look
+// tappable next to the event rows that actually are.
+type Row = { kind: 'points'; points: JesusTopicPoint[] } | { kind: 'event'; event: JesusEventCard };
 
 export default function JesusBrowseScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
@@ -56,8 +59,9 @@ export default function JesusBrowseScreen() {
       // web hides the duplicate quote on a card whose facet was already shown
       // above rather than dropping the card. Filtering them out instead left
       // topics whose events were all quoted with nothing to tap at all.
+      const points = topic.points ?? [];
       const rows: Row[] = [
-        ...(topic.points ?? []).map((point) => ({ kind: 'point' as const, point })),
+        ...(points.length ? [{ kind: 'points' as const, points }] : []),
         ...(topic.events ?? []).map((event) => ({ kind: 'event' as const, event })),
       ];
       return { key: topic.slug ?? 'other', topic, data: rows };
@@ -108,9 +112,7 @@ export default function JesusBrowseScreen() {
         <SectionList
           ref={listRef}
           sections={sections}
-          keyExtractor={(row, i) =>
-            row.kind === 'point' ? `p-${row.point.slug}-${i}` : `e-${row.event.slug}-${i}`
-          }
+          keyExtractor={(row, i) => (row.kind === 'points' ? `p-${i}` : `e-${row.event.slug}-${i}`)}
           stickySectionHeadersEnabled={false}
           testID="jesus-topic-list"
           contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
@@ -173,24 +175,30 @@ export default function JesusBrowseScreen() {
             </View>
           )}
           renderItem={({ item }) =>
-            item.kind === 'point' ? (
-              <View style={styles.pointCard} testID={`jesus-point-${item.point.slug}`}>
-                {/* A WORD facet leads with the saying; an ACTION facet has no
-                    quote at all and leads with the deed. Rendering the quote
-                    marks unconditionally put an empty “” above every miracle. */}
-                {item.point.text ? (
-                  <Text style={styles.pointText}>
-                    {t('jesus.event.quoted', '“{{text}}”', { text: item.point.text })}
-                  </Text>
-                ) : (
-                  <Text style={styles.pointTitle}>{item.point.title}</Text>
-                )}
-                {item.point.summary ? (
-                  <Text style={styles.pointSummary}>{item.point.summary}</Text>
-                ) : null}
-                {item.point.reference ? (
-                  <Text style={styles.pointReference}>{item.point.reference}</Text>
-                ) : null}
+            item.kind === 'points' ? (
+              <View style={styles.pointsCard} testID="jesus-topic-points">
+                <Text style={styles.pointsHeading}>
+                  {data?.type?.mode === 'ACTION'
+                    ? t('jesus.browse.whatHeDoes', 'What He does here')
+                    : t('jesus.browse.whatHeSays', 'What He says here')}
+                </Text>
+                {item.points.map((point) => (
+                  <View key={point.slug} style={styles.point}>
+                    {point.text ? (
+                      <Text style={styles.pointText}>
+                        {t('jesus.event.quoted', '“{{text}}”', { text: point.text })}
+                      </Text>
+                    ) : (
+                      <Text style={styles.pointTitle}>{point.title}</Text>
+                    )}
+                    {point.summary ? (
+                      <Text style={styles.pointSummary}>{point.summary}</Text>
+                    ) : null}
+                    {point.reference ? (
+                      <Text style={styles.pointReference}>{point.reference}</Text>
+                    ) : null}
+                  </View>
+                ))}
               </View>
             ) : (
               <EventRow
@@ -282,15 +290,24 @@ function createStyles(colors: Colors) {
       color: colors.textTertiary,
       marginTop: spacing.xs,
     },
-    pointCard: {
+    pointsCard: {
       marginHorizontal: spacing.lg,
-      marginBottom: spacing.sm,
+      marginBottom: spacing.md,
       padding: spacing.md,
       borderRadius: radii.md,
       backgroundColor: colors.backgroundSecondary,
       borderLeftWidth: 2,
       borderLeftColor: colors.gold,
     },
+    pointsHeading: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: colors.gold,
+      marginBottom: spacing.sm,
+    },
+    point: { marginBottom: spacing.md },
     pointText: { fontSize: fontSizes.body, color: colors.textPrimary, fontStyle: 'italic' },
     pointTitle: {
       fontSize: fontSizes.body,
