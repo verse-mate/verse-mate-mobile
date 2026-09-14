@@ -17,7 +17,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EventRow, JesusPlaceholder } from '@/components/jesus/JesusParts';
+import { EventRow, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusLife } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
@@ -29,7 +29,9 @@ export default function JesusLifeScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { data, isLoading } = useJesusLife();
+  const life = useJesusLife();
+  const { data } = life;
+  const phase = queryPhase(life);
 
   const sections = useMemo(
     () =>
@@ -68,8 +70,13 @@ export default function JesusLifeScreen() {
         <View style={styles.backButton} />
       </View>
 
-      {isLoading ? (
+      {phase === 'loading' ? (
         <JesusPlaceholder loading testID="jesus-life-loading" />
+      ) : phase === 'offline' ? (
+        <JesusPlaceholder
+          message={t('jesus.offline.message', "You're offline — this needs a connection.")}
+          testID="jesus-life-offline"
+        />
       ) : sections.length === 0 ? (
         <JesusPlaceholder
           message={t('jesus.life.empty', 'Nothing here yet.')}

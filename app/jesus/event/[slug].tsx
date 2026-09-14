@@ -17,7 +17,12 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ConfidenceBadge, JesusPlaceholder, SectionHeading } from '@/components/jesus/JesusParts';
+import {
+  ConfidenceBadge,
+  JesusPlaceholder,
+  queryPhase,
+  SectionHeading,
+} from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusCompare, useJesusEvent } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
@@ -41,7 +46,9 @@ export default function JesusEventScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const { data, isLoading } = useJesusEvent(slug);
+  const event = useJesusEvent(slug);
+  const { data } = event;
+  const phase = queryPhase(event);
   const [tab, setTab] = useState<TabKey>('story');
   const bodyRef = useRef<ScrollView>(null);
 
@@ -73,7 +80,15 @@ export default function JesusEventScreen() {
     else router.replace('/jesus');
   };
 
-  if (isLoading) return <JesusPlaceholder loading testID="jesus-event-loading" />;
+  if (phase === 'loading') return <JesusPlaceholder loading testID="jesus-event-loading" />;
+  if (phase === 'offline') {
+    return (
+      <JesusPlaceholder
+        message={t('jesus.offline.message', "You're offline — this needs a connection.")}
+        testID="jesus-event-offline"
+      />
+    );
+  }
   if (!data) {
     return (
       <JesusPlaceholder
@@ -207,7 +222,12 @@ export default function JesusEventScreen() {
         )}
 
         {tab === 'compare' &&
-          (compare.isLoading ? (
+          (queryPhase(compare) === 'offline' ? (
+            <JesusPlaceholder
+              message={t('jesus.offline.message', "You're offline — this needs a connection.")}
+              testID="jesus-compare-offline"
+            />
+          ) : queryPhase(compare) === 'loading' ? (
             <JesusPlaceholder loading testID="jesus-compare-loading" />
           ) : !compare.data ? (
             <JesusPlaceholder

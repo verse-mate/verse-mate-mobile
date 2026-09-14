@@ -67,19 +67,19 @@ const DETAIL = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockEvent.mockReturnValue({ data: DETAIL, isLoading: false });
-  mockCompare.mockReturnValue({ data: null, isLoading: false });
+  mockEvent.mockReturnValue({ data: DETAIL, isPending: false, fetchStatus: 'idle' });
+  mockCompare.mockReturnValue({ data: null, isPending: false, fetchStatus: 'idle' });
 });
 
 describe('JesusEventScreen', () => {
   it('shows a spinner while loading', () => {
-    mockEvent.mockReturnValue({ data: undefined, isLoading: true });
+    mockEvent.mockReturnValue({ data: undefined, isPending: true, fetchStatus: 'fetching' });
     render(<JesusEventScreen />);
     expect(screen.getByTestId('jesus-event-loading')).toBeTruthy();
   });
 
   it('reports a failure instead of rendering a blank screen', () => {
-    mockEvent.mockReturnValue({ data: null, isLoading: false });
+    mockEvent.mockReturnValue({ data: null, isPending: false, fetchStatus: 'idle' });
     render(<JesusEventScreen />);
     expect(screen.getByTestId('jesus-event-missing')).toBeTruthy();
   });
@@ -113,14 +113,19 @@ describe('JesusEventScreen', () => {
   it('hides Compare for a single-account event', () => {
     mockEvent.mockReturnValue({
       data: { ...DETAIL, event: { ...DETAIL.event, gospels: ['John'] } },
-      isLoading: false,
+      isPending: false,
+      fetchStatus: 'idle',
     });
     render(<JesusEventScreen />);
     expect(screen.queryByTestId('jesus-tab-compare')).toBeNull();
   });
 
   it('hides Insight when nothing has been generated', () => {
-    mockEvent.mockReturnValue({ data: { ...DETAIL, explanation: {} }, isLoading: false });
+    mockEvent.mockReturnValue({
+      data: { ...DETAIL, explanation: {} },
+      isPending: false,
+      fetchStatus: 'idle',
+    });
     render(<JesusEventScreen />);
     expect(screen.queryByTestId('jesus-tab-insight')).toBeNull();
   });
@@ -134,7 +139,8 @@ describe('JesusEventScreen', () => {
 
   it('shows what a Gospel uniquely adds on the Compare tab', () => {
     mockCompare.mockReturnValue({
-      isLoading: false,
+      isPending: false,
+      fetchStatus: 'idle',
       data: {
         note: 'All three record it.',
         accounts: [

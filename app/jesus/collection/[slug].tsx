@@ -13,7 +13,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EventRow, JesusPlaceholder } from '@/components/jesus/JesusParts';
+import { EventRow, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusCollection } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
@@ -26,7 +26,9 @@ export default function JesusCollectionScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { data, isLoading } = useJesusCollection(slug);
+  const collection = useJesusCollection(slug);
+  const { data } = collection;
+  const phase = queryPhase(collection);
 
   const handleBack = () => {
     if (router.canGoBack()) router.back();
@@ -52,7 +54,12 @@ export default function JesusCollectionScreen() {
         <View style={styles.backButton} />
       </View>
 
-      {isLoading ? (
+      {phase === 'offline' ? (
+        <JesusPlaceholder
+          message={t('jesus.offline.message', "You're offline — this needs a connection.")}
+          testID="jesus-collection-offline"
+        />
+      ) : phase === 'loading' ? (
         <JesusPlaceholder loading testID="jesus-collection-loading" />
       ) : !data || (data.events?.length ?? 0) === 0 ? (
         <JesusPlaceholder
