@@ -798,7 +798,15 @@ function BibleNavigationModalComponent({
   const renderFilterInput = () => {
     const isTopicsMode = selectedTab === 'TOPICS';
     const currentFilterText = isTopicsMode ? topicFilterText : filterText;
-    const placeholder = isTopicsMode ? 'Filter topics...' : 'Filter books...';
+    // The Jesus tab searches His words and actions, not the book list, and says
+    // so — the same placeholder web uses. Leaving "Filter books..." there makes
+    // the box look like it filters the rows below it, which it does not.
+    const placeholder =
+      selectedTab === 'JESUS'
+        ? 'Search His words and actions...'
+        : isTopicsMode
+          ? 'Filter topics...'
+          : 'Filter books...';
     const onChangeText = isTopicsMode ? setTopicFilterText : setFilterText;
 
     return (
