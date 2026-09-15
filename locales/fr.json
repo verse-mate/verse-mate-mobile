@@ -186,5 +186,106 @@
     "why": "POURQUOI C'EST IMPORTANT",
     "readNote": "Lire la note complète →",
     "fallback": "Ouvre VerseMate pour voir le verset du jour"
+  },
+  "jesus": {
+    "hub": {
+      "title": "Jésus",
+      "intro": "Explorez Sa vie, Ses paroles et Ses actes",
+      "life": "Suivre sa vie",
+      "lifeBlurb": "Des années cachées à la résurrection, dans l'ordre.",
+      "studies": "Études populaires",
+      "empty": "Rien ici pour l'instant.",
+      "eventCount": "{{count}} événements",
+      "searchPlaceholder": "Rechercher Ses paroles et Ses actes…",
+      "themes": "Explorer par thème",
+      "results": "Résultats",
+      "noResults": "Rien ne correspond à « {{query}} »",
+      "eventCountSuffix": " · {{count}} événements"
+    },
+    "browse": {
+      "empty": "Rien ici pour l'instant.",
+      "truncated": "Affichage des {{count}} premiers — cette catégorie dépasse une page.",
+      "stats": "{{events}} {{plural}} · {{topics}} thèmes",
+      "eventCount": "{{count}} événements",
+      "whatHeSays": "Ce qu’Il dit ici",
+      "whatHeDoes": "Ce qu’Il fait ici"
+    },
+    "life": {
+      "title": "Suivre sa vie",
+      "empty": "Rien ici pour l'instant."
+    },
+    "collection": {
+      "empty": "Rien ici pour l'instant."
+    },
+    "event": {
+      "story": "Récit",
+      "said": "A dit",
+      "did": "A fait",
+      "compare": "Comparer",
+      "insight": "Éclairage",
+      "missing": "Impossible de charger cet événement.",
+      "where": "Où : {{location}}",
+      "accounts": "Récits",
+      "saysAboutHimself": "Ce qu'Il dit de Lui-même",
+      "demonstrates": "Ce qu'Il montre",
+      "othersSay": "Ce que disent les autres",
+      "narratorSays": "Ce que dit l'Évangile",
+      "reactions": "Comment on a réagi",
+      "people": "Qui était là",
+      "notRecorded": "Ne le rapporte pas",
+      "noCompare": "Aucune comparaison disponible.",
+      "adds": "Ici seulement : {{adds}}",
+      "quoted": "« {{text}} »",
+      "openInReader": "Ouvrir dans le lecteur pour voir ce passage.",
+      "summaryOf": "Résumé de {{title}}",
+      "bylineOf": "Ligne par ligne : {{title}}",
+      "studyOf": "Étude : {{title}}",
+      "compareOf": "Comparer : {{title}}",
+      "noByline": "Pas encore de lecture ligne par ligne pour cet événement.",
+      "related": "Événements liés",
+      "themes": "Thèmes"
+    },
+    "insight": {
+      "overview": "Aperçu",
+      "compare": "Comparaison",
+      "insights": "Éclairages",
+      "application": "Application"
+    },
+    "passage": {
+      "heading": "Dans la vie de Jésus",
+      "more": "{{count}} de plus dans ce chapitre"
+    },
+    "confidence": {
+      "probable": "probable",
+      "disputed": "contesté",
+      "unknown": "incertain"
+    },
+    "offline": {
+      "message": "Hors ligne — une connexion est nécessaire."
+    },
+    "tab": {
+      "summary": "Résumé",
+      "byline": "Ligne par ligne",
+      "study": "Étude",
+      "compare": "Comparer",
+      "openHub": "Ouvrir la section Jésus →"
+    },
+    "study": {
+      "where": "Où",
+      "when": "Quand",
+      "period": "Période",
+      "accounts": "Récits",
+      "people": "Personnes",
+      "questions": "Questions qu’Il pose ici",
+      "scopedTo": "Limité à {{range}} de l’étude de ce chapitre",
+      "wholeChapter": "L’étude de ce chapitre"
+    },
+    "entry": {
+      "missing": "Cette entrée n’existe pas.",
+      "references": "Où cela se trouve"
+    },
+    "compare": {
+      "sharedBy": "Raconté par"
+    }
   }
 }

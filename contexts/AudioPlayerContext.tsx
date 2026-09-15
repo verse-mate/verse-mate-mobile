@@ -412,3 +412,18 @@ export function useAudioPlayer(): AudioPlayerContextValue {
   if (!v) throw new Error("useAudioPlayer outside AudioPlayerProvider");
   return v;
 }
+
+/**
+ * The player if there is one, otherwise null — for consumers where audio is an
+ * ENHANCEMENT rather than the point.
+ *
+ * The throwing version is right for the dock and the full-screen player: those
+ * exist only to drive playback, and rendering them outside the provider is a
+ * wiring bug worth failing loudly on. It is wrong for the reader, which now
+ * marks the verse being narrated: that is decoration on a screen whose job is
+ * text, so a missing provider must degrade to "no verse is highlighted" rather
+ * than take the chapter down with it.
+ */
+export function useOptionalAudioPlayer(): AudioPlayerContextValue | null {
+  return useContext(Ctx) ?? null;
+}

@@ -51,6 +51,7 @@ import { NoteViewModal } from '@/components/bible/NoteViewModal';
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { bookHasVisuals, VisualsPanel } from '@/components/bible/VisualsPanel';
+import { JesusPassageLink } from '@/components/jesus/JesusPassageLink';
 import { OfflineContentUnavailable } from '@/components/offline/OfflineContentUnavailable';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1946,6 +1947,22 @@ export function ChapterPage({
               )}
             </View>
           </TextVisibilityContext.Provider>
+          {/* The bridge into the Jesus graph. Sits after the verse column so it
+              never interrupts reading, and renders nothing when the chapter
+              contains no catalogued event — which is most of the Bible.
+              Gated on `!isPreloading` because the pager keeps three pages
+              mounted: without it a single swipe would fire the lookup for the
+              two buffer chapters as well as the one being read. */}
+          {!isPreloading && (
+            // The chapter-nav buttons float over the scroll content (56px, 60px
+            // above the progress bar) and fade IN at the bottom — which is
+            // exactly where this block comes to rest, so without the clearance
+            // the left one sits on top of its heading. The logo below keeps the
+            // band, as it is narrow enough to sit between them.
+            <View style={{ marginBottom: 56 + 60 }}>
+              <JesusPassageLink bookId={bookId} chapter={chapterNumber} />
+            </View>
+          )}
           <BottomLogo />
         </Animated.ScrollView>
       </Animated.View>

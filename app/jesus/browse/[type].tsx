@@ -1,0 +1,358 @@
+/**
+ * JesusBrowseScreen — one kind, grouped by topic.
+ *
+ * Route: /jesus/browse/[type]   e.g. /jesus/browse/parables
+ *
+ * Mirrors verse-mate-web's `JesusListScreen` in `kind` mode, which renders
+ * `GET /jesus/events/browse/:type` through `JesusTopicBrowse`: an intro, a
+ * stats line, topic chips, then one section per topic carrying the sayings
+ * themselves — not just a list of event titles.
+ *
+ * The chips jump to their section rather than filtering, as they do on web. A
+ * SectionList is what makes that work on a phone: `scrollToLocation` needs the
+ * list to own the sections, so the whole screen is the list rather than a
+ * ScrollView with a list inside it.
+ */
+import { Ionicons } from '@expo/vector-icons';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { EventRow, JesusPill, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useJesusBrowse } from '@/hooks/jesus';
+import { categoryStats, topicCount, topicGospels } from '@/lib/jesus/browse-copy';
+import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
+import type { JesusEventCard, JesusTopicPoint } from '@/types/jesus';
+
+type Colors = ReturnType<typeof getColors>;
+
+// The sayings are ONE block under a heading, not a card each: they are quotes
+// rather than links, and rendering them as individual cards made them look
+// tappable next to the event rows that actually are.
+type Row = { kind: 'points'; points: JesusTopicPoint[] } | { kind: 'event'; event: JesusEventCard };
+
+export default function JesusBrowseScreen() {
+  const { type } = useLocalSearchParams<{ type: string }>();
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const listRef = useRef<SectionList<Row>>(null);
+
+  const browse = useJesusBrowse(type);
+  const { data } = browse;
+  const phase = queryPhase(browse);
+
+  const handleBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/jesus');
+  };
+
+  // A topic leads with the sayings it is built from, then the remaining events
+  // that carry no quoted point of their own — that ordering is what makes the
+  // screen read as "what this set is about" rather than as a directory.
+  const sections = useMemo(() => {
+    return (data?.topics ?? []).map((topic) => {
+      // The points are the sayings this topic is built from — quotes, not
+      // links, exactly as on web. EVERY event then follows as a tappable card;
+      // web hides the duplicate quote on a card whose facet was already shown
+      // above rather than dropping the card. Filtering them out instead left
+      // topics whose events were all quoted with nothing to tap at all.
+      const points = topic.points ?? [];
+      const rows: Row[] = [
+        ...(points.length ? [{ kind: 'points' as const, points }] : []),
+        ...(topic.events ?? []).map((event) => ({ kind: 'event' as const, event })),
+      ];
+      return { key: topic.slug ?? 'other', topic, data: rows };
+    });
+  }, [data]);
+
+  const jumpTo = (index: number) => {
+    listRef.current?.scrollToLocation({
+      sectionIndex: index,
+      itemIndex: 0,
+      viewPosition: 0,
+      animated: true,
+    });
+  };
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.header}>
+        <Pressable
+          onPress={handleBack}
+          style={styles.backButton}
+          testID="jesus-list-back-button"
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back', 'Back')}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.headerTitle} numberOfLines={1} testID="jesus-list-title">
+          {data?.type?.label ?? ''}
+        </Text>
+        <View style={styles.backButton} />
+      </View>
+
+      {phase === 'offline' ? (
+        <JesusPlaceholder
+          message={t('jesus.offline.message', "You're offline — this needs a connection.")}
+          testID="jesus-browse-offline"
+        />
+      ) : phase === 'loading' ? (
+        <JesusPlaceholder loading testID="jesus-browse-loading" />
+      ) : sections.length === 0 ? (
+        <JesusPlaceholder
+          message={t('jesus.browse.empty', 'Nothing here yet.')}
+          testID="jesus-browse-empty"
+        />
+      ) : (
+        <SectionList
+          ref={listRef}
+          sections={sections}
+          keyExtractor={(row, i) => (row.kind === 'points' ? `p-${i}` : `e-${row.event.slug}-${i}`)}
+          stickySectionHeadersEnabled={false}
+          testID="jesus-topic-list"
+          contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
+          // scrollToLocation needs a height estimate for sections it has not
+          // measured; without it a chip jump to a far topic lands short.
+          onScrollToIndexFailed={({ index }) => {
+            listRef.current?.scrollToLocation({
+              sectionIndex: Math.max(0, index),
+              itemIndex: 0,
+              animated: false,
+            });
+          }}
+          ListHeaderComponent={
+            <View>
+              {data?.type?.intro ? (
+                <Text style={styles.intro} testID="jesus-category-intro">
+                  {data.type.intro}
+                </Text>
+              ) : null}
+              {data ? (
+                <Text style={styles.stats} testID="jesus-category-stats">
+                  {categoryStats(data)}
+                </Text>
+              ) : null}
+              {sections.length > 1 ? (
+                <View style={styles.pillRow} testID="jesus-topic-nav">
+                  {sections.map((s, i) => (
+                    <JesusPill
+                      key={s.key}
+                      label={s.topic.name}
+                      count={s.topic.facet_count || s.topic.event_count}
+                      onPress={() => jumpTo(i)}
+                      testID={`jesus-topic-chip-${s.key}`}
+                    />
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          }
+          renderSectionHeader={({ section }) => (
+            <View style={styles.topicHeader} testID={`jesus-topic-section-${section.key}`}>
+              <View style={styles.topicTitleRow}>
+                <Text style={styles.topicName} testID={`jesus-topic-name-${section.key}`}>
+                  {section.topic.name}
+                </Text>
+                <Text style={styles.topicCount}>
+                  {topicCount(section.topic, data?.type?.singular, data?.type?.plural)}
+                </Text>
+              </View>
+              {/* The brief says what He addresses HERE; the theme's blurb says
+                  what the theme is. Where a brief exists it replaces the blurb
+                  rather than stacking on it — two descriptions under one
+                  heading is one more than the reader will read. Same rule as
+                  web's JesusTopicSection. */}
+              {section.topic.brief ? (
+                <Text style={styles.topicBrief} testID={`jesus-topic-brief-${section.key}`}>
+                  {section.topic.brief}
+                </Text>
+              ) : section.topic.description ? (
+                <Text style={styles.topicDescription}>{section.topic.description}</Text>
+              ) : null}
+              {topicGospels(section.topic) ? (
+                <Text style={styles.topicGospels}>{topicGospels(section.topic)}</Text>
+              ) : null}
+            </View>
+          )}
+          renderItem={({ item }) =>
+            item.kind === 'points' ? (
+              <View style={styles.pointsCard} testID="jesus-topic-points">
+                <Text style={styles.pointsHeading}>
+                  {data?.type?.mode === 'ACTION'
+                    ? t('jesus.browse.whatHeDoes', 'What He does here')
+                    : t('jesus.browse.whatHeSays', 'What He says here')}
+                </Text>
+                {item.points.map((point) => {
+                  // Web puts the gloss and the reference on ONE line joined by
+                  // "·", and a bare reference with no gloss still gets that
+                  // line. Stacking them as two rows is what made the mobile
+                  // block read as taller and looser than the same content on
+                  // web. Mirrors JesusTopicParts' `[summary, reference]` join.
+                  const meta = [point.text ? point.summary : null, point.reference]
+                    .filter(Boolean)
+                    .join(' · ');
+                  return (
+                    <View key={point.slug} style={styles.point}>
+                      {point.text ? (
+                        <Text style={styles.pointText}>
+                          {t('jesus.event.quoted', '“{{text}}”', { text: point.text })}
+                        </Text>
+                      ) : (
+                        <Text style={styles.pointTitle}>{point.title}</Text>
+                      )}
+                      {meta ? <Text style={styles.pointMeta}>{meta}</Text> : null}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <EventRow
+                event={item.event}
+                onPress={(slug) => router.push(`/jesus/event/${slug}`)}
+              />
+            )
+          }
+          ListFooterComponent={
+            data?.truncated ? (
+              <Text style={styles.truncated} testID="jesus-topic-truncated">
+                {t(
+                  'jesus.browse.truncated',
+                  'Showing the first {{count}} — this category is larger than one page.',
+                  {
+                    count: data.total_events,
+                  }
+                )}
+              </Text>
+            ) : null
+          }
+        />
+      )}
+    </View>
+  );
+}
+
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.background },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.md,
+    },
+    backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+    headerTitle: {
+      flex: 1,
+      textAlign: 'center',
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    intro: {
+      fontSize: fontSizes.body,
+      lineHeight: 22,
+      color: colors.textSecondary,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+    },
+    stats: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: colors.textTertiary,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+    },
+    pillRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.md,
+    },
+    topicHeader: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.xl,
+      paddingBottom: spacing.sm,
+    },
+    topicTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    topicName: {
+      fontSize: fontSizes.heading3,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    topicCount: { fontSize: fontSizes.bodySmall, color: colors.textTertiary },
+    topicBrief: {
+      fontSize: fontSizes.body,
+      lineHeight: 22,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
+    topicDescription: {
+      fontSize: fontSizes.bodySmall,
+      lineHeight: 20,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
+    topicGospels: {
+      fontSize: fontSizes.caption,
+      color: colors.textTertiary,
+      marginTop: spacing.xs,
+    },
+    pointsCard: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      // Web's panel is rgba(176,154,109,0.08) over a divider border — and
+      // 176,154,109 IS this palette's gold (#b09a6d), so the wash is the gold
+      // at 8% rather than a neutral grey. 0x14 = 20 = 0.08 x 255.
+      backgroundColor: `${colors.gold}14`,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.divider,
+    },
+    pointsHeading: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: colors.gold,
+      marginBottom: spacing.sm,
+    },
+    // One rule per quote, as on web — a single bar spanning the whole card
+    // reads as one long blockquote and loses where each saying starts.
+    point: {
+      marginBottom: spacing.md,
+      paddingLeft: spacing.sm,
+      borderLeftWidth: 2,
+      borderLeftColor: colors.gold,
+    },
+    pointText: { fontSize: fontSizes.body, color: colors.textPrimary, fontStyle: 'italic' },
+    pointTitle: {
+      fontSize: fontSizes.body,
+      fontWeight: fontWeights.semibold,
+      color: colors.textPrimary,
+    },
+    pointMeta: {
+      fontSize: fontSizes.caption,
+      lineHeight: 18,
+      color: colors.textTertiary,
+      marginTop: 2,
+    },
+    truncated: {
+      fontSize: fontSizes.caption,
+      fontStyle: 'italic',
+      color: colors.textTertiary,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+    },
+  });
+}
