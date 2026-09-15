@@ -60,7 +60,7 @@ export function JesusPassageBlock({
       </Pressable>
 
       {verses.length > 0 ? (
-        <Text style={styles.scripture}>
+        <Text style={styles.scripture} testID={`jesus-scripture-${passage.display}`}>
           {verses.map((verse) => (
             <Text key={verse.verse_number}>
               {/*
