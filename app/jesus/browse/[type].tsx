@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EventRow, JesusPill, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusBrowse } from '@/hooks/jesus';
+import { categoryStats, topicCount, topicGospels } from '@/lib/jesus/browse-copy';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
 import type { JesusEventCard, JesusTopicPoint } from '@/types/jesus';
 
@@ -132,13 +133,11 @@ export default function JesusBrowseScreen() {
                   {data.type.intro}
                 </Text>
               ) : null}
-              <Text style={styles.stats} testID="jesus-category-stats">
-                {t('jesus.browse.stats', '{{events}} {{plural}} · {{topics}} topics', {
-                  events: data?.total_events ?? 0,
-                  plural: data?.type?.plural ?? '',
-                  topics: sections.length,
-                })}
-              </Text>
+              {data ? (
+                <Text style={styles.stats} testID="jesus-category-stats">
+                  {categoryStats(data)}
+                </Text>
+              ) : null}
               {sections.length > 1 ? (
                 <View style={styles.pillRow} testID="jesus-topic-nav">
                   {sections.map((s, i) => (
@@ -161,16 +160,23 @@ export default function JesusBrowseScreen() {
                   {section.topic.name}
                 </Text>
                 <Text style={styles.topicCount}>
-                  {section.topic.facet_count || section.topic.event_count}
+                  {topicCount(section.topic, data?.type?.singular, data?.type?.plural)}
                 </Text>
               </View>
-              {section.topic.description ? (
+              {/* The brief says what He addresses HERE; the theme's blurb says
+                  what the theme is. Where a brief exists it replaces the blurb
+                  rather than stacking on it — two descriptions under one
+                  heading is one more than the reader will read. Same rule as
+                  web's JesusTopicSection. */}
+              {section.topic.brief ? (
+                <Text style={styles.topicBrief} testID={`jesus-topic-brief-${section.key}`}>
+                  {section.topic.brief}
+                </Text>
+              ) : section.topic.description ? (
                 <Text style={styles.topicDescription}>{section.topic.description}</Text>
               ) : null}
-              {section.topic.gospels?.length ? (
-                <Text style={styles.topicGospels}>
-                  {[...new Set(section.topic.gospels)].join(' · ')}
-                </Text>
+              {topicGospels(section.topic) ? (
+                <Text style={styles.topicGospels}>{topicGospels(section.topic)}</Text>
               ) : null}
             </View>
           )}
@@ -182,23 +188,28 @@ export default function JesusBrowseScreen() {
                     ? t('jesus.browse.whatHeDoes', 'What He does here')
                     : t('jesus.browse.whatHeSays', 'What He says here')}
                 </Text>
-                {item.points.map((point) => (
-                  <View key={point.slug} style={styles.point}>
-                    {point.text ? (
-                      <Text style={styles.pointText}>
-                        {t('jesus.event.quoted', '“{{text}}”', { text: point.text })}
-                      </Text>
-                    ) : (
-                      <Text style={styles.pointTitle}>{point.title}</Text>
-                    )}
-                    {point.summary ? (
-                      <Text style={styles.pointSummary}>{point.summary}</Text>
-                    ) : null}
-                    {point.reference ? (
-                      <Text style={styles.pointReference}>{point.reference}</Text>
-                    ) : null}
-                  </View>
-                ))}
+                {item.points.map((point) => {
+                  // Web puts the gloss and the reference on ONE line joined by
+                  // "·", and a bare reference with no gloss still gets that
+                  // line. Stacking them as two rows is what made the mobile
+                  // block read as taller and looser than the same content on
+                  // web. Mirrors JesusTopicParts' `[summary, reference]` join.
+                  const meta = [point.text ? point.summary : null, point.reference]
+                    .filter(Boolean)
+                    .join(' · ');
+                  return (
+                    <View key={point.slug} style={styles.point}>
+                      {point.text ? (
+                        <Text style={styles.pointText}>
+                          {t('jesus.event.quoted', '“{{text}}”', { text: point.text })}
+                        </Text>
+                      ) : (
+                        <Text style={styles.pointTitle}>{point.title}</Text>
+                      )}
+                      {meta ? <Text style={styles.pointMeta}>{meta}</Text> : null}
+                    </View>
+                  );
+                })}
               </View>
             ) : (
               <EventRow
@@ -279,6 +290,12 @@ function createStyles(colors: Colors) {
       color: colors.textPrimary,
     },
     topicCount: { fontSize: fontSizes.bodySmall, color: colors.textTertiary },
+    topicBrief: {
+      fontSize: fontSizes.body,
+      lineHeight: 22,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
+    },
     topicDescription: {
       fontSize: fontSizes.bodySmall,
       lineHeight: 20,
@@ -296,8 +313,8 @@ function createStyles(colors: Colors) {
       padding: spacing.md,
       borderRadius: radii.md,
       backgroundColor: colors.backgroundSecondary,
-      borderLeftWidth: 2,
-      borderLeftColor: colors.gold,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.divider,
     },
     pointsHeading: {
       fontSize: fontSizes.caption,
@@ -307,22 +324,25 @@ function createStyles(colors: Colors) {
       color: colors.gold,
       marginBottom: spacing.sm,
     },
-    point: { marginBottom: spacing.md },
+    // One rule per quote, as on web — a single bar spanning the whole card
+    // reads as one long blockquote and loses where each saying starts.
+    point: {
+      marginBottom: spacing.md,
+      paddingLeft: spacing.sm,
+      borderLeftWidth: 2,
+      borderLeftColor: colors.gold,
+    },
     pointText: { fontSize: fontSizes.body, color: colors.textPrimary, fontStyle: 'italic' },
     pointTitle: {
       fontSize: fontSizes.body,
       fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
     },
-    pointSummary: {
-      fontSize: fontSizes.bodySmall,
-      color: colors.textSecondary,
-      marginTop: spacing.xs,
-    },
-    pointReference: {
+    pointMeta: {
       fontSize: fontSizes.caption,
+      lineHeight: 18,
       color: colors.textTertiary,
-      marginTop: spacing.xs,
+      marginTop: 2,
     },
     truncated: {
       fontSize: fontSizes.caption,

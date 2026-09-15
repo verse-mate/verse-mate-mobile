@@ -62,6 +62,16 @@ export default function JesusEventScreen() {
     router.push(`/bible/${bookId}/${chapter}`);
   }, []);
 
+  /**
+   * Open ONE verse in the reader. The reader already accepts `?verse=` (the
+   * widget and deep links use it), so a tapped verse lands on that verse with
+   * the full interaction system — highlight, note, lexicon, Verse Insight —
+   * rather than at the top of the chapter.
+   */
+  const openVerseInReader = useCallback((bookId: number, chapter: number, verse: number) => {
+    router.push(`/bible/${bookId}/${chapter}?verse=${verse}`);
+  }, []);
+
   const body = (
     <>
       {data?.event.period_name ? (
@@ -87,6 +97,7 @@ export default function JesusEventScreen() {
             key={passage.display}
             passage={passage}
             onOpen={() => openInReader(passage.book_id, passage.chapter)}
+            onOpenVerse={(verse) => openVerseInReader(passage.book_id, passage.chapter, verse)}
           />
         ))}
       </View>
@@ -146,20 +157,22 @@ export default function JesusEventScreen() {
           contentContainerStyle={styles.tabStripContent}
           testID="jesus-event-tabs"
         >
-          {JESUS_TABS.map((entry) => (
-            <Pressable
-              key={entry.id}
-              onPress={() => setTab(entry.id)}
-              style={[styles.tab, tab === entry.id && styles.tabActive]}
-              testID={`jesus-event-tab-${entry.id}`}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === entry.id }}
-            >
-              <Text style={[styles.tabText, tab === entry.id && styles.tabTextActive]}>
-                {t(`jesus.tab.${entry.id}`, entry.label)}
-              </Text>
-            </Pressable>
-          ))}
+          <View style={styles.tabTrack}>
+            {JESUS_TABS.map((entry) => (
+              <Pressable
+                key={entry.id}
+                onPress={() => setTab(entry.id)}
+                style={[styles.tab, tab === entry.id && styles.tabActive]}
+                testID={`jesus-event-tab-${entry.id}`}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: tab === entry.id }}
+              >
+                <Text style={[styles.tabText, tab === entry.id && styles.tabTextActive]}>
+                  {t(`jesus.tab.${entry.id}`, entry.label)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </ScrollView>
       ) : null}
 
@@ -244,30 +257,42 @@ function createStyles(colors: Colors) {
       paddingHorizontal: spacing.lg,
       marginBottom: spacing.sm,
     },
+    /*
+     * Pills on a track, matching the testament row and the Bible|Insight
+     * toggle. This was an underline strip, which is a convention the app uses
+     * nowhere else — the tester flagged it as "missing consistent pill
+     * approach". The container still carries an explicit height: a horizontal
+     * ScrollView sizes to content and measures a couple of points short of the
+     * font's descenders, which clipped "Summary" to "Summarv".
+     */
     tabStrip: {
-      // An explicit height, not just flexGrow:0. A horizontal ScrollView sizes
-      // itself to content, and the content measurement comes out a couple of
-      // points short of the font's descenders — so "Summary" renders as
-      // "Summarv". lineHeight on the label alone did not fix it; the strip has
-      // to reserve the room.
       flexGrow: 0,
-      height: 44,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.divider,
+      height: 52,
+      paddingHorizontal: spacing.lg,
     },
-    tabStripContent: { paddingHorizontal: spacing.md, alignItems: 'center' },
+    tabStripContent: { alignItems: 'center', paddingVertical: spacing.sm },
+    tabTrack: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      padding: 4,
+      borderRadius: 100,
+      backgroundColor: colors.backgroundSecondary,
+    },
     tab: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderBottomWidth: 2,
-      borderBottomColor: 'transparent',
+      paddingHorizontal: spacing.lg,
+      borderRadius: 100,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 28,
+      backgroundColor: 'transparent',
     },
-    tabActive: { borderBottomColor: colors.gold },
+    tabActive: { backgroundColor: colors.gold },
     tabText: {
-      fontSize: fontSizes.bodySmall,
-      lineHeight: Math.round(fontSizes.bodySmall * 1.4),
-      color: colors.textSecondary,
+      fontSize: 14,
+      lineHeight: Math.round(14 * 1.4),
+      color: colors.textPrimary,
     },
-    tabTextActive: { color: colors.gold, fontWeight: fontWeights.semibold },
+    tabTextActive: { color: colors.black, fontWeight: fontWeights.semibold },
   });
 }
