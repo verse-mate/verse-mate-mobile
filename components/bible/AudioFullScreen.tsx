@@ -76,9 +76,13 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
               <Ionicons name="chevron-down" size={28} color={colors.textPrimary} />
             </Pressable>
           </View>
+          {/* Reference first, version second — "Mark 8" then "NASB1995". The
+              reference is what the listener is tracking; the version is
+              provenance, and leading with it made the big line read as the
+              least specific thing on screen. */}
           <View style={styles.titleBlock}>
-            <Text style={styles.type}>{label?.primary ?? ''}</Text>
-            <Text style={styles.chapter}>{label?.secondary ?? ''}</Text>
+            <Text style={styles.type}>{label?.secondary ?? ''}</Text>
+            <Text style={styles.chapter}>{label?.primary ?? ''}</Text>
           </View>
 
           <Slider
@@ -239,7 +243,6 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
       fontSize: 22,
       fontWeight: '700',
       color: colors.textPrimary,
-      textTransform: 'capitalize',
     },
     chapter: {
       fontSize: 16,
