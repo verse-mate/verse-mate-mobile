@@ -276,7 +276,9 @@
       "period": "Period",
       "accounts": "Accounts",
       "people": "People",
-      "questions": "Questions He asks here"
+      "questions": "Questions He asks here",
+      "scopedTo": "Scoped to {{range}} of this chapter’s study",
+      "wholeChapter": "This chapter’s study"
     },
     "entry": {
       "missing": "That entry doesn’t exist.",
