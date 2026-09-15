@@ -7,7 +7,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import { isScriptureTrack, useAudioPlayer } from '@/contexts/AudioPlayerContext';
+import { isScriptureTrack, useOptionalAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { fetchVerseTimestamps } from '@/lib/bible-brain/api';
 import {
   findActiveVerse,
@@ -30,11 +30,14 @@ export interface UseVerseSyncResult {
 }
 
 export function useVerseSync(): UseVerseSyncResult {
-  const player = useAudioPlayer();
+  // Optional: the reader mounts this for follow-along marking, and a screen
+  // rendered outside the audio provider must simply report "no active verse"
+  // rather than throw. Every caller already handles a null active verse.
+  const player = useOptionalAudioPlayer();
   // Depend on the memoized action, not the context value, which is rebuilt on
   // every playback tick.
-  const { seek } = player;
-  const track = player.currentTrack;
+  const seek = player?.seek;
+  const track = player?.currentTrack ?? null;
   const scripture = isScriptureTrack(track) ? track : null;
 
   const query = useQuery({
@@ -57,13 +60,15 @@ export function useVerseSync(): UseVerseSyncResult {
 
   const timestamps = query.data ?? [];
 
+  const elapsedSeconds = player?.elapsedSeconds ?? 0;
   const activeVerse = useMemo(
-    () => (scripture ? findActiveVerse(timestamps, player.elapsedSeconds) : null),
-    [scripture, timestamps, player.elapsedSeconds]
+    () => (scripture ? findActiveVerse(timestamps, elapsedSeconds) : null),
+    [scripture, timestamps, elapsedSeconds]
   );
 
   const seekToVerse = useCallback(
     async (verse: number) => {
+      if (!seek) return;
       const seconds = seekSecondsForVerse(timestamps, verse);
       if (seconds === null) return;
       await seek(seconds);
