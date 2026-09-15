@@ -358,6 +358,21 @@ export function ChapterReader({
    * Gated on the playing track being THIS chapter. useVerseSync reports the
    * active verse of whatever is loaded, so without this the reader would light
    * up verse 5 of Genesis 1 while John 19 played.
+   *
+   * ⚠ INCOMPLETE: this styles the React Native <Text> path only, which is the
+   * FALLBACK renderer. With the native text renderer on — the default, and the
+   * reason chapter frame time is what it is — verses are drawn by
+   * ParagraphText, whose ParagraphInput has no active-verse concept, so
+   * nothing is marked. Verified on the simulator: Mark 9 narrating from 0:00
+   * with 48 timestamps available and verse 1 active at 2.06s highlighted
+   * nothing.
+   *
+   * Doing it properly means following `selection` rather than
+   * `redLetterVerses`: selection is passed as char offsets into the COMPILED
+   * paragraph and is updated live without recompiling, which is exactly the
+   * shape an active verse needs. `redLetterVerses` is compiled in, so reusing
+   * that path would recompile and re-measure every paragraph once per verse —
+   * undoing the work the native renderer exists to do.
    */
   const { activeVerse: narratedVerse } = useVerseSync();
   const narratingTrack = useOptionalAudioPlayer()?.currentTrack ?? null;
