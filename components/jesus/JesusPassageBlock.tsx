@@ -62,30 +62,35 @@ export function JesusPassageBlock({
       {verses.length > 0 ? (
         <Text style={styles.scripture} testID={`jesus-scripture-${passage.display}`}>
           {verses.map((verse) => (
-            <Text key={verse.verse_number}>
-              {/*
-                The verse NUMBER is the tap target, matching the reader — there
-                a number opens Verse Insight, so the same glyph doing the same
-                job here is one interaction to learn, not two. Tapping the body
-                text is left alone so selection still works.
-              */}
-              <Text
-                style={styles.verseNumber}
-                onPress={() => (onOpenVerse ?? (() => onOpen()))(verse.verse_number)}
-                accessibilityRole="button"
-                accessibilityLabel={t(
-                  'jesus.event.openVerse',
-                  'Open verse {{number}} in the reader',
-                  {
-                    number: verse.verse_number,
-                  }
-                )}
-                testID={`jesus-verse-${passage.book_id}-${passage.chapter}-${verse.verse_number}`}
-                suppressHighlighting
-              >
-                {verse.verse_number}{' '}
-              </Text>
-              <Text>{verse.text} </Text>
+            /*
+              The WHOLE verse is the tap target, not just its number.
+              
+              The reader puts the handler on the number alone, but the reader
+              draws through a native paragraph component with real per-glyph hit
+              testing; its RN `<Text onPress>` path is a fallback that nothing
+              exercises. Copying that shape here produced a number that looked
+              pressable and did nothing — measured on the simulator, both by
+              test id and by tapping the glyph's own coordinates.
+              
+              Putting the handler on the verse keeps the flowing paragraph
+              (a Pressable per verse would break the line layout) and gives a
+              target you cannot miss, which is what "these verses aren't
+              clickable" was asking for in the first place.
+            */
+            <Text
+              key={verse.verse_number}
+              onPress={() => (onOpenVerse ?? (() => onOpen()))(verse.verse_number)}
+              accessibilityRole="button"
+              accessibilityLabel={t(
+                'jesus.event.openVerse',
+                'Open verse {{number}} in the reader',
+                { number: verse.verse_number }
+              )}
+              testID={`jesus-verse-${passage.book_id}-${passage.chapter}-${verse.verse_number}`}
+              suppressHighlighting
+            >
+              <Text style={styles.verseNumber}>{verse.verse_number} </Text>
+              {verse.text}{' '}
             </Text>
           ))}
         </Text>
