@@ -191,7 +191,10 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
   const { event } = detail;
 
   const rows = [
-    { label: t('jesus.event.where', 'Where'), value: event.location },
+    // jesus.event.where is the Summary body's SENTENCE ("Where: {{location}}").
+    // Using it as a table label rendered the raw placeholder, because no
+    // interpolation is passed here. The table wants the bare noun.
+    { label: t('jesus.study.where', 'Where'), value: event.location },
     { label: t('jesus.study.when', 'When'), value: event.approximate_date },
     { label: t('jesus.study.period', 'Period'), value: event.period_name },
     {

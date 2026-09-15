@@ -32,7 +32,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import {
@@ -144,10 +143,14 @@ function BibleNavigationModalComponent({
   // they shrank to fit while "Jesus" and "Topics" stayed full size, so the row
   // read as uneven and the long ones were barely legible. Web abbreviates below
   // the same 420px for the same reason. The test ids stay constant either way.
-  const { width: windowWidth } = useWindowDimensions();
-  const roomForLongLabels = windowWidth >= 420;
-  const otLabel = roomForLongLabels ? 'Old Testament' : 'OT';
-  const ntLabel = roomForLongLabels ? 'New Testament' : 'NT';
+  // 'Old Testament' / 'New Testament' cannot share a row with 'Jesus' and
+  // 'Topics' on a phone. The previous attempt let iOS shrink them to fit, which
+  // is what produced a row of four tabs at two different sizes — the long two
+  // scaled down to ~0.8 while the short two stayed full size, so the testaments
+  // read as subordinate and, per the tester, "turned really small". Short labels
+  // at ONE size is the fix; adjustsFontSizeToFit is gone for the same reason.
+  const otLabel = 'Old';
+  const ntLabel = 'New';
   const [selectedTab, setSelectedTab] = useState<TabType>(getTestamentFromBookId(currentBookId));
 
   // Bible navigation state
@@ -630,8 +633,6 @@ function BibleNavigationModalComponent({
           <Text
             style={[styles.testamentTabText, selectedTab === 'OT' && styles.testamentTabTextActive]}
             numberOfLines={1}
-            adjustsFontSizeToFit={Platform.OS === 'ios'}
-            minimumFontScale={0.8}
           >
             {otLabel}
           </Text>
@@ -647,8 +648,6 @@ function BibleNavigationModalComponent({
           <Text
             style={[styles.testamentTabText, selectedTab === 'NT' && styles.testamentTabTextActive]}
             numberOfLines={1}
-            adjustsFontSizeToFit={Platform.OS === 'ios'}
-            minimumFontScale={0.8}
           >
             {ntLabel}
           </Text>
@@ -667,8 +666,6 @@ function BibleNavigationModalComponent({
               selectedTab === 'JESUS' && styles.testamentTabTextActive,
             ]}
             numberOfLines={1}
-            adjustsFontSizeToFit={Platform.OS === 'ios'}
-            minimumFontScale={0.8}
           >
             Jesus
           </Text>
@@ -687,8 +684,6 @@ function BibleNavigationModalComponent({
               selectedTab === 'TOPICS' && styles.testamentTabTextActive,
             ]}
             numberOfLines={1}
-            adjustsFontSizeToFit={Platform.OS === 'ios'}
-            minimumFontScale={0.8}
           >
             Topics
           </Text>

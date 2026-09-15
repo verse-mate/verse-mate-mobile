@@ -7,15 +7,24 @@
  * is not empty, and rendering it is what makes an event read like a chapter
  * rather than like a database row.
  *
- * Tapping the pill opens the passage in the reader proper, which is where
- * highlighting, notes and the lexicon live — this block deliberately does not
- * reimplement any of that.
+ * Every verse is TAPPABLE and opens that verse in the reader proper, which is
+ * where highlighting, notes, the lexicon and Verse Insight live — this block
+ * deliberately does not reimplement any of that. Reported as "these verses
+ * aren't clickable in Jesus feature": scripture that reads like the reader but
+ * does nothing when touched is worse than scripture that plainly isn't the
+ * reader, because the affordance is implied and then withheld.
+ *
+ * The text also honours the reader's own font-size preference rather than a
+ * fixed size, which is the other half of the same report ("font size
+ * changed") — a reader who has scaled scripture up gets it everywhere or the
+ * setting is a lie.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useFontSize } from '@/hooks/bible/use-font-size';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
 import type { JesusEventPassage } from '@/types/jesus';
 
@@ -24,13 +33,17 @@ type Colors = ReturnType<typeof getColors>;
 export function JesusPassageBlock({
   passage,
   onOpen,
+  onOpenVerse,
 }: {
   passage: JesusEventPassage;
   onOpen: () => void;
+  /** Open one verse in the reader. Falls back to the passage when absent. */
+  onOpenVerse?: (verseNumber: number) => void;
 }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { fontSize } = useFontSize();
+  const styles = useMemo(() => createStyles(colors, fontSize), [colors, fontSize]);
   const verses = passage.verses ?? [];
 
   return (
@@ -50,7 +63,28 @@ export function JesusPassageBlock({
         <Text style={styles.scripture}>
           {verses.map((verse) => (
             <Text key={verse.verse_number}>
-              <Text style={styles.verseNumber}>{verse.verse_number} </Text>
+              {/*
+                The verse NUMBER is the tap target, matching the reader — there
+                a number opens Verse Insight, so the same glyph doing the same
+                job here is one interaction to learn, not two. Tapping the body
+                text is left alone so selection still works.
+              */}
+              <Text
+                style={styles.verseNumber}
+                onPress={() => (onOpenVerse ?? (() => onOpen()))(verse.verse_number)}
+                accessibilityRole="button"
+                accessibilityLabel={t(
+                  'jesus.event.openVerse',
+                  'Open verse {{number}} in the reader',
+                  {
+                    number: verse.verse_number,
+                  }
+                )}
+                testID={`jesus-verse-${passage.book_id}-${passage.chapter}-${verse.verse_number}`}
+                suppressHighlighting
+              >
+                {verse.verse_number}{' '}
+              </Text>
               <Text>{verse.text} </Text>
             </Text>
           ))}
@@ -64,7 +98,7 @@ export function JesusPassageBlock({
   );
 }
 
-function createStyles(colors: Colors) {
+function createStyles(colors: Colors, fontSize: number) {
   return StyleSheet.create({
     section: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
     pill: {
@@ -85,11 +119,14 @@ function createStyles(colors: Colors) {
     },
     scripture: {
       marginTop: spacing.sm,
-      fontSize: fontSizes.bodyLarge,
-      lineHeight: 30,
+      // The reader's size, not a fixed one — same source of truth as
+      // ChapterReader, which styles verse text from useFontSize().
+      fontSize,
+      lineHeight: Math.round(fontSize * 1.65),
       color: colors.textPrimary,
     },
-    verseNumber: { fontSize: fontSizes.caption, color: colors.gold },
+    // Superscript-ish, as in the reader: smaller than the body and gold.
+    verseNumber: { fontSize: Math.round(fontSize * 0.7), color: colors.gold },
     placeholder: {
       marginTop: spacing.sm,
       fontSize: fontSizes.bodySmall,

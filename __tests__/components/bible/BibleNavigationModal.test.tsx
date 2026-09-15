@@ -14,6 +14,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import type React from 'react';
+import { Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -143,22 +144,30 @@ describe('BibleNavigationModal', () => {
     );
 
     // Modal should render testament tabs
-    const oldTestamentTabs = screen.getAllByText('Old Testament');
+    const oldTestamentTabs = screen.getAllByText('Old');
     expect(oldTestamentTabs.length).toBeGreaterThan(0);
-    expect(screen.getAllByText('New Testament').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('New').length).toBeGreaterThan(0);
 
     // Should show book list by default (not chapter grid)
     expect(screen.getAllByText('Genesis')[0]).toBeTruthy();
     expect(screen.getAllByText('Exodus')[0]).toBeTruthy();
   });
 
-  it('abbreviates the testaments when four tabs will not fit', () => {
-    // Four tabs leave no room for "Old Testament" / "New Testament" on a phone:
-    // they shrank to fit while "Jesus" and "Topics" stayed full size, so the row
-    // read as uneven and the long ones were barely legible. Web abbreviates
-    // below the same 420px. The test ids do not change, so nothing that finds a
-    // tab by id has to care.
-    mockWindowWidth = 402; // iPhone 17 Pro
+  it('names the testaments Old and New, at one size with the other tabs', () => {
+    /*
+     * Four tabs leave no room for "Old Testament" / "New Testament" on a phone.
+     * The first attempt let iOS shrink them (adjustsFontSizeToFit), which is
+     * what produced a row at TWO sizes — the long two scaled to ~0.8 while
+     * "Jesus" and "Topics" stayed full size. The tester's words were "Old and
+     * New Testament font turned really small. So let's just say Old and New and
+     * keep font the same as others."
+     *
+     * So this pins BOTH halves: the short labels, and the absence of any
+     * per-label font scaling. A regression to either one reproduces the report.
+     * Width is irrelevant now — the labels are unconditional — so the
+     * narrowest supported phone stands in for every size.
+     */
+    mockWindowWidth = 320;
     renderWithTheme(
       <BibleNavigationModal
         visible={true}
@@ -169,10 +178,18 @@ describe('BibleNavigationModal', () => {
       />
     );
 
-    expect(screen.getAllByText('OT').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('NT').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Old').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('New').length).toBeGreaterThan(0);
     expect(screen.queryByText('Old Testament')).toBeNull();
+    expect(screen.queryByText('New Testament')).toBeNull();
     expect(screen.getByTestId('tab-old-testament')).toBeTruthy();
+    expect(screen.getByTestId('tab-new-testament')).toBeTruthy();
+
+    // No tab may shrink its own label: that is what made the row uneven.
+    for (const id of ['tab-old-testament', 'tab-new-testament', 'tab-jesus', 'tab-topics']) {
+      const label = screen.getByTestId(id).findByType(Text);
+      expect(label.props.adjustsFontSizeToFit).toBeFalsy();
+    }
     mockWindowWidth = 750;
   });
 
