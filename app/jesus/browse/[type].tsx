@@ -312,7 +312,10 @@ function createStyles(colors: Colors) {
       marginBottom: spacing.md,
       padding: spacing.md,
       borderRadius: radii.md,
-      backgroundColor: colors.backgroundSecondary,
+      // Web's panel is rgba(176,154,109,0.08) over a divider border — and
+      // 176,154,109 IS this palette's gold (#b09a6d), so the wash is the gold
+      // at 8% rather than a neutral grey. 0x14 = 20 = 0.08 x 255.
+      backgroundColor: `${colors.gold}14`,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.divider,
     },
