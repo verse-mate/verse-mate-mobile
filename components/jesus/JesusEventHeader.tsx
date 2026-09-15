@@ -47,10 +47,7 @@ export function JesusEventHeader({
   // The reader's header colour lives in the header specs, not in the palette —
   // same source the chapter and topic headers read, so the three match.
   const headerSpecs = getHeaderSpecs(mode);
-  const styles = useMemo(
-    () => createStyles(colors, headerSpecs.backgroundColor),
-    [colors, headerSpecs.backgroundColor]
-  );
+  const styles = useMemo(() => createStyles(colors, headerSpecs), [colors, headerSpecs]);
 
   const select = (next: JesusEventView) => {
     if (next === view) return;
@@ -70,7 +67,7 @@ export function JesusEventHeader({
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
-        <Ionicons name="chevron-down" size={16} color={colors.textPrimary} />
+        <Ionicons name="chevron-down" size={16} color={headerSpecs.titleColor} />
       </Pressable>
 
       <View style={styles.toggle}>
@@ -96,13 +93,21 @@ export function JesusEventHeader({
         testID="hamburger-menu-button"
         accessibilityRole="button"
       >
-        <Ionicons name="menu" size={24} color={colors.textPrimary} />
+        <Ionicons name="menu" size={24} color={headerSpecs.titleColor} />
       </Pressable>
     </View>
   );
 }
 
-function createStyles(colors: Colors, headerBackground: string) {
+/**
+ * The header bar is DARK in both themes (headerSpecs.backgroundColor is black
+ * in light mode, dark grey in dark mode), so its contents must be coloured
+ * from the same spec — `colors.textPrimary` is dark in light mode and painted
+ * the title dark-on-black, effectively invisible. The reader's own header has
+ * always used headerSpecs.titleColor; this one was reading the body palette.
+ */
+function createStyles(colors: Colors, headerSpecs: ReturnType<typeof getHeaderSpecs>) {
+  const headerBackground = headerSpecs.backgroundColor;
   return StyleSheet.create({
     bar: {
       flexDirection: 'row',
@@ -122,13 +127,16 @@ function createStyles(colors: Colors, headerBackground: string) {
     title: {
       fontSize: fontSizes.body,
       fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
+      color: headerSpecs.titleColor,
     },
     toggle: {
       flexDirection: 'row',
       marginLeft: 'auto',
       borderRadius: radii.full,
-      backgroundColor: colors.backgroundSecondary,
+      // The reader's own toggle track, verbatim. backgroundSecondary is a body
+      // colour and rendered a pale track on the dark header bar, which is not
+      // the control the rest of the app uses.
+      backgroundColor: '#323232',
       padding: 2,
     },
     toggleItem: {
@@ -137,8 +145,8 @@ function createStyles(colors: Colors, headerBackground: string) {
       borderRadius: radii.full,
     },
     toggleItemActive: { backgroundColor: colors.gold },
-    toggleText: { fontSize: fontSizes.bodySmall, color: colors.textSecondary },
-    toggleTextActive: { color: colors.background, fontWeight: fontWeights.semibold },
+    toggleText: { fontSize: fontSizes.bodySmall, color: headerSpecs.titleColor },
+    toggleTextActive: { color: colors.black, fontWeight: fontWeights.semibold },
     menuButton: { width: 32, alignItems: 'flex-end' },
   });
 }
