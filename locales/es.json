@@ -276,7 +276,9 @@
       "period": "Período",
       "accounts": "Relatos",
       "people": "Personas",
-      "questions": "Preguntas que hace aquí"
+      "questions": "Preguntas que hace aquí",
+      "scopedTo": "Limitado a {{range}} del estudio de este capítulo",
+      "wholeChapter": "El estudio de este capítulo"
     },
     "entry": {
       "missing": "Esa entrada no existe.",

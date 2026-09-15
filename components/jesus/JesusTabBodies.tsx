@@ -14,6 +14,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
+import { StudyPanel } from '@/components/bible/StudyPanel';
 import {
   ConfidenceBadge,
   JesusPlaceholder,
@@ -22,6 +23,8 @@ import {
 } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusCompare } from '@/hooks/jesus';
+import { eventVerseSpan, narrowStudyToEvent, spanRangeLabel } from '@/lib/jesus/study-scope';
+import { useStudy } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
 import type { JesusEventDetail, JesusFacet, JesusReveal } from '@/types/jesus';
 
@@ -190,6 +193,31 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { event } = detail;
 
+  /**
+   * The chapter's inductive study, narrowed to this event's verses.
+   *
+   * Reported as "Study structure of Jesus feature didn't make app version":
+   * this tab rendered a five-row metadata table where web renders the nine-step
+   * Precept study scoped to the pericope. There is no event-scoped study
+   * content and there does not need to be — the study tags almost everything
+   * with a verse reference, and an event knows the verses it covers, so
+   * keeping only what touches them turns the Luke 2 study into a study of
+   * Luke 2:41-52. Same helper web uses, ported verbatim.
+   *
+   * The PRIMARY passage decides the span: an event told by three Gospels has
+   * three chapter studies, and the one being read is the one to narrow.
+   */
+  const primary = useMemo(() => {
+    const passages = detail.passages ?? [];
+    return passages.find((p) => p.is_primary) ?? passages[0] ?? null;
+  }, [detail.passages]);
+  const span = useMemo(() => eventVerseSpan(primary), [primary]);
+  const { data: chapterStudy } = useStudy(span?.bookId ?? 0, span?.chapter ?? 0);
+  const narrowed = useMemo(
+    () => (chapterStudy && span ? narrowStudyToEvent(chapterStudy, span) : null),
+    [chapterStudy, span]
+  );
+
   const rows = [
     // jesus.event.where is the Summary body's SENTENCE ("Where: {{location}}").
     // Using it as a table label rendered the raw placeholder, because no
@@ -238,6 +266,30 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
             </View>
           ))}
         </>
+      ) : null}
+
+      {/*
+        The chapter's study, scoped to this event. Rendered through the app's
+        OWN StudyPanel rather than a Jesus-specific copy, so the nine-step
+        spine, the card chrome and the frame-ramp behaviour are the same ones
+        the reader's Study tab uses and cannot drift from them.
+      */}
+      {narrowed && span ? (
+        <StudyPanel
+          bookId={span.bookId}
+          chapter={span.chapter}
+          study={narrowed.study}
+          testID="jesus-study-panel"
+          header={
+            <Text style={styles.studyScope} testID="jesus-study-scope">
+              {narrowed.narrowed
+                ? t('jesus.study.scopedTo', 'Scoped to {{range}} of this chapter’s study', {
+                    range: spanRangeLabel(span),
+                  })
+                : t('jesus.study.wholeChapter', 'This chapter’s study')}
+            </Text>
+          }
+        />
       ) : null}
     </View>
   );
@@ -374,6 +426,11 @@ function createStyles(colors: Colors) {
       fontStyle: 'italic',
       color: colors.textPrimary,
       marginTop: 2,
+    },
+    studyScope: {
+      fontSize: fontSizes.caption,
+      color: colors.textTertiary,
+      marginBottom: spacing.sm,
     },
     studyRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
     studyLabel: { width: 90, fontSize: fontSizes.bodySmall, color: colors.textTertiary },

@@ -276,7 +276,9 @@
       "period": "Zeitraum",
       "accounts": "Berichte",
       "people": "Personen",
-      "questions": "Fragen, die Er hier stellt"
+      "questions": "Fragen, die Er hier stellt",
+      "scopedTo": "Auf {{range}} der Studie dieses Kapitels beschränkt",
+      "wholeChapter": "Die Studie dieses Kapitels"
     },
     "entry": {
       "missing": "Diesen Eintrag gibt es nicht.",
