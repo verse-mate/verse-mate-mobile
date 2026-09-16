@@ -11,9 +11,11 @@
  * Study are assembled from what this event already carries — its facets, in
  * passage order — rather than from a second request.
  */
-import { useMemo } from 'react';
+
+import { Ionicons } from '@expo/vector-icons';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import {
   ConfidenceBadge,
@@ -23,10 +25,13 @@ import {
 } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusCompare } from '@/hooks/jesus';
+import { bylineReference, covers } from '@/lib/jesus/byline-scope';
 import { eventVerseSpan, narrowStudyToEvent, spanRangeLabel } from '@/lib/jesus/study-scope';
-import { useStudy } from '@/src/api';
+import { Markdown } from '@/lib/markdown/Markdown';
+import { useBibleChapterExplanation, useStudy } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
-import type { JesusEventDetail, JesusFacet, JesusReveal } from '@/types/jesus';
+import type { JesusEventDetail, JesusEventPassage, JesusFacet, JesusReveal } from '@/types/jesus';
+import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 
 type Colors = ReturnType<typeof getColors>;
 
@@ -140,17 +145,101 @@ function SummaryBody({ detail }: { detail: JesusEventDetail }) {
  * request. Words and actions are interleaved rather than split into two tabs,
  * because the point of a by-line reading is the order it happened in.
  */
+/**
+ * One account's line-by-line rows.
+ *
+ * Its own component because each account is a different chapter and therefore
+ * a different fetch — hooks cannot run in a loop over passages.
+ */
+function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labelled: boolean }) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [open, setOpen] = useState<number | null>(null);
+
+  const query = useBibleChapterExplanation(passage.book_id, passage.chapter, 'byline');
+  const data = query.data as { content?: string } | undefined;
+
+  const rows = useMemo(() => {
+    const content = data?.content;
+    if (!content) return [];
+    return parseByLineSections(content, passage.chapter)
+      .filter((section) => section.verseNumber > 0 && covers(passage, section.verseNumber))
+      .map((section) => ({
+        verse: section.verseNumber,
+        reference: bylineReference(passage, section.verseNumber),
+        markdown: section.markdown,
+      }));
+  }, [data?.content, passage]);
+
+  return (
+    <View testID={`jesus-byline-account-${passage.display}`}>
+      {/* One account needs no heading — the tab title already names it. Two or
+          more and the reader has to be told which telling is which. */}
+      {labelled ? <Text style={styles.bylineAccount}>{passage.display}</Text> : null}
+
+      {query.isPending ? (
+        <Text style={styles.bylineNote}>{t('common.loading', 'Loading…')}</Text>
+      ) : rows.length === 0 ? (
+        // Named, not omitted: an account that vanishes reads as "this verse has
+        // no explanation", which is a different claim from "it is not written
+        // yet".
+        <Text style={styles.bylineNote} testID={`jesus-byline-empty-${passage.display}`}>
+          {t(
+            'jesus.event.noBylineForAccount',
+            'The line-by-line reading of {{account}} hasn’t been generated yet.',
+            { account: passage.display }
+          )}
+        </Text>
+      ) : (
+        rows.map((row) => {
+          const isOpen = open === row.verse;
+          return (
+            <View key={row.verse} style={styles.bylineRow}>
+              <Pressable
+                onPress={() => setOpen(isOpen ? null : row.verse)}
+                style={styles.bylineToggle}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isOpen }}
+                testID={`jesus-byline-row-${passage.book_id}-${passage.chapter}-${row.verse}`}
+              >
+                <Text style={styles.bylineRef}>{row.reference}</Text>
+                <Ionicons
+                  name={isOpen ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={colors.textTertiary}
+                />
+              </Pressable>
+              {isOpen ? (
+                <View style={styles.bylineDetail}>
+                  <Markdown style={bylineMarkdownStyles(colors)}>{row.markdown}</Markdown>
+                </View>
+              ) : null}
+            </View>
+          );
+        })
+      )}
+    </View>
+  );
+}
+
+/**
+ * The By-Line tab: the chapter's line-by-line commentary, scoped to this
+ * event's verses, one section per Gospel account.
+ *
+ * Was a list of the event's facet cards — which is the Summary tab's material
+ * in a different shape, and is why the tester said "By-Line doesn't have the
+ * lines". Web builds this from the same by-line commentary the reader's own
+ * By-Line tab shows; so does this now, through the same parser.
+ */
 function BylineBody({ detail }: { detail: JesusEventDetail }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const facets: JesusFacet[] = useMemo(
-    () => [...(detail.words ?? []), ...(detail.actions ?? [])],
-    [detail]
-  );
+  const passages = detail.passages ?? [];
 
-  if (facets.length === 0) {
+  if (passages.length === 0) {
     return (
       <JesusPlaceholder
         message={t('jesus.event.noByline', 'No line-by-line reading for this event yet.')}
@@ -164,16 +253,8 @@ function BylineBody({ detail }: { detail: JesusEventDetail }) {
       <Text style={styles.tabTitle}>
         {t('jesus.event.bylineOf', 'Line by line: {{title}}', { title: detail.event.title })}
       </Text>
-      {facets.map((facet) => (
-        <View key={facet.slug} style={styles.facetCard}>
-          <Text style={styles.facetTitle}>{facet.title}</Text>
-          {facet.text ? (
-            <Text style={styles.facetQuote}>
-              {t('jesus.event.quoted', '“{{text}}”', { text: facet.text })}
-            </Text>
-          ) : null}
-          {facet.reference ? <Text style={styles.reference}>{facet.reference}</Text> : null}
-        </View>
+      {passages.map((passage) => (
+        <BylineAccount key={passage.display} passage={passage} labelled={passages.length > 1} />
       ))}
     </View>
   );
@@ -218,22 +299,20 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
     [chapterStudy, span]
   );
 
-  const rows = [
-    // jesus.event.where is the Summary body's SENTENCE ("Where: {{location}}").
-    // Using it as a table label rendered the raw placeholder, because no
-    // interpolation is passed here. The table wants the bare noun.
-    { label: t('jesus.study.where', 'Where'), value: event.location },
-    { label: t('jesus.study.when', 'When'), value: event.approximate_date },
-    { label: t('jesus.study.period', 'Period'), value: event.period_name },
-    {
-      label: t('jesus.study.accounts', 'Accounts'),
-      value: uniqueGospels(event.gospels).join(' · '),
-    },
-    {
-      label: t('jesus.study.people', 'People'),
-      value: (event.people ?? []).map((p) => p.person).join(', '),
-    },
-  ].filter((row) => Boolean(row.value));
+  /*
+   * No Where / When / Period / Accounts / People table.
+   *
+   * "On Jesus study - let's remove this top part and make consistent w other
+   * study pages" — the tester circled exactly those four rows. They restated
+   * what the Summary tab already says and gave the Study tab a header no other
+   * study page has, which is what made it look like a different kind of page.
+   *
+   * Web goes further and nests the event's own material (His words, His acts,
+   * the reactions, what it reveals) INSIDE the nine-step spine rather than
+   * above it — see web's lib/jesusStudyEmbed. That needs per-step slots this
+   * app's StudyPanel does not expose yet, so the questions still sit above the
+   * spine here rather than inside step 4.
+   */
 
   const questions = (detail.words ?? []).filter((f) => f.type_slug === 'questions');
 
@@ -242,13 +321,6 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
       <Text style={styles.tabTitle}>
         {t('jesus.event.studyOf', 'Study: {{title}}', { title: event.title })}
       </Text>
-
-      {rows.map((row) => (
-        <View key={row.label} style={styles.studyRow}>
-          <Text style={styles.studyLabel}>{row.label}</Text>
-          <Text style={styles.studyValue}>{row.value}</Text>
-        </View>
-      ))}
 
       {questions.length > 0 ? (
         <>
@@ -375,6 +447,15 @@ function CompareBody({ detail }: { detail: JesusEventDetail }) {
   );
 }
 
+/** Minimal markdown skin for a by-line row — body text, nothing structural. */
+function bylineMarkdownStyles(colors: Colors) {
+  return {
+    body: { color: colors.textSecondary, fontSize: fontSizes.bodySmall, lineHeight: 21 },
+    paragraph: { marginTop: 0, marginBottom: spacing.sm },
+    strong: { color: colors.textPrimary, fontWeight: fontWeights.semibold },
+  };
+}
+
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
@@ -427,14 +508,42 @@ function createStyles(colors: Colors) {
       color: colors.textPrimary,
       marginTop: 2,
     },
+    bylineAccount: {
+      fontSize: fontSizes.caption,
+      fontWeight: fontWeights.semibold,
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: colors.textTertiary,
+      marginTop: spacing.lg,
+      marginBottom: spacing.xs,
+    },
+    bylineNote: {
+      fontSize: fontSizes.bodySmall,
+      color: colors.textTertiary,
+      fontStyle: 'italic',
+      paddingVertical: spacing.sm,
+    },
+    bylineRow: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.divider,
+    },
+    bylineToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.md,
+    },
+    bylineRef: {
+      fontSize: fontSizes.bodySmall,
+      fontWeight: fontWeights.medium,
+      color: colors.textPrimary,
+    },
+    bylineDetail: { paddingBottom: spacing.md },
     studyScope: {
       fontSize: fontSizes.caption,
       color: colors.textTertiary,
       marginBottom: spacing.sm,
     },
-    studyRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-    studyLabel: { width: 90, fontSize: fontSizes.bodySmall, color: colors.textTertiary },
-    studyValue: { flex: 1, fontSize: fontSizes.bodySmall, color: colors.textPrimary },
     confidenceRow: { flexDirection: 'row', marginTop: spacing.sm },
     accountCard: {
       marginTop: spacing.sm,
