@@ -106,21 +106,33 @@ describe('JesusBrowseScreen', () => {
     expect(router.push).toHaveBeenCalledWith(`/jesus/event/${EVENT.slug}`);
   });
 
-  it('leads an action facet with its deed, not an empty pair of quote marks', () => {
-    // A WORD facet carries `text` (the saying); an ACTION facet does not. The
-    // browse screen quoted it unconditionally, so every miracle card opened
-    // with a bare “” above its summary.
+  it("lists the topic's events without re-quoting them in a panel above", () => {
+    /*
+     * The topic used to lead with a "What He says here" panel quoting each
+     * saying, then list the same events beneath it — the reader met every
+     * saying twice a few hundred pixels apart. Web dropped that panel (#300)
+     * and this followed, so a topic now reads description -> examples.
+     *
+     * Replaces a test that pinned how an ACTION facet rendered INSIDE that
+     * panel; the panel is gone, so the behaviour it guarded cannot regress.
+     */
     mockBrowse.mockReturnValue({
       isPending: false,
       fetchStatus: 'idle',
       data: {
-        type: { label: 'Miracles', plural: 'miracles' },
+        type: { label: 'Miracles', plural: 'miracles', singular: 'Miracle' },
         topics: [
           {
             slug: 'kingdom',
             name: 'Kingdom',
             description: null,
-            events: [],
+            sort_order: 0,
+            event_count: 1,
+            facet_count: 1,
+            gospels: [],
+            brief: null,
+            brief_provenance: null,
+            events: [EVENT],
             points: [
               {
                 slug: 'water-into-wine',
@@ -132,12 +144,17 @@ describe('JesusBrowseScreen', () => {
             ],
           },
         ],
+        total_events: 1,
         truncated: false,
       },
     });
     render(<JesusBrowseScreen />);
-    expect(screen.getByText('Water into wine at Cana')).toBeTruthy();
-    expect(screen.queryByText('“”')).toBeNull();
+
+    // The event is listed...
+    expect(screen.getByTestId(`jesus-event-${EVENT.slug}`)).toBeTruthy();
+    // ...and the points panel is not rendered at all.
+    expect(screen.queryByTestId('jesus-topic-points')).toBeNull();
+    expect(screen.queryByText('Water into wine at Cana')).toBeNull();
   });
 
   it('states an empty category rather than showing a blank list', () => {
