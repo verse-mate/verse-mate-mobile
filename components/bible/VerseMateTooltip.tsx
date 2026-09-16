@@ -459,11 +459,27 @@ export function VerseMateTooltip({
     isExpandedRef.current = expanded;
   });
 
+  /**
+   * How far the analysis is scrolled.
+   *
+   * The pan responder used to be attached to the header grabber ALONE, so a
+   * drag anywhere on the body of the sheet was never offered to it — iOS
+   * rubber-banded the ScrollView instead and the sheet sprang back. Reported
+   * as "if I push down on this window - don't 'bounce down' and instead got to
+   * drag down to close". The sheet now claims a downward drag whenever the
+   * content is already at the top; below the top the ScrollView keeps the
+   * gesture, so scrolling a long analysis still works.
+   */
+  const scrollOffsetRef = useRef(0);
+
   // Pan responder for swipe-to-dismiss AND expand
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Upward drags stay ours (expand); downward drags are ours only when
+        // there is nothing above to scroll back to.
+        if (gestureState.dy > 5) return scrollOffsetRef.current <= 0;
         return Math.abs(gestureState.dy) > 5;
       },
       onPanResponderMove: (_, gestureState) => {
@@ -477,8 +493,10 @@ export function VerseMateTooltip({
         if (gestureState.dy < -50 && !isExpandedRef.current) {
           expandRef.current(true);
         }
-        // Swipe Down -> Dismiss
-        else if (gestureState.dy > 70) {
+        // Swipe Down -> Dismiss. Velocity as well as distance: a quick flick
+        // is a dismissal even when it covers little ground, which is most of
+        // what "make it easier to close" means in practice.
+        else if (gestureState.dy > 70 || (gestureState.dy > 20 && gestureState.vy > 0.6)) {
           dismissRef.current();
         }
         // Snap back if dragged down but not enough
@@ -538,9 +556,10 @@ export function VerseMateTooltip({
       <Animated.View
         style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
         pointerEvents="auto"
+        {...panResponder.panHandlers}
       >
         {/* Header with pan responder for swipe */}
-        <View style={styles.header} {...panResponder.panHandlers}>
+        <View style={styles.header}>
           <View style={styles.handle} />
           <Text style={styles.verseMateHeader}>Verse Insight</Text>
         </View>
@@ -552,6 +571,14 @@ export function VerseMateTooltip({
             style={styles.scrollContainer}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            // No rubber-band at the top: that bounce is what the sheet's own
+            // drag-to-dismiss has to replace, and having both means the sheet
+            // appears to resist being closed.
+            bounces={false}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+            }}
           >
             <View style={{ paddingHorizontal: spacing.lg }}>
               {/* Title with optional color indicator */}

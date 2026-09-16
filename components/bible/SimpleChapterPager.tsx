@@ -53,6 +53,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { StyleSheet, View } from 'react-native';
 import PagerView from '@/components/common/PagerView';
@@ -167,6 +168,25 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * is authoritative and resets everything immediately.
      */
     const dispatchedQueueRef = useRef<string[]>([]);
+
+    /**
+     * Bumped only when a chapter arrives that NO swipe dispatched — a jump from
+     * the book selector, a deep link, a restored reading position.
+     *
+     * Remounting the PagerView is the only reliable way to make iOS re-present
+     * after such a jump. The pages are keyed by chapter identity, so a jump
+     * replaces EVERY key at once; UIPageViewController keeps showing the view
+     * controller it already has, and the recenter below cannot dislodge it
+     * because `setPageWithoutAnimation(1)` is a no-op when the pager already
+     * believes it is at 1 — which it does for any jump between two chapters
+     * that both have a previous. That is the reported "title moves but not the
+     * content", recoverable by swiping away and back, which is exactly the
+     * gesture that forces a re-present.
+     *
+     * A swipe never takes this branch, so the swipe path — and all the timing
+     * work around it — is untouched.
+     */
+    const [pagerGeneration, setPagerGeneration] = useState(0);
 
     // Pending navigation target — set by onPageSelected, processed when pager reaches idle
     const pendingNavRef = useRef<{ bookId: number; chapterNumber: number } | null>(null);
@@ -347,6 +367,8 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         // Not one of ours: an external navigation wins outright.
         queue.length = 0;
         virtualRef.current = { bookId, chapterNumber };
+        // Force the native pager to rebuild against the new children.
+        setPagerGeneration((n) => n + 1);
       } else {
         // Drop everything up to and including the chapter that just committed.
         queue.splice(0, at + 1);
@@ -626,6 +648,8 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
 
     return (
       <PagerView
+        // Remount on an external jump only — see pagerGeneration.
+        key={`pager-${pagerGeneration}`}
         ref={pagerRef}
         style={styles.pagerView}
         initialPage={initialPageIndex}
