@@ -24,14 +24,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusBrowse } from '@/hooks/jesus';
 import { categoryStats, topicCount, topicGospels } from '@/lib/jesus/browse-copy';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
-import type { JesusEventCard, JesusTopicPoint } from '@/types/jesus';
+import type { JesusEventCard } from '@/types/jesus';
 
 type Colors = ReturnType<typeof getColors>;
 
-// The sayings are ONE block under a heading, not a card each: they are quotes
-// rather than links, and rendering them as individual cards made them look
-// tappable next to the event rows that actually are.
-type Row = { kind: 'points'; points: JesusTopicPoint[] } | { kind: 'event'; event: JesusEventCard };
+// Events only. The "What He says here" panel is gone — see the sections memo.
+type Row = { kind: 'event'; event: JesusEventCard };
 
 export default function JesusBrowseScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
@@ -54,19 +52,21 @@ export default function JesusBrowseScreen() {
   // that carry no quoted point of their own — that ordering is what makes the
   // screen read as "what this set is about" rather than as a directory.
   const sections = useMemo(() => {
-    return (data?.topics ?? []).map((topic) => {
-      // The points are the sayings this topic is built from — quotes, not
-      // links, exactly as on web. EVERY event then follows as a tappable card;
-      // web hides the duplicate quote on a card whose facet was already shown
-      // above rather than dropping the card. Filtering them out instead left
-      // topics whose events were all quoted with nothing to tap at all.
-      const points = topic.points ?? [];
-      const rows: Row[] = [
-        ...(points.length ? [{ kind: 'points' as const, points }] : []),
-        ...(topic.events ?? []).map((event) => ({ kind: 'event' as const, event })),
-      ];
-      return { key: topic.slug ?? 'other', topic, data: rows };
-    });
+    /*
+     * Events only.
+     *
+     * This used to lead each topic with a "What He says here" panel quoting
+     * the sayings, then list the events under it. Web dropped that panel
+     * (#300) — it quoted the same material the cards below already carry, so
+     * the reader met every saying twice a few hundred pixels apart. The topic
+     * now goes description -> examples, which is what the web screen does and
+     * what "copy the web version" asks for.
+     */
+    return (data?.topics ?? []).map((topic) => ({
+      key: topic.slug ?? 'other',
+      topic,
+      data: (topic.events ?? []).map((event) => ({ kind: 'event' as const, event })),
+    }));
   }, [data]);
 
   const jumpTo = (index: number) => {
@@ -113,7 +113,7 @@ export default function JesusBrowseScreen() {
         <SectionList
           ref={listRef}
           sections={sections}
-          keyExtractor={(row, i) => (row.kind === 'points' ? `p-${i}` : `e-${row.event.slug}-${i}`)}
+          keyExtractor={(row, i) => `e-${row.event.slug}-${i}`}
           stickySectionHeadersEnabled={false}
           testID="jesus-topic-list"
           contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
@@ -180,44 +180,9 @@ export default function JesusBrowseScreen() {
               ) : null}
             </View>
           )}
-          renderItem={({ item }) =>
-            item.kind === 'points' ? (
-              <View style={styles.pointsCard} testID="jesus-topic-points">
-                <Text style={styles.pointsHeading}>
-                  {data?.type?.mode === 'ACTION'
-                    ? t('jesus.browse.whatHeDoes', 'What He does here')
-                    : t('jesus.browse.whatHeSays', 'What He says here')}
-                </Text>
-                {item.points.map((point) => {
-                  // Web puts the gloss and the reference on ONE line joined by
-                  // "·", and a bare reference with no gloss still gets that
-                  // line. Stacking them as two rows is what made the mobile
-                  // block read as taller and looser than the same content on
-                  // web. Mirrors JesusTopicParts' `[summary, reference]` join.
-                  const meta = [point.text ? point.summary : null, point.reference]
-                    .filter(Boolean)
-                    .join(' · ');
-                  return (
-                    <View key={point.slug} style={styles.point}>
-                      {point.text ? (
-                        <Text style={styles.pointText}>
-                          {t('jesus.event.quoted', '“{{text}}”', { text: point.text })}
-                        </Text>
-                      ) : (
-                        <Text style={styles.pointTitle}>{point.title}</Text>
-                      )}
-                      {meta ? <Text style={styles.pointMeta}>{meta}</Text> : null}
-                    </View>
-                  );
-                })}
-              </View>
-            ) : (
-              <EventRow
-                event={item.event}
-                onPress={(slug) => router.push(`/jesus/event/${slug}`)}
-              />
-            )
-          }
+          renderItem={({ item }) => (
+            <EventRow event={item.event} onPress={(slug) => router.push(`/jesus/event/${slug}`)} />
+          )}
           ListFooterComponent={
             data?.truncated ? (
               <Text style={styles.truncated} testID="jesus-topic-truncated">
@@ -307,46 +272,8 @@ function createStyles(colors: Colors) {
       color: colors.textTertiary,
       marginTop: spacing.xs,
     },
-    pointsCard: {
-      marginHorizontal: spacing.lg,
-      marginBottom: spacing.md,
-      padding: spacing.md,
-      borderRadius: radii.md,
-      // Web's panel is rgba(176,154,109,0.08) over a divider border — and
-      // 176,154,109 IS this palette's gold (#b09a6d), so the wash is the gold
-      // at 8% rather than a neutral grey. 0x14 = 20 = 0.08 x 255.
-      backgroundColor: `${colors.gold}14`,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.divider,
-    },
-    pointsHeading: {
-      fontSize: fontSizes.caption,
-      fontWeight: fontWeights.semibold,
-      letterSpacing: 1,
-      textTransform: 'uppercase',
-      color: colors.gold,
-      marginBottom: spacing.sm,
-    },
     // One rule per quote, as on web — a single bar spanning the whole card
     // reads as one long blockquote and loses where each saying starts.
-    point: {
-      marginBottom: spacing.md,
-      paddingLeft: spacing.sm,
-      borderLeftWidth: 2,
-      borderLeftColor: colors.gold,
-    },
-    pointText: { fontSize: fontSizes.body, color: colors.textPrimary, fontStyle: 'italic' },
-    pointTitle: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
-    pointMeta: {
-      fontSize: fontSizes.caption,
-      lineHeight: 18,
-      color: colors.textTertiary,
-      marginTop: 2,
-    },
     truncated: {
       fontSize: fontSizes.caption,
       fontStyle: 'italic',
