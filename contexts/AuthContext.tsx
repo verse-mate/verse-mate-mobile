@@ -562,6 +562,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
  * @throws Error if used outside AuthProvider
  * @returns Auth context value with state and methods
  */
+/**
+ * Auth state if a provider is present, otherwise null — for components that
+ * only need to know whether to offer a sign-in prompt, and must not take a
+ * screen down when rendered outside the provider (notably in tests).
+ */
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext) ?? null;
+}
+
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
 

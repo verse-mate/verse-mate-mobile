@@ -21,6 +21,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
+import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
 import { JesusEventHeader, type JesusEventView } from '@/components/jesus/JesusEventHeader';
 import {
   EventRow,
@@ -32,9 +33,11 @@ import {
 } from '@/components/jesus/JesusParts';
 import { JesusPassageBlock } from '@/components/jesus/JesusPassageBlock';
 import { JESUS_TABS, type JesusTab, JesusTabBodies } from '@/components/jesus/JesusTabBodies';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusEvent } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
+import type { JesusEventPassage } from '@/types/jesus';
 
 type Colors = ReturnType<typeof getColors>;
 
@@ -47,6 +50,25 @@ export default function JesusEventScreen() {
 
   const [view, setView] = useState<JesusEventView>('bible');
   const [tab, setTab] = useState<JesusTab>('summary');
+  /**
+   * Verse Insight, shown WITHOUT leaving the event.
+   *
+   * Rendered straight from local state rather than by mounting
+   * BibleInteractionProvider around each passage: that provider is the
+   * reader's whole interaction stack — auth, toasts, per-chapter highlight and
+   * auto-highlight fetches — and an event spanning two Gospels would mount it
+   * twice to show one popup. The tooltip takes plain props, so this costs one
+   * piece of state and no requests.
+   *
+   * Highlighting and notes stay in the reader: they are per-chapter and
+   * belong where the chapter is. The reference pill still goes there.
+   */
+  const [insight, setInsight] = useState<{
+    passage: JesusEventPassage;
+    verse: number;
+    text?: string;
+  } | null>(null);
+  const auth = useOptionalAuth();
   const [navOpen, setNavOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -57,6 +79,13 @@ export default function JesusEventScreen() {
   // The passages carrying scripture are the TOP-LEVEL ones; `event.passages` is
   // the reference list without verse text.
   const passages = data?.passages ?? [];
+
+  /** The text of one verse inside a passage, for the tooltip's quote. */
+  const verseTextOf = useCallback(
+    (passage: JesusEventPassage, verse: number) =>
+      (passage.verses ?? []).find((v) => v.verse_number === verse)?.text,
+    []
+  );
 
   const openInReader = useCallback((bookId: number, chapter: number) => {
     router.push(`/bible/${bookId}/${chapter}`);
@@ -97,7 +126,9 @@ export default function JesusEventScreen() {
             key={passage.display}
             passage={passage}
             onOpen={() => openInReader(passage.book_id, passage.chapter)}
-            onOpenVerse={(verse) => openVerseInReader(passage.book_id, passage.chapter, verse)}
+            onOpenVerse={(verse) =>
+              setInsight({ passage, verse, text: verseTextOf(passage, verse) })
+            }
           />
         ))}
       </View>
@@ -203,6 +234,22 @@ export default function JesusEventScreen() {
         </ScrollView>
       )}
 
+      {/* Verse Insight, in place — see the `insight` state above. */}
+      {insight ? (
+        <VerseMateTooltip
+          visible
+          verseNumber={insight.verse}
+          highlightGroup={null}
+          bookId={insight.passage.book_id}
+          chapterNumber={insight.passage.chapter}
+          bookName={insight.passage.book_name}
+          verseText={insight.text}
+          source="verse_number"
+          isLoggedIn={Boolean(auth?.user)}
+          onClose={() => setInsight(null)}
+        />
+      ) : null}
+
       {navOpen ? (
         <BibleNavigationModal
           visible={navOpen}
@@ -270,7 +317,15 @@ function createStyles(colors: Colors) {
       height: 52,
       paddingHorizontal: spacing.lg,
     },
-    tabStripContent: { alignItems: 'center', paddingVertical: spacing.sm },
+    // Centred, not left-hugging: the track is narrower than the screen, so
+    // flex-start parked it against the left edge under a centred title.
+    // "And let's center these."
+    tabStripContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
     tabTrack: {
       flexDirection: 'row',
       alignItems: 'center',

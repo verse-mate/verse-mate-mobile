@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useOptionalBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
@@ -43,6 +44,21 @@ export function JesusPassageBlock({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const { fontSize } = useFontSize();
+  /**
+   * Verse Insight, opened IN PLACE.
+   *
+   * The first version routed to the reader instead, and the tester's words
+   * were: "clicking on the verse definitions now send you to the book instead
+   * of just the popup and staying in Jesus feature." Being thrown into Matthew
+   * mid-event is a context switch nobody asked for — the popup IS the
+   * interaction.
+   *
+   * The event screen wraps each passage in its OWN BibleInteractionProvider:
+   * an event told by two Gospels is two different chapters, and highlights,
+   * notes and insight are all per-chapter. Optional so the block still renders
+   * unprovided, where it degrades to opening the reader.
+   */
+  const interaction = useOptionalBibleInteraction();
   const styles = useMemo(() => createStyles(colors, fontSize), [colors, fontSize]);
   const verses = passage.verses ?? [];
 
@@ -79,7 +95,18 @@ export function JesusPassageBlock({
             */
             <Text
               key={verse.verse_number}
-              onPress={() => (onOpenVerse ?? (() => onOpen()))(verse.verse_number)}
+              onPress={() => {
+                if (interaction) {
+                  interaction.openVerseTooltip(
+                    verse.verse_number,
+                    null,
+                    verse.text,
+                    'verse_number'
+                  );
+                  return;
+                }
+                (onOpenVerse ?? (() => onOpen()))(verse.verse_number);
+              }}
               accessibilityRole="button"
               accessibilityLabel={t(
                 'jesus.event.openVerse',

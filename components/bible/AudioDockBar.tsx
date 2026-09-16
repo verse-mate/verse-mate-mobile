@@ -106,6 +106,12 @@ export function AudioDockBar() {
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
 
+      {/*
+        Three columns of EQUAL width, so play sits on the true centre line of
+        the bar rather than wherever the reference happens to end. Asked for as
+        "let's just put play in middle" — speed deliberately stays on the right,
+        which is the half of that question the tester answered explicitly.
+      */}
       <View style={styles.row}>
         {/* Tapping anywhere that is not a control expands the player. */}
         <Pressable
@@ -123,36 +129,40 @@ export function AudioDockBar() {
           </Text>
         </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={isBuffering ? 'Buffering' : isPlaying ? 'Pause' : 'Play'}
-          accessibilityState={{ busy: isBuffering }}
-          style={styles.iconButton}
-          disabled={isBuffering}
-          onPress={() => (isPlaying ? player.pause() : player.play())}
-          testID="audio-dock-play-toggle"
-        >
-          {isBuffering ? (
-            <ActivityIndicator
-              size="small"
-              color={colors.textPrimary}
-              testID="audio-dock-buffering-indicator"
-            />
-          ) : (
-            <Ionicons name={isPlaying ? 'pause' : 'play'} size={22} color={colors.textPrimary} />
-          )}
-        </Pressable>
+        <View style={styles.centreSlot}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isBuffering ? 'Buffering' : isPlaying ? 'Pause' : 'Play'}
+            accessibilityState={{ busy: isBuffering }}
+            style={styles.iconButton}
+            disabled={isBuffering}
+            onPress={() => (isPlaying ? player.pause() : player.play())}
+            testID="audio-dock-play-toggle"
+          >
+            {isBuffering ? (
+              <ActivityIndicator
+                size="small"
+                color={colors.textPrimary}
+                testID="audio-dock-buffering-indicator"
+              />
+            ) : (
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={22} color={colors.textPrimary} />
+            )}
+          </Pressable>
+        </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Playback speed ${formatSpeed(player.speed)}, tap to change`}
-          accessibilityHint={`Cycles through ${SPEED_OPTIONS.map(formatSpeed).join(', ')}`}
-          style={styles.speedButton}
-          onPress={() => player.setSpeed(nextSpeed(player.speed))}
-          testID="audio-dock-speed"
-        >
-          <Text style={styles.speedText}>{formatSpeed(player.speed)}</Text>
-        </Pressable>
+        <View style={styles.endSlot}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Playback speed ${formatSpeed(player.speed)}, tap to change`}
+            accessibilityHint={`Cycles through ${SPEED_OPTIONS.map(formatSpeed).join(', ')}`}
+            style={styles.speedButton}
+            onPress={() => player.setSpeed(nextSpeed(player.speed))}
+            testID="audio-dock-speed"
+          >
+            <Text style={styles.speedText}>{formatSpeed(player.speed)}</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -169,7 +179,12 @@ function createStyles(
       left: 0,
       right: 0,
       bottom: bottomOffset,
-      paddingBottom: safeAreaPadding,
+      // Clear of the home indicator AND the screen's bottom curve: the safe
+      // area alone still left the controls sitting on the curve on a phone
+      // with rounded corners ("raise up a bit so it's not on the curve of
+      // phones"). The extra only applies where there IS a curve — a device
+      // reporting no bottom inset is flat-edged and needs none.
+      paddingBottom: safeAreaPadding > 0 ? safeAreaPadding + 8 : 8,
       backgroundColor: colors.backgroundElevated,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.gray200,
@@ -184,14 +199,17 @@ function createStyles(
       height: BAR_HEIGHT,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
       paddingHorizontal: 12,
     },
+    // Equal thirds: the play button lands on the bar's centre line no matter
+    // how long the reference is.
     body: {
       flex: 1,
       justifyContent: 'center',
       alignSelf: 'stretch',
     },
+    centreSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    endSlot: { flex: 1, alignItems: 'flex-end', justifyContent: 'center' },
     title: {
       color: colors.textPrimary,
       fontSize: 15,
