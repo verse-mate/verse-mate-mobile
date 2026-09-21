@@ -12,10 +12,9 @@
  * passage order — rather than from a second request.
  */
 
-import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import {
   ConfidenceBadge,
@@ -25,12 +24,12 @@ import {
 } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusCompare } from '@/hooks/jesus';
-import { bylineReference, covers } from '@/lib/jesus/byline-scope';
+import { covers } from '@/lib/jesus/byline-scope';
 import { eventVerseSpan, narrowStudyToEvent, spanRangeLabel } from '@/lib/jesus/study-scope';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { useBibleChapterExplanation, useStudy } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
-import type { JesusEventDetail, JesusEventPassage, JesusFacet, JesusReveal } from '@/types/jesus';
+import type { JesusEventDetail, JesusEventPassage, JesusReveal } from '@/types/jesus';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 
 type Colors = ReturnType<typeof getColors>;
@@ -150,12 +149,20 @@ function SummaryBody({ detail }: { detail: JesusEventDetail }) {
  *
  * Its own component because each account is a different chapter and therefore
  * a different fetch — hooks cannot run in a loop over passages.
+ *
+ * NOTHING COLLAPSES HERE. The first version made every verse a closed
+ * accordion row, so the tab opened as a bare list of references and reading it
+ * cost one tap per verse. That was invented, not asked for: web opens every
+ * row by default (collapsing is its exception), and the reader's OWN By-Line
+ * tab has no toggle at all — it prints each section one after the next
+ * (ChapterReader maps `parseByLineSections` straight into <Markdown>). A
+ * commentary meant to be read straight through must not arrive folded up, and
+ * the Jesus feature should not be the one place in the app where it does.
  */
 function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labelled: boolean }) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [open, setOpen] = useState<number | null>(null);
 
   const query = useBibleChapterExplanation(passage.book_id, passage.chapter, 'byline');
   const data = query.data as { content?: string } | undefined;
@@ -167,7 +174,6 @@ function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labe
       .filter((section) => section.verseNumber > 0 && covers(passage, section.verseNumber))
       .map((section) => ({
         verse: section.verseNumber,
-        reference: bylineReference(passage, section.verseNumber),
         markdown: section.markdown,
       }));
   }, [data?.content, passage]);
@@ -192,32 +198,17 @@ function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labe
           )}
         </Text>
       ) : (
-        rows.map((row) => {
-          const isOpen = open === row.verse;
-          return (
-            <View key={row.verse} style={styles.bylineRow}>
-              <Pressable
-                onPress={() => setOpen(isOpen ? null : row.verse)}
-                style={styles.bylineToggle}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: isOpen }}
-                testID={`jesus-byline-row-${passage.book_id}-${passage.chapter}-${row.verse}`}
-              >
-                <Text style={styles.bylineRef}>{row.reference}</Text>
-                <Ionicons
-                  name={isOpen ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                  color={colors.textTertiary}
-                />
-              </Pressable>
-              {isOpen ? (
-                <View style={styles.bylineDetail}>
-                  <Markdown style={bylineMarkdownStyles(colors)}>{row.markdown}</Markdown>
-                </View>
-              ) : null}
-            </View>
-          );
-        })
+        // `row.markdown` already opens with the reference as its own heading —
+        // the same subtree the reader renders — so nothing is printed above it.
+        rows.map((row) => (
+          <View
+            key={row.verse}
+            style={styles.bylineRow}
+            testID={`jesus-byline-row-${passage.book_id}-${passage.chapter}-${row.verse}`}
+          >
+            <Markdown style={bylineMarkdownStyles(colors)}>{row.markdown}</Markdown>
+          </View>
+        ))
       )}
     </View>
   );
@@ -523,22 +514,13 @@ function createStyles(colors: Colors) {
       fontStyle: 'italic',
       paddingVertical: spacing.sm,
     },
+    // A rule between verses, not a row of controls: the reference heading comes
+    // from the commentary's own markdown, as it does in the reader.
     bylineRow: {
+      paddingBottom: spacing.md,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.divider,
     },
-    bylineToggle: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: spacing.md,
-    },
-    bylineRef: {
-      fontSize: fontSizes.bodySmall,
-      fontWeight: fontWeights.medium,
-      color: colors.textPrimary,
-    },
-    bylineDetail: { paddingBottom: spacing.md },
     studyScope: {
       fontSize: fontSizes.caption,
       color: colors.textTertiary,
