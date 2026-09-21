@@ -31,20 +31,3 @@ export function covers(passage: JesusEventPassage, verse: number): boolean {
   return verse <= passage.verse_end;
 }
 
-/**
- * The chapter a passage's commentary is fetched under.
- *
- * Two accounts of one event can share a chapter (Mark 1:14-15 and Mark
- * 1:16-20), which is what this key exists to notice.
- */
-export function bylineChapterKey(passage: {
-  book_id: number;
-  chapter: number;
-}): string {
-  return `${passage.book_id}:${passage.chapter}`;
-}
-
-/** "Mark 4:39" — what a row's toggle shows. */
-export function bylineReference(passage: JesusEventPassage, verse: number): string {
-  return `${passage.book_name} ${passage.chapter}:${verse}`;
-}
