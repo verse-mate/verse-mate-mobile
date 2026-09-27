@@ -19,6 +19,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { JesusChrome } from '@/components/jesus/JesusChrome';
 import {
   EventRow,
   JesusNavCard,
@@ -29,7 +30,7 @@ import {
 } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusOverview, useJesusSearch } from '@/hooks/jesus';
-import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
+import { fontSizes, type getColors, radii, spacing } from '@/theme/tokens';
 
 type Colors = ReturnType<typeof getColors>;
 
@@ -67,23 +68,14 @@ export default function JesusHubScreen() {
     sections.length > 0 || (data?.themes?.length ?? 0) > 0 || (data?.collections?.length ?? 0) > 0;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.header}>
-        <Pressable
-          onPress={handleBack}
-          style={styles.backButton}
-          testID="jesus-back-button"
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back', 'Back')}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle} testID="jesus-screen-title">
-          {t('jesus.hub.title', 'Jesus')}
-        </Text>
-        <View style={styles.backButton} />
-      </View>
+      <JesusChrome
+        title={t('jesus.hub.title', 'Jesus')}
+        onBack={handleBack}
+        backTestID="jesus-back-button"
+        titleTestID="jesus-screen-title"
+      />
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
@@ -252,19 +244,6 @@ function SearchResults({
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.md,
-    },
-    backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    headerTitle: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
     tagline: {
       fontSize: fontSizes.body,
       color: colors.textSecondary,

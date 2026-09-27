@@ -7,12 +7,12 @@
  * single saying or deed rather than a whole scene, so it shows the saying, what
  * it means, where it is, and a way into the event that contains it.
  */
-import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { JesusChrome } from '@/components/jesus/JesusChrome';
 import {
   JesusPill,
   JesusPlaceholder,
@@ -42,23 +42,14 @@ export default function JesusEntryScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.header}>
-        <Pressable
-          onPress={handleBack}
-          style={styles.backButton}
-          testID="jesus-entry-back-button"
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back', 'Back')}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1} testID="jesus-entry-title">
-          {data?.kind_label ?? ''}
-        </Text>
-        <View style={styles.backButton} />
-      </View>
+      <JesusChrome
+        title={data?.kind_label ?? ''}
+        onBack={handleBack}
+        backTestID="jesus-entry-back-button"
+        titleTestID="jesus-entry-title"
+      />
 
       {phase === 'offline' ? (
         <JesusPlaceholder
@@ -133,21 +124,6 @@ export default function JesusEntryScreen() {
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.md,
-    },
-    backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
     period: {
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.lg,

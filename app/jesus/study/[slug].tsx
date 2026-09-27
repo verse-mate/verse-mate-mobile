@@ -7,16 +7,16 @@
  * one harmony cluster resolve to a single event. That is the event model
  * working, not members being dropped, so the count shown is the resolved one.
  */
-import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { JesusChrome } from '@/components/jesus/JesusChrome';
 import { EventRow, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusCollection } from '@/hooks/jesus';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
+import { fontSizes, type getColors, spacing } from '@/theme/tokens';
 
 type Colors = ReturnType<typeof getColors>;
 
@@ -36,23 +36,13 @@ export default function JesusCollectionScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.header}>
-        <Pressable
-          onPress={handleBack}
-          style={styles.backButton}
-          testID="jesus-collection-back"
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back', 'Back')}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {data?.collection?.name ?? ''}
-        </Text>
-        <View style={styles.backButton} />
-      </View>
+      <JesusChrome
+        title={data?.collection?.name ?? ''}
+        onBack={handleBack}
+        backTestID="jesus-collection-back"
+      />
 
       {phase === 'offline' ? (
         <JesusPlaceholder
@@ -89,21 +79,6 @@ export default function JesusCollectionScreen() {
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.md,
-    },
-    backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
     description: {
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,

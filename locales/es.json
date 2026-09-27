@@ -238,7 +238,7 @@
       "quoted": "«{{text}}»",
       "openInReader": "Ábrelo en el lector para ver este pasaje.",
       "summaryOf": "Resumen de {{title}}",
-      "bylineOf": "Línea por línea: {{title}}",
+      "bylineOf": "Análisis línea por línea de {{title}}",
       "studyOf": "Estudio: {{title}}",
       "compareOf": "Comparar: {{title}}",
       "noByline": "Aún no hay lectura línea por línea para este evento.",

@@ -11,12 +11,12 @@
  * formula with no single moment — so a period's `event_count` is the honest
  * number rather than a total that pretends everything has a place.
  */
-import { Ionicons } from '@expo/vector-icons';
 import { router, Stack } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { SectionList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { JesusChrome } from '@/components/jesus/JesusChrome';
 import { EventRow, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusLife } from '@/hooks/jesus';
@@ -54,21 +54,13 @@ export default function JesusLifeScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.header}>
-        <Pressable
-          onPress={handleBack}
-          style={styles.backButton}
-          testID="jesus-life-back"
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back', 'Back')}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle}>{t('jesus.life.title', 'Follow His Life')}</Text>
-        <View style={styles.backButton} />
-      </View>
+      <JesusChrome
+        title={t('jesus.life.title', 'Follow His Life')}
+        onBack={handleBack}
+        backTestID="jesus-life-back"
+      />
 
       {phase === 'loading' ? (
         <JesusPlaceholder loading testID="jesus-life-loading" />
@@ -109,19 +101,6 @@ export default function JesusLifeScreen() {
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.md,
-    },
-    backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    headerTitle: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
     periodHeader: {
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.xl,

@@ -19,24 +19,22 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
-import { HamburgerMenu } from '@/components/bible/HamburgerMenu';
 import { VerseMateTooltip } from '@/components/bible/VerseMateTooltip';
-import { JesusEventHeader, type JesusEventView } from '@/components/jesus/JesusEventHeader';
+import { JesusChrome } from '@/components/jesus/JesusChrome';
+import type { JesusEventView } from '@/components/jesus/JesusEventHeader';
 import {
   EventRow,
   JesusPill,
   JesusPlaceholder,
   queryPhase,
   SectionHeading,
-  uniqueGospels,
 } from '@/components/jesus/JesusParts';
 import { JesusPassageBlock } from '@/components/jesus/JesusPassageBlock';
 import { JESUS_TABS, type JesusTab, JesusTabBodies } from '@/components/jesus/JesusTabBodies';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusEvent } from '@/hooks/jesus';
-import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { JesusEventPassage } from '@/types/jesus';
 
 type Colors = ReturnType<typeof getColors>;
@@ -69,8 +67,15 @@ export default function JesusEventScreen() {
     text?: string;
   } | null>(null);
   const auth = useOptionalAuth();
-  const [navOpen, setNavOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  /**
+   * Back to wherever the event was opened from — a browse list, the life
+   * timeline, a theme, a related event. Falls back to the hub when the event
+   * was the first screen (a deep link), so the button never does nothing.
+   */
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/jesus');
+  }, []);
 
   const query = useJesusEvent(slug);
   const { data } = query;
@@ -89,16 +94,6 @@ export default function JesusEventScreen() {
 
   const openInReader = useCallback((bookId: number, chapter: number) => {
     router.push(`/bible/${bookId}/${chapter}`);
-  }, []);
-
-  /**
-   * Open ONE verse in the reader. The reader already accepts `?verse=` (the
-   * widget and deep links use it), so a tapped verse lands on that verse with
-   * the full interaction system — highlight, note, lexicon, Verse Insight —
-   * rather than at the top of the chapter.
-   */
-  const openVerseInReader = useCallback((bookId: number, chapter: number, verse: number) => {
-    router.push(`/bible/${bookId}/${chapter}?verse=${verse}`);
   }, []);
 
   const body = (
@@ -169,12 +164,12 @@ export default function JesusEventScreen() {
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <JesusEventHeader
+      <JesusChrome
         title={data?.event.title ?? t('jesus.hub.title', 'Jesus')}
         view={view}
-        onTitlePress={() => setNavOpen(true)}
         onViewChange={setView}
-        onMenuPress={() => setMenuOpen(true)}
+        onBack={handleBack}
+        backTestID="jesus-event-back"
       />
 
       {/* The pills name the insight views only, so they belong to that side of
@@ -249,24 +244,6 @@ export default function JesusEventScreen() {
           onClose={() => setInsight(null)}
         />
       ) : null}
-
-      {navOpen ? (
-        <BibleNavigationModal
-          visible={navOpen}
-          initialTab="JESUS"
-          // An event is not a chapter, so there is nothing to highlight as
-          // current; the selector opens on the Jesus tab and a book pick simply
-          // leaves for the reader.
-          currentBookId={0}
-          currentChapter={0}
-          onClose={() => setNavOpen(false)}
-          onSelectChapter={(bookId, chapter) => {
-            setNavOpen(false);
-            router.push(`/bible/${bookId}/${chapter}`);
-          }}
-        />
-      ) : null}
-      <HamburgerMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   );
 }

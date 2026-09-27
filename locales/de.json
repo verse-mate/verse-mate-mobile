@@ -238,7 +238,7 @@
       "quoted": "„{{text}}“",
       "openInReader": "Im Leser öffnen, um diese Stelle zu lesen.",
       "summaryOf": "Zusammenfassung von {{title}}",
-      "bylineOf": "Zeile für Zeile: {{title}}",
+      "bylineOf": "Zeile-für-Zeile-Analyse von {{title}}",
       "studyOf": "Studium: {{title}}",
       "compareOf": "Vergleich: {{title}}",
       "noByline": "Für dieses Ereignis gibt es noch keine Lesung Zeile für Zeile.",

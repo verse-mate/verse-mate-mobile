@@ -24,6 +24,13 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: mockTranslate }),
 }));
 
+// The reader chrome every Jesus page now wears; its overlays are the reader's
+// own components, exercised by their own tests.
+jest.mock('@/components/bible/BibleNavigationModal', () => ({
+  BibleNavigationModal: () => null,
+}));
+jest.mock('@/components/bible/HamburgerMenu', () => ({ HamburgerMenu: () => null }));
+
 const mockUseOverview = jest.fn();
 const mockSearch = jest.fn();
 jest.mock('@/hooks/jesus', () => ({
