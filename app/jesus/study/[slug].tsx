@@ -30,19 +30,10 @@ export default function JesusCollectionScreen() {
   const { data } = collection;
   const phase = queryPhase(collection);
 
-  const handleBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/jesus');
-  };
-
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <JesusChrome
-        title={data?.collection?.name ?? ''}
-        onBack={handleBack}
-        backTestID="jesus-collection-back"
-      />
+      <JesusChrome title={data?.collection?.name ?? ''} backTestID="jesus-collection-back" />
 
       {phase === 'offline' ? (
         <JesusPlaceholder

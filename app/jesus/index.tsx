@@ -48,11 +48,6 @@ export default function JesusHubScreen() {
   const search = useJesusSearch(query);
   const searching = query.trim().length > 0;
 
-  const handleBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/');
-  };
-
   // The chronological way in is one row per period, so its count is the sum
   // rather than a field of its own.
   const lifeCount = (data?.periods ?? []).reduce((n, p) => n + (p.event_count ?? 0), 0);
@@ -72,7 +67,6 @@ export default function JesusHubScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <JesusChrome
         title={t('jesus.hub.title', 'Jesus')}
-        onBack={handleBack}
         backTestID="jesus-back-button"
         titleTestID="jesus-screen-title"
       />
@@ -232,7 +226,7 @@ function SearchResults({
           <EventRow
             key={event.slug}
             event={event}
-            onPress={(slug) => router.push(`/jesus/event/${slug}`)}
+            onPress={(slug) => router.push(`/jesus/event/${slug}?from=search`)}
           />
         ))}
       </View>
