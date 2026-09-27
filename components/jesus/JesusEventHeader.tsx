@@ -48,8 +48,8 @@ export function JesusEventHeader({
 }: {
   title: string;
   /**
-   * The reader's second header line (the Bible version). Omit it and the line
-   * is still reserved, empty — see `subtitle` in the styles.
+   * The reader's second header line (the Bible version). Omit it and the bar
+   * keeps the same height with the title centred in it.
    */
   subtitle?: string;
   /** Omit for pages with no Bible / Insight choice — the toggle is not drawn. */
@@ -99,18 +99,54 @@ export function JesusEventHeader({
           accessibilityRole="button"
           accessibilityLabel={title}
         >
-          <View style={styles.titleRow}>
-            <Text style={styles.title} numberOfLines={1} testID={titleTestID}>
-              {title}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
-          </View>
-          {/* Always present, empty when there is no version to show: the
-              reader's header is two lines tall, and dropping the second line
-              is what made this bar shorter and moved the menu button. */}
-          <Text style={styles.subtitle} numberOfLines={1}>
-            {subtitle || ' '}
-          </Text>
+          {subtitle ? (
+            <>
+              <View style={styles.titleRow}>
+                <Text style={styles.title} numberOfLines={1} testID={titleTestID}>
+                  {title}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
+              </View>
+              <Text style={styles.subtitle} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            </>
+          ) : (
+            /*
+              No second line to show, but the bar must stay the reader's
+              two-line height or the menu button moves (the reason this line
+              was reserved at all). So an invisible title + subtitle pair sets
+              the height, and the real title is laid over it, centred —
+              "the dropdown … is not centered in the height of the header".
+              Measured by layout, not a guessed number, so it holds on both
+              platforms and at any text size.
+            */
+            <View>
+              <View
+                style={styles.ghost}
+                aria-hidden
+                importantForAccessibility="no-hide-descendants"
+              >
+                <View style={styles.titleRow}>
+                  <Text style={styles.title} numberOfLines={1}>
+                    {title}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
+                </View>
+                <Text style={styles.subtitle} numberOfLines={1}>
+                  {' '}
+                </Text>
+              </View>
+              <View style={styles.centred}>
+                <View style={styles.titleRow}>
+                  <Text style={styles.title} numberOfLines={1} testID={titleTestID}>
+                    {title}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
+                </View>
+              </View>
+            </View>
+          )}
         </Pressable>
       </View>
 
@@ -174,6 +210,8 @@ function createStyles(colors: Colors, headerSpecs: ReturnType<typeof getHeaderSp
     backButton: { paddingVertical: spacing.xs, paddingRight: spacing.xs, marginLeft: -spacing.xs },
     titleButton: { padding: spacing.xs, flexShrink: 1 },
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    ghost: { opacity: 0 },
+    centred: { ...StyleSheet.absoluteFillObject, justifyContent: 'center' },
     title: {
       fontSize: headerSpecs.titleFontSize,
       fontWeight: headerSpecs.titleFontWeight,
