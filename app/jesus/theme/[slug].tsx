@@ -8,12 +8,12 @@
  * Reached from the hub's Explore-by-Topic chips and from an event's own theme
  * pills, which is the route that was missing entirely from the first port.
  */
-import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { JesusChrome } from '@/components/jesus/JesusChrome';
 import {
   EventRow,
   JesusPlaceholder,
@@ -22,7 +22,7 @@ import {
 } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusEvents, useJesusOverview } from '@/hooks/jesus';
-import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
+import { fontSizes, type getColors, spacing } from '@/theme/tokens';
 
 type Colors = ReturnType<typeof getColors>;
 
@@ -49,23 +49,14 @@ export default function JesusThemeScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.header}>
-        <Pressable
-          onPress={handleBack}
-          style={styles.backButton}
-          testID="jesus-list-back-button"
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back', 'Back')}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1} testID="jesus-list-title">
-          {theme?.name ?? ''}
-        </Text>
-        <View style={styles.backButton} />
-      </View>
+      <JesusChrome
+        title={theme?.name ?? ''}
+        onBack={handleBack}
+        backTestID="jesus-list-back-button"
+        titleTestID="jesus-list-title"
+      />
 
       {phase === 'offline' ? (
         <JesusPlaceholder
@@ -110,21 +101,6 @@ export default function JesusThemeScreen() {
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.md,
-    },
-    backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
     description: {
       fontSize: fontSizes.body,
       lineHeight: 22,

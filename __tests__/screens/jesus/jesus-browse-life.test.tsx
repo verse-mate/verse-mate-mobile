@@ -25,6 +25,13 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: mockTranslate }),
 }));
 
+// The reader chrome every Jesus page now wears; its overlays are the reader's
+// own components, exercised by their own tests.
+jest.mock('@/components/bible/BibleNavigationModal', () => ({
+  BibleNavigationModal: () => null,
+}));
+jest.mock('@/components/bible/HamburgerMenu', () => ({ HamburgerMenu: () => null }));
+
 const mockBrowse = jest.fn();
 const mockLife = jest.fn();
 jest.mock('@/hooks/jesus', () => ({
@@ -68,6 +75,45 @@ beforeEach(() => {
 });
 
 describe('JesusBrowseScreen', () => {
+  it('wears the reader header, with back and the menu', () => {
+    // "Some of the Jesus pages lose the header and menu bar. Recommend we keep
+    // for all pages to make navigation consistent." — every page, not just
+    // the event, and with a way back.
+    render(<JesusBrowseScreen />);
+    expect(screen.getByTestId('hamburger-menu-button')).toBeTruthy();
+    expect(screen.getByTestId('jesus-selector-button')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('jesus-list-back-button'));
+    expect(router.back).toHaveBeenCalled();
+  });
+
+  it('has no Bible / Insight toggle — there is no such choice on a list', () => {
+    render(<JesusBrowseScreen />);
+    expect(screen.queryByTestId('jesus-view-bible')).toBeNull();
+  });
+
+  it('opens the theme page from a topic heading', () => {
+    // The heading was the most prominent thing in each section and tapping it
+    // did nothing — "some of these are not clickable".
+    render(<JesusBrowseScreen />);
+    fireEvent.press(screen.getByTestId('jesus-topic-section-kingdom'));
+    expect(router.push).toHaveBeenCalledWith('/jesus/theme/kingdom');
+  });
+
+  it('leaves a heading with no theme behind it as plain text', () => {
+    mockBrowse.mockReturnValue({
+      isPending: false,
+      fetchStatus: 'idle',
+      data: {
+        type: { label: 'Questions' },
+        topics: [{ slug: null, name: 'Other', description: null, events: [EVENT] }],
+        truncated: false,
+      },
+    });
+    render(<JesusBrowseScreen />);
+    fireEvent.press(screen.getByText('Other'));
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
   it('renders the server topic groups as sections', () => {
     render(<JesusBrowseScreen />);
     expect(screen.getByText('Kingdom')).toBeTruthy();

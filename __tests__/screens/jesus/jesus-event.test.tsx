@@ -153,6 +153,22 @@ describe('JesusEventScreen', () => {
     expect(mockCompare).toHaveBeenCalledWith('event-storm-stilled', true);
   });
 
+  it('offers a way back to the page the event was opened from', () => {
+    // "We should ideally have a 'back' that take you back to the last page you
+    // were on" — the reader bar had none, so an event could only be left by
+    // the edge swipe.
+    render(<JesusEventScreen />);
+    fireEvent.press(screen.getByTestId('jesus-event-back'));
+    expect(router.back).toHaveBeenCalled();
+  });
+
+  it('falls back to the hub when the event was opened directly', () => {
+    (router.canGoBack as jest.Mock).mockReturnValueOnce(false);
+    render(<JesusEventScreen />);
+    fireEvent.press(screen.getByTestId('jesus-event-back'));
+    expect(router.replace).toHaveBeenCalledWith('/jesus');
+  });
+
   it('routes a theme pill to the theme screen', () => {
     render(<JesusEventScreen />);
     fireEvent.press(screen.getByTestId('jesus-event-theme-faith'));

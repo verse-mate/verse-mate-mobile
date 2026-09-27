@@ -19,11 +19,12 @@ import { useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { JesusChrome } from '@/components/jesus/JesusChrome';
 import { EventRow, JesusPill, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusBrowse } from '@/hooks/jesus';
 import { categoryStats, topicCount, topicGospels } from '@/lib/jesus/browse-copy';
-import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
+import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { JesusEventCard } from '@/types/jesus';
 
 type Colors = ReturnType<typeof getColors>;
@@ -69,7 +70,13 @@ export default function JesusBrowseScreen() {
     }));
   }, [data]);
 
+  /**
+   * The section a chip asked for, kept so a failed jump can be retried once the
+   * list has rendered far enough to know where that section is.
+   */
+  const pendingJump = useRef<number | null>(null);
   const jumpTo = (index: number) => {
+    pendingJump.current = index;
     listRef.current?.scrollToLocation({
       sectionIndex: index,
       itemIndex: 0,
@@ -79,23 +86,14 @@ export default function JesusBrowseScreen() {
   };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.header}>
-        <Pressable
-          onPress={handleBack}
-          style={styles.backButton}
-          testID="jesus-list-back-button"
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back', 'Back')}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1} testID="jesus-list-title">
-          {data?.type?.label ?? ''}
-        </Text>
-        <View style={styles.backButton} />
-      </View>
+      <JesusChrome
+        title={data?.type?.label ?? ''}
+        onBack={handleBack}
+        backTestID="jesus-list-back-button"
+        titleTestID="jesus-list-title"
+      />
 
       {phase === 'offline' ? (
         <JesusPlaceholder
@@ -119,12 +117,33 @@ export default function JesusBrowseScreen() {
           contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxxl }}
           // scrollToLocation needs a height estimate for sections it has not
           // measured; without it a chip jump to a far topic lands short.
-          onScrollToIndexFailed={({ index }) => {
-            listRef.current?.scrollToLocation({
-              sectionIndex: Math.max(0, index),
-              itemIndex: 0,
-              animated: false,
-            });
+          /*
+            A jump to a section the list has not rendered yet fails, because
+            rows have no fixed height to compute an offset from. The fix is to
+            scroll by the list's own estimate so those rows render, then retry
+            the ORIGINAL section.
+
+            The previous handler passed `index` straight back as sectionIndex —
+            but this callback's index is the FLATTENED row index (headers and
+            items counted together), not a section. So a far chip retried a
+            section that did not exist, and the tap did nothing: a plausible
+            source of "some of these are not clickable" on a phone that had not
+            laid the far topics out yet.
+          */
+          onScrollToIndexFailed={({ index, averageItemLength }) => {
+            listRef.current
+              ?.getScrollResponder()
+              ?.scrollTo({ y: index * averageItemLength, animated: false });
+            const section = pendingJump.current;
+            if (section == null) return;
+            setTimeout(() => {
+              listRef.current?.scrollToLocation({
+                sectionIndex: section,
+                itemIndex: 0,
+                viewPosition: 0,
+                animated: true,
+              });
+            }, 60);
           }}
           ListHeaderComponent={
             <View>
@@ -154,14 +173,39 @@ export default function JesusBrowseScreen() {
             </View>
           }
           renderSectionHeader={({ section }) => (
-            <View style={styles.topicHeader} testID={`jesus-topic-section-${section.key}`}>
+            /*
+              The topic heading opens that theme's own page.
+
+              It was plain text styled as the most prominent thing in each
+              section — a large title, a count, a description — so it read as
+              the thing to tap, and tapping it did nothing. Reported on build
+              116 as "some of these are not clickable". Every topic slug is a
+              theme slug (the event screen's theme pills route to the same
+              pages), so the heading goes where the pill would. The catch-all
+              group for events carrying no theme has a null slug and stays
+              plain text: there is no page to open.
+            */
+            <Pressable
+              disabled={!section.topic.slug}
+              onPress={() =>
+                section.topic.slug && router.push(`/jesus/theme/${section.topic.slug}`)
+              }
+              style={({ pressed }) => [styles.topicHeader, pressed && styles.pressed]}
+              accessibilityRole={section.topic.slug ? 'link' : undefined}
+              testID={`jesus-topic-section-${section.key}`}
+            >
               <View style={styles.topicTitleRow}>
                 <Text style={styles.topicName} testID={`jesus-topic-name-${section.key}`}>
                   {section.topic.name}
                 </Text>
-                <Text style={styles.topicCount}>
-                  {topicCount(section.topic, data?.type?.singular, data?.type?.plural)}
-                </Text>
+                <View style={styles.topicMeta}>
+                  <Text style={styles.topicCount}>
+                    {topicCount(section.topic, data?.type?.singular, data?.type?.plural)}
+                  </Text>
+                  {section.topic.slug ? (
+                    <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                  ) : null}
+                </View>
               </View>
               {/* The brief says what He addresses HERE; the theme's blurb says
                   what the theme is. Where a brief exists it replaces the blurb
@@ -178,7 +222,7 @@ export default function JesusBrowseScreen() {
               {topicGospels(section.topic) ? (
                 <Text style={styles.topicGospels}>{topicGospels(section.topic)}</Text>
               ) : null}
-            </View>
+            </Pressable>
           )}
           renderItem={({ item }) => (
             <EventRow event={item.event} onPress={(slug) => router.push(`/jesus/event/${slug}`)} />
@@ -205,21 +249,6 @@ export default function JesusBrowseScreen() {
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.background },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.md,
-    },
-    backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    headerTitle: {
-      flex: 1,
-      textAlign: 'center',
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.semibold,
-      color: colors.textPrimary,
-    },
     intro: {
       fontSize: fontSizes.body,
       lineHeight: 22,
@@ -243,6 +272,7 @@ function createStyles(colors: Colors) {
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.md,
     },
+    pressed: { opacity: 0.6 },
     topicHeader: {
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.xl,
@@ -254,6 +284,9 @@ function createStyles(colors: Colors) {
       fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
     },
+    // Count and chevron travel together on the right, so the chevron cannot
+    // push the count into the middle of the row.
+    topicMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
     topicCount: { fontSize: fontSizes.bodySmall, color: colors.textTertiary },
     topicBrief: {
       fontSize: fontSizes.body,

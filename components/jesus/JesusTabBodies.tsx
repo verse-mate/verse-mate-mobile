@@ -15,6 +15,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
+import { createInsightMarkdownStyles } from '@/components/bible/insightMarkdownStyles';
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import {
   ConfidenceBadge,
@@ -23,16 +24,49 @@ import {
   uniqueGospels,
 } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useFontSize } from '@/hooks/bible/use-font-size';
 import { useJesusCompare } from '@/hooks/jesus';
 import { covers } from '@/lib/jesus/byline-scope';
 import { eventVerseSpan, narrowStudyToEvent, spanRangeLabel } from '@/lib/jesus/study-scope';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { useBibleChapterExplanation, useStudy } from '@/src/api';
-import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
+import {
+  fontSizes,
+  fontWeights,
+  type getColors,
+  lineHeights,
+  radii,
+  spacing,
+} from '@/theme/tokens';
 import type { JesusEventDetail, JesusEventPassage, JesusReveal } from '@/types/jesus';
 import { parseByLineSections } from '@/utils/bible/parseByLineExplanation';
 
 type Colors = ReturnType<typeof getColors>;
+
+/**
+ * Text on the Jesus tabs is sized and coloured EXACTLY as the reader's Insight.
+ *
+ * It used to carry its own scale — prose at 16, By-Line at 14 in grey, labels
+ * at 12 — all fixed, so the tabs read smaller than the chapter Insight beside
+ * them and ignored the reader's font-size setting. Andy, on build 116: "some of
+ * the font gets small on Jesus tabs" and "some of the colors aren't consistent
+ * w the other pages — like line by line … make all Jesus same as others".
+ *
+ * So commentary renders through the reader's own markdown styles, and every
+ * other piece of text scales by the same ratio the reader applies (the setting
+ * over its 18pt default), which makes 1.0 at the default.
+ */
+function useTabStyles() {
+  const { colors } = useTheme();
+  const { fontSize } = useFontSize();
+  return useMemo(
+    () => ({
+      styles: createStyles(colors, fontSize / fontSizes.bodyLarge),
+      md: createInsightMarkdownStyles(colors, fontSize),
+    }),
+    [colors, fontSize]
+  );
+}
 
 export const JESUS_TABS = [
   { id: 'summary', label: 'Summary' },
@@ -53,9 +87,8 @@ export function JesusTabBodies({ tab, detail }: { tab: JesusTab; detail: JesusEv
 // ─── Summary ─────────────────────────────────────────────────────────────────
 
 function SummaryBody({ detail }: { detail: JesusEventDetail }) {
-  const { colors } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { styles, md } = useTabStyles();
   const { event, reveals, reactions } = detail;
 
   const where = [event.location, (event.people ?? []).map((p) => p.person).join(', ')]
@@ -85,10 +118,10 @@ function SummaryBody({ detail }: { detail: JesusEventDetail }) {
         </Text>
       ) : null}
 
-      {detail.explanation?.overview ? (
-        <Text style={styles.prose}>{detail.explanation.overview}</Text>
-      ) : event.summary ? (
-        <Text style={styles.prose}>{event.summary}</Text>
+      {detail.explanation?.overview || event.summary ? (
+        <View style={styles.prose}>
+          <Markdown style={md}>{detail.explanation?.overview ?? event.summary ?? ''}</Markdown>
+        </View>
       ) : null}
 
       {hasReveals ? (
@@ -160,9 +193,8 @@ function SummaryBody({ detail }: { detail: JesusEventDetail }) {
  * the Jesus feature should not be the one place in the app where it does.
  */
 function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labelled: boolean }) {
-  const { colors } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { styles, md } = useTabStyles();
 
   const query = useBibleChapterExplanation(passage.book_id, passage.chapter, 'byline');
   const data = query.data as { content?: string } | undefined;
@@ -206,7 +238,7 @@ function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labe
             style={styles.bylineRow}
             testID={`jesus-byline-row-${passage.book_id}-${passage.chapter}-${row.verse}`}
           >
-            <Markdown style={bylineMarkdownStyles(colors)}>{row.markdown}</Markdown>
+            <Markdown style={md}>{row.markdown}</Markdown>
           </View>
         ))
       )}
@@ -224,9 +256,8 @@ function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labe
  * By-Line tab shows; so does this now, through the same parser.
  */
 function BylineBody({ detail }: { detail: JesusEventDetail }) {
-  const { colors } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { styles } = useTabStyles();
 
   const passages = detail.passages ?? [];
 
@@ -242,7 +273,9 @@ function BylineBody({ detail }: { detail: JesusEventDetail }) {
   return (
     <View style={styles.body} testID="jesus-byline-body">
       <Text style={styles.tabTitle}>
-        {t('jesus.event.bylineOf', 'Line by line: {{title}}', { title: detail.event.title })}
+        {t('jesus.event.bylineOf', 'Line-by-Line Analysis of {{title}}', {
+          title: detail.event.title,
+        })}
       </Text>
       {passages.map((passage) => (
         <BylineAccount key={passage.display} passage={passage} labelled={passages.length > 1} />
@@ -260,9 +293,8 @@ function BylineBody({ detail }: { detail: JesusEventDetail }) {
  * chapter study would not be about it.
  */
 function StudyBody({ detail }: { detail: JesusEventDetail }) {
-  const { colors } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { styles } = useTabStyles();
   const { event } = detail;
 
   /**
@@ -361,9 +393,8 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
 // ─── Compare ─────────────────────────────────────────────────────────────────
 
 function CompareBody({ detail }: { detail: JesusEventDetail }) {
-  const { colors } = useTheme();
   const { t } = useTranslation();
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { styles } = useTabStyles();
   const compare = useJesusCompare(detail.event.slug, true);
   const phase = queryPhase(compare);
 
@@ -439,31 +470,31 @@ function CompareBody({ detail }: { detail: JesusEventDetail }) {
 }
 
 /** Minimal markdown skin for a by-line row — body text, nothing structural. */
-function bylineMarkdownStyles(colors: Colors) {
-  return {
-    body: { color: colors.textSecondary, fontSize: fontSizes.bodySmall, lineHeight: 21 },
-    paragraph: { marginTop: 0, marginBottom: spacing.sm },
-    strong: { color: colors.textPrimary, fontWeight: fontWeights.semibold },
-  };
-}
 
-function createStyles(colors: Colors) {
+function createStyles(colors: Colors, scale: number) {
+  const size = (base: number) => Math.round(base * scale);
   return StyleSheet.create({
     body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+    // The reader's Insight title (ChapterReader `explanationTitle`), verbatim.
     tabTitle: {
-      fontSize: fontSizes.heading3,
-      fontWeight: fontWeights.semibold,
+      fontSize: fontSizes.heading1,
+      fontWeight: fontWeights.bold,
+      lineHeight: fontSizes.heading1 * lineHeights.heading,
       color: colors.textPrimary,
     },
-    where: { fontSize: fontSizes.caption, color: colors.textTertiary, marginTop: spacing.xs },
-    prose: {
-      fontSize: fontSizes.body,
-      lineHeight: 24,
-      color: colors.textPrimary,
-      marginTop: spacing.md,
+    // Where + who — was 12pt tertiary, the smallest text on a screen Andy
+    // flagged for small text. One step up and secondary, still clearly a
+    // caption to the title rather than competing with the commentary.
+    where: {
+      fontSize: size(fontSizes.bodySmall),
+      lineHeight: size(fontSizes.bodySmall) * 1.4,
+      color: colors.textSecondary,
+      marginTop: spacing.xs,
     },
+    // Holds a <Markdown> using the reader's styles; only spacing lives here.
+    prose: { marginTop: spacing.md },
     sectionLabel: {
-      fontSize: fontSizes.caption,
+      fontSize: size(fontSizes.caption),
       fontWeight: fontWeights.semibold,
       letterSpacing: 1,
       textTransform: 'uppercase',
@@ -473,15 +504,19 @@ function createStyles(colors: Colors) {
     },
     group: { marginBottom: spacing.md },
     groupLabel: {
-      fontSize: fontSizes.caption,
+      fontSize: size(fontSizes.bodySmall),
       fontWeight: fontWeights.semibold,
       color: colors.textSecondary,
       marginBottom: spacing.xs,
     },
     revealRow: { marginBottom: spacing.sm },
-    revealWho: { fontSize: fontSizes.bodySmall, color: colors.gold },
-    revealText: { fontSize: fontSizes.body, color: colors.textPrimary },
-    reference: { fontSize: fontSizes.caption, color: colors.textTertiary, marginTop: 2 },
+    revealWho: { fontSize: size(fontSizes.bodySmall), color: colors.gold },
+    revealText: {
+      fontSize: size(fontSizes.bodyLarge),
+      lineHeight: size(fontSizes.bodyLarge) * 1.6,
+      color: colors.textPrimary,
+    },
+    reference: { fontSize: size(fontSizes.caption), color: colors.textTertiary, marginTop: 2 },
     facetCard: {
       marginTop: spacing.sm,
       padding: spacing.md,
@@ -489,18 +524,18 @@ function createStyles(colors: Colors) {
       backgroundColor: colors.backgroundSecondary,
     },
     facetTitle: {
-      fontSize: fontSizes.bodySmall,
+      fontSize: size(fontSizes.bodySmall),
       fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
     },
     facetQuote: {
-      fontSize: fontSizes.body,
+      fontSize: size(fontSizes.body),
       fontStyle: 'italic',
       color: colors.textPrimary,
       marginTop: 2,
     },
     bylineAccount: {
-      fontSize: fontSizes.caption,
+      fontSize: size(fontSizes.caption),
       fontWeight: fontWeights.semibold,
       letterSpacing: 1,
       textTransform: 'uppercase',
@@ -509,7 +544,7 @@ function createStyles(colors: Colors) {
       marginBottom: spacing.xs,
     },
     bylineNote: {
-      fontSize: fontSizes.bodySmall,
+      fontSize: size(fontSizes.bodySmall),
       color: colors.textTertiary,
       fontStyle: 'italic',
       paddingVertical: spacing.sm,
@@ -522,7 +557,7 @@ function createStyles(colors: Colors) {
       borderBottomColor: colors.divider,
     },
     studyScope: {
-      fontSize: fontSizes.caption,
+      fontSize: size(fontSizes.caption),
       color: colors.textTertiary,
       marginBottom: spacing.sm,
     },
@@ -534,14 +569,14 @@ function createStyles(colors: Colors) {
       backgroundColor: colors.backgroundSecondary,
     },
     accountName: {
-      fontSize: fontSizes.body,
+      fontSize: size(fontSizes.body),
       fontWeight: fontWeights.semibold,
       color: colors.textPrimary,
     },
     accountPassage: { marginTop: spacing.sm },
-    accountAdds: { fontSize: fontSizes.bodySmall, color: colors.gold, marginTop: spacing.xs },
+    accountAdds: { fontSize: size(fontSizes.bodySmall), color: colors.gold, marginTop: spacing.xs },
     accountEmphasis: {
-      fontSize: fontSizes.bodySmall,
+      fontSize: size(fontSizes.bodySmall),
       color: colors.textSecondary,
       marginTop: spacing.xs,
     },
