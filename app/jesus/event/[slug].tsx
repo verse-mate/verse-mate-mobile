@@ -34,6 +34,7 @@ import { JESUS_TABS, type JesusTab, JesusTabBodies } from '@/components/jesus/Je
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusEvent } from '@/hooks/jesus';
+import { useBibleVersion } from '@/hooks/use-bible-version';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { JesusEventPassage } from '@/types/jesus';
 
@@ -46,6 +47,7 @@ export default function JesusEventScreen() {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  const { bibleVersion } = useBibleVersion();
   const [view, setView] = useState<JesusEventView>('bible');
   const [tab, setTab] = useState<JesusTab>('summary');
   /**
@@ -67,15 +69,6 @@ export default function JesusEventScreen() {
     text?: string;
   } | null>(null);
   const auth = useOptionalAuth();
-  /**
-   * Back to wherever the event was opened from — a browse list, the life
-   * timeline, a theme, a related event. Falls back to the hub when the event
-   * was the first screen (a deep link), so the button never does nothing.
-   */
-  const handleBack = useCallback(() => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/jesus');
-  }, []);
 
   const query = useJesusEvent(slug);
   const { data } = query;
@@ -166,9 +159,11 @@ export default function JesusEventScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <JesusChrome
         title={data?.event.title ?? t('jesus.hub.title', 'Jesus')}
+        // The event's scripture is printed in this version, so it is as true
+        // here as under a chapter title — and it is the reader's second line.
+        subtitle={bibleVersion ?? undefined}
         view={view}
         onViewChange={setView}
-        onBack={handleBack}
         backTestID="jesus-event-back"
       />
 

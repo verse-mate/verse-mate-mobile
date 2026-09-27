@@ -73,7 +73,12 @@ describe('JesusNavTab', () => {
     expect(router.push).toHaveBeenCalledWith('/jesus/browse/teachings');
   });
 
-  it('searches facets, not events, and opens the entry', () => {
+  it('searches facets, and opens the event that carries the one picked', () => {
+    // It used to open /jesus/entry/<slug>, which rendered blank: that screen read
+    // the entry off the top level of a response that wraps it, so the title and
+    // every field were undefined. The same search from the hub opened the event
+    // and worked, which is the contrast that exposed it. The events endpoint
+    // resolves a facet slug to its event; `from=search` sends "back" to the hub.
     mockSearch.mockReturnValue({
       data: [
         {
@@ -89,7 +94,7 @@ describe('JesusNavTab', () => {
     render(<JesusNavTab query="born again" onNavigate={jest.fn()} />);
     expect(screen.getByTestId('jesus-tab-results')).toBeTruthy();
     fireEvent.press(screen.getByTestId('jesus-tab-entry-you-must-be-born-again'));
-    expect(router.push).toHaveBeenCalledWith('/jesus/entry/you-must-be-born-again');
+    expect(router.push).toHaveBeenCalledWith('/jesus/event/you-must-be-born-again?from=search');
   });
 
   it('says so when a search matches nothing', () => {

@@ -44,11 +44,6 @@ export default function JesusBrowseScreen() {
   const { data } = browse;
   const phase = queryPhase(browse);
 
-  const handleBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/jesus');
-  };
-
   // A topic leads with the sayings it is built from, then the remaining events
   // that carry no quoted point of their own — that ordering is what makes the
   // screen read as "what this set is about" rather than as a directory.
@@ -90,7 +85,6 @@ export default function JesusBrowseScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <JesusChrome
         title={data?.type?.label ?? ''}
-        onBack={handleBack}
         backTestID="jesus-list-back-button"
         titleTestID="jesus-list-title"
       />

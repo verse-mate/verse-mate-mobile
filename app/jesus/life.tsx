@@ -48,19 +48,10 @@ export default function JesusLifeScreen() {
     [data]
   );
 
-  const handleBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/jesus');
-  };
-
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
-      <JesusChrome
-        title={t('jesus.life.title', 'Follow His Life')}
-        onBack={handleBack}
-        backTestID="jesus-life-back"
-      />
+      <JesusChrome title={t('jesus.life.title', 'Follow His Life')} backTestID="jesus-life-back" />
 
       {phase === 'loading' ? (
         <JesusPlaceholder loading testID="jesus-life-loading" />

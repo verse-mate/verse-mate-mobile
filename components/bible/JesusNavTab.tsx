@@ -96,7 +96,14 @@ export function JesusNavTab({ query, onNavigate }: { query: string; onNavigate: 
         {entries.map((entry) => (
           <Pressable
             key={entry.slug}
-            onPress={() => go(`/jesus/entry/${entry.slug}`)}
+            // The EVENT page, as the hub's own search opens — not /jesus/entry.
+            // That screen read the entry off the top level of a response that
+            // wraps it (`{ entry, passages, … }`), so every field was undefined:
+            // a blank page with an empty title, which is how this search looked
+            // broken while the same search from the hub worked. The events
+            // endpoint resolves a facet slug to the event that carries it.
+            // `from=search`: back from a searched page goes to the hub.
+            onPress={() => go(`/jesus/event/${entry.slug}?from=search`)}
             style={({ pressed }) => [styles.row, pressed && styles.pressed]}
             testID={`jesus-tab-entry-${entry.slug}`}
             accessibilityRole="button"

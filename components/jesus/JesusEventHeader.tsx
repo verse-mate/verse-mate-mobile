@@ -30,20 +30,14 @@ import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
-import {
-  fontSizes,
-  fontWeights,
-  type getColors,
-  getHeaderSpecs,
-  radii,
-  spacing,
-} from '@/theme/tokens';
+import { type getColors, getHeaderSpecs, spacing } from '@/theme/tokens';
 
 type Colors = ReturnType<typeof getColors>;
 export type JesusEventView = 'bible' | 'insight';
 
 export function JesusEventHeader({
   title,
+  subtitle,
   view,
   onTitlePress,
   onViewChange,
@@ -53,6 +47,11 @@ export function JesusEventHeader({
   titleTestID,
 }: {
   title: string;
+  /**
+   * The reader's second header line (the Bible version). Omit it and the line
+   * is still reserved, empty — see `subtitle` in the styles.
+   */
+  subtitle?: string;
   /** Omit for pages with no Bible / Insight choice — the toggle is not drawn. */
   view?: JesusEventView;
   onTitlePress: () => void;
@@ -64,8 +63,6 @@ export function JesusEventHeader({
 }) {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  // The reader's header colour lives in the header specs, not in the palette —
-  // same source the chapter and topic headers read, so the three match.
   const headerSpecs = getHeaderSpecs(mode);
   const styles = useMemo(() => createStyles(colors, headerSpecs), [colors, headerSpecs]);
 
@@ -76,117 +73,140 @@ export function JesusEventHeader({
   };
 
   return (
-    <View style={[styles.bar, { paddingTop: insets.top }]}>
-      {onBack ? (
+    // Same padding the reader's ChapterHeader uses — top inset + md.
+    <View style={[styles.header, { paddingTop: insets.top + spacing.md }]} testID="jesus-header">
+      <View style={styles.leading}>
+        {onBack ? (
+          <Pressable
+            onPress={onBack}
+            style={styles.backButton}
+            testID={backTestID}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            hitSlop={8}
+          >
+            <Ionicons
+              name="chevron-back"
+              size={headerSpecs.iconSize}
+              color={headerSpecs.iconColor}
+            />
+          </Pressable>
+        ) : null}
         <Pressable
-          onPress={onBack}
-          style={styles.backButton}
-          testID={backTestID}
+          onPress={onTitlePress}
+          style={styles.titleButton}
+          testID="jesus-selector-button"
           accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={8}
+          accessibilityLabel={title}
         >
-          <Ionicons name="chevron-back" size={24} color={headerSpecs.titleColor} />
+          <View style={styles.titleRow}>
+            <Text style={styles.title} numberOfLines={1} testID={titleTestID}>
+              {title}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={headerSpecs.iconColor} />
+          </View>
+          {/* Always present, empty when there is no version to show: the
+              reader's header is two lines tall, and dropping the second line
+              is what made this bar shorter and moved the menu button. */}
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {subtitle || ' '}
+          </Text>
         </Pressable>
-      ) : null}
-      <Pressable
-        onPress={onTitlePress}
-        style={[styles.titleButton, view ? styles.titleButtonBeside : styles.titleButtonAlone]}
-        testID="jesus-selector-button"
-        accessibilityRole="button"
-        accessibilityLabel={title}
-      >
-        <Text style={styles.title} numberOfLines={1} testID={titleTestID}>
-          {title}
-        </Text>
-        <Ionicons name="chevron-down" size={16} color={headerSpecs.titleColor} />
-      </Pressable>
+      </View>
 
-      {view ? (
-        <View style={styles.toggle}>
-          {(['bible', 'insight'] as const).map((key) => (
-            <Pressable
-              key={key}
-              onPress={() => select(key)}
-              style={[styles.toggleItem, view === key && styles.toggleItemActive]}
-              testID={`jesus-view-${key}`}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: view === key }}
-            >
-              <Text style={[styles.toggleText, view === key && styles.toggleTextActive]}>
-                {key === 'bible' ? 'Bible' : 'Insight'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-
-      <Pressable
-        onPress={onMenuPress}
-        // With no toggle to push it right, the menu takes the bar's far edge
-        // itself. Both carrying an auto margin would split the free space and
-        // strand the toggle mid-bar.
-        style={[styles.menuButton, !view && { marginLeft: 'auto' }]}
-        testID="hamburger-menu-button"
-        accessibilityRole="button"
-      >
-        <Ionicons name="menu" size={24} color={headerSpecs.titleColor} />
-      </Pressable>
+      <View style={styles.actions}>
+        {view ? (
+          <View style={styles.toggle}>
+            {(['bible', 'insight'] as const).map((key) => (
+              <Pressable
+                key={key}
+                onPress={() => select(key)}
+                style={[styles.toggleItem, view === key && styles.toggleItemActive]}
+                testID={`jesus-view-${key}`}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: view === key }}
+              >
+                <Text style={[styles.toggleText, view === key && styles.toggleTextActive]}>
+                  {key === 'bible' ? 'Bible' : 'Insight'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        <Pressable
+          onPress={onMenuPress}
+          style={styles.iconButton}
+          testID="hamburger-menu-button"
+          accessibilityRole="button"
+        >
+          <Ionicons name="menu" size={headerSpecs.iconSize} color={headerSpecs.iconColor} />
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 /**
- * The header bar is DARK in both themes (headerSpecs.backgroundColor is black
- * in light mode, dark grey in dark mode), so its contents must be coloured
- * from the same spec — `colors.textPrimary` is dark in light mode and painted
- * the title dark-on-black, effectively invisible. The reader's own header has
- * always used headerSpecs.titleColor; this one was reading the body palette.
+ * The reader's ChapterHeader styles (app/bible/[bookId]/[chapterNumber].tsx,
+ * createHeaderStyles), value for value.
+ *
+ * The first shared Jesus bar was an approximation of it — its own padding, its
+ * own toggle sizing, one line where the reader has two — and it showed: the
+ * operator, on build 111, "it's not consistent with the old one, it should
+ * have the same height so the buttons look similarly placed like the hamburger
+ * menu". So nothing here is chosen; every number is the reader's.
+ *
+ * The bar is DARK in both themes, so its contents are coloured from the header
+ * spec, never the body palette (textPrimary is dark in light mode).
  */
 function createStyles(colors: Colors, headerSpecs: ReturnType<typeof getHeaderSpecs>) {
-  const headerBackground = headerSpecs.backgroundColor;
   return StyleSheet.create({
-    bar: {
+    header: {
+      minHeight: headerSpecs.height,
+      backgroundColor: headerSpecs.backgroundColor,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.md,
+      justifyContent: 'space-between',
+      paddingHorizontal: headerSpecs.padding,
       paddingBottom: spacing.sm,
-      backgroundColor: headerBackground,
     },
-    titleButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
+    leading: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginRight: spacing.sm },
+    backButton: { paddingVertical: spacing.xs, paddingRight: spacing.xs, marginLeft: -spacing.xs },
+    titleButton: { padding: spacing.xs, flexShrink: 1 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    title: {
+      fontSize: headerSpecs.titleFontSize,
+      fontWeight: headerSpecs.titleFontWeight,
+      color: headerSpecs.titleColor,
       flexShrink: 1,
     },
-    // Beside the toggle the title must leave it room; alone it takes the bar.
-    titleButtonBeside: { maxWidth: 150 },
-    titleButtonAlone: { flex: 1 },
-    backButton: { width: 28, alignItems: 'flex-start' },
-    title: {
-      fontSize: fontSizes.body,
-      fontWeight: fontWeights.semibold,
+    subtitle: {
+      fontSize: 11,
+      fontWeight: '500',
       color: headerSpecs.titleColor,
+      opacity: 0.55,
+      marginTop: 1,
+      letterSpacing: 0.3,
     },
+    actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+    iconButton: { padding: spacing.xs, justifyContent: 'center', alignItems: 'center' },
     toggle: {
-      flexDirection: 'row',
-      marginLeft: 'auto',
-      borderRadius: radii.full,
-      // The reader's own toggle track, verbatim. backgroundSecondary is a body
-      // colour and rendered a pale track on the dark header bar, which is not
-      // the control the rest of the app uses.
       backgroundColor: '#323232',
-      padding: 2,
+      borderRadius: 100,
+      padding: 4,
+      flexDirection: 'row',
+      gap: 4,
     },
     toggleItem: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: radii.full,
+      paddingHorizontal: 10,
+      paddingVertical: 2,
+      borderRadius: 100,
+      minHeight: 28,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     toggleItemActive: { backgroundColor: colors.gold },
-    toggleText: { fontSize: fontSizes.bodySmall, color: headerSpecs.titleColor },
-    toggleTextActive: { color: colors.black, fontWeight: fontWeights.semibold },
-    menuButton: { width: 32, alignItems: 'flex-end' },
+    toggleText: { fontSize: 14, color: headerSpecs.titleColor, fontWeight: '400' },
+    toggleTextActive: { color: colors.black },
   });
 }

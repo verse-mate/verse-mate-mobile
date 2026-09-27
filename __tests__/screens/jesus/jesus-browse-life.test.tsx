@@ -16,6 +16,9 @@ import JesusLifeScreen from '@/app/jesus/life';
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) },
   Stack: { Screen: () => null },
+  // No readable stack: the tree walk in useJesusBack (tested on its own)
+  // falls back to router.back / the hub, which is what these assert.
+  useNavigation: () => ({ getState: () => undefined, dispatch: jest.fn() }),
   useLocalSearchParams: () => ({ type: 'questions' }),
 }));
 jest.mock('react-native-safe-area-context', () => ({

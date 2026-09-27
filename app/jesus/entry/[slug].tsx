@@ -33,20 +33,15 @@ export default function JesusEntryScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const query = useJesusEntry(slug);
-  const { data } = query;
+  // The entry itself; the response wraps it with its passages and related.
+  const data = query.data?.entry;
   const phase = queryPhase(query);
-
-  const handleBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/jesus');
-  };
 
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
       <JesusChrome
         title={data?.kind_label ?? ''}
-        onBack={handleBack}
         backTestID="jesus-entry-back-button"
         titleTestID="jesus-entry-title"
       />

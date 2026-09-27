@@ -43,17 +43,11 @@ export default function JesusThemeScreen() {
   const events = list.data?.events ?? [];
   const total = list.data?.total ?? 0;
 
-  const handleBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/jesus');
-  };
-
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: false }} />
       <JesusChrome
         title={theme?.name ?? ''}
-        onBack={handleBack}
         backTestID="jesus-list-back-button"
         titleTestID="jesus-list-title"
       />

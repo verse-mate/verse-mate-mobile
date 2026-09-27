@@ -23,6 +23,7 @@ import type {
   JesusCollectionSummary,
   JesusCompare,
   JesusEntry,
+  JesusEntryDetail,
   JesusEntryList,
   JesusEventCard,
   JesusEventDetail,
@@ -194,9 +195,19 @@ export async function searchEntries(
   return data?.entries ?? [];
 }
 
-/** One facet on its own — what a search result opens. */
-export async function fetchEntry(slug: string, bibleVersion?: string): Promise<JesusEntry | null> {
-  return get<JesusEntry>(`/jesus/entries/${encodeURIComponent(slug)}`, {
+/**
+ * One facet on its own.
+ *
+ * The response WRAPS the entry — `{ entry, explanation, passages, related }` —
+ * and this used to be typed as the bare entry, so the screen read `title`,
+ * `kind_label` … off the top level and got undefined for all of them: a blank
+ * page with an empty header title. The type is the shape the API returns.
+ */
+export async function fetchEntry(
+  slug: string,
+  bibleVersion?: string
+): Promise<JesusEntryDetail | null> {
+  return get<JesusEntryDetail>(`/jesus/entries/${encodeURIComponent(slug)}`, {
     bible_version: bibleVersion,
   });
 }
