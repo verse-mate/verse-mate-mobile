@@ -1140,6 +1140,9 @@ export const useTopicExplanation = (
  * bundled `@versemate/studies` content, so the Study tab keeps working offline
  * with exactly the content that shipped before the DB migration.
  */
+/** How long the Study tab waits for the server before showing the bundled study. */
+const STUDY_NETWORK_DEADLINE_MS = 2500;
+
 export function useStudy(bookId: number, chapter: number, language?: string) {
   return useQuery({
     queryKey: ['study', bookId, chapter, language ?? 'en-US'],
@@ -1159,10 +1162,17 @@ export function useStudy(bookId: number, chapter: number, language?: string) {
           headers.Authorization = `Bearer ${accessToken}`;
         }
         const qs = language ? `?lang=${encodeURIComponent(language)}` : '';
+        // A deadline, then the bundled study. Without one this only fell back
+        // when the request FAILED — and on a slow connection (plane Wi-Fi,
+        // where NetInfo still says online) it doesn't fail, it hangs, so the
+        // Study tab sat on a spinner with the study already in the app.
+        const controller = new AbortController();
+        const deadline = setTimeout(() => controller.abort(), STUDY_NETWORK_DEADLINE_MS);
         const response = await fetch(`${baseUrl}/bible/study/${bookId}/${chapter}${qs}`, {
           method: 'GET',
           headers,
-        });
+          signal: controller.signal,
+        }).finally(() => clearTimeout(deadline));
         if (response.ok) {
           const data = (await response.json()) as {
             study?: { content?: InductiveStudy } | null;

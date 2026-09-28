@@ -18,6 +18,14 @@
  * caller's decision rather than an unhandled rejection.
  */
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
+import { perfTimer, perfTrace } from '@/lib/perf';
+import {
+  getJesusLocal,
+  type JesusLocalRow,
+  jesusCacheKey,
+  putJesusLocal,
+  reinjectPassages,
+} from '@/services/offline/jesus-store';
 import type {
   JesusBrowse,
   JesusCollectionSummary,
@@ -47,14 +55,21 @@ function compact(query: Record<string, QueryValue | undefined>): Record<string, 
   );
 }
 
-async function get<T>(
+/** The plain network request — what `get` used to be on its own. */
+async function networkGet<T>(
   path: string,
-  query: Record<string, QueryValue | undefined> = {}
+  query: Record<string, QueryValue | undefined>,
+  timeoutMs?: number
 ): Promise<T | null> {
   const qs = new URLSearchParams(compact(query)).toString();
   const url = `${BASE_URL}${path}${qs ? `?${qs}` : ''}`;
+  const controller = timeoutMs ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
   try {
-    const res = await authenticatedFetch(url, { method: 'GET' });
+    const res = await authenticatedFetch(url, {
+      method: 'GET',
+      ...(controller ? { signal: controller.signal } : {}),
+    });
     if (!res.ok) {
       // Degrading to null is deliberate — a screen shows an empty state rather
       // than an error boundary — but it must not also erase WHY. A silent
@@ -67,7 +82,206 @@ async function get<T>(
   } catch (error) {
     console.warn(`[jesus] ${path} -> ${(error as Error)?.message ?? String(error)}`);
     return null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
+}
+
+/** A stored row is refreshed from the network, in the background, after this. */
+const REVALIDATE_AFTER_MS = 24 * 60 * 60 * 1000;
+/** How long a search waits for the server before answering from the device. */
+const SEARCH_TIMEOUT_MS = 2500;
+/** The page size the bundle stores a theme's full list at (the API's cap). */
+const BUNDLED_LIST_LIMIT = 200;
+
+/**
+ * Every Jesus request, LOCAL FIRST.
+ *
+ * The operator's rule for this app: "even if the user is online the app goes
+ * to what is saved locally first". A slow connection is the case that matters
+ * — on plane Wi-Fi NetInfo still says "online", so a network-first read sat on
+ * a spinner for as long as the connection took, which is exactly what Andy
+ * saw across the Jesus feature. So: answer from the offline store when it has
+ * the response, refresh it in the background once it is a day old, and only
+ * go to the network for what the device does not hold.
+ *
+ * Scripture is the one version-dependent part: an event's passages are stored
+ * in the version they were fetched in (the bundle is NASB1995). Asked for
+ * another version, they are re-rendered from the offline Bible when that
+ * version is downloaded; when it is not, the network is tried first so the
+ * reader does not silently get a different translation, with the stored copy
+ * as the fallback.
+ *
+ * Searches cannot be precomputed, so they go to the server with a short
+ * deadline and fall back to searching the stored corpus.
+ */
+async function get<T>(
+  path: string,
+  query: Record<string, QueryValue | undefined> = {}
+): Promise<T | null> {
+  if (query.q) return search<T>(path, query);
+
+  const took = perfTimer();
+  const key = jesusCacheKey(path, query);
+  const version = typeof query.bible_version === 'string' ? query.bible_version : undefined;
+
+  let local: JesusLocalRow | null = null;
+  try {
+    local = await localLookup(path, query, key);
+  } catch {
+    local = null; // offline store unavailable — behave as before
+  }
+
+  if (local) {
+    const usable = await forVersion(local, version);
+    if (usable !== null) {
+      if (Date.now() - Date.parse(local.updatedAt) > REVALIDATE_AFTER_MS) {
+        void refresh(path, query, key, version);
+      }
+      perfTrace('jesus.get', { key, path: 'local', ms: took() });
+      return usable as T;
+    }
+  }
+
+  const remote = await networkGet<T>(path, query);
+  if (remote !== null) {
+    void store(key, remote, version);
+    perfTrace('jesus.get', { key, path: 'remote', ms: took() });
+    return remote;
+  }
+  perfTrace('jesus.get', { key, path: local ? 'local-stale' : 'miss', ms: took() });
+  // The network failed: a stored copy in another translation beats nothing.
+  return (local?.payload as T) ?? null;
+}
+
+/** The stored row for a request — a theme's list is stored whole and sliced. */
+async function localLookup(
+  path: string,
+  query: Record<string, QueryValue | undefined>,
+  key: string
+): Promise<JesusLocalRow | null> {
+  const exact = await getJesusLocal(key);
+  if (exact) return exact;
+  if (path === '/jesus/events' && query.theme && !query.type) {
+    const whole = await getJesusLocal(
+      jesusCacheKey(path, { theme: query.theme, limit: BUNDLED_LIST_LIMIT, offset: 0 })
+    );
+    const page = whole?.payload as JesusEventPage | undefined;
+    if (whole && page?.events) {
+      const limit = Number(query.limit ?? 30);
+      const offset = Number(query.offset ?? 0);
+      return {
+        ...whole,
+        payload: {
+          events: page.events.slice(offset, offset + limit),
+          total: page.events.length,
+          limit,
+          offset,
+        },
+      };
+    }
+  }
+  return null;
+}
+
+/** The stored payload as it should be shown in `version`, or null to ask the network. */
+async function forVersion(
+  row: JesusLocalRow,
+  version: string | undefined
+): Promise<unknown | null> {
+  const payload = row.payload as { passages?: unknown[] } | null;
+  if (!version || !row.bibleVersion || row.bibleVersion === version) return row.payload;
+  // Only an event's passages carry scripture; nothing else depends on version.
+  if (!payload || !Array.isArray(payload.passages)) return row.payload;
+  try {
+    return await reinjectPassages(payload as never, version);
+  } catch {
+    return null;
+  }
+}
+
+async function store(key: string, payload: unknown, version: string | undefined): Promise<void> {
+  const hasScripture = Array.isArray((payload as { passages?: unknown[] })?.passages);
+  try {
+    await putJesusLocal(key, payload, hasScripture ? (version ?? null) : null);
+  } catch {
+    // Non-fatal: the next view fetches it again.
+  }
+}
+
+async function refresh(
+  path: string,
+  query: Record<string, QueryValue | undefined>,
+  key: string,
+  version: string | undefined
+): Promise<void> {
+  const fresh = await networkGet(path, query);
+  if (fresh !== null) await store(key, fresh, version);
+}
+
+/** Server search with a deadline, then a search of the stored corpus. */
+async function search<T>(
+  path: string,
+  query: Record<string, QueryValue | undefined>
+): Promise<T | null> {
+  const took = perfTimer();
+  const remote = await networkGet<T>(path, query, SEARCH_TIMEOUT_MS);
+  if (remote !== null) {
+    perfTrace('jesus.search', { path, q: query.q, source: 'remote', ms: took() });
+    return remote;
+  }
+  let local: T | null = null;
+  try {
+    local = (await localSearch(path, String(query.q), Number(query.limit ?? 50))) as T | null;
+  } catch {
+    local = null;
+  }
+  perfTrace('jesus.search', { path, q: query.q, source: 'local', ms: took() });
+  return local;
+}
+
+function matches(needle: string[], ...fields: unknown[]): boolean {
+  const hay = fields
+    .flat()
+    .map((f) => (typeof f === 'string' ? f : ''))
+    .join(' ')
+    .toLowerCase();
+  return needle.every((word) => hay.includes(word));
+}
+
+async function localSearch(path: string, q: string, limit: number): Promise<unknown | null> {
+  const needle = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (needle.length === 0) return null;
+
+  if (path === '/jesus/entries') {
+    const row = await getJesusLocal('local:entries');
+    const all = ((row?.payload as { entries?: JesusEntry[] })?.entries ?? []).filter((e) =>
+      matches(
+        needle,
+        e.title,
+        e.summary,
+        e.quote,
+        e.kind_label,
+        (e.references ?? []).map((r) => r.display)
+      )
+    );
+    return { entries: all.slice(0, limit), total: all.length, limit, offset: 0 };
+  }
+
+  if (path === '/jesus/events') {
+    const life = await getJesusLocal('/jesus/events/life');
+    const seen = new Set<string>();
+    const events = ((life?.payload as { periods?: JesusEventLifePeriod[] })?.periods ?? []).flatMap(
+      (p) => p.events ?? []
+    );
+    const hits = events.filter((e) => {
+      if (seen.has(e.slug) || !matches(needle, e.title, e.summary)) return false;
+      seen.add(e.slug);
+      return true;
+    });
+    return { events: hits.slice(0, limit), total: hits.length, limit, offset: 0 };
+  }
+  return null;
 }
 
 const EMPTY_EVENT_OVERVIEW: JesusEventOverview = {

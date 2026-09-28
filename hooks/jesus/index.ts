@@ -27,6 +27,11 @@ const STATIC = {
   // the reader on a placeholder until they navigate away and return. The hour
   // of stale time means a reconnect with data already in hand costs nothing.
   refetchOnReconnect: true,
+  // Run even when NetInfo says offline. The queryFn reads the offline store
+  // first (services/offline/jesus-store.ts), so pausing it — React Query's
+  // default for a query it thinks needs the network — is what would hide
+  // content the device already holds.
+  networkMode: 'always',
 } as const;
 
 /**

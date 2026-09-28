@@ -96,6 +96,20 @@ const CREATE_TABLES_SQL = `
   );
   CREATE INDEX IF NOT EXISTS idx_explanations_lookup ON offline_explanations(language_code, book_id, chapter_number);
 
+  -- The Jesus feature, stored response-by-response under the key the app
+  -- requests it by (services/offline/jesus-store.ts). Seeded from the bundled
+  -- assets/data/jesus-seed.db and refreshed as pages are viewed online.
+  CREATE TABLE IF NOT EXISTS offline_jesus (
+    key TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    bible_version TEXT,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS jesus_meta (
+    k TEXT PRIMARY KEY,
+    v TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS offline_topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     language_code TEXT NOT NULL,

@@ -16,6 +16,11 @@ import * as repo from '@/services/jesus-repository';
 jest.mock('@/lib/api/authenticated-fetch', () => ({
   authenticatedFetch: jest.fn(),
 }));
+// An EMPTY offline store: these tests are about the network path. The
+// local-first behaviour has its own file (jesus-repository-offline.test.ts).
+jest.mock('@/services/offline/jesus-store', () => ({
+  ...jest.requireActual('@/services/offline/jesus-store.web'),
+}));
 
 const { authenticatedFetch } = require('@/lib/api/authenticated-fetch') as {
   authenticatedFetch: jest.Mock;
