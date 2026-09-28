@@ -50,9 +50,11 @@ import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
+import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { VersemateTooltipSource } from '@/lib/analytics/types';
 import { Markdown } from '@/lib/markdown/Markdown';
+import { perfTimer, perfTrace } from '@/lib/perf';
 import { useBibleByLine } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
@@ -131,6 +133,7 @@ export function VerseMateTooltip({
 }: VerseMateTooltipProps) {
   const { colors, mode } = useTheme();
   const { bibleVersion } = useBibleVersion();
+  const preferredLanguage = usePreferredLanguage();
   const insets = useSafeAreaInsets();
   const { isTablet, isLandscape, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
   const { width: windowWidth } = useWindowDimensions();
@@ -205,8 +208,50 @@ export function VerseMateTooltip({
     bookId,
     chapterNumber,
     bibleVersion,
-    { enabled: !!targetVerseNumber && visible }
+    {
+      enabled: !!targetVerseNumber && visible,
+      // The reader's own language, exactly as ChapterPage passes it.
+      //
+      // It used to pass none, which (a) asked the server for its default
+      // language rather than the reader's, and (b) made the local lookup search
+      // for `en` while the offline commentary is stored as `en-US`. That missed
+      // every time, so Verse Insight went to the NETWORK even with the
+      // commentary downloaded — measured at 350ms on the simulator's Wi-Fi, and
+      // on plane Wi-Fi the spinner Andy kept seeing (2026-09-28). Same query key
+      // as the reader's By-Line, too, so a chapter already open in Insight
+      // serves the sheet from memory.
+      language: preferredLanguage,
+    }
   );
+
+  /**
+   * How long the analysis took to appear after the sheet opened — the number
+   * behind "the byline takes time to load in Verse Insight despite being
+   * downloaded". Paired with the `explanation.fetch` trace, which says which
+   * path (SQLite or network) served it. Perf builds only.
+   */
+  const openTimer = useRef<(() => number) | null>(null);
+  useEffect(() => {
+    if (visible && targetVerseNumber) {
+      openTimer.current = perfTimer();
+      // Which path served it (SQLite or network) is in `explanation.fetch`; a
+      // cache hit shows up here as an `insight.ready` of ~0ms.
+      perfTrace('insight.open', { book: bookId, ch: chapterNumber, verse: targetVerseNumber });
+    } else {
+      openTimer.current = null;
+    }
+  }, [visible, targetVerseNumber, bookId, chapterNumber]);
+  useEffect(() => {
+    if (openTimer.current && byLineData?.content) {
+      perfTrace('insight.ready', {
+        book: bookId,
+        ch: chapterNumber,
+        verse: targetVerseNumber,
+        ms: openTimer.current(),
+      });
+      openTimer.current = null;
+    }
+  }, [byLineData?.content, bookId, chapterNumber, targetVerseNumber]);
 
   // Parse the insight for the specific verses
   const insightText = useMemo(() => {
