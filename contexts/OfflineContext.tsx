@@ -44,6 +44,7 @@ import {
   type SyncProgress,
 } from '@/services/offline';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { importJesusSeed } from '@/services/offline/jesus-store';
 import { perfSpan } from '@/lib/perf';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useQueryClient } from '@tanstack/react-query';
@@ -273,6 +274,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
         const endDb = perfSpan('startup.initDatabase');
         await initDatabase();
         endDb();
+
+        // The bundled Jesus corpus, into the offline store. Not awaited: it runs
+        // alongside the rest of startup, and a Jesus read that lands while it is
+        // still copying waits for it (getJesusLocal) instead of going online.
+        void importJesusSeed();
 
         const autoSync = await AsyncStorage.getItem(AUTO_SYNC_KEY);
 
