@@ -13,10 +13,15 @@
  * These tests pin that distinction — the dock must vanish while the player
  * keeps its track.
  */
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AudioDockBar } from '@/components/bible/AudioDockBar';
+import {
+  AudioDockBar,
+  claimsDrag,
+  dockHiddenOn,
+  isDismissDrag,
+} from '@/components/bible/AudioDockBar';
 import type { AudioTrack } from '@/contexts/AudioPlayerContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
@@ -90,6 +95,7 @@ describe('AudioDockBar route visibility', () => {
   beforeEach(() => {
     mockPlayer.currentTrack = track;
     mockPlayer.dockVisible = true;
+    mockPlayer.close.mockClear();
   });
 
   it('shows in the reader', () => {
@@ -139,5 +145,55 @@ describe('AudioDockBar route visibility', () => {
     renderDock();
     expect(screen.getByText('John 19')).toBeTruthy();
     expect(screen.queryByText(/JHN/)).toBeNull();
+  });
+
+  it('stays out of settings and the pages opened from it (Andy, build 119)', () => {
+    for (const path of ['/settings', '/manage-downloads', '/widget-info']) {
+      mockPathname = path;
+      const view = renderDock();
+      expect(screen.queryByTestId('audio-dock-play-toggle')).toBeNull();
+      view.unmount();
+    }
+    expect(mockPlayer.close).not.toHaveBeenCalled();
+  });
+
+  it('matches whole route segments, not any path that shares a prefix', () => {
+    expect(dockHiddenOn('/settings')).toBe(true);
+    expect(dockHiddenOn('/jesus/event/x')).toBe(true);
+    expect(dockHiddenOn('/settingsx')).toBe(false);
+    expect(dockHiddenOn('/bible/43/19')).toBe(false);
+    expect(dockHiddenOn(undefined)).toBe(false);
+  });
+});
+
+describe('AudioDockBar swipe down to dismiss', () => {
+  beforeEach(() => {
+    mockPathname = '/bible/43/19';
+    mockPlayer.currentTrack = track;
+    mockPlayer.dockVisible = true;
+    mockPlayer.close.mockClear();
+    mockPlayer.pause.mockClear();
+  });
+
+  it('dismisses on a long or fast downward drag, not a short one', () => {
+    expect(isDismissDrag(60, 0)).toBe(true);
+    expect(isDismissDrag(10, 1.2)).toBe(true);
+    expect(isDismissDrag(20, 0.1)).toBe(false);
+    expect(isDismissDrag(-80, 0)).toBe(false);
+  });
+
+  it('only claims clearly vertical downward drags, so taps and sideways moves pass', () => {
+    expect(claimsDrag(0, 20)).toBe(true);
+    expect(claimsDrag(0, 4)).toBe(false);
+    expect(claimsDrag(40, 20)).toBe(false);
+    expect(claimsDrag(0, -20)).toBe(false);
+  });
+
+  it('keeps taps working — play does not close the player', () => {
+    renderDock();
+    expect(screen.getByTestId('audio-dock').props.onMoveShouldSetResponder).toBeDefined();
+    fireEvent.press(screen.getByTestId('audio-dock-play-toggle'));
+    expect(mockPlayer.pause).toHaveBeenCalled();
+    expect(mockPlayer.close).not.toHaveBeenCalled();
   });
 });
