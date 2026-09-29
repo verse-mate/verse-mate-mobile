@@ -89,11 +89,9 @@ describe('JesusPassageBlock', () => {
   });
 
   it("follows the reader's font-size preference rather than a fixed size", () => {
-    // The size lives on the scripture container; the per-verse nodes inherit
-    // it. Asserting the relationship rather than a literal keeps this honest
-    // if the multiplier is ever retuned.
+    // The size lives on each paragraph; the per-verse nodes inherit it.
     const sizeOf = () => {
-      const style = screen.getByTestId('jesus-scripture-Luke 2:41-52').props.style;
+      const style = screen.getByTestId('jesus-paragraph-42-2-41').props.style;
       return (Array.isArray(style) ? style.flat() : [style]).find(
         (s) => s && typeof s.fontSize === 'number'
       )?.fontSize as number;
@@ -116,5 +114,22 @@ describe('JesusPassageBlock', () => {
     // than render an empty block.
     renderBlock({ passage: { ...passage, verses: [] } });
     expect(screen.getByText(/Open in the reader/)).toBeTruthy();
+  });
+
+  it("breaks a long account into the reader's paragraphs", () => {
+    // Reported: "the verse #s in Jesus aren't in the same place as the main
+    // bible". The reader never runs more than five verses as one paragraph;
+    // this used to run the whole account as one block.
+    const long: JesusEventPassage = {
+      ...passage,
+      verses: [28, 29, 30, 31, 32, 33, 34].map((n) => ({
+        verse_number: n,
+        text: `verse ${n} text,`,
+      })),
+    };
+    renderBlock({ passage: long });
+    expect(screen.getByTestId('jesus-paragraph-42-2-28')).toBeTruthy();
+    expect(screen.getByTestId('jesus-paragraph-42-2-33')).toBeTruthy();
+    expect(screen.queryByTestId('jesus-paragraph-42-2-29')).toBeNull();
   });
 });
