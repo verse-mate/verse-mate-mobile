@@ -394,7 +394,7 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
 
 function CompareBody({ detail }: { detail: JesusEventDetail }) {
   const { t } = useTranslation();
-  const { styles } = useTabStyles();
+  const { styles, md } = useTabStyles();
   const compare = useJesusCompare(detail.event.slug, true);
   const phase = queryPhase(compare);
 
@@ -427,7 +427,14 @@ function CompareBody({ detail }: { detail: JesusEventDetail }) {
         </View>
       ) : null}
 
-      {compare.data.note ? <Text style={styles.prose}>{compare.data.note}</Text> : null}
+      {/* Rendered like Summary's overview. It used to be a bare <Text> under
+          `prose` — a margin-only container style — so it got React Native's
+          default black text: invisible in dark mode. */}
+      {compare.data.note ? (
+        <View style={styles.prose} testID="jesus-compare-note">
+          <Markdown style={md}>{compare.data.note}</Markdown>
+        </View>
+      ) : null}
 
       {compare.data.shared_by?.length ? (
         <>

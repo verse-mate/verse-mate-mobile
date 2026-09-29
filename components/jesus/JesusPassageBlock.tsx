@@ -7,7 +7,8 @@
  * is not empty, and rendering it is what makes an event read like a chapter
  * rather than like a database row.
  *
- * Every verse is TAPPABLE and opens that verse in the reader proper, which is
+ * Every verse is TAPPABLE — by its number, exactly as in the reader (the
+ * native renderer hit-tests the glyphs) — and opens Verse Insight, which is
  * where highlighting, notes, the lexicon and Verse Insight live — this block
  * deliberately does not reimplement any of that. Reported as "these verses
  * aren't clickable in Jesus feature": scripture that reads like the reader but
@@ -20,12 +21,17 @@
  * setting is a lie.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useOptionalBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
+import { useNativeText } from '@/hooks/bible/use-native-text';
+import { verseNumberGapPaddingDp } from '@/lib/text/compile-paragraph';
+import { ParagraphText } from '@/lib/text/ParagraphText';
+import { groupIntoParagraphs } from '@/lib/text/paragraph-breaks';
+import type { CompileTheme } from '@/lib/text/types';
 import { fontSizes, fontWeights, type getColors, radii, spacing } from '@/theme/tokens';
 import type { JesusEventPassage } from '@/types/jesus';
 
@@ -41,9 +47,11 @@ export function JesusPassageBlock({
   /** Open one verse in the reader. Falls back to the passage when absent. */
   onOpenVerse?: (verseNumber: number) => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const { t } = useTranslation();
   const { fontSize } = useFontSize();
+  const { useNativeText: nativeText } = useNativeText();
+  const [width, setWidth] = useState(0);
   /**
    * Verse Insight, opened IN PLACE.
    *
@@ -62,6 +70,43 @@ export function JesusPassageBlock({
   const styles = useMemo(() => createStyles(colors, fontSize), [colors, fontSize]);
   const verses = passage.verses ?? [];
 
+  /**
+   * Paragraphs and verse numbers exactly as the reader draws them.
+   *
+   * This used to be one flowing <Text> per account with its own number style
+   * (0.7x, on the baseline, no breaks), which the tester noticed next to the
+   * reader: "the verse #s in Jesus aren't in the same place as the main
+   * bible". Now it is the reader's own pieces: the same paragraph breaks
+   * (`groupIntoParagraphs`), the same native renderer (`ParagraphText`) with
+   * the same raised 0.85x gold numbers and the same line height.
+   */
+  const paragraphs = useMemo(
+    () => groupIntoParagraphs(verses.map((v) => ({ verseNumber: v.verse_number, text: v.text }))),
+    [verses]
+  );
+  const textTheme = useMemo<CompileTheme>(
+    () => ({
+      mode,
+      lexUnderlineColor: 'rgba(176,154,109,0.55)',
+      lexUnderlineThemeColor: 'rgba(199,176,116,0.75)',
+      lexUnderlineThickness: 1,
+      lexUnderlineStyle: 'dotted',
+      redLetterColor: mode === 'dark' ? '#ff6b6b' : '#c1121f',
+      selectionColor: '#3390FF40',
+      verseNumberColor: colors.gold,
+      baseFontSize: fontSize,
+    }),
+    [mode, colors.gold, fontSize]
+  );
+  const openVerse = (verseNumber: number) => {
+    if (interaction) {
+      const verse = verses.find((v) => v.verse_number === verseNumber);
+      interaction.openVerseTooltip(verseNumber, null, verse?.text, 'verse_number');
+      return;
+    }
+    (onOpenVerse ?? (() => onOpen()))(verseNumber);
+  };
+
   return (
     <View style={styles.section} testID={`jesus-passage-${passage.display}`}>
       <Pressable
@@ -76,51 +121,62 @@ export function JesusPassageBlock({
       </Pressable>
 
       {verses.length > 0 ? (
-        <Text style={styles.scripture} testID={`jesus-scripture-${passage.display}`}>
-          {verses.map((verse) => (
-            /*
-              The WHOLE verse is the tap target, not just its number.
-              
-              The reader puts the handler on the number alone, but the reader
-              draws through a native paragraph component with real per-glyph hit
-              testing; its RN `<Text onPress>` path is a fallback that nothing
-              exercises. Copying that shape here produced a number that looked
-              pressable and did nothing — measured on the simulator, both by
-              test id and by tapping the glyph's own coordinates.
-              
-              Putting the handler on the verse keeps the flowing paragraph
-              (a Pressable per verse would break the line layout) and gives a
-              target you cannot miss, which is what "these verses aren't
-              clickable" was asking for in the first place.
-            */
-            <Text
-              key={verse.verse_number}
-              onPress={() => {
-                if (interaction) {
-                  interaction.openVerseTooltip(
-                    verse.verse_number,
-                    null,
-                    verse.text,
-                    'verse_number'
-                  );
-                  return;
-                }
-                (onOpenVerse ?? (() => onOpen()))(verse.verse_number);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={t(
-                'jesus.event.openVerse',
-                'Open verse {{number}} in the reader',
-                { number: verse.verse_number }
-              )}
-              testID={`jesus-verse-${passage.book_id}-${passage.chapter}-${verse.verse_number}`}
-              suppressHighlighting
-            >
-              <Text style={styles.verseNumber}>{verse.verse_number} </Text>
-              {verse.text}{' '}
-            </Text>
-          ))}
-        </Text>
+        nativeText ? (
+          <View
+            style={styles.scriptureBlock}
+            onLayout={(e) => setWidth(Math.round(e.nativeEvent.layout.width))}
+            testID={`jesus-scripture-${passage.display}`}
+          >
+            {width > 0
+              ? paragraphs.map((group, index) => (
+                  <View key={group[0].verseNumber}>
+                    <ParagraphText
+                      onVerseTap={openVerse}
+                      style={styles.paragraph}
+                      theme={textTheme}
+                      verses={group}
+                      width={width}
+                      testID={`jesus-paragraph-${passage.book_id}-${passage.chapter}-${group[0].verseNumber}`}
+                    />
+                    {index < paragraphs.length - 1 && <View style={styles.paragraphGap} />}
+                  </View>
+                ))
+              : null}
+          </View>
+        ) : (
+          <View style={styles.scriptureBlock} testID={`jesus-scripture-${passage.display}`}>
+            {paragraphs.map((group, index) => (
+              <Text
+                key={group[0].verseNumber}
+                style={[styles.paragraph, index < paragraphs.length - 1 && styles.paragraphGapText]}
+                testID={`jesus-paragraph-${passage.book_id}-${passage.chapter}-${group[0].verseNumber}`}
+              >
+                {group.map((verse) => (
+                  /*
+                    Fallback renderer (web, or native text switched off). The
+                    whole verse is the tap target here: RN <Text onPress> on the
+                    number alone looked pressable and did nothing on device.
+                  */
+                  <Text
+                    key={verse.verseNumber}
+                    onPress={() => openVerse(verse.verseNumber)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(
+                      'jesus.event.openVerse',
+                      'Open verse {{number}} in the reader',
+                      { number: verse.verseNumber }
+                    )}
+                    testID={`jesus-verse-${passage.book_id}-${passage.chapter}-${verse.verseNumber}`}
+                    suppressHighlighting
+                  >
+                    <Text style={styles.verseNumber}>{verse.verseNumber} </Text>
+                    {verse.text}{' '}
+                  </Text>
+                ))}
+              </Text>
+            ))}
+          </View>
+        )
       ) : (
         <Text style={styles.placeholder}>
           {t('jesus.event.openInReader', 'Open in the reader to view this passage.')}
@@ -149,16 +205,24 @@ function createStyles(colors: Colors, fontSize: number) {
       fontWeight: fontWeights.medium,
       color: colors.textSecondary,
     },
-    scripture: {
-      marginTop: spacing.sm,
-      // The reader's size, not a fixed one — same source of truth as
-      // ChapterReader, which styles verse text from useFontSize().
+    scriptureBlock: { marginTop: spacing.sm },
+    // ChapterReader `verseTextParagraph`, minus its marginBottom (the gap is
+    // drawn between paragraphs instead, as the reader does).
+    paragraph: {
       fontSize,
-      lineHeight: Math.round(fontSize * 1.65),
+      fontWeight: fontWeights.regular,
+      lineHeight: fontSize * 2.0,
       color: colors.textPrimary,
     },
-    // Superscript-ish, as in the reader: smaller than the body and gold.
-    verseNumber: { fontSize: Math.round(fontSize * 0.7), color: colors.gold },
+    paragraphGap: { height: spacing.md },
+    paragraphGapText: { marginBottom: spacing.md },
+    // Fallback path only — the reader's `verseNumberSuperscript`.
+    verseNumber: {
+      fontSize: fontSize * 0.85,
+      fontWeight: fontWeights.bold,
+      color: colors.gold,
+      paddingHorizontal: verseNumberGapPaddingDp(1, fontSize),
+    },
     placeholder: {
       marginTop: spacing.sm,
       fontSize: fontSizes.bodySmall,

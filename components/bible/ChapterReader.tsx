@@ -59,6 +59,7 @@ import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
 import { verseNumberGapPaddingDp } from '@/lib/text/compile-paragraph';
 import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
 import { ParagraphText } from '@/lib/text/ParagraphText';
+import { calculateBreakPoints } from '@/lib/text/paragraph-breaks';
 import type { CompileTheme } from '@/lib/text/types';
 import { useParagraphLayout } from '@/lib/text/use-paragraph-layout';
 import type { TextLineLayout } from '@/modules/versemate-text';
@@ -109,69 +110,6 @@ const LEX_UNDERLINE_THICKNESS = 1;
 
 /** Tap/selection wash, matching HighlightedText's selectionStyles. */
 const SELECTION_COLOR = '#3390FF40';
-
-/**
- * Check if a verse text starts with a Biblical transition word
- */
-function startsWithTransitionWord(text: string): boolean {
-  const transitions = [
-    'Then',
-    'After',
-    'Meanwhile',
-    'Now',
-    'When',
-    'While',
-    'But',
-    'Yet',
-    'However',
-    'Nevertheless',
-    'Therefore',
-    'Thus',
-    'So',
-    'Accordingly',
-    'Moreover',
-    'Furthermore',
-    'Also',
-    'And',
-  ];
-
-  const firstWord = text.trim().split(/\s+/)[0];
-  const cleanWord = firstWord.replace(/[.,;:!?"']/g, '');
-  return transitions.includes(cleanWord);
-}
-
-/**
- * Calculate intelligent paragraph break points for a section
- */
-function calculateBreakPoints(verses: { verseNumber: number; text: string }[]): number[] {
-  const breakAfter: number[] = [];
-
-  if (verses.length <= 3) return [];
-
-  let versesSinceLastBreak = 0;
-
-  for (let i = 0; i < verses.length - 1; i++) {
-    const currentVerse = verses[i];
-    const nextVerse = verses[i + 1];
-    versesSinceLastBreak++;
-
-    if (versesSinceLastBreak >= 5) {
-      breakAfter.push(currentVerse.verseNumber);
-      versesSinceLastBreak = 0;
-      continue;
-    }
-
-    const endsWithPeriod = currentVerse.text.trim().endsWith('.');
-    const nextStartsWithTransition = startsWithTransitionWord(nextVerse.text);
-
-    if (endsWithPeriod && nextStartsWithTransition && versesSinceLastBreak >= 2) {
-      breakAfter.push(currentVerse.verseNumber);
-      versesSinceLastBreak = 0;
-    }
-  }
-
-  return breakAfter;
-}
 
 /**
  * Stable key for a section, used to look up its memoised paragraph groups.
