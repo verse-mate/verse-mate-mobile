@@ -17,6 +17,13 @@ import { JesusPassageBlock } from '@/components/jesus/JesusPassageBlock';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import type { JesusEventPassage } from '@/types/jesus';
 
+// The reader's alignment source needs the offline provider; these tests are
+// about the block, not about loading a chapter's lexicon.
+jest.mock('@/hooks/use-chapter-alignment', () => ({
+  useChapterAlignment: () => null,
+  isEnglishVersion: () => true,
+}));
+
 let mockFontSize = 18;
 jest.mock('@/hooks/bible/use-font-size', () => ({
   useFontSize: () => ({ fontSize: mockFontSize, setFontSize: jest.fn(), isLoading: false }),

@@ -41,6 +41,10 @@ jest.mock('@/components/bible/BibleNavigationModal', () => ({
   BibleNavigationModal: () => null,
 }));
 jest.mock('@/components/bible/HamburgerMenu', () => ({ HamburgerMenu: () => null }));
+jest.mock('@/hooks/use-chapter-alignment', () => ({
+  useChapterAlignment: () => null,
+  isEnglishVersion: () => true,
+}));
 
 const mockEvent = jest.fn();
 const mockCompare = jest.fn();
