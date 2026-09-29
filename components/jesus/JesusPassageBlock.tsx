@@ -21,13 +21,19 @@
  * setting is a lie.
  */
 import { Ionicons } from '@expo/vector-icons';
+import { type AlignedToken, type LexEntry, lookupLemma } from '@versemate/lexicon';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { LexiconPopover } from '@/components/bible/LexiconPopover';
+import { bibleVersions } from '@/constants/bible-versions';
 import { useOptionalBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
+import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import { useNativeText } from '@/hooks/bible/use-native-text';
+import { useBibleVersion } from '@/hooks/use-bible-version';
+import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { verseNumberGapPaddingDp } from '@/lib/text/compile-paragraph';
 import { ParagraphText } from '@/lib/text/ParagraphText';
 import { groupIntoParagraphs } from '@/lib/text/paragraph-breaks';
@@ -52,6 +58,49 @@ export function JesusPassageBlock({
   const { fontSize } = useFontSize();
   const { useNativeText: nativeText } = useNativeText();
   const [width, setWidth] = useState(0);
+
+  /**
+   * Lexicon words — the reader's dotted underlines and their definition card.
+   *
+   * Same alignment source (`useChapterAlignment`, per book+chapter+version),
+   * the same underline preference, the same popover and the same two-step
+   * fill (light entry now, full card from `lookupLemma` after) as
+   * ChapterReader. Without it a verse read here showed no definitions that
+   * the same verse in the reader has.
+   */
+  const { bibleVersion } = useBibleVersion();
+  const alignment = useChapterAlignment(passage.book_id, passage.chapter, bibleVersion);
+  const { showUnderlines } = useLexiconUnderlines();
+  const lemmaApiLang = isEnglishVersion(bibleVersion)
+    ? undefined
+    : bibleVersions.find((v) => v.key === bibleVersion)?.language;
+  const [lexiconActive, setLexiconActive] = useState<{
+    surface: string;
+    entry: LexEntry;
+    token: AlignedToken;
+    isTheme: boolean;
+  } | null>(null);
+  const openLexicon = (args: {
+    surface: string;
+    token: AlignedToken;
+    entry: LexEntry;
+    isTheme: boolean;
+  }) => {
+    setLexiconActive(args);
+    if (args.entry.notes || args.entry.semanticRange || args.entry.related) return;
+    lookupLemma(args.token.lemma)
+      .then((full) => {
+        if (!full) return;
+        setLexiconActive((current) =>
+          current && current.token.lemma === args.token.lemma
+            ? { ...current, entry: full }
+            : current
+        );
+      })
+      .catch(() => {
+        // The light entry is already showing; a failed upgrade keeps the gloss.
+      });
+  };
   /**
    * Verse Insight, opened IN PLACE.
    *
@@ -131,7 +180,10 @@ export function JesusPassageBlock({
               ? paragraphs.map((group, index) => (
                   <View key={group[0].verseNumber}>
                     <ParagraphText
+                      alignment={alignment}
+                      onLexiconWordPress={openLexicon}
                       onVerseTap={openVerse}
+                      showLexUnderlines={showUnderlines}
                       style={styles.paragraph}
                       theme={textTheme}
                       verses={group}
@@ -181,6 +233,17 @@ export function JesusPassageBlock({
         <Text style={styles.placeholder}>
           {t('jesus.event.openInReader', 'Open in the reader to view this passage.')}
         </Text>
+      )}
+      {lexiconActive && (
+        <LexiconPopover
+          visible={true}
+          onClose={() => setLexiconActive(null)}
+          surface={lexiconActive.surface}
+          entry={lexiconActive.entry}
+          token={lexiconActive.token}
+          isTheme={lexiconActive.isTheme}
+          apiLang={lemmaApiLang}
+        />
       )}
     </View>
   );
