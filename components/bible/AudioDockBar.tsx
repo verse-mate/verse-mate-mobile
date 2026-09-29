@@ -22,8 +22,16 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname } from 'expo-router';
-import { useMemo } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useRef } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { nextSpeed, SPEED_OPTIONS } from '@/components/bible/AudioInlineEntry';
 import { trackDisplayLabel, useAudioPlayer } from '@/contexts/AudioPlayerContext';
@@ -33,6 +41,37 @@ import { useBibleTestaments } from '@/src/api';
 
 /** The bar's own height, before the safe-area inset. Tester asked for ~56–64. */
 const BAR_HEIGHT = 56;
+
+/** How far (dp) or how fast a downward drag must go to dismiss the bar. */
+const DISMISS_DISTANCE = 40;
+const DISMISS_VELOCITY = 0.5;
+
+/** Whether a released drag is a dismissal: far enough, or flicked fast enough, downward. */
+export function isDismissDrag(dy: number, vy: number): boolean {
+  return dy > DISMISS_DISTANCE || vy > DISMISS_VELOCITY;
+}
+
+/** Whether a move is ours to claim: clearly vertical and downward, so taps still land. */
+export function claimsDrag(dx: number, dy: number): boolean {
+  return dy > 8 && Math.abs(dy) > Math.abs(dx);
+}
+
+/**
+ * Screens the dock stays out of. Hidden, not stopped (see below).
+ *
+ * - `/jesus`: its own reader, with its own passages on screen.
+ * - Settings and the pages opened from it: "the audio bottom prob shouldn't
+ *   transfer over to settings" (Andy, build 119) — it sat over the bottom of
+ *   the page, and a settings screen is not somewhere you are listening.
+ */
+const HIDDEN_ROUTE_PREFIXES = ['/jesus', '/settings', '/manage-downloads', '/widget-info'];
+
+export function dockHiddenOn(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return HIDDEN_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
 
 function formatSpeed(speed: number): string {
   return `${speed % 1 === 0 ? speed.toFixed(0) : speed}×`;
@@ -76,20 +115,57 @@ export function AudioDockBar() {
    * Routes the dock stays out of.
    *
    * The dock is deliberately mounted above the navigator so playback survives
-   * screen changes (br-audio-011), and that is right for the reader, the hub
-   * and settings — you keep listening while you move around. The Jesus feature
-   * is the exception: it is its OWN reader, with its own passages on screen, so
-   * a bar reading "JHN 19" pinned under a Luke 2 event is a second reading
-   * context contradicting the first. Reported as "audio should disappear".
+   * screen changes (br-audio-011), and that is right for the reader and the
+   * hub — you keep listening while you move around. `HIDDEN_ROUTE_PREFIXES`
+   * lists the exceptions: the Jesus feature (its OWN reader — a bar reading
+   * "JHN 19" pinned under a Luke 2 event contradicts it) and settings.
    *
    * Hidden, not stopped — closing the track would punish someone who only
    * wanted to look something up mid-chapter, and nothing in the report asked
-   * for playback to end. It reappears on the way back out.
+   * for playback to end. It reappears on the way back out. Stopping is the
+   * swipe-down, below.
    */
   const pathname = usePathname();
-  const onJesusRoute = pathname?.startsWith('/jesus') ?? false;
+  const hiddenHere = dockHiddenOn(pathname);
 
-  if (!track || !player.dockVisible || onJesusRoute) return null;
+  /**
+   * Swipe down to dismiss — stops playback and removes the bar.
+   *
+   * "No way to swipe it away to make it disappear (even on bible page)" /
+   * "swipe down to eliminate". Until now the only way out was the full player.
+   * Claimed only on a clearly vertical downward drag, so a tap still reaches
+   * play, speed and expand; a short or sideways drag springs back.
+   */
+  const dragY = useRef(new Animated.Value(0)).current;
+  const closeRef = useRef(player.close);
+  closeRef.current = player.close;
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) => claimsDrag(g.dx, g.dy),
+        onPanResponderMove: (_, g) => dragY.setValue(Math.max(0, g.dy)),
+        onPanResponderRelease: (_, g) => {
+          if (isDismissDrag(g.dy, g.vy)) {
+            Animated.timing(dragY, {
+              toValue: BAR_HEIGHT * 3,
+              duration: 160,
+              useNativeDriver: true,
+            }).start(() => {
+              void closeRef.current();
+              dragY.setValue(0);
+            });
+          } else {
+            Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+          }
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(dragY, { toValue: 0, useNativeDriver: true }).start();
+        },
+      }),
+    [dragY]
+  );
+
+  if (!track || !player.dockVisible || hiddenHere) return null;
 
   const progress =
     player.durationSeconds > 0 ? Math.min(1, player.elapsedSeconds / player.durationSeconds) : 0;
@@ -99,7 +175,14 @@ export function AudioDockBar() {
   const isBuffering = state === 'loading';
 
   return (
-    <View accessibilityRole="toolbar" accessibilityLabel="Audio player" style={styles.container}>
+    <Animated.View
+      accessibilityRole="toolbar"
+      accessibilityLabel="Audio player"
+      accessibilityHint="Swipe down to stop and close the player"
+      style={[styles.container, { transform: [{ translateY: dragY }] }]}
+      testID="audio-dock"
+      {...panResponder.panHandlers}
+    >
       {/* Progress as a hairline on the top edge, not a track inside the bar —
           it reads as the bar's own boundary rather than as another control. */}
       <View style={styles.progressTrack} testID="audio-dock-progress">
@@ -164,7 +247,7 @@ export function AudioDockBar() {
           </Pressable>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
