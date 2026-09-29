@@ -2,16 +2,13 @@
  * Where the audio dock is allowed to appear.
  *
  * The dock is mounted above the navigator on purpose, so playback survives
- * screen changes (br-audio-011). That is right for the reader, the hub and
- * settings. It is wrong for the Jesus feature, which is its OWN reader with
- * its own passages on screen — a bar reading "JHN 19" pinned under a Luke 2
- * event is a second reading context contradicting the first. Reported as
- * "audio should disappear".
+ * screen changes (br-audio-011). It stays out of the Jesus feature (its OWN
+ * reader — a bar reading "JHN 19" under a Luke 2 event contradicts it) and
+ * out of settings.
  *
- * Hidden, not stopped: nothing asked for playback to end, and closing the
- * track would punish someone who only wanted to look something up mid-chapter.
- * These tests pin that distinction — the dock must vanish while the player
- * keeps its track.
+ * Paused, not stopped: where the bar is hidden, playback pauses (audio with no
+ * control on screen could not be paused), but the track is kept so the bar is
+ * back, paused, in the reader.
  */
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
@@ -96,6 +93,7 @@ describe('AudioDockBar route visibility', () => {
     mockPlayer.currentTrack = track;
     mockPlayer.dockVisible = true;
     mockPlayer.close.mockClear();
+    mockPlayer.pause.mockClear();
   });
 
   it('shows in the reader', () => {
@@ -119,13 +117,25 @@ describe('AudioDockBar route visibility', () => {
     }
   });
 
-  it('hides the dock without touching playback', () => {
-    // The whole point of "hidden, not stopped".
-    mockPathname = '/jesus/event/x';
+  it('pauses playback where the bar is hidden, and keeps the track', () => {
+    // Audio playing on with no control on screen could not be paused from
+    // there. Pause, never close: the track must survive for the return.
+    for (const path of ['/settings', '/jesus/event/x']) {
+      mockPlayer.pause.mockClear();
+      mockPathname = path;
+      const view = renderDock();
+      expect(mockPlayer.pause).toHaveBeenCalledTimes(1);
+      expect(mockPlayer.close).not.toHaveBeenCalled();
+      expect(mockPlayer.currentTrack).toBe(track);
+      view.unmount();
+    }
+  });
+
+  it('does not pause in the reader', () => {
+    mockPlayer.pause.mockClear();
+    mockPathname = '/bible/43/19';
     renderDock();
-    expect(mockPlayer.close).not.toHaveBeenCalled();
     expect(mockPlayer.pause).not.toHaveBeenCalled();
-    expect(mockPlayer.currentTrack).toBe(track);
   });
 
   it('comes back on the way out of the Jesus feature', () => {

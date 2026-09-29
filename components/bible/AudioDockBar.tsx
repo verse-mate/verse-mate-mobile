@@ -22,7 +22,7 @@
  */
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname } from 'expo-router';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -57,7 +57,7 @@ export function claimsDrag(dx: number, dy: number): boolean {
 }
 
 /**
- * Screens the dock stays out of. Hidden, not stopped (see below).
+ * Screens the dock stays out of. Playback PAUSES there (see below).
  *
  * - `/jesus`: its own reader, with its own passages on screen.
  * - Settings and the pages opened from it: "the audio bottom prob shouldn't
@@ -120,13 +120,20 @@ export function AudioDockBar() {
    * lists the exceptions: the Jesus feature (its OWN reader — a bar reading
    * "JHN 19" pinned under a Luke 2 event contradicts it) and settings.
    *
-   * Hidden, not stopped — closing the track would punish someone who only
-   * wanted to look something up mid-chapter, and nothing in the report asked
-   * for playback to end. It reappears on the way back out. Stopping is the
-   * swipe-down, below.
+   * Paused, not stopped. Audio playing on with no control on screen was the
+   * wrong half of "hidden": you could not pause it from where you were. So
+   * entering one of these screens pauses playback and keeps the track; back
+   * in the reader the bar is there again, paused where it left off, one tap
+   * from resuming. Ending the track entirely is the swipe-down, below.
    */
   const pathname = usePathname();
   const hiddenHere = dockHiddenOn(pathname);
+  const pauseRef = useRef(player.pause);
+  pauseRef.current = player.pause;
+  const isPlayingNow = state === 'playing' || state === 'loading';
+  useEffect(() => {
+    if (hiddenHere && isPlayingNow) void pauseRef.current();
+  }, [hiddenHere, isPlayingNow]);
 
   /**
    * Swipe down to dismiss — stops playback and removes the bar.
