@@ -23,6 +23,8 @@ jest.mock('@/services/offline/jesus-store', () => {
   const web = jest.requireActual('@/services/offline/jesus-store.web');
   return {
     jesusCacheKey: web.jesusCacheKey,
+    jesusContentLanguage: web.jesusContentLanguage,
+    parseStoredTime: web.parseStoredTime,
     importJesusSeed: jest.fn(),
     getJesusLocal: jest.fn(async (key: string) => mockStore.get(key) ?? null),
     putJesusLocal: (...a: unknown[]) => mockPut(...a),
@@ -58,7 +60,7 @@ beforeEach(() => {
 });
 
 describe('the cache key', () => {
-  it('matches the bundle generator: sorted, and without bible_version', () => {
+  it('is the content language, then the sorted query without bible_version', () => {
     expect(
       jesusCacheKey('/jesus/events', {
         theme: 'love',
@@ -66,16 +68,60 @@ describe('the cache key', () => {
         limit: 200,
         bible_version: 'NASB1995',
       })
-    ).toBe('/jesus/events?limit=200&offset=0&theme=love');
-    expect(jesusCacheKey('/jesus/events/overview', { bible_version: 'KJV' })).toBe(
-      '/jesus/events/overview'
+    ).toBe('en:/jesus/events?limit=200&offset=0&theme=love');
+    expect(jesusCacheKey('/jesus/events/overview', { bible_version: 'KJV' }, 'de-DE')).toBe(
+      'de:/jesus/events/overview'
     );
+  });
+});
+
+describe('the content language', () => {
+  it("is never answered from another language's stored row while the network works", async () => {
+    // Augusto's case: an English row in the store, a German request.
+    mockStore.set('en:/jesus/events/the-baptism-of-jesus', {
+      payload: EVENT,
+      bibleVersion: 'NASB1995',
+      updatedAt: fresh(),
+    });
+    const german = { ...EVENT, event: { ...EVENT.event, title: 'Die Taufe Jesu' } };
+    authenticatedFetch.mockResolvedValue(ok(german));
+    const detail = await repo.fetchEvent('the-baptism-of-jesus', 'SCH51', 'de');
+    expect(authenticatedFetch).toHaveBeenCalledTimes(1);
+    expect(detail?.event.title).toBe('Die Taufe Jesu');
+    await flush();
+    // Stored under its own language, so it cannot replace the English row.
+    expect(mockPut).toHaveBeenCalledWith('de:/jesus/events/the-baptism-of-jesus', german, 'SCH51');
+  });
+
+  it('falls back to the bundled English copy only when the network has failed', async () => {
+    mockStore.set('en:/jesus/events/overview', {
+      payload: { total_events: 207, sections: [] },
+      bibleVersion: null,
+      updatedAt: fresh(),
+    });
+    authenticatedFetch.mockRejectedValue(new Error('offline'));
+    const overview = await repo.fetchEventOverview('SCH51', 'de');
+    expect(authenticatedFetch).toHaveBeenCalledTimes(1);
+    expect(overview.total_events).toBe(207);
+  });
+
+  it('revalidates a row whose timestamp the engine cannot parse instead of pinning it', async () => {
+    mockStore.set('en:/jesus/events/overview', {
+      payload: { total_events: 207, sections: [] },
+      bibleVersion: null,
+      updatedAt: 'not a date',
+    });
+    authenticatedFetch.mockResolvedValue(ok({ total_events: 208, sections: [] }));
+    await repo.fetchEventOverview('NASB1995');
+    await flush();
+    await flush();
+    expect(authenticatedFetch).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('local first', () => {
   it('answers from the store without touching the network', async () => {
-    mockStore.set('/jesus/events/the-baptism-of-jesus', {
+    mockStore.set('en:/jesus/events/the-baptism-of-jesus', {
       payload: EVENT,
       bibleVersion: 'NASB1995',
       updatedAt: fresh(),
@@ -91,12 +137,16 @@ describe('local first', () => {
     const detail = await repo.fetchEvent('the-baptism-of-jesus', 'NASB1995');
     expect(detail?.event.slug).toBe('the-baptism-of-jesus');
     await flush();
-    expect(mockPut).toHaveBeenCalledWith('/jesus/events/the-baptism-of-jesus', EVENT, 'NASB1995');
+    expect(mockPut).toHaveBeenCalledWith(
+      'en:/jesus/events/the-baptism-of-jesus',
+      EVENT,
+      'NASB1995'
+    );
   });
 
   it('refreshes a day-old copy in the background, answering from the copy meanwhile', async () => {
     const old = new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString();
-    mockStore.set('/jesus/events/overview', {
+    mockStore.set('en:/jesus/events/overview', {
       payload: { total_events: 207, sections: [] },
       bibleVersion: 'NASB1995',
       updatedAt: old,
@@ -112,7 +162,7 @@ describe('local first', () => {
 
   it('slices a theme list stored whole to the page the screen asked for', async () => {
     const events = Array.from({ length: 61 }, (_, i) => ({ slug: `e${i}`, title: `E${i}` }));
-    mockStore.set('/jesus/events?limit=200&offset=0&theme=love', {
+    mockStore.set('en:/jesus/events?limit=200&offset=0&theme=love', {
       payload: { events, total: 61 },
       bibleVersion: null,
       updatedAt: fresh(),
@@ -126,7 +176,7 @@ describe('local first', () => {
 
 describe('another Bible version', () => {
   beforeEach(() => {
-    mockStore.set('/jesus/events/the-baptism-of-jesus', {
+    mockStore.set('en:/jesus/events/the-baptism-of-jesus', {
       payload: EVENT,
       bibleVersion: 'NASB1995',
       updatedAt: fresh(),
@@ -157,7 +207,7 @@ describe('another Bible version', () => {
 
 describe('search', () => {
   it('falls back to searching the stored entries when the server does not answer', async () => {
-    mockStore.set('local:entries', {
+    mockStore.set('en:local:entries', {
       payload: {
         entries: [
           {

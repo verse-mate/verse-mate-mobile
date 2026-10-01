@@ -13,8 +13,11 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { bibleVersions } from '@/constants/bible-versions';
+import * as Auth from '@/contexts/AuthContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import * as repo from '@/services/jesus-repository';
+import { jesusContentLanguage } from '@/services/offline/jesus-store';
 
 /** Static-content cache policy shared by every Jesus query. */
 const STATIC = {
@@ -35,40 +38,68 @@ const STATIC = {
 } as const;
 
 /**
- * The reader's chosen translation, read here rather than threaded through every
- * screen. The three routes that quote scripture take it; the rest do not, so it
- * is only in those query keys — putting it in all of them would evict the whole
- * corpus on a version change for no reason.
+ * The signed-in user, or null outside an AuthProvider.
+ *
+ * Resolved once at module load: these hooks run inside ChapterPage, and many of
+ * its test suites mock AuthContext with `useAuth` alone. Falling back to "no
+ * user" there is the anonymous reader's behaviour, which is what those tests
+ * render anyway.
  */
-function useVersion(): string {
+const useAuthUser: () => unknown =
+  typeof (Auth as { useOptionalAuth?: unknown }).useOptionalAuth === 'function'
+    ? () => Auth.useOptionalAuth()?.user ?? null
+    : () => null;
+
+/**
+ * The reader's translation and the language Jesus content comes back in.
+ *
+ * The language mirrors the backend's `resolveLanguage`: a signed-in reader's
+ * preferred language, otherwise the Bible version's language, otherwise
+ * English. It is in EVERY query key and every stored row's key, because the
+ * same URL returns different content per language (a German response has no
+ * "what this reveals" or reactions yet), and caching one under the other's key
+ * is what served one reader's language to the next.
+ */
+function useJesusContext(): { bibleVersion: string; language: string } {
   const { bibleVersion } = useBibleVersion();
-  return bibleVersion;
+  const user = useAuthUser() as { preferred_language?: unknown } | null | undefined;
+  const preferred =
+    typeof user?.preferred_language === 'string' && user.preferred_language
+      ? user.preferred_language
+      : undefined;
+  const versionLanguage = bibleVersions.find((v) => v.key === bibleVersion)?.language;
+  return { bibleVersion, language: jesusContentLanguage(preferred ?? versionLanguage) };
+}
+
+/** The language Jesus content (and its taxonomy nouns) arrives in, as `en`/`de`. */
+export function useJesusContentLanguage(): string {
+  return useJesusContext().language;
 }
 
 export function useJesusOverview() {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   return useQuery({
-    queryKey: ['jesus', 'overview', bibleVersion],
-    queryFn: () => repo.fetchEventOverview(bibleVersion),
+    queryKey: ['jesus', 'overview', bibleVersion, language],
+    queryFn: () => repo.fetchEventOverview(bibleVersion, language),
     ...STATIC,
   });
 }
 
 export function useJesusBrowse(typeSlug: string | undefined) {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   return useQuery({
-    queryKey: ['jesus', 'browse', typeSlug, bibleVersion],
-    queryFn: () => repo.fetchBrowse(typeSlug as string, bibleVersion),
+    queryKey: ['jesus', 'browse', typeSlug, bibleVersion, language],
+    queryFn: () => repo.fetchBrowse(typeSlug as string, bibleVersion, language),
     enabled: Boolean(typeSlug),
     ...STATIC,
   });
 }
 
 export function useJesusEvent(slug: string | undefined) {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   return useQuery({
-    queryKey: ['jesus', 'event', slug, bibleVersion],
-    queryFn: () => repo.fetchEvent(slug as string, bibleVersion),
+    queryKey: ['jesus', 'event', slug, bibleVersion, language],
+    queryFn: () => repo.fetchEvent(slug as string, bibleVersion, language),
     enabled: Boolean(slug),
     ...STATIC,
   });
@@ -80,28 +111,29 @@ export function useJesusEvent(slug: string | undefined) {
  * should not wait on.
  */
 export function useJesusCompare(slug: string | undefined, enabled: boolean) {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   return useQuery({
-    queryKey: ['jesus', 'compare', slug, bibleVersion],
-    queryFn: () => repo.fetchCompare(slug as string, bibleVersion),
+    queryKey: ['jesus', 'compare', slug, bibleVersion, language],
+    queryFn: () => repo.fetchCompare(slug as string, bibleVersion, language),
     enabled: Boolean(slug) && enabled,
     ...STATIC,
   });
 }
 
 export function useJesusLife() {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   return useQuery({
-    queryKey: ['jesus', 'life', bibleVersion],
-    queryFn: () => repo.fetchLife(bibleVersion),
+    queryKey: ['jesus', 'life', bibleVersion, language],
+    queryFn: () => repo.fetchLife(bibleVersion, language),
     ...STATIC,
   });
 }
 
 export function useJesusCollection(slug: string | undefined) {
+  const { language } = useJesusContext();
   return useQuery({
-    queryKey: ['jesus', 'collection', slug],
-    queryFn: () => repo.fetchCollection(slug as string),
+    queryKey: ['jesus', 'collection', slug, language],
+    queryFn: () => repo.fetchCollection(slug as string, language),
     enabled: Boolean(slug),
     ...STATIC,
   });
@@ -114,15 +146,16 @@ export function useJesusForPassage(params: {
   verse?: number;
 }) {
   const { bookId, chapter, verse } = params;
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   return useQuery({
-    queryKey: ['jesus', 'passage', bookId, chapter, verse ?? null, bibleVersion],
+    queryKey: ['jesus', 'passage', bookId, chapter, verse ?? null, bibleVersion, language],
     queryFn: () =>
       repo.fetchEventsForPassage({
         bookId: bookId as number,
         chapter: chapter as number,
         verse,
         bibleVersion,
+        language,
       }),
     enabled: Boolean(bookId && chapter),
     ...STATIC,
@@ -146,11 +179,11 @@ function useDebounced(value: string, ms = 250): string {
 
 /** The hub's search: events matching a free-text term. */
 export function useJesusSearch(query: string) {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   const term = useDebounced(query.trim());
   return useQuery({
-    queryKey: ['jesus', 'search', term, bibleVersion],
-    queryFn: () => repo.fetchEvents({ q: term, limit: 50 }, bibleVersion),
+    queryKey: ['jesus', 'search', term, bibleVersion, language],
+    queryFn: () => repo.fetchEvents({ q: term, limit: 50 }, bibleVersion, language),
     enabled: term.length > 0,
     // Search is the one query here that is not static content: it is keyed on
     // what the reader typed, so caching it for an hour would pin stale results
@@ -163,11 +196,11 @@ export function useJesusSearch(query: string) {
 
 /** One page of events for a kind or a theme. */
 export function useJesusEvents(params: { type?: string; theme?: string }) {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   const { type, theme } = params;
   return useQuery({
-    queryKey: ['jesus', 'events', type ?? null, theme ?? null, bibleVersion],
-    queryFn: () => repo.fetchEvents({ type, theme, limit: 50 }, bibleVersion),
+    queryKey: ['jesus', 'events', type ?? null, theme ?? null, bibleVersion, language],
+    queryFn: () => repo.fetchEvents({ type, theme, limit: 50 }, bibleVersion, language),
     enabled: Boolean(type || theme),
     ...STATIC,
   });
@@ -175,21 +208,21 @@ export function useJesusEvents(params: { type?: string; theme?: string }) {
 
 /** The book selector's Jesus tab reads per-entry counts, not per-event ones. */
 export function useJesusEntriesOverview() {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   return useQuery({
-    queryKey: ['jesus', 'entries-overview', bibleVersion],
-    queryFn: () => repo.fetchEntriesOverview(bibleVersion),
+    queryKey: ['jesus', 'entries-overview', bibleVersion, language],
+    queryFn: () => repo.fetchEntriesOverview(bibleVersion, language),
     ...STATIC,
   });
 }
 
 /** The selector's search — facets rather than events, same as web. */
 export function useJesusEntrySearch(query: string) {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   const term = useDebounced(query.trim());
   return useQuery({
-    queryKey: ['jesus', 'entry-search', term, bibleVersion],
-    queryFn: () => repo.searchEntries(term, 50, bibleVersion),
+    queryKey: ['jesus', 'entry-search', term, bibleVersion, language],
+    queryFn: () => repo.searchEntries(term, 50, bibleVersion, language),
     enabled: term.length > 0,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
@@ -198,10 +231,10 @@ export function useJesusEntrySearch(query: string) {
 }
 
 export function useJesusEntry(slug: string | undefined) {
-  const bibleVersion = useVersion();
+  const { bibleVersion, language } = useJesusContext();
   return useQuery({
-    queryKey: ['jesus', 'entry', slug, bibleVersion],
-    queryFn: () => repo.fetchEntry(slug as string, bibleVersion),
+    queryKey: ['jesus', 'entry', slug, bibleVersion, language],
+    queryFn: () => repo.fetchEntry(slug as string, bibleVersion, language),
     enabled: Boolean(slug),
     ...STATIC,
   });
