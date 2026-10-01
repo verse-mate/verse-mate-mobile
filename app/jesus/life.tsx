@@ -1,7 +1,8 @@
 /**
  * JesusLifeScreen — Follow His Life.
  *
- * Route: /jesus/life
+ * Route: /jesus/life[?period=<slug>] — the period an event's heading links to
+ * is scrolled into view.
  *
  * Events grouped by period in chronological order. The order is the corpus's
  * own curation (`LIFE_TIMELINE`), not something computed here, because placing
@@ -11,18 +12,26 @@
  * formula with no single moment — so a period's `event_count` is the honest
  * number rather than a total that pretends everything has a place.
  */
-import { router, Stack } from 'expo-router';
-import { useMemo } from 'react';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SectionList, StyleSheet, Text, View } from 'react-native';
+import { SectionList, type SectionListScrollParams, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JesusChrome } from '@/components/jesus/JesusChrome';
 import { EventRow, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useJesusLife } from '@/hooks/jesus';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
+import type { JesusEventCard } from '@/types/jesus';
 
 type Colors = ReturnType<typeof getColors>;
+
+interface LifeSection {
+  slug: string;
+  title: string;
+  subtitle: string | null;
+  data: JesusEventCard[];
+}
 
 export default function JesusLifeScreen() {
   const { colors } = useTheme();
@@ -33,10 +42,14 @@ export default function JesusLifeScreen() {
   const { data } = life;
   const phase = queryPhase(life);
 
+  const { period } = useLocalSearchParams<{ period?: string }>();
+  const listRef = useRef<SectionList<JesusEventCard, LifeSection>>(null);
+
   const sections = useMemo(
     () =>
       (data ?? [])
         .map((period) => ({
+          slug: period.slug,
           title: period.name,
           subtitle: period.subtitle,
           data: period.events ?? [],
@@ -47,6 +60,38 @@ export default function JesusLifeScreen() {
         .filter((section) => section.data.length > 0),
     [data]
   );
+
+  /**
+   * Land on the period an event's heading was tapped from, once the timeline
+   * is on screen. Sections are not measured up front, so a far one can fail
+   * the first scroll; `onScrollToIndexFailed` below jumps near it and retries.
+   */
+  const target = useMemo<SectionListScrollParams | null>(() => {
+    const sectionIndex = period ? sections.findIndex((s) => s.slug === period) : -1;
+    return sectionIndex > 0
+      ? { sectionIndex, itemIndex: 0, viewPosition: 0, animated: false }
+      : null;
+  }, [period, sections]);
+  /**
+   * Render everything up to the target on the first pass, so the scroll lands
+   * on a measured row rather than on an estimate. A SectionList counts a
+   * header and a footer per section as rows. Only on a linked arrival; a plain
+   * open keeps the default first batch.
+   */
+  const initialRows = useMemo(() => {
+    if (!target) return undefined;
+    const before = sections
+      .slice(0, target.sectionIndex)
+      .reduce((n, section) => n + section.data.length + 2, 0);
+    return before + 12;
+  }, [target, sections]);
+  const scrolledFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!target || scrolledFor.current === period) return;
+    scrolledFor.current = period ?? null;
+    const timer = setTimeout(() => listRef.current?.scrollToLocation(target), 50);
+    return () => clearTimeout(timer);
+  }, [target, period]);
 
   return (
     <View style={styles.screen}>
@@ -67,7 +112,15 @@ export default function JesusLifeScreen() {
         />
       ) : (
         <SectionList
+          ref={listRef}
           sections={sections}
+          initialNumToRender={initialRows}
+          onScrollToIndexFailed={(info) => {
+            listRef.current
+              ?.getScrollResponder()
+              ?.scrollTo({ y: info.averageItemLength * info.index, animated: false });
+            if (target) setTimeout(() => listRef.current?.scrollToLocation(target), 100);
+          }}
           keyExtractor={(item, index) => `${item.slug}-${index}`}
           stickySectionHeadersEnabled={false}
           testID="jesus-life-list"

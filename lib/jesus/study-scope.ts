@@ -26,7 +26,10 @@ import type { JesusEventPassage } from '@/types/jesus';
  * Keeping it verbatim is deliberate — the ref-parsing rules here are fiddly
  * (bare numbers inheriting a chapter, `×2` counts that must not read as
  * verses, segment titles carrying their range parenthetically) and a
- * paraphrase would diverge silently.
+ * paraphrase would diverge silently. ONE deliberate divergence, which web's
+ * copy should take too: cross-chapter ranges (`9:35-10:8`, which the Gospel
+ * studies use) and book numbers (`1 Cor`, `Psalm 22`) are read correctly here
+ * (PR #375 review).
  */
 // ─── Verse references ────────────────────────────────────────────────────
 
@@ -61,7 +64,16 @@ function stripNonRefParens(text: string): string {
   );
 }
 
-const REF_TOKEN = /(\d+)\s*:\s*(\d+)(?:\s*[-–—]\s*(\d+))?|(\d+)(?:\s*[-–—]\s*(\d+))?/g;
+const REF_TOKEN =
+  /(\d+)\s*:\s*(\d+)\s*[-–—]\s*(\d+)\s*:\s*(\d+)|(\d+)\s*:\s*(\d+)(?:\s*[-–—]\s*(\d+))?|(\d+)(?:\s*[-–—]\s*(\d+))?/g;
+
+/** A bare number that is part of a book name or a book's chapter, not a verse. */
+function isBookNumber(text: string, start: number, end: number): boolean {
+  // "1 Cor 13:4", "2 Kings": a number directly followed by a book name.
+  if (/^\s*[A-Z][a-z]/.test(text.slice(end))) return true;
+  // "Psalm 22": a number directly after a book name is that book's chapter.
+  return /[A-Z][a-z]+\.?\s*$/.test(text.slice(0, start));
+}
 
 /**
  * Pull every verse reference out of a study's ref field.
@@ -87,7 +99,25 @@ export function parseVerseRefs(
   REF_TOKEN.lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = REF_TOKEN.exec(cleaned))) {
-    const [, qChapter, qStart, qEnd, bareStart, bareEnd] = match;
+    const [, xChapter, xStart, xEndChapter, xEnd, qChapter, qStart, qEnd, bareStart, bareEnd] =
+      match;
+    if (xChapter) {
+      // "2:51-3:2" crosses a chapter: the rest of the first, the start of the next.
+      const from = Number(xChapter);
+      const to = Number(xEndChapter);
+      const startVerse = Number(xStart);
+      const endVerse = Number(xEnd);
+      if (to < from || !startVerse || !endVerse) continue;
+      if (to === from) {
+        if (endVerse >= startVerse) refs.push({ chapter: from, start: startVerse, end: endVerse });
+      } else {
+        refs.push({ chapter: from, start: startVerse, end: MAX_VERSE });
+        for (let c = from + 1; c < to; c++) refs.push({ chapter: c, start: 1, end: MAX_VERSE });
+        refs.push({ chapter: to, start: 1, end: endVerse });
+      }
+      context = to;
+      continue;
+    }
     let chapter: number;
     let start: number;
     let end: number;
@@ -97,6 +127,7 @@ export function parseVerseRefs(
       end = qEnd ? Number(qEnd) : start;
       context = chapter;
     } else {
+      if (isBookNumber(cleaned, match.index, match.index + match[0].length)) continue;
       if (context == null && qualifiedOnly) continue;
       chapter = context ?? fallbackChapter;
       start = Number(bareStart);

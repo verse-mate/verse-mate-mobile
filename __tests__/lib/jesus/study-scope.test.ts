@@ -180,3 +180,41 @@ describe('narrowStudyToEvent', () => {
     expect(out.study.application.questions).toHaveLength(2);
   });
 });
+
+describe('parseVerseRefs — shapes the ported parser misread (PR #375 review)', () => {
+  it('reads a range that crosses a chapter', () => {
+    expect(parseVerseRefs('2:51-3:2', 2)).toEqual([
+      { chapter: 2, start: 51, end: 176 },
+      { chapter: 3, start: 1, end: 2 },
+    ]);
+  });
+
+  it('keeps a segment title carrying a cross-chapter range', () => {
+    // Real Gospel study title shape.
+    const refs = parseVerseRefs('The Twelve sent (9:35-10:8)', 9, true);
+    expect(refs).toContainEqual({ chapter: 9, start: 35, end: 176 });
+    expect(refs).toContainEqual({ chapter: 10, start: 1, end: 8 });
+    expect(refs).not.toContainEqual({ chapter: 9, start: 8, end: 8 });
+  });
+
+  it('does not read a book number as a verse', () => {
+    expect(parseVerseRefs('1 Cor 13:4', 13)).toEqual([{ chapter: 13, start: 4, end: 4 }]);
+  });
+
+  it("does not read another book's chapter as a verse", () => {
+    expect(parseVerseRefs('Psalm 22', 2)).toEqual([]);
+  });
+
+  it('still reads the ordinary shapes', () => {
+    expect(parseVerseRefs('2:19, 51', 2)).toEqual([
+      { chapter: 2, start: 19, end: 19 },
+      { chapter: 2, start: 51, end: 51 },
+    ]);
+    expect(parseVerseRefs('41-52', 2)).toEqual([{ chapter: 2, start: 41, end: 52 }]);
+    expect(parseVerseRefs('2:9 (×2), 11, 15', 2)).toEqual([
+      { chapter: 2, start: 9, end: 9 },
+      { chapter: 2, start: 11, end: 11 },
+      { chapter: 2, start: 15, end: 15 },
+    ]);
+  });
+});

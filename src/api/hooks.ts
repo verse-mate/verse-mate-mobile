@@ -1142,12 +1142,27 @@ export const useTopicExplanation = (
  */
 /** How long the Study tab waits for the server before showing the bundled study. */
 const STUDY_NETWORK_DEADLINE_MS = 2500;
+/** How long a bundled fallback is trusted before the server is asked again. */
+const STUDY_FALLBACK_STALE_MS = 60 * 1000;
+
+/**
+ * Results that came from the bundled fallback rather than the server. They are
+ * kept only briefly (see staleTime below), so one slow response on a working
+ * connection does not pin the bundled — and language-unaware — study for the
+ * whole session.
+ */
+const studyFallbacks = new WeakSet<object>();
 
 export function useStudy(bookId: number, chapter: number, language?: string) {
   return useQuery({
     queryKey: ['study', bookId, chapter, language ?? 'en-US'],
     enabled: bookId > 0 && chapter > 0,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: (query) => {
+      const data = query.state.data;
+      return data && studyFallbacks.has(data as object)
+        ? STUDY_FALLBACK_STALE_MS
+        : Number.POSITIVE_INFINITY;
+    },
     // Run offline so the bundled `@versemate/studies` fallback in queryFn
     // executes when there's no network; default 'online' mode would pause the
     // query and hang the Study tab offline (same class as the commentary bug,
@@ -1166,23 +1181,31 @@ export function useStudy(bookId: number, chapter: number, language?: string) {
         // when the request FAILED — and on a slow connection (plane Wi-Fi,
         // where NetInfo still says online) it doesn't fail, it hangs, so the
         // Study tab sat on a spinner with the study already in the app.
+        // The deadline covers the BODY too: on a slow link the headers can
+        // arrive in time and the JSON never finish, which is the same hang.
         const controller = new AbortController();
         const deadline = setTimeout(() => controller.abort(), STUDY_NETWORK_DEADLINE_MS);
-        const response = await fetch(`${baseUrl}/bible/study/${bookId}/${chapter}${qs}`, {
-          method: 'GET',
-          headers,
-          signal: controller.signal,
-        }).finally(() => clearTimeout(deadline));
-        if (response.ok) {
-          const data = (await response.json()) as {
-            study?: { content?: InductiveStudy } | null;
-          };
-          if (data?.study?.content) return data.study.content;
+        try {
+          const response = await fetch(`${baseUrl}/bible/study/${bookId}/${chapter}${qs}`, {
+            method: 'GET',
+            headers,
+            signal: controller.signal,
+          });
+          if (response.ok) {
+            const data = (await response.json()) as {
+              study?: { content?: InductiveStudy } | null;
+            };
+            if (data?.study?.content) return data.study.content;
+          }
+        } finally {
+          clearTimeout(deadline);
         }
       } catch {
-        // network/offline → bundled fallback below
+        // network/offline/deadline → bundled fallback below
       }
-      return (await getStudyFor(bookId, chapter)) ?? null;
+      const fallback = (await getStudyFor(bookId, chapter)) ?? null;
+      if (fallback) studyFallbacks.add(fallback);
+      return fallback;
     },
   });
 }
