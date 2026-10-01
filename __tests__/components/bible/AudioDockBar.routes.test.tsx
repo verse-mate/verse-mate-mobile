@@ -44,7 +44,7 @@ const track: AudioTrack = {
 
 const mockPlayer = {
   currentTrack: track as AudioTrack | null,
-  playbackState: 'playing' as const,
+  playbackState: 'playing' as string,
   elapsedSeconds: 27,
   durationSeconds: 363,
   speed: 1.25,
@@ -73,8 +73,8 @@ jest.mock('@/src/api', () => ({
 }));
 
 /** The dock reads theme tokens and the safe-area inset; both need a provider. */
-function renderDock() {
-  return render(
+function dockTree() {
+  return (
     <SafeAreaProvider
       initialMetrics={{
         frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -88,12 +88,17 @@ function renderDock() {
   );
 }
 
+function renderDock() {
+  return render(dockTree());
+}
+
 describe('AudioDockBar route visibility', () => {
   beforeEach(() => {
     mockPlayer.currentTrack = track;
     mockPlayer.dockVisible = true;
     mockPlayer.close.mockClear();
     mockPlayer.pause.mockClear();
+    mockPlayer.playbackState = 'playing';
   });
 
   it('shows in the reader', () => {
@@ -117,18 +122,45 @@ describe('AudioDockBar route visibility', () => {
     }
   });
 
-  it('pauses playback where the bar is hidden, and keeps the track', () => {
-    // Audio playing on with no control on screen could not be paused from
-    // there. Pause, never close: the track must survive for the return.
-    for (const path of ['/settings', '/jesus/event/x']) {
-      mockPlayer.pause.mockClear();
-      mockPathname = path;
-      const view = renderDock();
-      expect(mockPlayer.pause).toHaveBeenCalledTimes(1);
-      expect(mockPlayer.close).not.toHaveBeenCalled();
-      expect(mockPlayer.currentTrack).toBe(track);
-      view.unmount();
-    }
+  it('pauses once on the way into a hidden screen, and keeps the track', () => {
+    // One mounted dock, as in the app: it lives above the navigator and only
+    // sees the route change.
+    mockPlayer.playbackState = 'playing';
+    mockPathname = '/bible/43/19';
+    const view = renderDock();
+    expect(mockPlayer.pause).not.toHaveBeenCalled();
+
+    mockPathname = '/settings';
+    view.rerender(dockTree());
+    expect(mockPlayer.pause).toHaveBeenCalledTimes(1);
+    expect(mockPlayer.close).not.toHaveBeenCalled();
+    expect(mockPlayer.currentTrack).toBe(track);
+  });
+
+  it('leaves alone playback started from the lock screen while on a hidden screen', () => {
+    mockPlayer.playbackState = 'paused';
+    mockPathname = '/bible/43/19';
+    const view = renderDock();
+    mockPathname = '/settings';
+    view.rerender(dockTree());
+    expect(mockPlayer.pause).not.toHaveBeenCalled(); // was not playing on the way in
+
+    // Lock screen / headphones: playback starts while still on Settings.
+    mockPlayer.playbackState = 'playing';
+    view.rerender(dockTree());
+    expect(mockPlayer.pause).not.toHaveBeenCalled();
+  });
+
+  it('pauses again on a later trip in, after coming back out', () => {
+    mockPlayer.playbackState = 'playing';
+    mockPathname = '/settings';
+    const view = renderDock();
+    expect(mockPlayer.pause).toHaveBeenCalledTimes(1);
+    mockPathname = '/bible/43/19';
+    view.rerender(dockTree());
+    mockPathname = '/jesus/event/x';
+    view.rerender(dockTree());
+    expect(mockPlayer.pause).toHaveBeenCalledTimes(2);
   });
 
   it('does not pause in the reader', () => {
@@ -179,6 +211,7 @@ describe('AudioDockBar route visibility', () => {
 describe('AudioDockBar swipe down to dismiss', () => {
   beforeEach(() => {
     mockPathname = '/bible/43/19';
+    mockPlayer.playbackState = 'playing';
     mockPlayer.currentTrack = track;
     mockPlayer.dockVisible = true;
     mockPlayer.close.mockClear();
