@@ -516,24 +516,56 @@ export function VerseMateTooltip({
    * gesture, so scrolling a long analysis still works.
    */
   const scrollOffsetRef = useRef(0);
+  // A new verse starts at the top; a stale offset from the last one would
+  // refuse the drag until the reader scrolled.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: targetVerseNumber is the trigger, not a value read inside
+  useEffect(() => {
+    scrollOffsetRef.current = 0;
+  }, [targetVerseNumber]);
+
+  /**
+   * Whether the drag now in progress began with the analysis at the top.
+   *
+   * The sheet takes the touch at its start (the only way it gets the gesture
+   * on iOS before the ScrollView's own pan does — a move-phase claim loses
+   * that race, measured on the simulator). So the rule is applied to what the
+   * drag DOES instead: a drag that began with the analysis scrolled down is the
+   * reader scrolling back up, and must neither slide nor dismiss the sheet.
+   * Before this the start claim made the "only at the top" check unreachable,
+   * so scrolling back up a long analysis could close it.
+   */
+  const dragFromTopRef = useRef(true);
+  const springBack = () => {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      damping: 20,
+      stiffness: 90,
+    }).start();
+  };
 
   // Pan responder for swipe-to-dismiss AND expand
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Upward drags stay ours (expand); downward drags are ours only when
-        // there is nothing above to scroll back to.
-        if (gestureState.dy > 5) return scrollOffsetRef.current <= 0;
-        return Math.abs(gestureState.dy) > 5;
+      onPanResponderGrant: () => {
+        dragFromTopRef.current = scrollOffsetRef.current <= 0;
       },
+      // Android's native scroll can take the gesture back mid-drag: never
+      // leave the sheet stranded part-way down when it does.
+      onPanResponderTerminate: springBack,
       onPanResponderMove: (_, gestureState) => {
-        // Only allow downward drag for sliding the whole modal
-        if (gestureState.dy > 0) {
+        // Only a downward drag that began at the top slides the whole sheet.
+        if (gestureState.dy > 0 && dragFromTopRef.current) {
           slideAnim.setValue(gestureState.dy);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
+        // A drag that began mid-analysis was scrolling, not moving the sheet.
+        if (!dragFromTopRef.current) {
+          springBack();
+          return;
+        }
         // Swipe Up -> Expand (if not already)
         if (gestureState.dy < -50 && !isExpandedRef.current) {
           expandRef.current(true);
@@ -546,12 +578,7 @@ export function VerseMateTooltip({
         }
         // Snap back if dragged down but not enough
         else if (gestureState.dy > 0) {
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            useNativeDriver: true,
-            damping: 20,
-            stiffness: 90,
-          }).start();
+          springBack();
         }
       },
     })
@@ -700,7 +727,9 @@ export function VerseMateTooltip({
               )}
             </View>
 
-            {/* Primary Action - Context-aware */}
+            {/* Primary Action - Context-aware. With no save handler (the Jesus
+                event's sheet, the reader's deep-link sheet) there is no save or
+                "sign in to save": either would close the sheet and save nothing. */}
             {isHighlighted ? (
               // Highlighted verse - show remove button
               <Pressable
@@ -713,7 +742,7 @@ export function VerseMateTooltip({
                 <Ionicons name="trash-outline" size={20} color={colors.textPrimary} />
                 <Text style={styles.secondaryButtonText}>Remove Highlight</Text>
               </Pressable>
-            ) : isLoggedIn ? (
+            ) : !onSaveAsHighlight ? null : isLoggedIn ? (
               // Plain verse - show save button
               <Pressable
                 style={[
