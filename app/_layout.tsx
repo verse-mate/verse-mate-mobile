@@ -238,8 +238,8 @@ function RootLayoutInner() {
           return;
         }
 
-        // Handle Jesus deep links: the hub, /jesus/life, and the three
-        // slug-bearing sections. The matching lives in lib/jesus/deep-link so
+        // Handle Jesus deep links: the hub, /jesus/life, and the slug-bearing
+        // sections (event, browse, theme, study, entry). The matching lives in lib/jesus/deep-link so
         // the routing table can be tested without mounting the root layout.
         const jesusRoute = resolveJesusDeepLink(url);
         if (jesusRoute) {
