@@ -43,7 +43,6 @@ import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
 import type { HighlightColor } from '@/constants/highlight-colors';
 import { getHighlightColor } from '@/constants/highlight-colors';
-import { useOptionalAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { useBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { isElementVisible, useTextVisibility } from '@/contexts/TextVisibilityContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -52,7 +51,6 @@ import type { Highlight } from '@/hooks/bible/use-highlights';
 import { useLexiconUnderlines } from '@/hooks/bible/use-lexicon-underlines';
 import { useNativeText } from '@/hooks/bible/use-native-text';
 import { useRedLetterEnabled } from '@/hooks/bible/use-red-letter-enabled';
-import { useVerseSync } from '@/hooks/bible-brain/use-verse-sync';
 import { isEnglishVersion, useChapterAlignment } from '@/hooks/use-chapter-alignment';
 import { Markdown } from '@/lib/markdown/Markdown';
 import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
@@ -285,42 +283,6 @@ export function ChapterReader({
   const specs = getHeaderSpecs(mode);
   const { fontSize: userFontSize } = useFontSize();
 
-  /**
-   * Follow-along: the verse being narrated right now.
-   *
-   * Only the verse NUMBER is marked, never the verse body — highlighting whole
-   * paragraphs as they are read makes the page strobe and fights the reader's
-   * own highlights, which are the thing that colour is supposed to mean here.
-   * The number is already the interaction target for Verse Insight, so the
-   * audio position lands on a glyph that is already meaningful.
-   *
-   * Gated on the playing track being THIS chapter. useVerseSync reports the
-   * active verse of whatever is loaded, so without this the reader would light
-   * up verse 5 of Genesis 1 while John 19 played.
-   *
-   * ⚠ INCOMPLETE: this styles the React Native <Text> path only, which is the
-   * FALLBACK renderer. With the native text renderer on — the default, and the
-   * reason chapter frame time is what it is — verses are drawn by
-   * ParagraphText, whose ParagraphInput has no active-verse concept, so
-   * nothing is marked. Verified on the simulator: Mark 9 narrating from 0:00
-   * with 48 timestamps available and verse 1 active at 2.06s highlighted
-   * nothing.
-   *
-   * Doing it properly means following `selection` rather than
-   * `redLetterVerses`: selection is passed as char offsets into the COMPILED
-   * paragraph and is updated live without recompiling, which is exactly the
-   * shape an active verse needs. `redLetterVerses` is compiled in, so reusing
-   * that path would recompile and re-measure every paragraph once per verse —
-   * undoing the work the native renderer exists to do.
-   */
-  const { activeVerse: narratedVerse } = useVerseSync();
-  const narratingTrack = useOptionalAudioPlayer()?.currentTrack ?? null;
-  const spokenVerse =
-    narratingTrack &&
-    narratingTrack.book_id === chapter.bookId &&
-    narratingTrack.chapter_number === chapter.chapterNumber
-      ? narratedVerse
-      : null;
   /**
    * Memoised: `createStyles` calls `StyleSheet.create`, and it was running on EVERY render.
    *
@@ -1136,10 +1098,7 @@ export function ChapterReader({
                         return (
                           <Text key={verse.verseNumber}>
                             <Text
-                              style={[
-                                styles.verseNumberSuperscript,
-                                verse.verseNumber === spokenVerse && styles.verseNumberSpoken,
-                              ]}
+                              style={styles.verseNumberSuperscript}
                               onPress={() => handleVerseTap(verse.verseNumber)}
                               accessibilityRole="button"
                               accessibilityLabel={`Verse ${verse.verseNumber} insight`}
@@ -1390,18 +1349,6 @@ const createStyles = (
       lineHeight: fontSizes.caption * lineHeights.ui,
       color: colors.textTertiary,
       marginBottom: spacing.md,
-    },
-    /**
-     * The verse being narrated right now.
-     *
-     * The numbers are ALREADY gold (that is what makes them read as pressable),
-     * so colour alone cannot single one out. A soft gold ground behind the
-     * glyph does, and stays subtle enough to read past — the request was
-     * explicitly "subtly highlight the currently spoken verse number in your
-     * gold — not the whole verse".
-     */
-    verseNumberSpoken: {
-      backgroundColor: `${colors.gold}33`,
     },
     verseNumberSuperscript: {
       // Real digits at 0.85 of body size, raised, rather than the Unicode
