@@ -9,10 +9,16 @@ connection every Jesus page sat on a spinner (Andy, on a plane, 2026-09-28:
 
 There is no bulk /offline/jesus endpoint, so this walks the SAME endpoints the
 app calls and records each response under the key the app will look it up by
-(services/jesus-offline.ts, `jesusCacheKey`): the path plus its query string,
-sorted, WITHOUT bible_version — scripture is re-rendered on the device in the
-reader's own version from the offline Bible, so the bundle is version-neutral
-apart from the NASB1995 text it carries as a fallback.
+(services/offline/jesus-store.ts, `jesusCacheKey`): the path plus its query
+string, sorted, WITHOUT bible_version — scripture is re-rendered on the device
+in the reader's own version from the offline Bible, so the bundle is
+version-neutral apart from the NASB1995 text it carries as a fallback.
+
+The app's keys also start with the content language (`en:/jesus/...`). The
+bundle stores them without it and records its language in jesus_meta;
+`importJesusSeed` adds the prefix on import, so the language is decided in one
+place. Fetch it anonymously: a signed-in request would come back in that
+user's preferred language, not English.
 
 Usage:
     python3 scripts/generate-jesus-bundle.py
@@ -152,7 +158,9 @@ def main() -> int:
         );
         CREATE TABLE jesus_meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
     """)
-    generated_at = datetime.now(timezone.utc).isoformat()
+    # Milliseconds + Z: microsecond `+00:00` stamps are outside the ECMAScript
+    # date-time format, so `Date.parse` on the device is engine-specific.
+    generated_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     db.executemany(
         "INSERT INTO offline_jesus (key, payload, bible_version, updated_at) VALUES (?, ?, ?, ?)",
         [(k, json.dumps(v, ensure_ascii=False, separators=(",", ":")),

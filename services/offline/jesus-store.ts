@@ -10,8 +10,9 @@
  * app: the English Jesus corpus is bundled as assets/data/jesus-seed.db
  * (scripts/generate-jesus-bundle.py) and copied into the offline database on
  * startup, and every response is then read LOCAL FIRST. A response is stored
- * under the key its request produces — path + sorted query, minus
- * bible_version — so the request the screen already makes is the lookup.
+ * under the key its request produces — content language, then path + sorted
+ * query minus bible_version — so the request the screen already makes is the
+ * lookup.
  *
  * Unlike the Bible seed, the import is versioned rather than first-install
  * only: an app update carrying a newer bundle refreshes existing installs, and
@@ -31,33 +32,80 @@ export interface JesusLocalRow {
 type QueryValue = string | number | boolean | undefined;
 
 /**
- * The storage key for a request. Must match `key()` in
- * scripts/generate-jesus-bundle.py exactly — that is what makes a bundled row
- * answer the app's own request.
+ * The content language a Jesus response is in, as a bare code (`en`, `de`).
+ *
+ * The backend picks it per request: the Bible version's language, overridden
+ * by a signed-in reader's preferred language (`resolveLanguage` in the
+ * backend's jesus plugin). The hooks work out the same answer and pass it
+ * here, so a Spanish reader's response and an English reader's response for
+ * the same URL are two different rows.
  */
-export function jesusCacheKey(path: string, query: Record<string, QueryValue> = {}): string {
+export function jesusContentLanguage(language: string | null | undefined): string {
+  const base = (language ?? '').trim().toLowerCase().split(/[-_]/)[0];
+  return base || 'en';
+}
+
+/**
+ * The storage key for a request: content language, then path + sorted query
+ * minus bible_version (scripture is the one version-dependent part, and it is
+ * re-rendered per version, see `reinjectPassages`).
+ *
+ * The bundle stores its rows WITHOUT the language prefix (`key()` in
+ * scripts/generate-jesus-bundle.py); `importJesusSeed` adds the seed's own
+ * language when it copies them in.
+ */
+export function jesusCacheKey(
+  path: string,
+  query: Record<string, QueryValue> = {},
+  language?: string | null
+): string {
   const entries = Object.entries(query)
     .filter(([k, v]) => k !== 'bible_version' && v !== undefined && v !== '')
     .map(([k, v]) => [k, String(v)] as const)
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   const qs = new URLSearchParams(entries as [string, string][]).toString();
-  return qs ? `${path}?${qs}` : path;
+  return `${jesusContentLanguage(language)}:${qs ? `${path}?${qs}` : path}`;
 }
+
+/**
+ * Milliseconds since the epoch for a stored timestamp, or NaN.
+ *
+ * The bundle was generated with microsecond `+00:00` stamps
+ * (`2026-09-28T18:48:37.317221+00:00`), which is outside the ECMAScript
+ * date-time format, so whether `Date.parse` accepts it is up to the engine.
+ * Rows are normalised to milliseconds + `Z` on import; this covers anything
+ * written before that.
+ */
+export function parseStoredTime(value: string): number {
+  const normalised = value.replace(/(\.\d{3})\d+/, '$1').replace(/\+00:00$/, 'Z');
+  return Date.parse(normalised);
+}
+
+/** Bumped when the stored key format changes, so an install re-imports once. */
+const KEY_FORMAT = 'lang-v1';
 
 let importPromise: Promise<void> | null = null;
 
 /**
  * Copy the bundled corpus into the offline database if it is newer than what
  * the device holds. Safe to call repeatedly; concurrent callers share one run.
+ * A failed run is forgotten, so the next read tries again instead of leaving
+ * the device network-only until the app restarts.
  */
 export function importJesusSeed(): Promise<void> {
   if (!importPromise) {
     importPromise = runImport().catch((error) => {
       perfTrace('jesus.import', { outcome: 'failed', error: String(error) });
+      importPromise = null;
       // Non-fatal: every read falls back to the network, as before.
     });
   }
   return importPromise;
+}
+
+/** FOR TESTS ONLY. */
+export function __TEST_ONLY_RESET_IMPORT(): void {
+  importPromise = null;
 }
 
 async function runImport(): Promise<void> {
@@ -70,36 +118,55 @@ async function runImport(): Promise<void> {
   if (!asset.localUri) throw new Error('jesus seed: no local URI');
   const path = decodeURI(asset.localUri.replace(/^file:\/\//, ''));
 
-  database.execSync(`ATTACH DATABASE '${path.replace(/'/g, "''")}' AS jesus_seed`);
+  // The async API throughout: the copy is ~9MB and must not block the JS
+  // thread on the first launch after an install or update.
+  await database.execAsync(`ATTACH DATABASE '${path.replace(/'/g, "''")}' AS jesus_seed`);
   try {
-    const seed = database.getFirstSync<{ v: string }>(
+    const seed = await database.getFirstAsync<{ v: string }>(
       "SELECT v FROM jesus_seed.jesus_meta WHERE k = 'generated_at'"
     );
-    const held = database.getFirstSync<{ v: string }>(
-      "SELECT v FROM jesus_meta WHERE k = 'seed_generated_at'"
+    const seedLanguage = await database.getFirstAsync<{ v: string }>(
+      "SELECT v FROM jesus_seed.jesus_meta WHERE k = 'language'"
     );
     if (!seed?.v) throw new Error('jesus seed: missing generated_at');
-    if (held?.v && held.v >= seed.v) {
+    const marker = `${seed.v}|${KEY_FORMAT}`;
+    const held = await database.getFirstAsync<{ v: string }>(
+      "SELECT v FROM jesus_meta WHERE k = 'seed_import'"
+    );
+    if (held?.v && held.v >= marker) {
       perfTrace('jesus.import', { outcome: 'current', seed: seed.v, ms: total() });
       return;
     }
-    database.withTransactionSync(() => {
+    const prefix = `${jesusContentLanguage(seedLanguage?.v)}:`;
+    await database.withTransactionAsync(async () => {
+      // Rows stored before keys carried a language (they start with the path
+      // itself). They are unreachable now; drop them rather than keep a copy.
+      await database.runAsync(
+        "DELETE FROM offline_jesus WHERE key LIKE '/%' OR key LIKE 'local:%'"
+      );
       // Keep a row the network refreshed after this bundle was generated.
-      database.execSync(`
-        INSERT OR REPLACE INTO offline_jesus (key, payload, bible_version, updated_at)
-        SELECT s.key, s.payload, s.bible_version, s.updated_at FROM jesus_seed.offline_jesus s
-        WHERE NOT EXISTS (
-          SELECT 1 FROM offline_jesus m WHERE m.key = s.key AND m.updated_at > s.updated_at
-        )
-      `);
-      database.runSync("INSERT OR REPLACE INTO jesus_meta (k, v) VALUES ('seed_generated_at', ?)", [
-        seed.v,
-      ]);
+      // Stamps are normalised to milliseconds + Z (see parseStoredTime).
+      await database.runAsync(
+        `INSERT OR REPLACE INTO offline_jesus (key, payload, bible_version, updated_at)
+         SELECT ? || s.key, s.payload, s.bible_version, substr(s.updated_at, 1, 23) || 'Z'
+         FROM jesus_seed.offline_jesus s
+         WHERE NOT EXISTS (
+           SELECT 1 FROM offline_jesus m
+           WHERE m.key = ? || s.key AND m.updated_at > substr(s.updated_at, 1, 23) || 'Z'
+         )`,
+        [prefix, prefix]
+      );
+      await database.runAsync(
+        "INSERT OR REPLACE INTO jesus_meta (k, v) VALUES ('seed_import', ?)",
+        [marker]
+      );
     });
-    const count = database.getFirstSync<{ n: number }>('SELECT COUNT(*) AS n FROM offline_jesus');
+    const count = await database.getFirstAsync<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM offline_jesus'
+    );
     perfTrace('jesus.import', { outcome: 'imported', seed: seed.v, rows: count?.n, ms: total() });
   } finally {
-    database.execSync('DETACH DATABASE jesus_seed');
+    await database.execAsync('DETACH DATABASE jesus_seed');
   }
 }
 

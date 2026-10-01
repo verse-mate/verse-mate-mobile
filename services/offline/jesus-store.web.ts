@@ -10,14 +10,29 @@ export interface JesusLocalRow {
 
 type QueryValue = string | number | boolean | undefined;
 
-export function jesusCacheKey(path: string, query: Record<string, QueryValue> = {}): string {
+export function jesusContentLanguage(language: string | null | undefined): string {
+  const base = (language ?? '').trim().toLowerCase().split(/[-_]/)[0];
+  return base || 'en';
+}
+
+export function jesusCacheKey(
+  path: string,
+  query: Record<string, QueryValue> = {},
+  language?: string | null
+): string {
   const entries = Object.entries(query)
     .filter(([k, v]) => k !== 'bible_version' && v !== undefined && v !== '')
     .map(([k, v]) => [k, String(v)] as const)
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   const qs = new URLSearchParams(entries as [string, string][]).toString();
-  return qs ? `${path}?${qs}` : path;
+  return `${jesusContentLanguage(language)}:${qs ? `${path}?${qs}` : path}`;
 }
+
+export function parseStoredTime(value: string): number {
+  return Date.parse(value.replace(/(\.\d{3})\d+/, '$1').replace(/\+00:00$/, 'Z'));
+}
+
+export function __TEST_ONLY_RESET_IMPORT(): void {}
 
 export async function importJesusSeed(): Promise<void> {}
 export async function getJesusLocal(_key: string): Promise<JesusLocalRow | null> {
