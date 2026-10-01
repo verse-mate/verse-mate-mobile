@@ -34,8 +34,9 @@ jest.mock('@/lib/markdown/Markdown', () => ({
   },
 }));
 
+jest.mock('@/hooks/use-preferred-language', () => ({ usePreferredLanguage: () => 'en-US' }));
 jest.mock('@/src/api', () => ({
-  useBibleChapterExplanation: () => ({
+  useBibleByLine: () => ({
     data: { content: '## John 8:1\n> But Jesus went to the Mount of Olives.\n\nHe withdraws.' },
     isPending: false,
   }),

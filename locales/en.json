@@ -200,15 +200,22 @@
       "themes": "Explore by Topic",
       "results": "Results",
       "noResults": "Nothing matches “{{query}}”",
-      "eventCountSuffix": " · {{count}} events"
+      "eventCountSuffix": " · {{count}} events",
+      "eventCountSuffix_one": " · {{count}} event",
+      "eventCountSuffix_other": " · {{count}} events"
     },
     "browse": {
       "empty": "Nothing here yet.",
       "truncated": "Showing the first {{count}} — this category is larger than one page.",
-      "stats": "{{events}} {{plural}} · {{topics}} topics",
       "eventCount": "{{count}} events",
       "whatHeSays": "What He says here",
-      "whatHeDoes": "What He does here"
+      "whatHeDoes": "What He does here",
+      "eventCount_one": "{{count}} event",
+      "eventCount_other": "{{count}} events",
+      "moments_one": "{{count}} moment",
+      "moments_other": "{{count}} moments",
+      "topics_one": "{{count}} topic",
+      "topics_other": "{{count}} topics"
     },
     "life": {
       "title": "Follow His Life",
@@ -243,7 +250,10 @@
       "compareOf": "Compare: {{title}}",
       "noByline": "No line-by-line reading for this event yet.",
       "related": "Related events",
-      "themes": "Themes"
+      "themes": "Themes",
+      "reveals": "What this reveals",
+      "noBylineForAccount": "The line-by-line reading of {{account}} hasn’t been generated yet.",
+      "openVerse": "Open Verse Insight for verse {{number}}"
     },
     "insight": {
       "overview": "Overview",
@@ -287,5 +297,14 @@
     "compare": {
       "sharedBy": "Told by"
     }
+  },
+  "navigation": {
+    "old": "Old",
+    "new": "New",
+    "jesus": "Jesus",
+    "topics": "Topics",
+    "searchJesus": "Search His words and actions...",
+    "filterTopics": "Filter topics...",
+    "filterBooks": "Filter books..."
   }
 }

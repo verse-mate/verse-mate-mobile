@@ -200,15 +200,22 @@
       "themes": "Explorer par thème",
       "results": "Résultats",
       "noResults": "Rien ne correspond à « {{query}} »",
-      "eventCountSuffix": " · {{count}} événements"
+      "eventCountSuffix": " · {{count}} événements",
+      "eventCountSuffix_one": " · {{count}} événement",
+      "eventCountSuffix_other": " · {{count}} événements"
     },
     "browse": {
       "empty": "Rien ici pour l'instant.",
       "truncated": "Affichage des {{count}} premiers — cette catégorie dépasse une page.",
-      "stats": "{{events}} {{plural}} · {{topics}} thèmes",
       "eventCount": "{{count}} événements",
       "whatHeSays": "Ce qu’Il dit ici",
-      "whatHeDoes": "Ce qu’Il fait ici"
+      "whatHeDoes": "Ce qu’Il fait ici",
+      "eventCount_one": "{{count}} événement",
+      "eventCount_other": "{{count}} événements",
+      "moments_one": "{{count}} moment",
+      "moments_other": "{{count}} moments",
+      "topics_one": "{{count}} thème",
+      "topics_other": "{{count}} thèmes"
     },
     "life": {
       "title": "Suivre sa vie",
@@ -243,7 +250,10 @@
       "compareOf": "Comparer : {{title}}",
       "noByline": "Pas encore de lecture ligne par ligne pour cet événement.",
       "related": "Événements liés",
-      "themes": "Thèmes"
+      "themes": "Thèmes",
+      "reveals": "Ce que cela révèle",
+      "noBylineForAccount": "La lecture ligne par ligne de {{account}} n’a pas encore été générée.",
+      "openVerse": "Ouvrir Verse Insight pour le verset {{number}}"
     },
     "insight": {
       "overview": "Aperçu",
@@ -287,5 +297,14 @@
     "compare": {
       "sharedBy": "Raconté par"
     }
+  },
+  "navigation": {
+    "old": "Ancien",
+    "new": "Nouveau",
+    "jesus": "Jésus",
+    "topics": "Thèmes",
+    "searchJesus": "Rechercher Ses paroles et Ses actes...",
+    "filterTopics": "Filtrer les thèmes...",
+    "filterBooks": "Filtrer les livres..."
   }
 }

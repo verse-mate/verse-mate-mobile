@@ -26,10 +26,12 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useFontSize } from '@/hooks/bible/use-font-size';
 import { useJesusCompare } from '@/hooks/jesus';
+import { useBibleVersion } from '@/hooks/use-bible-version';
+import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { covers } from '@/lib/jesus/byline-scope';
 import { eventVerseSpan, narrowStudyToEvent, spanRangeLabel } from '@/lib/jesus/study-scope';
 import { Markdown } from '@/lib/markdown/Markdown';
-import { useBibleChapterExplanation, useStudy } from '@/src/api';
+import { useBibleByLine, useStudy } from '@/src/api';
 import {
   fontSizes,
   fontWeights,
@@ -196,7 +198,11 @@ function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labe
   const { t } = useTranslation();
   const { styles, md } = useTabStyles();
 
-  const query = useBibleChapterExplanation(passage.book_id, passage.chapter, 'byline');
+  // The reader's own call (ChapterPage's useBibleByLine): same language, same
+  // version, so this shares its cache and is not English for everyone.
+  const language = usePreferredLanguage();
+  const { bibleVersion } = useBibleVersion();
+  const query = useBibleByLine(passage.book_id, passage.chapter, bibleVersion, { language });
   const data = query.data as { content?: string } | undefined;
 
   const rows = useMemo(() => {
@@ -316,7 +322,9 @@ function StudyBody({ detail }: { detail: JesusEventDetail }) {
     return passages.find((p) => p.is_primary) ?? passages[0] ?? null;
   }, [detail.passages]);
   const span = useMemo(() => eventVerseSpan(primary), [primary]);
-  const { data: chapterStudy } = useStudy(span?.bookId ?? 0, span?.chapter ?? 0);
+  // In the reader's language, as StudyPanel asks for it.
+  const language = usePreferredLanguage();
+  const { data: chapterStudy } = useStudy(span?.bookId ?? 0, span?.chapter ?? 0, language);
   const narrowed = useMemo(
     () => (chapterStudy && span ? narrowStudyToEvent(chapterStudy, span) : null),
     [chapterStudy, span]
