@@ -55,11 +55,21 @@ const config = {
         'UIInterfaceOrientationLandscapeLeft',
         'UIInterfaceOrientationLandscapeRight',
       ],
+      // Setting CFBundleURLTypes here OVERRIDES Expo's `scheme` rather than
+      // merging with it — prebuild says so out loud ("Ignoring abstract
+      // property scheme: versemate") — so the app shipped without its own
+      // scheme registered and every `versemate://` link was dead on iOS,
+      // names-of-god included. Declaring it alongside the Google one restores
+      // what `scheme: 'versemate'` above already says the app answers to.
       CFBundleURLTypes: [
         {
           CFBundleURLSchemes: [
             'com.googleusercontent.apps.94126503648-htsubrfo04f7ef34ig58lsiscj9kbmo6',
           ],
+        },
+        {
+          CFBundleURLName: 'org.versemate.app',
+          CFBundleURLSchemes: ['versemate'],
         },
       ],
     },

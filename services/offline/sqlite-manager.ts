@@ -96,6 +96,20 @@ const CREATE_TABLES_SQL = `
   );
   CREATE INDEX IF NOT EXISTS idx_explanations_lookup ON offline_explanations(language_code, book_id, chapter_number);
 
+  -- The Jesus feature, stored response-by-response under the key the app
+  -- requests it by (services/offline/jesus-store.ts). Seeded from the bundled
+  -- assets/data/jesus-seed.db and refreshed as pages are viewed online.
+  CREATE TABLE IF NOT EXISTS offline_jesus (
+    key TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    bible_version TEXT,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS jesus_meta (
+    k TEXT PRIMARY KEY,
+    v TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS offline_topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     language_code TEXT NOT NULL,
@@ -658,7 +672,28 @@ export async function getLocalCommentary(
     : [languageCode, bookId, chapterNumber];
 
   const result = database.getFirstSync<CommentaryData>(query, params);
-  return result ?? null;
+  if (result) return result;
+
+  /*
+   * No row under that exact code: fall back to the same LANGUAGE under any
+   * region. Commentary is stored under the code it was downloaded with —
+   * the bundled English seed is `en-US` — while callers ask for `en`, `en-US`
+   * or `en-GB` depending on where the code came from. An exact-only match
+   * turned "which spelling of English" into "not downloaded", and the caller
+   * then went to the network for content sitting on the device: Verse
+   * Insight's By-Line asked for `en`, missed `en-US`, and spun on a slow
+   * connection (Andy, on a plane, 2026-09-28). The bare language code wins
+   * over a regional one when both exist, then a stable alphabetical order.
+   */
+  const base = languageCode.split('-')[0].toLowerCase();
+  if (!base) return null;
+  const fallback = type
+    ? "SELECT explanation_id, book_id, chapter_number, verse_start, verse_end, type, explanation, language_code FROM offline_explanations WHERE (lower(language_code) = ? OR lower(language_code) LIKE ? || '-%') AND book_id = ? AND chapter_number = ? AND type = ? ORDER BY (lower(language_code) = ?) DESC, language_code LIMIT 1"
+    : "SELECT explanation_id, book_id, chapter_number, verse_start, verse_end, type, explanation, language_code FROM offline_explanations WHERE (lower(language_code) = ? OR lower(language_code) LIKE ? || '-%') AND book_id = ? AND chapter_number = ? ORDER BY (lower(language_code) = ?) DESC, language_code LIMIT 1";
+  const fallbackParams = type
+    ? [base, base, bookId, chapterNumber, type, base]
+    : [base, base, bookId, chapterNumber, base];
+  return database.getFirstSync<CommentaryData>(fallback, fallbackParams) ?? null;
 }
 
 /**

@@ -394,3 +394,16 @@ export function useBibleInteraction() {
   }
   return context;
 }
+
+/**
+ * The interaction surface if there is one, otherwise null.
+ *
+ * The throwing version is right inside the reader, where a missing provider is
+ * a wiring bug. It is wrong for a component that renders in BOTH a provided and
+ * an unprovided context — the Jesus passage block, which opens Verse Insight in
+ * place when it has a provider and falls back to opening the reader when it
+ * does not.
+ */
+export function useOptionalBibleInteraction() {
+  return useContext(BibleInteractionContext) ?? null;
+}

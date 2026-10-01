@@ -46,6 +46,9 @@ export function FontSizeSelector() {
         <View style={styles.controlRow}>
           <Pressable
             onPress={() => handleChange(-1)}
+            testID="font-size-decrease"
+            accessibilityRole="button"
+            accessibilityLabel="Decrease font size"
             disabled={fontSize <= minFontSize}
             style={[styles.button, fontSize <= minFontSize && styles.buttonDisabled]}
           >
@@ -64,6 +67,9 @@ export function FontSizeSelector() {
 
           <Pressable
             onPress={() => handleChange(1)}
+            testID="font-size-increase"
+            accessibilityRole="button"
+            accessibilityLabel="Increase font size"
             disabled={fontSize >= maxFontSize}
             style={[styles.button, fontSize >= maxFontSize && styles.buttonDisabled]}
           >

@@ -39,6 +39,7 @@ export {
   stopPerfMonitor,
 } from './monitor';
 export { perfEnabled } from './enabled';
+export { perfTimer, perfTrace } from './trace';
 export { flushPerfReport, installPerfSession, uninstallPerfSession } from './session';
 export { useWhyRender } from './why-render';
 export type {
