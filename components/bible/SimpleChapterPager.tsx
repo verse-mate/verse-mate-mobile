@@ -53,6 +53,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { StyleSheet, View } from 'react-native';
 import PagerView from '@/components/common/PagerView';
@@ -103,6 +104,13 @@ export interface SimpleChapterPagerRef {
 const SWIPE_SPAN_TIMEOUT_MS = 3000;
 
 const PAGE_CURRENT_MIDDLE = 1; // Current page when prev exists
+/**
+ * How long a swipe's dispatched chapter may wait to commit before it is
+ * treated as never going to. A real commit lands in well under a second
+ * (`swipe.settle` ~520ms); this is generous so a slow device is not mistaken
+ * for a collapsed dispatch.
+ */
+const DISPATCH_TTL_MS = 5000;
 
 /**
  * SimpleChapterPager Component
@@ -166,7 +174,46 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
      * somewhere else (the dropdown, a deep link, restored reading position); that
      * is authoritative and resets everything immediately.
      */
-    const dispatchedQueueRef = useRef<string[]>([]);
+    const dispatchedQueueRef = useRef<{ key: string; at: number }[]>([]);
+
+    /**
+     * The chapter keys the pager is currently showing (previous, current, next).
+     *
+     * An external navigation to one of THESE — the floating Prev/Next buttons,
+     * a keyboard shortcut, audio auto-advance — needs no remount: that page is
+     * already mounted under its key and the recenter below slides it into the
+     * centre, as it always did. Only a jump to a chapter not on screen replaces
+     * every key at once, which is the case iOS fails to re-present.
+     */
+    const pageKeysOf = (
+      prev: { bookId: number; chapterNumber: number } | null | undefined,
+      next: { bookId: number; chapterNumber: number } | null | undefined
+    ) =>
+      [
+        canGoPrevious && prev ? `${prev.bookId}-${prev.chapterNumber}` : null,
+        `${bookId}-${chapterNumber}`,
+        canGoNext && next ? `${next.bookId}-${next.chapterNumber}` : null,
+      ].filter((k): k is string => k !== null);
+    const renderedKeysRef = useRef<string[]>(pageKeysOf(prevChapter, nextChapter));
+
+    /**
+     * Bumped only when a chapter arrives that NO swipe dispatched — a jump from
+     * the book selector, a deep link, a restored reading position.
+     *
+     * Remounting the PagerView is the only reliable way to make iOS re-present
+     * after such a jump. The pages are keyed by chapter identity, so a jump
+     * replaces EVERY key at once; UIPageViewController keeps showing the view
+     * controller it already has, and the recenter below cannot dislodge it
+     * because `setPageWithoutAnimation(1)` is a no-op when the pager already
+     * believes it is at 1 — which it does for any jump between two chapters
+     * that both have a previous. That is the reported "title moves but not the
+     * content", recoverable by swiping away and back, which is exactly the
+     * gesture that forces a re-present.
+     *
+     * A swipe never takes this branch, so the swipe path — and all the timing
+     * work around it — is untouched.
+     */
+    const [pagerGeneration, setPagerGeneration] = useState(0);
 
     // Pending navigation target — set by onPageSelected, processed when pager reaches idle
     const pendingNavRef = useRef<{ bookId: number; chapterNumber: number } | null>(null);
@@ -341,12 +388,32 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       const currentKey = `${bookId}-${chapterNumber}`;
       if (prevChapterKey.current === currentKey) return;
       prevChapterKey.current = currentKey;
+      // A dispatch that never committed — a forward-then-back swipe collapsed
+      // by the parent's useDeferredValue — would otherwise stay queued, and a
+      // later selector jump to that chapter would be taken for ours.
+      const now = Date.now();
+      dispatchedQueueRef.current = dispatchedQueueRef.current.filter(
+        (entry) => now - entry.at < DISPATCH_TTL_MS
+      );
       const queue = dispatchedQueueRef.current;
-      const at = queue.indexOf(currentKey);
+      const at = queue.findIndex((entry) => entry.key === currentKey);
+      const wasOnScreen = renderedKeysRef.current.includes(currentKey);
+      renderedKeysRef.current = pageKeysOf(prevChapter, nextChapter);
       if (at === -1) {
         // Not one of ours: an external navigation wins outright.
         queue.length = 0;
         virtualRef.current = { bookId, chapterNumber };
+        if (!wasOnScreen) {
+          // A jump to a chapter that was not on screen: force the native pager
+          // to rebuild against the new children, and drop any swipe still in
+          // flight — the old pager will never send its idle, and the fallback
+          // timer would otherwise fire the stale target and undo the jump.
+          clearPendingTimer();
+          pendingNavRef.current = null;
+          isDraggingRef.current = false;
+          draggedSinceSeekRef.current = false;
+          setPagerGeneration((n) => n + 1);
+        }
       } else {
         // Drop everything up to and including the chapter that just committed.
         queue.splice(0, at + 1);
@@ -363,7 +430,7 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
       endRecenterSpan();
       recenterSpanRef.current = perfSpan('pager.recenter', { to: targetIndex });
       pagerRef.current?.setPageWithoutAnimation(targetIndex);
-    }, [bookId, chapterNumber, canGoPrevious]);
+    }, [bookId, chapterNumber, canGoPrevious, canGoNext, prevChapter, nextChapter]);
 
     // Expose imperative methods
     useImperativeHandle(ref, () => ({
@@ -479,7 +546,10 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
         beginSwipeSpan();
         virtualRef.current = target;
         pendingNavRef.current = target;
-        dispatchedQueueRef.current.push(`${target.bookId}-${target.chapterNumber}`);
+        dispatchedQueueRef.current.push({
+          key: `${target.bookId}-${target.chapterNumber}`,
+          at: Date.now(),
+        });
         perfAdd('swipe.navResolved', 1);
       };
 
@@ -626,6 +696,8 @@ export const SimpleChapterPager = forwardRef<SimpleChapterPagerRef, SimpleChapte
 
     return (
       <PagerView
+        // Remount on an external jump only — see pagerGeneration.
+        key={`pager-${pagerGeneration}`}
         ref={pagerRef}
         style={styles.pagerView}
         initialPage={initialPageIndex}

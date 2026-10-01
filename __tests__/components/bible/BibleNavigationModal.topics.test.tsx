@@ -220,8 +220,10 @@ describe('BibleNavigationModal - Topics Tab', () => {
         />
       );
 
-      expect(screen.getAllByText('Old Testament').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('New Testament').length).toBeGreaterThan(0);
+      // "Old"/"New", not the full testament names — four tabs do not fit them
+      // on a phone. See BibleNavigationModal.test.tsx for the full contract.
+      expect(screen.getAllByText('Old').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('New').length).toBeGreaterThan(0);
       expect(screen.getByText('Topics')).toBeTruthy();
     });
 

@@ -47,6 +47,20 @@ export interface StudyPanelProps {
   bookId: number;
   chapter: number;
   testID?: string;
+  /**
+   * A study to render INSTEAD of fetching this chapter's.
+   *
+   * The Jesus event screen passes the chapter study already narrowed to the
+   * event's verses (see lib/jesus/study-scope). Everything below this seam —
+   * the nine-step spine, the card chrome, the frame ramp — is identical, which
+   * is the point: the Jesus Study tab and the reader's Study tab render through
+   * one component and cannot drift apart.
+   *
+   * `undefined` fetches as before. `null` means "narrowed to nothing".
+   */
+  study?: InductiveStudy | null;
+  /** Rendered above the first card — e.g. "Luke 2:41-52" scope note. */
+  header?: React.ReactNode;
 }
 
 type Colors = ReturnType<typeof getColors>;
@@ -82,7 +96,13 @@ type MarkdownStyles = ReturnType<typeof createMarkdownStyles>;
  */
 const CARDS_PER_FRAME = 3;
 
-export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPanelProps) {
+export function StudyPanel({
+  bookId,
+  chapter,
+  testID = 'study-panel',
+  study: studyOverride,
+  header,
+}: StudyPanelProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const markdownStyles = useMemo(() => createMarkdownStyles(colors), [colors]);
@@ -96,9 +116,17 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
   // (useStudyLabels) so a new language's chrome ships without an app release,
   // with the bundled @versemate/studies map as offline/English fallback.
   const labels = useStudyLabels(language);
-  const { data: studyData, isLoading } = useStudy(bookId, chapter, language);
-  const study: InductiveStudy | null = studyData ?? null;
-  const loading = isLoading;
+  // Skip the fetch entirely when the caller supplied a study — the Jesus
+  // screen has already fetched and narrowed it, and refetching here would
+  // render the WHOLE chapter under an event heading.
+  const supplied = studyOverride !== undefined;
+  const { data: studyData, isLoading } = useStudy(
+    supplied ? 0 : bookId,
+    supplied ? 0 : chapter,
+    language
+  );
+  const study: InductiveStudy | null = supplied ? (studyOverride ?? null) : (studyData ?? null);
+  const loading = supplied ? false : isLoading;
 
   // Bulk state drives the default for every section. Per-card overrides
   // win when the user toggles individually after a bulk action.
@@ -258,6 +286,9 @@ export function StudyPanel({ bookId, chapter, testID = 'study-panel' }: StudyPan
           </Pressable>
         </View>
       </View>
+
+      {/* Caller-supplied scope note (Jesus event: which verses this covers). */}
+      {header}
 
       {/* Subtitle + theme line — small, muted, just below the title row */}
       {study.subtitle ? <Text style={styles.subtitle}>{study.subtitle}</Text> : null}

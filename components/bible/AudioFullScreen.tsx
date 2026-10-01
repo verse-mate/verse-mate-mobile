@@ -17,6 +17,7 @@ import { trackDisplayLabel, useAudioPlayer } from '@/contexts/AudioPlayerContext
 import { useTheme } from '@/contexts/ThemeContext';
 import { trackAudioSeek, trackAudioSpeedChanged } from '@/lib/analytics/audio-events';
 import type { ResumeProgress } from '@/lib/audio/audioApi';
+import { useBibleTestaments } from '@/src/api';
 
 const SPEEDS = [0.5, 1, 1.25, 1.5, 2];
 
@@ -40,6 +41,16 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
   const track = player.currentTrack;
   const isOpen = player.fullScreenOpen;
   const label = track ? trackDisplayLabel(track) : null;
+  /**
+   * "Mark 8", not "MRK 8". `book_usfm` is the code the Bible Brain fileset is
+   * addressed by, not a label. Falls back to the code so a slow catalogue
+   * never leaves the headline blank.
+   */
+  const { data: books = [] } = useBibleTestaments(undefined, {});
+  const headline = useMemo(() => {
+    const name = books.find((b) => b.id === track?.book_id)?.name;
+    return name && track ? `${name} ${track.chapter_number}` : (label?.secondary ?? '');
+  }, [books, track, label?.secondary]);
   /**
    * Audio analytics events are keyed on an explanation id. Scripture narration
    * (Bible Brain) has no explanation row, so these events are emitted only for
@@ -76,9 +87,18 @@ export function AudioFullScreen(props: AudioFullScreenProps) {
               <Ionicons name="chevron-down" size={28} color={colors.textPrimary} />
             </Pressable>
           </View>
+          {/* Reference first, version second — "Mark 8" then the version. The
+              reference is what the listener is tracking; the version is
+              provenance, and leading with it made the big line read as the
+              least specific thing on screen.
+
+              The book NAME, not the USFM code: `label.secondary` is
+              "<book_usfm> <chapter>", which rendered "MRK 8" here exactly as it
+              rendered "JHN 19" in the dock. Same catalogue lookup, same
+              fallback when it has not landed. */}
           <View style={styles.titleBlock}>
-            <Text style={styles.type}>{label?.primary ?? ''}</Text>
-            <Text style={styles.chapter}>{label?.secondary ?? ''}</Text>
+            <Text style={styles.type}>{headline}</Text>
+            <Text style={styles.chapter}>{label?.primary ?? ''}</Text>
           </View>
 
           <Slider
@@ -239,7 +259,6 @@ function createStyles(colors: ReturnType<typeof useTheme>['colors']) {
       fontSize: 22,
       fontWeight: '700',
       color: colors.textPrimary,
-      textTransform: 'capitalize',
     },
     chapter: {
       fontSize: 16,

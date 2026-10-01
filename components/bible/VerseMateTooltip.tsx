@@ -50,9 +50,11 @@ import { getHighlightColor } from '@/constants/highlight-colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeviceInfo } from '@/hooks/use-device-info';
+import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { AnalyticsEvent, analytics } from '@/lib/analytics';
 import type { VersemateTooltipSource } from '@/lib/analytics/types';
 import { Markdown } from '@/lib/markdown/Markdown';
+import { perfTimer, perfTrace } from '@/lib/perf';
 import { useBibleByLine } from '@/src/api';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { HighlightGroup } from '@/utils/bible/groupConsecutiveHighlights';
@@ -131,6 +133,7 @@ export function VerseMateTooltip({
 }: VerseMateTooltipProps) {
   const { colors, mode } = useTheme();
   const { bibleVersion } = useBibleVersion();
+  const preferredLanguage = usePreferredLanguage();
   const insets = useSafeAreaInsets();
   const { isTablet, isLandscape, useSplitView, splitRatio, splitViewMode } = useDeviceInfo();
   const { width: windowWidth } = useWindowDimensions();
@@ -205,8 +208,50 @@ export function VerseMateTooltip({
     bookId,
     chapterNumber,
     bibleVersion,
-    { enabled: !!targetVerseNumber && visible }
+    {
+      enabled: !!targetVerseNumber && visible,
+      // The reader's own language, exactly as ChapterPage passes it.
+      //
+      // It used to pass none, which (a) asked the server for its default
+      // language rather than the reader's, and (b) made the local lookup search
+      // for `en` while the offline commentary is stored as `en-US`. That missed
+      // every time, so Verse Insight went to the NETWORK even with the
+      // commentary downloaded — measured at 350ms on the simulator's Wi-Fi, and
+      // on plane Wi-Fi the spinner Andy kept seeing (2026-09-28). Same query key
+      // as the reader's By-Line, too, so a chapter already open in Insight
+      // serves the sheet from memory.
+      language: preferredLanguage,
+    }
   );
+
+  /**
+   * How long the analysis took to appear after the sheet opened — the number
+   * behind "the byline takes time to load in Verse Insight despite being
+   * downloaded". Paired with the `explanation.fetch` trace, which says which
+   * path (SQLite or network) served it. Perf builds only.
+   */
+  const openTimer = useRef<(() => number) | null>(null);
+  useEffect(() => {
+    if (visible && targetVerseNumber) {
+      openTimer.current = perfTimer();
+      // Which path served it (SQLite or network) is in `explanation.fetch`; a
+      // cache hit shows up here as an `insight.ready` of ~0ms.
+      perfTrace('insight.open', { book: bookId, ch: chapterNumber, verse: targetVerseNumber });
+    } else {
+      openTimer.current = null;
+    }
+  }, [visible, targetVerseNumber, bookId, chapterNumber]);
+  useEffect(() => {
+    if (openTimer.current && byLineData?.content) {
+      perfTrace('insight.ready', {
+        book: bookId,
+        ch: chapterNumber,
+        verse: targetVerseNumber,
+        ms: openTimer.current(),
+      });
+      openTimer.current = null;
+    }
+  }, [byLineData?.content, bookId, chapterNumber, targetVerseNumber]);
 
   // Parse the insight for the specific verses
   const insightText = useMemo(() => {
@@ -459,36 +504,81 @@ export function VerseMateTooltip({
     isExpandedRef.current = expanded;
   });
 
+  /**
+   * How far the analysis is scrolled.
+   *
+   * The pan responder used to be attached to the header grabber ALONE, so a
+   * drag anywhere on the body of the sheet was never offered to it — iOS
+   * rubber-banded the ScrollView instead and the sheet sprang back. Reported
+   * as "if I push down on this window - don't 'bounce down' and instead got to
+   * drag down to close". The sheet now claims a downward drag whenever the
+   * content is already at the top; below the top the ScrollView keeps the
+   * gesture, so scrolling a long analysis still works.
+   */
+  const scrollOffsetRef = useRef(0);
+  // A new verse starts at the top; a stale offset from the last one would
+  // refuse the drag until the reader scrolled.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: targetVerseNumber is the trigger, not a value read inside
+  useEffect(() => {
+    scrollOffsetRef.current = 0;
+  }, [targetVerseNumber]);
+
+  /**
+   * Whether the drag now in progress began with the analysis at the top.
+   *
+   * The sheet takes the touch at its start (the only way it gets the gesture
+   * on iOS before the ScrollView's own pan does — a move-phase claim loses
+   * that race, measured on the simulator). So the rule is applied to what the
+   * drag DOES instead: a drag that began with the analysis scrolled down is the
+   * reader scrolling back up, and must neither slide nor dismiss the sheet.
+   * Before this the start claim made the "only at the top" check unreachable,
+   * so scrolling back up a long analysis could close it.
+   */
+  const dragFromTopRef = useRef(true);
+  const springBack = () => {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      damping: 20,
+      stiffness: 90,
+    }).start();
+  };
+
   // Pan responder for swipe-to-dismiss AND expand
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dy) > 5;
+      onPanResponderGrant: () => {
+        dragFromTopRef.current = scrollOffsetRef.current <= 0;
       },
+      // Android's native scroll can take the gesture back mid-drag: never
+      // leave the sheet stranded part-way down when it does.
+      onPanResponderTerminate: springBack,
       onPanResponderMove: (_, gestureState) => {
-        // Only allow downward drag for sliding the whole modal
-        if (gestureState.dy > 0) {
+        // Only a downward drag that began at the top slides the whole sheet.
+        if (gestureState.dy > 0 && dragFromTopRef.current) {
           slideAnim.setValue(gestureState.dy);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
+        // A drag that began mid-analysis was scrolling, not moving the sheet.
+        if (!dragFromTopRef.current) {
+          springBack();
+          return;
+        }
         // Swipe Up -> Expand (if not already)
         if (gestureState.dy < -50 && !isExpandedRef.current) {
           expandRef.current(true);
         }
-        // Swipe Down -> Dismiss
-        else if (gestureState.dy > 70) {
+        // Swipe Down -> Dismiss. Velocity as well as distance: a quick flick
+        // is a dismissal even when it covers little ground, which is most of
+        // what "make it easier to close" means in practice.
+        else if (gestureState.dy > 70 || (gestureState.dy > 20 && gestureState.vy > 0.6)) {
           dismissRef.current();
         }
         // Snap back if dragged down but not enough
         else if (gestureState.dy > 0) {
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            useNativeDriver: true,
-            damping: 20,
-            stiffness: 90,
-          }).start();
+          springBack();
         }
       },
     })
@@ -538,9 +628,10 @@ export function VerseMateTooltip({
       <Animated.View
         style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
         pointerEvents="auto"
+        {...panResponder.panHandlers}
       >
         {/* Header with pan responder for swipe */}
-        <View style={styles.header} {...panResponder.panHandlers}>
+        <View style={styles.header}>
           <View style={styles.handle} />
           <Text style={styles.verseMateHeader}>Verse Insight</Text>
         </View>
@@ -552,6 +643,14 @@ export function VerseMateTooltip({
             style={styles.scrollContainer}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            // No rubber-band at the top: that bounce is what the sheet's own
+            // drag-to-dismiss has to replace, and having both means the sheet
+            // appears to resist being closed.
+            bounces={false}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+            }}
           >
             <View style={{ paddingHorizontal: spacing.lg }}>
               {/* Title with optional color indicator */}
@@ -628,7 +727,9 @@ export function VerseMateTooltip({
               )}
             </View>
 
-            {/* Primary Action - Context-aware */}
+            {/* Primary Action - Context-aware. With no save handler (the Jesus
+                event's sheet, the reader's deep-link sheet) there is no save or
+                "sign in to save": either would close the sheet and save nothing. */}
             {isHighlighted ? (
               // Highlighted verse - show remove button
               <Pressable
@@ -641,7 +742,7 @@ export function VerseMateTooltip({
                 <Ionicons name="trash-outline" size={20} color={colors.textPrimary} />
                 <Text style={styles.secondaryButtonText}>Remove Highlight</Text>
               </Pressable>
-            ) : isLoggedIn ? (
+            ) : !onSaveAsHighlight ? null : isLoggedIn ? (
               // Plain verse - show save button
               <Pressable
                 style={[

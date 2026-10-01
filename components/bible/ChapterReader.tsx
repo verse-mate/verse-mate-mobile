@@ -37,6 +37,7 @@ import {
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightedText } from '@/components/bible/HighlightedText';
+import { createInsightMarkdownStyles as createMarkdownStyles } from '@/components/bible/insightMarkdownStyles';
 import { LexiconPopover } from '@/components/bible/LexiconPopover';
 import { NotesButton } from '@/components/bible/NotesButton';
 import { ShareButton } from '@/components/bible/ShareButton';
@@ -56,6 +57,7 @@ import { perfRenderSpan, usePerfMountSpan, useWhyRender } from '@/lib/perf';
 import { verseNumberGapPaddingDp } from '@/lib/text/compile-paragraph';
 import { defaultCalibration, estimateHeight } from '@/lib/text/estimate-height';
 import { ParagraphText } from '@/lib/text/ParagraphText';
+import { calculateBreakPoints } from '@/lib/text/paragraph-breaks';
 import type { CompileTheme } from '@/lib/text/types';
 import { useParagraphLayout } from '@/lib/text/use-paragraph-layout';
 import type { TextLineLayout } from '@/modules/versemate-text';
@@ -106,69 +108,6 @@ const LEX_UNDERLINE_THICKNESS = 1;
 
 /** Tap/selection wash, matching HighlightedText's selectionStyles. */
 const SELECTION_COLOR = '#3390FF40';
-
-/**
- * Check if a verse text starts with a Biblical transition word
- */
-function startsWithTransitionWord(text: string): boolean {
-  const transitions = [
-    'Then',
-    'After',
-    'Meanwhile',
-    'Now',
-    'When',
-    'While',
-    'But',
-    'Yet',
-    'However',
-    'Nevertheless',
-    'Therefore',
-    'Thus',
-    'So',
-    'Accordingly',
-    'Moreover',
-    'Furthermore',
-    'Also',
-    'And',
-  ];
-
-  const firstWord = text.trim().split(/\s+/)[0];
-  const cleanWord = firstWord.replace(/[.,;:!?"']/g, '');
-  return transitions.includes(cleanWord);
-}
-
-/**
- * Calculate intelligent paragraph break points for a section
- */
-function calculateBreakPoints(verses: { verseNumber: number; text: string }[]): number[] {
-  const breakAfter: number[] = [];
-
-  if (verses.length <= 3) return [];
-
-  let versesSinceLastBreak = 0;
-
-  for (let i = 0; i < verses.length - 1; i++) {
-    const currentVerse = verses[i];
-    const nextVerse = verses[i + 1];
-    versesSinceLastBreak++;
-
-    if (versesSinceLastBreak >= 5) {
-      breakAfter.push(currentVerse.verseNumber);
-      versesSinceLastBreak = 0;
-      continue;
-    }
-
-    const endsWithPeriod = currentVerse.text.trim().endsWith('.');
-    const nextStartsWithTransition = startsWithTransitionWord(nextVerse.text);
-
-    if (endsWithPeriod && nextStartsWithTransition && versesSinceLastBreak >= 2) {
-      breakAfter.push(currentVerse.verseNumber);
-      versesSinceLastBreak = 0;
-    }
-  }
-
-  return breakAfter;
-}
 
 /**
  * Stable key for a section, used to look up its memoised paragraph groups.
@@ -343,6 +282,7 @@ export function ChapterReader({
   const { colors, mode } = useTheme();
   const specs = getHeaderSpecs(mode);
   const { fontSize: userFontSize } = useFontSize();
+
   /**
    * Memoised: `createStyles` calls `StyleSheet.create`, and it was running on EVERY render.
    *
@@ -1483,111 +1423,3 @@ const createStyles = (
       gap: spacing.xs,
     },
   });
-
-const createMarkdownStyles = (
-  colors: ReturnType<typeof getColors>,
-  userFontSize: number = fontSizes.bodyLarge
-) => {
-  // Scale Insight (Summary / By Line / Detailed) markdown with the reader's
-  // font-size preference, mirroring the verse-text scaling above. Previously
-  // these were fixed tokens, so the slider moved verse text but not the
-  // Insight — the bug Andy reported. bodyLarge (18) is the default reader
-  // size, so the scale is 1 at the default.
-  const contentScale = userFontSize / fontSizes.bodyLarge;
-  const bodyFont = fontSizes.bodyLarge * contentScale;
-  const heading1Font = fontSizes.heading1 * contentScale;
-  const heading2Font = fontSizes.heading2 * contentScale;
-  const heading3Font = fontSizes.heading3 * contentScale;
-  return StyleSheet.create({
-    body: {
-      fontSize: bodyFont,
-      lineHeight: bodyFont * 2.0,
-      color: colors.textPrimary,
-    },
-    heading1: {
-      fontSize: heading1Font,
-      fontWeight: fontWeights.bold,
-      lineHeight: heading1Font * lineHeights.heading,
-      color: colors.textPrimary,
-      marginTop: spacing.xxl,
-      marginBottom: spacing.md,
-    },
-    heading2: {
-      fontSize: heading2Font,
-      fontWeight: fontWeights.semibold,
-      lineHeight: heading2Font * lineHeights.heading,
-      color: colors.textPrimary,
-      marginTop: 64,
-      marginBottom: spacing.sm,
-    },
-    heading3: {
-      fontSize: heading3Font,
-      fontWeight: fontWeights.semibold,
-      lineHeight: heading3Font * lineHeights.heading,
-      color: colors.textPrimary,
-      marginTop: 64,
-      marginBottom: spacing.sm,
-    },
-    paragraph: {
-      fontSize: bodyFont,
-      lineHeight: bodyFont * 2.0,
-      color: colors.textPrimary,
-      marginBottom: spacing.lg,
-    },
-    strong: {
-      fontWeight: fontWeights.bold,
-      color: colors.textPrimary,
-    },
-    em: {
-      fontStyle: 'italic',
-      color: colors.textPrimary,
-    },
-    list_item: {
-      fontSize: bodyFont,
-      lineHeight: bodyFont * 2.0,
-      color: colors.textPrimary,
-      marginBottom: spacing.sm,
-    },
-    bullet_list: {
-      marginBottom: spacing.lg,
-    },
-    ordered_list: {
-      marginBottom: spacing.lg,
-    },
-    code_inline: {
-      fontFamily: 'monospace',
-      fontSize: fontSizes.bodySmall,
-      backgroundColor: colors.backgroundElevated,
-      paddingHorizontal: spacing.xs,
-      paddingVertical: 2,
-      borderRadius: 3,
-      color: colors.textPrimary,
-    },
-    fence: {
-      fontFamily: 'monospace',
-      fontSize: fontSizes.bodySmall,
-      backgroundColor: colors.backgroundElevated,
-      padding: spacing.md,
-      borderRadius: 4,
-      marginBottom: spacing.lg,
-      color: colors.textPrimary,
-    },
-    blockquote: {
-      backgroundColor: colors.backgroundElevated,
-      borderLeftWidth: 4,
-      borderLeftColor: colors.gold,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.lg,
-      marginBottom: spacing.lg,
-    },
-    link: {
-      color: colors.gold,
-      textDecorationLine: 'underline',
-    },
-    hr: {
-      backgroundColor: colors.border,
-      height: 1,
-      marginVertical: spacing.xl,
-    },
-  });
-};

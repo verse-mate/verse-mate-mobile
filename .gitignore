@@ -2,6 +2,14 @@
 
 # dependencies
 node_modules/
+# ...and node_modules itself when it is a SYMLINK. A trailing-slash pattern
+# matches only a directory, so a `node_modules -> ...` symlink (which is how
+# worktrees here borrow the main checkout's install) sails past `node_modules/`
+# and gets picked up by `git add -A`. Committing one breaks every OTHER machine
+# that checks the branch out: the link resolves to a path that exists on one box
+# only, and the build fails on a missing react-native rather than on anything to
+# do with the change.
+node_modules
 
 # Expo
 .expo/

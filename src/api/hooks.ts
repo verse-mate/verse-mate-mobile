@@ -13,6 +13,7 @@ import { BIBLE_BOOKS, getBookById } from '@/constants/bible-books';
 import { useOfflineContext } from '@/contexts/OfflineContext';
 import { usePreferredLanguage } from '@/hooks/use-preferred-language';
 import { getAccessToken } from '@/lib/auth/token-storage';
+import { perfTimer, perfTrace } from '@/lib/perf';
 import {
   getLocalBibleChapter,
   getLocalCommentary,
@@ -233,7 +234,8 @@ export const useBibleChapterExplanation = (
   version?: string,
   enabled = true
 ) => {
-  const { downloadedCommentaryLanguages, downloadedBibleVersions } = useOfflineContext();
+  const { downloadedCommentaryLanguages, downloadedBibleVersions, isInitialized } =
+    useOfflineContext();
   const effectiveLanguage = language || 'en';
   const effectiveVersion = version || 'NASB1995';
 
@@ -275,6 +277,21 @@ export const useBibleChapterExplanation = (
     // returns (the 30-min staleTime would otherwise suppress the refetch).
     refetchOnReconnect: 'always',
     queryFn: async ({ signal }) => {
+      // Which path served this read, and what each step cost — see perfTrace.
+      const total = perfTimer();
+      const trace: Record<string, unknown> = {
+        type: explanationType,
+        book: bookId,
+        ch: chapterNumber,
+        lang: language ?? null,
+        version: effectiveVersion,
+        offlineReady: isInitialized,
+        localEligible: Boolean(
+          explanationType && downloadedBibleVersions.includes(effectiveVersion)
+        ),
+        downloadedVersions: downloadedBibleVersions,
+        commentaryLangs: downloadedCommentaryLanguages,
+      };
       // Try local SQLite first, regardless of whether the full language bundle
       // is "downloaded" — a single explanation may have been auto-cached on a
       // previous view (see `upsertSingleCommentary` below). This also powers the
@@ -295,13 +312,16 @@ export const useBibleChapterExplanation = (
         ) as string[];
         try {
           for (const lang of candidates) {
+            const tRead = perfTimer();
             const explanation = await getLocalCommentary(
               lang,
               bookId,
               chapterNumber,
               explanationType
             );
+            trace[`localReadMs_${lang}`] = tRead();
             if (explanation) {
+              const tInject = perfTimer();
               const content = await parseAndInjectVerses(
                 explanation.explanation,
                 effectiveVersion,
@@ -309,6 +329,8 @@ export const useBibleChapterExplanation = (
                   includeVerseNumbers: false,
                 }
               );
+              trace.injectMs = tInject();
+              perfTrace('explanation.fetch', { ...trace, path: 'local', lang, totalMs: total() });
               return {
                 bookId: explanation.book_id,
                 chapterNumber: explanation.chapter_number,
@@ -319,8 +341,9 @@ export const useBibleChapterExplanation = (
               };
             }
           }
-        } catch {
+        } catch (error) {
           // SQLite unavailable — skip local probe, fall through to remote.
+          trace.localError = String(error);
         }
       }
 
@@ -329,12 +352,26 @@ export const useBibleChapterExplanation = (
         throw new Error('Query function not defined');
       }
 
-      const response = await generatedExplOpts.queryFn({
-        queryKey: generatedExplOpts.queryKey || [],
-        meta: undefined,
-        signal,
-        // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
-      } as any);
+      const tRemote = perfTimer();
+      let response: Awaited<ReturnType<NonNullable<typeof generatedExplOpts.queryFn>>>;
+      try {
+        response = await generatedExplOpts.queryFn({
+          queryKey: generatedExplOpts.queryKey || [],
+          meta: undefined,
+          signal,
+          // biome-ignore lint/suspicious/noExplicitAny: React Query queryFn context shape not fully typed in generated client
+        } as any);
+      } catch (error) {
+        perfTrace('explanation.fetch', {
+          ...trace,
+          path: 'remote',
+          remoteMs: tRemote(),
+          error: String(error),
+          totalMs: total(),
+        });
+        throw error;
+      }
+      trace.remoteMs = tRemote();
 
       // Auto-cache explanation to SQLite for future offline use. Awaited so that
       // the SQLite row exists by the time the hook's post-fetch effect checks for it
@@ -361,6 +398,7 @@ export const useBibleChapterExplanation = (
         }
       }
 
+      perfTrace('explanation.fetch', { ...trace, path: 'remote', totalMs: total() });
       return response;
     },
     enabled: enabled && bookId > 0 && chapterNumber > 0 && Boolean(explanationType),
@@ -1102,11 +1140,29 @@ export const useTopicExplanation = (
  * bundled `@versemate/studies` content, so the Study tab keeps working offline
  * with exactly the content that shipped before the DB migration.
  */
+/** How long the Study tab waits for the server before showing the bundled study. */
+const STUDY_NETWORK_DEADLINE_MS = 2500;
+/** How long a bundled fallback is trusted before the server is asked again. */
+const STUDY_FALLBACK_STALE_MS = 60 * 1000;
+
+/**
+ * Results that came from the bundled fallback rather than the server. They are
+ * kept only briefly (see staleTime below), so one slow response on a working
+ * connection does not pin the bundled — and language-unaware — study for the
+ * whole session.
+ */
+const studyFallbacks = new WeakSet<object>();
+
 export function useStudy(bookId: number, chapter: number, language?: string) {
   return useQuery({
     queryKey: ['study', bookId, chapter, language ?? 'en-US'],
     enabled: bookId > 0 && chapter > 0,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: (query) => {
+      const data = query.state.data;
+      return data && studyFallbacks.has(data as object)
+        ? STUDY_FALLBACK_STALE_MS
+        : Number.POSITIVE_INFINITY;
+    },
     // Run offline so the bundled `@versemate/studies` fallback in queryFn
     // executes when there's no network; default 'online' mode would pause the
     // query and hang the Study tab offline (same class as the commentary bug,
@@ -1121,20 +1177,35 @@ export function useStudy(bookId: number, chapter: number, language?: string) {
           headers.Authorization = `Bearer ${accessToken}`;
         }
         const qs = language ? `?lang=${encodeURIComponent(language)}` : '';
-        const response = await fetch(`${baseUrl}/bible/study/${bookId}/${chapter}${qs}`, {
-          method: 'GET',
-          headers,
-        });
-        if (response.ok) {
-          const data = (await response.json()) as {
-            study?: { content?: InductiveStudy } | null;
-          };
-          if (data?.study?.content) return data.study.content;
+        // A deadline, then the bundled study. Without one this only fell back
+        // when the request FAILED — and on a slow connection (plane Wi-Fi,
+        // where NetInfo still says online) it doesn't fail, it hangs, so the
+        // Study tab sat on a spinner with the study already in the app.
+        // The deadline covers the BODY too: on a slow link the headers can
+        // arrive in time and the JSON never finish, which is the same hang.
+        const controller = new AbortController();
+        const deadline = setTimeout(() => controller.abort(), STUDY_NETWORK_DEADLINE_MS);
+        try {
+          const response = await fetch(`${baseUrl}/bible/study/${bookId}/${chapter}${qs}`, {
+            method: 'GET',
+            headers,
+            signal: controller.signal,
+          });
+          if (response.ok) {
+            const data = (await response.json()) as {
+              study?: { content?: InductiveStudy } | null;
+            };
+            if (data?.study?.content) return data.study.content;
+          }
+        } finally {
+          clearTimeout(deadline);
         }
       } catch {
-        // network/offline → bundled fallback below
+        // network/offline/deadline → bundled fallback below
       }
-      return (await getStudyFor(bookId, chapter)) ?? null;
+      const fallback = (await getStudyFor(bookId, chapter)) ?? null;
+      if (fallback) studyFallbacks.add(fallback);
+      return fallback;
     },
   });
 }

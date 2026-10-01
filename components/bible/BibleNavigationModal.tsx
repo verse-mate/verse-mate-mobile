@@ -21,6 +21,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   Keyboard,
@@ -56,6 +57,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { JesusNavTab } from '@/components/bible/JesusNavTab';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useCachedTopics } from '@/hooks/topics/use-cached-topics';
@@ -89,7 +91,7 @@ interface BibleNavigationModalProps {
   /** Callback when user selects a topic */
   onSelectTopic?: (topicId: string, category: TopicCategory) => void;
   /** Initial tab to open (defaults to testament of currentBookId) */
-  initialTab?: 'OT' | 'NT' | 'TOPICS';
+  initialTab?: 'OT' | 'NT' | 'JESUS' | 'TOPICS';
   /** Initial topic category to open when initialTab is TOPICS (defaults to EVENT) */
   initialTopicCategory?: TopicCategory;
   /** Whether to use the native Modal component (default: true) */
@@ -132,7 +134,25 @@ function BibleNavigationModalComponent({
   );
 
   // State for tab type: 'OT', 'NT', or 'TOPICS'
-  type TabType = Testament | 'TOPICS';
+  type TabType = Testament | 'JESUS' | 'TOPICS';
+  // The indicator slides between four stops now. Deriving its index from this
+  // order — rather than a chain of ternaries — is what keeps the pill under the
+  // right tab when one is added; the previous chain silently parked anything
+  // that was not OT or NT on the third stop.
+  const TAB_ORDER: TabType[] = ['OT', 'NT', 'JESUS', 'TOPICS'];
+  // Four tabs do not fit "Old Testament" / "New Testament" on a narrow phone —
+  // they shrank to fit while "Jesus" and "Topics" stayed full size, so the row
+  // read as uneven and the long ones were barely legible. Web abbreviates below
+  // the same 420px for the same reason. The test ids stay constant either way.
+  // 'Old Testament' / 'New Testament' cannot share a row with 'Jesus' and
+  // 'Topics' on a phone. The previous attempt let iOS shrink them to fit, which
+  // is what produced a row of four tabs at two different sizes — the long two
+  // scaled down to ~0.8 while the short two stayed full size, so the testaments
+  // read as subordinate and, per the tester, "turned really small". Short labels
+  // at ONE size is the fix; adjustsFontSizeToFit is gone for the same reason.
+  const { t } = useTranslation();
+  const otLabel = t('navigation.old', 'Old');
+  const ntLabel = t('navigation.new', 'New');
   const [selectedTab, setSelectedTab] = useState<TabType>(getTestamentFromBookId(currentBookId));
 
   // Bible navigation state
@@ -150,9 +170,7 @@ function BibleNavigationModalComponent({
   // Animation state for sliding indicators
   const [singleMeasuredTabWidth, setSingleMeasuredTabWidth] = useState(0);
   const [singleMeasuredCategoryTabWidth, setSingleMeasuredCategoryTabWidth] = useState(0);
-  const mainTabSlideAnim = useRef(
-    new RNAnimated.Value(selectedTab === 'OT' ? 0 : selectedTab === 'NT' ? 1 : 2)
-  ).current;
+  const mainTabSlideAnim = useRef(new RNAnimated.Value(TAB_ORDER.indexOf(selectedTab))).current;
   const categoryTabSlideAnim = useRef(new RNAnimated.Value(0)).current;
 
   // Track if modal is effectively open (visible prop OR dragging down)
@@ -168,7 +186,7 @@ function BibleNavigationModalComponent({
 
   // Animate main tab indicator when selectedTab changes
   useEffect(() => {
-    const tabIndex = selectedTab === 'OT' ? 0 : selectedTab === 'NT' ? 1 : 2;
+    const tabIndex = TAB_ORDER.indexOf(selectedTab);
     RNAnimated.spring(mainTabSlideAnim, {
       toValue: tabIndex,
       useNativeDriver: true,
@@ -285,8 +303,10 @@ function BibleNavigationModalComponent({
       const defaultTab = initialTab || getTestamentFromBookId(currentBookId);
       setSelectedTab(defaultTab);
 
-      // Only set testament if not opening to TOPICS tab
-      if (defaultTab !== 'TOPICS') {
+      // Only set testament for a testament tab. JESUS and TOPICS are not
+      // testaments, and `selectedTestament` is typed as one — passing either
+      // through is what the type error caught.
+      if (defaultTab !== 'TOPICS' && defaultTab !== 'JESUS') {
         setSelectedTestament(defaultTab);
       } else {
         // When opening TOPICS tab, set testament based on currentBookId for potential switching
@@ -415,6 +435,13 @@ function BibleNavigationModalComponent({
     setSelectedTab(tab);
     if (tab === 'TOPICS') {
       setTopicFilterText('');
+    } else if (tab === 'JESUS') {
+      // Jesus shares the book filter box (its placeholder changes), so the text
+      // is cleared like a testament switch — but it is not a testament, and
+      // `selectedTestament` must keep whichever one the reader was last on.
+      setFilterText('');
+      setSelectedBookId(null);
+      setSelectedSection(null);
     } else {
       setSelectedTestament(tab);
       setFilterText('');
@@ -608,10 +635,8 @@ function BibleNavigationModalComponent({
           <Text
             style={[styles.testamentTabText, selectedTab === 'OT' && styles.testamentTabTextActive]}
             numberOfLines={1}
-            adjustsFontSizeToFit={Platform.OS === 'ios'}
-            minimumFontScale={0.8}
           >
-            Old Testament
+            {otLabel}
           </Text>
         </Pressable>
 
@@ -625,10 +650,26 @@ function BibleNavigationModalComponent({
           <Text
             style={[styles.testamentTabText, selectedTab === 'NT' && styles.testamentTabTextActive]}
             numberOfLines={1}
-            adjustsFontSizeToFit={Platform.OS === 'ios'}
-            minimumFontScale={0.8}
           >
-            New Testament
+            {ntLabel}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => handleTabChange('JESUS')}
+          style={styles.testamentTab}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: selectedTab === 'JESUS' }}
+          testID="tab-jesus"
+        >
+          <Text
+            style={[
+              styles.testamentTabText,
+              selectedTab === 'JESUS' && styles.testamentTabTextActive,
+            ]}
+            numberOfLines={1}
+          >
+            {t('navigation.jesus', 'Jesus')}
           </Text>
         </Pressable>
 
@@ -645,10 +686,8 @@ function BibleNavigationModalComponent({
               selectedTab === 'TOPICS' && styles.testamentTabTextActive,
             ]}
             numberOfLines={1}
-            adjustsFontSizeToFit={Platform.OS === 'ios'}
-            minimumFontScale={0.8}
           >
-            Topics
+            {t('navigation.topics', 'Topics')}
           </Text>
         </Pressable>
       </View>
@@ -765,7 +804,15 @@ function BibleNavigationModalComponent({
   const renderFilterInput = () => {
     const isTopicsMode = selectedTab === 'TOPICS';
     const currentFilterText = isTopicsMode ? topicFilterText : filterText;
-    const placeholder = isTopicsMode ? 'Filter topics...' : 'Filter books...';
+    // The Jesus tab searches His words and actions, not the book list, and says
+    // so — the same placeholder web uses. Leaving "Filter books..." there makes
+    // the box look like it filters the rows below it, which it does not.
+    const placeholder =
+      selectedTab === 'JESUS'
+        ? t('navigation.searchJesus', 'Search His words and actions...')
+        : isTopicsMode
+          ? t('navigation.filterTopics', 'Filter topics...')
+          : t('navigation.filterBooks', 'Filter books...');
     const onChangeText = isTopicsMode ? setTopicFilterText : setFilterText;
 
     return (
@@ -1032,7 +1079,13 @@ function BibleNavigationModalComponent({
           {renderFilterInput()}
 
           {/* Content area */}
-          {selectedTab === 'TOPICS' ? renderTopicsList() : renderBookList()}
+          {selectedTab === 'JESUS' ? (
+            <JesusNavTab query={filterText} onNavigate={handleClose} />
+          ) : selectedTab === 'TOPICS' ? (
+            renderTopicsList()
+          ) : (
+            renderBookList()
+          )}
 
           {/* Swipe handle at bottom */}
           <GestureDetector gesture={panGesture}>

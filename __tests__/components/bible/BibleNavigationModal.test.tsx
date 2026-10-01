@@ -14,6 +14,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as Haptics from 'expo-haptics';
 import type React from 'react';
+import { Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BibleNavigationModal } from '@/components/bible/BibleNavigationModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -21,6 +22,15 @@ import { useRecentBooks } from '@/hooks/bible/use-recent-books';
 import { useBibleTestaments, useTopicsSearch } from '@/src/api';
 
 // Mock dependencies
+// The testament labels abbreviate on a narrow window, so the width has to be
+// something a test can set. React Native's default test window is 750pt wide,
+// which keeps the long labels — the existing assertions stay valid.
+let mockWindowWidth = 750;
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => ({ width: mockWindowWidth, height: 1334, scale: 2, fontScale: 1 }),
+}));
+
 jest.mock('@/src/api');
 jest.mock('@/hooks/bible/use-recent-books');
 jest.mock('expo-haptics', () => ({
@@ -134,13 +144,53 @@ describe('BibleNavigationModal', () => {
     );
 
     // Modal should render testament tabs
-    const oldTestamentTabs = screen.getAllByText('Old Testament');
+    const oldTestamentTabs = screen.getAllByText('Old');
     expect(oldTestamentTabs.length).toBeGreaterThan(0);
-    expect(screen.getAllByText('New Testament').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('New').length).toBeGreaterThan(0);
 
     // Should show book list by default (not chapter grid)
     expect(screen.getAllByText('Genesis')[0]).toBeTruthy();
     expect(screen.getAllByText('Exodus')[0]).toBeTruthy();
+  });
+
+  it('names the testaments Old and New, at one size with the other tabs', () => {
+    /*
+     * Four tabs leave no room for "Old Testament" / "New Testament" on a phone.
+     * The first attempt let iOS shrink them (adjustsFontSizeToFit), which is
+     * what produced a row at TWO sizes — the long two scaled to ~0.8 while
+     * "Jesus" and "Topics" stayed full size. The tester's words were "Old and
+     * New Testament font turned really small. So let's just say Old and New and
+     * keep font the same as others."
+     *
+     * So this pins BOTH halves: the short labels, and the absence of any
+     * per-label font scaling. A regression to either one reproduces the report.
+     * Width is irrelevant now — the labels are unconditional — so the
+     * narrowest supported phone stands in for every size.
+     */
+    mockWindowWidth = 320;
+    renderWithTheme(
+      <BibleNavigationModal
+        visible={true}
+        currentBookId={1}
+        currentChapter={1}
+        onClose={mockOnClose}
+        onSelectChapter={mockOnSelectChapter}
+      />
+    );
+
+    expect(screen.getAllByText('Old').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('New').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Old Testament')).toBeNull();
+    expect(screen.queryByText('New Testament')).toBeNull();
+    expect(screen.getByTestId('tab-old-testament')).toBeTruthy();
+    expect(screen.getByTestId('tab-new-testament')).toBeTruthy();
+
+    // No tab may shrink its own label: that is what made the row uneven.
+    for (const id of ['tab-old-testament', 'tab-new-testament', 'tab-jesus', 'tab-topics']) {
+      const label = screen.getByTestId(id).findByType(Text);
+      expect(label.props.adjustsFontSizeToFit).toBeFalsy();
+    }
+    mockWindowWidth = 750;
   });
 
   it('should display chapter grid when book is selected', async () => {

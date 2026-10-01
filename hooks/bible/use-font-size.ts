@@ -18,7 +18,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 // ============================================================================
 // Constants
@@ -31,6 +31,34 @@ const MAX_FONT_SIZE = 26;
 
 // Module-level cache to prevent flickering on remount
 let inMemoryCache: number | null = null;
+
+/**
+ * Every mounted useFontSize, told when the size changes.
+ *
+ * Each caller used to hold the size in its OWN state, so setFontSize updated
+ * only the component that called it — the Settings slider — and every screen
+ * already mounted underneath (the reader, a Jesus page, a topic) kept the old
+ * size until it happened to remount. Reported as "if you went into settings,
+ * changed the size and then clicked back, the page you were on would still
+ * show at the same size", across the whole app. One value, subscribed to.
+ */
+const listeners = new Set<() => void>();
+
+function publish(size: number) {
+  inMemoryCache = size;
+  for (const listener of listeners) listener();
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function readShared(): number {
+  return inMemoryCache ?? DEFAULT_FONT_SIZE;
+}
 
 // ============================================================================
 // Types
@@ -73,7 +101,7 @@ export function __TEST_ONLY_RESET_CACHE() {
  * Hook to manage font size state with AsyncStorage persistence
  */
 export function useFontSize(): UseFontSizeResult {
-  const [fontSize, setFontSizeState] = useState<number>(inMemoryCache || DEFAULT_FONT_SIZE);
+  const fontSize = useSyncExternalStore(subscribe, readShared, readShared);
   const [isLoading, setIsLoading] = useState(!inMemoryCache);
   const [error, setError] = useState<Error | null>(null);
 
@@ -99,14 +127,15 @@ export function useFontSize(): UseFontSizeResult {
               finalSize = parsed;
             }
           }
-          setFontSizeState(finalSize);
-          inMemoryCache = finalSize;
+          // Only if nothing set a size while storage was being read: a size
+          // chosen in that window is newer (and already persisted), and this
+          // read would otherwise overwrite it with the stored value it replaced.
+          if (inMemoryCache === null) publish(finalSize);
         }
       } catch (err) {
         if (isMounted) {
           setError(err instanceof Error ? err : new Error('Failed to load font size'));
-          setFontSizeState(DEFAULT_FONT_SIZE);
-          inMemoryCache = DEFAULT_FONT_SIZE;
+          if (inMemoryCache === null) publish(DEFAULT_FONT_SIZE);
         }
       } finally {
         if (isMounted) {
@@ -125,8 +154,7 @@ export function useFontSize(): UseFontSizeResult {
   const setFontSize = async (size: number): Promise<void> => {
     try {
       const clamped = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, Math.round(size)));
-      setFontSizeState(clamped);
-      inMemoryCache = clamped;
+      publish(clamped);
       await AsyncStorage.setItem(STORAGE_KEY, String(clamped));
       setError(null);
     } catch (err) {
