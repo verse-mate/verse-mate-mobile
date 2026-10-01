@@ -130,10 +130,19 @@ export function AudioDockBar() {
   const hiddenHere = dockHiddenOn(pathname);
   const pauseRef = useRef(player.pause);
   pauseRef.current = player.pause;
-  const isPlayingNow = state === 'playing' || state === 'loading';
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  // Only on the way IN. Playback started while already on one of these
+  // screens — from the lock screen, Control Center or headphones — is a
+  // deliberate choice and must not be paused straight back.
+  const wasHiddenRef = useRef(false);
   useEffect(() => {
-    if (hiddenHere && isPlayingNow) void pauseRef.current();
-  }, [hiddenHere, isPlayingNow]);
+    if (hiddenHere && !wasHiddenRef.current) {
+      const now = stateRef.current;
+      if (now === 'playing' || now === 'loading') void pauseRef.current();
+    }
+    wasHiddenRef.current = hiddenHere;
+  }, [hiddenHere]);
 
   /**
    * Swipe down to dismiss — stops playback and removes the bar.
