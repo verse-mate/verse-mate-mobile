@@ -5,6 +5,8 @@
  * the reader the raw key or an English fallback mid-sentence, which is worse
  * than an untranslated screen because it looks like a bug rather than a gap.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import de from '@/locales/de.json';
 import en from '@/locales/en.json';
 import es from '@/locales/es.json';
@@ -78,5 +80,65 @@ describe('locales — jesus.*', () => {
       .filter(Boolean);
 
     expect(broken).toEqual([]);
+  });
+});
+
+/**
+ * Every `t('jesus.…')` / `t('navigation.…')` the source calls must exist in
+ * English (as the key, or as its `_one`/`_other` plural forms).
+ *
+ * The checks above walk the keys English HAS, so a key the code uses but
+ * English lacks was invisible to them: `jesus.event.reveals`,
+ * `jesus.event.openVerse` and `jesus.event.noBylineForAccount` shipped
+ * English-only in every language that way.
+ */
+describe('locales — keys the source uses', () => {
+  const ROOT = path.resolve(__dirname, '../..');
+  const DIRS = ['app', 'components', 'hooks', 'lib'];
+
+  function sourceFiles(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'node_modules' || entry.name === '__tests__') continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...sourceFiles(full));
+      else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
+    }
+    return out;
+  }
+
+  function lookup(tree: unknown, key: string): unknown {
+    return key
+      .split('.')
+      .reduce<unknown>(
+        (node, part) =>
+          node && typeof node === 'object' ? (node as Record<string, unknown>)[part] : undefined,
+        tree
+      );
+  }
+
+  const used = new Set<string>();
+  for (const dir of DIRS) {
+    for (const file of sourceFiles(path.join(ROOT, dir))) {
+      const text = fs.readFileSync(file, 'utf8');
+      for (const m of text.matchAll(/\bt\(\s*['"]((?:jesus|navigation)\.[A-Za-z0-9_.]+)['"]/g)) {
+        used.add(m[1]);
+      }
+    }
+  }
+
+  it('finds the keys the screens use', () => {
+    expect(used.size).toBeGreaterThan(20);
+  });
+
+  it.each(Object.keys(LOCALES))('%s defines every key the source uses', (code) => {
+    const tree = LOCALES[code];
+    const missing = [...used].filter(
+      (key) =>
+        typeof lookup(tree, key) !== 'string' &&
+        typeof lookup(tree, `${key}_one`) !== 'string' &&
+        typeof lookup(tree, `${key}_other`) !== 'string'
+    );
+    expect(missing).toEqual([]);
   });
 });

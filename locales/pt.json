@@ -200,15 +200,22 @@
       "themes": "Explorar por tema",
       "results": "Resultados",
       "noResults": "Nada corresponde a “{{query}}”",
-      "eventCountSuffix": " · {{count}} eventos"
+      "eventCountSuffix": " · {{count}} eventos",
+      "eventCountSuffix_one": " · {{count}} evento",
+      "eventCountSuffix_other": " · {{count}} eventos"
     },
     "browse": {
       "empty": "Ainda não há nada aqui.",
       "truncated": "A mostrar os primeiros {{count}} — esta categoria não cabe numa página.",
-      "stats": "{{events}} {{plural}} · {{topics}} temas",
       "eventCount": "{{count}} eventos",
       "whatHeSays": "O que diz aqui",
-      "whatHeDoes": "O que faz aqui"
+      "whatHeDoes": "O que faz aqui",
+      "eventCount_one": "{{count}} evento",
+      "eventCount_other": "{{count}} eventos",
+      "moments_one": "{{count}} momento",
+      "moments_other": "{{count}} momentos",
+      "topics_one": "{{count}} tema",
+      "topics_other": "{{count}} temas"
     },
     "life": {
       "title": "Siga a Sua vida",
@@ -243,7 +250,10 @@
       "compareOf": "Comparar: {{title}}",
       "noByline": "Ainda não há leitura linha a linha para este evento.",
       "related": "Eventos relacionados",
-      "themes": "Temas"
+      "themes": "Temas",
+      "reveals": "O que isto revela",
+      "noBylineForAccount": "A leitura linha por linha de {{account}} ainda não foi gerada.",
+      "openVerse": "Abrir o Verse Insight do versículo {{number}}"
     },
     "insight": {
       "overview": "Visão geral",
@@ -287,5 +297,14 @@
     "compare": {
       "sharedBy": "Contado por"
     }
+  },
+  "navigation": {
+    "old": "Antigo",
+    "new": "Novo",
+    "jesus": "Jesus",
+    "topics": "Temas",
+    "searchJesus": "Pesquisar Suas palavras e ações...",
+    "filterTopics": "Filtrar temas...",
+    "filterBooks": "Filtrar livros..."
   }
 }

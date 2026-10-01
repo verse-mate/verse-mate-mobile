@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JesusChrome } from '@/components/jesus/JesusChrome';
 import { EventRow, JesusPill, JesusPlaceholder, queryPhase } from '@/components/jesus/JesusParts';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useJesusBrowse } from '@/hooks/jesus';
+import { useJesusBrowse, useJesusContentLanguage } from '@/hooks/jesus';
 import { categoryStats, topicCount, topicGospels } from '@/lib/jesus/browse-copy';
 import { fontSizes, fontWeights, type getColors, spacing } from '@/theme/tokens';
 import type { JesusEventCard } from '@/types/jesus';
@@ -41,6 +41,7 @@ export default function JesusBrowseScreen() {
   const listRef = useRef<SectionList<Row>>(null);
 
   const browse = useJesusBrowse(type);
+  const contentLanguage = useJesusContentLanguage();
   const { data } = browse;
   const phase = queryPhase(browse);
 
@@ -148,7 +149,7 @@ export default function JesusBrowseScreen() {
               ) : null}
               {data ? (
                 <Text style={styles.stats} testID="jesus-category-stats">
-                  {categoryStats(data)}
+                  {categoryStats(data, t, contentLanguage)}
                 </Text>
               ) : null}
               {sections.length > 1 ? (
@@ -194,7 +195,12 @@ export default function JesusBrowseScreen() {
                 </Text>
                 <View style={styles.topicMeta}>
                   <Text style={styles.topicCount}>
-                    {topicCount(section.topic, data?.type?.singular, data?.type?.plural)}
+                    {topicCount(
+                      section.topic,
+                      data?.type?.singular,
+                      data?.type?.plural,
+                      contentLanguage
+                    )}
                   </Text>
                   {section.topic.slug ? (
                     <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />

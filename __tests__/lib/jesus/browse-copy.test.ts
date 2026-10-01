@@ -8,8 +8,18 @@
  * can hold several. The live payload for `commands` carries facet_count 50 and
  * event_count 36, which is where these fixtures come from.
  */
-import { categoryStats, countLabel, topicCount, topicGospels } from '@/lib/jesus/browse-copy';
+import i18next from 'i18next';
+import {
+  categoryStats,
+  countLabel,
+  type Translate,
+  topicCount,
+  topicGospels,
+} from '@/lib/jesus/browse-copy';
+import de from '@/locales/de.json';
 import type { JesusBrowse, JesusTopicGroup } from '@/types/jesus';
+
+const t = i18next.getFixedT('en') as unknown as Translate;
 
 function topic(over: Partial<JesusTopicGroup> = {}): JesusTopicGroup {
   return {
@@ -74,7 +84,7 @@ describe('categoryStats', () => {
     // Exactly what web renders for /jesus/events/browse/commands. Reporting
     // total_events here is what produced "36 commands" for a category holding
     // 50 of them.
-    const stats = categoryStats(browse({ topics: Array.from({ length: 10 }, () => topic()) }));
+    const stats = categoryStats(browse({ topics: Array.from({ length: 10 }, () => topic()) }), t);
     expect(stats).toBe('50 commands · 36 moments · 10 topics');
   });
 
@@ -83,18 +93,19 @@ describe('categoryStats', () => {
       browse({
         type: { ...browse().type, facet_count: 0 },
         topics: [topic()],
-      })
+      }),
+      t
     );
     expect(stats).toBe('36 commands · 36 moments · 1 topic');
   });
 
   it('omits moments entirely when there are none', () => {
-    const stats = categoryStats(browse({ total_events: 0, topics: [topic()] }));
+    const stats = categoryStats(browse({ total_events: 0, topics: [topic()] }), t);
     expect(stats).toBe('50 commands · 1 topic');
   });
 
   it('singularises one moment and one topic', () => {
-    const stats = categoryStats(browse({ total_events: 1, topics: [topic()] }));
+    const stats = categoryStats(browse({ total_events: 1, topics: [topic()] }), t);
     expect(stats).toContain('1 moment');
     expect(stats).toContain('1 topic');
     expect(stats).not.toContain('1 moments');
@@ -128,5 +139,28 @@ describe('topicGospels', () => {
   it('joins several, deduped', () => {
     // An event told twice by one Gospel must not print it twice.
     expect(topicGospels(topic({ gospels: ['Matthew', 'Mark', 'Matthew'] }))).toBe('Matthew · Mark');
+  });
+});
+
+describe('other languages', () => {
+  it('keeps a German noun capitalised, as German writes it', () => {
+    expect(countLabel(3, 'Gebot', 'Gebote', 'de')).toBe('3 Gebote');
+    expect(countLabel(3, 'Mandamiento', 'Mandamientos', 'es')).toBe('3 mandamientos');
+  });
+
+  it("takes the app's own words from the locale, with plural forms", () => {
+    // test-setup loads English only.
+    i18next.addResourceBundle('de', 'translation', de, true, true);
+    const tDe = i18next.getFixedT('de') as unknown as Translate;
+    const stats = categoryStats(
+      browse({
+        type: { ...browse().type, singular: 'Gebot', plural: 'Gebote' },
+        total_events: 1,
+        topics: [topic(), topic()],
+      }),
+      tDe,
+      'de'
+    );
+    expect(stats).toBe('50 Gebote · 1 Moment · 2 Themen');
   });
 });

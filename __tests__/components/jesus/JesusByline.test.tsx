@@ -21,11 +21,20 @@ jest.mock('react-i18next', () => ({
 }));
 
 const mockExplanation = jest.fn();
+const mockByLineLanguage = jest.fn();
 jest.mock('@/src/api', () => ({
-  useBibleChapterExplanation: (bookId: number, chapter: number, type: string) =>
-    mockExplanation(bookId, chapter, type),
+  useBibleByLine: (
+    bookId: number,
+    chapter: number,
+    _version: string | undefined,
+    options?: { language?: string }
+  ) => {
+    mockByLineLanguage(options?.language);
+    return mockExplanation(bookId, chapter, 'byline');
+  },
   useStudy: () => ({ data: null, isPending: false }),
 }));
+jest.mock('@/hooks/use-preferred-language', () => ({ usePreferredLanguage: () => 'pt-BR' }));
 
 /** Two accounts of one event, so the per-account grouping is exercised too. */
 const DETAIL = {
@@ -120,5 +129,12 @@ describe('By-Line tab', () => {
     // Absent reads as "this verse has no explanation"; named reads as
     // "it has not been written".
     expect(screen.getByTestId('jesus-byline-empty-Mark 1:9-11')).toBeTruthy();
+  });
+
+  it("asks for the commentary in the reader's language, not English for everyone", () => {
+    mockByLineLanguage.mockClear();
+    render(<JesusTabBodies tab="byline" detail={DETAIL} />);
+    expect(mockByLineLanguage).toHaveBeenCalledWith('pt-BR');
+    expect(mockByLineLanguage).not.toHaveBeenCalledWith(undefined);
   });
 });

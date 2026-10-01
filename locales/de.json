@@ -200,15 +200,22 @@
       "themes": "Nach Thema entdecken",
       "results": "Ergebnisse",
       "noResults": "Nichts passt zu „{{query}}“",
-      "eventCountSuffix": " · {{count}} Ereignisse"
+      "eventCountSuffix": " · {{count}} Ereignisse",
+      "eventCountSuffix_one": " · {{count}} Ereignis",
+      "eventCountSuffix_other": " · {{count}} Ereignisse"
     },
     "browse": {
       "empty": "Hier ist noch nichts.",
       "truncated": "Die ersten {{count}} werden gezeigt — diese Kategorie passt nicht auf eine Seite.",
-      "stats": "{{events}} {{plural}} · {{topics}} Themen",
       "eventCount": "{{count}} Ereignisse",
       "whatHeSays": "Was Er hier sagt",
-      "whatHeDoes": "Was Er hier tut"
+      "whatHeDoes": "Was Er hier tut",
+      "eventCount_one": "{{count}} Ereignis",
+      "eventCount_other": "{{count}} Ereignisse",
+      "moments_one": "{{count}} Moment",
+      "moments_other": "{{count}} Momente",
+      "topics_one": "{{count}} Thema",
+      "topics_other": "{{count}} Themen"
     },
     "life": {
       "title": "Seinem Leben folgen",
@@ -243,7 +250,10 @@
       "compareOf": "Vergleich: {{title}}",
       "noByline": "Für dieses Ereignis gibt es noch keine Lesung Zeile für Zeile.",
       "related": "Verwandte Ereignisse",
-      "themes": "Themen"
+      "themes": "Themen",
+      "reveals": "Was dies offenbart",
+      "noBylineForAccount": "Die Vers-für-Vers-Auslegung von {{account}} wurde noch nicht erstellt.",
+      "openVerse": "Verse Insight für Vers {{number}} öffnen"
     },
     "insight": {
       "overview": "Überblick",
@@ -287,5 +297,14 @@
     "compare": {
       "sharedBy": "Erzählt von"
     }
+  },
+  "navigation": {
+    "old": "Alt",
+    "new": "Neu",
+    "jesus": "Jesus",
+    "topics": "Themen",
+    "searchJesus": "Seine Worte und Taten durchsuchen...",
+    "filterTopics": "Themen filtern...",
+    "filterBooks": "Bücher filtern..."
   }
 }

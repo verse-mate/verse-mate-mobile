@@ -21,6 +21,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
   Keyboard,
@@ -149,8 +150,9 @@ function BibleNavigationModalComponent({
   // scaled down to ~0.8 while the short two stayed full size, so the testaments
   // read as subordinate and, per the tester, "turned really small". Short labels
   // at ONE size is the fix; adjustsFontSizeToFit is gone for the same reason.
-  const otLabel = 'Old';
-  const ntLabel = 'New';
+  const { t } = useTranslation();
+  const otLabel = t('navigation.old', 'Old');
+  const ntLabel = t('navigation.new', 'New');
   const [selectedTab, setSelectedTab] = useState<TabType>(getTestamentFromBookId(currentBookId));
 
   // Bible navigation state
@@ -667,7 +669,7 @@ function BibleNavigationModalComponent({
             ]}
             numberOfLines={1}
           >
-            Jesus
+            {t('navigation.jesus', 'Jesus')}
           </Text>
         </Pressable>
 
@@ -685,7 +687,7 @@ function BibleNavigationModalComponent({
             ]}
             numberOfLines={1}
           >
-            Topics
+            {t('navigation.topics', 'Topics')}
           </Text>
         </Pressable>
       </View>
@@ -807,10 +809,10 @@ function BibleNavigationModalComponent({
     // the box look like it filters the rows below it, which it does not.
     const placeholder =
       selectedTab === 'JESUS'
-        ? 'Search His words and actions...'
+        ? t('navigation.searchJesus', 'Search His words and actions...')
         : isTopicsMode
-          ? 'Filter topics...'
-          : 'Filter books...';
+          ? t('navigation.filterTopics', 'Filter topics...')
+          : t('navigation.filterBooks', 'Filter books...');
     const onChangeText = isTopicsMode ? setTopicFilterText : setFilterText;
 
     return (

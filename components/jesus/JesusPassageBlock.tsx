@@ -215,7 +215,7 @@ export function JesusPassageBlock({
                     accessibilityRole="button"
                     accessibilityLabel={t(
                       'jesus.event.openVerse',
-                      'Open verse {{number}} in the reader',
+                      'Open Verse Insight for verse {{number}}',
                       { number: verse.verseNumber }
                     )}
                     testID={`jesus-verse-${passage.book_id}-${passage.chapter}-${verse.verseNumber}`}

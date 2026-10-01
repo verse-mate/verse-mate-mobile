@@ -39,6 +39,7 @@ const mockBrowse = jest.fn();
 const mockLife = jest.fn();
 jest.mock('@/hooks/jesus', () => ({
   useJesusBrowse: () => mockBrowse(),
+  useJesusContentLanguage: () => 'en',
   useJesusLife: () => mockLife(),
 }));
 
