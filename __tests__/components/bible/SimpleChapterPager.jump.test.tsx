@@ -82,19 +82,23 @@ const renderPage = (bookId: number, chapter: number) => {
   return <Text testID={`chapter-content-${bookId}-${chapter}`}>{`${bookId}:${chapter}`}</Text>;
 };
 
-function renderPager(bookId: number, chapterNumber: number) {
-  return render(
+function pagerTree(bookId: number, chapterNumber: number, onChapterChange = jest.fn()) {
+  return (
     <TestWrapper>
       <SimpleChapterPager
         bookId={bookId}
         chapterNumber={chapterNumber}
         bookName="x"
         booksMetadata={mockTestamentBooks}
-        onChapterChange={jest.fn()}
+        onChapterChange={onChapterChange}
         renderChapterPage={renderPage}
       />
     </TestWrapper>
   );
+}
+
+function renderPager(bookId: number, chapterNumber: number, onChapterChange = jest.fn()) {
+  return render(pagerTree(bookId, chapterNumber, onChapterChange));
 }
 
 const JOEL = 29;
@@ -177,5 +181,34 @@ describe('SimpleChapterPager — external navigation', () => {
     );
 
     expect(mockMountCount).toBe(mountsAfterInitial);
+  });
+
+  it('does NOT remount for an adjacent chapter reached without a swipe', () => {
+    // The floating Prev/Next buttons, keyboard shortcuts and audio
+    // auto-advance navigate from outside the pager, so their chapter is never
+    // in the dispatch queue. The neighbour is already mounted under its key;
+    // remounting would tear down and rebuild all three pages on every tap.
+    const view = renderPager(JOEL, 2);
+    const mountsAfterInitial = mockMountCount;
+    view.rerender(pagerTree(JOEL, 3)); // Next
+    view.rerender(pagerTree(JOEL, 2)); // Previous
+    expect(mockMountCount).toBe(mountsAfterInitial);
+  });
+
+  it('a swipe still pending when a jump lands cannot undo the jump', () => {
+    jest.useFakeTimers();
+    try {
+      const onChapterChange = jest.fn();
+      const view = renderPager(JOEL, 2, onChapterChange);
+      // A swipe settles on the next page, but no idle arrives — the case the
+      // pager's 500ms fallback timer exists for.
+      mockOnPageSelected?.({ nativeEvent: { position: 2 } });
+      // Before it fires, the book selector jumps somewhere else entirely.
+      view.rerender(pagerTree(REVELATION, 14, onChapterChange));
+      jest.advanceTimersByTime(1000);
+      expect(onChapterChange).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
