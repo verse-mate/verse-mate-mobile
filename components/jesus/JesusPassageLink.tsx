@@ -88,7 +88,14 @@ function createStyles(colors: Colors) {
   return StyleSheet.create({
     wrap: {
       marginHorizontal: spacing.lg,
-      marginVertical: spacing.lg,
+      marginTop: spacing.lg,
+      // The chapter-nav buttons float over the scroll content (56px, 60px
+      // above the progress bar) and fade IN at the bottom — which is exactly
+      // where this block comes to rest, so without the clearance the left one
+      // sits on its heading. Here rather than on a wrapper in ChapterPage, so
+      // the space exists only when the block does: most chapters have no
+      // catalogued event and render nothing.
+      marginBottom: 56 + 60,
       padding: spacing.md,
       borderRadius: radii.md,
       backgroundColor: colors.backgroundSecondary,
