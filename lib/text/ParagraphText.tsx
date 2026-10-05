@@ -21,18 +21,19 @@
  * silent one.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { type TextStyle, View } from 'react-native';
 import {
   measureTextHeight,
   type TextLineLayout,
+  type TextPressEvent,
   type TextSelectionRange,
   VMText,
 } from '@/modules/versemate-text';
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { perfSpan } from '@/lib/perf';
-import { compileParagraph } from './compile-paragraph';
+import { compileParagraph, verseNumberNearOffset } from './compile-paragraph';
 import type { CompiledParagraph, ParagraphInput } from './types';
 
 export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
@@ -222,10 +223,42 @@ export function ParagraphText(props: ParagraphTextProps) {
     textAlign,
   ]);
 
+  /**
+   * Line geometry from the last layout, so a near-miss tap can be checked against the number's line.
+   * A ref: it only matters at tap time, and keeping it in state would re-render on every layout.
+   */
+  const linesRef = useRef<TextLineLayout[]>([]);
+  const handleTextLayout = useCallback(
+    (lines: TextLineLayout[]) => {
+      linesRef.current = lines;
+      onTextLayout?.(lines);
+    },
+    [onTextLayout]
+  );
+
+  /** Which laid-out line an offset is on, or null before the first layout. */
+  const lineOf = useCallback((offset: number): number | null => {
+    const lines = linesRef.current;
+    if (lines.length === 0) return null;
+    const index = lines.findIndex((line) => offset >= line.start && offset < line.end);
+    return index === -1 ? null : index;
+  }, []);
+
   const handleRangeTap = useCallback(
-    (index: number) => {
+    (index: number, charOffset: number) => {
       const target = compiled.targets[index];
       if (!target) return;
+      // A finger that lands just beside a verse number meant the number, even when the word it
+      // touched has a target of its own. The first word after a number very often does (a lexicon
+      // word, a highlight), and with the underlines gone nothing shows which — so letting the word
+      // win here would leave exactly the miss Andy reported.
+      if (onVerseTap && target.kind !== 'verseNumber') {
+        const nearNumber = verseNumberNearOffset(compiled, charOffset, lineOf);
+        if (nearNumber !== null) {
+          onVerseTap(nearNumber);
+          return;
+        }
+      }
       switch (target.kind) {
         case 'verseNumber':
           onVerseTap?.(target.verseNumber);
@@ -246,7 +279,20 @@ export function ParagraphText(props: ParagraphTextProps) {
           break;
       }
     },
-    [compiled.targets, onVerseTap, onLexiconWordPress, onHighlightTap, onAutoHighlightPress]
+    [compiled, lineOf, onVerseTap, onLexiconWordPress, onHighlightTap, onAutoHighlightPress]
+  );
+
+  /**
+   * A tap that hit no interactive range. The only meaning it can have is a verse number the finger
+   * landed just beside — see `verseNumberNearOffset`.
+   */
+  const handlePress = useCallback(
+    (event: TextPressEvent) => {
+      if (!onVerseTap) return;
+      const verseNumber = verseNumberNearOffset(compiled, event.charOffset, lineOf);
+      if (verseNumber !== null) onVerseTap(verseNumber);
+    },
+    [compiled, lineOf, onVerseTap]
   );
 
   // Off-window: no native views at all. A Psalm 119 mount creates ~35 paragraph
@@ -268,9 +314,10 @@ export function ParagraphText(props: ParagraphTextProps) {
   return (
     <VMText
       height={height ?? undefined}
+      onPress={onVerseTap ? handlePress : undefined}
       onRangeTap={handleRangeTap}
       onSelectionChange={onSelectionChange}
-      onTextLayout={onTextLayout}
+      onTextLayout={handleTextLayout}
       ranges={compiled.ranges}
       style={style}
       testID={testID}

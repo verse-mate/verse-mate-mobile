@@ -461,6 +461,57 @@ export function verseAtOffset(compiled: CompiledParagraph, offset: number): numb
   return found;
 }
 
+/**
+ * How many characters either side of a verse number a tap may land and still open it.
+ *
+ * Andy (App Store build): "need a bit more clickable area around the numbers to get to the bible
+ * insights. Ideally no more space but more place for fingers to hit." The number's own target is
+ * already as wide as the page allows without combing white channels down the paragraph
+ * (`VERSE_NUMBER_TARGET_MIN_DP`), so the extra reach is TOLERANCE, not width: a tap on the joining
+ * space before the number, or on the first letters after it, is taken as aimed at the number.
+ * Nothing on the page moves.
+ *
+ * Two characters is about one em each side — enough for a fingertip that lands just off a small
+ * superscript, short enough that the rest of the first word still behaves as text.
+ */
+export const VERSE_NUMBER_TAP_SLOP_CHARS = 2;
+
+/**
+ * The verse number a plain-text tap at `offset` was aimed at, or null.
+ *
+ * Only ever consulted for a tap the native view did NOT resolve to an interactive range, so an
+ * exact hit on a lexicon word, a highlight or the number itself keeps its own meaning.
+ *
+ * `lineOf` maps an offset to its line; the BEFORE side needs it, because the joining space before a
+ * number is an ordinary space and can sit at the end of the previous line when the number starts a
+ * new one — a tap there is aimed at the previous verse's last word, not at a number on another
+ * line. Without line information the before side is not used. The AFTER side needs no check: the
+ * number is joined to its first word by a non-breaking space, so they always share a line.
+ */
+export function verseNumberNearOffset(
+  compiled: CompiledParagraph,
+  offset: number,
+  lineOf?: (offset: number) => number | null
+): number | null {
+  let best: { verseNumber: number; distance: number } | null = null;
+  for (const span of compiled.verses) {
+    // No number rendered for this verse (includeVerseNumbers: false).
+    if (span.textStart === span.start) continue;
+    let distance: number | null = null;
+    if (offset >= span.textStart && offset < span.textStart + VERSE_NUMBER_TAP_SLOP_CHARS) {
+      if (offset < span.end) distance = offset - span.textStart + 1;
+    } else if (offset < span.start && offset >= span.start - VERSE_NUMBER_TAP_SLOP_CHARS) {
+      const tapLine = lineOf?.(offset);
+      const numberLine = lineOf?.(span.start);
+      if (tapLine != null && tapLine === numberLine) distance = span.start - offset;
+    }
+    if (distance !== null && (best === null || distance < best.distance)) {
+      best = { verseNumber: span.verseNumber, distance };
+    }
+  }
+  return best?.verseNumber ?? null;
+}
+
 /** Append an 8-bit alpha channel to a `#rrggbb` color. */
 function withOpacity(hexColor: string, opacity: number): string {
   const alpha = Math.round(opacity * 255)
