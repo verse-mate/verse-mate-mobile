@@ -35,6 +35,11 @@ import {
   View,
 } from 'react-native';
 import { BookmarkToggle } from '@/components/bible/BookmarkToggle';
+import {
+  ByLineSection,
+  ByLineToggleAll,
+  useByLineExpansion,
+} from '@/components/bible/ByLineSections';
 import { ErrorModal } from '@/components/bible/ErrorModal';
 import { HighlightedText } from '@/components/bible/HighlightedText';
 import { createInsightMarkdownStyles as createMarkdownStyles } from '@/components/bible/insightMarkdownStyles';
@@ -353,6 +358,8 @@ export function ChapterReader({
     () => createMarkdownStyles(colors, userFontSize),
     [colors, userFontSize]
   );
+  // Which By Line verses are folded; a new chapter opens with all of them unfolded.
+  const byLineExpansion = useByLineExpansion(`${chapter.bookId}:${chapter.chapterNumber}`);
 
   // Use Bible Interaction Context for highlights and interactions
   const {
@@ -1253,16 +1260,28 @@ export function ChapterReader({
                     typeof maxBylineSections === 'number' && maxBylineSections < sections.length
                       ? sections.slice(0, Math.max(1, maxBylineSections))
                       : sections;
-                  return visible.map((section, index) => (
-                    <View
-                      key={`byline-section-${section.verseNumber}-${index}`}
-                      ref={(node) => onByLineSectionRegister(section.verseNumber, node)}
-                      testID={`byline-verse-section-${section.verseNumber}`}
-                      collapsable={false}
-                    >
-                      <Markdown style={markdownStyles}>{section.markdown}</Markdown>
-                    </View>
-                  ));
+                  const sectionId = (section: (typeof sections)[number], index: number) =>
+                    `${section.verseNumber}-${index}`;
+                  return (
+                    <>
+                      <ByLineToggleAll
+                        allOpen={byLineExpansion.allOpen}
+                        onPress={() => byLineExpansion.setAll(!byLineExpansion.allOpen)}
+                        testID="byline-toggle-all"
+                      />
+                      {visible.map((section, index) => (
+                        <ByLineSection
+                          key={`byline-section-${section.verseNumber}-${index}`}
+                          markdown={section.markdown}
+                          open={byLineExpansion.isOpen(sectionId(section, index))}
+                          onToggle={() => byLineExpansion.toggle(sectionId(section, index))}
+                          markdownStyles={markdownStyles}
+                          sectionRef={(node) => onByLineSectionRegister(section.verseNumber, node)}
+                          testID={`byline-verse-section-${section.verseNumber}`}
+                        />
+                      ))}
+                    </>
+                  );
                 })()
               ) : (
                 <Markdown style={markdownStyles}>{contentWithoutTitle}</Markdown>

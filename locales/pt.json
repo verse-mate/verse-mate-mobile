@@ -95,7 +95,9 @@
     "tab_byline": "Por versículo",
     "tab_detailed": "Detalhado",
     "no_translation_available": "Exibindo em inglês (tradução não disponível)",
-    "offline_indicator": "Offline — exibindo conteúdo em cache"
+    "offline_indicator": "Offline — exibindo conteúdo em cache",
+    "expand_all": "Expandir tudo",
+    "collapse_all": "Recolher tudo"
   },
   "bookmarks": {
     "title": "Favoritos",

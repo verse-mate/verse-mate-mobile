@@ -95,7 +95,9 @@
     "tab_byline": "Par verset",
     "tab_detailed": "Détaillé",
     "no_translation_available": "Affichage en anglais (aucune traduction disponible)",
-    "offline_indicator": "Hors ligne — affichage du contenu mis en cache"
+    "offline_indicator": "Hors ligne — affichage du contenu mis en cache",
+    "expand_all": "Tout développer",
+    "collapse_all": "Tout réduire"
   },
   "bookmarks": {
     "title": "Signets",

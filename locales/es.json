@@ -95,7 +95,9 @@
     "tab_byline": "Por versículo",
     "tab_detailed": "Detallado",
     "no_translation_available": "Mostrando en inglés (traducción no disponible)",
-    "offline_indicator": "Sin conexión — mostrando contenido en caché"
+    "offline_indicator": "Sin conexión — mostrando contenido en caché",
+    "expand_all": "Expandir todo",
+    "collapse_all": "Contraer todo"
   },
   "bookmarks": {
     "title": "Marcadores",

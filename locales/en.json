@@ -95,7 +95,9 @@
     "tab_byline": "By verse",
     "tab_detailed": "Detailed",
     "no_translation_available": "Showing English (no translation available)",
-    "offline_indicator": "Offline — showing cached content"
+    "offline_indicator": "Offline — showing cached content",
+    "expand_all": "Expand All",
+    "collapse_all": "Collapse All"
   },
   "bookmarks": {
     "title": "Bookmarks",
