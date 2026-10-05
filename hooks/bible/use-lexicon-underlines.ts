@@ -25,8 +25,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
-const STORAGE_KEY = '@versemate:lexicon_underlines';
-const DEFAULT_SHOW_UNDERLINES = true;
+/**
+ * `_v2`: the default flipped to OFF (Andy, App Store build: "expand the definitions to all words and
+ * remove underlining"). Once every word opens a definition, an underline no longer marks anything
+ * special — it only striped the page. A new key, because the old one also holds explicit `true`s
+ * saved back when on was the default, and the change is meant for everyone; the toggle still lets a
+ * reader turn the hint back on.
+ */
+const STORAGE_KEY = '@versemate:lexicon_underlines_v2';
+const DEFAULT_SHOW_UNDERLINES = false;
 
 // Module-level cache + subscribers so every mounted consumer stays in sync
 // and remounts don't flicker.

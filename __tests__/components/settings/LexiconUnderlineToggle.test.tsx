@@ -12,7 +12,7 @@ import { LexiconUnderlineToggle } from '@/components/settings/LexiconUnderlineTo
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { __TEST_ONLY_RESET_CACHE } from '@/hooks/bible/use-lexicon-underlines';
 
-const STORAGE_KEY = '@versemate:lexicon_underlines';
+const STORAGE_KEY = '@versemate:lexicon_underlines_v2';
 
 const renderWithTheme = (component: React.ReactElement) =>
   render(<ThemeProvider>{component}</ThemeProvider>);
@@ -27,27 +27,27 @@ describe('LexiconUnderlineToggle', () => {
     await AsyncStorage.clear();
   });
 
-  it('renders the switch in the on state by default', async () => {
+  it('renders the switch in the off state by default', async () => {
     renderWithTheme(<LexiconUnderlineToggle />);
 
     const toggle = await screen.findByTestId('lexicon-underline-toggle');
     await waitFor(() => {
-      expect(toggle.props.value).toBe(true);
+      expect(toggle.props.value).toBe(false);
     });
   });
 
-  it('turning it off updates the switch and persists the preference', async () => {
+  it('turning it on updates the switch and persists the preference', async () => {
     renderWithTheme(<LexiconUnderlineToggle />);
 
     const toggle = await screen.findByTestId('lexicon-underline-toggle');
 
     await act(async () => {
-      fireEvent(toggle, 'valueChange', false);
+      fireEvent(toggle, 'valueChange', true);
     });
 
     await waitFor(() => {
-      expect(toggle.props.value).toBe(false);
+      expect(toggle.props.value).toBe(true);
     });
-    expect(await AsyncStorage.getItem(STORAGE_KEY)).toBe('false');
+    expect(await AsyncStorage.getItem(STORAGE_KEY)).toBe('true');
   });
 });

@@ -201,6 +201,39 @@ describe('ParagraphText verse resolution', () => {
     expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
   });
 
+  it('defines the tapped word when the tap is not beside a number', () => {
+    // Andy: "expand the definitions to all words". A word with no lexicon entry is a plain-text tap,
+    // and it now opens the dictionary for that word.
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({ onWordPress });
+    const offset = compiled.text.indexOf('beginning') + 2;
+
+    getPress(tree)({ charOffset: offset, x: 0, y: 0 });
+    expect(onWordPress).toHaveBeenCalledWith({ word: 'beginning', verseNumber: 1 });
+    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
+  });
+
+  it('gives a tap beside a number to the number, not to the word it overlaps', () => {
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({ onWordPress });
+
+    getPress(tree)({ charOffset: compiled.verses[1].textStart, x: 0, y: 0 });
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2);
+    expect(onWordPress).not.toHaveBeenCalled();
+  });
+
+  it('defines nothing for a tap on whitespace', () => {
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({ onWordPress });
+    const space = compiled.text.indexOf(' beginning');
+
+    getPress(tree)({ charOffset: space, x: 0, y: 0 });
+    expect(onWordPress).not.toHaveBeenCalled();
+  });
+
   it('gives a tap on the first letters after a number to the number, even on a lexicon word', () => {
     // The first word after a number is often a lexicon word, and with the underlines off nothing
     // shows it. Letting the word win would keep the miss Andy reported.

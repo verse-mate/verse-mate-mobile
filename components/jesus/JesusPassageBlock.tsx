@@ -26,6 +26,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LexiconPopover } from '@/components/bible/LexiconPopover';
+import { WordDefinitionTooltip } from '@/components/bible/WordDefinitionTooltip';
 import { bibleVersions } from '@/constants/bible-versions';
 import { useOptionalBibleInteraction } from '@/contexts/BibleInteractionContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -80,6 +81,10 @@ export function JesusPassageBlock({
     token: AlignedToken;
     isTheme: boolean;
   } | null>(null);
+  // Every word without a lexicon entry opens the English dictionary, as in the reader.
+  const [wordToDefine, setWordToDefine] = useState<{ word: string; verseNumber: number } | null>(
+    null
+  );
   const openLexicon = (args: {
     surface: string;
     token: AlignedToken;
@@ -183,6 +188,7 @@ export function JesusPassageBlock({
                       alignment={alignment}
                       onLexiconWordPress={openLexicon}
                       onVerseTap={openVerse}
+                      onWordPress={setWordToDefine}
                       showLexUnderlines={showUnderlines}
                       style={styles.paragraph}
                       theme={textTheme}
@@ -243,6 +249,16 @@ export function JesusPassageBlock({
           token={lexiconActive.token}
           isTheme={lexiconActive.isTheme}
           apiLang={lemmaApiLang}
+        />
+      )}
+      {wordToDefine && (
+        <WordDefinitionTooltip
+          visible={true}
+          word={wordToDefine.word}
+          bookName={passage.book_name}
+          chapterNumber={passage.chapter}
+          verseNumber={wordToDefine.verseNumber}
+          onClose={() => setWordToDefine(null)}
         />
       )}
     </View>

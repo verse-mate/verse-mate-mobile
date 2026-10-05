@@ -33,8 +33,9 @@ import {
 import type { AlignedToken, LexEntry } from '@versemate/lexicon';
 import type { AutoHighlight } from '@/types/auto-highlights';
 import { perfSpan } from '@/lib/perf';
-import { compileParagraph, verseNumberNearOffset } from './compile-paragraph';
+import { compileParagraph, verseAtOffset, verseNumberNearOffset } from './compile-paragraph';
 import type { CompiledParagraph, ParagraphInput } from './types';
+import { wordAtOffset } from './word-at-offset';
 
 export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
   /** Verses to render, in reading order. */
@@ -52,6 +53,15 @@ export interface ParagraphTextProps extends Omit<ParagraphInput, 'verses'> {
     entry: LexEntry;
     isTheme: boolean;
   }) => void;
+  /**
+   * A tap on a word that has no lexicon entry, with the word and its verse.
+   *
+   * Andy (App Store build): "now that we moved the verse insight — let's expand the definitions to
+   * all words". The verse insight lives on the number, so a tap on plain text is free to mean
+   * "define this"; lexicon words still open their Greek/Hebrew card through `onLexiconWordPress`,
+   * and every other word comes here for the English dictionary.
+   */
+  onWordPress?: (args: { word: string; verseNumber: number }) => void;
   /** Line geometry after layout, for anchoring popovers to a tapped word. */
   onTextLayout?: (lines: TextLineLayout[]) => void;
   /**
@@ -110,6 +120,7 @@ export function ParagraphText(props: ParagraphTextProps) {
     onHighlightTap,
     onAutoHighlightPress,
     onLexiconWordPress,
+    onWordPress,
     onTextLayout,
     onSelectionChange,
     isVisible = true,
@@ -283,16 +294,29 @@ export function ParagraphText(props: ParagraphTextProps) {
   );
 
   /**
-   * A tap that hit no interactive range. The only meaning it can have is a verse number the finger
-   * landed just beside — see `verseNumberNearOffset`.
+   * A tap that hit no interactive range.
+   *
+   * A finger that landed just beside a verse number meant the number (`verseNumberNearOffset`) —
+   * checked first, so the larger target Andy asked for wins over the word it overlaps. Otherwise it
+   * is a tap on a word, which opens that word's definition.
    */
   const handlePress = useCallback(
     (event: TextPressEvent) => {
-      if (!onVerseTap) return;
-      const verseNumber = verseNumberNearOffset(compiled, event.charOffset, lineOf);
-      if (verseNumber !== null) onVerseTap(verseNumber);
+      const nearNumber = onVerseTap
+        ? verseNumberNearOffset(compiled, event.charOffset, lineOf)
+        : null;
+      if (nearNumber !== null) {
+        onVerseTap?.(nearNumber);
+        return;
+      }
+      if (!onWordPress) return;
+      const { word } = wordAtOffset(compiled.text, event.charOffset);
+      const verseNumber = verseAtOffset(compiled, event.charOffset);
+      // Whitespace, or digits only (a tap beside a number that is not a verse): nothing to define.
+      if (!word || verseNumber === null || !/\p{L}/u.test(word)) return;
+      onWordPress({ word, verseNumber });
     },
-    [compiled, lineOf, onVerseTap]
+    [compiled, lineOf, onVerseTap, onWordPress]
   );
 
   // Off-window: no native views at all. A Psalm 119 mount creates ~35 paragraph
@@ -314,7 +338,7 @@ export function ParagraphText(props: ParagraphTextProps) {
   return (
     <VMText
       height={height ?? undefined}
-      onPress={onVerseTap ? handlePress : undefined}
+      onPress={onVerseTap || onWordPress ? handlePress : undefined}
       onRangeTap={handleRangeTap}
       onSelectionChange={onSelectionChange}
       onTextLayout={handleTextLayout}
