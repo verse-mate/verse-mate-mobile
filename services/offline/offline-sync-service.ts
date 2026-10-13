@@ -863,6 +863,19 @@ export interface SyncQueueResult {
   failed: number;
 }
 
+/**
+ * Send one queued change. It only counts as synced when the server accepted it:
+ * `authenticatedFetch` returns error responses instead of throwing, so a 404 or
+ * 422 used to be treated as success and the change was deleted from the queue.
+ * A DELETE that finds nothing (404) is done: the item is already gone.
+ */
+async function sendSyncRequest(url: string, init: RequestInit): Promise<void> {
+  const response = await authenticatedFetch(url, init);
+  if (response.ok) return;
+  if (init.method === 'DELETE' && response.status === 404) return;
+  throw new Error(`Sync request failed: HTTP ${response.status} for ${init.method} ${url}`);
+}
+
 export async function processSyncQueue(): Promise<SyncQueueResult> {
   const actions = await getPendingSyncActions();
   if (actions.length === 0) return { total: 0, succeeded: 0, failed: 0 };
@@ -880,42 +893,42 @@ export async function processSyncQueue(): Promise<SyncQueueResult> {
 
       if (action.type === 'NOTE') {
         if (action.action === 'CREATE') {
-          await authenticatedFetch(`${API_URL}/bible-book-note/add`, {
+          await sendSyncRequest(`${API_URL}/bible/book/note/add`, {
             method: 'POST',
             body: JSON.stringify(payload),
           });
         } else if (action.action === 'UPDATE') {
-          await authenticatedFetch(`${API_URL}/bible-book-note/update`, {
+          await sendSyncRequest(`${API_URL}/bible/book/note/update`, {
             method: 'PUT',
             body: JSON.stringify(payload),
           });
         } else if (action.action === 'DELETE') {
-          await authenticatedFetch(`${API_URL}/bible-book-note/remove?note_id=${payload.note_id}`, {
+          await sendSyncRequest(`${API_URL}/bible/book/note/remove?note_id=${payload.note_id}`, {
             method: 'DELETE',
           });
         }
       } else if (action.type === 'HIGHLIGHT') {
         if (action.action === 'CREATE') {
-          await authenticatedFetch(`${API_URL}/bible-highlight/add`, {
+          await sendSyncRequest(`${API_URL}/bible/highlight/add`, {
             method: 'POST',
             body: JSON.stringify(payload),
           });
         } else if (action.action === 'UPDATE') {
           // payload includes highlight_id for path param
           const { highlight_id, ...body } = payload;
-          await authenticatedFetch(`${API_URL}/bible-highlight/${highlight_id}`, {
+          await sendSyncRequest(`${API_URL}/bible/highlight/${highlight_id}`, {
             method: 'PUT',
             body: JSON.stringify(body),
           });
         } else if (action.action === 'DELETE') {
           const { highlight_id } = payload;
-          await authenticatedFetch(`${API_URL}/bible-highlight/${highlight_id}`, {
+          await sendSyncRequest(`${API_URL}/bible/highlight/${highlight_id}`, {
             method: 'DELETE',
           });
         }
       } else if (action.type === 'BOOKMARK') {
         if (action.action === 'CREATE') {
-          await authenticatedFetch(`${API_URL}/bible-book-bookmark/add`, {
+          await sendSyncRequest(`${API_URL}/bible/book/bookmark/add`, {
             method: 'POST',
             body: JSON.stringify(payload),
           });
@@ -929,7 +942,7 @@ export async function processSyncQueue(): Promise<SyncQueueResult> {
           if (payload.insight_type) query.append('insight_type', String(payload.insight_type));
           if (payload.user_id) query.append('user_id', String(payload.user_id));
 
-          await authenticatedFetch(`${API_URL}/bible-book-bookmark/remove?${query.toString()}`, {
+          await sendSyncRequest(`${API_URL}/bible/book/bookmark/remove?${query.toString()}`, {
             method: 'DELETE',
           });
         }
