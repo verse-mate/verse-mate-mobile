@@ -113,7 +113,7 @@ describe('OfflineSyncService', () => {
 
       expect(sqliteManager.updateSyncActionStatus).toHaveBeenCalledWith(1, 'SYNCING');
       expect(authenticatedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/bible-book-note/add'),
+        expect.stringContaining('/bible/book/note/add'),
         expect.objectContaining({
           method: 'POST',
           body: mockAction.payload,
@@ -136,7 +136,7 @@ describe('OfflineSyncService', () => {
       await syncService.processSyncQueue();
 
       expect(authenticatedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/bible-highlight/123'),
+        expect.stringContaining('/bible/highlight/123'),
         expect.objectContaining({ method: 'DELETE' })
       );
       expect(sqliteManager.deleteSyncAction).toHaveBeenCalledWith(2);
@@ -156,7 +156,7 @@ describe('OfflineSyncService', () => {
       await syncService.processSyncQueue();
 
       expect(authenticatedFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/bible-book-bookmark/remove?book_id=1&chapter_number=1'),
+        expect.stringContaining('/bible/book/bookmark/remove?book_id=1&chapter_number=1'),
         expect.objectContaining({ method: 'DELETE' })
       );
     });
@@ -177,6 +177,42 @@ describe('OfflineSyncService', () => {
 
       expect(sqliteManager.updateSyncActionStatus).toHaveBeenCalledWith(4, 'FAILED', 2);
       expect(sqliteManager.deleteSyncAction).not.toHaveBeenCalled();
+    });
+
+    it('keeps a change the server refused instead of deleting it', async () => {
+      const mockAction = {
+        id: 5,
+        type: 'NOTE',
+        action: 'CREATE',
+        payload: JSON.stringify({ book_id: 1, chapter_number: 1, content: 'Test Note' }),
+        retry_count: 0,
+      };
+
+      (sqliteManager.getPendingSyncActions as jest.Mock).mockResolvedValue([mockAction]);
+      (authenticatedFetch as jest.Mock).mockResolvedValueOnce({ ok: false, status: 422 });
+
+      const result = await syncService.processSyncQueue();
+
+      expect(sqliteManager.updateSyncActionStatus).toHaveBeenCalledWith(5, 'FAILED', 1);
+      expect(sqliteManager.deleteSyncAction).not.toHaveBeenCalled();
+      expect(result).toEqual({ total: 1, succeeded: 0, failed: 1 });
+    });
+
+    it('treats a delete of something already gone (404) as synced', async () => {
+      const mockAction = {
+        id: 6,
+        type: 'HIGHLIGHT',
+        action: 'DELETE',
+        payload: JSON.stringify({ highlight_id: 456 }),
+        retry_count: 0,
+      };
+
+      (sqliteManager.getPendingSyncActions as jest.Mock).mockResolvedValue([mockAction]);
+      (authenticatedFetch as jest.Mock).mockResolvedValueOnce({ ok: false, status: 404 });
+
+      await syncService.processSyncQueue();
+
+      expect(sqliteManager.deleteSyncAction).toHaveBeenCalledWith(6);
     });
 
     it('[T-004] returns { total, succeeded, failed } with correct counts on success', async () => {
