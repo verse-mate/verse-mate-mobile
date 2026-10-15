@@ -105,14 +105,12 @@ async function responseInterceptor(
 
   // Track 4xx/5xx errors (except 401) with PostHog
   if (response.status >= 400 && response.status !== 401) {
-    // Skip auth endpoints to avoid noise
-    if (!isAuthEndpoint(path)) {
+    if (response.status >= 500 || !isAuthEndpoint(path)) {
       const errorContext = {
         context: 'network-error',
         statusCode: response.status,
         endpoint: path,
         method: request.method,
-        url: request.url,
       };
 
       // Create error with status text
@@ -130,6 +128,16 @@ async function responseInterceptor(
   return response;
 }
 
+const fetchNamingFailures = (request: Request): Promise<Response> =>
+  fetch(request).catch((error: unknown) => {
+    if (error instanceof Error) {
+      Object.assign(error, {
+        request: { url: new URL(request.url).pathname, method: request.method },
+      });
+    }
+    throw error;
+  });
+
 /**
  * Set up client interceptors for authentication.
  *
@@ -144,6 +152,8 @@ export function setupClientInterceptors(): void {
   if (apiUrl) {
     client.setConfig({ baseUrl: apiUrl });
   }
+
+  client.setConfig({ fetch: fetchNamingFailures as typeof fetch });
 
   // Add request interceptor for token injection
   client.interceptors.request.use(requestInterceptor);
