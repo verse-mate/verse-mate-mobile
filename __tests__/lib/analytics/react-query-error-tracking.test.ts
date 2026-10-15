@@ -1,4 +1,5 @@
 import { MutationCache, onlineManager, QueryCache, QueryClient } from '@tanstack/react-query';
+import { fetchLemma } from '@/hooks/use-lemma';
 import { onMutationError, onQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { setPostHogInstance, setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { queryClient } from '@/lib/query-client';
@@ -209,6 +210,39 @@ describe('react-query error reports', () => {
     onlineManager.setOnline(true);
     await failQuery(['study'], networkFailure);
     expect(mockPostHog.captureException).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports no timeout while the device is offline', async () => {
+    onlineManager.setOnline(false);
+    await failQuery(['lemma'], () => Promise.reject(new TypeError('Network request timed out')));
+    expect(mockPostHog.captureException).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [500, 1],
+    [400, 0],
+  ])('reports an HTTP %i from sign-in %i time(s)', async (status, times) => {
+    global.fetch = jest.fn(
+      async () => new Response('{"error":"x"}', { status })
+    ) as unknown as typeof fetch;
+    setPostHogInstance(mockPostHog);
+    const tracked = trackedClient();
+    await tracked
+      .getMutationCache()
+      .build(tracked, {
+        mutationFn: () => client.post({ url: '/auth/login', body: {}, throwOnError: true }),
+      })
+      .execute(undefined)
+      .catch(() => {});
+    expect(mockPostHog.captureException).toHaveBeenCalledTimes(times);
+  });
+
+  it('keeps the response text out of a failed lemma request', async () => {
+    global.fetch = jest.fn(
+      async () => new Response('{"message":"secret detail"}', { status: 500 })
+    ) as unknown as typeof fetch;
+    const error = await fetchLemma('G26', 'en').catch((e: Error) => e);
+    expect((error as Error).message).toBe('Failed to fetch lemma G26: HTTP 500');
   });
 });
 

@@ -105,8 +105,7 @@ async function responseInterceptor(
 
   // Track 4xx/5xx errors (except 401) with PostHog
   if (response.status >= 400 && response.status !== 401) {
-    // Skip auth endpoints to avoid noise
-    if (!isAuthEndpoint(path)) {
+    if (response.status >= 500 || !isAuthEndpoint(path)) {
       const errorContext = {
         context: 'network-error',
         statusCode: response.status,
