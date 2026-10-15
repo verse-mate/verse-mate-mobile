@@ -66,11 +66,6 @@ export interface LemmaCard {
   is_translated: boolean;
 }
 
-interface ApiErrorBody {
-  error?: string;
-  message?: string;
-}
-
 export class LemmaNotFoundError extends Error {
   constructor(strongs: string) {
     super(`Lemma not found: ${strongs}`);
@@ -80,7 +75,7 @@ export class LemmaNotFoundError extends Error {
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://api.versemate.org';
 
-async function fetchLemma(strongs: string, lang: string | undefined): Promise<LemmaCard> {
+export async function fetchLemma(strongs: string, lang: string | undefined): Promise<LemmaCard> {
   const url = new URL(`/lemma/${encodeURIComponent(strongs)}`, API_URL);
   if (lang) url.searchParams.set('lang', lang);
 
@@ -92,16 +87,7 @@ async function fetchLemma(strongs: string, lang: string | undefined): Promise<Le
     throw new LemmaNotFoundError(strongs);
   }
   if (!response.ok) {
-    let detail = '';
-    try {
-      const body = (await response.json()) as ApiErrorBody;
-      detail = body.message ?? body.error ?? '';
-    } catch {
-      // Body not JSON — fall through with status only.
-    }
-    throw new Error(
-      `Failed to fetch lemma ${strongs}: HTTP ${response.status}${detail ? ` (${detail})` : ''}`
-    );
+    throw new Error(`Failed to fetch lemma ${strongs}: HTTP ${response.status}`);
   }
   return (await response.json()) as LemmaCard;
 }

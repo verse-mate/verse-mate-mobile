@@ -5,6 +5,7 @@
  * Handles both query and mutation errors globally.
  */
 
+import { type Mutation, onlineManager, type Query } from '@tanstack/react-query';
 import { getPostHogInstance } from './posthog-provider';
 
 /**
@@ -31,7 +32,7 @@ export function extractErrorDetails(error: Error): Record<string, string | numbe
         const url = new URL(err.url);
         errorDetails.endpoint = url.pathname;
       } catch {
-        errorDetails.endpoint = err.url;
+        errorDetails.endpoint = err.url.split(/[?#]/)[0];
       }
     }
 
@@ -43,7 +44,7 @@ export function extractErrorDetails(error: Error): Record<string, string | numbe
           const url = new URL(request.url);
           errorDetails.endpoint = url.pathname;
         } catch {
-          errorDetails.endpoint = request.url;
+          errorDetails.endpoint = request.url.split(/[?#]/)[0];
         }
       }
       if ('method' in request && typeof request.method === 'string') {
@@ -63,17 +64,42 @@ export function extractErrorDetails(error: Error): Record<string, string | numbe
   return errorDetails;
 }
 
-/**
- * Handle React Query errors by tracking them with PostHog
- * Used as a global error handler for queries and mutations
- */
-export function handleReactQueryError(error: Error): void {
+const KEY_WORD = /^[a-z][a-z-]*$/;
+const NETWORK_FAILURE = /network request failed|network request timed out|failed to fetch|network error/i;
+
+function isNetworkFailure(error: Error): boolean {
+  return 'request' in error || NETWORK_FAILURE.test(error.message);
+}
+
+function keyName(key: readonly unknown[] | undefined): string | undefined {
+  const [first, second] = key ?? [];
+  const name = typeof first === 'string' ? first : (first as { _id?: unknown } | null)?._id;
+  if (typeof name !== 'string') return undefined;
+  return typeof second === 'string' && KEY_WORD.test(second) ? `${name}/${second}` : name;
+}
+
+function handleReactQueryError(error: unknown, context: Record<string, unknown> = {}): void {
+  if (!(error instanceof Error)) return;
+  if (!onlineManager.isOnline() && isNetworkFailure(error)) return;
   const posthogInstance = getPostHogInstance();
   if (!posthogInstance) return;
 
-  const errorDetails = extractErrorDetails(error);
   posthogInstance.captureException(error, {
-    ...errorDetails,
+    ...extractErrorDetails(error),
+    ...context,
     source: 'react-query',
   });
+}
+
+export function onQueryError(error: unknown, query: Query<unknown, unknown, unknown>): void {
+  handleReactQueryError(error, { query_key: keyName(query.queryKey) });
+}
+
+export function onMutationError(
+  error: unknown,
+  _variables: unknown,
+  _context: unknown,
+  mutation: Mutation<unknown, unknown, unknown>
+): void {
+  handleReactQueryError(error, { mutation_key: keyName(mutation.options.mutationKey) });
 }
