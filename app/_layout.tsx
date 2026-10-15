@@ -11,15 +11,8 @@
  */
 
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import NetInfo from '@react-native-community/netinfo';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import {
-  MutationCache,
-  onlineManager,
-  QueryCache,
-  QueryClient,
-  QueryClientProvider,
-} from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -50,7 +43,6 @@ import {
   trackAudioPlaybackStarted,
 } from '@/lib/analytics/audio-events';
 import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
-import { onMutationError, onQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { ExpoAudioEngine } from '@/lib/audio/expoAudioEngine';
@@ -58,6 +50,7 @@ import { StubAudioEngine } from '@/lib/audio/stubAudioEngine';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
 import { resolveJesusDeepLink } from '@/lib/jesus/deep-link';
 import { installPerfSession, perfSpan } from '@/lib/perf';
+import { queryClient } from '@/lib/query-client';
 import { UpgradePromptScreen } from '@/src/screens/UpgradePromptScreen';
 import { checkVersionPolicy } from '@/src/services/versionPolicy';
 import {
@@ -78,33 +71,9 @@ SplashScreen.preventAutoHideAsync();
 const audioEngine =
   process.env.APP_ENV === 'e2e-test' ? new StubAudioEngine() : new ExpoAudioEngine();
 
-// Create a QueryClient instance (singleton)
-const queryClient = new QueryClient({
-  queryCache: new QueryCache({ onError: onQueryError }),
-  mutationCache: new MutationCache({ onError: onMutationError }),
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes default stale time
-      gcTime: 1000 * 60 * 30, // 30 minutes garbage collection
-      retry: 0, // Disable retries until API is configured
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    },
-  },
-});
-
 // Set up client interceptors for authentication
 // Must be called before any API requests
 setupClientInterceptors();
-
-// Bridge React Query's onlineManager to React Native's connectivity signal so
-// queries with `refetchOnReconnect` automatically retry the moment NetInfo
-// reports a real connection — replaces ad-hoc per-screen offline→online
-// refetch effects.
-onlineManager.setEventListener((setOnline) =>
-  NetInfo.addEventListener((state) => {
-    setOnline(state.isConnected === true);
-  })
-);
 
 /**
  * Inner Layout Component
