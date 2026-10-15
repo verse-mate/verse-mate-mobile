@@ -65,7 +65,7 @@ export function extractErrorDetails(error: Error): Record<string, string | numbe
 }
 
 const KEY_WORD = /^[a-z][a-z-]*$/;
-const NETWORK_FAILURE = /network request failed|failed to fetch|network error/i;
+const NETWORK_FAILURE = /network request failed|network request timed out|failed to fetch|network error/i;
 
 function isNetworkFailure(error: Error): boolean {
   return 'request' in error || NETWORK_FAILURE.test(error.message);
