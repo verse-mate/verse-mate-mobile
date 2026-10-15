@@ -50,7 +50,7 @@ import {
   trackAudioPlaybackStarted,
 } from '@/lib/analytics/audio-events';
 import { AppPostHogProvider } from '@/lib/analytics/posthog-provider';
-import { handleReactQueryError } from '@/lib/analytics/react-query-error-tracking';
+import { onMutationError, onQueryError } from '@/lib/analytics/react-query-error-tracking';
 import { authenticatedFetch } from '@/lib/api/authenticated-fetch';
 import { setupClientInterceptors } from '@/lib/api/client-interceptors';
 import { ExpoAudioEngine } from '@/lib/audio/expoAudioEngine';
@@ -80,12 +80,8 @@ const audioEngine =
 
 // Create a QueryClient instance (singleton)
 const queryClient = new QueryClient({
-  queryCache: new QueryCache({
-    onError: (error) => handleReactQueryError(error as Error),
-  }),
-  mutationCache: new MutationCache({
-    onError: (error) => handleReactQueryError(error as Error),
-  }),
+  queryCache: new QueryCache({ onError: onQueryError }),
+  mutationCache: new MutationCache({ onError: onMutationError }),
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes default stale time

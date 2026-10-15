@@ -5,6 +5,7 @@
  * Handles both query and mutation errors globally.
  */
 
+import { type Mutation, onlineManager, type Query } from '@tanstack/react-query';
 import { getPostHogInstance } from './posthog-provider';
 
 /**
@@ -63,17 +64,37 @@ export function extractErrorDetails(error: Error): Record<string, string | numbe
   return errorDetails;
 }
 
-/**
- * Handle React Query errors by tracking them with PostHog
- * Used as a global error handler for queries and mutations
- */
-export function handleReactQueryError(error: Error): void {
+function keyName(key: readonly unknown[] | undefined): string | undefined {
+  const names: string[] = [];
+  for (const part of key ?? []) {
+    const name = typeof part === 'string' ? part : (part as { _id?: unknown } | null)?._id;
+    if (typeof name !== 'string' || names.length === 2) break;
+    names.push(name);
+  }
+  return names.join('/') || undefined;
+}
+
+export function handleReactQueryError(error: Error, context: Record<string, unknown> = {}): void {
+  if (!onlineManager.isOnline()) return;
   const posthogInstance = getPostHogInstance();
   if (!posthogInstance) return;
 
-  const errorDetails = extractErrorDetails(error);
   posthogInstance.captureException(error, {
-    ...errorDetails,
+    ...extractErrorDetails(error),
+    ...context,
     source: 'react-query',
   });
+}
+
+export function onQueryError(error: unknown, query: Query<unknown, unknown, unknown>): void {
+  handleReactQueryError(error as Error, { query_key: keyName(query.queryKey) });
+}
+
+export function onMutationError(
+  error: unknown,
+  _variables: unknown,
+  _context: unknown,
+  mutation: Mutation<unknown, unknown, unknown>
+): void {
+  handleReactQueryError(error as Error, { mutation_key: keyName(mutation.options.mutationKey) });
 }
