@@ -424,19 +424,18 @@ export default function SettingsScreen() {
   }, [isDeviceOffline, isAuthenticated, user?.preferred_language, restoreSession]);
 
   const hasProfileChanges = () => {
+    const synced = syncedProfileRef.current;
+    const edited = (value: string, accountValue: string, syncedValue: string) =>
+      value !== accountValue && value !== syncedValue;
     return (
-      firstName !== (user?.firstName || '') ||
-      lastName !== (user?.lastName || '') ||
-      email !== (user?.email || '')
+      edited(firstName, user?.firstName || '', synced.firstName) ||
+      edited(lastName, user?.lastName || '', synced.lastName) ||
+      edited(email, user?.email || '', synced.email)
     );
   };
 
   const saveProfile = async () => {
-    // Check for changes inline to avoid dependency on hasProfileChanges
-    const hasChanges =
-      firstName !== (user?.firstName || '') ||
-      lastName !== (user?.lastName || '') ||
-      email !== (user?.email || '');
+    const hasChanges = hasProfileChanges();
 
     if (!hasChanges) return;
 
@@ -518,11 +517,7 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    // Check if there are actual changes
-    const hasChanges =
-      firstName !== (user?.firstName || '') ||
-      lastName !== (user?.lastName || '') ||
-      email !== (user?.email || '');
+    const hasChanges = hasProfileChanges();
 
     if (!hasChanges) return;
 
