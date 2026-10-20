@@ -203,10 +203,8 @@ export default function SettingsScreen() {
   };
 
   const syncedProfileRef = useRef({ firstName: '', lastName: '', email: '' });
-  const sentProfileRef = useRef({ firstName: '', lastName: '', email: '' });
   const syncProfileFields = (account: NonNullable<typeof user>) => {
     const prev = syncedProfileRef.current;
-    const sent = sentProfileRef.current;
     const next = {
       firstName: account.firstName || '',
       lastName: account.lastName || '',
@@ -214,7 +212,7 @@ export default function SettingsScreen() {
     };
     syncedProfileRef.current = next;
     const follow = (key: keyof typeof next) => (current: string) =>
-      current === prev[key] || current === sent[key] ? next[key] : current;
+      current === prev[key] ? next[key] : current;
     setFirstName(follow('firstName'));
     setLastName(follow('lastName'));
     setEmail(follow('email'));
@@ -222,7 +220,7 @@ export default function SettingsScreen() {
 
   const pendingEmail = typeof user?.pendingEmail === 'string' ? user.pendingEmail : null;
   useEffect(() => {
-    if (pendingEmail) {
+    if (pendingEmail && Platform.OS === 'ios') {
       AccessibilityInfo.announceForAccessibility(
         t('settings.pending_email', { email: pendingEmail })
       );
@@ -232,8 +230,8 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       if (isAuthenticated && !isDeviceOffline) restoreSession();
-      // biome-ignore lint/correctness/useExhaustiveDependencies: refresh once per focus, not on every session change
-    }, [])
+      // biome-ignore lint/correctness/useExhaustiveDependencies: refresh on focus and when sign-in or connectivity changes, not on every session change
+    }, [isAuthenticated, isDeviceOffline])
   );
 
   // Update form fields when user session changes
@@ -457,9 +455,13 @@ export default function SettingsScreen() {
     setSaveStatus('saving');
     if (errorClearTimeoutRef.current) clearTimeout(errorClearTimeoutRef.current);
 
-    sentProfileRef.current = { firstName, lastName, email };
+    const sentEmail = email;
+    const keepCurrentEmail = () => {
+      const accountEmail = user?.email || '';
+      setEmail((current) => (current === sentEmail ? accountEmail : current));
+    };
     try {
-      const { error } = await putAuthProfile({
+      const { error, response } = await putAuthProfile({
         body: {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
@@ -468,23 +470,19 @@ export default function SettingsScreen() {
       });
 
       if (error) {
+        if (response?.status === 429) keepCurrentEmail();
         throw error;
       }
 
-      // Refresh user session to get updated profile data
       await restoreSession();
+      keepCurrentEmail();
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error: unknown) {
       let errorMessage = 'An error occurred while saving your changes.';
 
-      const err = error as { error?: string; value?: string };
-
-      if (err?.error === 'TOO_MANY_REQUESTS' && user) {
-        const sentEmail = sentProfileRef.current.email;
-        setEmail((current) => (current === sentEmail ? user.email || '' : current));
-      }
+      const err = error as { value?: string };
 
       if (err?.value && typeof err.value === 'string') {
         errorMessage = err.value;

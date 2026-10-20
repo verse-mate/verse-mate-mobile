@@ -249,10 +249,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Throws the raw SDK error so callers can distinguish network vs auth failures.
    */
   const fetchUserSession = async (): Promise<User> => {
-    const { data, error } = await getAuthSession();
+    const { data, error, response } = await getAuthSession();
 
     if (error || !data) {
-      throw error ?? new Error('Failed to fetch user session');
+      const failure =
+        error && typeof error === 'object' ? error : new Error('Failed to fetch user session');
+      throw Object.assign(failure, { status: response?.status });
     }
 
     const user = data as User;
@@ -433,6 +435,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * remains authenticated without a network round-trip.
    * Note: Does NOT set last_login_at — session restore is not a new login.
    */
+  const forgetSession = async () => {
+    await clearTokens();
+    clearTokenCache();
+    await AsyncStorage.removeItem(CACHED_USER_KEY);
+    setUser(null);
+  };
+
   const restoreSession = async (): Promise<void> => {
     try {
       setIsLoading(true);
@@ -477,33 +486,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         userSession = await fetchUserSession();
       } catch (sessionError) {
-          // Detect connectivity failures (TypeError from fetch, or error objects whose
-          // message mentions "network"). Auth errors (401 / 403) are structured objects
-          // from the SDK and will NOT match this check.
-          const msg = sessionError instanceof Error
-            ? sessionError.message
-            : String(sessionError);
-          const isNetworkError =
-            sessionError instanceof TypeError ||
-            msg.toLowerCase().includes('network') ||
-            msg.toLowerCase().includes('failed to fetch');
-
-          if (isNetworkError) {
-            const cached = await getCachedUser<User>();
-            if (cached) {
-              // Offline with a cached profile — restore without clearing tokens.
-              userSession = cached;
-            } else {
-              console.error('Failed to restore session (no cache):', sessionError);
-              return;
-            }
-          } else {
-            // Auth error (invalid / expired tokens) — clear everything.
+          const status = (sessionError as { status?: number } | null)?.status;
+          if (status === 401 || status === 403) {
             console.error('Failed to restore session:', sessionError);
-            await clearTokens();
-            await AsyncStorage.removeItem(CACHED_USER_KEY);
+            await forgetSession();
             return;
           }
+          const cached = await getCachedUser<User>();
+          if (!cached) {
+            console.error('Failed to restore session (no cache):', sessionError);
+            return;
+          }
+          userSession = cached;
       }
 
       // Normal (non-e2e) path continues here
@@ -528,8 +522,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
     } catch (error) {
       console.error('Failed to restore session:', error);
-      await clearTokens();
-      await AsyncStorage.removeItem(CACHED_USER_KEY);
+      await forgetSession();
     } finally {
       setIsLoading(false);
     }

@@ -318,11 +318,57 @@ describe('AuthContext', () => {
       data: undefined,
       error: { message: 'Unauthorized' },
       request: {} as Request,
-      response: {} as Response,
+      response: { status: 401 } as Response,
     } as never);
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(await AsyncStorage.getItem('versemate_cached_user')).toBeNull();
+    expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
+  });
+
+  it('signs out a signed-in user whose session is refused at a later load', async () => {
+    mockTokenStorage.getAccessToken.mockResolvedValue('access-token');
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: { id: '1', email: 'a@example.com', pendingEmail: null },
+      error: undefined,
+      request: {} as Request,
+      response: { status: 200 } as Response,
+    } as never);
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: undefined,
+      error: { message: 'Bearer token not in redis' },
+      request: {} as Request,
+      response: { status: 401 } as Response,
+    } as never);
+    await act(async () => {
+      await result.current.restoreSession();
+    });
+    expect(result.current.isAuthenticated).toBe(false);
+  });
+
+  it('keeps the session through a server error', async () => {
+    mockTokenStorage.getAccessToken.mockResolvedValue('access-token');
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: { id: '1', email: 'a@example.com', pendingEmail: null },
+      error: undefined,
+      request: {} as Request,
+      response: { status: 200 } as Response,
+    } as never);
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: undefined,
+      error: { message: 'Bad Gateway' },
+      request: {} as Request,
+      response: { status: 502 } as Response,
+    } as never);
+    await act(async () => {
+      await result.current.restoreSession();
+    });
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(mockTokenStorage.clearTokens).not.toHaveBeenCalled();
   });
 
   // Test 6: Session restore should handle missing tokens gracefully
