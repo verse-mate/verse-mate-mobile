@@ -32,6 +32,7 @@ import { Platform } from 'react-native';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { usePostHog } from 'posthog-react-native';
 
+const SERVER_SIGN_OUT_LIMIT_MS = 5000;
 const CACHED_USER_KEY = 'versemate_cached_user';
 
 async function getCachedUser<T>(): Promise<T | null> {
@@ -413,14 +414,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Track analytics: fire LOGOUT event before resetting identity
     analytics.track(AnalyticsEvent.LOGOUT, {});
 
-    // GH-281 (D-15): unregister this device's push token while the session is
-    // still valid, so a signed-out device stops receiving the daily verse.
-    // Best-effort — never block logout on it.
-    await unregisterPushOnLogout().catch(() => {});
-
-    try {
-      await postAuthLogout();
-    } catch {}
+    const abort = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const signOutOnServer = async () => {
+      await unregisterPushOnLogout().catch(() => {});
+      await postAuthLogout({ signal: abort.signal });
+    };
+    await Promise.race([
+      signOutOnServer().catch(() => {}),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(() => {
+          abort.abort();
+          resolve();
+        }, SERVER_SIGN_OUT_LIMIT_MS);
+      }),
+    ]);
+    clearTimeout(timer);
 
     await clearTokens();
     clearTokenCache();
