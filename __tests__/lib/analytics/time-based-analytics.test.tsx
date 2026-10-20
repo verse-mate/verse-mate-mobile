@@ -126,6 +126,7 @@ describe('Time-Based Analytics - Phase 1', () => {
       preferred_language: 'en',
       imageSrc: null,
       hasPassword: true,
+      pendingEmail: null,
     };
 
     // Test 3: Verify last_login_at is set on login() method

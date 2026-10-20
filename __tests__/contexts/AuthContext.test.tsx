@@ -81,6 +81,7 @@ describe('AuthContext', () => {
       preferred_language: 'en',
       imageSrc: null,
       hasPassword: true,
+      pendingEmail: null,
     };
 
     mockPostAuthLogin.mockResolvedValue({
@@ -134,6 +135,7 @@ describe('AuthContext', () => {
       preferred_language: 'en',
       imageSrc: null,
       hasPassword: true,
+      pendingEmail: null,
     };
 
     mockPostAuthSignup.mockResolvedValue({
@@ -187,6 +189,7 @@ describe('AuthContext', () => {
       preferred_language: 'en',
       imageSrc: null,
       hasPassword: true,
+      pendingEmail: null,
     };
 
     mockPostAuthLogin.mockResolvedValue({
@@ -237,6 +240,7 @@ describe('AuthContext', () => {
       preferred_language: 'en',
       imageSrc: null,
       hasPassword: true,
+      pendingEmail: null,
     };
 
     // Mock existing token

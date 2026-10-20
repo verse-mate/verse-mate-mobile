@@ -19,6 +19,7 @@ export const mockUser: User = {
   preferred_language: 'en',
   imageSrc: undefined,
   hasPassword: true,
+  pendingEmail: null,
 };
 
 /**
