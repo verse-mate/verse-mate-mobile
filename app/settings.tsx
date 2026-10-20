@@ -528,19 +528,14 @@ export default function SettingsScreen() {
     return () => clearTimeout(timer);
   }, [isAuthenticated, user, firstName, lastName, email]);
 
-  // Save pending changes when screen loses focus
-  // Note: saveProfile is auto-memoized by React Compiler
   useFocusEffect(
     useCallback(() => {
-      // Cleanup function runs when screen loses focus
       return () => {
         if (hasPendingChangesRef.current && isAuthenticated) {
-          // Save synchronously on blur (don't await to avoid blocking navigation)
-          saveProfile();
+          saveProfileRef.current();
         }
       };
-      // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization
-    }, [isAuthenticated, saveProfile])
+    }, [isAuthenticated])
   );
 
   const handleBibleVersionChange = async (version: BibleVersion) => {

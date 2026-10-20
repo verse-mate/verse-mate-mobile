@@ -714,11 +714,29 @@ describe('SettingsScreen', () => {
       const { rerender, unmount } = await open();
       sessionUser = { ...mockUser, email: 'new@example.com', pendingEmail: null };
       rerender(tree());
-      unmount();
       await act(async () => {
         jest.advanceTimersByTime(1000);
       });
       expect(mockPutAuthProfile).not.toHaveBeenCalled();
+      unmount();
+      expect(mockPutAuthProfile).not.toHaveBeenCalled();
+    });
+
+    it('Typing an address saves only the finished one', async () => {
+      jest.mocked(useFocusEffect).mockImplementation(focusLikeTheRouter as never);
+      const { rerender } = await open();
+      for (const typed of ['a@example.com', 'ab@example.com', 'abc@example.com']) {
+        fireEvent.changeText(screen.getByTestId('settings-email-input'), typed);
+      }
+      expect(mockPutAuthProfile).not.toHaveBeenCalled();
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      await settle(rerender);
+      expect(mockPutAuthProfile).toHaveBeenCalledTimes(1);
+      expect(mockPutAuthProfile).toHaveBeenCalledWith({
+        body: { firstName: 'Test', lastName: 'User', email: 'abc@example.com' },
+      });
     });
 
     it.each([
