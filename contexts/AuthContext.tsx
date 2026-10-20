@@ -22,6 +22,7 @@ import { unregisterPushOnLogout } from '@/lib/notifications/push-registration';
 import {
   getAuthSession,
   postAuthLogin,
+  postAuthLogout,
   postAuthSignup,
 } from '@/src/api/generated/sdk.gen';
 import type { GetAuthSessionResponse } from '@/src/api/generated/types.gen';
@@ -417,7 +418,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Best-effort — never block logout on it.
     await unregisterPushOnLogout().catch(() => {});
 
-    // Clear tokens and cached user profile from storage
+    try {
+      await postAuthLogout();
+    } catch {}
+
     await clearTokens();
     clearTokenCache();
     await AsyncStorage.removeItem(CACHED_USER_KEY);

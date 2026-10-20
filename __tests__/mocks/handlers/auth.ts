@@ -321,6 +321,10 @@ export const putAuthProfileHandler = http.put(
   }
 );
 
+export const postAuthLogoutHandler = http.post(`${API_BASE_URL}/auth/logout`, () =>
+  HttpResponse.json(true)
+);
+
 /**
  * Helper function to reset mock data (for tests)
  */
@@ -358,4 +362,5 @@ export const authHandlers = [
   postAuthRefreshHandler,
   getAuthSessionHandler,
   putAuthProfileHandler,
+  postAuthLogoutHandler,
 ];

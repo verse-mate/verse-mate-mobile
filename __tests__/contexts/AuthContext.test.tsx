@@ -13,7 +13,12 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import * as tokenStorage from '@/lib/auth/token-storage';
-import { getAuthSession, postAuthLogin, postAuthSignup } from '@/src/api/generated/sdk.gen';
+import {
+  getAuthSession,
+  postAuthLogin,
+  postAuthLogout,
+  postAuthSignup,
+} from '@/src/api/generated/sdk.gen';
 
 // Mock dependencies
 jest.mock('@/lib/auth/token-storage');
@@ -23,6 +28,7 @@ const mockTokenStorage = tokenStorage as jest.Mocked<typeof tokenStorage>;
 const mockGetAuthSession = getAuthSession as jest.MockedFunction<typeof getAuthSession>;
 const mockPostAuthLogin = postAuthLogin as jest.MockedFunction<typeof postAuthLogin>;
 const mockPostAuthSignup = postAuthSignup as jest.MockedFunction<typeof postAuthSignup>;
+const mockPostAuthLogout = postAuthLogout as jest.MockedFunction<typeof postAuthLogout>;
 
 describe('AuthContext', () => {
   let queryClient: QueryClient;
@@ -219,8 +225,10 @@ describe('AuthContext', () => {
     // Logout
     await result.current.logout();
 
-    // Per D-005 — no proactive-refresh cleanup; just token clear.
-    // Verify tokens were cleared
+    expect(mockPostAuthLogout).toHaveBeenCalledTimes(1);
+    expect(mockPostAuthLogout.mock.invocationCallOrder[0]).toBeLessThan(
+      mockTokenStorage.clearTokens.mock.invocationCallOrder[0]
+    );
     expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
 
     // Verify state was reset
@@ -228,6 +236,37 @@ describe('AuthContext', () => {
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.user).toBeNull();
     });
+  });
+
+  it('signs out locally even when the server logout fails', async () => {
+    mockTokenStorage.getAccessToken.mockResolvedValue('stored-token');
+    mockGetAuthSession.mockResolvedValue({
+      data: {
+        id: '123',
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        is_admin: false,
+        preferred_language: 'en',
+        imageSrc: null,
+        hasPassword: true,
+        pendingEmail: null,
+      },
+      error: undefined,
+      request: {} as Request,
+      response: {} as Response,
+    });
+    mockPostAuthLogout.mockRejectedValue(new TypeError('Network request failed'));
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+
+    await act(async () => {
+      await result.current.logout();
+    });
+
+    expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
+    expect(result.current.isAuthenticated).toBe(false);
   });
 
   // Test 5: Session restore should fetch user when tokens exist
