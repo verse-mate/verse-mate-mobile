@@ -783,6 +783,15 @@ export default function SettingsScreen() {
                 autoCapitalize="none"
                 testID="settings-email-input"
               />
+              {typeof user?.pendingEmail === 'string' && user.pendingEmail ? (
+                <Text
+                  style={styles.pendingEmailText}
+                  testID="settings-pending-email"
+                  accessibilityLiveRegion="polite"
+                >
+                  {t('settings.pending_email', { email: user.pendingEmail })}
+                </Text>
+              ) : null}
             </View>
           </View>
         )}
@@ -1226,6 +1235,13 @@ const createStyles = (colors: ReturnType<typeof getColors>) =>
     profileErrorText: {
       fontSize: 12,
       color: colors.error,
+    },
+    pendingEmailText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginTop: -12,
+      marginBottom: 16,
+      marginLeft: 4,
     },
     form: {
       marginBottom: 8,
