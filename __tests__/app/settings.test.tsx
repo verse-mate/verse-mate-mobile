@@ -16,14 +16,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import i18next from 'i18next';
 import type React from 'react';
 import { Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SettingsScreen from '@/app/settings';
 import type { User } from '@/contexts/AuthContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOfflineContext } from '@/contexts/OfflineContext';
 import { useBibleVersion } from '@/hooks/use-bible-version';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
+import es from '@/locales/es.json';
 import * as sdk from '@/src/api/generated/sdk.gen';
 
 // Mock dependencies
@@ -152,6 +155,7 @@ const mockUser: User = {
   preferred_language: 'en-US',
   imageSrc: undefined,
   hasPassword: true,
+  pendingEmail: null,
 };
 
 describe('SettingsScreen', () => {
@@ -534,6 +538,193 @@ describe('SettingsScreen', () => {
       renderWithProviders(<SettingsScreen />);
 
       expect(screen.queryByText('Language Preferences')).toBeTruthy();
+    });
+  });
+
+  describe('Pending email notice', () => {
+    const NOTICE = 'settings-pending-email';
+    const noticeText = (address: string) =>
+      `Check ${address} for a message from us to finish changing your email.`;
+
+    let sessionUser: User;
+    let nextSessionUser: User | null;
+    const restoreSession = jest.fn(async () => {
+      if (nextSessionUser) sessionUser = nextSessionUser;
+    });
+
+    const setSession = (user: User) => {
+      sessionUser = user;
+      nextSessionUser = null;
+      mockUseAuth.mockImplementation(() => ({
+        user: sessionUser,
+        isAuthenticated: true,
+        isLoading: false,
+        login: jest.fn(),
+        signup: jest.fn(),
+        logout: jest.fn(),
+        loginWithSSO: jest.fn(),
+        restoreSession,
+      }));
+    };
+
+    const saveResponds = (pendingEmail: string | null) => {
+      nextSessionUser = { ...sessionUser, pendingEmail };
+      mockPutAuthProfile.mockResolvedValue({
+        data: { ...sessionUser, pendingEmail },
+        error: undefined,
+        request: {} as Request,
+        response: {} as Response,
+      });
+    };
+
+    const ui = () => <SettingsScreen />;
+
+    const typeAndSave = async (
+      rerender: (el: React.ReactElement) => void,
+      testID: string,
+      value: string
+    ) => {
+      fireEvent.changeText(screen.getByTestId(testID), value);
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+      await waitFor(() => expect(mockPutAuthProfile).toHaveBeenCalled());
+      await act(async () => {});
+      rerender(
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>{ui()}</QueryClientProvider>
+        </SafeAreaProvider>
+      );
+    };
+
+    beforeEach(() => {
+      restoreSession.mockClear();
+      setSession(mockUser);
+    });
+
+    it('Notice appears right after requesting a change', async () => {
+      saveResponds('new@example.com');
+      const { rerender } = renderWithProviders(ui());
+      expect(screen.queryByTestId(NOTICE)).toBeNull();
+      await typeAndSave(rerender, 'settings-email-input', 'new@example.com');
+      await waitFor(() =>
+        expect(screen.getByTestId(NOTICE)).toHaveTextContent(noticeText('new@example.com'))
+      );
+      expect(screen.getByTestId('settings-email-input').props.value).toBe('test@example.com');
+    });
+
+    it('Requesting an address that belongs to another account', async () => {
+      saveResponds('taken@example.com');
+      const { rerender } = renderWithProviders(ui());
+      await typeAndSave(rerender, 'settings-email-input', 'taken@example.com');
+      await waitFor(() =>
+        expect(screen.getByTestId(NOTICE)).toHaveTextContent(noticeText('taken@example.com'))
+      );
+      expect(screen.queryByText(/already in use/i)).toBeNull();
+    });
+
+    it('Notice is shown again when settings reopen, and on other signed-in devices', () => {
+      setSession({ ...mockUser, pendingEmail: 'new@example.com' });
+      renderWithProviders(ui());
+      expect(screen.getByTestId(NOTICE)).toHaveTextContent(noticeText('new@example.com'));
+      expect(screen.getByTestId('settings-email-input').props.value).toBe('test@example.com');
+    });
+
+    it('No notice without a pending change', () => {
+      renderWithProviders(ui());
+      expect(screen.getByTestId('settings-email-input')).toBeTruthy();
+      expect(screen.queryByTestId(NOTICE)).toBeNull();
+    });
+
+    it('Saving the current address again keeps the pending change', async () => {
+      setSession({ ...mockUser, pendingEmail: 'new@example.com' });
+      saveResponds('new@example.com');
+      const { rerender } = renderWithProviders(ui());
+      fireEvent.changeText(screen.getByTestId('settings-email-input'), 'test@example.com');
+      await typeAndSave(rerender, 'settings-last-name-input', 'Userson');
+      expect(screen.getByTestId(NOTICE)).toHaveTextContent(noticeText('new@example.com'));
+      expect(screen.getByTestId('settings-email-input').props.value).toBe('test@example.com');
+    });
+
+    it('Saving the pending address again', async () => {
+      setSession({ ...mockUser, pendingEmail: 'new@example.com' });
+      saveResponds('new@example.com');
+      const { rerender } = renderWithProviders(ui());
+      await typeAndSave(rerender, 'settings-email-input', 'new@example.com');
+      expect(screen.getByTestId(NOTICE)).toHaveTextContent(noticeText('new@example.com'));
+    });
+
+    it('A newer request replaces the pending address', async () => {
+      setSession({ ...mockUser, pendingEmail: 'first@example.com' });
+      saveResponds('second@example.com');
+      const { rerender } = renderWithProviders(ui());
+      await typeAndSave(rerender, 'settings-email-input', 'second@example.com');
+      await waitFor(() =>
+        expect(screen.getByTestId(NOTICE)).toHaveTextContent(noticeText('second@example.com'))
+      );
+    });
+
+    it('A refused request', async () => {
+      setSession({ ...mockUser, pendingEmail: 'first@example.com' });
+      nextSessionUser = { ...sessionUser, pendingEmail: null };
+      mockPutAuthProfile.mockResolvedValue({
+        data: undefined,
+        error: { error: 'TOO_MANY_REQUESTS', message: 'Too many requests' },
+        request: {} as Request,
+        response: {} as Response,
+      } as never);
+      const { rerender } = renderWithProviders(ui());
+      await typeAndSave(rerender, 'settings-email-input', 'second@example.com');
+      expect(await screen.findByText('An error occurred while saving your changes.')).toBeTruthy();
+      expect(restoreSession).not.toHaveBeenCalled();
+      expect(screen.getByTestId(NOTICE)).toHaveTextContent(noticeText('first@example.com'));
+    });
+
+    it.each([
+      ['Notice clears when the request expires'],
+      ['Notice clears when the requesting session signs out'],
+    ])('%s', () => {
+      setSession({ ...mockUser, pendingEmail: 'new@example.com' });
+      const { rerender } = renderWithProviders(ui());
+      expect(screen.getByTestId(NOTICE)).toBeTruthy();
+      setSession({ ...mockUser, pendingEmail: null });
+      rerender(
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>{ui()}</QueryClientProvider>
+        </SafeAreaProvider>
+      );
+      expect(screen.queryByTestId(NOTICE)).toBeNull();
+    });
+
+    it('Mobile offline shows the last known state', () => {
+      const offline = useOfflineContext as jest.Mock;
+      const base = offline();
+      offline.mockReturnValue({ ...base, isOnline: false });
+      try {
+        setSession({ ...mockUser, pendingEmail: 'cached@example.com' });
+        renderWithProviders(ui());
+        expect(screen.getByTestId(NOTICE)).toHaveTextContent(noticeText('cached@example.com'));
+      } finally {
+        offline.mockReturnValue(base);
+      }
+    });
+
+    it('Notice in the selected language', async () => {
+      i18next.addResourceBundle('es', 'translation', es, true, true);
+      await act(async () => {
+        await i18next.changeLanguage('es');
+      });
+      try {
+        setSession({ ...mockUser, pendingEmail: 'nuevo@example.com' });
+        renderWithProviders(ui());
+        expect(screen.getByTestId(NOTICE)).toHaveTextContent(
+          'Busca en nuevo@example.com un mensaje nuestro para terminar de cambiar tu correo electrónico.'
+        );
+      } finally {
+        await act(async () => {
+          await i18next.changeLanguage('en');
+        });
+      }
     });
   });
 });

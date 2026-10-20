@@ -79,6 +79,7 @@
     "first_name_placeholder": "Ingresa tu nombre",
     "last_name_placeholder": "Ingresa tu apellido",
     "email_placeholder": "Ingresa tu correo electrónico",
+    "pending_email": "Busca en {{email}} un mensaje nuestro para terminar de cambiar tu correo electrónico.",
     "go_back": "Volver",
     "sign_in_message": "Inicia sesión para acceder a los resaltados automáticos y la configuración del perfil.",
     "errors": {
