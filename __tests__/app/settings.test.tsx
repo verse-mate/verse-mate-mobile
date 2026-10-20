@@ -586,6 +586,8 @@ describe('SettingsScreen', () => {
     const focusOnce = (callback: () => undefined | (() => void)) =>
       // biome-ignore lint/correctness/useExhaustiveDependencies: a screen gains focus once per mount here
       React.useEffect(callback, []);
+    const focusLikeTheRouter = (callback: () => undefined | (() => void)) =>
+      React.useEffect(callback, [callback]);
     const focusDefault = jest.mocked(useFocusEffect).getMockImplementation();
 
     beforeEach(() => {
@@ -705,6 +707,18 @@ describe('SettingsScreen', () => {
       await settle(rerender);
       expect(screen.getByTestId(NOTICE)).toHaveTextContent(noticeText('new@example.com'));
       expect(screen.getByTestId('settings-email-input').props.value).toBe('newer@example.co');
+    });
+
+    it('Signing in with the new address does not request the old one back', async () => {
+      jest.mocked(useFocusEffect).mockImplementation(focusLikeTheRouter as never);
+      const { rerender, unmount } = await open();
+      sessionUser = { ...mockUser, email: 'new@example.com', pendingEmail: null };
+      rerender(tree());
+      unmount();
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(mockPutAuthProfile).not.toHaveBeenCalled();
     });
 
     it.each([
