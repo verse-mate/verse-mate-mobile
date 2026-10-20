@@ -269,6 +269,47 @@ describe('AuthContext', () => {
     expect(result.current.isAuthenticated).toBe(false);
   });
 
+  it('signs out locally when the server logout never answers', async () => {
+    mockTokenStorage.getAccessToken.mockResolvedValue('stored-token');
+    mockGetAuthSession.mockResolvedValue({
+      data: {
+        id: '123',
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        is_admin: false,
+        preferred_language: 'en',
+        imageSrc: null,
+        hasPassword: true,
+        pendingEmail: null,
+      },
+      error: undefined,
+      request: {} as Request,
+      response: {} as Response,
+    });
+    mockPostAuthLogout.mockReturnValue(new Promise(() => {}) as never);
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+
+    jest.useFakeTimers();
+    try {
+      let done = false;
+      act(() => {
+        result.current.logout().then(() => {
+          done = true;
+        });
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(5000);
+      });
+      expect(done).toBe(true);
+      expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   // Test 5: Session restore should fetch user when tokens exist
   it('should restore session when tokens exist', async () => {
     const mockUser = {
