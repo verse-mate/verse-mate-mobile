@@ -314,12 +314,42 @@ export const putAuthProfileHandler = http.put(
     const body = (await request.json()) as PutAuthProfileData['body'];
     user.firstName = body.firstName ?? user.firstName;
     user.lastName = body.lastName ?? user.lastName;
-    const email = body.email?.trim();
+    const email = body.email?.trim().toLowerCase();
     if (email && email.toLowerCase() !== user.email.toLowerCase()) user.pendingEmail = email;
     const response: PutAuthProfileResponse = sessionResponse(user);
     return HttpResponse.json(response);
   }
 );
+
+/**
+ * Helper function to reset mock data (for tests)
+ */
+export const resetAuthMocks = () => {
+  mockUsers.clear();
+  validRefreshTokens.clear();
+};
+
+/**
+ * Helper function to seed test users (for tests)
+ */
+export const seedTestUser = (
+  email: string,
+  password: string,
+  firstName = 'Test',
+  lastName = 'User'
+) => {
+  const userId = `user-${Date.now()}`;
+  mockUsers.set(email, {
+    id: userId,
+    email,
+    firstName,
+    lastName,
+    password,
+    is_admin: false,
+    preferred_language: 'en',
+  });
+  return userId;
+};
 
 // Export all auth handlers
 export const authHandlers = [

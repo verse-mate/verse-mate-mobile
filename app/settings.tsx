@@ -21,6 +21,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react'; // NOTE: useCallback is still used for useFocusEffect which requires it
 import { useTranslation } from 'react-i18next';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
   Platform,
@@ -201,6 +202,40 @@ export default function SettingsScreen() {
     }
   };
 
+  const syncedProfileRef = useRef({ firstName: '', lastName: '', email: '' });
+  const sentProfileRef = useRef({ firstName: '', lastName: '', email: '' });
+  const syncProfileFields = (account: NonNullable<typeof user>) => {
+    const prev = syncedProfileRef.current;
+    const sent = sentProfileRef.current;
+    const next = {
+      firstName: account.firstName || '',
+      lastName: account.lastName || '',
+      email: account.email || '',
+    };
+    syncedProfileRef.current = next;
+    const follow = (key: keyof typeof next) => (current: string) =>
+      current === prev[key] || current === sent[key] ? next[key] : current;
+    setFirstName(follow('firstName'));
+    setLastName(follow('lastName'));
+    setEmail(follow('email'));
+  };
+
+  const pendingEmail = typeof user?.pendingEmail === 'string' ? user.pendingEmail : null;
+  useEffect(() => {
+    if (pendingEmail) {
+      AccessibilityInfo.announceForAccessibility(
+        t('settings.pending_email', { email: pendingEmail })
+      );
+    }
+  }, [pendingEmail, t]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated && !isDeviceOffline) restoreSession();
+      // biome-ignore lint/correctness/useExhaustiveDependencies: refresh once per focus, not on every session change
+    }, [])
+  );
+
   // Update form fields when user session changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: isOffline intentionally included to re-run effect when connectivity changes
   useEffect(() => {
@@ -210,12 +245,7 @@ export default function SettingsScreen() {
         const storedLang = await AsyncStorage.getItem('@versemate:preferred_language');
         if (storedLang) {
           setSelectedLanguage(storedLang);
-          // Still update profile fields if user is logged in
-          if (user) {
-            setFirstName(user.firstName || '');
-            setLastName(user.lastName || '');
-            setEmail(user.email || '');
-          }
+          if (user) syncProfileFields(user);
           return;
         }
       } catch (error) {
@@ -224,9 +254,7 @@ export default function SettingsScreen() {
 
       // Fall back to user's preferred language from session
       if (user) {
-        setFirstName(user.firstName || '');
-        setLastName(user.lastName || '');
-        setEmail(user.email || '');
+        syncProfileFields(user);
         setSelectedLanguage(user.preferred_language || 'en-US');
       }
     };
@@ -429,6 +457,7 @@ export default function SettingsScreen() {
     setSaveStatus('saving');
     if (errorClearTimeoutRef.current) clearTimeout(errorClearTimeoutRef.current);
 
+    sentProfileRef.current = { firstName, lastName, email };
     try {
       const { error } = await putAuthProfile({
         body: {
@@ -450,38 +479,16 @@ export default function SettingsScreen() {
     } catch (error: unknown) {
       let errorMessage = 'An error occurred while saving your changes.';
 
-      const err = error as {
-        message?: string;
-        data?: { value?: { message?: string } };
-        value?: { message?: string } | string;
-      };
+      const err = error as { error?: string; value?: string };
 
-      // Check for error in data.value.message structure (API error format)
-      if (
-        err?.data?.value &&
-        typeof err.data.value === 'object' &&
-        err.data.value.message === 'EMAIL_ALREADY_EXISTS'
-      ) {
-        errorMessage = 'This email address is already in use by another account.';
+      if (err?.error === 'TOO_MANY_REQUESTS' && user) {
+        const sentEmail = sentProfileRef.current.email;
+        setEmail((current) => (current === sentEmail ? user.email || '' : current));
       }
-      // Check for error in value.message structure (alternative format)
-      else if (
-        err?.value &&
-        typeof err.value === 'object' &&
-        err.value.message === 'EMAIL_ALREADY_EXISTS'
-      ) {
-        errorMessage = 'This email address is already in use by another account.';
-      }
-      // Check for direct message
-      else if (err?.message === 'EMAIL_ALREADY_EXISTS') {
-        errorMessage = 'This email address is already in use by another account.';
-      }
-      // Generic value string
-      else if (err?.value && typeof err.value === 'string') {
+
+      if (err?.value && typeof err.value === 'string') {
         errorMessage = err.value;
-      }
-      // Direct string error
-      else if (typeof error === 'string') {
+      } else if (typeof error === 'string') {
         errorMessage = error;
       }
 
@@ -783,13 +790,13 @@ export default function SettingsScreen() {
                 autoCapitalize="none"
                 testID="settings-email-input"
               />
-              {typeof user?.pendingEmail === 'string' && user.pendingEmail ? (
+              {pendingEmail ? (
                 <Text
                   style={styles.pendingEmailText}
                   testID="settings-pending-email"
                   accessibilityLiveRegion="polite"
                 >
-                  {t('settings.pending_email', { email: user.pendingEmail })}
+                  {t('settings.pending_email', { email: pendingEmail })}
                 </Text>
               ) : null}
             </View>

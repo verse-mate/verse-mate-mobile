@@ -501,6 +501,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // Auth error (invalid / expired tokens) — clear everything.
             console.error('Failed to restore session:', sessionError);
             await clearTokens();
+            await AsyncStorage.removeItem(CACHED_USER_KEY);
             return;
           }
       }
@@ -528,6 +529,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error('Failed to restore session:', error);
       await clearTokens();
+      await AsyncStorage.removeItem(CACHED_USER_KEY);
     } finally {
       setIsLoading(false);
     }
