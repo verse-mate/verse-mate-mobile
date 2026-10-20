@@ -546,7 +546,7 @@ describe('SettingsScreen', () => {
         data: undefined,
         error: { error: 'TOO_MANY_REQUESTS', message: 'Too many email changes. Try again later.' },
         request: {} as Request,
-        response: {} as Response,
+        response: { status: 429 } as Response,
       } as never);
     };
 
