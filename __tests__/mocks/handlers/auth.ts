@@ -6,6 +6,7 @@
  * - POST /auth/login
  * - POST /auth/refresh
  * - GET /auth/session
+ * - PUT /auth/profile
  */
 
 import { HttpResponse, http } from 'msw';
@@ -13,6 +14,8 @@ import type {
   GetAuthSessionResponse,
   PostAuthLoginData,
   PostAuthSignupData,
+  PutAuthProfileData,
+  PutAuthProfileResponse,
 } from '../../../src/api';
 
 /**
@@ -46,6 +49,7 @@ const mockUsers = new Map<
     preferred_language: string;
     imageSrc?: string | null;
     hasPassword?: boolean;
+    pendingEmail?: string | null;
   }
 >();
 
@@ -234,87 +238,88 @@ export const postAuthRefreshHandler = http.post(
  * GET /auth/session
  * Returns current authenticated user's data
  */
-export const getAuthSessionHandler = http.get(`${API_BASE_URL}/auth/session`, ({ request }) => {
-  // Extract token from Authorization header
+const sessionUser = (request: Request) => {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return new HttpResponse(
-      JSON.stringify({
-        message: 'Unauthorized - No token provided',
-      }),
-      { status: 401 }
-    );
+    return {
+      error: new HttpResponse(
+        JSON.stringify({
+          message: 'Unauthorized - No token provided',
+        }),
+        { status: 401 }
+      ),
+    };
   }
 
   const token = authHeader.replace('Bearer ', '');
 
-  // Extract user ID from token (mock pattern)
   const userIdMatch = token.match(/user-(\d+)/);
   if (!userIdMatch) {
-    return new HttpResponse(
-      JSON.stringify({
-        message: 'Invalid token',
-      }),
-      { status: 401 }
-    );
+    return {
+      error: new HttpResponse(
+        JSON.stringify({
+          message: 'Invalid token',
+        }),
+        { status: 401 }
+      ),
+    };
   }
 
   const userId = `user-${userIdMatch[1]}`;
 
-  // Find user by ID
   const user = Array.from(mockUsers.values()).find((u) => u.id === userId);
   if (!user) {
-    return new HttpResponse(
-      JSON.stringify({
-        message: 'User not found',
-      }),
-      { status: 404 }
-    );
+    return {
+      error: new HttpResponse(
+        JSON.stringify({
+          message: 'User not found',
+        }),
+        { status: 404 }
+      ),
+    };
   }
 
-  const response: GetAuthSessionResponse = {
-    id: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    is_admin: user.is_admin,
-    preferred_language: user.preferred_language,
-    imageSrc: user.imageSrc || null,
-    hasPassword: user.hasPassword !== undefined ? user.hasPassword : true,
-  };
+  return { user };
+};
 
-  return HttpResponse.json(response);
+const sessionResponse = (
+  user: NonNullable<ReturnType<typeof mockUsers.get>>
+): GetAuthSessionResponse => ({
+  id: user.id,
+  email: user.email,
+  firstName: user.firstName,
+  lastName: user.lastName,
+  is_admin: user.is_admin,
+  preferred_language: user.preferred_language,
+  imageSrc: user.imageSrc || null,
+  hasPassword: user.hasPassword !== undefined ? user.hasPassword : true,
+  pendingEmail: user.pendingEmail ?? null,
+});
+
+export const getAuthSessionHandler = http.get(`${API_BASE_URL}/auth/session`, ({ request }) => {
+  const { user, error } = sessionUser(request);
+  if (error) return error;
+  return HttpResponse.json(sessionResponse(user));
 });
 
 /**
- * Helper function to reset mock data (for tests)
+ * PUT /auth/profile
+ * A different email is not applied: it becomes the pending email until confirmed
  */
-export const resetAuthMocks = () => {
-  mockUsers.clear();
-  validRefreshTokens.clear();
-};
-
-/**
- * Helper function to seed test users (for tests)
- */
-export const seedTestUser = (
-  email: string,
-  password: string,
-  firstName = 'Test',
-  lastName = 'User'
-) => {
-  const userId = `user-${Date.now()}`;
-  mockUsers.set(email, {
-    id: userId,
-    email,
-    firstName,
-    lastName,
-    password,
-    is_admin: false,
-    preferred_language: 'en',
-  });
-  return userId;
-};
+export const putAuthProfileHandler = http.put(
+  `${API_BASE_URL}/auth/profile`,
+  async ({ request }) => {
+    const { user, error } = sessionUser(request);
+    if (error) return error;
+    const body = (await request.json()) as PutAuthProfileData['body'];
+    user.firstName = body.firstName ?? user.firstName;
+    user.lastName = body.lastName ?? user.lastName;
+    const email = body.email?.trim();
+    if (email && email.toLowerCase() !== user.email.toLowerCase()) user.pendingEmail = email;
+    const response: PutAuthProfileResponse = sessionResponse(user);
+    return HttpResponse.json(response);
+  }
+);
 
 // Export all auth handlers
 export const authHandlers = [
@@ -322,4 +327,5 @@ export const authHandlers = [
   postAuthLoginHandler,
   postAuthRefreshHandler,
   getAuthSessionHandler,
+  putAuthProfileHandler,
 ];
