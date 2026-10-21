@@ -10,7 +10,7 @@ url: http://localhost:8081
 #   EXPO_PUBLIC_API_URL=https://api.versemate.org npx expo start --web --port 8081
 #
 # Run:
-#   maestro test --env E2E_TEST_EMAIL=person7@example.org --env E2E_TEST_PASSWORD=REDACTED_TEST_PASSWORD .maestro/web/auth-login-web.yaml
+#   maestro test --env E2E_TEST_EMAIL="$E2E_TEST_EMAIL" --env E2E_TEST_PASSWORD="$E2E_TEST_PASSWORD" .maestro/web/auth-login-web.yaml
 
 # Open the web app
 - openLink: "http://localhost:8081"
