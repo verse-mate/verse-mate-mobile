@@ -35,8 +35,8 @@ export function LexiconUnderlineToggle() {
           <View style={styles.textColumn}>
             <Text style={styles.label}>Underline definable words</Text>
             <Text style={styles.helpText}>
-              Show the gold underline under words with a dictionary entry. Words stay tappable
-              either way.
+              Show a gold underline under words with a Greek or Hebrew entry. Every word opens its
+              definition when tapped either way.
             </Text>
           </View>
           <Switch

@@ -306,7 +306,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
      * that rewrite has to reach the render — see the comment at the re-base itself for the bug this
      * fixes.
      */
-    const [, setRebaseSeq] = useState(0);
+    const [rebaseSeq, setRebaseSeq] = useState(0);
     const indexRef = useRef(0);
     indexRef.current = index;
 
@@ -411,6 +411,13 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
      * That is precisely what makes a late render harmless here and was impossible in
      * the sliding-window version.
      */
+    //
+    // `rebaseSeq` is a dependency even though the body never reads it. A re-base rewrites the
+    // `chapterAt` ref that `resolveIndex` reads, and when the pager was already at index 0 — nothing
+    // swiped since it mounted or since the previous jump — `index` does not change, so without it this
+    // memo handed back the OLD chapter's pages. That was the App Store build's "header says Amos 1,
+    // page shows Matthew 2", fixed by a swipe because a swipe moves `index`.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: rebaseSeq stands in for the chapterAt ref — see above
     const rendered = useMemo(() => {
       if (!booksMetadata) return [];
       const out: { index: number; loc: ChapterLocation }[] = [];
@@ -419,7 +426,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
         if (loc) out.push({ index: i, loc });
       }
       return out;
-    }, [index, resolveIndex, booksMetadata]);
+    }, [index, resolveIndex, booksMetadata, rebaseSeq]);
 
     /**
      * Publish the page width and the reachable index range to the gesture.
@@ -455,6 +462,11 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
      * The Bible's bounds do not move, so these are computed from the anchor chapter's
      * ordinal and cannot go stale no matter how far ahead of React the gesture runs.
      */
+    //
+    // Re-run on a re-base as well: it moves the anchor without necessarily moving `index`, and bounds
+    // left from the previous anchor would let a swipe run past Genesis 1 or Revelation 22, or refuse
+    // one that should page.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: index and rebaseSeq are the triggers; the anchor is read from a ref
     useEffect(() => {
       const anchor = chapterAt.current.get(0);
       if (!anchor) return;
@@ -462,7 +474,7 @@ export const GestureChapterPager = forwardRef<GestureChapterPagerRef, GestureCha
       if (!position) return;
       minIndexSV.value = -position.ordinal;
       maxIndexSV.value = position.total - 1 - position.ordinal;
-    }, [booksMetadata, index, minIndexSV, maxIndexSV]);
+    }, [booksMetadata, index, rebaseSeq, minIndexSV, maxIndexSV]);
 
     /**
      * Move the pager onto `target`, re-basing the index space when it has never been visited.

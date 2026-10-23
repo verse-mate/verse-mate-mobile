@@ -15,6 +15,11 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
+import {
+  ByLineSection,
+  ByLineToggleAll,
+  useByLineExpansion,
+} from '@/components/bible/ByLineSections';
 import { createInsightMarkdownStyles } from '@/components/bible/insightMarkdownStyles';
 import { StudyPanel } from '@/components/bible/StudyPanel';
 import {
@@ -185,16 +190,22 @@ function SummaryBody({ detail }: { detail: JesusEventDetail }) {
  * Its own component because each account is a different chapter and therefore
  * a different fetch — hooks cannot run in a loop over passages.
  *
- * NOTHING COLLAPSES HERE. The first version made every verse a closed
- * accordion row, so the tab opened as a bare list of references and reading it
- * cost one tap per verse. That was invented, not asked for: web opens every
- * row by default (collapsing is its exception), and the reader's OWN By-Line
- * tab has no toggle at all — it prints each section one after the next
- * (ChapterReader maps `parseByLineSections` straight into <Markdown>). A
- * commentary meant to be read straight through must not arrive folded up, and
- * the Jesus feature should not be the one place in the app where it does.
+ * Rows OPEN by default and fold on tap, with Expand All / Collapse All on the
+ * tab — the same ByLineSections the reader's own By Line uses, matching web.
+ * The very first version here made every verse a closed accordion row, so the
+ * tab opened as a bare list of references and reading it cost one tap per
+ * verse; a commentary meant to be read straight through must not arrive folded
+ * up. Folding is the reader's choice.
  */
-function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labelled: boolean }) {
+function BylineAccount({
+  passage,
+  labelled,
+  expansion,
+}: {
+  passage: JesusEventPassage;
+  labelled: boolean;
+  expansion: ReturnType<typeof useByLineExpansion>;
+}) {
   const { t } = useTranslation();
   const { styles, md } = useTabStyles();
 
@@ -238,15 +249,20 @@ function BylineAccount({ passage, labelled }: { passage: JesusEventPassage; labe
       ) : (
         // `row.markdown` already opens with the reference as its own heading —
         // the same subtree the reader renders — so nothing is printed above it.
-        rows.map((row) => (
-          <View
-            key={row.verse}
-            style={styles.bylineRow}
-            testID={`jesus-byline-row-${passage.book_id}-${passage.chapter}-${row.verse}`}
-          >
-            <Markdown style={md}>{row.markdown}</Markdown>
-          </View>
-        ))
+        rows.map((row) => {
+          const id = `${passage.book_id}-${passage.chapter}-${row.verse}`;
+          return (
+            <View key={row.verse} style={styles.bylineRow}>
+              <ByLineSection
+                markdown={row.markdown}
+                open={expansion.isOpen(id)}
+                onToggle={() => expansion.toggle(id)}
+                markdownStyles={md}
+                testID={`jesus-byline-row-${id}`}
+              />
+            </View>
+          );
+        })
       )}
     </View>
   );
@@ -266,6 +282,8 @@ function BylineBody({ detail }: { detail: JesusEventDetail }) {
   const { styles } = useTabStyles();
 
   const passages = detail.passages ?? [];
+  // One fold state for the whole tab, so Expand All / Collapse All covers every account.
+  const expansion = useByLineExpansion(detail.event.slug);
 
   if (passages.length === 0) {
     return (
@@ -283,8 +301,18 @@ function BylineBody({ detail }: { detail: JesusEventDetail }) {
           title: detail.event.title,
         })}
       </Text>
+      <ByLineToggleAll
+        allOpen={expansion.allOpen}
+        onPress={() => expansion.setAll(!expansion.allOpen)}
+        testID="jesus-byline-toggle-all"
+      />
       {passages.map((passage) => (
-        <BylineAccount key={passage.display} passage={passage} labelled={passages.length > 1} />
+        <BylineAccount
+          key={passage.display}
+          passage={passage}
+          labelled={passages.length > 1}
+          expansion={expansion}
+        />
       ))}
     </View>
   );

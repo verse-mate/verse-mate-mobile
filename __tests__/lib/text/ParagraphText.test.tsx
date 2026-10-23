@@ -184,13 +184,74 @@ describe('ParagraphText verse resolution', () => {
     expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2);
   });
 
-  it('wires no plain-press handler at all, so a tap on plain text does nothing', () => {
-    // This used to resolve any character offset to a verse and open its
-    // insight, which is why a tap anywhere in a verse opened one. The verse
-    // number is the only trigger now, and the absence of the handler is the
-    // mechanism: a handler that declined would be one edit away from firing
-    // again.
-    renderParagraph();
+  it('opens a verse for a plain-text tap just beside its number, and for nothing else', () => {
+    // Replaces "wires no plain-press handler at all". Plain text is still inert — a tap in the middle
+    // of a verse opens nothing — but Andy asked for more room around the numbers without more space
+    // on the page, so a tap that lands on the first letters after a number is taken as aimed at it.
+    // The resolver itself is covered in verse-number-near-offset.test.ts; this pins the wiring.
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const tree = renderParagraph();
+    const press = getPress(tree);
+
+    press({ charOffset: compiled.verses[1].textStart, x: 0, y: 0 });
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2);
+
+    tree.handlers.onVerseTap.mockClear();
+    press({ charOffset: compiled.verses[0].textStart + 8, x: 0, y: 0 });
+    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
+  });
+
+  it('defines the tapped word when the tap is not beside a number', () => {
+    // Andy: "expand the definitions to all words". A word with no lexicon entry is a plain-text tap,
+    // and it now opens the dictionary for that word.
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({ onWordPress });
+    const offset = compiled.text.indexOf('beginning') + 2;
+
+    getPress(tree)({ charOffset: offset, x: 0, y: 0 });
+    expect(onWordPress).toHaveBeenCalledWith({ word: 'beginning', verseNumber: 1 });
+    expect(tree.handlers.onVerseTap).not.toHaveBeenCalled();
+  });
+
+  it('gives a tap beside a number to the number, not to the word it overlaps', () => {
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({ onWordPress });
+
+    getPress(tree)({ charOffset: compiled.verses[1].textStart, x: 0, y: 0 });
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(2);
+    expect(onWordPress).not.toHaveBeenCalled();
+  });
+
+  it('defines nothing for a tap on whitespace', () => {
+    const compiled = compileParagraph({ verses: VERSES, theme: THEME });
+    const onWordPress = jest.fn();
+    const tree = renderParagraph({ onWordPress });
+    const space = compiled.text.indexOf(' beginning');
+
+    getPress(tree)({ charOffset: space, x: 0, y: 0 });
+    expect(onWordPress).not.toHaveBeenCalled();
+  });
+
+  it('gives a tap on the first letters after a number to the number, even on a lexicon word', () => {
+    // The first word after a number is often a lexicon word, and with the underlines off nothing
+    // shows it. Letting the word win would keep the miss Andy reported.
+    const alignment = alignmentFor({ en: 'In' });
+    const input = { verses: VERSES, alignment, theme: THEME };
+    const compiled = compileParagraph(input);
+    const tree = renderParagraph({ alignment });
+    const lexiconIndex = indexOfTag('lexicon:1:0', input);
+
+    getRangeTap(tree)(lexiconIndex, compiled.verses[0].textStart);
+    expect(tree.handlers.onVerseTap).toHaveBeenCalledWith(1);
+    expect(tree.handlers.onLexiconWordPress).not.toHaveBeenCalled();
+  });
+
+  it('wires no plain-press handler when nothing listens for verse taps', () => {
+    // A paragraph without onVerseTap has no use for plain taps, so the native view is not asked to
+    // send them.
+    renderParagraph({ onVerseTap: undefined });
 
     // capturedRangeTap first: it proves VMText was actually rendered, so the
     // assertion below is about the prop being absent rather than about the

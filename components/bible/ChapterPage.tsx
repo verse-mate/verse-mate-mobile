@@ -646,7 +646,6 @@ export function ChapterPage({
   // Use state with debouncing to avoid re-renders on every scroll frame
   const [visibleYRange, setVisibleYRange] = useState<VisibleYRange | null>(null);
   const visibleYRangeRef = useRef<VisibleYRange | null>(null);
-  const visibilityUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const viewportHeightRef = useRef<number>(0);
 
   // Get highlights from the provider (single source of truth — avoids duplicate queries)
@@ -942,10 +941,6 @@ export function ChapterPage({
     if (verseTooltipTimerRef.current) {
       clearTimeout(verseTooltipTimerRef.current);
       verseTooltipTimerRef.current = null;
-    }
-    if (visibilityUpdateTimerRef.current) {
-      clearTimeout(visibilityUpdateTimerRef.current);
-      visibilityUpdateTimerRef.current = null;
     }
     // Reset visible range on chapter change
     setVisibleYRange(null);
@@ -1402,32 +1397,24 @@ export function ChapterPage({
     },
   });
 
+  /**
+   * Scroll handler for the INSIGHT tabs (Summary, By Line, Study, Visuals).
+   *
+   * The Bible pane has its own, `animatedScrollHandler` above, and only that one may write
+   * `visibleYRange`: the range is what the Bible reader windows its paragraphs against, and the two
+   * panes scroll independently. This handler used to write it too, so scrolling an Insight tab a few
+   * screens down told the Bible reader it was looking at the same offset — and on returning to Bible
+   * every paragraph near the top rendered as an empty placeholder until the Bible pane itself
+   * scrolled and pushed its real range. That was the App Store build's "black until I scroll, then it
+   * lights up" after Insight -> Bible.
+   */
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    // Update current scroll ref for distance calculation
-    currentScrollYRef.current = event.nativeEvent.contentOffset.y;
-
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const currentScrollY = contentOffset.y;
     const currentTime = Date.now();
 
-    // Store viewport height for visibility calculations
+    // Viewport height of the tab, for restoring its scroll position (applyPendingScroll).
     viewportHeightRef.current = layoutMeasurement.height;
-
-    // Update visible Y range ref immediately (no re-render)
-    const newRange: VisibleYRange = {
-      startY: currentScrollY,
-      endY: currentScrollY + layoutMeasurement.height,
-    };
-    visibleYRangeRef.current = newRange;
-
-    // Debounce state update to avoid re-renders on every scroll frame
-    // Update every 150ms for smooth-enough tokenization transitions
-    if (visibilityUpdateTimerRef.current) {
-      clearTimeout(visibilityUpdateTimerRef.current);
-    }
-    visibilityUpdateTimerRef.current = setTimeout(() => {
-      setVisibleYRange(newRange);
-    }, 150);
 
     if (!onScroll) return;
 
