@@ -7,12 +7,18 @@
  * Limit: 2-8 highly focused tests maximum
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import * as tokenStorage from '@/lib/auth/token-storage';
-import { getAuthSession, postAuthLogin, postAuthSignup } from '@/src/api/generated/sdk.gen';
+import {
+  getAuthSession,
+  postAuthLogin,
+  postAuthLogout,
+  postAuthSignup,
+} from '@/src/api/generated/sdk.gen';
 
 // Mock dependencies
 jest.mock('@/lib/auth/token-storage');
@@ -22,6 +28,7 @@ const mockTokenStorage = tokenStorage as jest.Mocked<typeof tokenStorage>;
 const mockGetAuthSession = getAuthSession as jest.MockedFunction<typeof getAuthSession>;
 const mockPostAuthLogin = postAuthLogin as jest.MockedFunction<typeof postAuthLogin>;
 const mockPostAuthSignup = postAuthSignup as jest.MockedFunction<typeof postAuthSignup>;
+const mockPostAuthLogout = postAuthLogout as jest.MockedFunction<typeof postAuthLogout>;
 
 describe('AuthContext', () => {
   let queryClient: QueryClient;
@@ -81,6 +88,7 @@ describe('AuthContext', () => {
       preferred_language: 'en',
       imageSrc: null,
       hasPassword: true,
+      pendingEmail: null,
     };
 
     mockPostAuthLogin.mockResolvedValue({
@@ -134,6 +142,7 @@ describe('AuthContext', () => {
       preferred_language: 'en',
       imageSrc: null,
       hasPassword: true,
+      pendingEmail: null,
     };
 
     mockPostAuthSignup.mockResolvedValue({
@@ -187,6 +196,7 @@ describe('AuthContext', () => {
       preferred_language: 'en',
       imageSrc: null,
       hasPassword: true,
+      pendingEmail: null,
     };
 
     mockPostAuthLogin.mockResolvedValue({
@@ -215,8 +225,10 @@ describe('AuthContext', () => {
     // Logout
     await result.current.logout();
 
-    // Per D-005 — no proactive-refresh cleanup; just token clear.
-    // Verify tokens were cleared
+    expect(mockPostAuthLogout).toHaveBeenCalledTimes(1);
+    expect(mockPostAuthLogout.mock.invocationCallOrder[0]).toBeLessThan(
+      mockTokenStorage.clearTokens.mock.invocationCallOrder[0]
+    );
     expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
 
     // Verify state was reset
@@ -224,6 +236,78 @@ describe('AuthContext', () => {
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.user).toBeNull();
     });
+  });
+
+  it('signs out locally even when the server logout fails', async () => {
+    mockTokenStorage.getAccessToken.mockResolvedValue('stored-token');
+    mockGetAuthSession.mockResolvedValue({
+      data: {
+        id: '123',
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        is_admin: false,
+        preferred_language: 'en',
+        imageSrc: null,
+        hasPassword: true,
+        pendingEmail: null,
+      },
+      error: undefined,
+      request: {} as Request,
+      response: {} as Response,
+    });
+    mockPostAuthLogout.mockRejectedValue(new TypeError('Network request failed'));
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+
+    await act(async () => {
+      await result.current.logout();
+    });
+
+    expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
+    expect(result.current.isAuthenticated).toBe(false);
+  });
+
+  it('signs out locally when the server logout never answers', async () => {
+    mockTokenStorage.getAccessToken.mockResolvedValue('stored-token');
+    mockGetAuthSession.mockResolvedValue({
+      data: {
+        id: '123',
+        email: 'test@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        is_admin: false,
+        preferred_language: 'en',
+        imageSrc: null,
+        hasPassword: true,
+        pendingEmail: null,
+      },
+      error: undefined,
+      request: {} as Request,
+      response: {} as Response,
+    });
+    mockPostAuthLogout.mockReturnValue(new Promise(() => {}) as never);
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+
+    jest.useFakeTimers();
+    try {
+      let done = false;
+      act(() => {
+        result.current.logout().then(() => {
+          done = true;
+        });
+      });
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(5000);
+      });
+      expect(done).toBe(true);
+      expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   // Test 5: Session restore should fetch user when tokens exist
@@ -237,6 +321,7 @@ describe('AuthContext', () => {
       preferred_language: 'en',
       imageSrc: null,
       hasPassword: true,
+      pendingEmail: null,
     };
 
     // Mock existing token
@@ -261,6 +346,109 @@ describe('AuthContext', () => {
     // Verify state was restored
     expect(result.current.isAuthenticated).toBe(true);
     expect(result.current.user).toEqual(mockUser);
+  });
+
+  it('restores the pending email from the cached user while offline, and clears it at the next load', async () => {
+    const sessionUser = {
+      id: '789',
+      email: 'existing@example.com',
+      firstName: 'Existing',
+      lastName: 'User',
+      is_admin: false,
+      preferred_language: 'en',
+      imageSrc: null,
+      hasPassword: true,
+      pendingEmail: 'new@example.com',
+    };
+    mockTokenStorage.getAccessToken.mockResolvedValue('existing-access-token');
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: sessionUser,
+      error: undefined,
+      request: {} as Request,
+      response: {} as Response,
+    });
+    const online = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(online.result.current.user?.pendingEmail).toBe('new@example.com'));
+    online.unmount();
+
+    mockGetAuthSession.mockRejectedValueOnce(new TypeError('Network request failed'));
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.user?.pendingEmail).toBe('new@example.com');
+
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: { ...sessionUser, pendingEmail: null },
+      error: undefined,
+      request: {} as Request,
+      response: {} as Response,
+    });
+    await act(async () => {
+      await result.current.restoreSession();
+    });
+    expect(result.current.user?.pendingEmail).toBeNull();
+  });
+
+  it('forgets the cached user when the session is refused', async () => {
+    mockTokenStorage.getAccessToken.mockResolvedValue('revoked-access-token');
+    await AsyncStorage.setItem(
+      'versemate_cached_user',
+      JSON.stringify({ id: '1', pendingEmail: 'a@example.com' })
+    );
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: undefined,
+      error: { message: 'Unauthorized' },
+      request: {} as Request,
+      response: { status: 401 } as Response,
+    } as never);
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(await AsyncStorage.getItem('versemate_cached_user')).toBeNull();
+    expect(mockTokenStorage.clearTokens).toHaveBeenCalled();
+  });
+
+  it('signs out a signed-in user whose session is refused at a later load', async () => {
+    mockTokenStorage.getAccessToken.mockResolvedValue('access-token');
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: { id: '1', email: 'a@example.com', pendingEmail: null },
+      error: undefined,
+      request: {} as Request,
+      response: { status: 200 } as Response,
+    } as never);
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: undefined,
+      error: { message: 'Bearer token not in redis' },
+      request: {} as Request,
+      response: { status: 401 } as Response,
+    } as never);
+    await act(async () => {
+      await result.current.restoreSession();
+    });
+    expect(result.current.isAuthenticated).toBe(false);
+  });
+
+  it('keeps the session through a server error', async () => {
+    mockTokenStorage.getAccessToken.mockResolvedValue('access-token');
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: { id: '1', email: 'a@example.com', pendingEmail: null },
+      error: undefined,
+      request: {} as Request,
+      response: { status: 200 } as Response,
+    } as never);
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+    mockGetAuthSession.mockResolvedValueOnce({
+      data: undefined,
+      error: { message: 'Bad Gateway' },
+      request: {} as Request,
+      response: { status: 502 } as Response,
+    } as never);
+    await act(async () => {
+      await result.current.restoreSession();
+    });
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(mockTokenStorage.clearTokens).not.toHaveBeenCalled();
   });
 
   // Test 6: Session restore should handle missing tokens gracefully

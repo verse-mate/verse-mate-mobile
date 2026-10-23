@@ -97,6 +97,7 @@ describe('Notes List Screen', () => {
         preferred_language: 'en',
         imageSrc: undefined,
         hasPassword: true,
+        pendingEmail: null,
       },
       isAuthenticated: true,
       isLoading: false,

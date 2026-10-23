@@ -79,6 +79,7 @@
     "first_name_placeholder": "Digite seu nome",
     "last_name_placeholder": "Digite seu sobrenome",
     "email_placeholder": "Digite seu e-mail",
+    "pending_email": "Procure em {{email}} uma mensagem nossa para concluir a alteração do seu e-mail.",
     "go_back": "Voltar",
     "sign_in_message": "Entre para acessar os destaques automáticos e as configurações de perfil.",
     "errors": {

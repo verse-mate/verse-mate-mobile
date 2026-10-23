@@ -352,6 +352,7 @@ export type GetAuthSessionResponses = {
         preferred_language: string | unknown;
         imageSrc: string | unknown;
         hasPassword: boolean;
+        pendingEmail: string | unknown;
     };
 };
 
@@ -413,6 +414,7 @@ export type PutAuthProfileResponses = {
         preferred_language: string | unknown;
         imageSrc: string | unknown;
         hasPassword: boolean;
+        pendingEmail: string | unknown;
     };
 };
 
@@ -738,6 +740,199 @@ export type GetAuthResetPasswordVerifyResponses = {
 
 export type GetAuthResetPasswordVerifyResponse = GetAuthResetPasswordVerifyResponses[keyof GetAuthResetPasswordVerifyResponses];
 
+export type GetAuthConfirmEmailChangeData = {
+    body?: never;
+    path?: never;
+    query: {
+        key: string;
+    };
+    url: '/auth/confirm-email-change';
+};
+
+export type GetAuthConfirmEmailChangeErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAuthConfirmEmailChangeError = GetAuthConfirmEmailChangeErrors[keyof GetAuthConfirmEmailChangeErrors];
+
+export type GetAuthConfirmEmailChangeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: unknown;
+};
+
+export type PostAuthConfirmEmailChangeData = {
+    body: {
+        key: string;
+        email: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/confirm-email-change';
+};
+
+export type PostAuthConfirmEmailChangeErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAuthConfirmEmailChangeError = PostAuthConfirmEmailChangeErrors[keyof PostAuthConfirmEmailChangeErrors];
+
+export type PostAuthConfirmEmailChangeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: unknown;
+};
+
+export type GetAuthRevertEmailChangeData = {
+    body?: never;
+    path?: never;
+    query: {
+        key: string;
+    };
+    url: '/auth/revert-email-change';
+};
+
+export type GetAuthRevertEmailChangeErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetAuthRevertEmailChangeError = GetAuthRevertEmailChangeErrors[keyof GetAuthRevertEmailChangeErrors];
+
+export type GetAuthRevertEmailChangeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: unknown;
+};
+
+export type PostAuthRevertEmailChangeData = {
+    body: {
+        key: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/revert-email-change';
+};
+
+export type PostAuthRevertEmailChangeErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAuthRevertEmailChangeError = PostAuthRevertEmailChangeErrors[keyof PostAuthRevertEmailChangeErrors];
+
+export type PostAuthRevertEmailChangeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: unknown;
+};
+
 export type PostAuthSsoData = {
     body: {
         provider: 'google' | 'apple';
@@ -792,6 +987,60 @@ export type PostAuthSsoResponses = {
 };
 
 export type PostAuthSsoResponse = PostAuthSsoResponses[keyof PostAuthSsoResponses];
+
+export type PostAuthSsoExchangeData = {
+    body: {
+        code: string;
+        verifier: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/sso/exchange';
+};
+
+export type PostAuthSsoExchangeErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostAuthSsoExchangeError = PostAuthSsoExchangeErrors[keyof PostAuthSsoExchangeErrors];
+
+export type PostAuthSsoExchangeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        accessToken: string;
+        verified: boolean;
+    };
+};
+
+export type PostAuthSsoExchangeResponse = PostAuthSsoExchangeResponses[keyof PostAuthSsoExchangeResponses];
 
 export type GetAuthSsoGoogleRedirectData = {
     body?: never;
@@ -1529,8 +1778,8 @@ export type GetBibleVersionsResponse = GetBibleVersionsResponses[keyof GetBibleV
 export type GetBibleBookByBookIdByChapterNumberData = {
     body?: never;
     path: {
-        bookId: string | string | number;
-        chapterNumber: string | string | number;
+        bookId: string | number;
+        chapterNumber: string | number;
     };
     query?: {
         bible_version?: string;
@@ -1722,8 +1971,8 @@ export type PostBibleBookByBookIdIntroductionMarkViewedResponse = PostBibleBookB
 export type GetBibleBookExplanationByBookIdByChapterNumberData = {
     body?: never;
     path: {
-        bookId: string | string | number;
-        chapterNumber: string | string | number;
+        bookId: string | number;
+        chapterNumber: string | number;
     };
     query?: {
         bible_version?: string;
@@ -2046,6 +2295,24 @@ export type PostBibleBookExplanationSaveRatingErrors = {
         data?: unknown;
     };
     /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
      * Response for status 429
      */
     429: {
@@ -2100,6 +2367,24 @@ export type PutBibleBookExplanationUpdateRatingErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
         error: string;
         message: string;
         retryAfter?: number;
@@ -2165,6 +2450,24 @@ export type PostBibleBookExplanationRatingsErrors = {
         data?: unknown;
     };
     /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
      * Response for status 429
      */
     429: {
@@ -2221,6 +2524,24 @@ export type PostBibleBookChapterSaveLastReadErrors = {
         data?: unknown;
     };
     /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
      * Response for status 429
      */
     429: {
@@ -2269,6 +2590,24 @@ export type PostBibleBookChapterLastReadErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
         error: string;
         message: string;
         retryAfter?: number;
@@ -2339,6 +2678,24 @@ export type GetBibleBookBookmarksByUserIdErrors = {
         data?: unknown;
     };
     /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
      * Response for status 429
      */
     429: {
@@ -2390,6 +2747,24 @@ export type GetBibleBookNotesByUserIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
         error: string;
         message: string;
         retryAfter?: number;
@@ -2461,6 +2836,24 @@ export type PostBibleBookNoteAddErrors = {
         data?: unknown;
     };
     /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
      * Response for status 429
      */
     429: {
@@ -2523,6 +2916,24 @@ export type PutBibleBookNoteUpdateErrors = {
         data?: unknown;
     };
     /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
      * Response for status 429
      */
     429: {
@@ -2569,6 +2980,24 @@ export type DeleteBibleBookNoteRemoveErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
         error: string;
         message: string;
         retryAfter?: number;
@@ -2630,6 +3059,24 @@ export type PostBibleBookBookmarkAddErrors = {
         data?: unknown;
     };
     /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
      * Response for status 429
      */
     429: {
@@ -2679,6 +3126,24 @@ export type DeleteBibleBookBookmarkRemoveErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
         error: string;
         message: string;
         retryAfter?: number;
@@ -2740,6 +3205,24 @@ export type PostBibleBookBookmarkRemoveErrors = {
         data?: unknown;
     };
     /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
      * Response for status 429
      */
     429: {
@@ -2786,6 +3269,24 @@ export type GetBibleHighlightsByUserIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
         error: string;
         message: string;
         retryAfter?: number;
@@ -2860,6 +3361,24 @@ export type GetBibleHighlightsByUserIdByBookIdByChapterNumberErrors = {
         data?: unknown;
     };
     /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
      * Response for status 429
      */
     429: {
@@ -2928,6 +3447,24 @@ export type PostBibleHighlightAddErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
         error: string;
         message: string;
         retryAfter?: number;
@@ -3039,7 +3576,7 @@ export type DeleteBibleHighlightByHighlightIdResponse = DeleteBibleHighlightByHi
 
 export type PutBibleHighlightByHighlightIdData = {
     body: {
-        user_id: string;
+        user_id?: string;
         color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange' | 'red' | 'teal' | 'brown';
     };
     path: {
@@ -3054,6 +3591,24 @@ export type PutBibleHighlightByHighlightIdErrors = {
      * Response for status 400
      */
     400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 401
+     */
+    401: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 403
+     */
+    403: {
         error: string;
         message: string;
         retryAfter?: number;
@@ -3140,7 +3695,6 @@ export type PatchBibleUserThemePreferencesByThemeIdData = {
         is_enabled?: boolean;
         custom_color?: string;
         relevance_threshold?: number;
-        admin_override?: boolean;
     };
     path: {
         theme_id: string;
@@ -3148,6 +3702,2230 @@ export type PatchBibleUserThemePreferencesByThemeIdData = {
     query?: never;
     url: '/bible/user/theme-preferences/{theme_id}';
 };
+
+export type GetCoachLearningData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/learning';
+};
+
+export type GetCoachLearningErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachLearningError = GetCoachLearningErrors[keyof GetCoachLearningErrors];
+
+export type GetCoachLearningResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        open: boolean;
+        enrolledAt: string | unknown;
+        completedAt: string | unknown;
+        passed: number;
+        total: number;
+        next: {
+            kind: string;
+            lessonId: number;
+            moduleId: number;
+        } | {
+            kind: string;
+            moduleId: number;
+        } | unknown;
+        modules: {
+            id: number;
+            title: string;
+            description: string;
+            passMark: number;
+            state: 'locked' | 'open' | 'passed';
+            bestScore: number | unknown;
+            questionCount: number;
+            lessons: {
+                id: number;
+                title: string;
+                state: 'locked' | 'open' | 'done';
+            }[];
+        }[];
+        isLeader: boolean;
+        addressConfirmed: boolean;
+        request: {
+            id: number;
+            status: string;
+            reason: string | unknown;
+            note: string;
+            sentAt: string;
+            answeredAt: string | unknown;
+        } | unknown;
+    };
+};
+
+export type GetCoachLearningResponse = GetCoachLearningResponses[keyof GetCoachLearningResponses];
+
+export type PostCoachLearningEnrolData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/learning/enrol';
+};
+
+export type PostCoachLearningEnrolErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachLearningEnrolError = PostCoachLearningEnrolErrors[keyof PostCoachLearningEnrolErrors];
+
+export type PostCoachLearningEnrolResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        open: boolean;
+        enrolledAt: string | unknown;
+        completedAt: string | unknown;
+        passed: number;
+        total: number;
+        next: {
+            kind: string;
+            lessonId: number;
+            moduleId: number;
+        } | {
+            kind: string;
+            moduleId: number;
+        } | unknown;
+        modules: {
+            id: number;
+            title: string;
+            description: string;
+            passMark: number;
+            state: 'locked' | 'open' | 'passed';
+            bestScore: number | unknown;
+            questionCount: number;
+            lessons: {
+                id: number;
+                title: string;
+                state: 'locked' | 'open' | 'done';
+            }[];
+        }[];
+        isLeader: boolean;
+        addressConfirmed: boolean;
+        request: {
+            id: number;
+            status: string;
+            reason: string | unknown;
+            note: string;
+            sentAt: string;
+            answeredAt: string | unknown;
+        } | unknown;
+    };
+};
+
+export type PostCoachLearningEnrolResponse = PostCoachLearningEnrolResponses[keyof PostCoachLearningEnrolResponses];
+
+export type GetCoachLearningLessonsByIdData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/learning/lessons/{id}';
+};
+
+export type GetCoachLearningLessonsByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachLearningLessonsByIdError = GetCoachLearningLessonsByIdErrors[keyof GetCoachLearningLessonsByIdErrors];
+
+export type GetCoachLearningLessonsByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: number;
+        moduleId: number;
+        moduleTitle: string;
+        title: string;
+        body: string;
+        passages: {
+            bookId: number;
+            bookName: string;
+            chapter: number;
+            verseStart: number | unknown;
+            verseEnd: number | unknown;
+        }[];
+        hasVideo: boolean;
+        done: boolean;
+        draft: boolean;
+    };
+};
+
+export type GetCoachLearningLessonsByIdResponse = GetCoachLearningLessonsByIdResponses[keyof GetCoachLearningLessonsByIdResponses];
+
+export type PostCoachLearningLessonsByIdDoneData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/learning/lessons/{id}/done';
+};
+
+export type PostCoachLearningLessonsByIdDoneErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachLearningLessonsByIdDoneError = PostCoachLearningLessonsByIdDoneErrors[keyof PostCoachLearningLessonsByIdDoneErrors];
+
+export type PostCoachLearningLessonsByIdDoneResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        open: boolean;
+        enrolledAt: string | unknown;
+        completedAt: string | unknown;
+        passed: number;
+        total: number;
+        next: {
+            kind: string;
+            lessonId: number;
+            moduleId: number;
+        } | {
+            kind: string;
+            moduleId: number;
+        } | unknown;
+        modules: {
+            id: number;
+            title: string;
+            description: string;
+            passMark: number;
+            state: 'locked' | 'open' | 'passed';
+            bestScore: number | unknown;
+            questionCount: number;
+            lessons: {
+                id: number;
+                title: string;
+                state: 'locked' | 'open' | 'done';
+            }[];
+        }[];
+        isLeader: boolean;
+        addressConfirmed: boolean;
+        request: {
+            id: number;
+            status: string;
+            reason: string | unknown;
+            note: string;
+            sentAt: string;
+            answeredAt: string | unknown;
+        } | unknown;
+    };
+};
+
+export type PostCoachLearningLessonsByIdDoneResponse = PostCoachLearningLessonsByIdDoneResponses[keyof PostCoachLearningLessonsByIdDoneResponses];
+
+export type GetCoachLearningLessonsByIdVideoData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/learning/lessons/{id}/video';
+};
+
+export type GetCoachLearningLessonsByIdVideoErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachLearningLessonsByIdVideoError = GetCoachLearningLessonsByIdVideoErrors[keyof GetCoachLearningLessonsByIdVideoErrors];
+
+export type GetCoachLearningLessonsByIdVideoResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        url: string;
+        type: string;
+        expiresInSeconds: number;
+    };
+};
+
+export type GetCoachLearningLessonsByIdVideoResponse = GetCoachLearningLessonsByIdVideoResponses[keyof GetCoachLearningLessonsByIdVideoResponses];
+
+export type GetCoachLearningModulesByIdCheckData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/learning/modules/{id}/check';
+};
+
+export type GetCoachLearningModulesByIdCheckErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachLearningModulesByIdCheckError = GetCoachLearningModulesByIdCheckErrors[keyof GetCoachLearningModulesByIdCheckErrors];
+
+export type GetCoachLearningModulesByIdCheckResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        moduleId: number;
+        title: string;
+        passMark: number;
+        version: number;
+        passed: boolean;
+        bestScore: number | unknown;
+        questions: {
+            id: number;
+            prompt: string;
+            options: string[];
+        }[];
+    };
+};
+
+export type GetCoachLearningModulesByIdCheckResponse = GetCoachLearningModulesByIdCheckResponses[keyof GetCoachLearningModulesByIdCheckResponses];
+
+export type PostCoachLearningModulesByIdCheckData = {
+    body: {
+        version: string | number;
+        answers: {
+            questionId: string | number;
+            option: string | number;
+        }[];
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/learning/modules/{id}/check';
+};
+
+export type PostCoachLearningModulesByIdCheckErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachLearningModulesByIdCheckError = PostCoachLearningModulesByIdCheckErrors[keyof PostCoachLearningModulesByIdCheckErrors];
+
+export type PostCoachLearningModulesByIdCheckResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        score: number;
+        correct: number;
+        total: number;
+        passed: boolean;
+        passMark: number;
+        wrong: number[];
+        bestScore: number | unknown;
+        modulePassed: boolean;
+    };
+};
+
+export type PostCoachLearningModulesByIdCheckResponse = PostCoachLearningModulesByIdCheckResponses[keyof PostCoachLearningModulesByIdCheckResponses];
+
+export type PostCoachLearningJoinRequestData = {
+    body: {
+        note?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/learning/join-request';
+};
+
+export type PostCoachLearningJoinRequestErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachLearningJoinRequestError = PostCoachLearningJoinRequestErrors[keyof PostCoachLearningJoinRequestErrors];
+
+export type PostCoachLearningJoinRequestResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        request: {
+            id: number;
+            status: string;
+            reason: string | unknown;
+            note: string;
+            sentAt: string;
+            answeredAt: string | unknown;
+        } | unknown;
+    };
+};
+
+export type PostCoachLearningJoinRequestResponse = PostCoachLearningJoinRequestResponses[keyof PostCoachLearningJoinRequestResponses];
+
+export type GetCoachAdminLearningData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/learning';
+};
+
+export type GetCoachAdminLearningErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminLearningError = GetCoachAdminLearningErrors[keyof GetCoachAdminLearningErrors];
+
+export type GetCoachAdminLearningResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        modules: {
+            id: number;
+            title: string;
+            description: string;
+            passMark: number;
+            published: boolean;
+            checkVersion: number;
+            used: boolean;
+            lessons: {
+                id: number;
+                title: string;
+                body: string;
+                passages: {
+                    bookId: number;
+                    bookName: string;
+                    chapter: number;
+                    verseStart: number | unknown;
+                    verseEnd: number | unknown;
+                }[];
+                published: boolean;
+                hasVideo: boolean;
+                videoType: string | unknown;
+                used: boolean;
+            }[];
+            questions: {
+                id: number;
+                prompt: string;
+                options: string[];
+                correct: number;
+            }[];
+        }[];
+    };
+};
+
+export type GetCoachAdminLearningResponse = GetCoachAdminLearningResponses[keyof GetCoachAdminLearningResponses];
+
+export type PostCoachAdminLearningModulesData = {
+    body: {
+        title: string;
+        description: string;
+        passMark: string | number;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/admin/learning/modules';
+};
+
+export type PostCoachAdminLearningModulesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningModulesError = PostCoachAdminLearningModulesErrors[keyof PostCoachAdminLearningModulesErrors];
+
+export type PostCoachAdminLearningModulesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: number;
+    };
+};
+
+export type PostCoachAdminLearningModulesResponse = PostCoachAdminLearningModulesResponses[keyof PostCoachAdminLearningModulesResponses];
+
+export type PutCoachAdminLearningModulesOrderData = {
+    body: {
+        ids: (string | number)[];
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/admin/learning/modules/order';
+};
+
+export type PutCoachAdminLearningModulesOrderErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminLearningModulesOrderError = PutCoachAdminLearningModulesOrderErrors[keyof PutCoachAdminLearningModulesOrderErrors];
+
+export type PutCoachAdminLearningModulesOrderResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PutCoachAdminLearningModulesOrderResponse = PutCoachAdminLearningModulesOrderResponses[keyof PutCoachAdminLearningModulesOrderResponses];
+
+export type DeleteCoachAdminLearningModulesByIdData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/modules/{id}';
+};
+
+export type DeleteCoachAdminLearningModulesByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteCoachAdminLearningModulesByIdError = DeleteCoachAdminLearningModulesByIdErrors[keyof DeleteCoachAdminLearningModulesByIdErrors];
+
+export type DeleteCoachAdminLearningModulesByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type DeleteCoachAdminLearningModulesByIdResponse = DeleteCoachAdminLearningModulesByIdResponses[keyof DeleteCoachAdminLearningModulesByIdResponses];
+
+export type PutCoachAdminLearningModulesByIdData = {
+    body: {
+        title: string;
+        description: string;
+        passMark: string | number;
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/modules/{id}';
+};
+
+export type PutCoachAdminLearningModulesByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminLearningModulesByIdError = PutCoachAdminLearningModulesByIdErrors[keyof PutCoachAdminLearningModulesByIdErrors];
+
+export type PutCoachAdminLearningModulesByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PutCoachAdminLearningModulesByIdResponse = PutCoachAdminLearningModulesByIdResponses[keyof PutCoachAdminLearningModulesByIdResponses];
+
+export type PostCoachAdminLearningModulesByIdPublishData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/modules/{id}/publish';
+};
+
+export type PostCoachAdminLearningModulesByIdPublishErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningModulesByIdPublishError = PostCoachAdminLearningModulesByIdPublishErrors[keyof PostCoachAdminLearningModulesByIdPublishErrors];
+
+export type PostCoachAdminLearningModulesByIdPublishResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PostCoachAdminLearningModulesByIdPublishResponse = PostCoachAdminLearningModulesByIdPublishResponses[keyof PostCoachAdminLearningModulesByIdPublishResponses];
+
+export type PostCoachAdminLearningModulesByIdUnpublishData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/modules/{id}/unpublish';
+};
+
+export type PostCoachAdminLearningModulesByIdUnpublishErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningModulesByIdUnpublishError = PostCoachAdminLearningModulesByIdUnpublishErrors[keyof PostCoachAdminLearningModulesByIdUnpublishErrors];
+
+export type PostCoachAdminLearningModulesByIdUnpublishResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PostCoachAdminLearningModulesByIdUnpublishResponse = PostCoachAdminLearningModulesByIdUnpublishResponses[keyof PostCoachAdminLearningModulesByIdUnpublishResponses];
+
+export type PostCoachAdminLearningModulesByIdLessonsData = {
+    body: {
+        title: string;
+        body: string;
+        passages: {
+            bookId: string | number;
+            chapter: string | number;
+            verseStart?: string | number | unknown;
+            verseEnd?: string | number | unknown;
+        }[];
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/modules/{id}/lessons';
+};
+
+export type PostCoachAdminLearningModulesByIdLessonsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningModulesByIdLessonsError = PostCoachAdminLearningModulesByIdLessonsErrors[keyof PostCoachAdminLearningModulesByIdLessonsErrors];
+
+export type PostCoachAdminLearningModulesByIdLessonsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: number;
+    };
+};
+
+export type PostCoachAdminLearningModulesByIdLessonsResponse = PostCoachAdminLearningModulesByIdLessonsResponses[keyof PostCoachAdminLearningModulesByIdLessonsResponses];
+
+export type PutCoachAdminLearningModulesByIdLessonsOrderData = {
+    body: {
+        ids: (string | number)[];
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/modules/{id}/lessons/order';
+};
+
+export type PutCoachAdminLearningModulesByIdLessonsOrderErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminLearningModulesByIdLessonsOrderError = PutCoachAdminLearningModulesByIdLessonsOrderErrors[keyof PutCoachAdminLearningModulesByIdLessonsOrderErrors];
+
+export type PutCoachAdminLearningModulesByIdLessonsOrderResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PutCoachAdminLearningModulesByIdLessonsOrderResponse = PutCoachAdminLearningModulesByIdLessonsOrderResponses[keyof PutCoachAdminLearningModulesByIdLessonsOrderResponses];
+
+export type PostCoachAdminLearningModulesByIdQuestionsData = {
+    body: {
+        prompt: string;
+        options: string[];
+        correct: string | number;
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/modules/{id}/questions';
+};
+
+export type PostCoachAdminLearningModulesByIdQuestionsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningModulesByIdQuestionsError = PostCoachAdminLearningModulesByIdQuestionsErrors[keyof PostCoachAdminLearningModulesByIdQuestionsErrors];
+
+export type PostCoachAdminLearningModulesByIdQuestionsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: number;
+    };
+};
+
+export type PostCoachAdminLearningModulesByIdQuestionsResponse = PostCoachAdminLearningModulesByIdQuestionsResponses[keyof PostCoachAdminLearningModulesByIdQuestionsResponses];
+
+export type PutCoachAdminLearningModulesByIdQuestionsOrderData = {
+    body: {
+        ids: (string | number)[];
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/modules/{id}/questions/order';
+};
+
+export type PutCoachAdminLearningModulesByIdQuestionsOrderErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminLearningModulesByIdQuestionsOrderError = PutCoachAdminLearningModulesByIdQuestionsOrderErrors[keyof PutCoachAdminLearningModulesByIdQuestionsOrderErrors];
+
+export type PutCoachAdminLearningModulesByIdQuestionsOrderResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PutCoachAdminLearningModulesByIdQuestionsOrderResponse = PutCoachAdminLearningModulesByIdQuestionsOrderResponses[keyof PutCoachAdminLearningModulesByIdQuestionsOrderResponses];
+
+export type DeleteCoachAdminLearningQuestionsByIdData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/questions/{id}';
+};
+
+export type DeleteCoachAdminLearningQuestionsByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteCoachAdminLearningQuestionsByIdError = DeleteCoachAdminLearningQuestionsByIdErrors[keyof DeleteCoachAdminLearningQuestionsByIdErrors];
+
+export type DeleteCoachAdminLearningQuestionsByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type DeleteCoachAdminLearningQuestionsByIdResponse = DeleteCoachAdminLearningQuestionsByIdResponses[keyof DeleteCoachAdminLearningQuestionsByIdResponses];
+
+export type PutCoachAdminLearningQuestionsByIdData = {
+    body: {
+        prompt: string;
+        options: string[];
+        correct: string | number;
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/questions/{id}';
+};
+
+export type PutCoachAdminLearningQuestionsByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminLearningQuestionsByIdError = PutCoachAdminLearningQuestionsByIdErrors[keyof PutCoachAdminLearningQuestionsByIdErrors];
+
+export type PutCoachAdminLearningQuestionsByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PutCoachAdminLearningQuestionsByIdResponse = PutCoachAdminLearningQuestionsByIdResponses[keyof PutCoachAdminLearningQuestionsByIdResponses];
+
+export type DeleteCoachAdminLearningLessonsByIdData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/lessons/{id}';
+};
+
+export type DeleteCoachAdminLearningLessonsByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteCoachAdminLearningLessonsByIdError = DeleteCoachAdminLearningLessonsByIdErrors[keyof DeleteCoachAdminLearningLessonsByIdErrors];
+
+export type DeleteCoachAdminLearningLessonsByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type DeleteCoachAdminLearningLessonsByIdResponse = DeleteCoachAdminLearningLessonsByIdResponses[keyof DeleteCoachAdminLearningLessonsByIdResponses];
+
+export type GetCoachAdminLearningLessonsByIdData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/lessons/{id}';
+};
+
+export type GetCoachAdminLearningLessonsByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminLearningLessonsByIdError = GetCoachAdminLearningLessonsByIdErrors[keyof GetCoachAdminLearningLessonsByIdErrors];
+
+export type GetCoachAdminLearningLessonsByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: number;
+        moduleId: number;
+        moduleTitle: string;
+        title: string;
+        body: string;
+        passages: {
+            bookId: number;
+            bookName: string;
+            chapter: number;
+            verseStart: number | unknown;
+            verseEnd: number | unknown;
+        }[];
+        hasVideo: boolean;
+        done: boolean;
+        draft: boolean;
+    };
+};
+
+export type GetCoachAdminLearningLessonsByIdResponse = GetCoachAdminLearningLessonsByIdResponses[keyof GetCoachAdminLearningLessonsByIdResponses];
+
+export type PutCoachAdminLearningLessonsByIdData = {
+    body: {
+        title: string;
+        body: string;
+        passages: {
+            bookId: string | number;
+            chapter: string | number;
+            verseStart?: string | number | unknown;
+            verseEnd?: string | number | unknown;
+        }[];
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/lessons/{id}';
+};
+
+export type PutCoachAdminLearningLessonsByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminLearningLessonsByIdError = PutCoachAdminLearningLessonsByIdErrors[keyof PutCoachAdminLearningLessonsByIdErrors];
+
+export type PutCoachAdminLearningLessonsByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PutCoachAdminLearningLessonsByIdResponse = PutCoachAdminLearningLessonsByIdResponses[keyof PutCoachAdminLearningLessonsByIdResponses];
+
+export type PostCoachAdminLearningLessonsByIdPublishData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/lessons/{id}/publish';
+};
+
+export type PostCoachAdminLearningLessonsByIdPublishErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningLessonsByIdPublishError = PostCoachAdminLearningLessonsByIdPublishErrors[keyof PostCoachAdminLearningLessonsByIdPublishErrors];
+
+export type PostCoachAdminLearningLessonsByIdPublishResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PostCoachAdminLearningLessonsByIdPublishResponse = PostCoachAdminLearningLessonsByIdPublishResponses[keyof PostCoachAdminLearningLessonsByIdPublishResponses];
+
+export type PostCoachAdminLearningLessonsByIdUnpublishData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/lessons/{id}/unpublish';
+};
+
+export type PostCoachAdminLearningLessonsByIdUnpublishErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningLessonsByIdUnpublishError = PostCoachAdminLearningLessonsByIdUnpublishErrors[keyof PostCoachAdminLearningLessonsByIdUnpublishErrors];
+
+export type PostCoachAdminLearningLessonsByIdUnpublishResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type PostCoachAdminLearningLessonsByIdUnpublishResponse = PostCoachAdminLearningLessonsByIdUnpublishResponses[keyof PostCoachAdminLearningLessonsByIdUnpublishResponses];
+
+export type PostCoachAdminLearningLessonsByIdVideoUploadData = {
+    body: {
+        size: string | number;
+        type: string;
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/lessons/{id}/video/upload';
+};
+
+export type PostCoachAdminLearningLessonsByIdVideoUploadErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningLessonsByIdVideoUploadError = PostCoachAdminLearningLessonsByIdVideoUploadErrors[keyof PostCoachAdminLearningLessonsByIdVideoUploadErrors];
+
+export type PostCoachAdminLearningLessonsByIdVideoUploadResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        uploadUrl: string;
+    };
+};
+
+export type PostCoachAdminLearningLessonsByIdVideoUploadResponse = PostCoachAdminLearningLessonsByIdVideoUploadResponses[keyof PostCoachAdminLearningLessonsByIdVideoUploadResponses];
+
+export type PostCoachAdminLearningLessonsByIdVideoAttachData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/lessons/{id}/video/attach';
+};
+
+export type PostCoachAdminLearningLessonsByIdVideoAttachErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningLessonsByIdVideoAttachError = PostCoachAdminLearningLessonsByIdVideoAttachErrors[keyof PostCoachAdminLearningLessonsByIdVideoAttachErrors];
+
+export type PostCoachAdminLearningLessonsByIdVideoAttachResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        type: string;
+    };
+};
+
+export type PostCoachAdminLearningLessonsByIdVideoAttachResponse = PostCoachAdminLearningLessonsByIdVideoAttachResponses[keyof PostCoachAdminLearningLessonsByIdVideoAttachResponses];
+
+export type DeleteCoachAdminLearningLessonsByIdVideoData = {
+    body?: never;
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/lessons/{id}/video';
+};
+
+export type DeleteCoachAdminLearningLessonsByIdVideoErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteCoachAdminLearningLessonsByIdVideoError = DeleteCoachAdminLearningLessonsByIdVideoErrors[keyof DeleteCoachAdminLearningLessonsByIdVideoErrors];
+
+export type DeleteCoachAdminLearningLessonsByIdVideoResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        ok: boolean;
+    };
+};
+
+export type DeleteCoachAdminLearningLessonsByIdVideoResponse = DeleteCoachAdminLearningLessonsByIdVideoResponses[keyof DeleteCoachAdminLearningLessonsByIdVideoResponses];
+
+export type GetCoachAdminLearningRequestsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/learning/requests';
+};
+
+export type GetCoachAdminLearningRequestsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminLearningRequestsError = GetCoachAdminLearningRequestsErrors[keyof GetCoachAdminLearningRequestsErrors];
+
+export type GetCoachAdminLearningRequestsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        requests: {
+            id: number;
+            name: string;
+            email: string;
+            note: string;
+            sentAt: string;
+            completedAt: string | unknown;
+            scores: {
+                moduleId: number;
+                title: string;
+                bestScore: number | unknown;
+            }[];
+        }[];
+    };
+};
+
+export type GetCoachAdminLearningRequestsResponse = GetCoachAdminLearningRequestsResponses[keyof GetCoachAdminLearningRequestsResponses];
+
+export type PostCoachAdminLearningRequestsByIdApproveData = {
+    body: {
+        email?: string;
+        name?: string;
+        group?: string;
+        coachName?: string;
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/requests/{id}/approve';
+};
+
+export type PostCoachAdminLearningRequestsByIdApproveErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningRequestsByIdApproveError = PostCoachAdminLearningRequestsByIdApproveErrors[keyof PostCoachAdminLearningRequestsByIdApproveErrors];
+
+export type PostCoachAdminLearningRequestsByIdApproveResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        status: 'approved' | 'already-in-program';
+        leaderId: string | unknown;
+    };
+};
+
+export type PostCoachAdminLearningRequestsByIdApproveResponse = PostCoachAdminLearningRequestsByIdApproveResponses[keyof PostCoachAdminLearningRequestsByIdApproveResponses];
+
+export type PostCoachAdminLearningRequestsByIdDeclineData = {
+    body: {
+        reason?: string;
+    };
+    path: {
+        id: string | number;
+    };
+    query?: never;
+    url: '/coach/admin/learning/requests/{id}/decline';
+};
+
+export type PostCoachAdminLearningRequestsByIdDeclineErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLearningRequestsByIdDeclineError = PostCoachAdminLearningRequestsByIdDeclineErrors[keyof PostCoachAdminLearningRequestsByIdDeclineErrors];
+
+export type PostCoachAdminLearningRequestsByIdDeclineResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        status: string;
+    };
+};
+
+export type PostCoachAdminLearningRequestsByIdDeclineResponse = PostCoachAdminLearningRequestsByIdDeclineResponses[keyof PostCoachAdminLearningRequestsByIdDeclineResponses];
+
+export type GetCoachAdminLearningLearnersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+        limit?: string | number;
+        offset?: string | number;
+    };
+    url: '/coach/admin/learning/learners';
+};
+
+export type GetCoachAdminLearningLearnersErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminLearningLearnersError = GetCoachAdminLearningLearnersErrors[keyof GetCoachAdminLearningLearnersErrors];
+
+export type GetCoachAdminLearningLearnersResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        total: number;
+        limit: number;
+        offset: number;
+        learners: {
+            name: string;
+            email: string;
+            enrolledAt: string;
+            completedAt: string | unknown;
+            passed: number;
+            total: number;
+            request: string | unknown;
+        }[];
+    };
+};
+
+export type GetCoachAdminLearningLearnersResponse = GetCoachAdminLearningLearnersResponses[keyof GetCoachAdminLearningLearnersResponses];
+
+export type GetCoachRubricData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/rubric';
+};
+
+export type GetCoachRubricErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachRubricError = GetCoachRubricErrors[keyof GetCoachRubricErrors];
+
+export type GetCoachRubricResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        model: string;
+        clusters: {
+            name: string;
+            weight: number;
+        }[];
+        dimensions: {
+            n: number;
+            name: string;
+            cluster: string;
+            clusterWeight: number;
+            what: string;
+            target: string;
+        }[];
+        statusBands: {
+            min: number;
+            label: string;
+            emoji: string;
+        }[];
+        dimensionBands: {
+            min: number;
+            label: string;
+        }[];
+    };
+};
+
+export type GetCoachRubricResponse = GetCoachRubricResponses[keyof GetCoachRubricResponses];
+
+export type GetCoachNotetakerClassesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/notetaker/classes';
+};
+
+export type GetCoachNotetakerClassesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachNotetakerClassesError = GetCoachNotetakerClassesErrors[keyof GetCoachNotetakerClassesErrors];
+
+export type GetCoachNotetakerClassesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        classes: {
+            id: string;
+            name: string;
+            classDate: string | unknown;
+            recurrence: string;
+            zoomLink: string;
+            startTime: string | unknown;
+            timeZone: string | unknown;
+            notetaker: boolean;
+            leader: {
+                id: string | unknown;
+                name: string;
+                email: string;
+            };
+        }[];
+    };
+};
+
+export type GetCoachNotetakerClassesResponse = GetCoachNotetakerClassesResponses[keyof GetCoachNotetakerClassesResponses];
+
+export type PostCoachConfirmAddressDescribeData = {
+    body: {
+        token: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/confirm-address/describe';
+};
+
+export type PostCoachConfirmAddressDescribeErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachConfirmAddressDescribeError = PostCoachConfirmAddressDescribeErrors[keyof PostCoachConfirmAddressDescribeErrors];
+
+export type PostCoachConfirmAddressDescribeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        leaderName: string;
+        newEmail: string;
+        state: string;
+        expiresAt: string;
+    } | {
+        state: string;
+        expiresAt: string;
+    };
+};
+
+export type PostCoachConfirmAddressDescribeResponse = PostCoachConfirmAddressDescribeResponses[keyof PostCoachConfirmAddressDescribeResponses];
+
+export type PostCoachConfirmAddressData = {
+    body: {
+        token: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/confirm-address';
+};
+
+export type PostCoachConfirmAddressErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachConfirmAddressError = PostCoachConfirmAddressErrors[keyof PostCoachConfirmAddressErrors];
+
+export type PostCoachConfirmAddressResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        email: string;
+        noticeSent: boolean;
+    };
+};
+
+export type PostCoachConfirmAddressResponse = PostCoachConfirmAddressResponses[keyof PostCoachConfirmAddressResponses];
 
 export type GetCoachMeData = {
     body?: never;
@@ -3271,7 +6049,7 @@ export type GetCoachReportsResponses = {
             session: string;
             topic: string;
             duration: string;
-            attendees: number;
+            attendees: number | unknown;
             newcomers: number;
             score: number;
             base: number;
@@ -3301,14 +6079,26 @@ export type GetCoachReportsResponses = {
                 strengthsProse?: {
                     title: string;
                     paragraphs: string[];
+                    evidence?: {
+                        quote: string;
+                        timestamp: string;
+                    };
                 }[];
                 improvementsProse?: {
                     title: string;
                     paragraphs: string[];
+                    evidence?: {
+                        quote: string;
+                        timestamp: string;
+                    };
                 }[];
                 recommendationsProse?: {
                     title: string;
                     paragraphs: string[];
+                    evidence?: {
+                        quote: string;
+                        timestamp: string;
+                    };
                 }[];
             };
             sections?: {
@@ -3320,9 +6110,11 @@ export type GetCoachReportsResponses = {
                     detail: string;
                 }[];
             }[];
-            docUrl: string;
-            pdfUrl: string;
+            docUrl?: string;
+            pdfUrl?: string;
             recordingUrl?: string;
+            attachedRecordingUrl?: string | unknown;
+            hasRetainedRecording?: boolean;
             notes?: {
                 id: string;
                 body: string;
@@ -3334,6 +6126,589 @@ export type GetCoachReportsResponses = {
 };
 
 export type GetCoachReportsResponse = GetCoachReportsResponses[keyof GetCoachReportsResponses];
+
+export type GetCoachReportsSummaryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: string | number;
+        offset?: string | number;
+    };
+    url: '/coach/reports/summary';
+};
+
+export type GetCoachReportsSummaryErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachReportsSummaryError = GetCoachReportsSummaryErrors[keyof GetCoachReportsSummaryErrors];
+
+export type GetCoachReportsSummaryResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        items: {
+            [key: string]: unknown;
+        }[];
+        total: number;
+        streakWeeks: number;
+        quarterSessions: number;
+    };
+};
+
+export type GetCoachReportsSummaryResponse = GetCoachReportsSummaryResponses[keyof GetCoachReportsSummaryResponses];
+
+export type GetCoachReportsByReportIdData = {
+    body?: never;
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/reports/{reportId}';
+};
+
+export type GetCoachReportsByReportIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachReportsByReportIdError = GetCoachReportsByReportIdErrors[keyof GetCoachReportsByReportIdErrors];
+
+export type GetCoachReportsByReportIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        report: {
+            id: string;
+            date: string;
+            dateLabel: string;
+            session: string;
+            topic: string;
+            duration: string;
+            attendees: number | unknown;
+            newcomers: number;
+            score: number;
+            base: number;
+            newcomerBonus: number;
+            sizeBonus: number;
+            status: string;
+            statusEmoji: string;
+            clusters: {
+                name: string;
+                weight: number;
+                scorePct: number | unknown;
+                contribution: number;
+            }[];
+            dimensions: {
+                n: number;
+                name: string;
+                score: number | unknown;
+                note?: string;
+            }[];
+            bigIdeas: string[];
+            feedback: {
+                headline: string;
+                strengths: string[];
+                improvements: string[];
+                recommendations: string[];
+                overview?: string[];
+                strengthsProse?: {
+                    title: string;
+                    paragraphs: string[];
+                    evidence?: {
+                        quote: string;
+                        timestamp: string;
+                    };
+                }[];
+                improvementsProse?: {
+                    title: string;
+                    paragraphs: string[];
+                    evidence?: {
+                        quote: string;
+                        timestamp: string;
+                    };
+                }[];
+                recommendationsProse?: {
+                    title: string;
+                    paragraphs: string[];
+                    evidence?: {
+                        quote: string;
+                        timestamp: string;
+                    };
+                }[];
+            };
+            sections?: {
+                title: string;
+                paragraphs?: string[];
+                bullets?: string[];
+                moments?: {
+                    timestamp?: string;
+                    detail: string;
+                }[];
+            }[];
+            docUrl?: string;
+            pdfUrl?: string;
+            recordingUrl?: string;
+            attachedRecordingUrl?: string | unknown;
+            hasRetainedRecording?: boolean;
+            notes?: {
+                id: string;
+                body: string;
+                createdAt: string;
+                emailed: boolean;
+            }[];
+        };
+    };
+};
+
+export type GetCoachReportsByReportIdResponse = GetCoachReportsByReportIdResponses[keyof GetCoachReportsByReportIdResponses];
+
+export type GetCoachReportsByReportIdRecordingUrlData = {
+    body?: never;
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/reports/{reportId}/recording-url';
+};
+
+export type GetCoachReportsByReportIdRecordingUrlErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachReportsByReportIdRecordingUrlError = GetCoachReportsByReportIdRecordingUrlErrors[keyof GetCoachReportsByReportIdRecordingUrlErrors];
+
+export type GetCoachReportsByReportIdRecordingUrlResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        url: string;
+        expiresInSeconds: number;
+    };
+};
+
+export type GetCoachReportsByReportIdRecordingUrlResponse = GetCoachReportsByReportIdRecordingUrlResponses[keyof GetCoachReportsByReportIdRecordingUrlResponses];
+
+export type GetCoachReportsByReportIdTranscriptUrlData = {
+    body?: never;
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/reports/{reportId}/transcript-url';
+};
+
+export type GetCoachReportsByReportIdTranscriptUrlErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachReportsByReportIdTranscriptUrlError = GetCoachReportsByReportIdTranscriptUrlErrors[keyof GetCoachReportsByReportIdTranscriptUrlErrors];
+
+export type GetCoachReportsByReportIdTranscriptUrlResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        url: string;
+        expiresInSeconds: number;
+    };
+};
+
+export type GetCoachReportsByReportIdTranscriptUrlResponse = GetCoachReportsByReportIdTranscriptUrlResponses[keyof GetCoachReportsByReportIdTranscriptUrlResponses];
+
+export type GetCoachUploadsClassesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/uploads/classes';
+};
+
+export type GetCoachUploadsClassesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachUploadsClassesError = GetCoachUploadsClassesErrors[keyof GetCoachUploadsClassesErrors];
+
+export type GetCoachUploadsClassesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        classes: {
+            key: string;
+            name: string;
+            kind: 'registered' | 'rotating' | 'group';
+        }[];
+    };
+};
+
+export type GetCoachUploadsClassesResponse = GetCoachUploadsClassesResponses[keyof GetCoachUploadsClassesResponses];
+
+export type GetCoachUploadsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/uploads';
+};
+
+export type GetCoachUploadsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachUploadsError = GetCoachUploadsErrors[keyof GetCoachUploadsErrors];
+
+export type GetCoachUploadsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        uploads: {
+            id: string;
+            coachId: string;
+            classKey: string;
+            className: string;
+            sessionDate: string;
+            title: string | unknown;
+            status: 'uploading' | 'processing' | 'held' | 'waiting-for-admin' | 'attributed-elsewhere' | 'ready' | 'failed';
+            reason: string | unknown;
+            reportId: string | unknown;
+            createdAt: string;
+        }[];
+    };
+};
+
+export type GetCoachUploadsResponse = GetCoachUploadsResponses[keyof GetCoachUploadsResponses];
+
+export type PostCoachUploadsData = {
+    body: {
+        classKey: string;
+        sessionDate: string;
+        title?: string | unknown;
+        fileName: string;
+        fileBytes: string | number;
+        contentType: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/uploads';
+};
+
+export type PostCoachUploadsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachUploadsError = PostCoachUploadsErrors[keyof PostCoachUploadsErrors];
+
+export type PostCoachUploadsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        uploadId: string;
+        partBytes: number;
+        parts: {
+            partNumber: number;
+            url: string;
+        }[];
+        expiresAt: string;
+    };
+};
+
+export type PostCoachUploadsResponse = PostCoachUploadsResponses[keyof PostCoachUploadsResponses];
+
+export type PostCoachUploadsByIdPartsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/uploads/{id}/parts';
+};
+
+export type PostCoachUploadsByIdPartsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachUploadsByIdPartsError = PostCoachUploadsByIdPartsErrors[keyof PostCoachUploadsByIdPartsErrors];
+
+export type PostCoachUploadsByIdPartsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        uploadId: string;
+        partBytes: number;
+        parts: {
+            partNumber: number;
+            url: string;
+        }[];
+        expiresAt: string;
+    };
+};
+
+export type PostCoachUploadsByIdPartsResponse = PostCoachUploadsByIdPartsResponses[keyof PostCoachUploadsByIdPartsResponses];
+
+export type PostCoachUploadsByIdCompleteData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/uploads/{id}/complete';
+};
+
+export type PostCoachUploadsByIdCompleteErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachUploadsByIdCompleteError = PostCoachUploadsByIdCompleteErrors[keyof PostCoachUploadsByIdCompleteErrors];
+
+export type PostCoachUploadsByIdCompleteResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        status: 'uploading' | 'processing' | 'held' | 'waiting-for-admin' | 'attributed-elsewhere' | 'ready' | 'failed';
+    };
+};
+
+export type PostCoachUploadsByIdCompleteResponse = PostCoachUploadsByIdCompleteResponses[keyof PostCoachUploadsByIdCompleteResponses];
 
 export type GetCoachTrendsData = {
     body?: never;
@@ -3385,6 +6760,7 @@ export type GetCoachTrendsResponses = {
             session: string;
             score: number;
             status: string;
+            reportId: string;
         }[];
         clusterSeries: {
             [key: string]: unknown;
@@ -3519,6 +6895,11 @@ export type GetCoachMonthlySummaryResponses = {
                 } | unknown;
                 insight: string;
             }[];
+            profile?: {
+                study?: string;
+                format?: string;
+                groupSize?: string | number;
+            };
             strengths: {
                 text: string;
                 session: string;
@@ -3763,6 +7144,9 @@ export type GetCoachClassesResponses = {
             classDate: string | unknown;
             recurrence: string;
             zoomLink: string;
+            startTime: string | unknown;
+            timeZone: string | unknown;
+            notetaker: boolean;
         }[];
     };
 };
@@ -3775,6 +7159,9 @@ export type PostCoachClassesData = {
         classDate: string;
         recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
         zoomLink: string;
+        startTime?: string;
+        timeZone?: string;
+        notetaker?: boolean;
     };
     path?: never;
     query?: never;
@@ -3824,6 +7211,9 @@ export type PostCoachClassesResponses = {
             classDate: string | unknown;
             recurrence: string;
             zoomLink: string;
+            startTime: string | unknown;
+            timeZone: string | unknown;
+            notetaker: boolean;
         };
     };
 };
@@ -3895,6 +7285,9 @@ export type PutCoachClassesByIdData = {
         classDate: string;
         recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
         zoomLink: string;
+        startTime?: string;
+        timeZone?: string;
+        notetaker?: boolean;
     };
     path: {
         id: string;
@@ -3953,11 +7346,2466 @@ export type PutCoachClassesByIdResponses = {
             classDate: string | unknown;
             recurrence: string;
             zoomLink: string;
+            startTime: string | unknown;
+            timeZone: string | unknown;
+            notetaker: boolean;
         };
     };
 };
 
 export type PutCoachClassesByIdResponse = PutCoachClassesByIdResponses[keyof PutCoachClassesByIdResponses];
+
+export type GetCoachNotetakerStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/notetaker/status';
+};
+
+export type GetCoachNotetakerStatusErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachNotetakerStatusError = GetCoachNotetakerStatusErrors[keyof GetCoachNotetakerStatusErrors];
+
+export type GetCoachNotetakerStatusResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        known: boolean;
+        connected: boolean;
+        zoomEmail: string | unknown;
+        connectUrl: string;
+    };
+};
+
+export type GetCoachNotetakerStatusResponse = GetCoachNotetakerStatusResponses[keyof GetCoachNotetakerStatusResponses];
+
+export type GetCoachAdminReportsByReportIdReviewData = {
+    body?: never;
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reports/{reportId}/review';
+};
+
+export type GetCoachAdminReportsByReportIdReviewErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminReportsByReportIdReviewError = GetCoachAdminReportsByReportIdReviewErrors[keyof GetCoachAdminReportsByReportIdReviewErrors];
+
+export type GetCoachAdminReportsByReportIdReviewResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        reportId: string;
+        delivered: boolean;
+        base: number;
+        humanCorrected: boolean;
+        firstLesson: boolean;
+        firstLessonSource: string | unknown;
+        firstLessonLine: string | unknown;
+        parallelRun: boolean;
+        dimensions: {
+            n: number;
+            score: number | unknown;
+            rationale: string;
+            provenance: string;
+            modelVersion: string | unknown;
+            languageModel: string | unknown;
+            promptVersion: string | unknown;
+            settings: {
+                temperature: number | unknown;
+                reasoningEffort: string | unknown;
+            } | unknown;
+        }[];
+    };
+};
+
+export type GetCoachAdminReportsByReportIdReviewResponse = GetCoachAdminReportsByReportIdReviewResponses[keyof GetCoachAdminReportsByReportIdReviewResponses];
+
+export type PostCoachAdminReportsByReportIdDimensionsByDimensionNData = {
+    body: {
+        score: unknown | string | number;
+        rationale: string;
+    };
+    path: {
+        reportId: string;
+        dimensionN: string;
+    };
+    query?: never;
+    url: '/coach/admin/reports/{reportId}/dimensions/{dimensionN}';
+};
+
+export type PostCoachAdminReportsByReportIdDimensionsByDimensionNErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminReportsByReportIdDimensionsByDimensionNError = PostCoachAdminReportsByReportIdDimensionsByDimensionNErrors[keyof PostCoachAdminReportsByReportIdDimensionsByDimensionNErrors];
+
+export type PostCoachAdminReportsByReportIdDimensionsByDimensionNResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        base: number;
+        score: number;
+        status: string;
+    };
+};
+
+export type PostCoachAdminReportsByReportIdDimensionsByDimensionNResponse = PostCoachAdminReportsByReportIdDimensionsByDimensionNResponses[keyof PostCoachAdminReportsByReportIdDimensionsByDimensionNResponses];
+
+export type PutCoachAdminReportsByReportIdFirstLessonData = {
+    body: {
+        firstLesson: boolean;
+        score?: string | number | unknown;
+        rationale?: string;
+        bigIdeasReview?: {
+            value: string;
+            rating: 'STRONG' | 'ON TARGET' | 'NEEDS WORK' | 'N/A';
+        };
+    };
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reports/{reportId}/first-lesson';
+};
+
+export type PutCoachAdminReportsByReportIdFirstLessonErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminReportsByReportIdFirstLessonError = PutCoachAdminReportsByReportIdFirstLessonErrors[keyof PutCoachAdminReportsByReportIdFirstLessonErrors];
+
+export type PutCoachAdminReportsByReportIdFirstLessonResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        applied: boolean;
+        refusal?: string;
+        violations?: string[];
+        coldRecall?: string[];
+        revision?: number;
+        firstLesson?: boolean;
+        base?: number;
+        score?: number;
+        status?: string;
+        sent?: boolean;
+        pending?: string;
+        sends?: {
+            email: string;
+            delivered: boolean;
+            error?: string;
+            neverConfirmed?: boolean;
+        }[];
+        skipped?: string[];
+    };
+};
+
+export type PutCoachAdminReportsByReportIdFirstLessonResponse = PutCoachAdminReportsByReportIdFirstLessonResponses[keyof PutCoachAdminReportsByReportIdFirstLessonResponses];
+
+export type PutCoachAdminReportsByReportIdImprovementsData = {
+    body: {
+        improvements: string[];
+        improvementsProse?: {
+            title: string;
+            paragraphs: string[];
+            evidence?: {
+                quote: string;
+                timestamp: string;
+            };
+        }[];
+    };
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reports/{reportId}/improvements';
+};
+
+export type PutCoachAdminReportsByReportIdImprovementsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminReportsByReportIdImprovementsError = PutCoachAdminReportsByReportIdImprovementsErrors[keyof PutCoachAdminReportsByReportIdImprovementsErrors];
+
+export type PutCoachAdminReportsByReportIdImprovementsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        applied: boolean;
+        refusal?: string;
+        violations?: string[];
+        coldRecall?: string[];
+        revision?: number;
+        firstLesson?: boolean;
+        base?: number;
+        score?: number;
+        status?: string;
+        sent?: boolean;
+        pending?: string;
+        sends?: {
+            email: string;
+            delivered: boolean;
+            error?: string;
+            neverConfirmed?: boolean;
+        }[];
+        skipped?: string[];
+    };
+};
+
+export type PutCoachAdminReportsByReportIdImprovementsResponse = PutCoachAdminReportsByReportIdImprovementsResponses[keyof PutCoachAdminReportsByReportIdImprovementsResponses];
+
+export type PostCoachAdminReportsByReportIdAmendData = {
+    body: {
+        dimensions?: {
+            n: string | number;
+            score: string | number | unknown;
+            rationale: string;
+        }[];
+        firstLesson?: boolean;
+        bigIdeasReview?: {
+            value: string;
+            rating: 'STRONG' | 'ON TARGET' | 'NEEDS WORK' | 'N/A';
+        };
+        body?: {
+            headline?: string;
+            overview?: string[];
+            strengths?: string[];
+            improvements?: string[];
+            recommendations?: string[];
+            strengthsProse?: {
+                title: string;
+                paragraphs: string[];
+                evidence?: {
+                    quote: string;
+                    timestamp: string;
+                };
+            }[];
+            improvementsProse?: {
+                title: string;
+                paragraphs: string[];
+                evidence?: {
+                    quote: string;
+                    timestamp: string;
+                };
+            }[];
+            recommendationsProse?: {
+                title: string;
+                paragraphs: string[];
+                evidence?: {
+                    quote: string;
+                    timestamp: string;
+                };
+            }[];
+        };
+    };
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reports/{reportId}/amend';
+};
+
+export type PostCoachAdminReportsByReportIdAmendErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminReportsByReportIdAmendError = PostCoachAdminReportsByReportIdAmendErrors[keyof PostCoachAdminReportsByReportIdAmendErrors];
+
+export type PostCoachAdminReportsByReportIdAmendResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        applied: boolean;
+        refusal?: string;
+        violations?: string[];
+        coldRecall?: string[];
+        revision?: number;
+        firstLesson?: boolean;
+        base?: number;
+        score?: number;
+        status?: string;
+        sent?: boolean;
+        pending?: string;
+        sends?: {
+            email: string;
+            delivered: boolean;
+            error?: string;
+            neverConfirmed?: boolean;
+        }[];
+        skipped?: string[];
+    };
+};
+
+export type PostCoachAdminReportsByReportIdAmendResponse = PostCoachAdminReportsByReportIdAmendResponses[keyof PostCoachAdminReportsByReportIdAmendResponses];
+
+export type GetCoachAdminReportsByReportIdRevisionsData = {
+    body?: never;
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reports/{reportId}/revisions';
+};
+
+export type GetCoachAdminReportsByReportIdRevisionsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminReportsByReportIdRevisionsError = GetCoachAdminReportsByReportIdRevisionsErrors[keyof GetCoachAdminReportsByReportIdRevisionsErrors];
+
+export type GetCoachAdminReportsByReportIdRevisionsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        revisions: ({
+            kind: string;
+            revision: number;
+            previous: {
+                [key: string]: unknown;
+            };
+            changes: {
+                [key: string]: unknown;
+            };
+            amendedBy: string | unknown;
+            amendedAt: unknown | string | number;
+            sentTo: string[];
+            skipped: string[];
+            sentAt: unknown | string | number | unknown;
+            attemptedTo: string[];
+        } | {
+            kind: string;
+            edit: number;
+            changes: {
+                [key: string]: unknown;
+            };
+            editedBy: string | unknown;
+            editedAt: unknown | string | number;
+        })[];
+    };
+};
+
+export type GetCoachAdminReportsByReportIdRevisionsResponse = GetCoachAdminReportsByReportIdRevisionsResponses[keyof GetCoachAdminReportsByReportIdRevisionsResponses];
+
+export type PostCoachAdminReportsByReportIdRevisionSendData = {
+    body?: never;
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reports/{reportId}/revision/send';
+};
+
+export type PostCoachAdminReportsByReportIdRevisionSendErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminReportsByReportIdRevisionSendError = PostCoachAdminReportsByReportIdRevisionSendErrors[keyof PostCoachAdminReportsByReportIdRevisionSendErrors];
+
+export type PostCoachAdminReportsByReportIdRevisionSendResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        sent: boolean;
+        refusal?: string;
+        revision?: number;
+        sends?: {
+            email: string;
+            delivered: boolean;
+            error?: string;
+            neverConfirmed?: boolean;
+        }[];
+        skipped?: string[];
+    };
+};
+
+export type PostCoachAdminReportsByReportIdRevisionSendResponse = PostCoachAdminReportsByReportIdRevisionSendResponses[keyof PostCoachAdminReportsByReportIdRevisionSendResponses];
+
+export type PostCoachAdminReportsByReportIdRevisionRequeueData = {
+    body?: never;
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reports/{reportId}/revision/requeue';
+};
+
+export type PostCoachAdminReportsByReportIdRevisionRequeueErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminReportsByReportIdRevisionRequeueError = PostCoachAdminReportsByReportIdRevisionRequeueErrors[keyof PostCoachAdminReportsByReportIdRevisionRequeueErrors];
+
+export type PostCoachAdminReportsByReportIdRevisionRequeueResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        requeued: boolean;
+    };
+};
+
+export type PostCoachAdminReportsByReportIdRevisionRequeueResponse = PostCoachAdminReportsByReportIdRevisionRequeueResponses[keyof PostCoachAdminReportsByReportIdRevisionRequeueResponses];
+
+export type GetCoachAdminCoverageData = {
+    body?: never;
+    path?: never;
+    query?: {
+        windowDays?: string | number;
+    };
+    url: '/coach/admin/coverage';
+};
+
+export type GetCoachAdminCoverageErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminCoverageError = GetCoachAdminCoverageErrors[keyof GetCoachAdminCoverageErrors];
+
+export type GetCoachAdminCoverageResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        windowDays: number;
+        allCovered: boolean;
+        leaders: {
+            coachId: string;
+            name: string;
+            email: string;
+            covered: boolean;
+            basis: 'observed' | 'rotating-class' | 'attested-not-teaching' | 'attestation-lapsed' | 'no-observation';
+            observedSessions: number;
+            accountStatus: string;
+            linkedClassName: string | unknown;
+            classAlert: boolean;
+            attestedAt: string | unknown;
+            attestedBy: string | unknown;
+        }[];
+    };
+};
+
+export type GetCoachAdminCoverageResponse = GetCoachAdminCoverageResponses[keyof GetCoachAdminCoverageResponses];
+
+export type GetCoachAdminParallelRunComparisonData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/parallel-run/comparison';
+};
+
+export type GetCoachAdminParallelRunComparisonErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminParallelRunComparisonError = GetCoachAdminParallelRunComparisonErrors[keyof GetCoachAdminParallelRunComparisonErrors];
+
+export type GetCoachAdminParallelRunComparisonResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        sessions: {
+            coachId: string;
+            date: string;
+            backend: {
+                sourceSessionId: string;
+                reportId: string;
+                composite: number;
+            };
+            host: {
+                reportId: string;
+                composite: number | unknown;
+            };
+            compositeDifference: number | unknown;
+            dimensions: {
+                n: number;
+                host: number | unknown;
+                backend: number | unknown;
+                difference: number | unknown;
+            }[];
+            withinOne: number;
+            comparable: number;
+            flagged: boolean;
+            flagReasons: ('composite' | 'dimension' | 'one-sided-not-applicable')[];
+        }[];
+        needsPairing: {
+            coachId: string;
+            date: string;
+            backend: {
+                sourceSessionId: string;
+                reportId: string;
+            }[];
+            host: {
+                reportId: string;
+            }[];
+        }[];
+        unmatched: {
+            backend: {
+                coachId: string;
+                date: string;
+                sourceSessionId: string;
+                reportId: string;
+            }[];
+            host: {
+                coachId: string;
+                date: string;
+                reportId: string;
+            }[];
+        };
+        share: {
+            withinOne: number;
+            comparable: number;
+            ratio: number | unknown;
+        };
+        counts: {
+            compared: number;
+            flagged: number;
+            needsPairing: number;
+            unmatchedBackend: number;
+            unmatchedHost: number;
+        };
+    };
+};
+
+export type GetCoachAdminParallelRunComparisonResponse = GetCoachAdminParallelRunComparisonResponses[keyof GetCoachAdminParallelRunComparisonResponses];
+
+export type DeleteCoachAdminLeadersByIdNotTeachingData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/leaders/{id}/not-teaching';
+};
+
+export type DeleteCoachAdminLeadersByIdNotTeachingErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteCoachAdminLeadersByIdNotTeachingError = DeleteCoachAdminLeadersByIdNotTeachingErrors[keyof DeleteCoachAdminLeadersByIdNotTeachingErrors];
+
+export type DeleteCoachAdminLeadersByIdNotTeachingResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        attested: boolean;
+    };
+};
+
+export type DeleteCoachAdminLeadersByIdNotTeachingResponse = DeleteCoachAdminLeadersByIdNotTeachingResponses[keyof DeleteCoachAdminLeadersByIdNotTeachingResponses];
+
+export type PostCoachAdminLeadersByIdNotTeachingData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/leaders/{id}/not-teaching';
+};
+
+export type PostCoachAdminLeadersByIdNotTeachingErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminLeadersByIdNotTeachingError = PostCoachAdminLeadersByIdNotTeachingErrors[keyof PostCoachAdminLeadersByIdNotTeachingErrors];
+
+export type PostCoachAdminLeadersByIdNotTeachingResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        attested: boolean;
+    };
+};
+
+export type PostCoachAdminLeadersByIdNotTeachingResponse = PostCoachAdminLeadersByIdNotTeachingResponses[keyof PostCoachAdminLeadersByIdNotTeachingResponses];
+
+export type GetCoachAdminUploadsClassesData = {
+    body?: never;
+    path?: never;
+    query: {
+        coachId: string;
+    };
+    url: '/coach/admin/uploads/classes';
+};
+
+export type GetCoachAdminUploadsClassesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminUploadsClassesError = GetCoachAdminUploadsClassesErrors[keyof GetCoachAdminUploadsClassesErrors];
+
+export type GetCoachAdminUploadsClassesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        classes: {
+            key: string;
+            name: string;
+            kind: 'registered' | 'rotating' | 'group';
+        }[];
+    };
+};
+
+export type GetCoachAdminUploadsClassesResponse = GetCoachAdminUploadsClassesResponses[keyof GetCoachAdminUploadsClassesResponses];
+
+export type GetCoachAdminUploadsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        coachId?: string;
+    };
+    url: '/coach/admin/uploads';
+};
+
+export type GetCoachAdminUploadsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminUploadsError = GetCoachAdminUploadsErrors[keyof GetCoachAdminUploadsErrors];
+
+export type GetCoachAdminUploadsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        uploads: {
+            id: string;
+            coachId: string;
+            classKey: string;
+            className: string;
+            sessionDate: string;
+            title: string | unknown;
+            status: 'uploading' | 'processing' | 'held' | 'waiting-for-admin' | 'attributed-elsewhere' | 'ready' | 'failed';
+            reason: string | unknown;
+            reportId: string | unknown;
+            createdAt: string;
+        }[];
+    };
+};
+
+export type GetCoachAdminUploadsResponse = GetCoachAdminUploadsResponses[keyof GetCoachAdminUploadsResponses];
+
+export type PostCoachAdminUploadsData = {
+    body: {
+        classKey: string;
+        sessionDate: string;
+        title?: string | unknown;
+        fileName: string;
+        fileBytes: string | number;
+        contentType: string;
+        coachId: string;
+        replace?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/admin/uploads';
+};
+
+export type PostCoachAdminUploadsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminUploadsError = PostCoachAdminUploadsErrors[keyof PostCoachAdminUploadsErrors];
+
+export type PostCoachAdminUploadsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        uploadId: string;
+        partBytes: number;
+        parts: {
+            partNumber: number;
+            url: string;
+        }[];
+        expiresAt: string;
+    };
+};
+
+export type PostCoachAdminUploadsResponse = PostCoachAdminUploadsResponses[keyof PostCoachAdminUploadsResponses];
+
+export type PostCoachAdminUploadsByIdPartsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/uploads/{id}/parts';
+};
+
+export type PostCoachAdminUploadsByIdPartsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminUploadsByIdPartsError = PostCoachAdminUploadsByIdPartsErrors[keyof PostCoachAdminUploadsByIdPartsErrors];
+
+export type PostCoachAdminUploadsByIdPartsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        uploadId: string;
+        partBytes: number;
+        parts: {
+            partNumber: number;
+            url: string;
+        }[];
+        expiresAt: string;
+    };
+};
+
+export type PostCoachAdminUploadsByIdPartsResponse = PostCoachAdminUploadsByIdPartsResponses[keyof PostCoachAdminUploadsByIdPartsResponses];
+
+export type PostCoachAdminUploadsByIdCompleteData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/uploads/{id}/complete';
+};
+
+export type PostCoachAdminUploadsByIdCompleteErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminUploadsByIdCompleteError = PostCoachAdminUploadsByIdCompleteErrors[keyof PostCoachAdminUploadsByIdCompleteErrors];
+
+export type PostCoachAdminUploadsByIdCompleteResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        status: 'uploading' | 'processing' | 'held' | 'waiting-for-admin' | 'attributed-elsewhere' | 'ready' | 'failed';
+    };
+};
+
+export type PostCoachAdminUploadsByIdCompleteResponse = PostCoachAdminUploadsByIdCompleteResponses[keyof PostCoachAdminUploadsByIdCompleteResponses];
+
+export type GetCoachAdminDuplicatesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/duplicates';
+};
+
+export type GetCoachAdminDuplicatesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminDuplicatesError = GetCoachAdminDuplicatesErrors[keyof GetCoachAdminDuplicatesErrors];
+
+export type GetCoachAdminDuplicatesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        duplicates: {
+            sourceSessionId: string;
+            source: 'bot' | 'upload';
+            coachId: string | unknown;
+            classKey: string | unknown;
+            title: string;
+            sessionDate: string;
+            duplicateOf: string | unknown;
+            against: 'upload' | 'host-report';
+            canScoreInstead: boolean;
+        }[];
+    };
+};
+
+export type GetCoachAdminDuplicatesResponse = GetCoachAdminDuplicatesResponses[keyof GetCoachAdminDuplicatesResponses];
+
+export type PostCoachAdminDuplicatesBySourceSessionIdDismissData = {
+    body?: never;
+    path: {
+        sourceSessionId: string;
+    };
+    query?: never;
+    url: '/coach/admin/duplicates/{sourceSessionId}/dismiss';
+};
+
+export type PostCoachAdminDuplicatesBySourceSessionIdDismissErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminDuplicatesBySourceSessionIdDismissError = PostCoachAdminDuplicatesBySourceSessionIdDismissErrors[keyof PostCoachAdminDuplicatesBySourceSessionIdDismissErrors];
+
+export type PostCoachAdminDuplicatesBySourceSessionIdDismissResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        dismissed: boolean;
+    };
+};
+
+export type PostCoachAdminDuplicatesBySourceSessionIdDismissResponse = PostCoachAdminDuplicatesBySourceSessionIdDismissResponses[keyof PostCoachAdminDuplicatesBySourceSessionIdDismissResponses];
+
+export type PostCoachAdminDuplicatesBySourceSessionIdScoreData = {
+    body?: never;
+    path: {
+        sourceSessionId: string;
+    };
+    query?: never;
+    url: '/coach/admin/duplicates/{sourceSessionId}/score';
+};
+
+export type PostCoachAdminDuplicatesBySourceSessionIdScoreErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminDuplicatesBySourceSessionIdScoreError = PostCoachAdminDuplicatesBySourceSessionIdScoreErrors[keyof PostCoachAdminDuplicatesBySourceSessionIdScoreErrors];
+
+export type PostCoachAdminDuplicatesBySourceSessionIdScoreResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        queued: boolean;
+    };
+};
+
+export type PostCoachAdminDuplicatesBySourceSessionIdScoreResponse = PostCoachAdminDuplicatesBySourceSessionIdScoreResponses[keyof PostCoachAdminDuplicatesBySourceSessionIdScoreResponses];
+
+export type GetCoachAdminIdentityAuditData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/identity-audit';
+};
+
+export type GetCoachAdminIdentityAuditErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminIdentityAuditError = GetCoachAdminIdentityAuditErrors[keyof GetCoachAdminIdentityAuditErrors];
+
+export type GetCoachAdminIdentityAuditResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        entries: {
+            kind: 'leader' | 'admin';
+            id: string | unknown;
+            email: string;
+            account: 'none' | 'unverified' | 'verified';
+            bound: boolean;
+        }[];
+        atRisk: number;
+    };
+};
+
+export type GetCoachAdminIdentityAuditResponse = GetCoachAdminIdentityAuditResponses[keyof GetCoachAdminIdentityAuditResponses];
+
+export type GetCoachAdminAdminsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/admins';
+};
+
+export type GetCoachAdminAdminsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminAdminsError = GetCoachAdminAdminsErrors[keyof GetCoachAdminAdminsErrors];
+
+export type GetCoachAdminAdminsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        admins: {
+            email: string;
+            bound: boolean;
+            grantedAt: string;
+        }[];
+    };
+};
+
+export type GetCoachAdminAdminsResponse = GetCoachAdminAdminsResponses[keyof GetCoachAdminAdminsResponses];
+
+export type PostCoachAdminAdminsData = {
+    body: {
+        email: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/admin/admins';
+};
+
+export type PostCoachAdminAdminsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminAdminsError = PostCoachAdminAdminsErrors[keyof PostCoachAdminAdminsErrors];
+
+export type PostCoachAdminAdminsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        granted: boolean;
+    };
+};
+
+export type PostCoachAdminAdminsResponse = PostCoachAdminAdminsResponses[keyof PostCoachAdminAdminsResponses];
+
+export type DeleteCoachAdminAdminsByEmailData = {
+    body?: never;
+    path: {
+        email: string;
+    };
+    query?: never;
+    url: '/coach/admin/admins/{email}';
+};
+
+export type DeleteCoachAdminAdminsByEmailErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteCoachAdminAdminsByEmailError = DeleteCoachAdminAdminsByEmailErrors[keyof DeleteCoachAdminAdminsByEmailErrors];
+
+export type DeleteCoachAdminAdminsByEmailResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        revoked: boolean;
+    };
+};
+
+export type DeleteCoachAdminAdminsByEmailResponse = DeleteCoachAdminAdminsByEmailResponses[keyof DeleteCoachAdminAdminsByEmailResponses];
+
+export type PostCoachAdminIdentityNudgesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/identity-nudges';
+};
+
+export type PostCoachAdminIdentityNudgesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminIdentityNudgesError = PostCoachAdminIdentityNudgesErrors[keyof PostCoachAdminIdentityNudgesErrors];
+
+export type PostCoachAdminIdentityNudgesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        sent: string[];
+        skipped: string[];
+        failed: string[];
+    };
+};
+
+export type PostCoachAdminIdentityNudgesResponse = PostCoachAdminIdentityNudgesResponses[keyof PostCoachAdminIdentityNudgesResponses];
+
+export type GetCoachAdminMonthlyReportsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        month?: string;
+    };
+    url: '/coach/admin/monthly-reports';
+};
+
+export type GetCoachAdminMonthlyReportsErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminMonthlyReportsError = GetCoachAdminMonthlyReportsErrors[keyof GetCoachAdminMonthlyReportsErrors];
+
+export type GetCoachAdminMonthlyReportsResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        reports: {
+            id: number;
+            kind: 'leader' | 'program';
+            coachId: string | unknown;
+            month: string;
+            state: 'held' | 'pending' | 'sending' | 'sent' | 'parallel-run';
+            holdReason: string | unknown;
+            skipped: string[];
+            summary: unknown;
+        }[];
+    };
+};
+
+export type GetCoachAdminMonthlyReportsResponse = GetCoachAdminMonthlyReportsResponses[keyof GetCoachAdminMonthlyReportsResponses];
+
+export type PutCoachAdminMonthlyReportsByIdData = {
+    body: {
+        strengths?: {
+            text: string;
+            session: string;
+        }[];
+        growth?: {
+            text: string;
+            session: string;
+        }[];
+        trends?: string[];
+        conversationGuide?: {
+            label: string;
+            q: string;
+        }[];
+        focusGoals?: string[];
+        insights?: {
+            [key: string]: unknown;
+        };
+        executiveSummary?: string[];
+        initiatives?: string[];
+        snapshots?: {
+            [key: string]: unknown;
+        };
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/monthly-reports/{id}';
+};
+
+export type PutCoachAdminMonthlyReportsByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminMonthlyReportsByIdError = PutCoachAdminMonthlyReportsByIdErrors[keyof PutCoachAdminMonthlyReportsByIdErrors];
+
+export type PutCoachAdminMonthlyReportsByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        edited: boolean;
+    };
+};
+
+export type PutCoachAdminMonthlyReportsByIdResponse = PutCoachAdminMonthlyReportsByIdResponses[keyof PutCoachAdminMonthlyReportsByIdResponses];
+
+export type PostCoachAdminMonthlyReportsByIdReleaseData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/monthly-reports/{id}/release';
+};
+
+export type PostCoachAdminMonthlyReportsByIdReleaseErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminMonthlyReportsByIdReleaseError = PostCoachAdminMonthlyReportsByIdReleaseErrors[keyof PostCoachAdminMonthlyReportsByIdReleaseErrors];
+
+export type PostCoachAdminMonthlyReportsByIdReleaseResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        released: boolean;
+        sent: boolean;
+    };
+};
+
+export type PostCoachAdminMonthlyReportsByIdReleaseResponse = PostCoachAdminMonthlyReportsByIdReleaseResponses[keyof PostCoachAdminMonthlyReportsByIdReleaseResponses];
+
+export type PostCoachAdminMonthlyReportsProduceData = {
+    body: {
+        month: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/admin/monthly-reports/produce';
+};
+
+export type PostCoachAdminMonthlyReportsProduceErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminMonthlyReportsProduceError = PostCoachAdminMonthlyReportsProduceErrors[keyof PostCoachAdminMonthlyReportsProduceErrors];
+
+export type PostCoachAdminMonthlyReportsProduceResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        produced: number;
+    };
+};
+
+export type PostCoachAdminMonthlyReportsProduceResponse = PostCoachAdminMonthlyReportsProduceResponses[keyof PostCoachAdminMonthlyReportsProduceResponses];
+
+export type GetCoachAdminRotatingClassesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/rotating-classes';
+};
+
+export type GetCoachAdminRotatingClassesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminRotatingClassesError = GetCoachAdminRotatingClassesErrors[keyof GetCoachAdminRotatingClassesErrors];
+
+export type GetCoachAdminRotatingClassesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        classes: {
+            id: number;
+            name: string;
+            groupEmail: string;
+            titleMatch: string[];
+            leaders: {
+                id: string;
+                name: string;
+                rotatingOnly: boolean;
+            }[];
+        }[];
+    };
+};
+
+export type GetCoachAdminRotatingClassesResponse = GetCoachAdminRotatingClassesResponses[keyof GetCoachAdminRotatingClassesResponses];
+
+export type PostCoachAdminRotatingClassesData = {
+    body: {
+        name: string;
+        groupEmail: string;
+        titleMatch: string[];
+        leaders: string[];
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/admin/rotating-classes';
+};
+
+export type PostCoachAdminRotatingClassesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminRotatingClassesError = PostCoachAdminRotatingClassesErrors[keyof PostCoachAdminRotatingClassesErrors];
+
+export type PostCoachAdminRotatingClassesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: number;
+    };
+};
+
+export type PostCoachAdminRotatingClassesResponse = PostCoachAdminRotatingClassesResponses[keyof PostCoachAdminRotatingClassesResponses];
+
+export type PutCoachAdminRotatingClassesByIdData = {
+    body: {
+        name: string;
+        groupEmail: string;
+        titleMatch: string[];
+        leaders: string[];
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/rotating-classes/{id}';
+};
+
+export type PutCoachAdminRotatingClassesByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminRotatingClassesByIdError = PutCoachAdminRotatingClassesByIdErrors[keyof PutCoachAdminRotatingClassesByIdErrors];
+
+export type PutCoachAdminRotatingClassesByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        id: number;
+    };
+};
+
+export type PutCoachAdminRotatingClassesByIdResponse = PutCoachAdminRotatingClassesByIdResponses[keyof PutCoachAdminRotatingClassesByIdResponses];
+
+export type PutCoachAdminLeadersByIdRotatingOnlyData = {
+    body: {
+        rotatingOnly: boolean;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/leaders/{id}/rotating-only';
+};
+
+export type PutCoachAdminLeadersByIdRotatingOnlyErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminLeadersByIdRotatingOnlyError = PutCoachAdminLeadersByIdRotatingOnlyErrors[keyof PutCoachAdminLeadersByIdRotatingOnlyErrors];
+
+export type PutCoachAdminLeadersByIdRotatingOnlyResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        rotatingOnly: boolean;
+    };
+};
+
+export type PutCoachAdminLeadersByIdRotatingOnlyResponse = PutCoachAdminLeadersByIdRotatingOnlyResponses[keyof PutCoachAdminLeadersByIdRotatingOnlyResponses];
+
+export type GetCoachAdminResharesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/reshares';
+};
+
+export type GetCoachAdminResharesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminResharesError = GetCoachAdminResharesErrors[keyof GetCoachAdminResharesErrors];
+
+export type GetCoachAdminResharesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        requests: {
+            sourceSessionId: string;
+            coachId: string | unknown;
+            title: string;
+            sessionDate: string;
+            sessionStartedAt: unknown | string | number | unknown;
+            requestedAt: unknown | string | number;
+            attempts: number;
+            asked: boolean;
+            parallelRun: boolean;
+        }[];
+    };
+};
+
+export type GetCoachAdminResharesResponse = GetCoachAdminResharesResponses[keyof GetCoachAdminResharesResponses];
+
+export type GetCoachAdminPipelineFailuresData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: string | number;
+        offset?: string | number;
+    };
+    url: '/coach/admin/pipeline-failures';
+};
+
+export type GetCoachAdminPipelineFailuresErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminPipelineFailuresError = GetCoachAdminPipelineFailuresErrors[keyof GetCoachAdminPipelineFailuresErrors];
+
+export type GetCoachAdminPipelineFailuresResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        total: number;
+        limit: number;
+        offset: number;
+        sessions: {
+            sourceSessionId: string;
+            coachId: string | unknown;
+            title: string;
+            sessionDate: string;
+            sessionStartedAt: unknown | string | number | unknown;
+            state: string;
+            attempts: number;
+            reportId: string | unknown;
+            reason: string | unknown;
+            holdKind: 'review' | 'reattributed' | 'governance' | 'cold-recall' | 'no-mailer' | 'send-failed' | 'scoring-version' | unknown;
+            coldRecall?: string[];
+            action: string | unknown;
+            parallelRun: boolean;
+            updatedAt: unknown | string | number;
+        }[];
+    };
+};
+
+export type GetCoachAdminPipelineFailuresResponse = GetCoachAdminPipelineFailuresResponses[keyof GetCoachAdminPipelineFailuresResponses];
+
+export type PostCoachAdminReportsByReportIdReleaseData = {
+    body?: never;
+    path: {
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reports/{reportId}/release';
+};
+
+export type PostCoachAdminReportsByReportIdReleaseErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminReportsByReportIdReleaseError = PostCoachAdminReportsByReportIdReleaseErrors[keyof PostCoachAdminReportsByReportIdReleaseErrors];
+
+export type PostCoachAdminReportsByReportIdReleaseResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        delivered: boolean;
+        refusal?: string;
+        violations?: string[];
+        coldRecall?: string[];
+        skipped?: string[];
+    };
+};
+
+export type PostCoachAdminReportsByReportIdReleaseResponse = PostCoachAdminReportsByReportIdReleaseResponses[keyof PostCoachAdminReportsByReportIdReleaseResponses];
+
+export type PostCoachAdminPipelineFailuresBySourceSessionIdRequeueData = {
+    body?: never;
+    path: {
+        sourceSessionId: string;
+    };
+    query?: never;
+    url: '/coach/admin/pipeline-failures/{sourceSessionId}/requeue';
+};
+
+export type PostCoachAdminPipelineFailuresBySourceSessionIdRequeueErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminPipelineFailuresBySourceSessionIdRequeueError = PostCoachAdminPipelineFailuresBySourceSessionIdRequeueErrors[keyof PostCoachAdminPipelineFailuresBySourceSessionIdRequeueErrors];
+
+export type PostCoachAdminPipelineFailuresBySourceSessionIdRequeueResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        requeued: boolean;
+    };
+};
+
+export type PostCoachAdminPipelineFailuresBySourceSessionIdRequeueResponse = PostCoachAdminPipelineFailuresBySourceSessionIdRequeueResponses[keyof PostCoachAdminPipelineFailuresBySourceSessionIdRequeueResponses];
+
+export type PostCoachAdminResharesBySourceSessionIdSendData = {
+    body?: never;
+    path: {
+        sourceSessionId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reshares/{sourceSessionId}/send';
+};
+
+export type PostCoachAdminResharesBySourceSessionIdSendErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminResharesBySourceSessionIdSendError = PostCoachAdminResharesBySourceSessionIdSendErrors[keyof PostCoachAdminResharesBySourceSessionIdSendErrors];
+
+export type PostCoachAdminResharesBySourceSessionIdSendResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        sent: boolean;
+    };
+};
+
+export type PostCoachAdminResharesBySourceSessionIdSendResponse = PostCoachAdminResharesBySourceSessionIdSendResponses[keyof PostCoachAdminResharesBySourceSessionIdSendResponses];
+
+export type PostCoachAdminResharesBySourceSessionIdResolveData = {
+    body?: never;
+    path: {
+        sourceSessionId: string;
+    };
+    query?: never;
+    url: '/coach/admin/reshares/{sourceSessionId}/resolve';
+};
+
+export type PostCoachAdminResharesBySourceSessionIdResolveErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminResharesBySourceSessionIdResolveError = PostCoachAdminResharesBySourceSessionIdResolveErrors[keyof PostCoachAdminResharesBySourceSessionIdResolveErrors];
+
+export type PostCoachAdminResharesBySourceSessionIdResolveResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        resolved: boolean;
+    };
+};
+
+export type PostCoachAdminResharesBySourceSessionIdResolveResponse = PostCoachAdminResharesBySourceSessionIdResolveResponses[keyof PostCoachAdminResharesBySourceSessionIdResolveResponses];
 
 export type GetCoachAdminCoachesData = {
     body?: never;
@@ -4009,6 +9857,13 @@ export type GetCoachAdminCoachesResponses = {
             group: string;
             coachName: string;
             sessionCount: number;
+            addressChange?: {
+                newEmail: string;
+                state: string;
+                reason: string | unknown;
+                requestedAt: string;
+                expiresAt: string;
+            } | unknown;
             latest: {
                 date: string;
                 dateLabel: string;
@@ -4022,16 +9877,19 @@ export type GetCoachAdminCoachesResponses = {
 
 export type GetCoachAdminCoachesResponse = GetCoachAdminCoachesResponses[keyof GetCoachAdminCoachesResponses];
 
-export type GetCoachAdminCoachesByIdReportsData = {
+export type GetCoachAdminCoachesByIdReportsSummaryData = {
     body?: never;
     path: {
         id: string;
     };
-    query?: never;
-    url: '/coach/admin/coaches/{id}/reports';
+    query?: {
+        limit?: string | number;
+        offset?: string | number;
+    };
+    url: '/coach/admin/coaches/{id}/reports/summary';
 };
 
-export type GetCoachAdminCoachesByIdReportsErrors = {
+export type GetCoachAdminCoachesByIdReportsSummaryErrors = {
     /**
      * Response for status 400
      */
@@ -4068,27 +9926,86 @@ export type GetCoachAdminCoachesByIdReportsErrors = {
     };
 };
 
-export type GetCoachAdminCoachesByIdReportsError = GetCoachAdminCoachesByIdReportsErrors[keyof GetCoachAdminCoachesByIdReportsErrors];
+export type GetCoachAdminCoachesByIdReportsSummaryError = GetCoachAdminCoachesByIdReportsSummaryErrors[keyof GetCoachAdminCoachesByIdReportsSummaryErrors];
 
-export type GetCoachAdminCoachesByIdReportsResponses = {
+export type GetCoachAdminCoachesByIdReportsSummaryResponses = {
     /**
      * Response for status 200
      */
     200: {
-        profile: {
-            id: string;
-            name: string;
-            group: string;
-            coachName: string;
-        };
-        reports: {
+        items: {
+            [key: string]: unknown;
+        }[];
+        total: number;
+        streakWeeks: number;
+        quarterSessions: number;
+    };
+};
+
+export type GetCoachAdminCoachesByIdReportsSummaryResponse = GetCoachAdminCoachesByIdReportsSummaryResponses[keyof GetCoachAdminCoachesByIdReportsSummaryResponses];
+
+export type GetCoachAdminCoachesByIdReportsByReportIdData = {
+    body?: never;
+    path: {
+        id: string;
+        reportId: string;
+    };
+    query?: never;
+    url: '/coach/admin/coaches/{id}/reports/{reportId}';
+};
+
+export type GetCoachAdminCoachesByIdReportsByReportIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminCoachesByIdReportsByReportIdError = GetCoachAdminCoachesByIdReportsByReportIdErrors[keyof GetCoachAdminCoachesByIdReportsByReportIdErrors];
+
+export type GetCoachAdminCoachesByIdReportsByReportIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        report: {
             id: string;
             date: string;
             dateLabel: string;
             session: string;
             topic: string;
             duration: string;
-            attendees: number;
+            attendees: number | unknown;
             newcomers: number;
             score: number;
             base: number;
@@ -4118,14 +10035,26 @@ export type GetCoachAdminCoachesByIdReportsResponses = {
                 strengthsProse?: {
                     title: string;
                     paragraphs: string[];
+                    evidence?: {
+                        quote: string;
+                        timestamp: string;
+                    };
                 }[];
                 improvementsProse?: {
                     title: string;
                     paragraphs: string[];
+                    evidence?: {
+                        quote: string;
+                        timestamp: string;
+                    };
                 }[];
                 recommendationsProse?: {
                     title: string;
                     paragraphs: string[];
+                    evidence?: {
+                        quote: string;
+                        timestamp: string;
+                    };
                 }[];
             };
             sections?: {
@@ -4137,20 +10066,22 @@ export type GetCoachAdminCoachesByIdReportsResponses = {
                     detail: string;
                 }[];
             }[];
-            docUrl: string;
-            pdfUrl: string;
+            docUrl?: string;
+            pdfUrl?: string;
             recordingUrl?: string;
+            attachedRecordingUrl?: string | unknown;
+            hasRetainedRecording?: boolean;
             notes?: {
                 id: string;
                 body: string;
                 createdAt: string;
                 emailed: boolean;
             }[];
-        }[];
+        };
     };
 };
 
-export type GetCoachAdminCoachesByIdReportsResponse = GetCoachAdminCoachesByIdReportsResponses[keyof GetCoachAdminCoachesByIdReportsResponses];
+export type GetCoachAdminCoachesByIdReportsByReportIdResponse = GetCoachAdminCoachesByIdReportsByReportIdResponses[keyof GetCoachAdminCoachesByIdReportsByReportIdResponses];
 
 export type GetCoachAdminCoachesByIdTrendsData = {
     body?: never;
@@ -4211,6 +10142,7 @@ export type GetCoachAdminCoachesByIdTrendsResponses = {
             session: string;
             score: number;
             status: string;
+            reportId: string;
         }[];
         clusterSeries: {
             [key: string]: unknown;
@@ -4354,6 +10286,11 @@ export type GetCoachAdminCoachesByIdMonthlySummaryResponses = {
                 } | unknown;
                 insight: string;
             }[];
+            profile?: {
+                study?: string;
+                format?: string;
+                groupSize?: string | number;
+            };
             strengths: {
                 text: string;
                 session: string;
@@ -4442,6 +10379,9 @@ export type GetCoachAdminClassesResponses = {
             classDate: string | unknown;
             recurrence: string;
             zoomLink: string;
+            startTime: string | unknown;
+            timeZone: string | unknown;
+            notetaker: boolean;
             leader: {
                 id: string | unknown;
                 name: string;
@@ -4452,6 +10392,297 @@ export type GetCoachAdminClassesResponses = {
 };
 
 export type GetCoachAdminClassesResponse = GetCoachAdminClassesResponses[keyof GetCoachAdminClassesResponses];
+
+export type PostCoachAdminClassesData = {
+    body: {
+        name: string;
+        classDate: string;
+        recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
+        zoomLink: string;
+        startTime?: string;
+        timeZone?: string;
+        notetaker?: boolean;
+        coachId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/coach/admin/classes';
+};
+
+export type PostCoachAdminClassesErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminClassesError = PostCoachAdminClassesErrors[keyof PostCoachAdminClassesErrors];
+
+export type PostCoachAdminClassesResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        class: {
+            id: string;
+            name: string;
+            classDate: string | unknown;
+            recurrence: string;
+            zoomLink: string;
+            startTime: string | unknown;
+            timeZone: string | unknown;
+            notetaker: boolean;
+            leader: {
+                id: string | unknown;
+                name: string;
+                email: string;
+            };
+        };
+    };
+};
+
+export type PostCoachAdminClassesResponse = PostCoachAdminClassesResponses[keyof PostCoachAdminClassesResponses];
+
+export type DeleteCoachAdminClassesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/classes/{id}';
+};
+
+export type DeleteCoachAdminClassesByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type DeleteCoachAdminClassesByIdError = DeleteCoachAdminClassesByIdErrors[keyof DeleteCoachAdminClassesByIdErrors];
+
+export type DeleteCoachAdminClassesByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type DeleteCoachAdminClassesByIdResponse = DeleteCoachAdminClassesByIdResponses[keyof DeleteCoachAdminClassesByIdResponses];
+
+export type PutCoachAdminClassesByIdData = {
+    body: {
+        name: string;
+        classDate: string;
+        recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
+        zoomLink: string;
+        startTime?: string;
+        timeZone?: string;
+        notetaker?: boolean;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/classes/{id}';
+};
+
+export type PutCoachAdminClassesByIdErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminClassesByIdError = PutCoachAdminClassesByIdErrors[keyof PutCoachAdminClassesByIdErrors];
+
+export type PutCoachAdminClassesByIdResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        class: {
+            id: string;
+            name: string;
+            classDate: string | unknown;
+            recurrence: string;
+            zoomLink: string;
+            startTime: string | unknown;
+            timeZone: string | unknown;
+            notetaker: boolean;
+        };
+    };
+};
+
+export type PutCoachAdminClassesByIdResponse = PutCoachAdminClassesByIdResponses[keyof PutCoachAdminClassesByIdResponses];
+
+export type GetCoachAdminNotetakerZoomData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/coach/admin/notetaker/zoom';
+};
+
+export type GetCoachAdminNotetakerZoomErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminNotetakerZoomError = GetCoachAdminNotetakerZoomErrors[keyof GetCoachAdminNotetakerZoomErrors];
+
+export type GetCoachAdminNotetakerZoomResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        available: boolean;
+        connectUrl: string;
+        connections: {
+            email: string;
+            name: string;
+            connectedAt: string | unknown;
+            leader: {
+                id: string;
+                name: string;
+            } | unknown;
+        }[];
+        meetings: {
+            meetingId: string;
+            topic: string;
+            joinUrl: string;
+            hostEmail: string;
+            classDate: string | unknown;
+            startTime: string | unknown;
+            timeZone: string | unknown;
+            recurrence: string;
+            invited: boolean;
+            leader: {
+                id: string;
+                name: string;
+            } | unknown;
+            classId: string | unknown;
+        }[];
+    };
+};
+
+export type GetCoachAdminNotetakerZoomResponse = GetCoachAdminNotetakerZoomResponses[keyof GetCoachAdminNotetakerZoomResponses];
 
 export type PostCoachAdminLeadersData = {
     body: {
@@ -4508,6 +10739,13 @@ export type PostCoachAdminLeadersResponses = {
             group: string;
             coachName: string;
             sessionCount: number;
+            addressChange?: {
+                newEmail: string;
+                state: string;
+                reason: string | unknown;
+                requestedAt: string;
+                expiresAt: string;
+            } | unknown;
             latest: {
                 date: string;
                 dateLabel: string;
@@ -4520,6 +10758,237 @@ export type PostCoachAdminLeadersResponses = {
 };
 
 export type PostCoachAdminLeadersResponse = PostCoachAdminLeadersResponses[keyof PostCoachAdminLeadersResponses];
+
+export type GetCoachAdminLeadersByIdAttributionData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/leaders/{id}/attribution';
+};
+
+export type GetCoachAdminLeadersByIdAttributionErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 404
+     */
+    404: {
+        error: string;
+        message: string;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type GetCoachAdminLeadersByIdAttributionError = GetCoachAdminLeadersByIdAttributionErrors[keyof GetCoachAdminLeadersByIdAttributionErrors];
+
+export type GetCoachAdminLeadersByIdAttributionResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        titleMatch: string[];
+        altEmails: string[];
+    };
+};
+
+export type GetCoachAdminLeadersByIdAttributionResponse = GetCoachAdminLeadersByIdAttributionResponses[keyof GetCoachAdminLeadersByIdAttributionResponses];
+
+export type PutCoachAdminLeadersByIdAttributionData = {
+    body: {
+        titleMatch: string[];
+        altEmails: string[];
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/leaders/{id}/attribution';
+};
+
+export type PutCoachAdminLeadersByIdAttributionErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminLeadersByIdAttributionError = PutCoachAdminLeadersByIdAttributionErrors[keyof PutCoachAdminLeadersByIdAttributionErrors];
+
+export type PutCoachAdminLeadersByIdAttributionResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        titleMatch: string[];
+        altEmails: string[];
+        resolved: number;
+    };
+};
+
+export type PutCoachAdminLeadersByIdAttributionResponse = PutCoachAdminLeadersByIdAttributionResponses[keyof PutCoachAdminLeadersByIdAttributionResponses];
+
+export type PutCoachAdminLeadersByIdEmailData = {
+    body: {
+        email: string;
+        confirm?: boolean;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coach/admin/leaders/{id}/email';
+};
+
+export type PutCoachAdminLeadersByIdEmailErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PutCoachAdminLeadersByIdEmailError = PutCoachAdminLeadersByIdEmailErrors[keyof PutCoachAdminLeadersByIdEmailErrors];
+
+export type PutCoachAdminLeadersByIdEmailResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        email: string;
+        status: 'pending' | 'unchanged';
+        expiresAt: string | unknown;
+        confirmationSent: boolean;
+    };
+};
+
+export type PutCoachAdminLeadersByIdEmailResponse = PutCoachAdminLeadersByIdEmailResponses[keyof PutCoachAdminLeadersByIdEmailResponses];
+
+export type PostCoachAdminSessionsBySourceSessionIdAttributeData = {
+    body: {
+        coachId: string;
+        expectedCoachId: string | unknown;
+    };
+    path: {
+        sourceSessionId: string;
+    };
+    query?: never;
+    url: '/coach/admin/sessions/{sourceSessionId}/attribute';
+};
+
+export type PostCoachAdminSessionsBySourceSessionIdAttributeErrors = {
+    /**
+     * Response for status 400
+     */
+    400: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 429
+     */
+    429: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+    /**
+     * Response for status 500
+     */
+    500: {
+        error: string;
+        message: string;
+        retryAfter?: number;
+        data?: unknown;
+    };
+};
+
+export type PostCoachAdminSessionsBySourceSessionIdAttributeError = PostCoachAdminSessionsBySourceSessionIdAttributeErrors[keyof PostCoachAdminSessionsBySourceSessionIdAttributeErrors];
+
+export type PostCoachAdminSessionsBySourceSessionIdAttributeResponses = {
+    /**
+     * Response for status 200
+     */
+    200: {
+        coachId: string;
+        state: string;
+    };
+};
+
+export type PostCoachAdminSessionsBySourceSessionIdAttributeResponse = PostCoachAdminSessionsBySourceSessionIdAttributeResponses[keyof PostCoachAdminSessionsBySourceSessionIdAttributeResponses];
 
 export type PutCoachAdminCoachesByIdReportsByReportIdRecordingData = {
     body: {
@@ -4730,6 +11199,71 @@ export type GetCoachAdminMonthlyResponses = {
             executiveSummary: string[];
             trends: string[];
         } | unknown;
+        programReport?: {
+            month: string;
+            monthLabel: string;
+            overview: {
+                sessions: number;
+                leaders: number;
+                from: string;
+                to: string;
+            };
+            leaderboard: {
+                id: string;
+                name: string;
+                composite: number;
+                status: string;
+            }[];
+            bands: {
+                label: string;
+                count: number;
+            }[];
+            heatMap: {
+                dimensions: {
+                    n: number;
+                    name: string;
+                }[];
+                rows: {
+                    id: string;
+                    name: string;
+                    cells: {
+                        n: number;
+                        avg: number | unknown;
+                        mark: string | unknown;
+                    }[];
+                }[];
+            };
+            trends: {
+                priorAvg: number | unknown;
+                allTimeAvg: number | unknown;
+                bestImproving: {
+                    id: string;
+                    name: string;
+                    delta: number;
+                } | unknown;
+                mostImprovedDimension: {
+                    name: string;
+                    delta: number;
+                } | unknown;
+                needsAttention: {
+                    name: string;
+                    avg: number;
+                } | unknown;
+                text: string[];
+            };
+            snapshots: {
+                id: string;
+                name: string;
+                text: string;
+            }[];
+            priorityMatrix: {
+                lowest: string[];
+                declining: string[];
+                plateau: string[];
+            };
+            initiatives: string[];
+            executiveSummary: string[];
+        };
     };
 };
 
