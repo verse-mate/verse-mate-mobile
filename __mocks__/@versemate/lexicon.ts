@@ -60,3 +60,11 @@ export function getBookSlug(_bookId: number): string | null {
 }
 
 export const BOOK_SLUGS: Record<number, string> = {};
+
+export async function loadStrongsIndex(): Promise<Readonly<Record<string, LexEntry>>> {
+  return {};
+}
+
+export async function lookupLemma(_slug: LemmaKey): Promise<LexEntry | null> {
+  return null;
+}
