@@ -20,6 +20,18 @@ export function canonicalStrongs(raw: string): string | null {
 }
 
 /**
+ * True when the backend card is missing prose the popover body shows, so the
+ * bundled English entry has something to fill in. Loading the bundled lexicon
+ * imports the full 18.7MB `_lemmas.json` (a ~2s JS-thread block on a phone,
+ * the first time), so a card that already carries its own text skips it. In
+ * practice the backend's `loaded` lemmas have all four fields and the others
+ * have none.
+ */
+export function cardLacksText(card: LemmaCard): boolean {
+  return !card.basic_gloss || !card.pos || !card.notes || !card.semantic_range?.length;
+}
+
+/**
  * Overlay a backend card on the bundled entry (or, when the bundled lexicon
  * has none, the chapter's stub). A null or empty card field leaves the
  * underlying value in place.
