@@ -308,6 +308,27 @@
     "topics": "Temas",
     "searchJesus": "Busca Sus palabras y acciones...",
     "filterTopics": "Filtrar temas...",
-    "filterBooks": "Filtrar libros..."
+    "filterBooks": "Filtrar libros...",
+    "searchBible": "Buscar versículos o ir a Juan 3:16"
+  },
+  "search": {
+    "searching": "Buscando…",
+    "unavailable": "La búsqueda no está disponible ahora. Inténtalo de nuevo en un momento.",
+    "offlineNoDownload": "Estás sin conexión. Descarga esta traducción para buscar en ella sin conexión.",
+    "noVerses": "Ningún versículo coincide con «{{query}}». Prueba con menos palabras o revisa la ortografía.",
+    "exactPhrase": "Frase exacta",
+    "allWords": "Todas las palabras",
+    "otherForms": "Otras formas de la palabra",
+    "books": "LIBROS",
+    "verses": "VERSÍCULOS",
+    "back": "Volver a explorar",
+    "goTo": "Ir a",
+    "loading": "Cargando…",
+    "loadMore": "Cargar más",
+    "verseCount": "{{count}} versículos",
+    "all": "Todos",
+    "oldTestament": "Antiguo Testamento",
+    "newTestament": "Nuevo Testamento",
+    "offlineNote": "Sin conexión: palabras exactas en los versículos de este dispositivo, en orden bíblico."
   }
 }

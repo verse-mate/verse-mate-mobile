@@ -308,6 +308,27 @@
     "topics": "Thèmes",
     "searchJesus": "Rechercher Ses paroles et Ses actes...",
     "filterTopics": "Filtrer les thèmes...",
-    "filterBooks": "Filtrer les livres..."
+    "filterBooks": "Filtrer les livres...",
+    "searchBible": "Rechercher des versets ou aller à Jean 3:16"
+  },
+  "search": {
+    "searching": "Recherche…",
+    "unavailable": "La recherche est indisponible pour le moment. Réessayez dans un instant.",
+    "offlineNoDownload": "Vous êtes hors ligne. Téléchargez cette traduction pour y chercher sans connexion.",
+    "noVerses": "Aucun verset ne correspond à « {{query}} ». Essayez moins de mots ou vérifiez l’orthographe.",
+    "exactPhrase": "Expression exacte",
+    "allWords": "Tous les mots",
+    "otherForms": "Autres formes du mot",
+    "books": "LIVRES",
+    "verses": "VERSETS",
+    "back": "Retour à la navigation",
+    "goTo": "Aller à",
+    "loading": "Chargement…",
+    "loadMore": "Charger plus",
+    "verseCount": "{{count}} versets",
+    "all": "Tous",
+    "oldTestament": "Ancien Testament",
+    "newTestament": "Nouveau Testament",
+    "offlineNote": "Hors ligne : mots exacts dans les versets de cet appareil, dans l’ordre biblique."
   }
 }

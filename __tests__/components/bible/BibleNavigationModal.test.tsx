@@ -33,6 +33,23 @@ jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
 
 jest.mock('@/src/api');
 jest.mock('@/hooks/bible/use-recent-books');
+// The sheet's verse search (react-query) is covered by its own tests; here it stays idle.
+jest.mock('@/hooks/bible/use-verse-search', () => ({
+  useVerseSearch: () => ({
+    active: false,
+    isPending: false,
+    isError: false,
+    results: [],
+    totals: null,
+    books: null,
+    source: 'online',
+    hasMore: false,
+    isLoadingMore: false,
+    loadMore: jest.fn(),
+    filters: {},
+    setFilters: jest.fn(),
+  }),
+}));
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
   ImpactFeedbackStyle: {
@@ -294,7 +311,7 @@ describe('BibleNavigationModal', () => {
     );
 
     // Filter input should be present
-    const filterInput = screen.getByPlaceholderText('Filter books...');
+    const filterInput = screen.getByTestId('books-search-input');
     expect(filterInput).toBeTruthy();
   });
 
@@ -310,7 +327,7 @@ describe('BibleNavigationModal', () => {
     );
 
     // Enter filter text
-    const filterInput = screen.getByPlaceholderText('Filter books...');
+    const filterInput = screen.getByTestId('books-search-input');
     fireEvent.changeText(filterInput, 'exo');
 
     // Book list should show (chapter grid hidden when filtering)

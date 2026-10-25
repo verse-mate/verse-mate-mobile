@@ -73,6 +73,8 @@ export interface BibleContentPanelProps {
 
   /** Target end verse for multi-verse highlights */
   targetEndVerse?: number;
+  /** See ChapterPage's targetKey. */
+  targetKey?: number;
 
   /** Whether navigation buttons should be visible (fades in/out based on user interaction) */
   visible?: boolean;
@@ -102,6 +104,7 @@ export function BibleContentPanel({
   onTap,
   targetVerse,
   targetEndVerse,
+  targetKey,
   visible = true,
   testID = 'bible-content-panel',
 }: BibleContentPanelProps) {
@@ -152,11 +155,12 @@ export function BibleContentPanel({
           isPreloading={!isCurrent}
           targetVerse={isCurrent ? targetVerse : undefined}
           targetEndVerse={isCurrent ? targetEndVerse : undefined}
+          targetKey={isCurrent ? targetKey : undefined}
           hideChapterTitle
         />
       );
     },
-    [onScroll, onTap, bookId, chapterNumber, targetVerse, targetEndVerse]
+    [onScroll, onTap, bookId, chapterNumber, targetVerse, targetEndVerse, targetKey]
   );
 
   return (

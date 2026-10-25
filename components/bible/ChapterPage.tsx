@@ -530,6 +530,11 @@ export interface ChapterPageProps {
   targetVerse?: number;
   /** Target end verse for multi-verse highlights (optional) */
   targetEndVerse?: number;
+  /**
+   * Changes each time the same target is asked for again (a verse picked in
+   * Search twice), so the page scrolls to it and opens its Insight again.
+   */
+  targetKey?: number;
   /** Callback when user scrolls - receives velocity (px/s) and isAtBottom flag */
   onScroll?: (velocity: number, isAtBottom: boolean) => void;
   /** Callback when user taps the screen */
@@ -583,6 +588,7 @@ export function ChapterPage({
   isPreloading = false,
   targetVerse,
   targetEndVerse,
+  targetKey,
   onScroll,
   onTap,
   hideChapterTitle = false,
@@ -1250,6 +1256,16 @@ export function ChapterPage({
     }
     // biome-ignore lint/correctness/useExhaustiveDependencies: React Compiler handles memoization of attemptScrollToVerse
   }, [targetVerse, attemptScrollToVerse]);
+
+  // A new request for a target (Search, same chapter or same verse again):
+  // allow the scroll and the Insight to run once more.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-arm only when the key changes
+  useEffect(() => {
+    if (targetKey === undefined || !targetVerse) return;
+    hasScrolledRef.current = false;
+    setVerseTooltipVisible(false);
+    attemptScrollToVerse();
+  }, [targetKey]);
 
   // Fallback: if initial layout was late, retry after mount
   useEffect(() => {

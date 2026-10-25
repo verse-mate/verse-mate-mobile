@@ -308,6 +308,27 @@
     "topics": "Topics",
     "searchJesus": "Search His words and actions...",
     "filterTopics": "Filter topics...",
-    "filterBooks": "Filter books..."
+    "filterBooks": "Filter books...",
+    "searchBible": "Search verses, or go to John 3:16"
+  },
+  "search": {
+    "searching": "Searching…",
+    "unavailable": "Search is unavailable right now. Try again in a moment.",
+    "offlineNoDownload": "You're offline. Download this translation to search it without a connection.",
+    "noVerses": "No verses match \"{{query}}\". Try fewer words or check the spelling.",
+    "exactPhrase": "Exact phrase",
+    "allWords": "All words",
+    "otherForms": "Other forms of the word",
+    "books": "BOOKS",
+    "verses": "VERSES",
+    "back": "Back to browsing",
+    "goTo": "Go to",
+    "loading": "Loading…",
+    "loadMore": "Load more",
+    "verseCount": "{{count}} verses",
+    "all": "All",
+    "oldTestament": "Old Testament",
+    "newTestament": "New Testament",
+    "offlineNote": "Offline: exact words in the verses on this device, in Bible order."
   }
 }

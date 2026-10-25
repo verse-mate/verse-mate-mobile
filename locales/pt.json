@@ -308,6 +308,27 @@
     "topics": "Temas",
     "searchJesus": "Pesquisar Suas palavras e ações...",
     "filterTopics": "Filtrar temas...",
-    "filterBooks": "Filtrar livros..."
+    "filterBooks": "Filtrar livros...",
+    "searchBible": "Pesquisar versículos ou ir para João 3:16"
+  },
+  "search": {
+    "searching": "Pesquisando…",
+    "unavailable": "A pesquisa não está disponível agora. Tente novamente em instantes.",
+    "offlineNoDownload": "Você está offline. Baixe esta tradução para pesquisá-la sem conexão.",
+    "noVerses": "Nenhum versículo corresponde a \"{{query}}\". Tente menos palavras ou verifique a ortografia.",
+    "exactPhrase": "Frase exata",
+    "allWords": "Todas as palavras",
+    "otherForms": "Outras formas da palavra",
+    "books": "LIVROS",
+    "verses": "VERSÍCULOS",
+    "back": "Voltar à navegação",
+    "goTo": "Ir para",
+    "loading": "Carregando…",
+    "loadMore": "Carregar mais",
+    "verseCount": "{{count}} versículos",
+    "all": "Todos",
+    "oldTestament": "Antigo Testamento",
+    "newTestament": "Novo Testamento",
+    "offlineNote": "Offline: palavras exatas nos versículos deste dispositivo, em ordem bíblica."
   }
 }

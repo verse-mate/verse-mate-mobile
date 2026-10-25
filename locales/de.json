@@ -308,6 +308,27 @@
     "topics": "Themen",
     "searchJesus": "Seine Worte und Taten durchsuchen...",
     "filterTopics": "Themen filtern...",
-    "filterBooks": "Bücher filtern..."
+    "filterBooks": "Bücher filtern...",
+    "searchBible": "Verse suchen oder zu Johannes 3,16 springen"
+  },
+  "search": {
+    "searching": "Suche…",
+    "unavailable": "Die Suche ist gerade nicht verfügbar. Bitte versuche es gleich noch einmal.",
+    "offlineNoDownload": "Du bist offline. Lade diese Übersetzung herunter, um sie ohne Verbindung zu durchsuchen.",
+    "noVerses": "Keine Verse gefunden für „{{query}}“. Versuche weniger Wörter oder prüfe die Schreibweise.",
+    "exactPhrase": "Genauer Wortlaut",
+    "allWords": "Alle Wörter",
+    "otherForms": "Andere Formen des Wortes",
+    "books": "BÜCHER",
+    "verses": "VERSE",
+    "back": "Zurück zur Übersicht",
+    "goTo": "Gehe zu",
+    "loading": "Wird geladen…",
+    "loadMore": "Mehr laden",
+    "verseCount": "{{count}} Verse",
+    "all": "Alle",
+    "oldTestament": "Altes Testament",
+    "newTestament": "Neues Testament",
+    "offlineNote": "Offline: genaue Wörter in den Versen auf diesem Gerät, in biblischer Reihenfolge."
   }
 }
